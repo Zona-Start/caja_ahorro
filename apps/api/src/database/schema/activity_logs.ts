@@ -1,7 +1,7 @@
 import * as t from 'drizzle-orm/pg-core';
 import { index, pgTable } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { users } from './users';
+import { users } from './auth';
 
 const timestamps = {
   created_at: t.timestamp('created_at').defaultNow().notNull(),
@@ -11,7 +11,7 @@ const timestamps = {
 };
 
 // Tabla de Logs de Actividad
-export const activityLogs = pgTable(
+export const activityLogsSystem = pgTable(
   'activity_logs',
   {
     id: t
@@ -19,7 +19,7 @@ export const activityLogs = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     userId: t
-      .uuid('user_id')
+      .integer('user_id')
       .references(() => users.id, { onDelete: 'cascade' }),
     type: t.text('type').notNull(), // login, failed
     description: t.text('description').notNull(),

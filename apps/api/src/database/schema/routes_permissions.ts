@@ -1,7 +1,7 @@
 import * as t from 'drizzle-orm/pg-core';
 import { index } from 'drizzle-orm/pg-core';
 import { authSchema } from './schemas';
-import { permissions } from './roles_permissions';
+import { permissions } from './auth';
 
 const timestamps = {
   created_at: t.timestamp('created_at').defaultNow().notNull(),

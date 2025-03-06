@@ -9,7 +9,6 @@ module.exports = {
     '../../apps/web/sections/**/*.{ts,tsx}',
     '../../apps/web/features/**/*.{ts,tsx}',
     '../../apps/web/layouts/**/*.{ts,tsx}',
-    '../../packages/shadcn/src/**/*.css',
   ],
   theme: {
     container: {
