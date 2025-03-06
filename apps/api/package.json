@@ -1,0 +1,87 @@
+{
+  "name": "api",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start -b swc -w",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "start": "node dist/main",
+    "start:debug": "nest start --debug --watch",
+    "start:dev": "nest start",
+    "test": "jest",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:watch": "jest --watch",
+    "db:generate": "drizzle-kit generate --config ./src/drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config ./src/drizzle.config.ts",
+    "db:push": "drizzle-kit push --config ./src/drizzle.config.ts",
+    "db:seed": "drizzle-kit generate --custom --name=seed-user --config ./src/drizzle.config.ts"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testEnvironment": "node",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    }
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "drizzle-orm": "^0.40.0",
+    "joi": "^17.13.3",
+    "moment": "^2.30.1",
+    "path-to-regexp": "^8.2.0",
+    "pg": "^8.13.3",
+    "pino-pretty": "^13.0.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs-modules/mailer": "^2.0.2",
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/jwt": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/swagger": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@nestjs/throttler": "^6.3.0",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/ts-config": "workspace:*",
+    "@swc/cli": "^0.6.0",
+    "@swc/core": "^1.10.14",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.2",
+    "@types/multer": "^1.4.12",
+    "@types/pg": "^8.11.11",
+    "@types/supertest": "^6.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "bcryptjs": "^3.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "drizzle-kit": "^0.30.5",
+    "jest": "^29.5.0",
+    "nestjs-pino": "^4.1.0",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-loader": "^9.4.3",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.3"
+  }
+}
