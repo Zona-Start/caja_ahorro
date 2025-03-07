@@ -1,9 +1,10 @@
 import * as t from 'drizzle-orm/pg-core';
-import { boxSchema } from './schemas';
 import { timestamps } from '../timestamps';
-import { transaction_types } from './general';
-import { transactionsCountable } from './accounting';
-
+import { nationalityEnum, statusEnum } from './enum';
+import { categoryType, states } from './general';
+import { boxSchema } from './schemas';
+//import { transactionsCountable } from './accounting';
+// import { transaction_types } from './general';
 
 // Tabla de Datos Caja de ahorro
 export const savingsBank = boxSchema.table(
@@ -25,61 +26,97 @@ export const savingsBank = boxSchema.table(
   }),
 );
 
-
-
 // Tabla de los asociados. Almacena la información de los asociados de la caja de ahorro.
-export const associates = boxSchema.table('associates', {
+export const associates = boxSchema.table(
+  'associates',
+  {
     id: t.serial('id').primaryKey(),
-    savingsBankId: t.integer('savings_bank_id').references(() => savingsBank.id, { onDelete: 'cascade' }),
-    name: t.varchar('name', { length: 255 }).notNull(),
-    identification: t.varchar('identification', { length: 20 }).notNull().unique(),
-    address: t.text('address'),
-    phone: t.varchar('phone', { length: 15 }),
-    email: t.varchar('email', { length: 100 }),
+    savingsBankId: t
+      .integer('savings_bank_id') //id caja ahorro
+      .references(() => savingsBank.id, { onDelete: 'cascade' }),
+    cedula: t.varchar('cedula', { length: 20 }).unique().notNull(), //cedula asociado
+    fullname: t.varchar('name', { length: 255 }).notNull(), //nombre completo asosciado
+    nationality: nationalityEnum('nationality').notNull(), // nacionalidad
+    dateAdmission: t.timestamp('date_admission').defaultNow().notNull(), //fecha ingreso
+    dateGraduation: t.timestamp('date_graduation'), //fecha de egreso
+    discountFrequencyId: t.integer('discount_frequency_id'), //fecha de descuento
+    status: statusEnum('status').notNull().default('ACTIVE'), //estatus del asociado
+    isPayrollCredit: t.boolean('is_payroll_credit').notNull().default(false), // posee credinomina
+    localityId: t
+      .integer('locality_id')
+      .references(() => states.id, { onDelete: 'set null' }), // id de la localidad
+    phone: t.varchar('phone', { length: 15 }), // telefono
+    email: t.varchar('email', { length: 100 }), // correo
+    payrollTypeId: t
+      .integer('payroll_type_id')
+      .references(() => categoryType.id, { onDelete: 'set null' }), // tipo de nomina
+    workerTypeId: t
+      .integer('worker_type_id')
+      .references(() => categoryType.id, { onDelete: 'set null' }), // tipo de trabajador
+    charge: t.text('charge'), // cargo del asosciado
     ...timestamps,
-});
+  },
+  (associates) => ({
+    associatesIdx0: t.index('associates_index0').on(associates.cedula),
+    associatesIdx1: t.index('associates_index1').on(associates.fullname),
+    associatesIdx2: t.index('associates_index2').on(associates.dateAdmission),
+    associatesIdx3: t.index('associates_index3').on(associates.dateGraduation),
+    associatesIdx4: t.index('associates_index4').on(associates.status),
+    associatesIdx5: t.index('associates_index5').on(associates.isPayrollCredit),
+    associatesIdx6: t.index('associates_index6').on(associates.payrollTypeId),
+    associatesIdx7: t.index('associates_index7').on(associates.workerTypeId),
+    associatesIdx8: t.index('associates_index8').on(associates.localityId),
+  }),
+);
 
 //Tabla de cuentas de los asociados  Almacena las cuentas de ahorro de los asociados.
-export const accountsAssociates = boxSchema.table('accounts_associates', {
+export const accountsAssociates = boxSchema.table(
+  'accounts_associates',
+  {
     id: t.serial('id').primaryKey(),
-    associatedId: t.integer('associated_id').references(() => associates.id, { onDelete: 'cascade' }),
-    balance: t.numeric('balance', { precision: 15, scale: 2 }).default('0'),
-    openingDate: t.timestamp('opening_date').defaultNow(),
+    associatedId: t
+      .integer('associated_id')
+      .references(() => associates.id, { onDelete: 'cascade' }), // id asosciado
+    balance: t.numeric('balance', { precision: 15, scale: 2 }).default('0'), //sueldo
+    accountNumber: t.numeric('account_number').notNull(), // numero de cuenta
+    bankId: t.integer('bank_id').notNull(), // id del banco
+    openingDate: t.timestamp('opening_date').defaultNow(), //fecha apertura
     status: t.varchar('status', { length: 50 }).notNull(), // Ex: 'active', 'inactive', 'locked'
     ...timestamps,
-});
+  },
+  (accountsAssociates) => ({
+    accountsAssociatesIdx0: t
+      .index('accounts_associatesx0')
+      .on(accountsAssociates.status),
+    accountsAssociatesIdx1: t
+      .index('accounts_associatesx1')
+      .on(accountsAssociates.balance),
+    accountsAssociatesIdx2: t
+      .index('accounts_associatesx2')
+      .on(accountsAssociates.bankId),
+    accountsAssociatesIdx3: t
+      .index('accounts_associatesx3')
+      .on(accountsAssociates.openingDate),
+  }),
+);
 
 //Tabla transacciones_ahorro Registra las transacciones de depósitos y retiros de las cuentas de ahorro.
-export const transactionsAssociates = boxSchema.table('transactions_associates', {
-    id: t.serial('id').primaryKey(),
-    accountsAssociatedId: t.integer('accounts_associated_id').references(() => accountsAssociates.id, { onDelete: 'cascade' }),
-    transactionTypeId: t.integer('transaction_type_id').references(() => transaction_types.id, { onDelete: 'set null' }),
-    amount: t.numeric('amount', { precision: 15, scale: 2 }).notNull(),
-    date: t.timestamp('date').defaultNow(),
-    description: t.text('description'),
-    transactionCountableId: t.integer('transaction_countable_id').references(() => transactionsCountable.id, { onDelete: 'set null' }),
-    ...timestamps,
-});
-
-
-//Tabla prestamos Almacena la información de los préstamos otorgados a los asociados.
-export const loans = boxSchema.table('loans', {
-    id: t.serial('id').primaryKey(),
-    associatedIid: t.integer('associated_id').references(() => associates.id, { onDelete: 'cascade' }),
-    amount: t.numeric('amount', { precision: 15, scale: 2 }).notNull(),
-    interest_rate: t.numeric('interest_rate', { precision: 5, scale: 2 }).notNull(),
-    term_months: t.integer('term_months').notNull(),
-    approval_date: t.timestamp('approval_date').defaultNow(),
-    status: t.varchar('status', { length: 50 }).notNull(), // Ex: 'approved', 'paid', 'cancelled' 
-    transactionCountableId: t.integer('transaction_countable_id').references(() => transactionsCountable.id, { onDelete: 'set null' }),
-});
-
-//Tabla pagos_prestamos Registra los pagos realizados por los asociados para amortizar los préstamos.
-export const loanPayments = boxSchema.table('loan_payments', {
-    id: t.serial('id').primaryKey(),
-    loan_id: t.integer('loan_id').references(() => loans.id, { onDelete: 'cascade' }),
-    amount: t.numeric('amount', { precision: 15, scale: 2 }).notNull(),
-    payment_date: t.timestamp('payment_date').defaultNow(),
-    transactionCountableId: t.integer('transaction_countable_id').references(() => transactionsCountable.id, { onDelete: 'set null' }),
-    ...timestamps,
-});
+// export const transactionsAssociates = boxSchema.table(
+//   'transactions_associates',
+//   {
+//     id: t.serial('id').primaryKey(),
+//     accountsAssociatedId: t
+//       .integer('accounts_associated_id')
+//       .references(() => accountsAssociates.id, { onDelete: 'cascade' }),
+//     transactionTypeId: t
+//       .integer('transaction_type_id')
+//       .references(() => transaction_types.id, { onDelete: 'set null' }),
+//     amount: t.numeric('amount', { precision: 15, scale: 2 }).notNull(),
+//     date: t.timestamp('date').defaultNow(),
+//     description: t.text('description'),
+//     transactionCountableId: t
+//       .integer('transaction_countable_id')
+//       .references(() => transactionsCountable.id, { onDelete: 'set null' }),
+//     ...timestamps,
+//   },
+// );

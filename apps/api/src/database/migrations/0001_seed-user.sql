@@ -1,6 +1,8 @@
 -- Custom SQL migration file, put your code below! --
 insert into auth.roles ("name") values ('superadmin');
 insert into auth.roles ("name") values ('admin');
+insert into auth.roles ("name") values ('contable');
+insert into auth.roles ("name") values ('audit');
 insert into auth.roles ("name") values ('user');
 WITH inserted_user AS (
     INSERT INTO auth.users 
