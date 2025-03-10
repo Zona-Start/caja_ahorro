@@ -1,5 +1,5 @@
 export class User {
-  id?: string;
+  id?: number;
   username!: string;
   email!: string;
   fullname!: string;
@@ -14,8 +14,8 @@ export class User {
 }
 
 export class UserRole {
-  id!: string;
-  userId!: string;
+  id!: number;
+  userId!: number;
   roleId!: number;
   created_at?: Date | null;
   updated_at?: Date | null;

@@ -43,7 +43,7 @@ export const transactionsCountable = accountingSchema.table(
       .references(() => transaction_types.id, { onDelete: 'set null' }), //id tipo de transacion
     date: t.date('date').notNull(), //fecha de la trasacion
     description: t.text('description'), //descripcion de la transaccion
-    reference: t.varchar('reference', { length: 100 }), // numero de referencia
+    reference: t.bigint('reference', { mode: 'bigint' }), // numero de referencia
     userId: t
       .integer('user_id')
       .references(() => users.id, { onDelete: 'set null' }), // id usuario que hace la trasancia
@@ -70,8 +70,8 @@ export const movementsCountable = accountingSchema.table(
   'movements_countable',
   {
     id: t.serial('id').primaryKey(),
-    transaction_id: t
-      .integer('transaction_id')
+    transactionId: t
+      .bigint('transaction_id', { mode: 'bigint' })
       .references(() => transactionsCountable.id, { onDelete: 'cascade' }), //id de la transacion
     accountPlanId: t
       .integer('account_plan_id')
@@ -84,7 +84,7 @@ export const movementsCountable = accountingSchema.table(
   (movementsCountable) => ({
     movementsCountableIdx0: t
       .index('movements_countablex0')
-      .on(movementsCountable.transaction_id),
+      .on(movementsCountable.transactionId),
     movementsCountableIdx1: t
       .index('movements_countablex1')
       .on(movementsCountable.accountPlanId),

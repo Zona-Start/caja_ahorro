@@ -1,13 +1,13 @@
 'use client';
 
 import {
-  LuBadgeCheck,
-  LuBell,
-  LuChevronsUpDown,
-  LuCreditCard,
-  LuLogOut,
-  LuSparkles,
-} from 'react-icons/lu';
+  BadgeCheck,
+  Bell,
+  ChevronsUpDownIcon,
+  LogOut,
+  MapPinHouse,
+  Sparkles,
+} from 'lucide-react';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@repo/shadcn/avatar';
 import {
@@ -51,14 +51,14 @@ export function NavUser({
                 <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{user.name}</span>
+                <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>
-              <LuChevronsUpDown className="ml-auto size-4" />
+              <ChevronsUpDownIcon className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side={isMobile ? 'bottom' : 'right'}
             align="end"
             sideOffset={4}
@@ -70,7 +70,7 @@ export function NavUser({
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">{user.name}</span>
+                  <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
               </div>
@@ -78,28 +78,28 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <LuSparkles />
+                <Sparkles />
                 Upgrade to Pro
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <LuBadgeCheck />
+                <BadgeCheck />
                 Account
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <LuCreditCard />
+                <MapPinHouse />
                 Billing
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <LuBell />
+                <Bell />
                 Notifications
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
-              <LuLogOut />
+              <LogOut />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

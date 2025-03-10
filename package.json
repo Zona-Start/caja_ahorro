@@ -1,6 +1,6 @@
 {
   "name": "caja_ahorro",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -45,10 +45,5 @@
   "packageManager": "pnpm@10.4.1",
   "engines": {
     "node": ">=20"
-  },
-  "dependencies": {
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.5.2",
-    "tailwindcss": "^4.0.6"
   }
 }

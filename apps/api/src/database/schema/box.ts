@@ -1,6 +1,8 @@
 import * as t from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
-import { nationalityEnum, statusEnum } from './enum';
+import { accountPlan } from './accounting';
+import { banks } from './bank';
+import { genderEnum, nationalityEnum, statusEnum } from './enum';
 import { categoryType, states } from './general';
 import { boxSchema } from './schemas';
 //import { transactionsCountable } from './accounting';
@@ -37,6 +39,8 @@ export const associates = boxSchema.table(
     cedula: t.varchar('cedula', { length: 20 }).unique().notNull(), //cedula asociado
     fullname: t.varchar('name', { length: 255 }).notNull(), //nombre completo asosciado
     nationality: nationalityEnum('nationality').notNull(), // nacionalidad
+    gender: genderEnum('gender').notNull(), // genero
+    birthdate: t.date('birthdate').notNull(), //fecha de nacimiento
     dateAdmission: t.timestamp('date_admission').defaultNow().notNull(), //fecha ingreso
     dateGraduation: t.timestamp('date_graduation'), //fecha de egreso
     discountFrequencyId: t.integer('discount_frequency_id'), //fecha de descuento
@@ -77,11 +81,18 @@ export const accountsAssociates = boxSchema.table(
     associatedId: t
       .integer('associated_id')
       .references(() => associates.id, { onDelete: 'cascade' }), // id asosciado
-    balance: t.numeric('balance', { precision: 15, scale: 2 }).default('0'), //sueldo
+    balance: t.numeric('balance', { precision: 15, scale: 2 }).default('0'), //saldo inicial
     accountNumber: t.numeric('account_number').notNull(), // numero de cuenta
-    bankId: t.integer('bank_id').notNull(), // id del banco
+    bankId: t
+      .integer('bank_id')
+      .references(() => banks.id, { onDelete: 'set null' }), // id del banco
+    salary: t.integer('salary').notNull(), //salario base
+    salaryTotal: t.integer('salary_total').notNull(), //salario total
     openingDate: t.timestamp('opening_date').defaultNow(), //fecha apertura
     status: t.varchar('status', { length: 50 }).notNull(), // Ex: 'active', 'inactive', 'locked'
+    accountPlanId: t
+      .integer('account_plan_id')
+      .references(() => accountPlan.id, { onDelete: 'set null' }), //id de la cuenta contable
     ...timestamps,
   },
   (accountsAssociates) => ({

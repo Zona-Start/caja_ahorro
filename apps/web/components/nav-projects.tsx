@@ -1,8 +1,12 @@
 'use client';
 
-import { LuFolder, LuForward, LuTrash2 } from 'react-icons/lu';
-
-import { LucideIcon } from 'lucide-react';
+import {
+  Folder,
+  Forward,
+  PanelLeft,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -47,6 +51,7 @@ export function NavProjects({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuAction showOnHover>
+                  <PanelLeft />
                   <span className="sr-only">More</span>
                 </SidebarMenuAction>
               </DropdownMenuTrigger>
@@ -56,16 +61,16 @@ export function NavProjects({
                 align={isMobile ? 'end' : 'start'}
               >
                 <DropdownMenuItem>
-                  <LuFolder className="text-muted-foreground" />
+                  <Folder className="text-muted-foreground" />
                   <span>View Project</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <LuForward className="text-muted-foreground" />
+                  <Forward className="text-muted-foreground" />
                   <span>Share Project</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <LuTrash2 className="text-muted-foreground" />
+                  <Trash2 className="text-muted-foreground" />
                   <span>Delete Project</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -74,6 +79,7 @@ export function NavProjects({
         ))}
         <SidebarMenuItem>
           <SidebarMenuButton className="text-sidebar-foreground/70">
+            <PanelLeft className="text-sidebar-foreground/70" />
             <span>More</span>
           </SidebarMenuButton>
         </SidebarMenuItem>

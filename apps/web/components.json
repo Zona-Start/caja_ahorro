@@ -4,17 +4,17 @@
   "rsc": true,
   "tsx": true,
   "tailwind": {
-    "config": "../../packages/shadcn/tailwind.config.ts",
-    "css": "@repo/shadcn/src/shadcn.css",
+    "config": "",
+    "css": "../../packages/shadcn/src/shadcn.css",
     "baseColor": "zinc",
     "cssVariables": true,
     "prefix": ""
   },
   "aliases": {
-    "components": "@repo/shadcn/components",
-    "ui": "@repo/shadcn/components/ui",
-    "utils": "@repo/shadcn/lib/utils",
-    "lib": "@repo/shadcn/lib",
-    "hooks": "@repo/shadcn/hooks"
+    "components": "@/components",
+    "lib": "@/lib",
+    "hooks": "@/hooks",
+    "ui": "../../packages/shadcn/components/ui",
+    "utils": "../../packages/shadcn/lib/utils"
   }
 }
