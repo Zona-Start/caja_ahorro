@@ -19,7 +19,7 @@ export class BankController {
   constructor(private readonly banksService: BankService) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:banks')
   @ApiOperation({ summary: 'Create a new banks' })
   @ApiResponse({ status: 201, description: 'User banks successfully.' })
@@ -28,7 +28,7 @@ export class BankController {
   }
 
   @Get()
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:banks')
   @ApiOperation({ summary: 'Get all banks' })
   @ApiResponse({ status: 200, description: 'Return all banks.' })
@@ -37,7 +37,7 @@ export class BankController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:banks')
   @ApiOperation({ summary: 'Get a banks by ID' })
   @ApiResponse({ status: 200, description: 'Return the banks.' })
@@ -47,7 +47,7 @@ export class BankController {
   }
 
   @Get(':code')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:banks')
   @ApiOperation({ summary: 'Get a banks by ID' })
   @ApiResponse({ status: 200, description: 'Return the banks.' })
@@ -57,7 +57,7 @@ export class BankController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:banks')
   @ApiOperation({ summary: 'Update a banks' })
   @ApiResponse({ status: 200, description: 'banks updated successfully.' })
@@ -67,7 +67,7 @@ export class BankController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:banks')
   @ApiOperation({ summary: 'Delete a banks' })
   @ApiResponse({ status: 200, description: 'banks deleted successfully.' })

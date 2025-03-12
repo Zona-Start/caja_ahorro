@@ -11,7 +11,7 @@ export class UserRolesController {
   constructor(private readonly userRolesService: UserRolesService) {}
 
   @Get('user/:userId')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:user-roles')
   @ApiOperation({ summary: 'Get roles by user ID' })
   @ApiResponse({ status: 200, description: 'Return roles for the user.' })
@@ -22,7 +22,7 @@ export class UserRolesController {
   }
 
   @Post('assign')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('assign:user-role')
   @ApiOperation({ summary: 'Assign a role to a user' })
   @ApiResponse({ status: 200, description: 'Role assigned successfully.' })
@@ -33,7 +33,7 @@ export class UserRolesController {
   }
 
   @Delete('user/:userId/role/:roleId')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:user-role')
   @ApiOperation({ summary: 'Remove a role from a user' })
   @ApiResponse({ status: 200, description: 'Role removed successfully.' })

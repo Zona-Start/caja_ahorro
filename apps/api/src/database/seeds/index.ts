@@ -3,21 +3,22 @@ import { Pool } from 'pg';
 import { envs } from 'src/common/config/envs';
 import * as schema from '../index';
 import { seedAdminRole } from './admin-role.seed';
-import { seedPermissions } from './permissions.seed';
-import { seedRoutePermissions } from './route-permissions.seed';
+import { seedUserAdmin } from './user-admin.seed';
 
 async function main() {
   const pool = new Pool({
     connectionString: envs.dataBaseUrl,
+    ssl:
+    envs.node_env === 'production' ? { rejectUnauthorized: false } : false,
   });
 
   const db = drizzle(pool, { schema });
 
   try {
     // Run seeds in order
-    await seedPermissions(db);
     await seedAdminRole(db);
-    await seedRoutePermissions(db);
+    await seedUserAdmin(db)
+    //await seedRoutePermissions(db);
 
     console.log('All seeds completed successfully');
   } catch (error) {

@@ -12,7 +12,7 @@ export class AssociatesController {
   constructor(private readonly associatesService: AssociatesService) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:associate')
   @ApiOperation({ summary: 'Create a new associate' })
   @ApiResponse({ status: 201, description: 'Associate created successfully.' })
@@ -22,7 +22,7 @@ export class AssociatesController {
   }
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:associates')
   @ApiOperation({ summary: 'Get all associates or filter by savings bank ID' })
   @ApiQuery({ name: 'savingsBankId', required: false, type: Number })
@@ -38,7 +38,7 @@ export class AssociatesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:associate')
   @ApiOperation({ summary: 'Get an associate by ID' })
   @ApiResponse({ status: 200, description: 'Return the associate.' })
@@ -49,7 +49,7 @@ export class AssociatesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:associate')
   @ApiOperation({ summary: 'Update an associate' })
   @ApiResponse({ status: 200, description: 'Associate updated successfully.' })
@@ -63,7 +63,7 @@ export class AssociatesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:associate')
   @ApiOperation({ summary: 'Delete an associate' })
   @ApiResponse({ status: 200, description: 'Associate deleted successfully.' })

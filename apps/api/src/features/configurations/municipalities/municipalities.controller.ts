@@ -22,7 +22,7 @@ export class MunicipalitiesController {
   constructor(private readonly municipalitiesService: MunicipalitiesService) {}
 
   @Get()
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:municipalities')
   @ApiOperation({ summary: 'Get all municipalities' })
   @ApiResponse({
@@ -35,7 +35,7 @@ export class MunicipalitiesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:municipalities')
   @ApiOperation({ summary: 'Get a municipality by id' })
   @ApiResponse({
@@ -49,7 +49,7 @@ export class MunicipalitiesController {
   }
 
   @Get('state/:stateId')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:municipalities')
   @ApiOperation({ summary: 'Get municipalities by state id' })
   @ApiResponse({

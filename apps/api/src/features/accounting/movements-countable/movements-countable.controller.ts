@@ -23,7 +23,7 @@ export class MovementsCountableController {
   ) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:movement-countable')
   @ApiOperation({ summary: 'Create a new accounting movement' })
   @ApiResponse({ status: 201, description: 'Movement created successfully.' })
@@ -35,7 +35,7 @@ export class MovementsCountableController {
   }
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:movements-countable')
   @ApiOperation({
     summary: 'Get all accounting movements or filter by transaction ID',
@@ -56,7 +56,7 @@ export class MovementsCountableController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:movement-countable')
   @ApiOperation({ summary: 'Get an accounting movement by ID' })
   @ApiResponse({ status: 200, description: 'Return the movement.' })
@@ -67,7 +67,7 @@ export class MovementsCountableController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:movement-countable')
   @ApiOperation({ summary: 'Update an accounting movement' })
   @ApiResponse({ status: 200, description: 'Movement updated successfully.' })
@@ -84,7 +84,7 @@ export class MovementsCountableController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:movement-countable')
   @ApiOperation({ summary: 'Delete an accounting movement' })
   @ApiResponse({ status: 200, description: 'Movement deleted successfully.' })

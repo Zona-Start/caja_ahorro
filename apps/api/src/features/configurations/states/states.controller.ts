@@ -22,7 +22,7 @@ export class StatesController {
   constructor(private readonly statesService: StatesService) {}
 
   @Get()
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:states')
   @ApiOperation({ summary: 'Get all states' })
   @ApiResponse({ status: 200, description: 'Return all states', type: [State] })
@@ -31,7 +31,7 @@ export class StatesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:states')
   @ApiOperation({ summary: 'Get a state by id' })
   @ApiResponse({ status: 200, description: 'Return a state', type: State })
@@ -41,7 +41,7 @@ export class StatesController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:states')
   @ApiOperation({ summary: 'Create a new state' })
   @ApiResponse({ status: 201, description: 'State created', type: State })
@@ -50,7 +50,7 @@ export class StatesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:states')
   @ApiOperation({ summary: 'Update a state' })
   @ApiResponse({ status: 200, description: 'State updated', type: State })
@@ -63,7 +63,7 @@ export class StatesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:states')
   @ApiOperation({ summary: 'Delete a state' })
   @ApiResponse({ status: 200, description: 'State deleted' })

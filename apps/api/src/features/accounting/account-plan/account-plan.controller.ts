@@ -21,7 +21,7 @@ export class AccountPlanController {
   constructor(private readonly accountPlanService: AccountPlanService) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:account-plan')
   @ApiOperation({ summary: 'Create a new account plan' })
   @ApiResponse({
@@ -34,7 +34,7 @@ export class AccountPlanController {
   }
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:account-plans')
   @ApiOperation({
     summary: 'Get all account plans or filter by savings bank ID',
@@ -52,7 +52,7 @@ export class AccountPlanController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:account-plan')
   @ApiOperation({ summary: 'Get an account plan by ID' })
   @ApiResponse({ status: 200, description: 'Return the account plan.' })
@@ -63,7 +63,7 @@ export class AccountPlanController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:account-plan')
   @ApiOperation({ summary: 'Update an account plan' })
   @ApiResponse({
@@ -83,7 +83,7 @@ export class AccountPlanController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:account-plan')
   @ApiOperation({ summary: 'Delete an account plan' })
   @ApiResponse({

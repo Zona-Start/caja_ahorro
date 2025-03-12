@@ -22,7 +22,7 @@ export class CategoryTypesController {
   constructor(private readonly categoryTypesService: CategoryTypesService) {}
 
   @Get()
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:category-types')
   @ApiOperation({ summary: 'Get all category types' })
   @ApiResponse({
@@ -35,7 +35,7 @@ export class CategoryTypesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:category-types')
   @ApiOperation({ summary: 'Get a category type by id' })
   @ApiResponse({
@@ -49,7 +49,7 @@ export class CategoryTypesController {
   }
 
   @Get('group/:group')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:category-types')
   @ApiOperation({ summary: 'Get category types by group' })
   @ApiResponse({
@@ -62,7 +62,7 @@ export class CategoryTypesController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:category-types')
   @ApiOperation({ summary: 'Create a new category type' })
   @ApiResponse({
@@ -75,7 +75,7 @@ export class CategoryTypesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:category-types')
   @ApiOperation({ summary: 'Update a category type' })
   @ApiResponse({
@@ -92,7 +92,7 @@ export class CategoryTypesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:category-types')
   @ApiOperation({ summary: 'Delete a category type' })
   @ApiResponse({ status: 200, description: 'Category type deleted' })

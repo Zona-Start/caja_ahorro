@@ -12,7 +12,7 @@ export class RoutePermissionsController {
   constructor(private readonly routePermissionsService: RoutePermissionsService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:route-permissions')
   @ApiOperation({ summary: 'Get all route permissions' })
   @ApiResponse({ status: 200, description: 'Return all route permissions.' })
@@ -22,7 +22,7 @@ export class RoutePermissionsController {
   }
 
   @Get('route')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:route-permissions')
   @ApiOperation({ summary: 'Get route permissions by route' })
   @ApiResponse({ status: 200, description: 'Return route permissions for the specified route.' })
@@ -32,7 +32,7 @@ export class RoutePermissionsController {
   }
 
   @Get('permissions/route')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:route-permissions')
   @ApiOperation({ summary: 'Get permissions by route' })
   @ApiResponse({ status: 200, description: 'Return permissions for the specified route.' })
@@ -42,7 +42,7 @@ export class RoutePermissionsController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:route-permission')
   @ApiOperation({ summary: 'Get a route permission by ID' })
   @ApiResponse({ status: 200, description: 'Return the route permission.' })
@@ -53,7 +53,7 @@ export class RoutePermissionsController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:route-permission')
   @ApiOperation({ summary: 'Create a new route permission' })
   @ApiResponse({ status: 201, description: 'Route permission created successfully.' })
@@ -63,7 +63,7 @@ export class RoutePermissionsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:route-permission')
   @ApiOperation({ summary: 'Update a route permission' })
   @ApiResponse({ status: 200, description: 'Route permission updated successfully.' })
@@ -77,7 +77,7 @@ export class RoutePermissionsController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:route-permission')
   @ApiOperation({ summary: 'Delete a route permission' })
   @ApiResponse({ status: 200, description: 'Route permission deleted successfully.' })

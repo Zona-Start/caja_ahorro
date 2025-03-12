@@ -12,7 +12,7 @@ export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:audits')
   @ApiOperation({ summary: 'Get all audit records' })
   @ApiResponse({ status: 200, description: 'Return all audit records.' })
@@ -22,7 +22,7 @@ export class AuditController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:audit')
   @ApiOperation({ summary: 'Get an audit record by ID' })
   @ApiResponse({ status: 200, description: 'Return the audit record.' })
@@ -33,7 +33,7 @@ export class AuditController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:audit')
   @ApiOperation({ summary: 'Create a new audit record' })
   @ApiResponse({ status: 201, description: 'Audit record created successfully.' })
@@ -43,7 +43,7 @@ export class AuditController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:audit')
   @ApiOperation({ summary: 'Update an audit record' })
   @ApiResponse({ status: 200, description: 'Audit record updated successfully.' })
@@ -57,7 +57,7 @@ export class AuditController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:audit')
   @ApiOperation({ summary: 'Delete an audit record' })
   @ApiResponse({ status: 200, description: 'Audit record deleted successfully.' })

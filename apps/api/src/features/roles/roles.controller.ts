@@ -12,7 +12,7 @@ export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:roles')
   @ApiOperation({ summary: 'Get all roles' })
   @ApiResponse({ status: 200, description: 'Return all roles.' })
@@ -22,7 +22,7 @@ export class RolesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:role')
   @ApiOperation({ summary: 'Get a role by ID' })
   @ApiResponse({ status: 200, description: 'Return the role.' })
@@ -33,7 +33,7 @@ export class RolesController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:role')
   @ApiOperation({ summary: 'Create a new role' })
   @ApiResponse({ status: 201, description: 'Role created successfully.' })
@@ -43,7 +43,7 @@ export class RolesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:role')
   @ApiOperation({ summary: 'Update a role' })
   @ApiResponse({ status: 200, description: 'Role updated successfully.' })
@@ -54,7 +54,7 @@ export class RolesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:role')
   @ApiOperation({ summary: 'Delete a role' })
   @ApiResponse({ status: 200, description: 'Role deleted successfully.' })

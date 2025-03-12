@@ -12,7 +12,7 @@ export class AccountsAssociatesController {
   constructor(private readonly accountsAssociatesService: AccountsAssociatesService) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:account-associate')
   @ApiOperation({ summary: 'Create a new account for an associate' })
   @ApiResponse({ status: 201, description: 'Account created successfully.' })
@@ -22,7 +22,7 @@ export class AccountsAssociatesController {
   }
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:accounts-associates')
   @ApiOperation({ summary: 'Get all accounts or filter by associate ID' })
   @ApiQuery({ name: 'associatedId', required: false, type: Number })
@@ -38,7 +38,7 @@ export class AccountsAssociatesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:account-associate')
   @ApiOperation({ summary: 'Get an account by ID' })
   @ApiResponse({ status: 200, description: 'Return the account.' })
@@ -49,7 +49,7 @@ export class AccountsAssociatesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:account-associate')
   @ApiOperation({ summary: 'Update an account' })
   @ApiResponse({ status: 200, description: 'Account updated successfully.' })
@@ -63,7 +63,7 @@ export class AccountsAssociatesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:account-associate')
   @ApiOperation({ summary: 'Delete an account' })
   @ApiResponse({ status: 200, description: 'Account deleted successfully.' })

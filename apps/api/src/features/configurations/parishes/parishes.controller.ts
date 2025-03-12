@@ -22,7 +22,7 @@ export class ParishesController {
   constructor(private readonly parishesService: ParishesService) {}
 
   @Get()
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:parishes')
   @ApiOperation({ summary: 'Get all parishes' })
   @ApiResponse({
@@ -35,7 +35,7 @@ export class ParishesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:parishes')
   @ApiOperation({ summary: 'Get a parish by id' })
   @ApiResponse({
@@ -49,7 +49,7 @@ export class ParishesController {
   }
 
   @Get('municipality/:municipalityId')
-  @Roles('ADMIN', 'USER')
+  @Roles('admin', 'user')
   @RequirePermissions('read:parishes')
   @ApiOperation({ summary: 'Get parishes by municipality id' })
   @ApiResponse({

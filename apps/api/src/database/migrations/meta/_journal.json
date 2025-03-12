@@ -5,15 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1741746743484,
-      "tag": "0000_overconfident_spiral",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1741746774521,
-      "tag": "0001_seed-user",
+      "when": 1741798909905,
+      "tag": "0000_quiet_leo",
       "breakpoints": true
     }
   ]

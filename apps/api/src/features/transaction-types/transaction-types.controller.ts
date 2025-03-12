@@ -12,7 +12,7 @@ export class TransactionTypesController {
   constructor(private readonly transactionTypesService: TransactionTypesService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:transaction-types')
   @ApiOperation({ summary: 'Get all transaction types' })
   @ApiResponse({ status: 200, description: 'Return all transaction types.' })
@@ -22,7 +22,7 @@ export class TransactionTypesController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:transaction-type')
   @ApiOperation({ summary: 'Get a transaction type by ID' })
   @ApiResponse({ status: 200, description: 'Return the transaction type.' })
@@ -33,7 +33,7 @@ export class TransactionTypesController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:transaction-type')
   @ApiOperation({ summary: 'Create a new transaction type' })
   @ApiResponse({ status: 201, description: 'Transaction type created successfully.' })
@@ -43,7 +43,7 @@ export class TransactionTypesController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:transaction-type')
   @ApiOperation({ summary: 'Update a transaction type' })
   @ApiResponse({ status: 200, description: 'Transaction type updated successfully.' })
@@ -57,7 +57,7 @@ export class TransactionTypesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:transaction-type')
   @ApiOperation({ summary: 'Delete a transaction type' })
   @ApiResponse({ status: 200, description: 'Transaction type deleted successfully.' })

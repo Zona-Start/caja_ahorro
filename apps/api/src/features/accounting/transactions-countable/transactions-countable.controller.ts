@@ -23,7 +23,7 @@ export class TransactionsCountableController {
   ) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:transaction-countable')
   @ApiOperation({ summary: 'Create a new accounting transaction' })
   @ApiResponse({
@@ -40,7 +40,7 @@ export class TransactionsCountableController {
   }
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:transactions-countable')
   @ApiOperation({
     summary: 'Get all accounting transactions or filter by savings bank ID',
@@ -61,7 +61,7 @@ export class TransactionsCountableController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:transaction-countable')
   @ApiOperation({ summary: 'Get an accounting transaction by ID' })
   @ApiResponse({ status: 200, description: 'Return the transaction.' })
@@ -72,7 +72,7 @@ export class TransactionsCountableController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:transaction-countable')
   @ApiOperation({ summary: 'Update an accounting transaction' })
   @ApiResponse({
@@ -92,7 +92,7 @@ export class TransactionsCountableController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:transaction-countable')
   @ApiOperation({ summary: 'Delete an accounting transaction' })
   @ApiResponse({

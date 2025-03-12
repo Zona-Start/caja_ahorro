@@ -12,7 +12,7 @@ export class PermissionsController {
   constructor(private readonly permissionsService: PermissionsService) {}
 
   @Get()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:permissions')
   @ApiOperation({ summary: 'Get all permissions' })
   @ApiResponse({ status: 200, description: 'Return all permissions.' })
@@ -22,7 +22,7 @@ export class PermissionsController {
   }
 
   @Get(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:permission')
   @ApiOperation({ summary: 'Get a permission by ID' })
   @ApiResponse({ status: 200, description: 'Return the permission.' })
@@ -33,7 +33,7 @@ export class PermissionsController {
   }
 
   @Post()
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('create:permission')
   @ApiOperation({ summary: 'Create a new permission' })
   @ApiResponse({ status: 201, description: 'Permission created successfully.' })
@@ -43,7 +43,7 @@ export class PermissionsController {
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('update:permission')
   @ApiOperation({ summary: 'Update a permission' })
   @ApiResponse({ status: 200, description: 'Permission updated successfully.' })
@@ -57,7 +57,7 @@ export class PermissionsController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:permission')
   @ApiOperation({ summary: 'Delete a permission' })
   @ApiResponse({ status: 200, description: 'Permission deleted successfully.' })

@@ -13,7 +13,7 @@ export class RolePermissionsController {
   ) {}
 
   @Get('role/:roleId')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('read:role-permissions')
   @ApiOperation({ summary: 'Get permissions by role ID' })
   @ApiResponse({ status: 200, description: 'Return permissions for the role.' })
@@ -25,7 +25,7 @@ export class RolePermissionsController {
   }
 
   @Post('assign')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('assign:role-permissions')
   @ApiOperation({ summary: 'Assign permissions to a role' })
   @ApiResponse({
@@ -44,7 +44,7 @@ export class RolePermissionsController {
   }
 
   @Delete('role/:roleId/permission/:permissionId')
-  @Roles('ADMIN')
+  @Roles('admin')
   @RequirePermissions('delete:role-permission')
   @ApiOperation({ summary: 'Remove a permission from a role' })
   @ApiResponse({ status: 200, description: 'Permission removed successfully.' })
