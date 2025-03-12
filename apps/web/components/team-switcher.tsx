@@ -1,6 +1,12 @@
 'use client';
 
-import { ChevronsUpDownIcon, PlusIcon } from 'lucide-react';
+import {
+  AudioWaveform,
+  ChevronsUpDownIcon,
+  Command,
+  GalleryVerticalEnd,
+  PlusIcon,
+} from 'lucide-react';
 
 import {
   DropdownMenu,
@@ -18,6 +24,26 @@ import {
   useSidebar,
 } from '@repo/shadcn/sidebar';
 import * as React from 'react';
+
+const data = {
+  teams: [
+    {
+      name: 'Acme Inc',
+      logo: GalleryVerticalEnd,
+      plan: 'Enterprise',
+    },
+    {
+      name: 'Acme Corp.',
+      logo: AudioWaveform,
+      plan: 'Startup',
+    },
+    {
+      name: 'Evil Corp.',
+      logo: Command,
+      plan: 'Free',
+    },
+  ],
+};
 
 export function TeamSwitcher({
   teams,

@@ -1,3 +1,4 @@
+import { IS_PUBLIC_KEY } from '@/common/decorators';
 import { RolePermissionsService } from '@/features/role-permissions/role-permissions.service';
 import { RoutePermissionsService } from '@/features/route-permissions/route-permissions.service';
 import { UserRolesService } from '@/features/user-roles/user-roles.service';
@@ -15,6 +16,15 @@ export class PermissionsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],

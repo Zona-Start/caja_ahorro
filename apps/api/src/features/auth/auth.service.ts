@@ -1,12 +1,15 @@
+import { envs } from '@/common/config/envs';
 import { Env, validateString } from '@/common/utils';
-import { expirationTimeInSeconds } from '@/common/utils/dateTimeUtility';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import { RefreshTokenDto } from '@/features/auth/dto/refresh-token.dto';
 import { SignInUserDto } from '@/features/auth/dto/signIn-user.dto';
 import { SignOutUserDto } from '@/features/auth/dto/signOut-user.dto';
 import { ValidateUserDto } from '@/features/auth/dto/validate-user.dto';
 import AuthTokensInterface from '@/features/auth/interfaces/auth-tokens.interface';
-import LoginUserInterface from '@/features/auth/interfaces/login-user.interface';
+import {
+  LoginUserInterface,
+  Roles,
+} from '@/features/auth/interfaces/login-user.interface';
 import RefreshTokenInterface from '@/features/auth/interfaces/refresh-token.interface';
 import { MailService } from '@/features/mail/mail.service';
 import { User } from '@/features/users/entities/user.entity';
@@ -36,6 +39,43 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
+  //Decode Tokens
+  // Método para decodificar el token y obtener los datos completos
+  private decodeToken(token: string): {
+    sub: number;
+    username?: string;
+    iat: number;
+    exp: number;
+  } {
+    try {
+      const decoded = this.jwtService.decode(token) as {
+        sub: number;
+        username?: string;
+        iat: number;
+        exp: number;
+      };
+
+      // Validar que contiene los datos esenciales
+      if (!decoded || !decoded.exp || !decoded.iat) {
+        throw new Error('Token lacks required fields');
+      }
+
+      return decoded;
+    } catch (error) {
+      // Manejo seguro del tipo unknown
+      let errorMessage = 'Failed to decode token';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        console.error('Error decoding token:', errorMessage);
+      } else {
+        console.error('Unknown error type:', error);
+      }
+
+      throw new HttpException(errorMessage, HttpStatus.UNAUTHORIZED);
+    }
+  }
+
   //Generate Tokens
   async generateTokens(user: User): Promise<AuthTokensInterface> {
     const [access_token, refresh_token] = await Promise.all([
@@ -45,8 +85,8 @@ export class AuthService {
           username: user.username,
         },
         {
-          secret: this.config.get('ACCESS_TOKEN_SECRET'),
-          expiresIn: this.config.get('ACCESS_TOKEN_EXPIRATION'),
+          secret: envs.access_token_secret,
+          expiresIn: envs.access_token_expiration,
         },
       ),
       this.jwtService.signAsync(
@@ -55,8 +95,8 @@ export class AuthService {
           username: user.username,
         },
         {
-          secret: this.config.get('REFRESH_TOKEN_SECRET'),
-          expiresIn: this.config.get('REFRESH_TOKEN_EXPIRATION'),
+          secret: envs.refresh_token_secret,
+          expiresIn: envs.refresh_token_expiration,
         },
       ),
     ]);
@@ -102,17 +142,26 @@ export class AuthService {
   }
 
   //Find User
-  async findUser(identifier: string): Promise<User | null> {
+  async findUser(username: string): Promise<User | null> {
     const user = await this.drizzle
       .select()
       .from(users)
-      .where(eq(users.username, identifier));
+      .where(eq(users.username, username));
+    return user[0];
+  }
+
+  //Find User
+  async findUserById(id: number): Promise<User | null> {
+    const user = await this.drizzle
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
     return user[0];
   }
 
   //Check User Is Already Exists
   async validateUser(dto: ValidateUserDto): Promise<User> {
-    const user = await this.findUser(dto.identifier);
+    const user = await this.findUser(dto.username);
     if (!user) throw new NotFoundException('User not found');
     const isValid = await validateString(
       dto.password,
@@ -122,25 +171,63 @@ export class AuthService {
     return user;
   }
 
+  //Find rol user
+  async findUserRol(id: number): Promise<Roles[]> {
+    const roles = await this.drizzle
+      .select({
+        id: schema.roles.id,
+        role: schema.roles.name,
+      })
+      .from(schema.usersRole)
+      .leftJoin(schema.roles, eq(schema.roles.id, schema.usersRole.roleId))
+      .where(eq(schema.usersRole.userId, id));
+
+    if (roles.length === 0) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Aseguramos que no haya valores nulos
+    return roles.map((role) => ({
+      id: role.id ?? 0, // Asignamos un valor por defecto (0) si es null
+      rol: role.role ?? '', // Asignamos un valor por defecto (cadena vacía) si es null
+    }));
+  }
+
   //Sign In User Account
   async signIn(dto: SignInUserDto): Promise<LoginUserInterface> {
     const user = await this.validateUser(dto);
     const tokens = await this.generateTokens(user);
+    const decodeAccess = this.decodeToken(tokens.access_token);
+    const decodeRefresh = this.decodeToken(tokens.refresh_token);
+    const rol = await this.findUserRol(user?.id as number);
 
     await this.createSession({
       userId: String(user?.id), // Convert number to string
       sessionToken: tokens.refresh_token,
-      expiresAt: expirationTimeInSeconds(
-        parseInt(this.config.get('REFRESH_TOKEN_EXPIRATION') as string),
-      ),
+      expiresAt: decodeRefresh.exp,
     });
 
-    return { data: user, tokens };
+    return {
+      message: 'User signed in successfully',
+      user: {
+        id: user?.id as number,
+        username: user?.username,
+        fullname: user?.fullname,
+        email: user?.email,
+        rol: rol,
+      },
+      tokens: {
+        access_token: tokens.access_token,
+        access_expire_in: decodeAccess.exp,
+        refresh_token: tokens.refresh_token,
+        refresh_expire_in: decodeRefresh.exp,
+      },
+    };
   }
 
   // //Forgot Password
   // async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
-  //   const user = await this.findUser(dto.identifier);
+  //   const user = await this.findUser(dto.username);
   //   if (!user) throw new NotFoundException('User not found');
   //   const passwordResetToken = await this.generateOTP();
   //   user.passwordResetToken = passwordResetToken;
@@ -174,20 +261,33 @@ export class AuthService {
   //Refresh User Access Token
   async refreshToken(dto: RefreshTokenDto): Promise<RefreshTokenInterface> {
     const { user_id } = dto;
+
     const session = await this.drizzle
       .select()
       .from(sessions)
       .where(
         and(
-          eq(sessions.userId, parseInt(user_id)) &&
+          eq(sessions.userId, user_id) &&
             eq(sessions.sessionToken, dto.refresh_token),
         ),
       );
+
     if (session.length === 0) throw new NotFoundException('session not found');
-    const user = this.findUser(dto.user_id);
-    const { access_token } = await this.generateTokens(user[0]);
+    const user = await this.findUserById(dto.user_id);
+    if (!user) throw new NotFoundException('User not found');
+    const tokens = await this.generateTokens(user);
+    const decodeAccess = this.decodeToken(tokens.access_token);
+    const decodeRefresh = this.decodeToken(tokens.refresh_token);
+    await this.drizzle
+      .update(sessions)
+      .set({ sessionToken: tokens.refresh_token, expiresAt: decodeRefresh.exp })
+      .where(eq(sessions.userId, dto.user_id));
+
     return {
-      access_token,
+      access_token: tokens.access_token,
+      access_expire_in: decodeAccess.exp,
+      refresh_token: tokens.refresh_token,
+      refresh_expire_in: decodeRefresh.exp,
     };
   }
 }

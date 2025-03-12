@@ -3,7 +3,9 @@
 import {
   Folder,
   Forward,
+  Frame,
   PanelLeft,
+  PieChart,
   Trash2,
   type LucideIcon,
 } from 'lucide-react';
@@ -24,6 +26,26 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@repo/shadcn/sidebar';
+
+const data = {
+  projects: [
+    {
+      name: 'Design Engineering',
+      url: '#',
+      icon: Frame,
+    },
+    {
+      name: 'Sales & Marketing',
+      url: '#',
+      icon: PieChart,
+    },
+    {
+      name: 'Travel',
+      url: '#',
+      icon: Map,
+    },
+  ],
+};
 
 export function NavProjects({
   projects,

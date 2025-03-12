@@ -6,5 +6,5 @@ export class ForgotPasswordDto {
   @IsString({
     message: 'Identifier must be a string',
   })
-  identifier: string;
+  username: string;
 }

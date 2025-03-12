@@ -6,14 +6,14 @@ import { envs } from './common/config/envs';
 
 export const bootstrap = async (app: NestExpressApplication) => {
   const logger = app.get(Logger);
-
+  // app.setGlobalPrefix('api');
   app.useStaticAssets('./uploads', {
     prefix: '/assets',
   });
   app.enableCors({
     credentials: true,
     //origin: envs.allow_cors_url,
-    origin: "*",
+    origin: ['*'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   });
   app.useLogger(logger);
@@ -30,8 +30,6 @@ export const bootstrap = async (app: NestExpressApplication) => {
 
   await swagger(app);
   await app.listen(envs.port!, () => {
-    logger.log(
-      `This application started at ${envs.host}:${envs.port}`,
-    );
+    logger.log(`This application started at ${envs.host}:${envs.port}`);
   });
 };

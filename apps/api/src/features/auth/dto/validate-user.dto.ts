@@ -6,7 +6,7 @@ export class ValidateUserDto {
   @IsString({
     message: 'First name must be a string',
   })
-  identifier: string;
+  username: string;
 
   @ApiProperty()
   @IsString({

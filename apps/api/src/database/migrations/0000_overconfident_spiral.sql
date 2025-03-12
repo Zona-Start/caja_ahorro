@@ -8,6 +8,7 @@ CREATE SCHEMA "box";
 --> statement-breakpoint
 CREATE SCHEMA "estimate";
 --> statement-breakpoint
+CREATE TYPE "auth"."gender" AS ENUM('FEMENINO', 'MASCULINO');--> statement-breakpoint
 CREATE TYPE "public"."nationality" AS ENUM('VENEZOLANO', 'EXTRANJERO');--> statement-breakpoint
 CREATE TYPE "auth"."status" AS ENUM('ACTIVE', 'INACTIVE');--> statement-breakpoint
 CREATE TABLE "accounting"."account_plan" (
@@ -25,7 +26,7 @@ CREATE TABLE "accounting"."account_plan" (
 --> statement-breakpoint
 CREATE TABLE "accounting"."movements_countable" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"transaction_id" integer,
+	"transaction_id" bigint,
 	"account_plan_id" integer,
 	"must" numeric(15, 2) DEFAULT '0',
 	"credit" numeric(15, 2) DEFAULT '0',
@@ -40,7 +41,7 @@ CREATE TABLE "accounting"."transactions_countable" (
 	"transaction_type_id" integer,
 	"date" date NOT NULL,
 	"description" text,
-	"reference" varchar(100),
+	"reference" bigint,
 	"user_id" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3)
@@ -120,14 +121,25 @@ CREATE TABLE "auth"."verificationToken" (
 	"ip_address" text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "banks" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"code" varchar(5) NOT NULL,
+	"name" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3)
+);
+--> statement-breakpoint
 CREATE TABLE "box"."accounts_associates" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"associated_id" integer,
 	"balance" numeric(15, 2) DEFAULT '0',
 	"account_number" numeric NOT NULL,
-	"bank_id" integer NOT NULL,
+	"bank_id" integer,
+	"salary" integer NOT NULL,
+	"salary_total" integer NOT NULL,
 	"opening_date" timestamp DEFAULT now(),
 	"status" varchar(50) NOT NULL,
+	"account_plan_id" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3)
 );
@@ -138,6 +150,8 @@ CREATE TABLE "box"."associates" (
 	"cedula" varchar(20) NOT NULL,
 	"name" varchar(255) NOT NULL,
 	"nationality" "nationality" NOT NULL,
+	"gender" "auth"."gender" NOT NULL,
+	"birthdate" date NOT NULL,
 	"date_admission" timestamp DEFAULT now() NOT NULL,
 	"date_graduation" timestamp,
 	"discount_frequency_id" integer,
@@ -254,6 +268,8 @@ ALTER TABLE "auth"."sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FORE
 ALTER TABLE "auth"."user_role" ADD CONSTRAINT "user_role_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."user_role" ADD CONSTRAINT "user_role_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "auth"."roles"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "box"."accounts_associates" ADD CONSTRAINT "accounts_associates_associated_id_associates_id_fk" FOREIGN KEY ("associated_id") REFERENCES "box"."associates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "box"."accounts_associates" ADD CONSTRAINT "accounts_associates_bank_id_banks_id_fk" FOREIGN KEY ("bank_id") REFERENCES "public"."banks"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "box"."accounts_associates" ADD CONSTRAINT "accounts_associates_account_plan_id_account_plan_id_fk" FOREIGN KEY ("account_plan_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "box"."associates" ADD CONSTRAINT "associates_savings_bank_id_savings_bank_id_fk" FOREIGN KEY ("savings_bank_id") REFERENCES "box"."savings_bank"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "box"."associates" ADD CONSTRAINT "associates_locality_id_states_id_fk" FOREIGN KEY ("locality_id") REFERENCES "public"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "box"."associates" ADD CONSTRAINT "associates_payroll_type_id_category_type_id_fk" FOREIGN KEY ("payroll_type_id") REFERENCES "public"."category_type"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -284,6 +300,7 @@ CREATE INDEX "roles_permission_idx02" ON "auth"."roles_permissions" USING btree 
 CREATE INDEX "sessions_idx" ON "auth"."sessions" USING btree ("session_token");--> statement-breakpoint
 CREATE INDEX "users_idx" ON "auth"."users" USING btree ("username");--> statement-breakpoint
 CREATE INDEX "user_role_idx" ON "auth"."user_role" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "banks_index_00" ON "banks" USING btree ("code","name");--> statement-breakpoint
 CREATE INDEX "accounts_associatesx0" ON "box"."accounts_associates" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "accounts_associatesx1" ON "box"."accounts_associates" USING btree ("balance");--> statement-breakpoint
 CREATE INDEX "accounts_associatesx2" ON "box"."accounts_associates" USING btree ("bank_id");--> statement-breakpoint

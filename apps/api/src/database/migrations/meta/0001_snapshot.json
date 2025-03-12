@@ -1,6 +1,6 @@
 {
-  "id": "456cfad6-3fb4-4d93-9a0b-cf11d4e0ab46",
-  "prevId": "9b8e01a5-72d6-4857-ae49-901f19dfe912",
+  "id": "a6afafbb-b2fe-4840-a3b1-9d616b24a545",
+  "prevId": "642d3c0f-7cc4-4d03-a40f-27bc1beb4cf1",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -165,7 +165,7 @@
         },
         "transaction_id": {
           "name": "transaction_id",
-          "type": "integer",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -343,7 +343,7 @@
         },
         "reference": {
           "name": "reference",
-          "type": "varchar(100)",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -1113,6 +1113,72 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.banks": {
+      "name": "banks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "banks_index_00": {
+          "name": "banks_index_00",
+          "columns": [
+            {
+              "expression": "code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "box.accounts_associates": {
       "name": "accounts_associates",
       "schema": "box",
@@ -1146,6 +1212,18 @@
           "name": "bank_id",
           "type": "integer",
           "primaryKey": false,
+          "notNull": false
+        },
+        "salary": {
+          "name": "salary",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "salary_total": {
+          "name": "salary_total",
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "opening_date": {
@@ -1160,6 +1238,12 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
+        },
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -1251,6 +1335,33 @@
           ],
           "onUpdate": "no action",
           "onDelete": "cascade"
+        },
+        "accounts_associates_bank_id_banks_id_fk": {
+          "name": "accounts_associates_bank_id_banks_id_fk",
+          "tableFrom": "accounts_associates",
+          "columnsFrom": [
+            "bank_id"
+          ],
+          "tableTo": "banks",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "accounts_associates_account_plan_id_account_plan_id_fk": {
+          "name": "accounts_associates_account_plan_id_account_plan_id_fk",
+          "tableFrom": "accounts_associates",
+          "columnsFrom": [
+            "account_plan_id"
+          ],
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -1291,6 +1402,19 @@
           "name": "nationality",
           "type": "nationality",
           "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gender": {
+          "name": "gender",
+          "type": "gender",
+          "typeSchema": "auth",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "birthdate": {
+          "name": "birthdate",
+          "type": "date",
           "primaryKey": false,
           "notNull": true
         },
@@ -2414,6 +2538,14 @@
     }
   },
   "enums": {
+    "auth.gender": {
+      "name": "gender",
+      "schema": "auth",
+      "values": [
+        "FEMENINO",
+        "MASCULINO"
+      ]
+    },
     "public.nationality": {
       "name": "nationality",
       "schema": "public",

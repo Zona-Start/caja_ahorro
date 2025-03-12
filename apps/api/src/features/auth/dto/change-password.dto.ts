@@ -6,7 +6,7 @@ export class ChangePasswordDto {
   @IsString({
     message: 'Identifier must be a string',
   })
-  identifier: string;
+  username: string;
 
   @ApiProperty()
   @IsString({

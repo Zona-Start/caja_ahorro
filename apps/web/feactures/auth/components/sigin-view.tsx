@@ -1,4 +1,4 @@
-import { Button } from '@repo/shadcn/button';
+// import { Button } from '@repo/shadcn/button';
 import {
   Card,
   CardContent,
@@ -6,9 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/shadcn/card';
-import { Input } from '@repo/shadcn/input';
-import { Label } from '@repo/shadcn/label';
+// import { Input } from '@repo/shadcn/input';
+// import { Label } from '@repo/shadcn/label';
 import { cn } from '@repo/shadcn/lib/utils';
+import UserAuthForm from './user-auth-form';
 
 export function LoginForm({
   className,
@@ -26,7 +27,8 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
+          <UserAuthForm />
+          {/* <form>
             <div className="grid gap-6">
               <div className="grid gap-6">
                 <div className="grid gap-2">
@@ -54,7 +56,7 @@ export function LoginForm({
                 </Button>
               </div>
             </div>
-          </form>
+          </form> */}
         </CardContent>
       </Card>
     </div>

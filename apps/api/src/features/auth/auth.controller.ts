@@ -1,10 +1,16 @@
 import { Public } from '@/common/decorators';
-import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
 import { JwtRefreshGuard } from '@/common/guards/jwt-refresh.guard';
 import { RefreshTokenDto } from '@/features/auth/dto/refresh-token.dto';
 import { SignInUserDto } from '@/features/auth/dto/signIn-user.dto';
 import { SignOutUserDto } from '@/features/auth/dto/signOut-user.dto';
-import { Body, Controller, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -12,18 +18,14 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @HttpCode(200)
   @Post('sign-in')
   async signIn(@Body() signInUserDto: SignInUserDto) {
-    const data = await this.authService.signIn(signInUserDto);
-    return {
-      message: 'User signed in successfully',
-      data: data.data,
-      tokens: data.tokens,
-    };
+    return await this.authService.signIn(signInUserDto);
   }
 
   @Post('sign-out')
-  @RequirePermissions('auth:sign-out')
+  //@RequirePermissions('auth:sign-out')
   async signOut(@Body() signOutUserDto: SignOutUserDto) {
     await this.authService.signOut(signOutUserDto);
     return { message: 'User signed out successfully' };
@@ -37,12 +39,8 @@ export class AuthController {
 
   @UseGuards(JwtRefreshGuard)
   @Patch('refresh-token')
-  @RequirePermissions('auth:refresh-token')
+  //@RequirePermissions('auth:refresh-token')
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
-    const data = await this.authService.refreshToken(refreshTokenDto);
-    return {
-      message: 'Refresh token generated successfully',
-      access_token: data.access_token,
-    };
+    return await this.authService.refreshToken(refreshTokenDto);
   }
 }

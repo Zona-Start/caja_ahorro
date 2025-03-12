@@ -1,11 +1,18 @@
 import { ThemeProvider } from '@repo/shadcn/themes-provider';
+import { SessionProvider, SessionProviderProps } from 'next-auth/react';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { ReactNode } from 'react';
 
 type ProvidersProps = {
   children: ReactNode;
 };
-const Providers = ({ children }: Readonly<ProvidersProps>) => {
+const Providers = ({
+  session,
+  children,
+}: {
+  session: SessionProviderProps['session'];
+  children: ReactNode;
+}) => {
   return (
     <ThemeProvider
       attribute="class"
@@ -13,7 +20,9 @@ const Providers = ({ children }: Readonly<ProvidersProps>) => {
       enableSystem
       disableTransitionOnChange={false}
     >
-      <NuqsAdapter>{children}</NuqsAdapter>
+      <NuqsAdapter>
+        <SessionProvider session={session}>{children}</SessionProvider>
+      </NuqsAdapter>
     </ThemeProvider>
   );
 };

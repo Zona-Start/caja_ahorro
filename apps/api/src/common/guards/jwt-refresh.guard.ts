@@ -1,6 +1,4 @@
-import { Env } from '@/common/utils';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { eq } from 'drizzle-orm';
 import {
   CanActivate,
   ExecutionContext,
@@ -8,18 +6,17 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Request } from 'express';
 import * as schema from 'src/database/index';
-
+import { envs } from '../config/envs';
 
 @Injectable()
 export class JwtRefreshGuard implements CanActivate {
   constructor(
     private jwtService: JwtService,
-    private configService: ConfigService<Env>,
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
@@ -31,10 +28,13 @@ export class JwtRefreshGuard implements CanActivate {
     }
     try {
       request.user = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get('REFRESH_TOKEN_SECRET'),
+        secret: envs.refresh_token_secret,
       });
     } catch {
-      const session = await this.drizzle.select().from(schema.sessions).where(eq(schema.sessions,token));
+      const session = await this.drizzle
+        .select()
+        .from(schema.sessions)
+        .where(eq(schema.sessions, token));
       if (session.length === 0) {
         throw new UnauthorizedException('Invalid Refresh Token');
       }
