@@ -1,13 +1,14 @@
-import { User } from '@/features/users/entities/user.entity';
-import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
+import { Inject, Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
-import { roles, users, usersRole } from 'src/database/index';
+import { users, roles, usersRole } from 'src/database/index';
+import { eq, like, or, SQL, sql } from 'drizzle-orm';
+import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { User } from './entities/user.entity';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Injectable()
 export class UsersService {
@@ -15,8 +16,38 @@ export class UsersService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
-  async findAll(): Promise<User[]> {
-    return await this.drizzle
+  async findAll(paginationDto?: PaginationDto): Promise<{ data: User[], meta: any }> {
+    const { page = 1, limit = 10, search = '', sortBy = 'id', sortOrder = 'asc' } = paginationDto || {};
+    
+    // Calculate offset
+    const offset = (page - 1) * limit;
+    
+    // Build search condition
+    let searchCondition: SQL<unknown> | undefined;
+    if (search) {
+      searchCondition = or(
+        like(users.username, `%${search}%`),
+        like(users.email, `%${search}%`),
+        like(users.fullname, `%${search}%`)
+      );
+    }
+    
+    // Build sort condition
+    const orderBy = sortOrder === 'asc' 
+      ? sql`${users[sortBy as keyof typeof users]} asc` 
+      : sql`${users[sortBy as keyof typeof users]} desc`;
+    
+    // Get total count for pagination
+    const totalCountResult = await this.drizzle
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(searchCondition);
+    
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+    
+    // Get paginated data
+    const data = await this.drizzle
       .select({
         id: users.id,
         username: users.username,
@@ -27,8 +58,26 @@ export class UsersService {
         role: roles.name,
       })
       .from(users)
-      .leftJoin(usersRole, eq(usersRole.id, users.id))
-      .leftJoin(roles, eq(roles.id, usersRole.roleId));
+      .leftJoin(usersRole, eq(usersRole.userId, users.id))
+      .leftJoin(roles, eq(roles.id, usersRole.roleId))
+      .where(searchCondition)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    // Build pagination metadata
+    const meta = {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return { data, meta };
   }
 
   async findOne(id: string): Promise<User> {
@@ -43,7 +92,7 @@ export class UsersService {
         role: roles.name,
       })
       .from(users)
-      .leftJoin(usersRole, eq(usersRole.id, users.id))
+      .leftJoin(usersRole, eq(usersRole.userId, users.id))
       .leftJoin(roles, eq(roles.id, usersRole.roleId))
       .where(eq(users.id, parseInt(id)));
 
@@ -54,6 +103,7 @@ export class UsersService {
     return find[0];
   }
 
+  // Rest of the service remains the same
   async create(
     createUserDto: CreateUserDto,
     roleId: number = 2,

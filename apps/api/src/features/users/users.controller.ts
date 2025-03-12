@@ -1,19 +1,11 @@
-import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UsersService } from './users.service';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { RequirePermissions } from '../../common/decorators/permissions.decorator';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -23,11 +15,15 @@ export class UsersController {
   @Get()
   @Roles('admin')
   @RequirePermissions('read:users')
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, description: 'Return all users.' })
-  async findAll() {
-    const data = await this.usersService.findAll();
-    return { message: 'Users fetched successfully', data };
+  @ApiOperation({ summary: 'Get all users with pagination and filters' })
+  @ApiResponse({ status: 200, description: 'Return paginated users.' })
+  async findAll(@Query() paginationDto: PaginationDto) {
+    const result = await this.usersService.findAll(paginationDto);
+    return { 
+      message: 'Users fetched successfully', 
+      data: result.data,
+      meta: result.meta
+    };
   }
 
   @Get(':id')
