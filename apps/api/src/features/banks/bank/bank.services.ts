@@ -50,6 +50,13 @@ export class BankService {
   }
 
   async update(id: string, data: UpdateBankDto) {
+    const bank = await this.drizzle
+      .select()
+      .from(banks)
+      .where(eq(banks.id, parseInt(id)));
+    if (bank.length !== 0) {
+      throw new HttpException('Banks  exist', HttpStatus.BAD_REQUEST);
+    }
     const [result] = await this.drizzle
       .update(banks)
       .set(data)
@@ -60,6 +67,13 @@ export class BankService {
   }
 
   async remove(id: string) {
+    const bank = await this.drizzle
+      .select()
+      .from(banks)
+      .where(eq(banks.id, parseInt(id)));
+    if (bank.length !== 0) {
+      throw new HttpException('Banks  exist', HttpStatus.BAD_REQUEST);
+    }
     const [result] = await this.drizzle
       .delete(banks)
       .where(eq(banks.id, parseInt(id)))

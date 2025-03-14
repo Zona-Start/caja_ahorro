@@ -28,7 +28,6 @@ export class BankController {
   }
 
   @Get()
-  @Roles('admin', 'user')
   @RequirePermissions('read:banks')
   @ApiOperation({ summary: 'Get all banks' })
   @ApiResponse({ status: 200, description: 'Return all banks.' })
@@ -37,7 +36,6 @@ export class BankController {
   }
 
   @Get(':id')
-  @Roles('admin', 'user')
   @RequirePermissions('read:banks')
   @ApiOperation({ summary: 'Get a banks by ID' })
   @ApiResponse({ status: 200, description: 'Return the banks.' })
@@ -47,7 +45,6 @@ export class BankController {
   }
 
   @Get(':code')
-  @Roles('admin', 'user')
   @RequirePermissions('read:banks')
   @ApiOperation({ summary: 'Get a banks by ID' })
   @ApiResponse({ status: 200, description: 'Return the banks.' })

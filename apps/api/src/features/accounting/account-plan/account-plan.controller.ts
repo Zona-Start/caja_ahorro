@@ -14,6 +14,7 @@ import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountPlanService } from './account-plan.service';
 import { CreateAccountPlanDto } from './dto/create-account-plan.dto';
 import { UpdateAccountPlanDto } from './dto/update-account-plan.dto';
+import { PaginationDto } from '@/common/dto/pagination.dto';
 
 @ApiTags('account-plan')
 @Controller('account-plan')
@@ -21,7 +22,7 @@ export class AccountPlanController {
   constructor(private readonly accountPlanService: AccountPlanService) {}
 
   @Post()
-  @Roles('admin')
+  @Roles('superadmin', 'admin')
   @RequirePermissions('create:account-plan')
   @ApiOperation({ summary: 'Create a new account plan' })
   @ApiResponse({
@@ -34,25 +35,30 @@ export class AccountPlanController {
   }
 
   @Get()
-  @Roles('admin')
   @RequirePermissions('read:account-plans')
   @ApiOperation({
-    summary: 'Get all account plans or filter by savings bank ID',
+    summary: 'Get all account plans',
   })
-  @ApiQuery({ name: 'savingBankId', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Return all account plans.' })
-  async findAll(@Query('savingBankId') savingBankId?: string) {
-    let data;
-    if (savingBankId) {
-      data = await this.accountPlanService.findAllBySavingsBank(+savingBankId);
-    } else {
-      data = await this.accountPlanService.findAll();
-    }
+  async findAll() {
+    const data = await this.accountPlanService.findAll();
     return { message: 'Account plans fetched successfully', data };
   }
 
+  @Get()
+  @RequirePermissions('read:account-plans')
+  @ApiOperation({ summary: 'Get all account plans with pagination and filters' })
+  @ApiResponse({ status: 200, description: 'Return paginated account plans .' })
+  async findAllByPagination(@Query() paginationDto: PaginationDto) {
+    const result = await this.accountPlanService.findAllByPagination(paginationDto);
+    return { 
+      message: 'account plans fetched successfully', 
+      data: result.data,
+      meta: result.meta
+    };
+  }
+
   @Get(':id')
-  @Roles('admin')
   @RequirePermissions('read:account-plan')
   @ApiOperation({ summary: 'Get an account plan by ID' })
   @ApiResponse({ status: 200, description: 'Return the account plan.' })
@@ -63,7 +69,7 @@ export class AccountPlanController {
   }
 
   @Patch(':id')
-  @Roles('admin')
+  @Roles('superadmin', 'admin')
   @RequirePermissions('update:account-plan')
   @ApiOperation({ summary: 'Update an account plan' })
   @ApiResponse({
@@ -83,7 +89,7 @@ export class AccountPlanController {
   }
 
   @Delete(':id')
-  @Roles('admin')
+  @Roles('superadmin','admin')
   @RequirePermissions('delete:account-plan')
   @ApiOperation({ summary: 'Delete an account plan' })
   @ApiResponse({

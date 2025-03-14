@@ -21,8 +21,10 @@ import { usePathname } from 'next/navigation';
 import { Icons } from './icons';
 
 export function NavMain({
+  titleGroup,
   items,
 }: {
+  titleGroup: string,
   items: {
     title: string;
     url: string;
@@ -38,7 +40,7 @@ export function NavMain({
   const pathname = usePathname();
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel>{titleGroup}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const Icon = item.icon ? Icons[item.icon] : Icons.logo;

@@ -27,10 +27,11 @@ const authConfig: NextAuthConfig = {
         const response = await SignInAction(credential);
         if (response) {
           return {
-            id: response.user.id ?? 0,
+            id: response.user.id?.toString() ?? '0',
             username: response.user.username ?? '',
             fullname: response.user.fullname ?? '',
             email: response.user.email ?? '',
+            role: response.user.rol ?? [], // Add role array
             access_token: response.tokens.access_token ?? '',
             access_expire_in: response.tokens.access_expire_in ?? 0,
             refresh_token: response.tokens.refresh_token ?? '',
@@ -60,7 +61,7 @@ const authConfig: NextAuthConfig = {
         token.username = user.username;
         token.fullname = user.fullname;
         token.email = user.email;
-        //token.role = user.role;
+        token.role = user.role;
         token.access_token = user.access_token;
         token.access_expire_in = user.access_expire_in;
         token.refresh_token = user.refresh_token;
@@ -99,7 +100,7 @@ const authConfig: NextAuthConfig = {
         username: token.username as string,
         fullname: token.fullname as string,
         email: token.email as string,
-        //role: token.role as string,
+        role: token.role as Array<{ id: number; rol: string }>,
       };
       return session;
     },

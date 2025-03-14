@@ -11,10 +11,10 @@ declare module 'next-auth' {
       username: string;
       fullname: string;
       email: string;
-      // role: {
-      //   id: number;
-      //   name: string;
-      // }[];
+      role: Array<{
+        id: number;
+        rol: string;
+      }>;
     };
   }
 
@@ -23,16 +23,14 @@ declare module 'next-auth' {
     username: string;
     fullname: string;
     email: string;
-    // role: string;
+    role: Array<{
+      id: number;
+      rol: string;
+    }>;
     access_token: string;
     access_expire_in: number;
     refresh_token: string;
     refresh_expire_in: number;
-  }
-
-  interface CredentialsInputs {
-    identifier: string;
-    password: string;
   }
 }
 
@@ -42,7 +40,10 @@ declare module 'next-auth/jwt' {
     username: string;
     fullname: string;
     email: string;
-    // role: string;
+    role: Array<{
+      id: number;
+      rol: string;
+    }>;
     access_token: string;
     access_expire_in: number;
     refresh_token: string;

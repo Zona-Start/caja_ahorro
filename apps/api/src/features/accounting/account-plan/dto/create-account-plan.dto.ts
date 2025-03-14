@@ -25,8 +25,8 @@ export class CreateAccountPlanDto {
 
   @ApiProperty({ description: 'Optional account description', required: false })
   @IsString()
-  @IsOptional()
-  description?: string;
+  @IsNotEmpty()
+  description: string;
 
   @ApiProperty({ description: 'Account level in the hierarchy (e.g. 1, 2, 3)' })
   @IsInt()

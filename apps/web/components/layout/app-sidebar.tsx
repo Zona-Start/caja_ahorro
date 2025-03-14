@@ -1,7 +1,7 @@
 'use client';
 
-import { NavMain } from '@/components/nav-main';
-import { navItems } from '@/constants/data';
+import { NavMain as ConfigMain, NavMain, NavMain as AccountingMain, NavMain as BankMain, } from '@/components/nav-main';
+import { savingBankItems, ConfigItems, AccountingItems, BankItems } from '@/constants/data';
 import {
   Sidebar,
   SidebarContent,
@@ -32,7 +32,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
+        <NavMain titleGroup={'Caja Ahorro'} items={savingBankItems} />
+        <AccountingMain titleGroup={'Contabilidad'} items={AccountingItems} />
+        <BankMain titleGroup={'Banco'} items={BankItems} />
+        <ConfigMain titleGroup={'General'} items={ConfigItems} />
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarRail />

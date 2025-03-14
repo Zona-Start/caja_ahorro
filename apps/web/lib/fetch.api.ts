@@ -1,6 +1,8 @@
+"use server"
 import { env } from '@/lib/env'; // Importamos la configuración de entorno validada
 import axios from 'axios';
 import { z } from 'zod';
+
 
 // Crear instancia de Axios con la URL base validada
 const fetchApi = axios.create({
@@ -41,6 +43,7 @@ export const safeFetchApi = async <T extends z.ZodSchema<any>>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
   body?: any,
 ): Promise<[string | null, z.infer<T> | null]> => {
+
   try {
     const response = await fetchApi({
       method,
