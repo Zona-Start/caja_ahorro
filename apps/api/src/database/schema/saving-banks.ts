@@ -4,12 +4,12 @@ import { accountPlan } from './accounting';
 import { banks } from './bank';
 import { genderEnum, nationalityEnum, statusEnum } from './enum';
 import { categoryType, states } from './general';
-import { boxSchema } from './schemas';
+import { savingBankSchema } from './schemas';
 //import { transactionsCountable } from './accounting';
 // import { transaction_types } from './general';
 
 // Tabla de Datos Caja de ahorro
-export const savingsBank = boxSchema.table(
+export const savingsBank = savingBankSchema.table(
   'savings_bank',
   {
     id: t.serial('id').primaryKey(),
@@ -29,7 +29,7 @@ export const savingsBank = boxSchema.table(
 );
 
 // Tabla de los asociados. Almacena la información de los asociados de la caja de ahorro.
-export const associates = boxSchema.table(
+export const associates = savingBankSchema.table(
   'associates',
   {
     id: t.serial('id').primaryKey(),
@@ -74,7 +74,7 @@ export const associates = boxSchema.table(
 );
 
 //Tabla de cuentas de los asociados  Almacena las cuentas de ahorro de los asociados.
-export const accountsAssociates = boxSchema.table(
+export const accountsAssociates = savingBankSchema.table(
   'accounts_associates',
   {
     id: t.serial('id').primaryKey(),
@@ -112,7 +112,7 @@ export const accountsAssociates = boxSchema.table(
 );
 
 //Tabla transacciones_ahorro Registra las transacciones de depósitos y retiros de las cuentas de ahorro.
-// export const transactionsAssociates = boxSchema.table(
+// export const transactionsAssociates = savingBankSchema.table(
 //   'transactions_associates',
 //   {
 //     id: t.serial('id').primaryKey(),

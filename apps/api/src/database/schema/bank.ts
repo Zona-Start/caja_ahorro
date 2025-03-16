@@ -1,8 +1,9 @@
 import * as t from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
+import { bankSchema } from './schemas';
 
 // Tabla States
-export const banks = t.pgTable(
+export const banks = bankSchema.table(
   'banks',
   {
     id: t.serial('id').primaryKey(),

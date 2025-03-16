@@ -6,6 +6,7 @@ import { Metadata } from 'next';
 import localFont from 'next/font/local';
 import NextTopLoader from 'nextjs-toploader';
 import { ReactNode } from 'react';
+import { Toaster } from 'sonner';
 
 const GeistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -51,7 +52,10 @@ const RootLayout = async ({
         suppressHydrationWarning
       >
         <NextTopLoader showSpinner={false} />
-        <Providers session={session}>{children}</Providers>
+        <Providers session={session}>
+          <Toaster />
+          {children}
+        </Providers>
       </body>
     </html>
   );

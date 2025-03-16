@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateAccountPlanDto {
   @ApiProperty({ description: 'Savings bank ID' })
@@ -17,16 +23,13 @@ export class CreateAccountPlanDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ description: 'Account type: activo, pasivo, patrimonio, ingreso, gasto' })
+  @ApiProperty({
+    description: 'Account type: activo, pasivo, patrimonio, ingreso, gasto',
+  })
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
   type: string;
-
-  @ApiProperty({ description: 'Optional account description', required: false })
-  @IsString()
-  @IsNotEmpty()
-  description: string;
 
   @ApiProperty({ description: 'Account level in the hierarchy (e.g. 1, 2, 3)' })
   @IsInt()

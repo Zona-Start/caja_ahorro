@@ -9,20 +9,21 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CategoryTypesService } from './category-types.service';
 import { CreateCategoryTypeDto } from './dto/create-category-type.dto';
+import { FilterCategoryTypeDto } from './dto/filter-category-type.dto';
 import { UpdateCategoryTypeDto } from './dto/update-category-type.dto';
 import { CategoryType } from './entities/category-type.entity';
 
-@ApiTags('Category Types')
+@ApiTags('category-types')
 @Controller('configurations/category-types')
 export class CategoryTypesController {
   constructor(private readonly categoryTypesService: CategoryTypesService) {}
 
   @Get()
-  @Roles('admin', 'user')
   @RequirePermissions('read:category-types')
   @ApiOperation({ summary: 'Get all category types' })
   @ApiResponse({
@@ -30,12 +31,42 @@ export class CategoryTypesController {
     description: 'Return all category types',
     type: [CategoryType],
   })
-  findAll() {
-    return this.categoryTypesService.findAll();
+  async findAll() {
+    const data = await this.categoryTypesService.findAll();
+    return { message: 'Category Types fetched successfully', data };
   }
 
-  @Get(':id')
-  @Roles('admin', 'user')
+  @Get('paginated')
+  @RequirePermissions('read:category-types')
+  @ApiOperation({
+    summary: 'Get all account plans with pagination and filters',
+  })
+  @ApiResponse({ status: 200, description: 'Return paginated account plans .' })
+  async findAllByPagination(@Query() paginationDto: FilterCategoryTypeDto) {
+    console.log(paginationDto);
+    const result =
+      await this.categoryTypesService.findAllByPagination(paginationDto);
+    return {
+      message: 'category types fetched successfully',
+      data: result.data,
+      meta: result.meta,
+    };
+  }
+
+  @Get('group/:group')
+  @RequirePermissions('read:category-types')
+  @ApiOperation({ summary: 'Get category types by group' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return category types by group',
+    type: [CategoryType],
+  })
+  async findByGroup(@Param('group') group: string) {
+    const data = await this.categoryTypesService.findByGroup(group);
+    return { message: 'Category Type fetched successfully', data };
+  }
+
+  @Get('/:id')
   @RequirePermissions('read:category-types')
   @ApiOperation({ summary: 'Get a category type by id' })
   @ApiResponse({
@@ -44,21 +75,9 @@ export class CategoryTypesController {
     type: CategoryType,
   })
   @ApiResponse({ status: 404, description: 'Category type not found' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.categoryTypesService.findOne(id);
-  }
-
-  @Get('group/:group')
-  @Roles('admin', 'user')
-  @RequirePermissions('read:category-types')
-  @ApiOperation({ summary: 'Get category types by group' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return category types by group',
-    type: [CategoryType],
-  })
-  findByGroup(@Param('group') group: string) {
-    return this.categoryTypesService.findByGroup(group);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const data = await this.categoryTypesService.findOne(id);
+    return { message: 'Category Type fetched successfully', data };
   }
 
   @Post()
@@ -70,8 +89,9 @@ export class CategoryTypesController {
     description: 'Category type created',
     type: CategoryType,
   })
-  create(@Body() createCategoryTypeDto: CreateCategoryTypeDto) {
-    return this.categoryTypesService.create(createCategoryTypeDto);
+  async create(@Body() createCategoryTypeDto: CreateCategoryTypeDto) {
+    const data = await this.categoryTypesService.create(createCategoryTypeDto);
+    return { message: 'Category Type created successfully', data };
   }
 
   @Patch(':id')
@@ -84,11 +104,15 @@ export class CategoryTypesController {
     type: CategoryType,
   })
   @ApiResponse({ status: 404, description: 'Category type not found' })
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCategoryTypeDto: UpdateCategoryTypeDto,
   ) {
-    return this.categoryTypesService.update(id, updateCategoryTypeDto);
+    const data = await this.categoryTypesService.update(
+      id,
+      updateCategoryTypeDto,
+    );
+    return { message: 'Category Type updated successfully', data };
   }
 
   @Delete(':id')

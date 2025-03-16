@@ -1,4 +1,4 @@
-import { savingsBank } from '@/database/schema/box';
+import { savingsBank } from '@/database/schema/saving-banks';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -13,20 +13,17 @@ export class SavingsBankService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
-  async findSavingBank (rif: string) {
-    return this.drizzle.select().from(savingsBank).where(eq(savingsBank.rif, rif))
-  } 
+  async findSavingBank(rif: string) {
+    return this.drizzle
+      .select()
+      .from(savingsBank)
+      .where(eq(savingsBank.rif, rif));
+  }
 
   async create(createSavingsBankDto: CreateSavingsBankDto) {
-    const existingBank  = await this.findSavingBank(createSavingsBankDto.rif)
+    const existingBank = await this.findSavingBank(createSavingsBankDto.rif);
 
-    if (!existingBank.length) {
-      throw new NotFoundException(`Savings bank found`);
-    }
-
-    const existingAllBank = await this.findAll()
-
-    if (!existingAllBank.length) {
+    if (existingBank.length !== 0) {
       throw new NotFoundException(`Savings bank found`);
     }
 

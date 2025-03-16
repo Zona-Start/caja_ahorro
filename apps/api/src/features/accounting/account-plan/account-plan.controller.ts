@@ -10,11 +10,11 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountPlanService } from './account-plan.service';
 import { CreateAccountPlanDto } from './dto/create-account-plan.dto';
+import { FilterAccountPlanDto } from './dto/filter-account-plan.dto';
 import { UpdateAccountPlanDto } from './dto/update-account-plan.dto';
-import { PaginationDto } from '@/common/dto/pagination.dto';
 
 @ApiTags('account-plan')
 @Controller('account-plan')
@@ -45,16 +45,19 @@ export class AccountPlanController {
     return { message: 'Account plans fetched successfully', data };
   }
 
-  @Get()
+  @Get('pagination')
   @RequirePermissions('read:account-plans')
-  @ApiOperation({ summary: 'Get all account plans with pagination and filters' })
+  @ApiOperation({
+    summary: 'Get all account plans with pagination and filters',
+  })
   @ApiResponse({ status: 200, description: 'Return paginated account plans .' })
-  async findAllByPagination(@Query() paginationDto: PaginationDto) {
-    const result = await this.accountPlanService.findAllByPagination(paginationDto);
-    return { 
-      message: 'account plans fetched successfully', 
+  async findAllByPagination(@Query() paginationDto: FilterAccountPlanDto) {
+    const result =
+      await this.accountPlanService.findAllByPagination(paginationDto);
+    return {
+      message: 'account plans fetched successfully',
       data: result.data,
-      meta: result.meta
+      meta: result.meta,
     };
   }
 
@@ -89,7 +92,7 @@ export class AccountPlanController {
   }
 
   @Delete(':id')
-  @Roles('superadmin','admin')
+  @Roles('superadmin', 'admin')
   @RequirePermissions('delete:account-plan')
   @ApiOperation({ summary: 'Delete an account plan' })
   @ApiResponse({

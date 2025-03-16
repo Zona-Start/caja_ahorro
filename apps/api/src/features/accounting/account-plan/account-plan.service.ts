@@ -1,12 +1,12 @@
 import { accountPlan } from '@/database/schema/accounting';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, like, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { UpdateAccountPlanDto } from './dto//update-account-plan.dto';
 import { CreateAccountPlanDto } from './dto/create-account-plan.dto';
-import { PaginationDto } from '@/common/dto/pagination.dto';
+import { FilterAccountPlanDto } from './dto/filter-account-plan.dto';
 import { AccountPlan } from './entities/account-plan.entity';
 
 @Injectable()
@@ -16,14 +16,19 @@ export class AccountPlanService {
   ) {}
 
   async findAccountPlanByCode(code: string) {
-    return this.drizzle.select().from(accountPlan).where(eq(accountPlan.code, code))
+    return this.drizzle
+      .select()
+      .from(accountPlan)
+      .where(eq(accountPlan.code, code));
   }
 
   async create(createAccountPlanDto: CreateAccountPlanDto) {
-    const existsAccountPlan = await this.findAccountPlanByCode(createAccountPlanDto.code)
+    const existsAccountPlan = await this.findAccountPlanByCode(
+      createAccountPlanDto.code,
+    );
 
-    if (!existsAccountPlan.length) {
-      throw new NotFoundException(`Account Plan exits`);
+    if (existsAccountPlan.length !== 0) {
+      throw new NotFoundException(`Account Plan already exists`);
     }
     const result = await this.drizzle
       .insert(accountPlan)
@@ -37,27 +42,54 @@ export class AccountPlanService {
     return await this.drizzle.select().from(accountPlan);
   }
 
-  async findAllByPagination(paginationDto?: PaginationDto): Promise<{ data: AccountPlan[], meta: any }> {
-    const { page = 1, limit = 10, search = '', sortBy = 'id', sortOrder = 'asc' } = paginationDto || {};
+  async findAllByPagination(
+    paginationDto?: FilterAccountPlanDto,
+  ): Promise<{ data: AccountPlan[]; meta: any }> {
+    const {
+      page = 1,
+      limit = 10,
+      searchType = '',
+      search = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+      type = '',
+      level = '',
+    } = paginationDto || {};
 
-     // Calculate offset
-     const offset = (page - 1) * limit;
-    
-     // Build search condition
-     let searchCondition: SQL<unknown> | undefined;
-     if (search) {
-       searchCondition = or(
-         like(accountPlan.code, `%${search}%`),
-         like(accountPlan.name, `%${search}%`),
-         like(accountPlan.level, `%${search}%`),
-         like(accountPlan.parent_account_id, `%${search}%`)
-       );
-     }
+    // Calculate offset
+    const offset = (page - 1) * limit;
 
-         // Build sort condition
-    const orderBy = sortOrder === 'asc' 
-    ? sql`${accountPlan[sortBy as keyof typeof accountPlan]} asc` 
-    : sql`${accountPlan[sortBy as keyof typeof accountPlan]} desc`;
+    // Build search condition
+    let searchConditions: SQL<unknown>[] = [];
+
+    if (search) {
+      switch (searchType) {
+        case 'code':
+          searchConditions.push(ilike(accountPlan.code, `%${search}%`));
+          break;
+        case 'name':
+          searchConditions.push(ilike(accountPlan.name, `%${search}%`));
+          break;
+      }
+    }
+
+    if (type) {
+      searchConditions.push(eq(accountPlan.type, type));
+    }
+
+    if (level) {
+      searchConditions.push(eq(accountPlan.level, Number(level)));
+    }
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    // Build sort condition
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${accountPlan[sortBy as keyof typeof accountPlan]} asc`
+        : sql`${accountPlan[sortBy as keyof typeof accountPlan]} desc`;
 
     // Get total count for pagination
     const totalCountResult = await this.drizzle
@@ -67,39 +99,39 @@ export class AccountPlanService {
 
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
-     
-     // Get paginated data
-     const data = await this.drizzle
-     .select({
-       id: accountPlan.id,
-       code: accountPlan.code,
-       name: accountPlan.name,
-       type: accountPlan.type,
-       description: accountPlan.description,
-       level: accountPlan.level,
-       parent_account_id: accountPlan.parent_account_id,
-     })
-     .from(accountPlan)
-     .where(searchCondition)
-     .orderBy(orderBy)
-     .limit(limit)
-     .offset(offset);
 
-   // Build pagination metadata
-   const meta = {
-     page,
-     limit,
-     totalCount,
-     totalPages,
-     hasNextPage: page < totalPages,
-     hasPreviousPage: page > 1,
-     nextPage: page < totalPages ? page + 1 : null,
-     previousPage: page > 1 ? page - 1 : null,
-   };
+    // Get paginated data
+    const data = await this.drizzle
+      .select({
+        id: accountPlan.id,
+        savingBankId: accountPlan.savingBankId,
+        code: accountPlan.code,
+        name: accountPlan.name,
+        type: accountPlan.type,
+        description: accountPlan.description,
+        level: accountPlan.level,
+        parent_account_id: accountPlan.parent_account_id,
+      })
+      .from(accountPlan)
+      .where(searchCondition)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
 
-   return { data, meta };
+    // Build pagination metadata
+    const meta = {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return { data, meta };
   }
-
 
   async findOne(id: number) {
     const result = await this.drizzle
@@ -118,7 +150,9 @@ export class AccountPlanService {
     const existingAccountPlan = await this.findOne(id);
 
     if (!existingAccountPlan) {
-      throw new NotFoundException(`Update Account Plan with ID ${id} not found`);
+      throw new NotFoundException(
+        `Update Account Plan with ID ${id} not found`,
+      );
     }
 
     const result = await this.drizzle
@@ -135,7 +169,9 @@ export class AccountPlanService {
   async remove(id: number) {
     const existingAccountPlan = await this.findOne(id);
     if (!existingAccountPlan) {
-      throw new NotFoundException(`Delete Account Plan with ID ${id} not found`);
+      throw new NotFoundException(
+        `Delete Account Plan with ID ${id} not found`,
+      );
     }
 
     await this.drizzle.delete(accountPlan).where(eq(accountPlan.id, id));

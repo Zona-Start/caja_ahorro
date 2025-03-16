@@ -1,5 +1,5 @@
 {
-  "id": "cd19278d-8302-477d-93f6-96524a46b22a",
+  "id": "68a405a0-16db-49e5-be8a-db7d3dfd6f5d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -122,7 +122,7 @@
           "name": "account_plan_saving_bank_id_savings_bank_id_fk",
           "tableFrom": "account_plan",
           "tableTo": "savings_bank",
-          "schemaTo": "box",
+          "schemaTo": "saving_banks",
           "columnsFrom": [
             "saving_bank_id"
           ],
@@ -434,7 +434,7 @@
           "name": "transactions_countable_savings_bank_id_savings_bank_id_fk",
           "tableFrom": "transactions_countable",
           "tableTo": "savings_bank",
-          "schemaTo": "box",
+          "schemaTo": "saving_banks",
           "columnsFrom": [
             "savings_bank_id"
           ],
@@ -1113,9 +1113,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.banks": {
+    "bank.banks": {
       "name": "banks",
-      "schema": "",
+      "schema": "bank",
       "columns": {
         "id": {
           "name": "id",
@@ -1175,655 +1175,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "box.accounts_associates": {
-      "name": "accounts_associates",
-      "schema": "box",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "associated_id": {
-          "name": "associated_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "balance": {
-          "name": "balance",
-          "type": "numeric(15, 2)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'0'"
-        },
-        "account_number": {
-          "name": "account_number",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bank_id": {
-          "name": "bank_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "salary": {
-          "name": "salary",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "salary_total": {
-          "name": "salary_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "opening_date": {
-          "name": "opening_date",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        },
-        "status": {
-          "name": "status",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_plan_id": {
-          "name": "account_plan_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "accounts_associatesx0": {
-          "name": "accounts_associatesx0",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "accounts_associatesx1": {
-          "name": "accounts_associatesx1",
-          "columns": [
-            {
-              "expression": "balance",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "accounts_associatesx2": {
-          "name": "accounts_associatesx2",
-          "columns": [
-            {
-              "expression": "bank_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "accounts_associatesx3": {
-          "name": "accounts_associatesx3",
-          "columns": [
-            {
-              "expression": "opening_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "accounts_associates_associated_id_associates_id_fk": {
-          "name": "accounts_associates_associated_id_associates_id_fk",
-          "tableFrom": "accounts_associates",
-          "tableTo": "associates",
-          "schemaTo": "box",
-          "columnsFrom": [
-            "associated_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "accounts_associates_bank_id_banks_id_fk": {
-          "name": "accounts_associates_bank_id_banks_id_fk",
-          "tableFrom": "accounts_associates",
-          "tableTo": "banks",
-          "columnsFrom": [
-            "bank_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "accounts_associates_account_plan_id_account_plan_id_fk": {
-          "name": "accounts_associates_account_plan_id_account_plan_id_fk",
-          "tableFrom": "accounts_associates",
-          "tableTo": "account_plan",
-          "schemaTo": "accounting",
-          "columnsFrom": [
-            "account_plan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "box.associates": {
-      "name": "associates",
-      "schema": "box",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "savings_bank_id": {
-          "name": "savings_bank_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cedula": {
-          "name": "cedula",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "nationality": {
-          "name": "nationality",
-          "type": "nationality",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gender": {
-          "name": "gender",
-          "type": "gender",
-          "typeSchema": "auth",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "birthdate": {
-          "name": "birthdate",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "date_admission": {
-          "name": "date_admission",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "date_graduation": {
-          "name": "date_graduation",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "discount_frequency_id": {
-          "name": "discount_frequency_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "status",
-          "typeSchema": "auth",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ACTIVE'"
-        },
-        "is_payroll_credit": {
-          "name": "is_payroll_credit",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "locality_id": {
-          "name": "locality_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "phone": {
-          "name": "phone",
-          "type": "varchar(15)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "email": {
-          "name": "email",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payroll_type_id": {
-          "name": "payroll_type_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "worker_type_id": {
-          "name": "worker_type_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "charge": {
-          "name": "charge",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "associates_index0": {
-          "name": "associates_index0",
-          "columns": [
-            {
-              "expression": "cedula",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index1": {
-          "name": "associates_index1",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index2": {
-          "name": "associates_index2",
-          "columns": [
-            {
-              "expression": "date_admission",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index3": {
-          "name": "associates_index3",
-          "columns": [
-            {
-              "expression": "date_graduation",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index4": {
-          "name": "associates_index4",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index5": {
-          "name": "associates_index5",
-          "columns": [
-            {
-              "expression": "is_payroll_credit",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index6": {
-          "name": "associates_index6",
-          "columns": [
-            {
-              "expression": "payroll_type_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index7": {
-          "name": "associates_index7",
-          "columns": [
-            {
-              "expression": "worker_type_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "associates_index8": {
-          "name": "associates_index8",
-          "columns": [
-            {
-              "expression": "locality_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "associates_savings_bank_id_savings_bank_id_fk": {
-          "name": "associates_savings_bank_id_savings_bank_id_fk",
-          "tableFrom": "associates",
-          "tableTo": "savings_bank",
-          "schemaTo": "box",
-          "columnsFrom": [
-            "savings_bank_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "associates_locality_id_states_id_fk": {
-          "name": "associates_locality_id_states_id_fk",
-          "tableFrom": "associates",
-          "tableTo": "states",
-          "columnsFrom": [
-            "locality_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "associates_payroll_type_id_category_type_id_fk": {
-          "name": "associates_payroll_type_id_category_type_id_fk",
-          "tableFrom": "associates",
-          "tableTo": "category_type",
-          "columnsFrom": [
-            "payroll_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "associates_worker_type_id_category_type_id_fk": {
-          "name": "associates_worker_type_id_category_type_id_fk",
-          "tableFrom": "associates",
-          "tableTo": "category_type",
-          "columnsFrom": [
-            "worker_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "associates_cedula_unique": {
-          "name": "associates_cedula_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "cedula"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "box.savings_bank": {
-      "name": "savings_bank",
-      "schema": "box",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rif": {
-          "name": "rif",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "phone": {
-          "name": "phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "person_contact": {
-          "name": "person_contact",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "phone_contact": {
-          "name": "phone_contact",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "savings_bank_idx0": {
-          "name": "savings_bank_idx0",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "savings_bank_idx1": {
-          "name": "savings_bank_idx1",
-          "columns": [
-            {
-              "expression": "rif",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "savings_bank_rif_unique": {
-          "name": "savings_bank_rif_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "rif"
-          ]
-        },
-        "savings_bank_email_unique": {
-          "name": "savings_bank_email_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
-        }
-      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2535,6 +1886,656 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "saving_banks.accounts_associates": {
+      "name": "accounts_associates",
+      "schema": "saving_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associated_id": {
+          "name": "associated_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(15, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_id": {
+          "name": "bank_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "salary": {
+          "name": "salary",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "salary_total": {
+          "name": "salary_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opening_date": {
+          "name": "opening_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "accounts_associatesx0": {
+          "name": "accounts_associatesx0",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "accounts_associatesx1": {
+          "name": "accounts_associatesx1",
+          "columns": [
+            {
+              "expression": "balance",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "accounts_associatesx2": {
+          "name": "accounts_associatesx2",
+          "columns": [
+            {
+              "expression": "bank_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "accounts_associatesx3": {
+          "name": "accounts_associatesx3",
+          "columns": [
+            {
+              "expression": "opening_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "accounts_associates_associated_id_associates_id_fk": {
+          "name": "accounts_associates_associated_id_associates_id_fk",
+          "tableFrom": "accounts_associates",
+          "tableTo": "associates",
+          "schemaTo": "saving_banks",
+          "columnsFrom": [
+            "associated_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "accounts_associates_bank_id_banks_id_fk": {
+          "name": "accounts_associates_bank_id_banks_id_fk",
+          "tableFrom": "accounts_associates",
+          "tableTo": "banks",
+          "schemaTo": "bank",
+          "columnsFrom": [
+            "bank_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "accounts_associates_account_plan_id_account_plan_id_fk": {
+          "name": "accounts_associates_account_plan_id_account_plan_id_fk",
+          "tableFrom": "accounts_associates",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "account_plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "saving_banks.associates": {
+      "name": "associates",
+      "schema": "saving_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "savings_bank_id": {
+          "name": "savings_bank_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cedula": {
+          "name": "cedula",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nationality": {
+          "name": "nationality",
+          "type": "nationality",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gender": {
+          "name": "gender",
+          "type": "gender",
+          "typeSchema": "auth",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "birthdate": {
+          "name": "birthdate",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_admission": {
+          "name": "date_admission",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "date_graduation": {
+          "name": "date_graduation",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_frequency_id": {
+          "name": "discount_frequency_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "status",
+          "typeSchema": "auth",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "is_payroll_credit": {
+          "name": "is_payroll_credit",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "locality_id": {
+          "name": "locality_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payroll_type_id": {
+          "name": "payroll_type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "worker_type_id": {
+          "name": "worker_type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "charge": {
+          "name": "charge",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "associates_index0": {
+          "name": "associates_index0",
+          "columns": [
+            {
+              "expression": "cedula",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index1": {
+          "name": "associates_index1",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index2": {
+          "name": "associates_index2",
+          "columns": [
+            {
+              "expression": "date_admission",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index3": {
+          "name": "associates_index3",
+          "columns": [
+            {
+              "expression": "date_graduation",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index4": {
+          "name": "associates_index4",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index5": {
+          "name": "associates_index5",
+          "columns": [
+            {
+              "expression": "is_payroll_credit",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index6": {
+          "name": "associates_index6",
+          "columns": [
+            {
+              "expression": "payroll_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index7": {
+          "name": "associates_index7",
+          "columns": [
+            {
+              "expression": "worker_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associates_index8": {
+          "name": "associates_index8",
+          "columns": [
+            {
+              "expression": "locality_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "associates_savings_bank_id_savings_bank_id_fk": {
+          "name": "associates_savings_bank_id_savings_bank_id_fk",
+          "tableFrom": "associates",
+          "tableTo": "savings_bank",
+          "schemaTo": "saving_banks",
+          "columnsFrom": [
+            "savings_bank_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "associates_locality_id_states_id_fk": {
+          "name": "associates_locality_id_states_id_fk",
+          "tableFrom": "associates",
+          "tableTo": "states",
+          "columnsFrom": [
+            "locality_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "associates_payroll_type_id_category_type_id_fk": {
+          "name": "associates_payroll_type_id_category_type_id_fk",
+          "tableFrom": "associates",
+          "tableTo": "category_type",
+          "columnsFrom": [
+            "payroll_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "associates_worker_type_id_category_type_id_fk": {
+          "name": "associates_worker_type_id_category_type_id_fk",
+          "tableFrom": "associates",
+          "tableTo": "category_type",
+          "columnsFrom": [
+            "worker_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "associates_cedula_unique": {
+          "name": "associates_cedula_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "cedula"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "saving_banks.savings_bank": {
+      "name": "savings_bank",
+      "schema": "saving_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rif": {
+          "name": "rif",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "person_contact": {
+          "name": "person_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone_contact": {
+          "name": "phone_contact",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "savings_bank_idx0": {
+          "name": "savings_bank_idx0",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "savings_bank_idx1": {
+          "name": "savings_bank_idx1",
+          "columns": [
+            {
+              "expression": "rif",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "savings_bank_rif_unique": {
+          "name": "savings_bank_rif_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "rif"
+          ]
+        },
+        "savings_bank_email_unique": {
+          "name": "savings_bank_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -2567,8 +2568,8 @@
     "accounting": "accounting",
     "auth": "auth",
     "bank": "bank",
-    "box": "box",
-    "estimate": "estimate"
+    "estimate": "estimate",
+    "saving_banks": "saving_banks"
   },
   "sequences": {},
   "roles": {},

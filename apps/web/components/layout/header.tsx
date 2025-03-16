@@ -16,8 +16,7 @@ export default function Header() {
         <Breadcrumbs />
       </div>
 
-      <div className="flex items-end gap-2 px-4">
-        <div className="hidden md:flex" />
+      <div className="flex items-center gap-2 px-4">
         <UserNav />
         <ThemeToggle />
       </div>

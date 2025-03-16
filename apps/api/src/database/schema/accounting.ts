@@ -1,8 +1,8 @@
 import * as t from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
 import { users } from './auth';
-import { savingsBank } from './box';
 import { transaction_types } from './general';
+import { savingsBank } from './saving-banks';
 import { accountingSchema } from './schemas';
 
 // Tabla de Plan de cuentas  Almacena las cuentas contables de la caja de ahorro.

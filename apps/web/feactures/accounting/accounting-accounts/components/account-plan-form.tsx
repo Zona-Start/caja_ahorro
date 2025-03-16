@@ -1,0 +1,238 @@
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@repo/shadcn/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/shadcn/form';
+import { Input } from '@repo/shadcn/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/shadcn/select';
+import { useForm } from 'react-hook-form';
+import {
+  useAccountingAccounts,
+  useAccountPlanMutation,
+} from '../hooks/use-account-plan-mutation';
+import { ACCOUNT_LEVELS, ACCOUNT_TYPES } from '../schemas/account-plan-options';
+import { AccountPlan, accountPlanSchema } from '../schemas/account-plan.schema';
+
+interface AccountPlanFormProps {
+  onSuccess?: () => void;
+  onCancel?: () => void;
+  defaultValues?: Partial<AccountPlan>;
+}
+
+export function AccountPlanForm({
+  onSuccess,
+  onCancel,
+  defaultValues,
+}: AccountPlanFormProps) {
+  const {
+    mutate: saveAccountingAccounts,
+    isPending: isSaving,
+    isError,
+  } = useAccountPlanMutation();
+
+  const { data: AccoutingAccounts } = useAccountingAccounts();
+
+  const form = useForm<AccountPlan>({
+    resolver: zodResolver(accountPlanSchema),
+    defaultValues: {
+      code: defaultValues?.code || '',
+      name: defaultValues?.name || '',
+      type: defaultValues?.type || 'activo',
+      level: defaultValues?.level || 1,
+      id: defaultValues?.id,
+      savingBankId: defaultValues?.savingBankId || 1,
+      parent_account_id: defaultValues?.parent_account_id || null,
+    },
+    mode: 'onChange', // Enable real-time validation
+  });
+
+  const onSubmit = async (data: AccountPlan) => {
+    // Convert string 'null' to actual null for parent_account_id
+    const formData = {
+      ...data,
+      parent_account_id:
+        data.parent_account_id === null ? null : data.parent_account_id,
+    };
+
+    // Only validate parent account if it's not null and not 'null'
+    if (formData.parent_account_id) {
+      const parentAccount = AccoutingAccounts?.data?.find(
+        (account) => account.id === formData.parent_account_id,
+      );
+
+      if (parentAccount && parentAccount.level >= formData.level) {
+        form.setError('parent_account_id', {
+          type: 'manual',
+          message: 'La cuenta padre debe ser de un nivel inferior',
+        });
+        return;
+      }
+    }
+
+    saveAccountingAccounts(formData, {
+      onSuccess: () => {
+        form.reset();
+        onSuccess?.();
+      },
+      onError: () => {
+        form.setError('root', {
+          type: 'manual',
+          message: 'Error al guardar la cuenta contable',
+        });
+      },
+    });
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {form.formState.errors.root && (
+          <div className="text-destructive text-sm">
+            {form.formState.errors.root.message}
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Código</FormLabel>
+                <FormControl>
+                  <Input placeholder="1.1.1" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nombre</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Tipo de cuenta</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona tipo" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="w-full min-w-[200px]">
+                    {Object.entries(ACCOUNT_TYPES).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="level"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Nivel de Cuenta</FormLabel>
+                <Select
+                  onValueChange={(value) => field.onChange(Number(value))}
+                  defaultValue={String(field.value)}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona nivel" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="w-full min-w-[200px]">
+                    {Object.entries(ACCOUNT_LEVELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="parent_account_id"
+            render={({ field }) => (
+              <FormItem className="col-span-2 w-full">
+                <FormLabel>Cuenta Padre</FormLabel>
+                <Select
+                  onValueChange={(value) =>
+                    field.onChange(value === 'null' ? null : Number(value))
+                  }
+                  defaultValue={field.value?.toString() || 'null'}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona cuenta padre" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
+                    <SelectItem value="null">Ninguno</SelectItem>
+                    {AccoutingAccounts?.data?.map((account) => (
+                      <SelectItem
+                        key={account.id}
+                        value={account.id!.toString()}
+                      >
+                        {account.code} - {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="flex justify-end gap-4">
+          <Button variant="outline" type="button" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}

@@ -4,9 +4,9 @@ CREATE SCHEMA "auth";
 --> statement-breakpoint
 CREATE SCHEMA "bank";
 --> statement-breakpoint
-CREATE SCHEMA "box";
---> statement-breakpoint
 CREATE SCHEMA "estimate";
+--> statement-breakpoint
+CREATE SCHEMA "saving_banks";
 --> statement-breakpoint
 CREATE TYPE "auth"."gender" AS ENUM('FEMENINO', 'MASCULINO');--> statement-breakpoint
 CREATE TYPE "public"."nationality" AS ENUM('VENEZOLANO', 'EXTRANJERO');--> statement-breakpoint
@@ -121,66 +121,12 @@ CREATE TABLE "auth"."verificationToken" (
 	"ip_address" text NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "banks" (
+CREATE TABLE "bank"."banks" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"code" varchar(5) NOT NULL,
 	"name" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3)
-);
---> statement-breakpoint
-CREATE TABLE "box"."accounts_associates" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"associated_id" integer,
-	"balance" numeric(15, 2) DEFAULT '0',
-	"account_number" numeric NOT NULL,
-	"bank_id" integer,
-	"salary" integer NOT NULL,
-	"salary_total" integer NOT NULL,
-	"opening_date" timestamp DEFAULT now(),
-	"status" varchar(50) NOT NULL,
-	"account_plan_id" integer,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp (3)
-);
---> statement-breakpoint
-CREATE TABLE "box"."associates" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"savings_bank_id" integer,
-	"cedula" varchar(20) NOT NULL,
-	"name" varchar(255) NOT NULL,
-	"nationality" "nationality" NOT NULL,
-	"gender" "auth"."gender" NOT NULL,
-	"birthdate" date NOT NULL,
-	"date_admission" timestamp DEFAULT now() NOT NULL,
-	"date_graduation" timestamp,
-	"discount_frequency_id" integer,
-	"status" "auth"."status" DEFAULT 'ACTIVE' NOT NULL,
-	"is_payroll_credit" boolean DEFAULT false NOT NULL,
-	"locality_id" integer,
-	"phone" varchar(15),
-	"email" varchar(100),
-	"payroll_type_id" integer,
-	"worker_type_id" integer,
-	"charge" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp (3),
-	CONSTRAINT "associates_cedula_unique" UNIQUE("cedula")
-);
---> statement-breakpoint
-CREATE TABLE "box"."savings_bank" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"rif" text NOT NULL,
-	"address" text NOT NULL,
-	"phone" text,
-	"email" text NOT NULL,
-	"person_contact" text,
-	"phone_contact" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp (3),
-	CONSTRAINT "savings_bank_rif_unique" UNIQUE("rif"),
-	CONSTRAINT "savings_bank_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
 CREATE TABLE "audit" (
@@ -254,11 +200,65 @@ CREATE TABLE "auth"."route_permissions" (
 	"updated_at" timestamp (3)
 );
 --> statement-breakpoint
-ALTER TABLE "accounting"."account_plan" ADD CONSTRAINT "account_plan_saving_bank_id_savings_bank_id_fk" FOREIGN KEY ("saving_bank_id") REFERENCES "box"."savings_bank"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE TABLE "saving_banks"."accounts_associates" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"associated_id" integer,
+	"balance" numeric(15, 2) DEFAULT '0',
+	"account_number" numeric NOT NULL,
+	"bank_id" integer,
+	"salary" integer NOT NULL,
+	"salary_total" integer NOT NULL,
+	"opening_date" timestamp DEFAULT now(),
+	"status" varchar(50) NOT NULL,
+	"account_plan_id" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3)
+);
+--> statement-breakpoint
+CREATE TABLE "saving_banks"."associates" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"savings_bank_id" integer,
+	"cedula" varchar(20) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"nationality" "nationality" NOT NULL,
+	"gender" "auth"."gender" NOT NULL,
+	"birthdate" date NOT NULL,
+	"date_admission" timestamp DEFAULT now() NOT NULL,
+	"date_graduation" timestamp,
+	"discount_frequency_id" integer,
+	"status" "auth"."status" DEFAULT 'ACTIVE' NOT NULL,
+	"is_payroll_credit" boolean DEFAULT false NOT NULL,
+	"locality_id" integer,
+	"phone" varchar(15),
+	"email" varchar(100),
+	"payroll_type_id" integer,
+	"worker_type_id" integer,
+	"charge" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	CONSTRAINT "associates_cedula_unique" UNIQUE("cedula")
+);
+--> statement-breakpoint
+CREATE TABLE "saving_banks"."savings_bank" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"rif" text NOT NULL,
+	"address" text NOT NULL,
+	"phone" text,
+	"email" text NOT NULL,
+	"person_contact" text,
+	"phone_contact" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	CONSTRAINT "savings_bank_rif_unique" UNIQUE("rif"),
+	CONSTRAINT "savings_bank_email_unique" UNIQUE("email")
+);
+--> statement-breakpoint
+ALTER TABLE "accounting"."account_plan" ADD CONSTRAINT "account_plan_saving_bank_id_savings_bank_id_fk" FOREIGN KEY ("saving_bank_id") REFERENCES "saving_banks"."savings_bank"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting"."account_plan" ADD CONSTRAINT "account_plan_parent_account_id_account_plan_id_fk" FOREIGN KEY ("parent_account_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting"."movements_countable" ADD CONSTRAINT "movements_countable_transaction_id_transactions_countable_id_fk" FOREIGN KEY ("transaction_id") REFERENCES "accounting"."transactions_countable"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting"."movements_countable" ADD CONSTRAINT "movements_countable_account_plan_id_account_plan_id_fk" FOREIGN KEY ("account_plan_id") REFERENCES "accounting"."account_plan"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounting"."transactions_countable" ADD CONSTRAINT "transactions_countable_savings_bank_id_savings_bank_id_fk" FOREIGN KEY ("savings_bank_id") REFERENCES "box"."savings_bank"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "accounting"."transactions_countable" ADD CONSTRAINT "transactions_countable_savings_bank_id_savings_bank_id_fk" FOREIGN KEY ("savings_bank_id") REFERENCES "saving_banks"."savings_bank"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting"."transactions_countable" ADD CONSTRAINT "transactions_countable_transaction_type_id_transaction_types_id_fk" FOREIGN KEY ("transaction_type_id") REFERENCES "public"."transaction_types"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounting"."transactions_countable" ADD CONSTRAINT "transactions_countable_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "activity_logs" ADD CONSTRAINT "activity_logs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -267,13 +267,6 @@ ALTER TABLE "auth"."roles_permissions" ADD CONSTRAINT "roles_permissions_permiss
 ALTER TABLE "auth"."sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."user_role" ADD CONSTRAINT "user_role_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."user_role" ADD CONSTRAINT "user_role_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "auth"."roles"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "box"."accounts_associates" ADD CONSTRAINT "accounts_associates_associated_id_associates_id_fk" FOREIGN KEY ("associated_id") REFERENCES "box"."associates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "box"."accounts_associates" ADD CONSTRAINT "accounts_associates_bank_id_banks_id_fk" FOREIGN KEY ("bank_id") REFERENCES "public"."banks"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "box"."accounts_associates" ADD CONSTRAINT "accounts_associates_account_plan_id_account_plan_id_fk" FOREIGN KEY ("account_plan_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "box"."associates" ADD CONSTRAINT "associates_savings_bank_id_savings_bank_id_fk" FOREIGN KEY ("savings_bank_id") REFERENCES "box"."savings_bank"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "box"."associates" ADD CONSTRAINT "associates_locality_id_states_id_fk" FOREIGN KEY ("locality_id") REFERENCES "public"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "box"."associates" ADD CONSTRAINT "associates_payroll_type_id_category_type_id_fk" FOREIGN KEY ("payroll_type_id") REFERENCES "public"."category_type"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "box"."associates" ADD CONSTRAINT "associates_worker_type_id_category_type_id_fk" FOREIGN KEY ("worker_type_id") REFERENCES "public"."category_type"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit" ADD CONSTRAINT "audit_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "localities" ADD CONSTRAINT "localities_state_id_states_id_fk" FOREIGN KEY ("state_id") REFERENCES "public"."states"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "localities" ADD CONSTRAINT "localities_municipality_id_municipalities_id_fk" FOREIGN KEY ("municipality_id") REFERENCES "public"."municipalities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -281,6 +274,13 @@ ALTER TABLE "localities" ADD CONSTRAINT "localities_parish_id_parishes_id_fk" FO
 ALTER TABLE "municipalities" ADD CONSTRAINT "municipalities_state_id_states_id_fk" FOREIGN KEY ("state_id") REFERENCES "public"."states"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "parishes" ADD CONSTRAINT "parishes_municipality_id_municipalities_id_fk" FOREIGN KEY ("municipality_id") REFERENCES "public"."municipalities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."route_permissions" ADD CONSTRAINT "route_permissions_permissions_id_permissions_id_fk" FOREIGN KEY ("permissions_id") REFERENCES "auth"."permissions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saving_banks"."accounts_associates" ADD CONSTRAINT "accounts_associates_associated_id_associates_id_fk" FOREIGN KEY ("associated_id") REFERENCES "saving_banks"."associates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saving_banks"."accounts_associates" ADD CONSTRAINT "accounts_associates_bank_id_banks_id_fk" FOREIGN KEY ("bank_id") REFERENCES "bank"."banks"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saving_banks"."accounts_associates" ADD CONSTRAINT "accounts_associates_account_plan_id_account_plan_id_fk" FOREIGN KEY ("account_plan_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saving_banks"."associates" ADD CONSTRAINT "associates_savings_bank_id_savings_bank_id_fk" FOREIGN KEY ("savings_bank_id") REFERENCES "saving_banks"."savings_bank"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saving_banks"."associates" ADD CONSTRAINT "associates_locality_id_states_id_fk" FOREIGN KEY ("locality_id") REFERENCES "public"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saving_banks"."associates" ADD CONSTRAINT "associates_payroll_type_id_category_type_id_fk" FOREIGN KEY ("payroll_type_id") REFERENCES "public"."category_type"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "saving_banks"."associates" ADD CONSTRAINT "associates_worker_type_id_category_type_id_fk" FOREIGN KEY ("worker_type_id") REFERENCES "public"."category_type"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "account_planx0" ON "accounting"."account_plan" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "account_planx1" ON "accounting"."account_plan" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "account_planx2" ON "accounting"."account_plan" USING btree ("type");--> statement-breakpoint
@@ -300,22 +300,7 @@ CREATE INDEX "roles_permission_idx02" ON "auth"."roles_permissions" USING btree 
 CREATE INDEX "sessions_idx" ON "auth"."sessions" USING btree ("session_token");--> statement-breakpoint
 CREATE INDEX "users_idx" ON "auth"."users" USING btree ("username");--> statement-breakpoint
 CREATE INDEX "user_role_idx" ON "auth"."user_role" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "banks_index_00" ON "banks" USING btree ("code","name");--> statement-breakpoint
-CREATE INDEX "accounts_associatesx0" ON "box"."accounts_associates" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "accounts_associatesx1" ON "box"."accounts_associates" USING btree ("balance");--> statement-breakpoint
-CREATE INDEX "accounts_associatesx2" ON "box"."accounts_associates" USING btree ("bank_id");--> statement-breakpoint
-CREATE INDEX "accounts_associatesx3" ON "box"."accounts_associates" USING btree ("opening_date");--> statement-breakpoint
-CREATE INDEX "associates_index0" ON "box"."associates" USING btree ("cedula");--> statement-breakpoint
-CREATE INDEX "associates_index1" ON "box"."associates" USING btree ("name");--> statement-breakpoint
-CREATE INDEX "associates_index2" ON "box"."associates" USING btree ("date_admission");--> statement-breakpoint
-CREATE INDEX "associates_index3" ON "box"."associates" USING btree ("date_graduation");--> statement-breakpoint
-CREATE INDEX "associates_index4" ON "box"."associates" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "associates_index5" ON "box"."associates" USING btree ("is_payroll_credit");--> statement-breakpoint
-CREATE INDEX "associates_index6" ON "box"."associates" USING btree ("payroll_type_id");--> statement-breakpoint
-CREATE INDEX "associates_index7" ON "box"."associates" USING btree ("worker_type_id");--> statement-breakpoint
-CREATE INDEX "associates_index8" ON "box"."associates" USING btree ("locality_id");--> statement-breakpoint
-CREATE INDEX "savings_bank_idx0" ON "box"."savings_bank" USING btree ("name");--> statement-breakpoint
-CREATE INDEX "savings_bank_idx1" ON "box"."savings_bank" USING btree ("rif");--> statement-breakpoint
+CREATE INDEX "banks_index_00" ON "bank"."banks" USING btree ("code","name");--> statement-breakpoint
 CREATE INDEX "category_typeIx0" ON "category_type" USING btree ("group");--> statement-breakpoint
 CREATE INDEX "category_typeIx1" ON "category_type" USING btree ("description");--> statement-breakpoint
 CREATE INDEX "category_typeIx2" ON "category_type" USING btree ("options");--> statement-breakpoint
@@ -327,6 +312,21 @@ CREATE INDEX "municipalities_index_00" ON "municipalities" USING btree ("id","na
 CREATE INDEX "parishes_index_00" ON "parishes" USING btree ("id","name","municipality_id");--> statement-breakpoint
 CREATE INDEX "states_index_00" ON "states" USING btree ("id","name");--> statement-breakpoint
 CREATE INDEX "route_permissions_idx" ON "auth"."route_permissions" USING btree ("route");--> statement-breakpoint
+CREATE INDEX "accounts_associatesx0" ON "saving_banks"."accounts_associates" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "accounts_associatesx1" ON "saving_banks"."accounts_associates" USING btree ("balance");--> statement-breakpoint
+CREATE INDEX "accounts_associatesx2" ON "saving_banks"."accounts_associates" USING btree ("bank_id");--> statement-breakpoint
+CREATE INDEX "accounts_associatesx3" ON "saving_banks"."accounts_associates" USING btree ("opening_date");--> statement-breakpoint
+CREATE INDEX "associates_index0" ON "saving_banks"."associates" USING btree ("cedula");--> statement-breakpoint
+CREATE INDEX "associates_index1" ON "saving_banks"."associates" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "associates_index2" ON "saving_banks"."associates" USING btree ("date_admission");--> statement-breakpoint
+CREATE INDEX "associates_index3" ON "saving_banks"."associates" USING btree ("date_graduation");--> statement-breakpoint
+CREATE INDEX "associates_index4" ON "saving_banks"."associates" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "associates_index5" ON "saving_banks"."associates" USING btree ("is_payroll_credit");--> statement-breakpoint
+CREATE INDEX "associates_index6" ON "saving_banks"."associates" USING btree ("payroll_type_id");--> statement-breakpoint
+CREATE INDEX "associates_index7" ON "saving_banks"."associates" USING btree ("worker_type_id");--> statement-breakpoint
+CREATE INDEX "associates_index8" ON "saving_banks"."associates" USING btree ("locality_id");--> statement-breakpoint
+CREATE INDEX "savings_bank_idx0" ON "saving_banks"."savings_bank" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "savings_bank_idx1" ON "saving_banks"."savings_bank" USING btree ("rif");--> statement-breakpoint
 CREATE VIEW "auth"."user_access_view" AS (
    SELECT
     u.id AS user_id,

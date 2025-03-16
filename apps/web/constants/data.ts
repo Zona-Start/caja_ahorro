@@ -54,11 +54,10 @@ export const savingBankItems: NavItem[] = [
   },
 ];
 
-
 export const AccountingItems: NavItem[] = [
   {
     title: 'Cuentas Contables',
-    url: '/dashboard/product',
+    url: '/dashboard/contabilidad/cuentas_contables',
     icon: 'product',
     shortcut: ['p', 'p'],
     isActive: false,
@@ -69,7 +68,7 @@ export const AccountingItems: NavItem[] = [
 export const BankItems: NavItem[] = [
   {
     title: 'Bancos',
-    url: '/dashboard/product',
+    url: '/dashboard/bancos/todos-bancos',
     icon: 'product',
     shortcut: ['p', 'p'],
     isActive: false,
@@ -84,9 +83,6 @@ export const BankItems: NavItem[] = [
     items: [], // No child items
   },
 ];
-
-
-
 
 export const ConfigItems: NavItem[] = [
   {
@@ -110,5 +106,14 @@ export const ConfigItems: NavItem[] = [
       },
     ],
   },
- 
 ];
+
+export type Product = {
+  name: string;
+  description: string;
+  created_at: string;
+  price: number;
+  id: number;
+  category: string;
+  updated_at: string;
+};
