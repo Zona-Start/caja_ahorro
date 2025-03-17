@@ -1,5 +1,5 @@
 import PageContainer from '@/components/layout/page-container';
-import { SavingBankView } from '@/feactures/savings-banks/saving-bank/components/saving-bank-view';
+import { SavingBankView } from '@/feactures/configurations/saving-bank/components/saving-bank-view';
 
 const Page = () => {
   return (

@@ -43,7 +43,6 @@ export class CategoryTypesController {
   })
   @ApiResponse({ status: 200, description: 'Return paginated account plans .' })
   async findAllByPagination(@Query() paginationDto: FilterCategoryTypeDto) {
-    console.log(paginationDto);
     const result =
       await this.categoryTypesService.findAllByPagination(paginationDto);
     return {

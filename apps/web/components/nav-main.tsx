@@ -24,7 +24,7 @@ export function NavMain({
   titleGroup,
   items,
 }: {
-  titleGroup: string,
+  titleGroup: string;
   items: {
     title: string;
     url: string;
@@ -39,8 +39,8 @@ export function NavMain({
 }) {
   const pathname = usePathname();
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>{titleGroup}</SidebarGroupLabel>
+    <SidebarGroup className="mt-0">
+      <SidebarGroupLabel className="text-md">{titleGroup}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
           const Icon = item.icon ? Icons[item.icon] : Icons.logo;

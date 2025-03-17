@@ -3,30 +3,49 @@ import { NavItem } from '@/types';
 //Info: The following data is used for the sidebar navigation and Cmd K bar.
 export const savingBankItems: NavItem[] = [
   {
-    title: 'Asociados',
-    url: '/dashboard/product',
-    icon: 'product',
-    shortcut: ['p', 'p'],
+    title: 'Socios',
+    url: '#',
+    icon: 'handshake',
+    shortcut: ['s', 's'],
     isActive: false,
-    items: [], // No child items
+    items: [
+      {
+        title: 'Asociados',
+        shortcut: ['l', 'l'],
+        url: '#',
+        icon: 'login',
+      },
+      {
+        title: 'Tipos de Asociados',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/socios/tipos_asociados',
+        icon: 'login',
+      },
+    ], // No child items
   },
   {
     title: 'Prestamos',
     url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'billing',
-    isActive: true,
+    icon: 'handCoins',
+    isActive: false,
 
     items: [
       {
-        title: 'Profile',
-        url: '/dashboard/profile',
+        title: 'Prestamos Ordinarios',
+        url: '#',
         icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
-        title: 'Login',
+        title: 'Refinanciamiento',
         shortcut: ['l', 'l'],
-        url: '/',
+        url: '#',
+        icon: 'login',
+      },
+      {
+        title: 'Reintegros',
+        shortcut: ['l', 'l'],
+        url: '#',
         icon: 'login',
       },
     ],
@@ -34,20 +53,20 @@ export const savingBankItems: NavItem[] = [
   {
     title: 'Creditos',
     url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'billing',
-    isActive: true,
+    icon: 'creditCard',
+    isActive: false,
 
     items: [
       {
-        title: 'Profile',
-        url: '/dashboard/profile',
+        title: 'Ordinarios',
+        url: '#',
         icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
-        title: 'Login',
+        title: 'Con Cuotas Espciales',
         shortcut: ['l', 'l'],
-        url: '/',
+        url: '#',
         icon: 'login',
       },
     ],
@@ -58,7 +77,7 @@ export const AccountingItems: NavItem[] = [
   {
     title: 'Cuentas Contables',
     url: '/dashboard/contabilidad/cuentas_contables',
-    icon: 'product',
+    icon: 'betweenHorizonalStart',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items
@@ -67,17 +86,17 @@ export const AccountingItems: NavItem[] = [
 
 export const BankItems: NavItem[] = [
   {
-    title: 'Bancos',
-    url: '/dashboard/bancos/todos-bancos',
-    icon: 'product',
+    title: 'Tipos de Bancos',
+    url: '/dashboard/bancos/tipos-bancos',
+    icon: 'landmark',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items
   },
   {
     title: 'Conciliacion Bancaria',
-    url: '/dashboard/product',
-    icon: 'product',
+    url: '#',
+    icon: 'receiptText',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items
@@ -86,25 +105,31 @@ export const BankItems: NavItem[] = [
 
 export const ConfigItems: NavItem[] = [
   {
-    title: 'Configuraciones',
+    title: 'Configuración',
     url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'billing',
-    isActive: true,
-
+    icon: 'settings',
+    isActive: false,
     items: [
       {
-        title: 'Caja Ahorro',
-        url: '/dashboard/configuraciones/caja-ahorro',
+        title: 'Datos Caja Ahorro',
+        url: '/dashboard/configuraciones/datos-caja-ahorro',
         icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
-        title: 'Moneda',
+        title: 'Frecuencias de Pagos',
         shortcut: ['l', 'l'],
-        url: '/',
+        url: '/dashboard/configuraciones/frecuencias_pago',
         icon: 'login',
       },
     ],
+  },
+  {
+    title: 'Usuarios del Sistemas',
+    url: '#',
+    icon: 'usersRound',
+    isActive: true,
+    items: [],
   },
 ];
 

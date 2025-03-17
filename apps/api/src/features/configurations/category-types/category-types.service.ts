@@ -71,7 +71,7 @@ export class CategoryTypesService {
     }
 
     if (group) {
-      searchConditions.push(eq(categoryType.description, group));
+      searchConditions.push(eq(categoryType.group, group));
     }
 
     const searchCondition = searchConditions.length
@@ -106,7 +106,6 @@ export class CategoryTypesService {
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
-
     // Build pagination metadata
     const meta = {
       page,

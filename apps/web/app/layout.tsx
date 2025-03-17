@@ -20,13 +20,13 @@ const GeistMono = localFont({
 export const metadata = {
   metadataBase: new URL('https://turbo-npn.onrender.com'),
   title: {
-    default: 'Turbo NPN',
-    template: '%s | Turbo NPN',
+    default: 'Caja de Ahorro',
+    template: '%s | Caja de Ahorro',
   },
   openGraph: {
     type: 'website',
-    title: 'Turbo NPN',
-    description: 'Turbo NPN is the name of the website',
+    title: 'Caja de Ahorro',
+    description: 'Sistema integral para cajas de ahorro',
     url: 'https://turbo-npn.onrender.com',
     images: [
       {

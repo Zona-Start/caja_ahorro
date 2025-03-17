@@ -1,7 +1,17 @@
 'use client';
 
-import { NavMain as ConfigMain, NavMain, NavMain as AccountingMain, NavMain as BankMain, } from '@/components/nav-main';
-import { savingBankItems, ConfigItems, AccountingItems, BankItems } from '@/constants/data';
+import {
+  NavMain as AccountingMain,
+  NavMain as BankMain,
+  NavMain as ConfigMain,
+  NavMain,
+} from '@/components/nav-main';
+import {
+  AccountingItems,
+  BankItems,
+  ConfigItems,
+  savingBankItems,
+} from '@/constants/data';
 import {
   Sidebar,
   SidebarContent,
@@ -12,9 +22,8 @@ import { GalleryVerticalEnd } from 'lucide-react';
 import * as React from 'react';
 
 export const company = {
-  name: 'Acme Inc',
+  name: 'Caprebicentenario',
   logo: GalleryVerticalEnd,
-  plan: 'Enterprise',
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -25,9 +34,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
             <company.logo className="size-4" />
           </div>
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-semibold">{company.name}</span>
-            <span className="truncate text-xs">{company.plan}</span>
+          <div className="grid flex-1 text-left text-md leading-tight">
+            <span className="truncate font-semibold mt-2">{company.name}</span>
           </div>
         </div>
       </SidebarHeader>
