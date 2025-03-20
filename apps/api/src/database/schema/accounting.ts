@@ -1,8 +1,8 @@
 import * as t from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
 import { users } from './auth';
-import { transaction_types } from './general';
-import { savingsBank } from './saving-banks';
+
+import { savingsBank, transactionType } from './saving-banks';
 import { accountingSchema } from './schemas';
 
 // Tabla de Plan de cuentas  Almacena las cuentas contables de la caja de ahorro.
@@ -40,7 +40,7 @@ export const transactionsCountable = accountingSchema.table(
       .references(() => savingsBank.id, { onDelete: 'cascade' }), //id de la caja
     transactionTypeId: t
       .integer('transaction_type_id')
-      .references(() => transaction_types.id, { onDelete: 'set null' }), //id tipo de transacion
+      .references(() => transactionType.id, { onDelete: 'set null' }), //id tipo de transacion
     date: t.date('date').notNull(), //fecha de la trasacion
     description: t.text('description'), //descripcion de la transaccion
     reference: t.bigint('reference', { mode: 'bigint' }), // numero de referencia

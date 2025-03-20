@@ -131,3 +131,23 @@ export const accountsAssociates = savingBankSchema.table(
 //     ...timestamps,
 //   },
 // );
+
+export const transactionType = savingBankSchema.table('transaction_type', {
+  id: t.serial('id').primaryKey(),
+  code: t.varchar('code', { length: 10 }).notNull(),
+  description: t.text('description').notNull(),
+  deferredDate: t.date('deferred_date').notNull(),
+  dateCanceled: t.date('date_canceled').notNull(),
+  deferredNumber: t.integer('deferred_number'),
+  numberCanceled: t.integer('number_canceled'),
+  associatedAccount: t
+    .integer('associated_account')
+    .references(() => accountPlan.id, { onDelete: 'set null' }),
+  employerAccount: t
+    .integer('employer_account')
+    .references(() => accountPlan.id, { onDelete: 'set null' }),
+  loanAccount: t
+    .integer('loan_account')
+    .references(() => accountPlan.id, { onDelete: 'set null' }),
+  ...timestamps,
+});

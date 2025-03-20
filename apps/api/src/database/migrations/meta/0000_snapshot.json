@@ -1,5 +1,5 @@
 {
-  "id": "68a405a0-16db-49e5-be8a-db7d3dfd6f5d",
+  "id": "5e3be549-2834-491f-aabf-838c215b5d8c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -66,6 +66,18 @@
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         }
@@ -145,6 +157,34 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "account_plan_created_by_id_users_id_fk": {
+          "name": "account_plan_created_by_id_users_id_fk",
+          "tableFrom": "account_plan",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "account_plan_updated_by_id_users_id_fk": {
+          "name": "account_plan_updated_by_id_users_id_fk",
+          "tableFrom": "account_plan",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -205,6 +245,18 @@
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         }
@@ -299,6 +351,34 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "movements_countable_created_by_id_users_id_fk": {
+          "name": "movements_countable_created_by_id_users_id_fk",
+          "tableFrom": "movements_countable",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "movements_countable_updated_by_id_users_id_fk": {
+          "name": "movements_countable_updated_by_id_users_id_fk",
+          "tableFrom": "movements_countable",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -363,6 +443,18 @@
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         }
@@ -444,10 +536,11 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "transactions_countable_transaction_type_id_transaction_types_id_fk": {
-          "name": "transactions_countable_transaction_type_id_transaction_types_id_fk",
+        "transactions_countable_transaction_type_id_transaction_type_id_fk": {
+          "name": "transactions_countable_transaction_type_id_transaction_type_id_fk",
           "tableFrom": "transactions_countable",
-          "tableTo": "transaction_types",
+          "tableTo": "transaction_type",
+          "schemaTo": "saving_banks",
           "columnsFrom": [
             "transaction_type_id"
           ],
@@ -464,6 +557,34 @@
           "schemaTo": "auth",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "transactions_countable_created_by_id_users_id_fk": {
+          "name": "transactions_countable_created_by_id_users_id_fk",
+          "tableFrom": "transactions_countable",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "transactions_countable_updated_by_id_users_id_fk": {
+          "name": "transactions_countable_updated_by_id_users_id_fk",
+          "tableFrom": "transactions_countable",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
           ],
           "columnsTo": [
             "id"
@@ -558,6 +679,185 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.audit_logs": {
+      "name": "audit_logs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "table_name": {
+          "name": "table_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "action": {
+          "name": "action",
+          "type": "action",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area": {
+          "name": "area",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "name": "timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "previous_data": {
+          "name": "previous_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "new_data": {
+          "name": "new_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "auditLogs_idx00": {
+          "name": "auditLogs_idx00",
+          "columns": [
+            {
+              "expression": "table_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auditLogs_idx01": {
+          "name": "auditLogs_idx01",
+          "columns": [
+            {
+              "expression": "record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auditLogs_idx02": {
+          "name": "auditLogs_idx02",
+          "columns": [
+            {
+              "expression": "action",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auditLogs_idx03": {
+          "name": "auditLogs_idx03",
+          "columns": [
+            {
+              "expression": "area",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "auditLogs_idx04": {
+          "name": "auditLogs_idx04",
+          "columns": [
+            {
+              "expression": "timestamp",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "audit_logs_user_id_users_id_fk": {
+          "name": "audit_logs_user_id_users_id_fk",
+          "tableFrom": "audit_logs",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -1147,6 +1447,18 @@
           "type": "timestamp (3)",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1172,83 +1484,28 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.audit": {
-      "name": "audit",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "affected_table": {
-          "name": "affected_table",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "action": {
-          "name": "action",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "record_id": {
-          "name": "record_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "details": {
-          "name": "details",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "date": {
-          "name": "date",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
       "foreignKeys": {
-        "audit_user_id_users_id_fk": {
-          "name": "audit_user_id_users_id_fk",
-          "tableFrom": "audit",
+        "banks_created_by_id_users_id_fk": {
+          "name": "banks_created_by_id_users_id_fk",
+          "tableFrom": "banks",
           "tableTo": "users",
           "schemaTo": "auth",
           "columnsFrom": [
-            "user_id"
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "banks_updated_by_id_users_id_fk": {
+          "name": "banks_updated_by_id_users_id_fk",
+          "tableFrom": "banks",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
           ],
           "columnsTo": [
             "id"
@@ -1303,6 +1560,18 @@
           "type": "timestamp (3)",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1352,7 +1621,36 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "category_type_created_by_id_users_id_fk": {
+          "name": "category_type_created_by_id_users_id_fk",
+          "tableFrom": "category_type",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "category_type_updated_by_id_users_id_fk": {
+          "name": "category_type_updated_by_id_users_id_fk",
+          "tableFrom": "category_type",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1403,6 +1701,18 @@
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         }
@@ -1520,6 +1830,34 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "localities_created_by_id_users_id_fk": {
+          "name": "localities_created_by_id_users_id_fk",
+          "tableFrom": "localities",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "localities_updated_by_id_users_id_fk": {
+          "name": "localities_updated_by_id_users_id_fk",
+          "tableFrom": "localities",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1570,6 +1908,18 @@
           "type": "timestamp (3)",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1614,6 +1964,34 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "municipalities_created_by_id_users_id_fk": {
+          "name": "municipalities_created_by_id_users_id_fk",
+          "tableFrom": "municipalities",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "municipalities_updated_by_id_users_id_fk": {
+          "name": "municipalities_updated_by_id_users_id_fk",
+          "tableFrom": "municipalities",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1654,6 +2032,18 @@
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         }
@@ -1700,6 +2090,34 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "parishes_created_by_id_users_id_fk": {
+          "name": "parishes_created_by_id_users_id_fk",
+          "tableFrom": "parishes",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "parishes_updated_by_id_users_id_fk": {
+          "name": "parishes_updated_by_id_users_id_fk",
+          "tableFrom": "parishes",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1736,6 +2154,18 @@
           "type": "timestamp (3)",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1761,51 +2191,36 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.transaction_types": {
-      "name": "transaction_types",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
+      "foreignKeys": {
+        "states_created_by_id_users_id_fk": {
+          "name": "states_created_by_id_users_id_fk",
+          "tableFrom": "states",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
-        "name": {
-          "name": "name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
+        "states_updated_by_id_users_id_fk": {
+          "name": "states_updated_by_id_users_id_fk",
+          "tableFrom": "states",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -1965,6 +2380,18 @@
           "type": "timestamp (3)",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2065,6 +2492,34 @@
           "schemaTo": "accounting",
           "columnsFrom": [
             "account_plan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "accounts_associates_created_by_id_users_id_fk": {
+          "name": "accounts_associates_created_by_id_users_id_fk",
+          "tableFrom": "accounts_associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "accounts_associates_updated_by_id_users_id_fk": {
+          "name": "accounts_associates_updated_by_id_users_id_fk",
+          "tableFrom": "accounts_associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
           ],
           "columnsTo": [
             "id"
@@ -2207,6 +2662,18 @@
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         }
@@ -2401,6 +2868,34 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "associates_created_by_id_users_id_fk": {
+          "name": "associates_created_by_id_users_id_fk",
+          "tableFrom": "associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "associates_updated_by_id_users_id_fk": {
+          "name": "associates_updated_by_id_users_id_fk",
+          "tableFrom": "associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2481,6 +2976,18 @@
           "type": "timestamp (3)",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2515,7 +3022,36 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "savings_bank_created_by_id_users_id_fk": {
+          "name": "savings_bank_created_by_id_users_id_fk",
+          "tableFrom": "savings_bank",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "savings_bank_updated_by_id_users_id_fk": {
+          "name": "savings_bank_updated_by_id_users_id_fk",
+          "tableFrom": "savings_bank",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "savings_bank_rif_unique": {
@@ -2536,9 +3072,187 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "saving_banks.transaction_type": {
+      "name": "transaction_type",
+      "schema": "saving_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deferred_date": {
+          "name": "deferred_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_canceled": {
+          "name": "date_canceled",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deferred_number": {
+          "name": "deferred_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "number_canceled": {
+          "name": "number_canceled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "associated_account": {
+          "name": "associated_account",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "employer_account": {
+          "name": "employer_account",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "loan_account": {
+          "name": "loan_account",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "transaction_type_associated_account_account_plan_id_fk": {
+          "name": "transaction_type_associated_account_account_plan_id_fk",
+          "tableFrom": "transaction_type",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "associated_account"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "transaction_type_employer_account_account_plan_id_fk": {
+          "name": "transaction_type_employer_account_account_plan_id_fk",
+          "tableFrom": "transaction_type",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "employer_account"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "transaction_type_loan_account_account_plan_id_fk": {
+          "name": "transaction_type_loan_account_account_plan_id_fk",
+          "tableFrom": "transaction_type",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "loan_account"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "transaction_type_created_by_id_users_id_fk": {
+          "name": "transaction_type_created_by_id_users_id_fk",
+          "tableFrom": "transaction_type",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "transaction_type_updated_by_id_users_id_fk": {
+          "name": "transaction_type_updated_by_id_users_id_fk",
+          "tableFrom": "transaction_type",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
+    "public.action": {
+      "name": "action",
+      "schema": "public",
+      "values": [
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
     "auth.gender": {
       "name": "gender",
       "schema": "auth",

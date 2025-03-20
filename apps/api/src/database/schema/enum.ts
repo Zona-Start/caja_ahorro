@@ -6,3 +6,5 @@ export const nationalityEnum = pgEnum('nationality', [
   'VENEZOLANO',
   'EXTRANJERO',
 ]);
+
+export const actionEnum = pgEnum('action', ['INSERT', 'UPDATE', 'DELETE']);

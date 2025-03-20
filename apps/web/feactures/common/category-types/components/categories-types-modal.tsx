@@ -37,6 +37,8 @@ export function CategoriesTypesModal({
     name = 'Tipo Asociado';
   } else if (group === GROUP_TYPES.TIPO_FRECUENCIA) {
     name = 'Tipo Frecuencia';
+  } else if (group === GROUP_TYPES.TIPO_TRABAJADOR) {
+    name = 'Tipo Trabajador';
   }
 
   return (

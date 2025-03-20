@@ -122,6 +122,12 @@ export const ConfigItems: NavItem[] = [
         url: '/dashboard/configuraciones/frecuencias_pago',
         icon: 'login',
       },
+      {
+        title: 'Tipos de Trabajadores',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/configuraciones/tipo_trabajadores',
+        icon: 'login',
+      },
     ],
   },
   {
