@@ -1,12 +1,49 @@
+import { AccountNatureEnum, AccountTypeEnum } from '@/types/enum';
+import { ApiProperty } from '@nestjs/swagger';
+
 export class AccountPlan {
+  @ApiProperty({ required: false })
   id?: number;
-  savingBankId?: number | null;
+
+  @ApiProperty({ required: false })
+  companyId?: number | null;
+
+  @ApiProperty()
   code: string;
+
+  @ApiProperty()
   name: string;
-  type: string;
+
+  @ApiProperty()
   description: string | null;
+
+  @ApiProperty({ type: () => AccountTypeEnum })
+  accountType: AccountTypeEnum;
+
+  @ApiProperty({ type: () => AccountNatureEnum })
+  nature: AccountNatureEnum;
+
+  @ApiProperty()
   level: number;
+
+  @ApiProperty()
+  allowsMovements: boolean;
+
+  @ApiProperty()
+  isActive: boolean;
+
+  @ApiProperty({ required: false })
   parent_account_id?: number | null;
-  created_at?: Date;
-  updated_at?: Date;
+
+  @ApiProperty({ required: false })
+  createdAt?: Date;
+
+  @ApiProperty({ required: false })
+  updatedAt?: Date;
+
+  @ApiProperty({ required: false })
+  createdById?: number;
+
+  @ApiProperty({ required: false })
+  updateById?: number;
 }

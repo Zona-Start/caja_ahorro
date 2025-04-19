@@ -1,120 +1,185 @@
-import * as t from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  numeric,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
 import { users } from './auth';
 
-import { savingsBank, transactionType } from './saving-banks';
+import { sql } from 'drizzle-orm';
+import { company } from './core';
+import {
+  accountNatureEnum,
+  accountTypeEnum,
+  currencyCodeEnum,
+  cycleStatusEnum,
+  statusEnum,
+} from './enum';
 import { accountingSchema } from './schemas';
 
 // Tabla de Plan de cuentas  Almacena las cuentas contables de la caja de ahorro.
 export const accountPlan = accountingSchema.table(
   'account_plan',
   {
-    id: t.serial('id').primaryKey(),
-    savingBankId: t
-      .integer('saving_bank_id')
-      .references(() => savingsBank.id, { onDelete: 'cascade' }),
-    code: t.varchar('code', { length: 50 }).notNull(), // Account code (e.g. 1.1.1)
-    name: t.text('name').notNull(), // Account name (e.g. "Caja")
-    type: t.varchar('type', { length: 50 }).notNull(), // Account type: 'activo', 'pasivo', 'patrimonio', 'ingreso', 'gasto'
-    description: t.text('description'), // Optional account description
-    level: t.integer('level').notNull(), // Account level in the hierarchy (e.g. 1, 2, 3)
-    parent_account_id: t
-      .integer('parent_account_id')
-      .references(() => accountPlan.id, { onDelete: 'set null' }),
+    id: serial('id').primaryKey(),
+    companyId: integer('company_id').references(() => company.id, {
+      onDelete: 'cascade',
+    }),
+    code: varchar('code', { length: 50 }).notNull(), // Código contable jerárquico (ej: 1.1.01.001)
+    name: text('name').notNull(), // Nombre de la cuenta (ej: "Caja Principal")
+    description: text('description'), // Optional account description
+    accountType: accountTypeEnum('account_type').notNull(), // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, MEMORANDUM
+    nature: accountNatureEnum('nature').notNull(), // DEBIT (Deudora) o CREDIT (Acreedora)
+    level: integer('level').notNull(), // Account level in the hierarchy (e.g. 1, 2, 3)
+    allowsMovements: boolean('allows_movements').notNull().default(true), // True si es cuenta de detalle (imputable), False si es de agrupación,
+    isActive: boolean('is_active').default(true),
+    parentAccountId: integer('parent_account_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ),
     ...timestamps,
   },
-  (accountPlan) => ({
-    accountPlanIdx0: t.index('account_planx0').on(accountPlan.code),
-    accountPlanIdx1: t.index('account_planx1').on(accountPlan.name),
-    accountPlanIdx2: t.index('account_planx2').on(accountPlan.type),
+  (table) => ({
+    codeSavingsBankIdx: uniqueIndex('account_plan_code_savings_bank_uidx').on(
+      table.code,
+      table.companyId,
+    ), // Código único por caja
+    nameIdx: index('account_plan_name_idx').on(table.name),
+    typeIdx: index('account_plan_type_idx').on(table.accountType),
+    parentIdx: index('account_plan_parent_idx').on(table.parentAccountId),
   }),
 );
 
-// tabla de transaciones contables Almacena las transacciones contables.
-export const transactionsCountable = accountingSchema.table(
-  'transactions_countable',
+//Define los periodos/ciclos contables.
+export const accountingCycles = accountingSchema.table(
+  'accounting_cycles',
   {
-    id: t.serial('id').primaryKey(),
-    savingsBankId: t
-      .integer('savings_bank_id')
-      .references(() => savingsBank.id, { onDelete: 'cascade' }), //id de la caja
-    transactionTypeId: t
-      .integer('transaction_type_id')
-      .references(() => transactionType.id, { onDelete: 'set null' }), //id tipo de transacion
-    date: t.date('date').notNull(), //fecha de la trasacion
-    description: t.text('description'), //descripcion de la transaccion
-    reference: t.bigint('reference', { mode: 'bigint' }), // numero de referencia
-    userId: t
-      .integer('user_id')
-      .references(() => users.id, { onDelete: 'set null' }), // id usuario que hace la trasancia
+    id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, { onDelete: 'cascade' }),
+    startDate: date('start_date').notNull(),
+    endDate: date('end_date').notNull(),
+    status: cycleStatusEnum('status').notNull().default('OPEN'), // OPEN, CLOSED, CLOSING
+    description: text('description').notNull(), // Ej: "Ciclo Contable Enero 2025"
+    closedByUser_id: integer('closed_by_user_id').references(() => users.id, {
+      onDelete: 'cascade',
+    }), // FK a tabla Usuarios
+    closedAt: timestamp('closed_at'),
     ...timestamps,
   },
-  (transactionsCountable) => ({
-    transactionsCountableIdx0: t
-      .index('transactions_countablex0')
-      .on(transactionsCountable.date),
-    transactionsCountableIdx1: t
-      .index('transactions_countablex1')
-      .on(transactionsCountable.description),
-    transactionsCountableIdx2: t
-      .index('transactions_countablex2')
-      .on(transactionsCountable.transactionTypeId),
-    transactionsCountableIdx3: t
-      .index('transactions_countablex3')
-      .on(transactionsCountable.reference),
+  (table) => ({
+    savingsBankDateIdx: uniqueIndex('accounting_cycles_sb_start_end_uidx').on(
+      table.companyId,
+      table.startDate,
+      table.endDate,
+    ), // Ciclo único por caja y fechas
+    statusIdx: index('accounting_cycles_status_idx').on(table.status),
   }),
 );
 
-// Table `movimientos contables` Almacena los movimientos contables asociados a cada transacción.
-export const movementsCountable = accountingSchema.table(
-  'movements_countable',
+//Cabecera de los asientos contables (comprobantes).
+export const accountingEntries = accountingSchema.table(
+  // Renombrado de transactionsCountable
+  'accounting_entries',
   {
-    id: t.serial('id').primaryKey(),
-    transactionId: t
-      .bigint('transaction_id', { mode: 'bigint' })
-      .references(() => transactionsCountable.id, { onDelete: 'cascade' }), //id de la transacion
-    accountPlanId: t
-      .integer('account_plan_id')
-      .references(() => accountPlan.id, { onDelete: 'cascade' }), //id de la cuenta contable
-    debit: t.numeric('must', { precision: 15, scale: 2 }).default('0'), //debe
-    havings: t.numeric('credit', { precision: 15, scale: 2 }).default('0'), //haber
-    description: t.text('description'), //descripcion
+    id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, { onDelete: 'cascade' }),
+    accountingCycleId: integer('accounting_cycle_id')
+      .notNull()
+      .references(() => accountingCycles.id, { onDelete: 'restrict' }), // No borrar ciclo si tiene asientos
+    entryDate: date('entry_date').notNull(), // Fecha contable del asiento
+    description: text('description').notNull(),
+    originReferenceId: text('origin_reference_id'), // ID de la operación origen (loan_id, payment_id, etc.)
+    originType: varchar('origin_type', { length: 50 }), // Tipo de operación origen ('LOAN_DISBURSEMENT', 'BANK_DEPOSIT', 'MANUAL_ENTRY')
+    status: statusEnum('status').notNull().default('PENDING'), // Estado del asiento ej. PENDING, POSTED, CANCELLED
+    postedAt: timestamp('posted_at'),
+    currencyCode: currencyCodeEnum('currency_code').notNull(), //Moneda del asiento (generalmente la base)
+    // total_debit: numeric('total_debit', { precision: 18, scale: 2 }), // Opcional, calculado o almacenado
+    // total_credit: numeric('total_credit', { precision: 18, scale: 2 }), // Opcional, calculado o almacenado
     ...timestamps,
   },
-  (movementsCountable) => ({
-    movementsCountableIdx0: t
-      .index('movements_countablex0')
-      .on(movementsCountable.transactionId),
-    movementsCountableIdx1: t
-      .index('movements_countablex1')
-      .on(movementsCountable.accountPlanId),
-    movementsCountableIdx2: t
-      .index('movements_countablex2')
-      .on(movementsCountable.debit),
-    movementsCountableIdx3: t
-      .index('movements_countablex3')
-      .on(movementsCountable.havings),
+  (table) => ({
+    cycleDateIdx: index('accounting_entries_cycle_date_idx').on(
+      table.accountingCycleId,
+      table.entryDate,
+    ),
+    originIdx: index('accounting_entries_origin_idx').on(
+      table.originType,
+      table.originReferenceId,
+    ),
+    statusIdx: index('accounting_entries_status_idx').on(table.status),
   }),
 );
 
-// // Tabla `balances contables` Almacena los balances generados periódicamente (mensual, anual, etc.).
-// export const balancesCountable = accountingSchema.table('balances_countable', {
-//     id: t.serial('id').primaryKey(),
-//     savingsBankId: t.integer('savings_bank_id').references(() => savingsBank.id, { onDelete: 'cascade' }),
-//     start_date: t.date('start_date').notNull(),
-//     end_date: t.date('end_date').notNull(),
-//     type: t.varchar('type', { length: 50 }).notNull(), // Ex: 'monthly', 'annual'
-//     total_assets: t.numeric('total_assets', { precision: 15, scale: 2 }),
-//     total_liabilities: t.numeric('total_liabilities', { precision: 15, scale: 2 }),
-//     total_equity: t.numeric('total_assets', { precision: 15, scale: 2 }),
-//     ...timestamps,
-// });
+// Líneas de detalle de cada asiento contable (Debe y Haber).
+export const accountingEntryDetails = accountingSchema.table(
+  // Renombrado de movementsCountable
+  'accounting_entry_details',
+  {
+    id: serial('id').primaryKey(),
+    accountingEntryId: integer('accounting_entry_id')
+      .notNull()
+      .references(() => accountingEntries.id, { onDelete: 'cascade' }), // Si se borra la cabecera, se borran detalles
+    accountPlanId: integer('account_plan_id')
+      .notNull()
+      .references(() => accountPlan.id, { onDelete: 'restrict' }), // No borrar cuenta si tiene movimientos
+    debit: numeric('debit', { precision: 18, scale: 2 })
+      .notNull()
+      .default('0.00'),
+    credit: numeric('credit', { precision: 18, scale: 2 })
+      .notNull()
+      .default('0.00'),
+    description: text('description'),
+    ...timestamps, // No usual tener timestamps aquí, pero Drizzle lo permite
+  },
+  (table) => ({
+    checkDebitCredit: check(
+      'debit_credit_check',
+      sql`(${table.debit} > 0 AND ${table.credit} = 0) OR (${table.debit} = 0 AND ${table.credit} > 0) OR (${table.debit} = 0 AND ${table.credit} = 0)`,
+    ), // Permitir 0 en ambos para ajustes? Revisar. Idealmente no.
+    checkAmountPositive: check(
+      'amount_positive_check',
+      sql`${table.debit} >= 0 AND ${table.credit} >= 0`,
+    ), // Asegurar no negativos
+    entryIdx: index('acct_entry_details_entry_idx').on(table.accountingEntryId),
+    accountIdx: index('acct_entry_details_account_idx').on(table.accountPlanId),
+  }),
+);
 
-// //  tabla `reportes contables`  Almacena los reportes generados por el sistema (balance general, estado de resultados, etc.).
-// export const reportsCountable = accountingSchema.table('reports_countable', {
-//     id: t.serial('id').primaryKey(),
-//     savingsBankId: t.integer('savings_bank_id').references(() => savingsBank.id, { onDelete: 'cascade' }),
-//     type: t.varchar('type', { length: 50 }).notNull(), // Eg: 'general_balance', 'results_status'
-//     generation_date: t.timestamp('generation_date').defaultNow(),
-//     content: t.jsonb('content'), // Stores the report content in JSON format
-// });
+//Parametrización de asientos contables por tipo de operación.
+export const accountingConfiguration = accountingSchema.table(
+  'accounting_configuration',
+  {
+    id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, { onDelete: 'cascade' }),
+    operationType: varchar('operation_type', { length: 100 }).notNull(), //Ej: LOAN_DISBURSEMENT_VES, SAVING_CONTRIBUTION_USD, INTEREST_ACCRUAL
+    descriptionTemplate: text('description_template'), //Plantilla para descripción del asiento. Ej: "Desembolso Préstamo #{loanId}
+    debitAccountId: integer('debit_account_id')
+      .notNull()
+      .references(() => accountPlan.id, { onDelete: 'restrict' }),
+    creditAccountId: integer('credit_account_id')
+      .notNull()
+      .references(() => accountPlan.id, { onDelete: 'restrict' }),
+    is_active: boolean('is_active').default(true),
+    ...timestamps,
+  },
+  (table) => ({
+    savingsBankOperationIdx: uniqueIndex('acct_config_sb_op_type_uidx').on(
+      table.companyId,
+      table.operationType,
+    ), // Configuración única por caja y tipo de operación
+  }),
+);

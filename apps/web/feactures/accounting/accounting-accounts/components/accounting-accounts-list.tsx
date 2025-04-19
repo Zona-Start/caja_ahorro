@@ -2,8 +2,8 @@
 
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
-import { usePaginatedAccounts } from '../hooks/use-account-plan-mutation';
 import { columns } from './accounts-tables/columns';
+import { usePaginatedAccounts } from '../hooks/use-query-account-plan';
 
 interface AccountingAccountsListProps {
   initialPage: number;

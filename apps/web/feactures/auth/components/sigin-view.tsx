@@ -1,64 +1,21 @@
-// import { Button } from '@repo/shadcn/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@repo/shadcn/card';
-// import { Input } from '@repo/shadcn/input';
-// import { Label } from '@repo/shadcn/label';
+import { Card, CardContent } from '@repo/shadcn/card';
 import { cn } from '@repo/shadcn/lib/utils';
 import UserAuthForm from './user-auth-form';
 
 export function LoginForm({
   className,
   ...props
-}: React.ComponentPropsWithoutRef<'div'>) {
+}: React.ComponentProps<'div'>) {
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">
-            Sistema Integral Caja de Ahorro
-          </CardTitle>
-          <CardDescription>
-            Ingrese sus datos para acceder al sistema
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card className="overflow-hidden">
+        <CardContent className="grid p-0 md:grid-cols-2">
           <UserAuthForm />
-          {/* <form>
-            <div className="grid gap-6">
-              <div className="grid gap-6">
-                <div className="grid gap-2">
-                  <Label htmlFor="username">Usuario</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="ingrese su usuario"
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <div className="flex items-center">
-                    <Label htmlFor="password">Contraseña</Label>
-                  </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    placeholder="*************"
-                  />
-                </div>
-                <Button type="submit" className="w-full">
-                  Ingresar
-                </Button>
-              </div>
-            </div>
-          </form> */}
         </CardContent>
       </Card>
+      <div className="text-balance text-center text-xs text-muted-foreground [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:text-primary">
+        Desarrollado por <a href="https://zonastart.com">Zona Start</a>
+      </div>
     </div>
   );
 }

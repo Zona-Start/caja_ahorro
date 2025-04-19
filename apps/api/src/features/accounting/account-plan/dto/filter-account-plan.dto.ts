@@ -1,12 +1,17 @@
+import { AccountTypeEnum } from '@/types/enum';
 import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class FilterAccountPlanDto extends PartialType(PaginationDto) {
-  @ApiPropertyOptional({ description: 'Column type' })
+  @ApiPropertyOptional({
+    description: 'Column type',
+    enum: AccountTypeEnum,
+    enumName: 'AccountTypeEnum',
+  })
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsEnum(AccountTypeEnum)
+  type?: AccountTypeEnum;
 
   @ApiPropertyOptional({ description: 'Column level' })
   @IsOptional()

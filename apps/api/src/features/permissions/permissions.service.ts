@@ -15,7 +15,9 @@ export class PermissionsService {
   ) {}
 
   async findAll(): Promise<Permission[]> {
-    return await this.drizzle.select().from(permissions);
+    return (await this.drizzle
+      .select()
+      .from(permissions)) as Permission[];
   }
 
   async findOne(id: number): Promise<Permission> {
@@ -28,7 +30,7 @@ export class PermissionsService {
       throw new HttpException('Permission not found', HttpStatus.NOT_FOUND);
     }
 
-    return permission[0];
+    return permission[0] as Permission;
   }
 
   async create(createPermissionDto: CreatePermissionDto): Promise<Permission> {
@@ -39,7 +41,7 @@ export class PermissionsService {
       })
       .returning();
 
-    return permission;
+    return permission as Permission;
   }
 
   async update(

@@ -20,11 +20,11 @@ import {
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
 import {
-  useAccountingAccounts,
   useAccountPlanMutation,
 } from '../hooks/use-account-plan-mutation';
 import { ACCOUNT_LEVELS, ACCOUNT_TYPES } from '../schemas/account-plan-options';
 import { AccountPlan, accountPlanSchema } from '../schemas/account-plan.schema';
+import { useAccountingAccounts } from '../hooks/use-query-account-plan';
 
 interface AccountPlanFormProps {
   onSuccess?: () => void;
@@ -207,7 +207,7 @@ export function AccountPlanForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                    <SelectItem value="null">Ninguno</SelectItem>
+                    <SelectItem key={0} value="null">Ninguno</SelectItem>
                     {AccoutingAccounts?.data?.map((account) => (
                       <SelectItem
                         key={account.id}

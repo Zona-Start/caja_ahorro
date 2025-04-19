@@ -1,18 +1,17 @@
 'use client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getSavingBankAction,
   saveSavingBankAction,
 } from '../actions/saving-bank-actions';
 import { SavingBankFormValue } from '../schemas/saving-bank';
+import { useSafeQuery } from '@/hooks/use-safe-query';
 
 export const SAVING_BANK_KEY = ['saving-bank'];
 
 export function useSavingBank() {
-  return useQuery({
-    queryKey: SAVING_BANK_KEY,
-    queryFn: getSavingBankAction,
-  });
+  return useSafeQuery(['saving-bank'], ()=> getSavingBankAction())
+
 }
 
 export function useSavingBankMutation() {

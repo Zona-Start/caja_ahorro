@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountPlanService } from './account-plan.service';
@@ -29,8 +30,15 @@ export class AccountPlanController {
     status: 201,
     description: 'Account plan created successfully.',
   })
-  async create(@Body() createAccountPlanDto: CreateAccountPlanDto) {
-    const data = await this.accountPlanService.create(createAccountPlanDto);
+  async create(
+    @Req() req: Request,
+    @Body() createAccountPlanDto: CreateAccountPlanDto,
+  ) {
+    const userId = req['user'].id;
+    const data = await this.accountPlanService.create(
+      userId,
+      createAccountPlanDto,
+    );
     return { message: 'Account plan created successfully', data };
   }
 
@@ -81,10 +89,13 @@ export class AccountPlanController {
   })
   @ApiResponse({ status: 404, description: 'Account plan not found.' })
   async update(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() updateAccountPlanDto: UpdateAccountPlanDto,
   ) {
+    const userId = req['user'].id;
     const data = await this.accountPlanService.update(
+      userId,
       +id,
       updateAccountPlanDto,
     );

@@ -15,7 +15,7 @@ export class RolesService {
   ) {}
 
   async findAll(): Promise<Role[]> {
-    return await this.drizzle.select().from(roles);
+    return (await this.drizzle.select().from(roles)) as Role[];
   }
 
   async findOne(id: number): Promise<Role> {
@@ -28,7 +28,7 @@ export class RolesService {
       throw new HttpException('Role not found', HttpStatus.NOT_FOUND);
     }
 
-    return role[0];
+    return role[0] as Role;
   }
 
   async create(createRoleDto: CreateRoleDto): Promise<Role> {
@@ -39,7 +39,7 @@ export class RolesService {
       })
       .returning();
 
-    return role;
+    return role as Role;
   }
 
   async update(id: number, updateRoleDto: UpdateRoleDto): Promise<Role> {

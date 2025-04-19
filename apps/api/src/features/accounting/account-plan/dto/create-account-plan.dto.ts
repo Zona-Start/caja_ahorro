@@ -1,5 +1,8 @@
+import { AccountNatureEnum, AccountTypeEnum } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -8,9 +11,9 @@ import {
 } from 'class-validator';
 
 export class CreateAccountPlanDto {
-  @ApiProperty({ description: 'Savings bank ID' })
+  @ApiProperty({ description: 'Company ID' })
   @IsInt()
-  savingBankId: number;
+  companyId: number;
 
   @ApiProperty({ description: 'Account code (e.g. 1.1.1)' })
   @IsString()
@@ -24,16 +27,40 @@ export class CreateAccountPlanDto {
   name: string;
 
   @ApiProperty({
-    description: 'Account type: activo, pasivo, patrimonio, ingreso, gasto',
+    enum: AccountTypeEnum,
+    enumName: 'AccountTypeEnum',
+    description:
+      'Account type:  ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE, MEMORANDUM',
   })
-  @IsString()
+  @IsEnum(AccountTypeEnum)
   @IsNotEmpty()
-  @MaxLength(50)
-  type: string;
+  accountType: AccountTypeEnum;
+
+  @ApiProperty({
+    enum: AccountNatureEnum,
+    enumName: 'AccountNatureEnum',
+    description: 'Account type: DEBIT, CREDIT,',
+  })
+  @IsEnum(AccountNatureEnum)
+  @IsNotEmpty()
+  nature: AccountNatureEnum;
 
   @ApiProperty({ description: 'Account level in the hierarchy (e.g. 1, 2, 3)' })
   @IsInt()
   level: number;
+
+  @ApiProperty({
+    description:
+      'True if it is a detail account (attributable), False if it is a grouping account',
+  })
+  @IsNotEmpty()
+  @IsBoolean()
+  allowsMovements: boolean;
+
+  @ApiProperty({ description: 'active o false' })
+  @IsOptional()
+  @IsBoolean()
+  isActive: boolean;
 
   @ApiProperty({ description: 'Parent account ID', required: false })
   @IsInt()

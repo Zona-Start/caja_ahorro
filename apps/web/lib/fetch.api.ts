@@ -52,12 +52,33 @@ export const safeFetchApi = async <T extends z.ZodSchema<any>>(
     const parsed = schema.safeParse(response.data);
 
     if (!parsed.success) {
-      return [`Validation error: ${parsed.error.message}`, null];
+      console.error('Validation Error Details:', {
+        errors: parsed.error.errors,
+        receivedData: response.data,
+        expectedSchema: schema,
+      });
+      return [
+        `Validation error: ${JSON.stringify(parsed.error.errors, null, 2)}`,
+        null,
+      ];
     }
 
     return [null, parsed.data];
   } catch (error: any) {
-    return [`API error: ${error.response?.status} - ${error.message}`, null];
+    const errorDetails = {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      message: error.message,
+      url: error.config?.url,
+      method: error.config?.method,
+      requestData: error.config?.data,
+      responseData: error.response?.data,
+      headers: error.config?.headers,
+    };
+
+    console.error('API Error Details:', errorDetails);
+
+    return [`API error: ${error.response?.status} - ${error.message}\n`, null];
   }
 };
 

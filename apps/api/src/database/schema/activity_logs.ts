@@ -1,18 +1,13 @@
 import { sql } from 'drizzle-orm';
 import * as t from 'drizzle-orm/pg-core';
-import { index, pgTable } from 'drizzle-orm/pg-core';
+import { index } from 'drizzle-orm/pg-core';
+import { timestampsShort } from '../timestamps';
 import { users } from './auth';
-import { actionEnum } from './enum';
-
-const timestamps = {
-  created_at: t.timestamp('created_at').defaultNow().notNull(),
-  updated_at: t
-    .timestamp('updated_at', { mode: 'date', precision: 3 })
-    .$onUpdate(() => new Date()),
-};
+import { actionEnumAudit } from './enum';
+import { auditSchema, coreSchema } from './schemas';
 
 // Tabla de Logs de Actividad
-export const activityLogsSystem = pgTable(
+export const activityLogsSystem = coreSchema.table(
   'activity_logs',
   {
     id: t
@@ -22,10 +17,10 @@ export const activityLogsSystem = pgTable(
     userId: t
       .integer('user_id')
       .references(() => users.id, { onDelete: 'cascade' }),
-    type: t.text('type').notNull(), // login, failed
+    type: actionEnumAudit('action').notNull(), // login, failed
     description: t.text('description').notNull(),
     timestamp: t.timestamp('timestamp').defaultNow(),
-    ...timestamps,
+    ...timestampsShort,
   },
   (activityLogs) => ({
     activityLogsIdx: index('activityLogs_idx').on(activityLogs.type),
@@ -33,13 +28,13 @@ export const activityLogsSystem = pgTable(
 );
 
 //Tabla de Auditoría registrará todos los cambios importantes en las transacciones financieras, como inserciones, actualizaciones o eliminaciones.
-export const auditLogs = pgTable(
+export const auditLogs = auditSchema.table(
   'audit_logs',
   {
     id: t.serial('id').primaryKey(),
     tableName: t.text('table_name').notNull(), //tabla afectada.
-    recordId: t.uuid('record_id').notNull(), //asociar el cambio con un registro específico
-    action: actionEnum('action').notNull(), // con restricción para aceptar solo 'INSERT', 'UPDATE' o 'DELETE'.
+    recordId: t.text('record_id').notNull(), //asociar el cambio con un registro específico
+    action: actionEnumAudit('action').notNull(), // con restricción para aceptar solo 'INSERT', 'UPDATE' o 'DELETE'.
     userId: t
       .integer('user_id')
       .references(() => users.id, { onDelete: 'set null' }),
@@ -48,13 +43,12 @@ export const auditLogs = pgTable(
     timestamp: t.timestamp('timestamp').defaultNow(), //con fecha y hora del cambio
     previousData: t.jsonb('previous_data'), //para guardar los estados antes de la modificación
     newData: t.jsonb('new_data'), // para guardar los estados después de la modificación
-    ...timestamps,
+    ...timestampsShort,
   },
   (auditLogs) => ({
-    auditLogsIdx0: index('auditLogs_idx00').on(auditLogs.tableName),
-    auditLogsIdx1: index('auditLogs_idx01').on(auditLogs.recordId),
-    auditLogsIdx2: index('auditLogs_idx02').on(auditLogs.action),
-    auditLogsIdx3: index('auditLogs_idx03').on(auditLogs.area),
-    auditLogsIdx4: index('auditLogs_idx04').on(auditLogs.timestamp),
+    tableNameIdx: index('auditLogs_table_name_idx').on(auditLogs.tableName),
+    recordIdIdx: index('auditLogs_record_idx').on(auditLogs.recordId),
+    actionIdx: index('auditLogs_action_idx').on(auditLogs.action),
+    areaIdx: index('auditLogs_area_idx').on(auditLogs.area),
   }),
 );

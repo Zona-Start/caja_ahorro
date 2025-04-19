@@ -22,16 +22,25 @@ export class AccountPlanService {
       .where(eq(accountPlan.code, code));
   }
 
-  async create(createAccountPlanDto: CreateAccountPlanDto) {
-    const existsAccountPlan = await this.findAccountPlanByCode(
-      createAccountPlanDto.code,
-    );
+  async create(userdId: number, createAccountPlanDto: CreateAccountPlanDto) {
+    const existsAccountPlan = await this.drizzle
+      .select()
+      .from(accountPlan)
+      .where(
+        and(
+          eq(accountPlan.code, createAccountPlanDto.code),
+          eq(accountPlan.level, createAccountPlanDto.level),
+        ),
+      ); // Check if account plan already exists in the databas
 
     if (existsAccountPlan.length !== 0) {
       throw new NotFoundException(`Account Plan already exists`);
     }
     const result = await this.drizzle
-      .insert(accountPlan)
+      .insert({
+        ...accountPlan,
+        createdById: userdId,
+      })
       .values(createAccountPlanDto)
       .returning();
 
@@ -74,7 +83,7 @@ export class AccountPlanService {
     }
 
     if (type) {
-      searchConditions.push(eq(accountPlan.type, type));
+      searchConditions.push(eq(accountPlan.accountType, type));
     }
 
     if (level) {
@@ -104,13 +113,16 @@ export class AccountPlanService {
     const data = await this.drizzle
       .select({
         id: accountPlan.id,
-        savingBankId: accountPlan.savingBankId,
+        companyId: accountPlan.companyId,
         code: accountPlan.code,
         name: accountPlan.name,
-        type: accountPlan.type,
         description: accountPlan.description,
+        accountType: accountPlan.accountType,
+        nature: accountPlan.nature,
         level: accountPlan.level,
-        parent_account_id: accountPlan.parent_account_id,
+        allowsMovements: accountPlan.allowsMovements,
+        isActive: accountPlan.isActive,
+        parent_account_id: accountPlan.parentAccountId,
       })
       .from(accountPlan)
       .where(searchCondition)
@@ -130,7 +142,10 @@ export class AccountPlanService {
       previousPage: page > 1 ? page - 1 : null,
     };
 
-    return { data, meta };
+    return {
+      data: data as AccountPlan[],
+      meta,
+    };
   }
 
   async findOne(id: number) {
@@ -146,7 +161,11 @@ export class AccountPlanService {
     return result[0];
   }
 
-  async update(id: number, updateAccountPlanDto: UpdateAccountPlanDto) {
+  async update(
+    userdId: number,
+    id: number,
+    updateAccountPlanDto: UpdateAccountPlanDto,
+  ) {
     const existingAccountPlan = await this.findOne(id);
 
     if (!existingAccountPlan) {
@@ -159,6 +178,7 @@ export class AccountPlanService {
       .update(accountPlan)
       .set({
         ...updateAccountPlanDto,
+        updatedById: userdId,
       })
       .where(eq(accountPlan.id, id))
       .returning();

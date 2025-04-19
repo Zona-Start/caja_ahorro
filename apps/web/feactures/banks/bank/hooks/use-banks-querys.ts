@@ -1,26 +1,18 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import {
   getBanksAction,
   getPaginatedBanksAction,
 } from '../actions/banks-actions';
+import { useSafeQuery } from '@/hooks/use-safe-query';
 
-export const BANKS_KEY = ['accounting_banks'];
-export const PAGINATED_BANKS_KEY = ['paginated_banks'];
 
 // Hook for all accounts (no pagination)
 export function useBanksQuery() {
-  return useQuery({
-    queryKey: BANKS_KEY,
-    queryFn: getBanksAction,
-  });
+  return useSafeQuery(['accounting_banks'], ()=> getBanksAction())
 }
 
 // Hook for paginated accounts
 export function usePaginatedBanksQuery(params = {}) {
-  return useQuery({
-    queryKey: [...PAGINATED_BANKS_KEY, params],
-    queryFn: () => getPaginatedBanksAction(params),
-  });
+  return useSafeQuery(['paginated_banks', params], ()=> getPaginatedBanksAction(params))
 }

@@ -147,7 +147,7 @@ export class AuthService {
       .select()
       .from(users)
       .where(eq(users.username, username));
-    return user[0];
+       return user[0] as User | null;
   }
 
   //Find User
@@ -156,7 +156,7 @@ export class AuthService {
       .select()
       .from(users)
       .where(eq(users.id, id));
-    return user[0];
+    return user[0] as User | null;
   }
 
   //Check User Is Already Exists

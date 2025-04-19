@@ -1,18 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AccountPlanModule } from './account-plan/account-plan.module';
-import { TransactionsCountableModule } from './transactions-countable/transactions-countable.module';
-import { MovementsCountableModule } from './movements-countable/movements-countable.module';
+import { AccountingCyclesModule } from './accounting-cycles/accounting-cycles.module';
 
 @Module({
-  imports: [
-    AccountPlanModule,
-    TransactionsCountableModule,
-    MovementsCountableModule,
-  ],
-  exports: [
-    AccountPlanModule,
-    TransactionsCountableModule,
-    MovementsCountableModule,
-  ],
+  imports: [AccountPlanModule, AccountingCyclesModule],
+  exports: [AccountPlanModule],
 })
 export class AccountingModule {}

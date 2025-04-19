@@ -12,7 +12,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Asociados',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/socios/asociados',
         icon: 'login',
       },
       {
@@ -126,6 +126,12 @@ export const ConfigItems: NavItem[] = [
         title: 'Tipos de Trabajadores',
         shortcut: ['l', 'l'],
         url: '/dashboard/configuraciones/tipo_trabajadores',
+        icon: 'login',
+      },
+      {
+        title: 'Tipos de Transacciones',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/configuraciones/tipo_transacciones',
         icon: 'login',
       },
     ],

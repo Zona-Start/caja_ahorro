@@ -48,20 +48,14 @@ export function DataTableFilterBox({
   setFilterValue,
   filterValue,
 }: FilterBoxProps) {
-  const selectedValuesSet = React.useMemo(() => {
-    if (!filterValue) return new Set<string>();
-    const values = filterValue.split('.');
-    return new Set(values.filter((value) => value !== ''));
+  const selectedValue = React.useMemo(() => {
+    if (!filterValue) return '';
+    return filterValue;
   }, [filterValue]);
 
   const handleSelect = (value: string) => {
-    const newSet = new Set(selectedValuesSet);
-    if (newSet.has(value)) {
-      newSet.delete(value);
-    } else {
-      newSet.add(value);
-    }
-    setFilterValue(Array.from(newSet).join('.') || null);
+    // If the value is already selected, clear it, otherwise set the new value
+    setFilterValue(value === selectedValue ? null : value);
   };
 
   const resetFilter = () => setFilterValue(null);
@@ -75,36 +69,16 @@ export function DataTableFilterBox({
               <Button variant="outline" className="border-dashed">
                 <SlidersHorizontal className="mr-2 h-4 w-4" />
                 {title}
-                {selectedValuesSet.size > 0 && (
+                {selectedValue && (
                   <>
                     <Separator orientation="vertical" className="mx-2 h-4" />
                     <Badge
                       variant="secondary"
-                      className="rounded-sm px-1 font-normal lg:hidden"
+                      className="rounded-sm px-1 font-normal"
                     >
-                      {selectedValuesSet.size}
+                      {options.find((option) => option.value === selectedValue)
+                        ?.label || selectedValue}
                     </Badge>
-                    <div className="hidden space-x-1 lg:flex">
-                      {selectedValuesSet.size > 2 ? (
-                        <Badge
-                          variant="secondary"
-                          className="rounded-sm px-1 font-normal"
-                        >
-                          {selectedValuesSet.size} selected
-                        </Badge>
-                      ) : (
-                        Array.from(selectedValuesSet).map((value) => (
-                          <Badge
-                            variant="secondary"
-                            key={value}
-                            className="rounded-sm px-1 font-normal"
-                          >
-                            {options.find((option) => option.value === value)
-                              ?.label || value}
-                          </Badge>
-                        ))
-                      )}
-                    </div>
                   </>
                 )}
               </Button>
@@ -128,7 +102,7 @@ export function DataTableFilterBox({
                     <div
                       className={cn(
                         'mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary',
-                        selectedValuesSet.has(option.value)
+                        selectedValue === option.value
                           ? 'bg-primary text-primary-foreground'
                           : 'opacity-50 [&_svg]:invisible',
                       )}
@@ -145,7 +119,7 @@ export function DataTableFilterBox({
                   </CommandItem>
                 ))}
               </CommandGroup>
-              {selectedValuesSet.size > 0 && (
+              {selectedValue && (
                 <>
                   <CommandSeparator />
                   <CommandGroup>

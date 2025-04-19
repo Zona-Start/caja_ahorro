@@ -87,7 +87,7 @@ export const getCategoryTypesByIdAction = async (id: number) => {
 
 export const getCategoryTypesByGroupAction = async (group: string) => {
   const [error, data] = await safeFetchApi(
-    categoryTypesResponseSchema,
+    categoryTypesListResponseSchema,
     `/configurations/category-types/group/${group}`,
     'GET',
   );

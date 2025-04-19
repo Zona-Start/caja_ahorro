@@ -1,11 +1,9 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   deleteAccountPlanAction,
-  getAccountPlansAction,
-  getPaginatedAccountPlansAction,
   saveAccountPlanAction,
 } from '../actions/account-plan-actions';
 import { AccountPlan } from '../schemas/account-plan.schema';
@@ -13,21 +11,6 @@ import { AccountPlan } from '../schemas/account-plan.schema';
 export const ACCOUNTING_ACCOUNTS_KEY = ['accounting_accounts'];
 export const PAGINATED_ACCOUNTS_KEY = ['paginated_accounts'];
 
-// Hook for all accounts (no pagination)
-export function useAccountingAccounts() {
-  return useQuery({
-    queryKey: ACCOUNTING_ACCOUNTS_KEY,
-    queryFn: getAccountPlansAction,
-  });
-}
-
-// Hook for paginated accounts
-export function usePaginatedAccounts(params = {}) {
-  return useQuery({
-    queryKey: [...PAGINATED_ACCOUNTS_KEY, params],
-    queryFn: () => getPaginatedAccountPlansAction(params),
-  });
-}
 
 // Mutation hook remains the same
 export function useAccountPlanMutation() {

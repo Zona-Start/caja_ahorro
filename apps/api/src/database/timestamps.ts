@@ -2,8 +2,8 @@ import * as t from 'drizzle-orm/pg-core';
 import { users } from './schema/auth';
 
 export const timestamps = {
-  created_at: t.timestamp('created_at').defaultNow().notNull(),
-  updated_at: t
+  createdAt: t.timestamp('created_at').defaultNow().notNull(),
+  updatedAt: t
     .timestamp('updated_at', { mode: 'date', precision: 3 })
     .$onUpdate(() => new Date()),
   createdById: t
@@ -12,4 +12,11 @@ export const timestamps = {
   updatedById: t
     .integer('updated_by_id')
     .references(() => users.id, { onDelete: 'set null' }),
+};
+
+export const timestampsShort = {
+  createdAt: t.timestamp('created_at').defaultNow().notNull(),
+  updatedAt: t
+    .timestamp('updated_at', { mode: 'date', precision: 3 })
+    .$onUpdate(() => new Date()),
 };

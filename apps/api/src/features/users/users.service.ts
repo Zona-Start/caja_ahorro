@@ -108,13 +108,11 @@ export class UsersService {
     createUserDto: CreateUserDto,
     roleId: number = 2,
   ): Promise<User> {
-    // Hash the password
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
-    // Start a transaction
     return await this.drizzle.transaction(async (tx) => {
-      // Create the user
-      const [newUser] = await tx
+      // Create the user with proper type assertion
+      const newUser = await tx
         .insert(users)
         .values({
           username: createUserDto.username,
@@ -126,7 +124,12 @@ export class UsersService {
           isEmailVerified: false,
           isTwoFactorEnabled: false,
         })
-        .returning();
+        .returning()
+        .then(rows => rows[0]);
+
+      if (!newUser) {
+        throw new HttpException('Failed to create user', HttpStatus.BAD_REQUEST);
+      }
 
       // Assign role to user
       await tx.insert(usersRole).values({
