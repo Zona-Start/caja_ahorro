@@ -117,3 +117,11 @@ export const associateAccountTypeEnum = pgEnum('associate_account_type_enum', [
   'EMPLOYER_CONTRIBUTION',
   'MANDATORY_SAVINGS',
 ]);
+
+export const paymentMethodEnum = pgEnum('payment_method_enum', [
+  'CASH', // Efectivo
+  'BANK_TRANSFER', // Transferencia bancaria
+  'CHECK', // Cheque
+  'DEPOSIT', // Depósito
+  'OTHER', // Otro método
+]);

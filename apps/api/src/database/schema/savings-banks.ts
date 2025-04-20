@@ -21,6 +21,7 @@ import {
   genderEnum,
   loanStatusEnum,
   nationalityEnum,
+  paymentMethodEnum,
   paymentStatusEnum,
   statusEnum,
 } from './enum';
@@ -188,50 +189,80 @@ export const transactionType = savingsBanksSchema.table('transaction_type', {
   ...timestamps,
 });
 
+// Tabla para tipos de préstamo
+export const loanTypes = savingsBanksSchema.table(
+  'loan_types',
+  {
+    id: serial('id').primaryKey(), // ID único del tipo de préstamo
+    name: varchar('name', { length: 100 }).notNull(), // Nombre del tipo de préstamo (Ej. "Personal", "Hipotecario", "Estudiantil")
+    description: text('description'), // Descripción del tipo de préstamo
+    interestRate_annual: numeric('interest_rate_annual', {
+      precision: 5,
+      scale: 2,
+    }), // Tasa de interés anual asociada al tipo de préstamo
+    maxLoanAmount: numeric('max_loan_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el préstamo de este tipo
+    minLoanAmount: numeric('min_loan_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el préstamo de este tipo
+    termMonthsMin: integer('term_months_min'), // Duración mínima en meses para el préstamo de este tipo
+    termMonthsMax: integer('term_months_max'), // Duración máxima en meses para el préstamo de este tipo
+    ...timestamps, // created_at y updated_at
+  },
+  (table) => ({
+    nameIdx: index('loan_types_name_idx').on(table.name), // Índice para búsqueda por nombre del tipo de préstamo
+  }),
+);
+
 //Solicitudes y gestión de préstamos a asociados.
 export const loans = savingsBanksSchema.table(
   'loans',
   {
-    id: serial('id').primaryKey(),
+    id: serial('id').primaryKey(), // ID único del préstamo
     associateId: integer('associate_id')
       .notNull()
-      .references(() => associates.id, { onDelete: 'restrict' }),
+      .references(() => associates.id, { onDelete: 'restrict' }), // FK al asociado
     companyId: integer('company_id')
       .notNull()
-      .references(() => company.id, { onDelete: 'cascade' }),
-    loanTypeId: integer('loan_type_id'), // FK a CategoryType con group='LOAN_TYPE' o tabla específica loan_types
-    requestDate: date('request_date').notNull().defaultNow(),
+      .references(() => company.id, { onDelete: 'cascade' }), // FK a la empresa o cooperativa
+    loanTypeId: integer('loan_type_id') // Tipo de préstamo (FK a tabla de tipos)
+      .notNull()
+      .references(() => loanTypes.id),
+    requestDate: date('request_date').notNull().defaultNow(), // Fecha en que se solicita
+    approvalDate: date('approval_date'), // Fecha de aprobación (si aplica)
+    disbursementDate: date('disbursement_date'), // Fecha del desembolso
     requestedAmount: numeric('requested_amount', {
       precision: 18,
       scale: 2,
-    }).notNull(),
-    approvedAmount: numeric('approved_amount', { precision: 18, scale: 2 }),
-    currencyCode: currencyCodeEnum('currency_code').notNull(),
+    }).notNull(), // Monto solicitado
+    approvedAmount: numeric('approved_amount', { precision: 18, scale: 2 }), // Monto aprobado
+    disbursedAmount: numeric('disbursed_amount', { precision: 18, scale: 2 }), // Monto efectivamente desembolsado
     interestRate_annual: numeric('interest_rate_annual', {
       precision: 5,
       scale: 2,
-    }).notNull(), //Tasa de interés nominal anual (%)
-    termMonths: integer('term_months').notNull(),
+    }).notNull(), // % interés anual
+    termMonths: integer('term_months').notNull(), // Duración en meses
     installmentsCount: integer('installments_count').notNull(), // Número de cuotas
-    status: loanStatusEnum('status').notNull().default('REQUESTED'),
-    approvalDate: date('approval_date'),
-    approvedByUserId: integer('approved_by_user_id').references(() => users.id),
-    disbursementDate: date('disbursement_date'),
+    projectedInstallmentAmount: numeric('projected_installment_amount', {
+      precision: 18,
+      scale: 2,
+    }), // Cuota estimada
+    startDate: date('start_date'), // Fecha de inicio de pago
+    endDate: date('end_date'), // Fecha final del préstamo
+    totalInterest: numeric('total_interest', { precision: 18, scale: 2 }), // Intereses totales
+    totalPayable: numeric('total_payable', { precision: 18, scale: 2 }), // Total a pagar
+    expensesAmount: numeric('expenses_amount', { precision: 18, scale: 2 }), // Monto de gastos administrativos
+    overdraftAmount: numeric('overdraft_amount', { precision: 18, scale: 2 }), // Sobregiro si aplica
+    previousLoanId: integer('previous_loan_id').references(() => loans.id), // Relación con préstamo anterior si existe
+    paymentMethod: paymentMethodEnum('payment_method'), // Forma de pago (transferencia, cheque, efectivo)
+    disbursementAccountId: integer('disbursement_account_id') // Cuenta del asociado donde se desembolsa
+      .references(() => associateAccounts.id),
+    status: loanStatusEnum('status').notNull().default('REQUESTED'), // Estado actual del préstamo
+    rejectionReason: text('rejection_reason'), // En caso de rechazo
+    approvedByUserId: integer('approved_by_user_id').references(() => users.id), // Usuario que aprueba
     disbursedByUserId: integer('disbursed_by_user_id').references(
       () => users.id,
-    ),
-    disbursementAccountId: integer('disbursement_account_id').references(
-      () => associateAccounts.id,
-    ), //Cuenta del asociado donde se desembolsó
-    disbursementAccountingEntryId: integer(
-      'disbursement_accounting_entry_id',
-    ).references(() => accountingEntries.id), // Asiento del desembolso
-    purpose: text('purpose'), // Motivo del préstamo
-    rejectionReason: text('rejection_reason'),
-    // Campos calculados (podrían estar o calcularse):
-    // total_interest: numeric('total_interest', { precision: 18, scale: 2 }),
-    // total_payable: numeric('total_payable', { precision: 18, scale: 2 }),
-    ...timestamps,
+    ), // Usuario que desembolsa
+    notes: text('notes'), // Observaciones
+    customReference: varchar('custom_reference', { length: 50 }), // Nro. solicitud personalizado
+    ...timestamps, // created_at y updated_at
   },
   (table) => ({
     associateIdx: index('loans_associate_idx').on(table.associateId),
@@ -239,57 +270,88 @@ export const loans = savingsBanksSchema.table(
       table.status,
       table.requestDate,
     ),
-    currencyIdx: index('loans_currency_idx').on(table.currencyCode),
   }),
 );
 
-//Tabla de amortización detallada para cada préstamo.
+// Tabla de amortización del préstamo
 export const loanAmortizationSchedule = savingsBanksSchema.table(
   'loan_amortization_schedule',
   {
     id: serial('id').primaryKey(),
-    loan_id: integer('loan_id')
+    loanId: integer('loan_id')
       .notNull()
-      .references(() => loans.id, { onDelete: 'cascade' }),
-    installmentNumber: integer('installment_number').notNull(),
-    dueDate: date('due_date').notNull(),
+      .references(() => loans.id, { onDelete: 'cascade' }), // FK al préstamo
+    installmentNumber: integer('installment_number').notNull(), // Número de cuota (1, 2, 3, ...)
+    dueDate: date('due_date').notNull(), // Fecha en que debe pagarse esta cuota
     principalAmount: numeric('principal_amount', {
       precision: 18,
       scale: 2,
-    }).notNull(),
+    }).notNull(), // Monto del capital de esta cuota
     interestAmount: numeric('interest_amount', {
       precision: 18,
       scale: 2,
-    }).notNull(),
+    }).notNull(), // Monto del interés de esta cuota
     totalInstallmentAmount: numeric('total_installment_amount', {
       precision: 18,
       scale: 2,
-    }).notNull(),
+    }).notNull(), // Total a pagar en esta cuota
     principalBalancePending: numeric('principal_balance_pending', {
       precision: 18,
       scale: 2,
-    }).notNull(), //Saldo de capital después de esta cuota
+    }).notNull(), // Saldo de capital pendiente después de esta cuota
     paymentStatus: paymentStatusEnum('payment_status')
       .notNull()
-      .default('PENDING'),
+      .default('PENDING'), // Estado de la cuota (PENDING, PAID, LATE, etc.)
     paidAmount: numeric('paid_amount', { precision: 18, scale: 2 }).default(
       '0.00',
-    ),
-    lastPaymentDate: timestamp('last_payment_date'),
-    // payment_reference_id: integer('payment_reference_id'), // Podría ser FK a una tabla de pagos si es compleja
-    paymentAccountingEntryId: integer('payment_accounting_entry_id').references(
-      () => accountingEntries.id,
-    ), // Asiento del pago (o asiento de provisión de interés)
-    ...timestamps,
+    ), // Monto total pagado hasta ahora para esta cuota
+    lastPaymentDate: timestamp('last_payment_date'), // Última fecha en que se realizó un pago para esta cuota
+    ...timestamps, // created_at y updated_at
   },
   (table) => ({
     loanInstallmentIdx: uniqueIndex('loan_amort_loan_installment_uidx').on(
-      table.loan_id,
+      table.loanId,
       table.installmentNumber,
-    ), // Cuota única por préstamo
+    ), // Cada cuota debe ser única por préstamo
     dueDateStatusIdx: index('loan_amort_due_date_status_idx').on(
       table.dueDate,
       table.paymentStatus,
-    ),
+    ), // Para consultas rápidas por vencimiento y estado
   }),
 );
+
+// Tabla para registrar cambios de estado del préstamo
+export const loanStatusHistory = savingsBanksSchema.table(
+  'loan_status_history',
+  {
+    id: serial('id').primaryKey(),
+    loanId: integer('loan_id')
+      .notNull()
+      .references(() => loans.id, { onDelete: 'cascade' }), // Relación al préstamo correspondiente
+    status: loanStatusEnum('status').notNull(), // Nuevo estado aplicado al préstamo
+    changedAt: timestamp('changed_at').notNull().defaultNow(), // Fecha y hora del cambio de estado
+    changedByUserId: integer('changed_by_user_id').references(() => users.id), // Usuario que realizó el cambio
+    comment: text('comment'), // Comentario u observación sobre el cambio
+  },
+);
+
+// tabla registro de los pagos
+export const loanPayments = savingsBanksSchema.table('loan_payments', {
+  id: serial('id').primaryKey(),
+  loanId: integer('loan_id')
+    .notNull()
+    .references(() => loans.id, { onDelete: 'cascade' }),
+  installmentId: integer('installment_id').references(
+    () => loanAmortizationSchedule.id,
+    { onDelete: 'cascade' },
+  ), // Si aplica a una cuota específica
+  paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
+  amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+  bankId: integer('bank_id')
+    .notNull()
+    .references(() => bankDirectory.id), // Banco que procesó el pago
+  paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
+  transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
+  comment: text('comment'),
+  ...timestamps,
+});

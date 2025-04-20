@@ -1,5 +1,5 @@
 {
-  "id": "ccd10d91-5ccb-4aca-a9da-b3cd56d2ea9f",
+  "id": "7a49ae18-e280-4226-907e-2ab67ad387c0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -450,13 +450,13 @@
           "name": "description",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "closed_by_user_id": {
           "name": "closed_by_user_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "closed_at": {
           "name": "closed_at",
@@ -1974,7 +1974,7 @@
         },
         "account_number": {
           "name": "account_number",
-          "type": "varchar(50)",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1988,7 +1988,7 @@
           "name": "account_type",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "currency_code": {
           "name": "currency_code",
@@ -2026,13 +2026,13 @@
           "name": "linked_chart_account_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "is_active": {
           "name": "is_active",
           "type": "boolean",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": true
         },
         "created_at": {
@@ -2249,7 +2249,7 @@
           "name": "is_active",
           "type": "boolean",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": true
         },
         "created_at": {
@@ -3074,12 +3074,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "code": {
-          "name": "code",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
         "description": {
           "name": "description",
           "type": "text",
@@ -3131,12 +3125,6 @@
           "columns": [
             {
               "expression": "group",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "code",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4536,7 +4524,7 @@
           "name": "balance",
           "type": "numeric(18, 2)",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "'0.00'"
         },
         "opening_date": {
@@ -5212,12 +5200,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "payment_accounting_entry_id": {
-          "name": "payment_accounting_entry_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -5303,20 +5285,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "loan_amortization_schedule_payment_accounting_entry_id_accounting_entries_id_fk": {
-          "name": "loan_amortization_schedule_payment_accounting_entry_id_accounting_entries_id_fk",
-          "tableFrom": "loan_amortization_schedule",
-          "tableTo": "accounting_entries",
-          "schemaTo": "accounting",
-          "columnsFrom": [
-            "payment_accounting_entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "loan_amortization_schedule_created_by_id_users_id_fk": {
           "name": "loan_amortization_schedule_created_by_id_users_id_fk",
           "tableFrom": "loan_amortization_schedule",
@@ -5334,6 +5302,382 @@
         "loan_amortization_schedule_updated_by_id_users_id_fk": {
           "name": "loan_amortization_schedule_updated_by_id_users_id_fk",
           "tableFrom": "loan_amortization_schedule",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.loan_payments": {
+      "name": "loan_payments",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "loan_id": {
+          "name": "loan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "installment_id": {
+          "name": "installment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_date": {
+          "name": "payment_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_id": {
+          "name": "bank_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_reference": {
+          "name": "transaction_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "loan_payments_loan_id_loans_id_fk": {
+          "name": "loan_payments_loan_id_loans_id_fk",
+          "tableFrom": "loan_payments",
+          "tableTo": "loans",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "loan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "loan_payments_installment_id_loan_amortization_schedule_id_fk": {
+          "name": "loan_payments_installment_id_loan_amortization_schedule_id_fk",
+          "tableFrom": "loan_payments",
+          "tableTo": "loan_amortization_schedule",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "installment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "loan_payments_bank_id_bank_directory_id_fk": {
+          "name": "loan_payments_bank_id_bank_directory_id_fk",
+          "tableFrom": "loan_payments",
+          "tableTo": "bank_directory",
+          "schemaTo": "banking",
+          "columnsFrom": [
+            "bank_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loan_payments_created_by_id_users_id_fk": {
+          "name": "loan_payments_created_by_id_users_id_fk",
+          "tableFrom": "loan_payments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "loan_payments_updated_by_id_users_id_fk": {
+          "name": "loan_payments_updated_by_id_users_id_fk",
+          "tableFrom": "loan_payments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.loan_status_history": {
+      "name": "loan_status_history",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "loan_id": {
+          "name": "loan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "loan_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changed_at": {
+          "name": "changed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "changed_by_user_id": {
+          "name": "changed_by_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "loan_status_history_loan_id_loans_id_fk": {
+          "name": "loan_status_history_loan_id_loans_id_fk",
+          "tableFrom": "loan_status_history",
+          "tableTo": "loans",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "loan_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "loan_status_history_changed_by_user_id_users_id_fk": {
+          "name": "loan_status_history_changed_by_user_id_users_id_fk",
+          "tableFrom": "loan_status_history",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "changed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.loan_types": {
+      "name": "loan_types",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "interest_rate_annual": {
+          "name": "interest_rate_annual",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_loan_amount": {
+          "name": "max_loan_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_loan_amount": {
+          "name": "min_loan_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "term_months_min": {
+          "name": "term_months_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "term_months_max": {
+          "name": "term_months_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "loan_types_name_idx": {
+          "name": "loan_types_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "loan_types_created_by_id_users_id_fk": {
+          "name": "loan_types_created_by_id_users_id_fk",
+          "tableFrom": "loan_types",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "loan_types_updated_by_id_users_id_fk": {
+          "name": "loan_types_updated_by_id_users_id_fk",
+          "tableFrom": "loan_types",
           "tableTo": "users",
           "schemaTo": "auth",
           "columnsFrom": [
@@ -5378,7 +5722,7 @@
           "name": "loan_type_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "request_date": {
           "name": "request_date",
@@ -5386,6 +5730,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "approval_date": {
+          "name": "approval_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disbursement_date": {
+          "name": "disbursement_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         },
         "requested_amount": {
           "name": "requested_amount",
@@ -5399,12 +5755,11 @@
           "primaryKey": false,
           "notNull": false
         },
-        "currency_code": {
-          "name": "currency_code",
-          "type": "currency_code_enum",
-          "typeSchema": "public",
+        "disbursed_amount": {
+          "name": "disbursed_amount",
+          "type": "numeric(18, 2)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "interest_rate_annual": {
           "name": "interest_rate_annual",
@@ -5424,35 +5779,58 @@
           "primaryKey": false,
           "notNull": true
         },
-        "status": {
-          "name": "status",
-          "type": "loan_status_enum",
+        "projected_installment_amount": {
+          "name": "projected_installment_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_interest": {
+          "name": "total_interest",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_payable": {
+          "name": "total_payable",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expenses_amount": {
+          "name": "expenses_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "overdraft_amount": {
+          "name": "overdraft_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "previous_loan_id": {
+          "name": "previous_loan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method_enum",
           "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'REQUESTED'"
-        },
-        "approval_date": {
-          "name": "approval_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "approved_by_user_id": {
-          "name": "approved_by_user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disbursement_date": {
-          "name": "disbursement_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disbursed_by_user_id": {
-          "name": "disbursed_by_user_id",
-          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -5462,21 +5840,41 @@
           "primaryKey": false,
           "notNull": false
         },
-        "disbursement_accounting_entry_id": {
-          "name": "disbursement_accounting_entry_id",
-          "type": "integer",
+        "status": {
+          "name": "status",
+          "type": "loan_status_enum",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
-        },
-        "purpose": {
-          "name": "purpose",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'REQUESTED'"
         },
         "rejection_reason": {
           "name": "rejection_reason",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_by_user_id": {
+          "name": "approved_by_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disbursed_by_user_id": {
+          "name": "disbursed_by_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_reference": {
+          "name": "custom_reference",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
         },
@@ -5542,21 +5940,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "loans_currency_idx": {
-          "name": "loans_currency_idx",
-          "columns": [
-            {
-              "expression": "currency_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -5588,13 +5971,13 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "loans_approved_by_user_id_users_id_fk": {
-          "name": "loans_approved_by_user_id_users_id_fk",
+        "loans_loan_type_id_loan_types_id_fk": {
+          "name": "loans_loan_type_id_loan_types_id_fk",
           "tableFrom": "loans",
-          "tableTo": "users",
-          "schemaTo": "auth",
+          "tableTo": "loan_types",
+          "schemaTo": "savings_banks",
           "columnsFrom": [
-            "approved_by_user_id"
+            "loan_type_id"
           ],
           "columnsTo": [
             "id"
@@ -5602,13 +5985,13 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "loans_disbursed_by_user_id_users_id_fk": {
-          "name": "loans_disbursed_by_user_id_users_id_fk",
+        "loans_previous_loan_id_loans_id_fk": {
+          "name": "loans_previous_loan_id_loans_id_fk",
           "tableFrom": "loans",
-          "tableTo": "users",
-          "schemaTo": "auth",
+          "tableTo": "loans",
+          "schemaTo": "savings_banks",
           "columnsFrom": [
-            "disbursed_by_user_id"
+            "previous_loan_id"
           ],
           "columnsTo": [
             "id"
@@ -5630,13 +6013,27 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "loans_disbursement_accounting_entry_id_accounting_entries_id_fk": {
-          "name": "loans_disbursement_accounting_entry_id_accounting_entries_id_fk",
+        "loans_approved_by_user_id_users_id_fk": {
+          "name": "loans_approved_by_user_id_users_id_fk",
           "tableFrom": "loans",
-          "tableTo": "accounting_entries",
-          "schemaTo": "accounting",
+          "tableTo": "users",
+          "schemaTo": "auth",
           "columnsFrom": [
-            "disbursement_accounting_entry_id"
+            "approved_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loans_disbursed_by_user_id_users_id_fk": {
+          "name": "loans_disbursed_by_user_id_users_id_fk",
+          "tableFrom": "loans",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "disbursed_by_user_id"
           ],
           "columnsTo": [
             "id"
@@ -5963,6 +6360,17 @@
       "values": [
         "VENEZOLANO",
         "EXTRANJERO"
+      ]
+    },
+    "public.payment_method_enum": {
+      "name": "payment_method_enum",
+      "schema": "public",
+      "values": [
+        "CASH",
+        "BANK_TRANSFER",
+        "CHECK",
+        "DEPOSIT",
+        "OTHER"
       ]
     },
     "public.payment_status_enum": {

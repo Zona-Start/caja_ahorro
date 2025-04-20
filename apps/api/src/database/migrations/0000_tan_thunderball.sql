@@ -21,6 +21,7 @@ CREATE TYPE "public"."cycle_status_enum" AS ENUM('OPEN', 'CLOSED', 'CLOSING');--
 CREATE TYPE "auth"."gender" AS ENUM('FEMENINO', 'MASCULINO', 'OTRO');--> statement-breakpoint
 CREATE TYPE "public"."loan_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'DISBURSED', 'IN_PAYMENT', 'PAID', 'CANCELLED', 'OVERDUE');--> statement-breakpoint
 CREATE TYPE "public"."nationality" AS ENUM('VENEZOLANO', 'EXTRANJERO');--> statement-breakpoint
+CREATE TYPE "public"."payment_method_enum" AS ENUM('CASH', 'BANK_TRANSFER', 'CHECK', 'DEPOSIT', 'OTHER');--> statement-breakpoint
 CREATE TYPE "public"."payment_status_enum" AS ENUM('PENDING', 'PAID', 'OVERDUE', 'PARTIAL');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_item_status_enum" AS ENUM('PENDING', 'RECONCILED', 'MANUAL_MATCH', 'ADJUSTMENT', 'EXCLUDED');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_status_enum" AS ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'REVIEWED');--> statement-breakpoint
@@ -63,8 +64,8 @@ CREATE TABLE "accounting"."accounting_cycles" (
 	"start_date" date NOT NULL,
 	"end_date" date NOT NULL,
 	"status" "cycle_status_enum" DEFAULT 'OPEN' NOT NULL,
-	"description" text,
-	"closed_by_user_id" integer NOT NULL,
+	"description" text NOT NULL,
+	"closed_by_user_id" integer,
 	"closed_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
@@ -205,16 +206,16 @@ CREATE TABLE "banking"."bank_accounts" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"company_id" integer NOT NULL,
 	"bank_directory_id" integer NOT NULL,
-	"account_number" varchar(50) NOT NULL,
+	"account_number" varchar(20) NOT NULL,
 	"account_name" varchar(255),
-	"account_type" varchar(50),
+	"account_type" varchar(50) NOT NULL,
 	"currency_code" "currency_code_enum" NOT NULL,
 	"opening_date" date,
 	"current_balance" numeric(18, 2) DEFAULT '0.00',
 	"last_statement_balance" numeric(18, 2),
 	"last_statement_date" date,
-	"linked_chart_account_id" integer,
-	"is_active" boolean DEFAULT true,
+	"linked_chart_account_id" integer NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -228,7 +229,7 @@ CREATE TABLE "banking"."bank_directory" (
 	"code" varchar(10) NOT NULL,
 	"name" text NOT NULL,
 	"country_code" varchar(3) DEFAULT 'VEN',
-	"is_active" boolean DEFAULT true,
+	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -295,7 +296,6 @@ CREATE TABLE "banking"."bank_transactions" (
 CREATE TABLE "core"."category_types" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"group" varchar(100) NOT NULL,
-	"code" varchar(50) NOT NULL,
 	"description" text NOT NULL,
 	"options" jsonb,
 	"is_active" boolean DEFAULT true,
@@ -427,7 +427,7 @@ CREATE TABLE "savings_banks"."associate_accounts" (
 	"associated_id" integer,
 	"account_number" varchar(20) NOT NULL,
 	"currency_code" "currency_code_enum" NOT NULL,
-	"balance" numeric(18, 2) DEFAULT '0.00',
+	"balance" numeric(18, 2) DEFAULT '0.00' NOT NULL,
 	"opening_date" date DEFAULT now(),
 	"bank_id" integer,
 	"salary" numeric(18, 2),
@@ -479,7 +479,46 @@ CREATE TABLE "savings_banks"."loan_amortization_schedule" (
 	"payment_status" "payment_status_enum" DEFAULT 'PENDING' NOT NULL,
 	"paid_amount" numeric(18, 2) DEFAULT '0.00',
 	"last_payment_date" timestamp,
-	"payment_accounting_entry_id" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
+);
+--> statement-breakpoint
+CREATE TABLE "savings_banks"."loan_payments" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"loan_id" integer NOT NULL,
+	"installment_id" integer,
+	"payment_date" timestamp DEFAULT now() NOT NULL,
+	"amount" numeric(18, 2) NOT NULL,
+	"bank_id" integer NOT NULL,
+	"payment_method" "payment_method_enum" NOT NULL,
+	"transaction_reference" text,
+	"comment" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
+);
+--> statement-breakpoint
+CREATE TABLE "savings_banks"."loan_status_history" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"loan_id" integer NOT NULL,
+	"status" "loan_status_enum" NOT NULL,
+	"changed_at" timestamp DEFAULT now() NOT NULL,
+	"changed_by_user_id" integer,
+	"comment" text
+);
+--> statement-breakpoint
+CREATE TABLE "savings_banks"."loan_types" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"name" varchar(100) NOT NULL,
+	"description" text,
+	"interest_rate_annual" numeric(5, 2),
+	"max_loan_amount" numeric(18, 2),
+	"min_loan_amount" numeric(18, 2),
+	"term_months_min" integer,
+	"term_months_max" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -490,23 +529,32 @@ CREATE TABLE "savings_banks"."loans" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"associate_id" integer NOT NULL,
 	"company_id" integer NOT NULL,
-	"loan_type_id" integer,
+	"loan_type_id" integer NOT NULL,
 	"request_date" date DEFAULT now() NOT NULL,
+	"approval_date" date,
+	"disbursement_date" date,
 	"requested_amount" numeric(18, 2) NOT NULL,
 	"approved_amount" numeric(18, 2),
-	"currency_code" "currency_code_enum" NOT NULL,
+	"disbursed_amount" numeric(18, 2),
 	"interest_rate_annual" numeric(5, 2) NOT NULL,
 	"term_months" integer NOT NULL,
 	"installments_count" integer NOT NULL,
-	"status" "loan_status_enum" DEFAULT 'REQUESTED' NOT NULL,
-	"approval_date" date,
-	"approved_by_user_id" integer,
-	"disbursement_date" date,
-	"disbursed_by_user_id" integer,
+	"projected_installment_amount" numeric(18, 2),
+	"start_date" date,
+	"end_date" date,
+	"total_interest" numeric(18, 2),
+	"total_payable" numeric(18, 2),
+	"expenses_amount" numeric(18, 2),
+	"overdraft_amount" numeric(18, 2),
+	"previous_loan_id" integer,
+	"payment_method" "payment_method_enum",
 	"disbursement_account_id" integer,
-	"disbursement_accounting_entry_id" integer,
-	"purpose" text,
+	"status" "loan_status_enum" DEFAULT 'REQUESTED' NOT NULL,
 	"rejection_reason" text,
+	"approved_by_user_id" integer,
+	"disbursed_by_user_id" integer,
+	"notes" text,
+	"custom_reference" varchar(50),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -624,15 +672,24 @@ ALTER TABLE "savings_banks"."associates" ADD CONSTRAINT "associates_worker_type_
 ALTER TABLE "savings_banks"."associates" ADD CONSTRAINT "associates_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."associates" ADD CONSTRAINT "associates_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loan_amortization_schedule" ADD CONSTRAINT "loan_amortization_schedule_loan_id_loans_id_fk" FOREIGN KEY ("loan_id") REFERENCES "savings_banks"."loans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings_banks"."loan_amortization_schedule" ADD CONSTRAINT "loan_amortization_schedule_payment_accounting_entry_id_accounting_entries_id_fk" FOREIGN KEY ("payment_accounting_entry_id") REFERENCES "accounting"."accounting_entries"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loan_amortization_schedule" ADD CONSTRAINT "loan_amortization_schedule_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loan_amortization_schedule" ADD CONSTRAINT "loan_amortization_schedule_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_payments" ADD CONSTRAINT "loan_payments_loan_id_loans_id_fk" FOREIGN KEY ("loan_id") REFERENCES "savings_banks"."loans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_payments" ADD CONSTRAINT "loan_payments_installment_id_loan_amortization_schedule_id_fk" FOREIGN KEY ("installment_id") REFERENCES "savings_banks"."loan_amortization_schedule"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_payments" ADD CONSTRAINT "loan_payments_bank_id_bank_directory_id_fk" FOREIGN KEY ("bank_id") REFERENCES "banking"."bank_directory"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_payments" ADD CONSTRAINT "loan_payments_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_payments" ADD CONSTRAINT "loan_payments_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_status_history" ADD CONSTRAINT "loan_status_history_loan_id_loans_id_fk" FOREIGN KEY ("loan_id") REFERENCES "savings_banks"."loans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_status_history" ADD CONSTRAINT "loan_status_history_changed_by_user_id_users_id_fk" FOREIGN KEY ("changed_by_user_id") REFERENCES "auth"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_types" ADD CONSTRAINT "loan_types_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loan_types" ADD CONSTRAINT "loan_types_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_associate_id_associates_id_fk" FOREIGN KEY ("associate_id") REFERENCES "savings_banks"."associates"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_company_id_company_id_fk" FOREIGN KEY ("company_id") REFERENCES "core"."company"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_loan_type_id_loan_types_id_fk" FOREIGN KEY ("loan_type_id") REFERENCES "savings_banks"."loan_types"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_previous_loan_id_loans_id_fk" FOREIGN KEY ("previous_loan_id") REFERENCES "savings_banks"."loans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_disbursement_account_id_associate_accounts_id_fk" FOREIGN KEY ("disbursement_account_id") REFERENCES "savings_banks"."associate_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_approved_by_user_id_users_id_fk" FOREIGN KEY ("approved_by_user_id") REFERENCES "auth"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_disbursed_by_user_id_users_id_fk" FOREIGN KEY ("disbursed_by_user_id") REFERENCES "auth"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_disbursement_account_id_associate_accounts_id_fk" FOREIGN KEY ("disbursement_account_id") REFERENCES "savings_banks"."associate_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_disbursement_accounting_entry_id_accounting_entries_id_fk" FOREIGN KEY ("disbursement_accounting_entry_id") REFERENCES "accounting"."accounting_entries"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."transaction_type" ADD CONSTRAINT "transaction_type_associated_account_account_plan_id_fk" FOREIGN KEY ("associated_account") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -679,7 +736,7 @@ CREATE INDEX "bank_trans_account_date_idx" ON "banking"."bank_transactions" USIN
 CREATE INDEX "bank_trans_bank_ref_idx" ON "banking"."bank_transactions" USING btree ("bank_account_id","bank_reference");--> statement-breakpoint
 CREATE INDEX "bank_trans_recon_status_idx" ON "banking"."bank_transactions" USING btree ("reconciliation_status");--> statement-breakpoint
 CREATE INDEX "bank_trans_recon_id_idx" ON "banking"."bank_transactions" USING btree ("bank_reconciliation_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "category_types_group_code_uidx" ON "core"."category_types" USING btree ("group","code");--> statement-breakpoint
+CREATE UNIQUE INDEX "category_types_group_code_uidx" ON "core"."category_types" USING btree ("group");--> statement-breakpoint
 CREATE INDEX "category_types_group_desc_idx" ON "core"."category_types" USING btree ("group","description");--> statement-breakpoint
 CREATE INDEX "company_name_idx" ON "core"."company" USING btree ("name");--> statement-breakpoint
 CREATE UNIQUE INDEX "company_rif_uidx" ON "core"."company" USING btree ("rif");--> statement-breakpoint
@@ -711,6 +768,6 @@ CREATE INDEX "associates_worker_type_idx" ON "savings_banks"."associates" USING 
 CREATE INDEX "associates_locality_idx" ON "savings_banks"."associates" USING btree ("locality_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "loan_amort_loan_installment_uidx" ON "savings_banks"."loan_amortization_schedule" USING btree ("loan_id","installment_number");--> statement-breakpoint
 CREATE INDEX "loan_amort_due_date_status_idx" ON "savings_banks"."loan_amortization_schedule" USING btree ("due_date","payment_status");--> statement-breakpoint
+CREATE INDEX "loan_types_name_idx" ON "savings_banks"."loan_types" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "loans_associate_idx" ON "savings_banks"."loans" USING btree ("associate_id");--> statement-breakpoint
-CREATE INDEX "loans_status_date_idx" ON "savings_banks"."loans" USING btree ("status","request_date");--> statement-breakpoint
-CREATE INDEX "loans_currency_idx" ON "savings_banks"."loans" USING btree ("currency_code");
+CREATE INDEX "loans_status_date_idx" ON "savings_banks"."loans" USING btree ("status","request_date");
