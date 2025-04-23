@@ -19,12 +19,14 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
-import {
-  useAccountPlanMutation,
-} from '../hooks/use-account-plan-mutation';
-import { ACCOUNT_LEVELS, ACCOUNT_TYPES } from '../schemas/account-plan-options';
-import { AccountPlan, accountPlanSchema } from '../schemas/account-plan.schema';
+import { useAccountPlanMutation } from '../hooks/use-account-plan-mutation';
 import { useAccountingAccounts } from '../hooks/use-query-account-plan';
+import {
+  ACCOUNT_LEVELS,
+  ACCOUNT_TYPES,
+  NATURE_TYPE,
+} from '../schemas/account-plan-options';
+import { AccountPlan, accountPlanSchema } from '../schemas/account-plan.schema';
 
 interface AccountPlanFormProps {
   onSuccess?: () => void;
@@ -50,31 +52,33 @@ export function AccountPlanForm({
     defaultValues: {
       code: defaultValues?.code || '',
       name: defaultValues?.name || '',
-      type: defaultValues?.type || 'activo',
+      accountType: defaultValues?.accountType || 'ASSET',
       level: defaultValues?.level || 1,
       id: defaultValues?.id,
-      savingBankId: defaultValues?.savingBankId || 1,
-      parent_account_id: defaultValues?.parent_account_id || null,
+      companyId: defaultValues?.companyId || 1,
+      parentAccountId: defaultValues?.parentAccountId || null,
+      allowsMovements: defaultValues?.allowsMovements || false,
+      isActive: defaultValues?.isActive || true,
+      nature: defaultValues?.nature || 'DEBIT',
     },
     mode: 'onChange', // Enable real-time validation
   });
 
   const onSubmit = async (data: AccountPlan) => {
-    // Convert string 'null' to actual null for parent_account_id
     const formData = {
       ...data,
-      parent_account_id:
-        data.parent_account_id === null ? null : data.parent_account_id,
+      parentAccountId:
+        data.parentAccountId === null ? null : data.parentAccountId,
     };
 
     // Only validate parent account if it's not null and not 'null'
-    if (formData.parent_account_id) {
+    if (formData.parentAccountId) {
       const parentAccount = AccoutingAccounts?.data?.find(
-        (account) => account.id === formData.parent_account_id,
+        (account) => account.id === formData.parentAccountId,
       );
 
       if (parentAccount && parentAccount.level >= formData.level) {
-        form.setError('parent_account_id', {
+        form.setError('parentAccountId', {
           type: 'manual',
           message: 'La cuenta padre debe ser de un nivel inferior',
         });
@@ -135,7 +139,7 @@ export function AccountPlanForm({
 
           <FormField
             control={form.control}
-            name="type"
+            name="accountType"
             render={({ field }) => (
               <FormItem className="w-full">
                 <FormLabel>Tipo de cuenta</FormLabel>
@@ -191,9 +195,9 @@ export function AccountPlanForm({
 
           <FormField
             control={form.control}
-            name="parent_account_id"
+            name="parentAccountId"
             render={({ field }) => (
-              <FormItem className="col-span-2 w-full">
+              <FormItem className=" w-full">
                 <FormLabel>Cuenta Padre</FormLabel>
                 <Select
                   onValueChange={(value) =>
@@ -207,7 +211,9 @@ export function AccountPlanForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                    <SelectItem key={0} value="null">Ninguno</SelectItem>
+                    <SelectItem key={0} value="null">
+                      Ninguno
+                    </SelectItem>
                     {AccoutingAccounts?.data?.map((account) => (
                       <SelectItem
                         key={account.id}
@@ -216,6 +222,84 @@ export function AccountPlanForm({
                         {account.code} - {account.name}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="nature"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Naturaleza</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona tipo" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="w-full min-w-[200px]">
+                    {Object.entries(NATURE_TYPE).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="allowsMovements"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Agrupadora</FormLabel>
+                <Select
+                  onValueChange={(value) => field.onChange(value === 'true')}
+                  defaultValue={field.value?.toString()}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona opción" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="w-full min-w-[200px]">
+                    <SelectItem value="true">Sí</SelectItem>
+                    <SelectItem value="false">No</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="isActive"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Estatus</FormLabel>
+                <Select
+                  onValueChange={(value) => field.onChange(value === 'true')}
+                  defaultValue={field.value?.toString()}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona opción" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="w-full min-w-[200px]">
+                    <SelectItem value="true">Sí</SelectItem>
+                    <SelectItem value="false">No</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

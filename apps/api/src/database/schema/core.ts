@@ -91,7 +91,6 @@ export const categoryType = coreSchema.table(
     ...timestamps,
   },
   (table) => ({
-    groupCodeIdx: uniqueIndex('category_types_group_code_uidx').on(table.group), // Unicidad de código dentro de un grupo
     groupDescIdx: index('category_types_group_desc_idx').on(
       table.group,
       table.description,

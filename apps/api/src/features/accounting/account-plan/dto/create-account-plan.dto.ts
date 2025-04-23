@@ -65,5 +65,5 @@ export class CreateAccountPlanDto {
   @ApiProperty({ description: 'Parent account ID', required: false })
   @IsInt()
   @IsOptional()
-  parent_account_id?: number;
+  parentAccountId?: number;
 }

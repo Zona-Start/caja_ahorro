@@ -269,7 +269,7 @@ export class AssociatesService {
       associateId: createAssociateAccountsDto.associateId,
       accountNumber: createAssociateAccountsDto.accountNumber,
       currencyCode: createAssociateAccountsDto.currencyCode,
-      balance: (createAssociateAccountsDto.salaryTotal * 0.6).toString(),
+      balance: (createAssociateAccountsDto.salaryTotal * 0.1).toString(),
       openingDate: new Date(),
       bankDirectoryId: createAssociateAccountsDto.bankDirectoryId,
       salary: createAssociateAccountsDto.salary?.toString(),

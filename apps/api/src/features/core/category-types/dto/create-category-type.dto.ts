@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsJSON, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateCategoryTypeDto {
   @ApiProperty({
@@ -24,6 +24,6 @@ export class CreateCategoryTypeDto {
     required: false,
   })
   @IsOptional()
-  @IsJSON()
+  @IsArray()
   options?: any;
 }

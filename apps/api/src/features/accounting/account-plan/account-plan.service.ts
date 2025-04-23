@@ -48,7 +48,10 @@ export class AccountPlanService {
   }
 
   async findAll() {
-    return await this.drizzle.select().from(accountPlan);
+    return await this.drizzle
+      .select()
+      .from(accountPlan)
+      .where(eq(accountPlan.allowsMovements, true));
   }
 
   async findAllByPagination(
@@ -122,7 +125,7 @@ export class AccountPlanService {
         level: accountPlan.level,
         allowsMovements: accountPlan.allowsMovements,
         isActive: accountPlan.isActive,
-        parent_account_id: accountPlan.parentAccountId,
+        parentAccountId: accountPlan.parentAccountId,
       })
       .from(accountPlan)
       .where(searchCondition)

@@ -11,13 +11,13 @@ import {
 export const getTransactionTypeAction = async () => {
   const [error, data] = await safeFetchApi(
     transactionTypeListResponseSchema,
-    '/configurations/transaction-type',
+    '/core/transaction-type',
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;
@@ -40,13 +40,13 @@ export const getPaginatedTransactionTypeAction = async (params: {
 
   const [error, response] = await safeFetchApi(
     transactionTypePaginatedResponse,
-    `/configurations/transaction-type/paginated?${searchParams}`,
+    `/core/transaction-type/paginated?${searchParams}`,
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   //const transformedData = await transformAccountPlanData(response?.data || []);
@@ -71,13 +71,13 @@ export const createTransactionTypeAction = async (payload: TransactionType) => {
 
   const [error, data] = await safeFetchApi(
     transactionTypeResponseSchema,
-    '/configurations/transaction-type',
+    '/core/transaction-type',
     'POST',
     payloadWithoutId,
   );
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;
@@ -88,14 +88,14 @@ export const updateTransactionTypeAction = async (payload: TransactionType) => {
 
   const [error, data] = await safeFetchApi(
     transactionTypeResponseSchema,
-    `/configurations/transaction-type/${id}`,
+    `/core/transaction-type/${id}`,
     'PATCH',
     payloadWithoutId,
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;
@@ -104,13 +104,13 @@ export const updateTransactionTypeAction = async (payload: TransactionType) => {
 export const deleteTransactionTypeAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     transactionTypeDeleteResponseSchema,
-    `/configurations/transaction-type/${id}`,
+    `/core/transaction-type/${id}`,
     'DELETE',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;
@@ -119,13 +119,13 @@ export const deleteTransactionTypeAction = async (id: number) => {
 export const getTransactionTypeByIdAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     transactionTypeResponseSchema,
-    `/configurations/transaction-type/${id}`,
+    `/core/transaction-type/${id}`,
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;

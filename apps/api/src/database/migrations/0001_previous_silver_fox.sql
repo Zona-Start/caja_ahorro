@@ -1,0 +1,1 @@
+DROP INDEX "core"."category_types_group_code_uidx";

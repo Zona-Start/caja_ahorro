@@ -18,6 +18,17 @@ interface CellActionProps {
   data: CategoryTypes;
 }
 
+const extratingGroup = (group: string) => {
+  const texto = group; // Asumiendo que data.group contiene el texto
+  const palabras = texto.split(' ');
+  if (palabras.length >= 2) {
+    const segundaPalabra = palabras[0] ? palabras[0].toLowerCase() : ''; // Verifica si palabras[1] existe antes de convertirlo a minúsculas
+    return segundaPalabra;
+  } else {
+    return texto.toLowerCase(); // Si no hay segunda palabra, convierte el texto completo a minúsculas
+  }
+};
+
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -37,6 +48,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
+  const group = extratingGroup(data.group);
+  const title = `¿Estás seguro que desea eliminar esta ${group}?`;
+
   return (
     <>
       <AlertModal
@@ -44,7 +58,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
         loading={loading}
-        title="¿Estás seguro que desea eliminar esta categoria?"
+        title={title}
         description="Esta acción no se puede deshacer."
       />
 
@@ -52,7 +66,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         open={showEditModal}
         onOpenChange={setShowEditModal}
         defaultValues={data}
-        group={data.group.replace(/\s+/g, '_')}
+        group={data.group}
       />
 
       <div className="flex gap-1">

@@ -75,7 +75,7 @@ export const savingBankItems: NavItem[] = [
 
 export const AccountingItems: NavItem[] = [
   {
-    title: 'Cuentas Contables',
+    title: 'Plan de Cuentas',
     url: '/dashboard/contabilidad/cuentas_contables',
     icon: 'betweenHorizonalStart',
     shortcut: ['p', 'p'],
@@ -86,9 +86,17 @@ export const AccountingItems: NavItem[] = [
 
 export const BankItems: NavItem[] = [
   {
-    title: 'Tipos de Bancos',
+    title: 'Directorio de Bancos',
     url: '/dashboard/bancos/tipos-bancos',
     icon: 'landmark',
+    shortcut: ['p', 'p'],
+    isActive: false,
+    items: [], // No child items
+  },
+  {
+    title: 'Movimientos Bancarios',
+    url: '#',
+    icon: 'receiptText',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items

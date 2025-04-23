@@ -18,8 +18,8 @@ import { toast } from 'sonner';
 import { UserFormValue, formSchema } from '../schemas/login';
 
 export default function UserAuthForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const callbackUrl = searchParams.get('callbackUrl');
   const [loading, startTransition] = useTransition();
   const [error, SetError] = useState<string | null>(null);
@@ -33,18 +33,32 @@ export default function UserAuthForm() {
   });
 
   const onSubmit = async (data: UserFormValue) => {
+    SetError(null); // Limpia cualquier error previo al intentar iniciar sesión
     startTransition(async () => {
       try {
-        await signIn('credentials', {
+        const login = await signIn('credentials', {
           username: data.username,
           password: data.password,
-          callbackUrl: callbackUrl ?? '/dashboard',
-          //redirect: false
+          redirect: false, // No queremos una redirección automática aquí
         });
-        //router.push('/dashboard');
-        toast.success('Ingreso Exitoso!');
+
+        if (login?.error) {
+          const errorMessage =
+            login.error === 'CredentialsSignin'
+              ? 'Usuario o contraseña incorrectos'
+              : 'Contacte al Administrador';
+          SetError(errorMessage);
+          toast.error(errorMessage);
+        }
+
+        // Si la autenticación es exitosa y `redirect: false`, necesitamos redirigir manualmente
+        if (login?.ok && !login?.error) {
+          toast.success('Ingreso Exitoso!');
+          router.push(callbackUrl ?? '/dashboard');
+        }
       } catch (error) {
-        toast.error('Hubo un error');
+        console.error('Error durante el inicio de sesión:', error);
+        toast.error('Hubo un error inesperado');
       }
     });
   };
@@ -103,14 +117,17 @@ export default function UserAuthForm() {
                 )}
               />
             </div>
-            {error && <FormMessage>{error}</FormMessage>}
+            {error && (
+              <FormMessage className="text-red-500">{error}</FormMessage>
+            )}{' '}
+            {/* Muestra el error del estado */}
             <Button disabled={loading} type="submit" className="w-full">
               Ingresar
             </Button>
           </div>
         </form>
       </Form>
-      <div className="relative hidden bg-muted md:block">
+      <div className="relative hidden bg-muted md:block border-muted border-2 rounded-lg overflow-hidden">
         <img
           src="/logo.png"
           alt="Image"

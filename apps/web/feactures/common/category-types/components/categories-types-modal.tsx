@@ -33,11 +33,17 @@ export function CategoriesTypesModal({
   };
 
   let name;
-  if (group === GROUP_TYPES.TIPOS_ASOCIADOS) {
+  if (group === GROUP_TYPES.ASSOCIATE_TYPE || group === 'TIPO ASOCIADO') {
     name = 'Tipo Asociado';
-  } else if (group === GROUP_TYPES.TIPO_FRECUENCIA) {
+  } else if (
+    group === GROUP_TYPES.DISCOUNT_FREQ ||
+    group === 'FRECUENCIA NOMINA'
+  ) {
     name = 'Tipo Frecuencia';
-  } else if (group === GROUP_TYPES.TIPO_TRABAJADOR) {
+  } else if (
+    group === GROUP_TYPES.WORKING_TYPE ||
+    group === 'TIPO TRABAJADOR'
+  ) {
     name = 'Tipo Trabajador';
   }
 

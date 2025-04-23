@@ -1,11 +1,10 @@
 export const ACCOUNT_TYPES = {
-  activo: 'Activo',
-  pasivo: 'Pasivo',
-  patrimonio: 'Patrimonio',
-  ingreso: 'Ingreso',
-  gasto: 'Gasto',
-  costo: 'Costo',
-  cuenta_orden: 'Cuenta de Orden',
+  ASSET: 'ACTIVO',
+  LIABILITY: 'PASIVO',
+  EQUITY: 'PATRIMONIO',
+  REVENUE: 'INGRESOS',
+  EXPENSE: 'GASTOS',
+  MEMORANDUM: 'MEMORANDUM',
 } as const;
 
 export const ACCOUNT_LEVELS = {
@@ -15,5 +14,11 @@ export const ACCOUNT_LEVELS = {
   4: 'Nivel 4 - Cuenta Auxiliar',
 } as const;
 
+export const NATURE_TYPE = {
+  DEBIT: 'DEBITO',
+  CREDIT: 'CREDITO',
+} as const;
+
 export type AccountType = keyof typeof ACCOUNT_TYPES;
 export type AccountLevel = keyof typeof ACCOUNT_LEVELS;
+export type NATURE = keyof typeof NATURE_TYPE;

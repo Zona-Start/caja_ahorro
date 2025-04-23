@@ -34,14 +34,16 @@ fetchApi.interceptors.request.use(async (config: any) => {
  * @param schema - Esquema de Zod para validar la respuesta
  * @param url - Endpoint a consultar
  * @param config - Configuración opcional de Axios
- * @returns [error, data] -> Devuelve el error como string si hay fallo, o los datos validados
+ * @returns [error, data] -> Devuelve el error como objeto estructurado si hay fallo, o los datos validados
  */
 export const safeFetchApi = async <T extends z.ZodSchema<any>>(
   schema: T,
   url: string,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   body?: any,
-): Promise<[string | null, z.infer<T> | null]> => {
+): Promise<
+  [{ type: string; message: string; details?: any } | null, z.infer<T> | null]
+> => {
   try {
     const response = await fetchApi({
       method,
@@ -56,9 +58,14 @@ export const safeFetchApi = async <T extends z.ZodSchema<any>>(
         errors: parsed.error.errors,
         receivedData: response.data,
         expectedSchema: schema,
+        data: response.data.data,
       });
       return [
-        `Validation error: ${JSON.stringify(parsed.error.errors, null, 2)}`,
+        {
+          type: 'VALIDATION_ERROR',
+          message: 'Validation error',
+          details: parsed.error.errors,
+        },
         null,
       ];
     }
@@ -76,9 +83,14 @@ export const safeFetchApi = async <T extends z.ZodSchema<any>>(
       headers: error.config?.headers,
     };
 
-    console.error('API Error Details:', errorDetails);
-
-    return [`API error: ${error.response?.status} - ${error.message}\n`, null];
+    return [
+      {
+        type: 'API_ERROR',
+        message: error.response?.data?.message || 'Unknown API error',
+        details: errorDetails,
+      },
+      null,
+    ];
   }
 };
 

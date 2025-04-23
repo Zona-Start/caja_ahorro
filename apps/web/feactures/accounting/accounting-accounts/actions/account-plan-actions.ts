@@ -14,10 +14,10 @@ const transformAccountPlanData = async (accounts: AccountPlan[]) => {
     accounts.map(async (account) => {
       // Get parent account info if exists
       let parentAccountCode = 'Ninguno';
-      if (account.parent_account_id !== null) {
+      if (account.parentAccountId !== null) {
         const [error, parentData] = await safeFetchApi(
           accountPlanResponseSchema,
-          `/account-plan/${account.parent_account_id}`,
+          `/account-plan/${account.parentAccountId}`,
           'GET',
         );
         if (!error && parentData) {
@@ -28,8 +28,8 @@ const transformAccountPlanData = async (accounts: AccountPlan[]) => {
       return {
         ...account,
         typeLabel:
-          ACCOUNT_TYPES[account.type as keyof typeof ACCOUNT_TYPES] ||
-          account.type,
+          ACCOUNT_TYPES[account.accountType as keyof typeof ACCOUNT_TYPES] ||
+          account.accountType,
         levelLabel:
           ACCOUNT_LEVELS[account.level as keyof typeof ACCOUNT_LEVELS] ||
           account.level,
@@ -50,7 +50,7 @@ export const getAccountPlansAction = async () => {
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error fetching all account plans');
   }
 
   const transformedData = await transformAccountPlanData(data?.data || []);
@@ -97,7 +97,7 @@ export const getPaginatedAccountPlansAction = async (params: {
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error fetching paginated account plans');
   }
 
   const transformedData = await transformAccountPlanData(response?.data || []);
@@ -129,7 +129,7 @@ export const createAccountPlanAction = async (payload: AccountPlan) => {
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error Create account plans');
   }
 
   return data;
@@ -147,7 +147,7 @@ export const updateAccountPlanAction = async (payload: AccountPlan) => {
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error Update account plans');
   }
 
   return data;
@@ -162,7 +162,7 @@ export const deleteAccountPlanAction = async (id: number) => {
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error Delete account plans');
   }
 
   return data;
@@ -177,7 +177,7 @@ export const getAccountPlanByIdAction = async (id: number) => {
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error Fetch account plans');
   }
 
   return data;

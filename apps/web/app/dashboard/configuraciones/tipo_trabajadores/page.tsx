@@ -19,7 +19,7 @@ export default async function Page(props: pageProps) {
   const page = Number(searchParamsCache.get('page')) || 1;
   const search = searchParamsCache.get('q');
   const pageLimit = Number(searchParamsCache.get('limit')) || 10;
-  const group = 'TIPO_TRABAJADOR';
+  const group = 'WORKING_TYPE';
 
   return (
     <PageContainer scrollable={false}>

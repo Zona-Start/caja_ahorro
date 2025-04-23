@@ -29,7 +29,6 @@ export default function CategoriesTypesList({
   };
 
   const { data, isLoading } = usePaginatedCategoriesTypes(filters);
-
   if (isLoading) {
     return <DataTableSkeleton columnCount={6} rowCount={initialLimit} />;
   }

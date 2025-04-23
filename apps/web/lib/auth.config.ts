@@ -1,6 +1,6 @@
 import { SignInAction } from '@/feactures/auth/actions/login-action';
 import { resfreshTokenAction } from '@/feactures/auth/actions/refresh-token-action';
-import { NextAuthConfig, Session, User } from 'next-auth';
+import { CredentialsSignin, NextAuthConfig, Session, User } from 'next-auth';
 import { DefaultJWT } from 'next-auth/jwt';
 import CredentialProvider from 'next-auth/providers/credentials';
 
@@ -25,25 +25,32 @@ const authConfig: NextAuthConfig = {
         };
 
         const response = await SignInAction(credential);
-        if (response) {
-          return {
-            id: response.user.id?.toString() ?? '0',
-            username: response.user.username ?? '',
-            fullname: response.user.fullname ?? '',
-            email: response.user.email ?? '',
-            role: response.user.rol ?? [], // Add role array
-            access_token: response.tokens.access_token ?? '',
-            access_expire_in: response.tokens.access_expire_in ?? 0,
-            refresh_token: response.tokens.refresh_token ?? '',
-            refresh_expire_in: response.tokens.refresh_expire_in ?? 0,
-          };
+        if (
+          response &&
+          'type' in response &&
+          (response.type === 'API_ERROR' ||
+            response.type === 'VALIDATION_ERROR')
+        ) {
+          throw new CredentialsSignin(response.message);
         }
-        return null;
+
+        return {
+          id: response?.user.id?.toString() ?? '0',
+          username: response?.user.username ?? '',
+          fullname: response?.user.fullname ?? '',
+          email: response?.user.email ?? '',
+          role: response?.user.rol ?? [], // Add role array
+          access_token: response?.tokens.access_token ?? '',
+          access_expire_in: response?.tokens.access_expire_in ?? 0,
+          refresh_token: response?.tokens.refresh_token ?? '',
+          refresh_expire_in: response?.tokens.refresh_expire_in ?? 0,
+        };
       },
     }),
   ],
   pages: {
     signIn: '/', //sigin page
+    //error: '/error',
   },
   callbacks: {
     async jwt({

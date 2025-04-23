@@ -51,7 +51,20 @@ export function CategoriesTypesForm({
   });
 
   const onSubmit = async (data: CategoryTypes) => {
-    saveCategoriesTypes(data, {
+    const transformedData = {
+      ...data,
+      group:
+        data.group === 'FRECUENCIA NOMINA'
+          ? 'DISCOUNT_FREQ'
+          : data.group === 'TIPO TRABAJADOR'
+            ? 'WORKING_TYPE'
+            : data.group === 'TIPO ASOCIADO'
+              ? 'ASSOCIATE_TYPE'
+              : data.group, // Transformar el grupo según la lógica deseada
+      options: data.options ? [{ frequency: String(data.options) }] : null, // Asegurar que options sea un array con el formato esperado
+    };
+
+    saveCategoriesTypes(transformedData, {
       onSuccess: () => {
         form.reset();
         onSuccess?.();
@@ -100,7 +113,7 @@ export function CategoriesTypesForm({
                     <Input
                       type="number"
                       {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
+                      onChange={(e) => field.onChange(Number(e.target.value))} // Mantener el valor como número
                       value={field.value || ''}
                     />
                   </FormControl>

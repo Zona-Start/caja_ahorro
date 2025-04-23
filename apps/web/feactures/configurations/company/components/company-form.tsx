@@ -7,19 +7,18 @@ import { Edit, Loader2, Save, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { useSavingBank, useSavingBankMutation } from '../hooks/use-saving-bank';
-import { SavingBankFormValue, savingFormSchema } from '../schemas/saving-bank';
-import { useSavingBankStore } from '../store/saving-bank-store';
+import { useCompany, useCompanyMutation } from '../hooks/use-company';
+import { CompanyFormValue, companyFormSchema } from '../schemas/company';
+import { useCompanyStore } from '../store/company-store';
 
-export function SavingBankForm() {
+export function CompanyForm() {
   const [isEditing, setIsEditing] = useState(false);
-  const { setSavingBank } = useSavingBankStore();
-  const { data: savingBankData, isLoading: isLoadingData } = useSavingBank();
-  const { mutate: saveSavingBank, isPending: isSaving } =
-    useSavingBankMutation();
+  const { setCompany } = useCompanyStore();
+  const { data: CompanyData, isLoading: isLoadingData } = useCompany();
+  const { mutate: saveCompany, isPending: isSaving } = useCompanyMutation();
 
-  const form = useForm<SavingBankFormValue>({
-    resolver: zodResolver(savingFormSchema),
+  const form = useForm<CompanyFormValue>({
+    resolver: zodResolver(companyFormSchema),
     defaultValues: {
       id: 0,
       name: '',
@@ -27,39 +26,41 @@ export function SavingBankForm() {
       address: '',
       phone: '',
       email: '',
-      personContact: '',
-      phoneContact: '',
+      baseCurrencyCode: '',
+      contactPerson: '',
+      contactPhone: '',
     },
   });
 
   useEffect(() => {
-    if (savingBankData?.data?.[0]) {
+    if (CompanyData?.data?.[0]) {
       const data = {
-        ...savingBankData.data[0],
-        id: Number(savingBankData.data[0].id),
+        ...CompanyData.data[0],
+        id: Number(CompanyData.data[0].id),
       };
       form.reset(data);
-      setSavingBank(data);
+      setCompany(data);
     }
-  }, [savingBankData, form]);
+  }, [CompanyData, form]);
 
   const handleEdit = () => {
     setIsEditing(true);
   };
 
   const handleCancel = () => {
-    if (savingBankData?.data?.[0]) {
-      form.reset(savingBankData.data[0]);
+    if (CompanyData?.data?.[0]) {
+      form.reset(CompanyData.data[0]);
     }
     setIsEditing(false);
   };
 
-  const onSubmit = (data: SavingBankFormValue) => {
-    saveSavingBank(data, {
+  const onSubmit = (data: CompanyFormValue) => {
+    const { createdAt, updatedAt, ...filteredData } = data; // Omitir los campos createdAt y updatedAt
+    saveCompany(filteredData, {
       onSuccess: () => {
         toast.success('Datos guardados exitosamente');
         setIsEditing(false);
-        setSavingBank(data);
+        setCompany(filteredData);
       },
       onError: (error: Error) => {
         toast.error(error.message || 'Error al guardar los datos');
@@ -80,7 +81,7 @@ export function SavingBankForm() {
     field,
   }: {
     label: string;
-    field: keyof SavingBankFormValue;
+    field: keyof CompanyFormValue;
   }) => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 py-2">
       <div className="font-medium text-muted-foreground">{label}</div>
@@ -150,8 +151,9 @@ export function SavingBankForm() {
             <DataRow label="Dirección" field="address" />
             <DataRow label="Teléfono" field="phone" />
             <DataRow label="Correo" field="email" />
-            <DataRow label="Persona Contacto" field="personContact" />
-            <DataRow label="Teléfono Contacto" field="phoneContact" />
+            <DataRow label="Moneda Principal" field="baseCurrencyCode" />
+            <DataRow label="Persona Contacto" field="contactPerson" />
+            <DataRow label="Teléfono Contacto" field="contactPhone" />
           </div>
         </CardContent>
       </Card>

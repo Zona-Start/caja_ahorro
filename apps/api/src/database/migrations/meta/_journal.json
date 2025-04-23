@@ -8,6 +8,13 @@
       "when": 1745178735346,
       "tag": "0000_tan_thunderball",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1745364307962,
+      "tag": "0001_previous_silver_fox",
+      "breakpoints": true
     }
   ]
 }

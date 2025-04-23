@@ -5,17 +5,18 @@ import {
   categoryTypesPaginationResponseSchema,
   categoryTypesResponseSchema,
 } from '../schemas/category-types-response';
+import { GROUP_TYPES } from '../schemas/group-options';
 
 export const getCategoryTypesAction = async () => {
   const [error, data] = await safeFetchApi(
     categoryTypesListResponseSchema,
-    '/configurations/category-types',
+    '/core/category-types',
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
   return data;
 };
@@ -36,22 +37,34 @@ export const getPaginatedCategoryTypesAction = async (params: {
     ...(params.sortBy && { sortBy: params.sortBy }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
   });
-
   const [error, response] = await safeFetchApi(
     categoryTypesPaginationResponseSchema,
-    `/configurations/category-types/paginated?${searchParams}`,
+    `/core/category-types/paginated?${searchParams}`,
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   const mapper = response?.data.map((item: any) => {
+    let name;
+    let options;
+    if (item.group === GROUP_TYPES.ASSOCIATE_TYPE) {
+      name = 'TIPO ASOCIADO';
+      options = null;
+    } else if (item.group === GROUP_TYPES.DISCOUNT_FREQ) {
+      name = 'FRECUENCIA NOMINA';
+      options = item.options[0].frequency;
+    } else if (item.group === GROUP_TYPES.WORKING_TYPE) {
+      name = 'TIPO TRABAJADOR';
+      options = null;
+    }
     return {
       ...item,
-      group: item.group.replace(/_/g, ' '),
+      group: name,
+      options: options,
     };
   });
 
@@ -73,13 +86,13 @@ export const getPaginatedCategoryTypesAction = async (params: {
 export const getCategoryTypesByIdAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     categoryTypesResponseSchema,
-    `/configurations/category-types/${id}`,
+    `/core/category-types/${id}`,
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;
@@ -88,13 +101,13 @@ export const getCategoryTypesByIdAction = async (id: number) => {
 export const getCategoryTypesByGroupAction = async (group: string) => {
   const [error, data] = await safeFetchApi(
     categoryTypesListResponseSchema,
-    `/configurations/category-types/group/${group}`,
+    `/core/category-types/group/${group}`,
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;

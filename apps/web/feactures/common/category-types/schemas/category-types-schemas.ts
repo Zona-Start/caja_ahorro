@@ -10,7 +10,7 @@ export const categoryTypesSchema = z.object({
     .string()
     .min(1, 'El nombre es requerido')
     .max(100, 'El nombre no puede tener más de 100 caracteres'),
-  options: z.number().optional().nullable(),
+  options: z.any().optional().nullable(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });

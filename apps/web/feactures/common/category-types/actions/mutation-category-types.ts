@@ -11,14 +11,14 @@ export const createCategoryTypeAction = async (payload: CategoryTypes) => {
 
   const [error, data] = await safeFetchApi(
     categoryTypesResponseSchema,
-    '/configurations/category-types',
+    '/core/category-types',
     'POST',
     payloadWithoutId,
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;
@@ -29,14 +29,14 @@ export const updateCategoryTypeAction = async (payload: CategoryTypes) => {
 
   const [error, data] = await safeFetchApi(
     categoryTypesResponseSchema,
-    `/configurations/category-types/${id}`,
+    `/core/category-types/${id}`,
     'PATCH',
     payloadWithoutId,
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;
@@ -45,13 +45,13 @@ export const updateCategoryTypeAction = async (payload: CategoryTypes) => {
 export const deleteCategoryTypeAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     categoryTypesDeleteResponseSchema,
-    `/configurations/category-types/${id}`,
+    `/core/category-types/${id}`,
     'DELETE',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'An unknown error occurred');
   }
 
   return data;

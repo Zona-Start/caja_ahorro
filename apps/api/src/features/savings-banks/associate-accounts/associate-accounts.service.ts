@@ -44,7 +44,7 @@ export class AssociateAccountsService {
         accountNumber: updateAssociateAccountsDto.accountNumber?.toString(),
         currencyCode: updateAssociateAccountsDto.currencyCode,
         balance: (
-          (updateAssociateAccountsDto.salaryTotal || 0) * 0.6
+          (updateAssociateAccountsDto.salaryTotal || 0) * 0.1
         ).toString(),
         openingDate: updateAssociateAccountsDto.openingDate?.toString(),
         bankDirectoryId: updateAssociateAccountsDto.bankDirectoryId,

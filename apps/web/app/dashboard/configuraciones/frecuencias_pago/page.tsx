@@ -19,7 +19,7 @@ export default async function Page(props: pageProps) {
   const page = Number(searchParamsCache.get('page')) || 1;
   const search = searchParamsCache.get('q');
   const pageLimit = Number(searchParamsCache.get('limit')) || 10;
-  const group = 'FRECUENCIA_NOMINA';
+  const group = 'DISCOUNT_FREQ';
 
   return (
     <PageContainer scrollable={false}>

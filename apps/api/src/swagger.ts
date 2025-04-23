@@ -3,7 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 export const swagger = async (app: NestExpressApplication) => {
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Turbo repo')
+    .setTitle('Caja Ahorro API')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);

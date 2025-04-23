@@ -2,13 +2,16 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { envs } from 'src/common/config/envs';
 import * as schema from '../index';
+import { seedAccountPlan } from './accounting-plans';
 import { seedAdminRolePermission } from './admin-role-permission.seed';
+import { seedBankDirectory } from './banks-directory';
+import { seedCategories } from './categorys';
+import { seedCompany } from './company';
 import { seedCurrencies } from './currents';
 import { seedLocalities } from './localities';
 import { seedMunicipalites } from './municipalities';
 import { seedParishes } from './parishes';
 import { seedPermissions } from './permissions.seed';
-import { seedCompany } from './saving-banl';
 import { seedStates } from './states';
 import { seedSystemSetting } from './system-settings';
 import { seedUserAdmin } from './user-admin-roles.seed';
@@ -33,6 +36,9 @@ async function main() {
     await seedParishes(db);
     await seedLocalities(db);
     await seedCompany(db);
+    await seedBankDirectory(db); // Assuming this function is defined in the same file or imported correctly
+    await seedCategories(db); // Assuming this function is defined in the same file or imported correctly
+    await seedAccountPlan(db); // Assuming this function is defined in the same file or imported correctly
 
     console.log('All seeds completed successfully');
   } catch (error) {
