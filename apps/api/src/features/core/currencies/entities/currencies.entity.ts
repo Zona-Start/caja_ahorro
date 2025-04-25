@@ -15,10 +15,10 @@ export class Currencies {
   symbol: string;
 
   @ApiProperty()
-  decimal_places: number;
+  decimalPlaces: number;
 
   @ApiProperty()
-  is_active: boolean;
+  isActive: boolean;
 
   @ApiProperty({ required: false })
   createdAt?: Date;

@@ -1,0 +1,52 @@
+'use client';
+
+import { DataTable } from '@repo/shadcn/table/data-table';
+import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
+import { useAssociates } from '../hooks/use-query-ordinary-loans';
+import { columns } from './ordinary-loans-tables/columns';
+
+interface AssociatesListProps {
+  initialPage: number;
+  initialSearch?: string | null;
+  initialLimit: number;
+  initialStatus?: string | null;
+  initialPayroll?: string | null;
+}
+
+export default function AssociatesList({
+  initialPage,
+  initialSearch,
+  initialLimit,
+  initialStatus,
+  initialPayroll,
+}: AssociatesListProps) {
+  const filters = {
+    page: initialPage,
+    limit: initialLimit,
+    ...(initialSearch && { search: initialSearch }),
+    ...(initialStatus && { status: initialStatus }),
+    ...(initialPayroll && { payroll: initialPayroll }),
+  };
+
+  const { data, isLoading } = useAssociates(filters);
+
+  if (isLoading) {
+    return <DataTableSkeleton columnCount={6} rowCount={initialLimit} />;
+  }
+
+  return (
+    <DataTable
+      columns={columns}
+      data={(data?.data || []).map((item) => ({
+        ...item,
+        birthdate: new Date(item.birthdate),
+        dateAdmission: new Date(item.dateAdmission),
+        dateGraduation: item.dateGraduation
+          ? new Date(item.dateGraduation)
+          : undefined,
+      }))}
+      totalItems={data?.meta.totalCount || 0}
+      pageSizeOptions={[10, 20, 30, 40, 50]}
+    />
+  );
+}

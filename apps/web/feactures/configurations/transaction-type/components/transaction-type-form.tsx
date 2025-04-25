@@ -1,7 +1,9 @@
 'use client';
 
+import { useAccountingAccounts } from '@/feactures/accounting/accounting-accounts/hooks/use-query-account-plan';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
+import { CustomCalendar } from '@repo/shadcn/custom-calendar';
 import {
   Form,
   FormControl,
@@ -11,20 +13,13 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
-import { CustomCalendar } from '@repo/shadcn/custom-calendar';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/shadcn/select';
+import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
+import { useTransactionTypeMutation } from '../hooks/use-mutation-transaction-type';
 import {
-  useTransactionTypeMutation,
-} from '../hooks/use-mutation-transaction-type';
-import { TransactionType, transactionTypeSchema } from '../schemas/transaction-type.schema';
-import { useAccountingAccounts } from '@/feactures/accounting/accounting-accounts/hooks/use-query-account-plan';
+  TransactionType,
+  transactionTypeSchema,
+} from '../schemas/transaction-type.schema';
 
 interface TransactionTypeFormProps {
   onSuccess?: () => void;
@@ -39,11 +34,8 @@ export function TransactionTypeForm({
   defaultValues,
   readOnly = false,
 }: TransactionTypeFormProps) {
-  const {
-    mutate: saveTransactionType,
-    isPending: isSaving,
-    isError,
-  } = useTransactionTypeMutation();
+  const { mutate: saveTransactionType, isPending: isSaving } =
+    useTransactionTypeMutation();
 
   const { data: AccoutingAccountsPlans } = useAccountingAccounts();
 
@@ -53,8 +45,18 @@ export function TransactionTypeForm({
       id: defaultValues?.id,
       code: defaultValues?.code || '',
       description: defaultValues?.description || '',
-      deferredDate: defaultValues?.deferredDate ? new Date(defaultValues.deferredDate) : null,
-      dateCanceled: defaultValues?.dateCanceled ? new Date(defaultValues.dateCanceled) : null,
+      deferredDate: defaultValues?.deferredDate
+        ? new Date(
+            new Date(defaultValues.deferredDate).getTime() +
+              new Date(defaultValues.deferredDate).getTimezoneOffset() * 60000,
+          )
+        : null,
+      dateCanceled: defaultValues?.dateCanceled
+        ? new Date(
+            new Date(defaultValues.dateCanceled).getTime() +
+              new Date(defaultValues.dateCanceled).getTimezoneOffset() * 60000,
+          )
+        : null,
       deferredNumber: defaultValues?.deferredNumber || null,
       numberCanceled: defaultValues?.numberCanceled || null,
       associatedAccount: defaultValues?.associatedAccount || null,
@@ -65,16 +67,22 @@ export function TransactionTypeForm({
   });
 
   const onSubmit = async (data: TransactionType) => {
-    
-    
     const formData = {
       ...data,
-      deferredDate: data.deferredDate ? data.deferredDate.toISOString().split('T')[0] : null,
-      dateCanceled: data.dateCanceled ? data.dateCanceled.toISOString().split('T')[0] : null,
+      deferredDate: data.deferredDate
+        ? (data.deferredDate as Date).toISOString().split('T')[0]
+        : null,
+      dateCanceled: data.dateCanceled
+        ? (data.dateCanceled as Date).toISOString().split('T')[0]
+        : null,
       deferredNumber: data.deferredNumber ? Number(data.deferredNumber) : null,
       numberCanceled: data.numberCanceled ? Number(data.numberCanceled) : null,
-      associatedAccount: data.associatedAccount ? Number(data.associatedAccount) : null,
-      employerAccount: data.employerAccount ? Number(data.employerAccount) : null,
+      associatedAccount: data.associatedAccount
+        ? Number(data.associatedAccount)
+        : null,
+      employerAccount: data.employerAccount
+        ? Number(data.employerAccount)
+        : null,
       loanAccount: data.loanAccount ? Number(data.loanAccount) : null,
     } as TransactionType;
 
@@ -108,7 +116,12 @@ export function TransactionTypeForm({
               <FormItem>
                 <FormLabel>Código</FormLabel>
                 <FormControl>
-                  <Input placeholder="001" {...field} disabled={readOnly}  className={readOnly ? "bg-muted" : ""} />
+                  <Input
+                    placeholder="001"
+                    {...field}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -122,13 +135,16 @@ export function TransactionTypeForm({
               <FormItem>
                 <FormLabel>Descripción</FormLabel>
                 <FormControl>
-                  <Input {...field} disabled={readOnly}  className={readOnly ? "bg-muted" : ""} />
+                  <Input
+                    {...field}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
 
           <FormField
             control={form.control}
@@ -139,10 +155,13 @@ export function TransactionTypeForm({
                 <FormControl>
                   <CustomCalendar
                     value={field.value}
-                    onChange={field.onChange}
+                    onChange={
+                      (date) => field.onChange(date ? date : null) // Usar la fecha seleccionada directamente sin convertirla a UTC
+                    }
                     onBlur={field.onBlur}
                     placeholder="Seleccione la fecha"
-                    disabled={readOnly}  className={readOnly ? "bg-muted" : ""}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -150,40 +169,48 @@ export function TransactionTypeForm({
             )}
           />
 
-            <FormField
-              control={form.control}
-              name="dateCanceled"
-              render={({ field }) => (
-                <FormItem className="w-full">
-                  <FormLabel>Fecha cancelada (opcional)</FormLabel>
-                  <FormControl>
-                    <CustomCalendar
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      placeholder="Seleccione la fecha"
-                      disabled={readOnly}  className={readOnly ? "bg-muted" : ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="dateCanceled"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Fecha cancelada (opcional)</FormLabel>
+                <FormControl>
+                  <CustomCalendar
+                    value={field.value}
+                    onChange={
+                      (date) => field.onChange(date ? date : null) // Usar la fecha seleccionada directamente sin convertirla a UTC
+                    }
+                    onBlur={field.onBlur}
+                    placeholder="Seleccione la fecha"
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
+          <FormField
             control={form.control}
             name="deferredNumber"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>N° Diferido</FormLabel>
                 <FormControl>
-                  <Input 
+                  <Input
                     type="number"
-                    placeholder="00"  
+                    placeholder="00"
                     {...field}
-                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
                     value={field.value ?? ''}
-                    disabled={readOnly}  className={readOnly ? "bg-muted" : ""}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -198,13 +225,18 @@ export function TransactionTypeForm({
               <FormItem>
                 <FormLabel>N° Cancelado</FormLabel>
                 <FormControl>
-                  <Input 
+                  <Input
                     type="number"
-                    placeholder="00"  
+                    placeholder="00"
                     {...field}
-                    onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value ? Number(e.target.value) : null,
+                      )
+                    }
                     value={field.value ?? ''}
-                    disabled={readOnly}  className={readOnly ? "bg-muted" : ""}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
                   />
                 </FormControl>
                 <FormMessage />
@@ -218,67 +250,45 @@ export function TransactionTypeForm({
             render={({ field }) => (
               <FormItem className="col-span-2 w-full">
                 <FormLabel>Cuenta Asociado</FormLabel>
-                <Select
+                <SelectSearchable
+                  options={
+                    AccoutingAccountsPlans?.data?.map((account) => ({
+                      value: account.id!.toString(),
+                      label: `${account.code} - ${account.name}`,
+                    })) || []
+                  }
                   onValueChange={(value) =>
                     field.onChange(value === 'null' ? null : Number(value))
                   }
+                  placeholder="Selecciona cuenta contable"
                   defaultValue={field.value?.toString() || 'null'}
-                  disabled={readOnly}  
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona cuenta contable" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                    <SelectItem value="null">Ninguno</SelectItem>
-                    {AccoutingAccountsPlans?.data?.map((account) => (
-                      <SelectItem
-                        key={account.id}
-                        value={account.id!.toString()}
-                        className={readOnly ? "bg-muted" : ""}
-                      >
-                        {account.code} - {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  disabled={readOnly}
+                />
                 <FormMessage />
               </FormItem>
             )}
           />
 
-        <FormField
+          <FormField
             control={form.control}
             name="employerAccount"
             render={({ field }) => (
               <FormItem className="col-span-2 w-full">
                 <FormLabel>Cuenta Patrono</FormLabel>
-                <Select
+                <SelectSearchable
+                  options={
+                    AccoutingAccountsPlans?.data?.map((account) => ({
+                      value: account.id!.toString(),
+                      label: `${account.code} - ${account.name}`,
+                    })) || []
+                  }
                   onValueChange={(value) =>
                     field.onChange(value === 'null' ? null : Number(value))
                   }
+                  placeholder="Selecciona cuenta contable"
                   defaultValue={field.value?.toString() || 'null'}
-                  disabled={readOnly}  
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona cuenta contable" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                    <SelectItem value="null">Ninguno</SelectItem>
-                    {AccoutingAccountsPlans?.data?.map((account) => (
-                      <SelectItem
-                        key={account.id}
-                        value={account.id!.toString()}
-                        className={readOnly ? "bg-muted" : ""}
-                      >
-                        {account.code} - {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  disabled={readOnly}
+                />
                 <FormMessage />
               </FormItem>
             )}
@@ -290,31 +300,20 @@ export function TransactionTypeForm({
             render={({ field }) => (
               <FormItem className="col-span-2 w-full">
                 <FormLabel>Cuenta Prestamo</FormLabel>
-                <Select
+                <SelectSearchable
+                  options={
+                    AccoutingAccountsPlans?.data?.map((account) => ({
+                      value: account.id!.toString(),
+                      label: `${account.code} - ${account.name}`,
+                    })) || []
+                  }
                   onValueChange={(value) =>
                     field.onChange(value === 'null' ? null : Number(value))
                   }
+                  placeholder="Selecciona cuenta contable"
                   defaultValue={field.value?.toString() || 'null'}
-                  disabled={readOnly}  
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona cuenta contable" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                    <SelectItem value="null">Ninguno</SelectItem>
-                    {AccoutingAccountsPlans?.data?.map((account) => (
-                      <SelectItem
-                        key={account.id}
-                        value={account.id!.toString()}
-                        className={readOnly ? "bg-muted" : ""}
-                      >
-                        {account.code} - {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  disabled={readOnly}
+                />
                 <FormMessage />
               </FormItem>
             )}
@@ -326,10 +325,10 @@ export function TransactionTypeForm({
             Cancelar
           </Button>
           {!readOnly && (
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? "Guardando..." : "Guardar"}
-              </Button>
-            )}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          )}
         </div>
       </form>
     </Form>

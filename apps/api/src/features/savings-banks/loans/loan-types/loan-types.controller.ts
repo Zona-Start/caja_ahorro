@@ -1,5 +1,6 @@
 import { Roles } from '@/common/decorators';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import { PaginationDto } from '@/common/dto/pagination.dto';
 import {
   Body,
   Controller,
@@ -17,7 +18,7 @@ import { CreateLoanTypeDto } from './dto/create-loan-type.dto';
 import { UpdateLoanTypeDto } from './dto/update-loan-type.dto';
 import { LoanTypesService } from './loan-types.service';
 
-@Controller('loan-types')
+@Controller('savings-banks/loan-types')
 export class LoanTypesController {
   constructor(private readonly loanTypesService: LoanTypesService) {}
 
@@ -39,11 +40,30 @@ export class LoanTypesController {
   @RequirePermissions('read:loan-types')
   @ApiOperation({ summary: 'Get all Loan Type or filter' })
   @ApiResponse({ status: 200, description: 'Return all Loan Types.' })
-  async findAll(@Query('search') search?: string) {
-    const result = await this.loanTypesService.findAll(search);
+  async findAll() {
+    const result = await this.loanTypesService.findAll();
     return {
       message: 'Loan Types fetched successfully',
       data: result,
+    };
+  }
+
+  @Get('/paginated')
+  @RequirePermissions('read:loan-types')
+  @ApiOperation({
+    summary: 'Get all Loan Type with pagination and filters',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated Loan Type.',
+  })
+  async findAllByPagination(@Query() paginationDto: PaginationDto) {
+    const result =
+      await this.loanTypesService.findAllByPagination(paginationDto);
+    return {
+      message: 'Loans Type fetched successfully',
+      data: result.data,
+      meta: result.meta,
     };
   }
 

@@ -3,7 +3,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Max,
   Min,
 } from 'class-validator';
 
@@ -17,19 +16,16 @@ export class CreateLoanTypeDto {
   description?: string;
 
   @IsNumber()
-  @Min(0)
-  @Max(100)
+  @Min(1)
   @IsNotEmpty()
-  interestRate_annual: number;
+  interestRateAnnual: number;
 
   @IsNumber()
-  @Min(0)
-  @IsNotEmpty()
+  @IsOptional()
   maxLoanAmount: number;
 
   @IsNumber()
-  @Min(0)
-  @IsNotEmpty()
+  @IsOptional()
   minLoanAmount: number;
 
   @IsNumber()

@@ -2,8 +2,8 @@
 
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
-import { columns } from './transaction-tables/columns';
 import { usePaginatedTransactionType } from '../hooks/use-query-transaction-type';
+import { columns } from './transaction-tables/columns';
 
 interface TransactionTypeListProps {
   initialPage: number;

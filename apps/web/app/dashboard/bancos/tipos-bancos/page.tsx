@@ -1,12 +1,12 @@
 import PageContainer from '@/components/layout/page-container';
-import { BanksHeader } from '@/feactures/banks/bank/components/account-plan-header';
-import BanksList from '@/feactures/banks/bank/components/banks-list';
-import BanksTableAction from '@/feactures/banks/bank/components/banks-tables/banks-table-action';
+import { BanksHeader } from '@/feactures/banks/bank-directory/components/account-plan-header';
+import BanksList from '@/feactures/banks/bank-directory/components/banks-list';
+import BanksTableAction from '@/feactures/banks/bank-directory/components/banks-tables/banks-table-action';
 
 import {
   searchParamsCache,
   serialize,
-} from '@/feactures/banks/bank/utils/searchparams';
+} from '@/feactures/banks/bank-directory/utils/searchparams';
 import { SearchParams } from 'nuqs/server';
 
 export const metadata = {

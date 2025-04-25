@@ -37,7 +37,14 @@ export default function AssociatesList({
   return (
     <DataTable
       columns={columns}
-      data={data?.data || []}
+      data={(data?.data || []).map((item) => ({
+        ...item,
+        birthdate: new Date(item.birthdate),
+        dateAdmission: new Date(item.dateAdmission),
+        dateGraduation: item.dateGraduation
+          ? new Date(item.dateGraduation)
+          : undefined,
+      }))}
       totalItems={data?.meta.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />

@@ -1,10 +1,16 @@
 import { associateAccounts, associates } from '@/database/schema/savings-banks';
 import { StatusEnum } from '@/types/enum';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { currencies, systemSettings } from 'src/database/index';
 import { CreateAssociateAccountsDto } from './dto/create-associate-accounts.dto';
 import { CreateAssociateDto } from './dto/create-associate.dto';
 import { FilterAssociateDto } from './dto/filter-associate.dto';
@@ -18,32 +24,116 @@ export class AssociatesService {
   ) {}
 
   async create(userId: number, createAssociateDto: CreateAssociateDto) {
-    const existingAssociate = await this.drizzle
-      .select()
-      .from(associates)
-      .where(eq(associates.cedula, createAssociateDto.cedula));
+    const key = 'moneda';
+    try {
+      const result = await this.drizzle.transaction(async (tx) => {
+        //genera un transaccion si ocurre un error no se guarda nada
+        const setting = await tx.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, key),
+        });
 
-    if (existingAssociate.length !== 0) {
-      throw new NotFoundException(
-        `Associate with cedula ${createAssociateDto.cedula} exist`,
-      );
+        if (!setting?.value) {
+          throw new NotFoundException(
+            `System setting with key "${key}" not found or has no value`,
+          );
+        }
+        const currencyCode = await tx
+          .select()
+          .from(currencies)
+          .where(eq(schema.currencies.id, Number(setting.value)));
+
+        const existingAssociate = await tx
+          .select()
+          .from(associates)
+          .where(eq(associates.cedula, createAssociateDto.cedula));
+
+        if (existingAssociate.length !== 0) {
+          throw new NotFoundException(
+            `Associated with the ID ${createAssociateDto.cedula} already exists`,
+          );
+        }
+
+        // Convert Date object to string format for database insertion
+        const associateData = {
+          ...createAssociateDto,
+          birthdate: createAssociateDto.birthdate?.toISOString() || null,
+          dateAdmission: createAssociateDto.dateAdmission?.toISOString(),
+          dateGraduation:
+            createAssociateDto.dateGraduation?.toISOString() || null,
+          baseSalary: createAssociateDto.baseSalary?.toString(),
+          createdById: userId,
+        };
+        const insertAssociate = await this.drizzle
+          .insert(associates)
+          .values(associateData)
+          .returning({
+            id: associates.id,
+            companyId: associates.companyId,
+            cedula: associates.cedula,
+            fullname: associates.fullname,
+            nationality: associates.nationality,
+            gender: associates.gender,
+            birthdate: associates.birthdate,
+            dateAdmission: associates.dateAdmission,
+            dateGraduation: associates.dateGraduation,
+            discountFrequencyId: associates.discountFrequencyId,
+            status: associates.status,
+            isPayrollCredit: associates.isPayrollCredit,
+            localityId: associates.localityId,
+            phone: associates.phone,
+            email: associates.email,
+            payrollTypeId: associates.payrollTypeId,
+            workerTypeId: associates.workerTypeId,
+            jobTitle: associates.jobTitle,
+            baseSalary: associates.baseSalary,
+          });
+        const associate = insertAssociate[0].id;
+
+        const associateAccountData = {
+          associateId: associate,
+          accountNumber: createAssociateDto.accountNumber,
+          currencyCode: currencyCode[0].code,
+          balance: (createAssociateDto.baseSalary * 0.1).toString(),
+          openingDate: new Date(),
+          bankDirectoryId: createAssociateDto.bankDirectoryId,
+          salary: createAssociateDto.baseSalary?.toString(),
+          salaryTotal: createAssociateDto.baseSalary?.toString(),
+          status: createAssociateDto.status,
+          createdById: userId,
+        };
+        const insertassociateAccount = await this.drizzle
+          .insert(associateAccounts)
+          .values({
+            ...associateAccountData,
+            openingDate: associateAccountData.openingDate.toISOString(),
+          })
+          .returning({
+            id: associateAccounts.id,
+            accountNumber: associateAccounts.accountNumber,
+            currencyCode: associateAccounts.currencyCode,
+            balance: associateAccounts.balance,
+            openingDate: associateAccounts.openingDate,
+            bankDirectoryId: associateAccounts.bankDirectoryId,
+            status: associateAccounts.status,
+          });
+
+        return {
+          associate: insertAssociate[0],
+          associateAccount: insertassociateAccount[0],
+        };
+      });
+      return {
+        ...result.associate,
+        accountNumber: result.associateAccount.accountNumber,
+        currencyCode: result.associateAccount.currencyCode,
+        balance: result.associateAccount.balance,
+        openingDate: result.associateAccount.openingDate,
+        bankDirectoryId: result.associateAccount.bankDirectoryId,
+      };
+    } catch (error) {
+      console.error('Error generating created associate:', error);
+      throw new InternalServerErrorException('Failed created associate.');
     }
-
-    // Convert Date object to string format for database insertion
-    const associateData = {
-      ...createAssociateDto,
-      birthdate: createAssociateDto.birthdate?.toISOString() || null,
-      dateAdmission: createAssociateDto.dateAdmission?.toISOString(),
-      dateGraduation: createAssociateDto.dateGraduation?.toISOString() || null,
-      baseSalary: createAssociateDto.baseSalary?.toString(),
-      createdById: userId,
-    };
-    const result = await this.drizzle
-      .insert(associates)
-      .values(associateData)
-      .returning();
-
-    return result[0];
   }
 
   async findAll(
@@ -108,9 +198,38 @@ export class AssociatesService {
 
     // Get paginated data
     const data = await this.drizzle
-      .select()
+      .select({
+        id: associates.id,
+        companyId: associates.companyId,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        nationality: associates.nationality,
+        gender: associates.gender,
+        birthdate: associates.birthdate,
+        dateAdmission: associates.dateAdmission,
+        dateGraduation: associates.dateGraduation,
+        discountFrequencyId: associates.discountFrequencyId,
+        status: associates.status,
+        isPayrollCredit: associates.isPayrollCredit,
+        localityId: associates.localityId,
+        phone: associates.phone,
+        email: associates.email,
+        payrollTypeId: associates.payrollTypeId,
+        workerTypeId: associates.workerTypeId,
+        jobTitle: associates.jobTitle,
+        baseSalary: associates.baseSalary,
+        accountNumber: associateAccounts.accountNumber,
+        currencyCode: associateAccounts.currencyCode,
+        balance: associateAccounts.balance,
+        openingDate: associateAccounts.openingDate,
+        bankDirectoryId: associateAccounts.bankDirectoryId,
+      })
       .from(associates)
       .where(searchCondition)
+      .leftJoin(
+        associateAccounts,
+        eq(associateAccounts.associateId, associates.id),
+      )
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -147,7 +266,7 @@ export class AssociatesService {
     const result = await this.drizzle
       .select({
         id: associates.id,
-        savingsBankId: associates.companyId,
+        companyId: associates.companyId,
         cedula: associates.cedula,
         fullname: associates.fullname,
         nationality: associates.nationality,
@@ -165,12 +284,19 @@ export class AssociatesService {
         workerTypeId: associates.workerTypeId,
         jobTitle: associates.jobTitle,
         baseSalary: associates.baseSalary,
+        accountNumber: associateAccounts.accountNumber,
+        currencyCode: associateAccounts.currencyCode,
+        balance: associateAccounts.balance,
+        openingDate: associateAccounts.openingDate,
+        bankDirectoryId: associateAccounts.bankDirectoryId,
       })
       .from(associates)
-      .where(eq(associates.id, id));
+      .where(eq(associates.id, id))
+      .leftJoin(associateAccounts, eq(associateAccounts.associateId, id));
     if (!result.length) {
       throw new NotFoundException(`Associate with ID ${id} not found`);
     }
+
     return result[0];
   }
 
@@ -178,40 +304,112 @@ export class AssociatesService {
     userId: number,
     id: number,
     updateAssociateDto: UpdateAssociateDto,
-  ): Promise<Associates> {
-    const existingAssociate = await this.findOne(id);
+  ) {
+    const key = 'moneda';
+    try {
+      const result = await this.drizzle.transaction(async (tx) => {
+        //genera un transaccion si ocurre un error no se guarda nada
+        const setting = await tx.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, key),
+        });
 
-    if (!existingAssociate) {
-      throw new NotFoundException(`Associate with ID ${id} not found`);
+        if (!setting?.value) {
+          throw new NotFoundException(
+            `System setting with key "${key}" not found or has no value`,
+          );
+        }
+        const currencyCode = await tx
+          .select()
+          .from(currencies)
+          .where(eq(schema.currencies.id, Number(setting.value)));
+
+        const existingAssociate = await tx
+          .select()
+          .from(associates)
+          .where(eq(associates.cedula, updateAssociateDto.cedula!));
+
+        if (existingAssociate.length === 0) {
+          throw new NotFoundException(
+            `Associated with the ID ${updateAssociateDto.cedula} not exists`,
+          );
+        }
+
+        // Convert Date object to string format for database insertion
+        const associateData = {
+          ...updateAssociateDto,
+          birthdate: updateAssociateDto.birthdate?.toISOString() || null,
+          dateAdmission: updateAssociateDto.dateAdmission?.toISOString(),
+          dateGraduation:
+            updateAssociateDto.dateGraduation?.toISOString() || null,
+          baseSalary: updateAssociateDto.baseSalary?.toString(),
+          updatedById: userId,
+        };
+        const updateAssociate = await this.drizzle
+          .update(associates)
+          .set(associateData)
+          .where(eq(associates.id, id))
+          .returning({
+            id: associates.id,
+            companyId: associates.companyId,
+            cedula: associates.cedula,
+            fullname: associates.fullname,
+            nationality: associates.nationality,
+            gender: associates.gender,
+            birthdate: associates.birthdate,
+            dateAdmission: associates.dateAdmission,
+            dateGraduation: associates.dateGraduation,
+            discountFrequencyId: associates.discountFrequencyId,
+            status: associates.status,
+            isPayrollCredit: associates.isPayrollCredit,
+            localityId: associates.localityId,
+            phone: associates.phone,
+            email: associates.email,
+            payrollTypeId: associates.payrollTypeId,
+            workerTypeId: associates.workerTypeId,
+            jobTitle: associates.jobTitle,
+            baseSalary: associates.baseSalary,
+          });
+
+        const associateAccountData = {
+          accountNumber: updateAssociateDto.accountNumber,
+          currencyCode: currencyCode[0].code,
+          bankDirectoryId: updateAssociateDto.bankDirectoryId,
+          salary: updateAssociateDto.baseSalary?.toString(),
+          salaryTotal: updateAssociateDto.baseSalary?.toString(),
+          status: updateAssociateDto.status,
+          updatedById: userId,
+        };
+        const updateAsociateAccount = await this.drizzle
+          .update(associateAccounts)
+          .set(associateAccountData)
+          .where(eq(associateAccounts.associateId, id))
+          .returning({
+            id: associateAccounts.id,
+            accountNumber: associateAccounts.accountNumber,
+            currencyCode: associateAccounts.currencyCode,
+            balance: associateAccounts.balance,
+            openingDate: associateAccounts.openingDate,
+            bankDirectoryId: associateAccounts.bankDirectoryId,
+            status: associateAccounts.status,
+          });
+
+        return {
+          associate: updateAssociate[0],
+          associateAccount: updateAsociateAccount[0],
+        };
+      });
+      return {
+        ...result.associate,
+        accountNumber: result.associateAccount.accountNumber,
+        currencyCode: result.associateAccount.currencyCode,
+        balance: result.associateAccount.balance,
+        openingDate: result.associateAccount.openingDate,
+        bankDirectoryId: result.associateAccount.bankDirectoryId,
+      };
+    } catch (error) {
+      console.error('Error generating created associate:', error);
+      throw new InternalServerErrorException('Failed created associate.');
     }
-
-    // Convert Date object to string format for database update
-    const associateData = {
-      ...updateAssociateDto,
-      birthdate: updateAssociateDto.birthdate?.toISOString() || null,
-      dateAdmission: updateAssociateDto.dateAdmission?.toISOString(),
-      dateGraduation: updateAssociateDto.dateGraduation?.toISOString() || null,
-      baseSalary: updateAssociateDto.baseSalary?.toString(),
-      updatedById: userId,
-    };
-
-    const result = await this.drizzle
-      .update(associates)
-      .set(associateData)
-      .where(eq(associates.id, id))
-      .returning();
-    const associate = result[0];
-    return {
-      ...associate,
-      birthdate: associate.birthdate ? new Date(associate.birthdate) : null,
-      dateAdmission: associate.dateAdmission
-        ? new Date(associate.dateAdmission)
-        : null,
-      dateGraduation: associate.dateGraduation
-        ? new Date(associate.dateGraduation)
-        : null,
-      baseSalary: associate.baseSalary ? Number(associate.baseSalary) : null,
-    } as Associates;
   }
 
   async remove(id: number) {

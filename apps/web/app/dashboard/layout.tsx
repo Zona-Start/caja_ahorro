@@ -1,5 +1,6 @@
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import Header from '@/components/layout/header';
+import SystemConfigInitializer from '@/components/system-config-initializer';
 import { SidebarInset, SidebarProvider } from '@repo/shadcn/sidebar';
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
@@ -19,6 +20,7 @@ export default async function DashboardLayout({
   ///const defaultOpen = cookieStore.get('sidebar:state')?.value === 'false';
   return (
     <SidebarProvider defaultOpen={true}>
+      <SystemConfigInitializer />
       <AppSidebar />
       <SidebarInset>
         <Header />

@@ -6,6 +6,7 @@ import { Options } from 'nuqs';
 import { useTransition } from 'react';
 
 interface DataTableSearchProps {
+  title?: string;
   searchKey: string;
   searchQuery: string;
   setSearchQuery: (
@@ -45,6 +46,7 @@ export function DataTableSearch({
   searchQuery,
   setSearchQuery,
   setPage,
+  title = 'Buscar',
 }: DataTableSearchProps) {
   const [isLoading, startTransition] = useTransition();
 
@@ -55,7 +57,7 @@ export function DataTableSearch({
 
   return (
     <Input
-      placeholder={`Buscar ${searchKey}...`}
+      placeholder={`${title}...`}
       value={searchQuery ?? ''}
       onChange={(e) => handleSearch(e.target.value)}
       className={cn('w-full md:max-w-sm', isLoading && 'animate-pulse')}

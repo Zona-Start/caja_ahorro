@@ -64,6 +64,28 @@ export class ExchangeRatesService {
     } as ExchangeRates;
   }
 
+  async findAllConfig(): Promise<{ data: ExchangeRates[] }> {
+    const data = await this.drizzle
+      .select({
+        id: schema.exchangeRates.id,
+        date: schema.exchangeRates.date,
+        rate: schema.exchangeRates.rate,
+        fromCurrencyCode: schema.exchangeRates.fromCurrencyCode,
+        toCurrencyCode: schema.exchangeRates.toCurrencyCode,
+        source: schema.exchangeRates.source,
+      })
+      .from(schema.exchangeRates)
+      .orderBy(sql`${schema.exchangeRates.createdAt} desc`)
+      .limit(1);
+    return {
+      data: data.map((item) => ({
+        ...item,
+        rate: Number(item.rate),
+        date: new Date(item.date),
+      })) as ExchangeRates[],
+    };
+  }
+
   async findAll(
     paginationDto?: PaginationDto,
   ): Promise<{ data: ExchangeRates[]; meta: any }> {

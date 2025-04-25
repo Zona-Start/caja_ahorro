@@ -18,8 +18,8 @@ import { CreateAssociateDto } from './dto/create-associate.dto';
 import { FilterAssociateDto } from './dto/filter-associate.dto';
 import { UpdateAssociateDto } from './dto/update-associate.dto';
 
-@ApiTags('associates')
-@Controller('associates')
+@ApiTags('savings-banks/associates')
+@Controller('savings-banks/associates')
 export class AssociatesController {
   constructor(private readonly associatesService: AssociatesService) {}
 

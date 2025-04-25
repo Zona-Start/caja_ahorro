@@ -22,7 +22,8 @@ export default function AccountsTableAction() {
   return (
     <div className="flex flex-wrap items-center gap-4 pt-2">
       <DataTableSearch
-        searchKey={/^\d/.test(searchQuery || '') ? 'code' : 'name'}
+        title="Buscar por código o nombre"
+        searchKey={String(/^\d/.test(searchQuery))}
         searchQuery={searchQuery || ''}
         setSearchQuery={setSearchQuery}
         setPage={setPage}

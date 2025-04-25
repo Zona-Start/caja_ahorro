@@ -17,7 +17,7 @@ import { BankDirectoryService } from './bank-directory.services';
 import { CreateBankDirectoryDto } from './dto/create-bank-directory.dto';
 import { UpdateBankDirectoryDto } from './dto/update-bank-directory.dto';
 
-@Controller('banks')
+@Controller('banks-directory')
 export class BankDirectoryController {
   constructor(private readonly bankDirectoryService: BankDirectoryService) {}
 

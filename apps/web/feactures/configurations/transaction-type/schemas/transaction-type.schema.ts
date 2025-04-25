@@ -8,8 +8,8 @@ export const transactionTypeSchema = z.object({
     .max(5, 'El código no puede tener más de 5 números')
     .regex(/^[\d]+$/, 'El código debe contener solo números y puntos'),
   description: z.string().min(5, 'La descripción es requerida'),
-  deferredDate: z.string().transform((str) => (str ? new Date(str) : null)),
-  dateCanceled: z.string().transform((str) => (str ? new Date(str) : null)),
+  deferredDate: z.date().nullable(),
+  dateCanceled: z.date().nullable(),
   deferredNumber: z.number().nullable(),
   numberCanceled: z.number().nullable(),
   associatedAccount: z.number().nullable(),
@@ -46,7 +46,7 @@ export const transactionTypeDeleteResponseSchema = z.object({
 // Response schemas for the API all
 export const transactionTypeListResponseSchema = z.object({
   message: z.string(),
-  data: z.array(transactionTypeSchema),
+  data: z.array(transactionTypeApiSchema),
 });
 
 // Response schemas for the API all paginated

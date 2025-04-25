@@ -24,7 +24,8 @@ export class BankDirectoryService {
         isActive: bankDirectory.isActive,
         countryCode: bankDirectory.countryCode,
       })
-      .from(bankDirectory);
+      .from(bankDirectory)
+      .orderBy(bankDirectory.id);
 
     return data as BankDirectory[];
   }

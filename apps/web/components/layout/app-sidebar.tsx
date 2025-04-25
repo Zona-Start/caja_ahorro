@@ -40,10 +40,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain titleGroup={'Caja Ahorro'} items={savingBankItems} />
-        <AccountingMain titleGroup={'Contabilidad'} items={AccountingItems} />
-        <BankMain titleGroup={'Banco'} items={BankItems} />
-        <ConfigMain titleGroup={'General'} items={ConfigItems} />
+        <NavMain titleGroup={'Gestión Caja Ahorro'} items={savingBankItems} />
+        <AccountingMain
+          titleGroup={'Gestión Contable'}
+          items={AccountingItems}
+        />
+        <BankMain titleGroup={'Gestón Bancaria'} items={BankItems} />
+        <ConfigMain titleGroup={'Utilidades'} items={ConfigItems} />
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarRail />

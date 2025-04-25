@@ -1,0 +1,1 @@
+ALTER TABLE "core"."system_settings" ADD COLUMN "group" varchar(100);

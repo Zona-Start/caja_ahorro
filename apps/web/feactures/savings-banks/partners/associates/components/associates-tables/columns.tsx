@@ -1,10 +1,10 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { Associates } from '../../schemas/associates.schema';
+import { AssociatesMutate } from '../../schemas/associates.schema';
 import { CellAction } from './cell-action';
 
-export const columns: ColumnDef<Associates>[] = [
+export const columns: ColumnDef<AssociatesMutate>[] = [
   {
     accessorKey: 'nationality',
     header: 'Nacionalidad',
@@ -33,9 +33,9 @@ export const columns: ColumnDef<Associates>[] = [
     header: 'Credi-Nomina',
     cell: ({ row }) => {
       if (row.original.isPayrollCredit === true) {
-        return <span className="text-green-500">SI</span>;
+        return <span className="text-red-500">SI</span>;
       } else {
-        return <span className="text-red-500">No</span>;
+        return <span>No</span>;
       }
     },
   },

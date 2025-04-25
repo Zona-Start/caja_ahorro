@@ -123,4 +123,14 @@ export class CreateAssociateDto {
   @ApiProperty({ description: 'base Salary', required: true })
   @IsNumber({ maxDecimalPlaces: 2 })
   baseSalary: number;
+
+  @ApiProperty({ description: 'Account number' })
+  @IsNotEmpty()
+  @IsString()
+  accountNumber: string;
+
+  @ApiProperty({ description: 'Bank ID' })
+  @IsInt()
+  @IsNotEmpty()
+  bankDirectoryId: number;
 }

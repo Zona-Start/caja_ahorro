@@ -49,8 +49,6 @@ export const getPaginatedTransactionTypeAction = async (params: {
     throw new Error(error.message || 'An unknown error occurred');
   }
 
-  //const transformedData = await transformAccountPlanData(response?.data || []);
-
   return {
     data: response?.data,
     meta: response?.meta || {

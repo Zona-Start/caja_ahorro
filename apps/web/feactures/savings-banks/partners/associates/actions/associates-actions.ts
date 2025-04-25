@@ -1,12 +1,11 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
-  AssociatesByIdResponseSchema,
   AssociatesDeleteResponseSchema,
-  AssociatesMutate,
-  AssociatesMutateResponseSchema,
-  AssociatesResponseSchema,
-} from '../schemas/associates.schema';
+  AssociatesResponseAllSchema,
+  AssociatesResponseOneSchema,
+} from '../schemas/associates-response-api';
+import { AssociatesMutate } from '../schemas/associates.schema';
 
 export const getAssociatesAction = async (params: {
   page?: number;
@@ -41,14 +40,14 @@ export const getAssociatesAction = async (params: {
   });
 
   const [error, response] = await safeFetchApi(
-    AssociatesResponseSchema,
-    `/associates?${searchParams}`,
+    AssociatesResponseAllSchema,
+    `/savings-banks/associates?${searchParams}`,
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error fetching associates data');
   }
 
   return {
@@ -73,26 +72,25 @@ export const createAssociateAction = async (
 
   const payload = {
     ...payloadWithoutId,
-    salaryTotal: Number(associatesMutate.salaryTotal),
-    discountFrequencyId: String(associatesMutate.discountFrequencyId),
-    dateAdmission: associatesMutate.dateAdmission.toISOString().split('T')[0],
-    dateGraduation: associatesMutate.dateGraduation
-      ?.toISOString()
-      .split('T')[0],
-    birthdate: associatesMutate.birthdate.toISOString().split('T')[0],
-    isPayrollCredit: Boolean(associatesMutate.isPayrollCredit),
+    birthdate: payloadWithoutId.birthdate.toISOString().split('T')[0],
+    dateAdmission: payloadWithoutId.dateAdmission.toISOString().split('T')[0],
+    dateGraduation: payloadWithoutId.dateGraduation
+      ? payloadWithoutId.dateGraduation.toISOString().split('T')[0]
+      : null,
+    isPayrollCredit: Boolean(payloadWithoutId.isPayrollCredit),
+    baseSalary: Number(payloadWithoutId.baseSalary),
   };
 
   const [error, data] = await safeFetchApi(
-    AssociatesMutateResponseSchema,
-    '/associates',
+    AssociatesResponseOneSchema,
+    '/savings-banks/associates',
     'POST',
     payload,
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error create associate');
   }
 
   return data;
@@ -105,25 +103,24 @@ export const updateAssociatesAction = async (
 
   const payload = {
     ...payloadWithoutId,
-    salaryTotal: Number(associatesMutate.salaryTotal),
-    discountFrequencyId: String(associatesMutate.discountFrequencyId),
-    dateAdmission: associatesMutate.dateAdmission.toISOString().split('T')[0],
-    dateGraduation: associatesMutate.dateGraduation
-      ?.toISOString()
-      .split('T')[0],
-    birthdate: associatesMutate.birthdate.toISOString().split('T')[0],
-    isPayrollCredit: Boolean(associatesMutate.isPayrollCredit),
+    birthdate: payloadWithoutId.birthdate.toISOString().split('T')[0],
+    dateAdmission: payloadWithoutId.dateAdmission.toISOString().split('T')[0],
+    dateGraduation: payloadWithoutId.dateGraduation
+      ? payloadWithoutId.dateGraduation.toISOString().split('T')[0]
+      : null,
+    isPayrollCredit: Boolean(payloadWithoutId.isPayrollCredit),
+    baseSalary: Number(payloadWithoutId.baseSalary),
   };
   const [error, data] = await safeFetchApi(
-    AssociatesMutateResponseSchema,
-    `/associates/${id}`,
+    AssociatesResponseOneSchema,
+    `/savings-banks/associates/${id}`,
     'PATCH',
     payload,
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error update associates');
   }
 
   return data;
@@ -132,13 +129,13 @@ export const updateAssociatesAction = async (
 export const deleteAssociatesAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     AssociatesDeleteResponseSchema,
-    `/associates/${id}`,
+    `/savings-banks/associates/${id}`,
     'DELETE',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error delete associates');
   }
 
   return data;
@@ -146,16 +143,15 @@ export const deleteAssociatesAction = async (id: number) => {
 
 export const getAssociatesByIdAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
-    AssociatesByIdResponseSchema,
-    `/associates/${id}`,
+    AssociatesResponseOneSchema,
+    `/savings-banks/associates/${id}`,
     'GET',
   );
 
   if (error) {
     console.error('Error:', error);
-    throw new Error(error);
+    throw new Error(error.message || 'Error fetching associate data');
   }
-
   return data;
 };
 

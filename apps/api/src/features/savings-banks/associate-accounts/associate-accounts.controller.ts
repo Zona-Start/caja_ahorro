@@ -5,8 +5,8 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AssociateAccountsService } from './associate-accounts.service';
 import { UpdateAssociateAccountsDto } from './dto/update-associate-accounts.dto';
 
-@ApiTags('associate-accounts')
-@Controller('associate-accounts')
+@ApiTags('savings-banks/associate-accounts')
+@Controller('savings-banks/associatess')
 export class AssociateAccountsController {
   constructor(
     private readonly associateAccountsService: AssociateAccountsService,

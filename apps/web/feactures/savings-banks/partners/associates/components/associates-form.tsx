@@ -1,6 +1,6 @@
 'use client';
 
-import { useBanksQuery } from '@/feactures/banks/bank/hooks/use-banks-querys';
+import { useBanksQuery } from '@/feactures/banks/bank-directory/hooks/use-banks-querys';
 import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { useStatesQuery } from '@/feactures/common/states/hooks/use-querys-states';
 import { useTransactionType } from '@/feactures/configurations/transaction-type/hooks/use-query-transaction-type';
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
 import { useAssociateMutation } from '../hooks/use-associate-mutation';
 import {
@@ -44,16 +45,11 @@ export function AssociatesForm({
   defaultValues,
   readOnly = false,
 }: AccountPlanFormProps) {
-  const {
-    mutate: saveAssociate,
-    isPending: isSaving,
-    isError,
-  } = useAssociateMutation();
+  const { mutate: saveAssociate, isPending: isSaving } = useAssociateMutation();
 
   const { data: StatesQuery } = useStatesQuery();
-  const { data: CategoryFrecuentia } =
-    useCategoriesTypesGroup('FRECUENCIA_NOMINA');
-  const { data: WorkerType } = useCategoriesTypesGroup('TIPO_TRABAJADOR');
+  const { data: CategoryFrecuentia } = useCategoriesTypesGroup('DISCOUNT_FREQ');
+  const { data: WorkerType } = useCategoriesTypesGroup('WORKING_TYPE');
   const { data: PayrollType } = useTransactionType();
   const { data: Banks } = useBanksQuery();
 
@@ -61,7 +57,7 @@ export function AssociatesForm({
     resolver: zodResolver(AssociateMutationSchema),
     defaultValues: {
       id: defaultValues?.id,
-      savingsBankId: defaultValues?.savingsBankId || 1,
+      companyId: defaultValues?.companyId || 1,
       cedula: defaultValues?.cedula || '',
       fullname: defaultValues?.fullname || '',
       nationality: defaultValues?.nationality || 'VENEZOLANO',
@@ -78,15 +74,15 @@ export function AssociatesForm({
       dateGraduation: defaultValues?.dateGraduation
         ? new Date(defaultValues.dateGraduation)
         : new Date(),
-      isPayrollCredit: defaultValues?.isPayrollCredit || 'false',
+      isPayrollCredit: defaultValues?.isPayrollCredit || false,
       discountFrequencyId: defaultValues?.discountFrequencyId,
       payrollTypeId: defaultValues?.payrollTypeId,
       status: defaultValues?.status || 'ACTIVE',
       workerTypeId: defaultValues?.workerTypeId,
-      charge: defaultValues?.charge || '',
-      bankId: defaultValues?.bankId,
+      jobTitle: defaultValues?.jobTitle || '',
+      bankDirectoryId: defaultValues?.bankDirectoryId,
       accountNumber: defaultValues?.accountNumber || '',
-      salaryTotal: defaultValues?.salaryTotal || '',
+      baseSalary: defaultValues?.baseSalary || '',
     },
     mode: 'onChange', // Enable real-time validation
   });
@@ -492,7 +488,7 @@ export function AssociatesForm({
 
             <FormField
               control={form.control}
-              name="charge"
+              name="jobTitle"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cargo</FormLabel>
@@ -510,7 +506,7 @@ export function AssociatesForm({
 
             <FormField
               control={form.control}
-              name="salaryTotal"
+              name="baseSalary"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Sueldo</FormLabel>
@@ -549,32 +545,22 @@ export function AssociatesForm({
           <div className="grid grid-cols-1  gap-4">
             <FormField
               control={form.control}
-              name="bankId"
+              name="bankDirectoryId"
               render={({ field }) => (
                 <FormItem className="w-full">
                   <FormLabel>Banco</FormLabel>
-                  <Select
+                  <SelectSearchable
+                    options={
+                      Banks?.data?.map((item) => ({
+                        value: item.id!.toString(),
+                        label: `${item.code} - ${item.name}`,
+                      })) || []
+                    }
                     onValueChange={(value) => field.onChange(Number(value))}
+                    placeholder="Selecciona un banco"
                     defaultValue={String(field.value)}
                     disabled={readOnly}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona el banco" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                      {Banks?.data?.map((item: any) => (
-                        <SelectItem
-                          key={item.id}
-                          value={item.id!.toString()}
-                          className={readOnly ? 'bg-muted' : ''}
-                        >
-                          {item.code} - {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                   <FormMessage />
                 </FormItem>
               )}

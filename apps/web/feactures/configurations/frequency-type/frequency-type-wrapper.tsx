@@ -35,7 +35,7 @@ export function FrequencyTypeWrapper({
         nameButton="Agregar Tipo"
         group={group}
       />
-      <CategoriesTypesTableAction />
+      <CategoriesTypesTableAction inputTitle="Buscar por nombre" />
       <CategoriesTypesList
         initialPage={page}
         initialSearch={search}

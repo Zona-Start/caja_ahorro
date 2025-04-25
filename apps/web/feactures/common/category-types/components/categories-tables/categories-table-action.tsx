@@ -3,14 +3,19 @@
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { useCategoriesTypesTableFilters } from './use-categories-table-filters';
 
-export default function CategoriesTypesTableAction() {
+export default function CategoriesTypesTableAction({
+  inputTitle,
+}: {
+  inputTitle: string;
+}) {
   const { setGrouFilter, groupFilter, searchQuery, setPage, setSearchQuery } =
     useCategoriesTypesTableFilters();
 
   return (
     <div className="flex flex-wrap items-center gap-4 pt-2">
       <DataTableSearch
-        searchKey={/^\d/.test(searchQuery || '') ? 'code' : 'name'}
+        title={inputTitle}
+        searchKey={searchQuery}
         searchQuery={searchQuery || ''}
         setSearchQuery={setSearchQuery}
         setPage={setPage}

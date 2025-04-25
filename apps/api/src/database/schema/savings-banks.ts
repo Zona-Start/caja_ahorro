@@ -196,7 +196,7 @@ export const loanTypes = savingsBanksSchema.table(
     id: serial('id').primaryKey(), // ID único del tipo de préstamo
     name: varchar('name', { length: 100 }).notNull(), // Nombre del tipo de préstamo (Ej. "Personal", "Hipotecario", "Estudiantil")
     description: text('description'), // Descripción del tipo de préstamo
-    interestRate_annual: numeric('interest_rate_annual', {
+    interestRateAnnual: numeric('interest_rate_annual', {
       precision: 5,
       scale: 2,
     }), // Tasa de interés anual asociada al tipo de préstamo

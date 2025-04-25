@@ -44,6 +44,7 @@ export const systemSettings = coreSchema.table('system_settings', {
   key: varchar('key', { length: 100 }).notNull().unique(), // La clave debe ser única
   value: text('value').notNull(), // Valor de la clave
   description: text('description'), // Descripción de funcionalidad
+  group: varchar('group', { length: 100 }), // Agrupación de la configuración (ej: 'INTEREST', 'FEES', etc.)
   ...timestamps,
 });
 
@@ -53,8 +54,8 @@ export const currencies = coreSchema.table('currencies', {
   code: enums.currencyCodeEnum('code').notNull().unique(), // Ej: VES, USD
   name: varchar('name', { length: 100 }).notNull(), // Ej: Bolívar Soberano, Dólar Americano
   symbol: varchar('symbol', { length: 5 }), // Ej: Bs., $
-  decimal_places: integer('decimal_places').notNull().default(2),
-  is_active: boolean('is_active').default(true),
+  decimalPlaces: integer('decimal_places').notNull().default(2),
+  isActive: boolean('is_active').default(true),
   ...timestamps,
 });
 

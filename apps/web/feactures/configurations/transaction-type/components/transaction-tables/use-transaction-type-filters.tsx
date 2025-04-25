@@ -4,14 +4,13 @@ import { searchParams } from '@repo/shadcn/lib/searchparams';
 import { useQueryState } from 'nuqs';
 import { useCallback, useMemo } from 'react';
 
-
 export function useTransactionTypeFilters() {
   const [searchQuery, setSearchQuery] = useQueryState(
     'q',
     searchParams.q
       .withOptions({
         shallow: false,
-        throttleMs: 500, // Add 500ms delay
+        throttleMs: 1000, // Add 500ms delay
         // Removed dedupingInterval as it's not a valid option
       })
       .withDefault(''),

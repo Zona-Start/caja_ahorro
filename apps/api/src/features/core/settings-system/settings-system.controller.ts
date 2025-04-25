@@ -1,6 +1,7 @@
 import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { PaginationDto } from '@/common/dto/pagination.dto';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { KeySettingSystemDto } from './dto/settings-key.dto';
 import { UpdateSettingSystemDto } from './dto/update-setting-system.dto';
@@ -17,6 +18,24 @@ export class SettingsSystemController {
   async findAll() {
     const data = await this.settingsSystemService.findAll();
     return { message: 'Settings System fetched successfully', data };
+  }
+
+  @Get('/group/:group/')
+  @ApiOperation({ summary: 'Get all settings system' })
+  @ApiResponse({ status: 200, description: 'Return all settings system.' })
+  async findAllByGroup(
+    @Param('group') group: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    const result = await this.settingsSystemService.findAllByGroup(
+      group,
+      paginationDto,
+    );
+    return {
+      message: 'Settings System fetchedsuccessfully',
+      data: result.data,
+      meta: result.meta,
+    };
   }
 
   @Get('/key')

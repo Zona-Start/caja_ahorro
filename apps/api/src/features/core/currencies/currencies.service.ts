@@ -1,7 +1,7 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { CurrencyCodeEnum } from '@/types/enum';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, ilike, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
@@ -47,11 +47,35 @@ export class CurrenciesService {
 
   async findOne(id: number): Promise<Currencies> {
     const currencie = await this.drizzle
-      .select()
+      .select({
+        id: schema.currencies.id,
+        code: schema.currencies.code,
+        name: schema.currencies.name,
+        symbol: schema.currencies.symbol,
+        decimalPlaces: schema.currencies.decimalPlaces,
+        isActive: schema.currencies.isActive,
+      })
       .from(schema.currencies)
-      .where(eq(schema.currencies.id, id));
+      .where(
+        and(eq(schema.currencies.id, id), eq(schema.currencies.isActive, true)),
+      );
 
     return currencie[0] as Currencies;
+  }
+
+  async findAllConfig(): Promise<{ data: Currencies[] }> {
+    // Get paginated data
+    const data = await this.drizzle
+      .select({
+        id: schema.currencies.id,
+        code: schema.currencies.code,
+        name: schema.currencies.name,
+        symbol: schema.currencies.symbol,
+        decimalPlaces: schema.currencies.decimalPlaces,
+        isActive: schema.currencies.isActive,
+      })
+      .from(schema.currencies);
+    return { data: data as Currencies[] };
   }
 
   async findAll(
@@ -91,7 +115,14 @@ export class CurrenciesService {
 
     // Get paginated data
     const data = await this.drizzle
-      .select()
+      .select({
+        id: schema.currencies.id,
+        code: schema.currencies.code,
+        name: schema.currencies.name,
+        symbol: schema.currencies.symbol,
+        decimalPlaces: schema.currencies.decimalPlaces,
+        isActive: schema.currencies.isActive,
+      })
       .from(schema.currencies)
       .where(searchCondition)
       .orderBy(orderBy)

@@ -12,11 +12,11 @@ import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteAssociate } from '../../hooks/use-associate-mutation';
 import { useAssociatesById } from '../../hooks/use-query-associates';
-import { Associates } from '../../schemas/associates.schema';
+import { AssociatesMutate } from '../../schemas/associates.schema';
 import { AssociatesModal } from '../associates-modal';
 
 interface CellActionProps {
-  data: Associates;
+  data: AssociatesMutate;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
@@ -69,10 +69,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             }}
             defaultValues={{
               ...associateData.data,
-              dateGraduation: associateData.data.dateGraduation || undefined,
-              charge: associateData.data.charge || undefined,
-              isPayrollCredit:
-                associateData.data.isPayrollCredit === true ? 'true' : 'false',
+              birthdate: associateData.data.birthdate
+                ? new Date(associateData.data.birthdate)
+                : undefined,
+              dateAdmission: associateData.data.dateAdmission
+                ? new Date(associateData.data.dateAdmission)
+                : undefined,
+              dateGraduation: associateData.data.dateGraduation
+                ? new Date(associateData.data.dateGraduation)
+                : undefined,
+              jobTitle: associateData.data.jobTitle || undefined,
+              isPayrollCredit: associateData.data.isPayrollCredit,
             }}
           />
 
@@ -84,10 +91,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             }}
             defaultValues={{
               ...associateData.data,
-              dateGraduation: associateData.data.dateGraduation || undefined,
-              charge: associateData.data.charge || undefined,
-              isPayrollCredit:
-                associateData.data.isPayrollCredit === true ? 'true' : 'false',
+              birthdate: associateData.data.birthdate
+                ? new Date(associateData.data.birthdate)
+                : undefined,
+              dateAdmission: associateData.data.dateAdmission
+                ? new Date(associateData.data.dateAdmission)
+                : undefined,
+              dateGraduation: associateData.data.dateGraduation
+                ? new Date(associateData.data.dateGraduation)
+                : undefined,
+              jobTitle: associateData.data.jobTitle || undefined,
+              isPayrollCredit: associateData.data.isPayrollCredit,
             }}
             readOnly={true}
           />

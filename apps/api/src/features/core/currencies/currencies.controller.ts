@@ -56,6 +56,23 @@ export class CurrenciesController {
     };
   }
 
+  @Get('config')
+  @RequirePermissions('read:currencies')
+  @ApiOperation({
+    summary: 'Get all Currencie with pagination and filters',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated Currencie .',
+  })
+  async findAllConfig() {
+    const result = await this.currenciesService.findAllConfig();
+    return {
+      message: 'Currencie fetched successfully',
+      data: result.data,
+    };
+  }
+
   @Get('/:id')
   @RequirePermissions('read:currencies')
   @ApiOperation({ summary: 'Get a Currencie by ID' })

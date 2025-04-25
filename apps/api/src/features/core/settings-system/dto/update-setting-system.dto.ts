@@ -16,4 +16,9 @@ export class UpdateSettingSystemDto {
   @IsOptional()
   @IsString()
   description: string;
+
+  @ApiProperty({ description: 'Group of the settings' })
+  @IsNotEmpty()
+  @IsString()
+  group: string;
 }

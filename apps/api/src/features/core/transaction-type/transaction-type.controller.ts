@@ -45,7 +45,6 @@ export class TransactionTypeController {
   @RequirePermissions('read:transaction-type')
   @ApiOperation({ summary: 'Get all Transaction type' })
   @ApiResponse({ status: 200, description: 'Return all Transaction type.' })
-  @Get()
   async findAll() {
     const data = await this.transactionTypeService.findAll();
     return { message: 'Transaction type fetched successfully', data };

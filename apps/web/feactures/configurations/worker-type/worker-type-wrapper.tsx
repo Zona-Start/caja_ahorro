@@ -31,11 +31,11 @@ export function WorkerTypeWrapper({
     <div className="flex flex-1 flex-col space-y-4">
       <CategoriesTypesHeader
         description="Gestiona los tipos de trabajadores en el sistema"
-        title="Tipos de Trabajadores"
+        title="Tipos de Trabajador"
         nameButton="Agregar Tipo"
         group={group}
       />
-      <CategoriesTypesTableAction />
+      <CategoriesTypesTableAction inputTitle="Buscar por nombre" />
       <CategoriesTypesList
         initialPage={page}
         initialSearch={search}

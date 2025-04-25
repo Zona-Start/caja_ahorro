@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
 import { useAccountPlanMutation } from '../hooks/use-account-plan-mutation';
 import { useAccountingAccounts } from '../hooks/use-query-account-plan';
@@ -197,33 +198,21 @@ export function AccountPlanForm({
             control={form.control}
             name="parentAccountId"
             render={({ field }) => (
-              <FormItem className=" w-full">
+              <FormItem className="w-full">
                 <FormLabel>Cuenta Padre</FormLabel>
-                <Select
+                <SelectSearchable
+                  options={
+                    AccoutingAccounts?.data?.map((account) => ({
+                      value: account.id!.toString(),
+                      label: `${account.code} - ${account.name}`,
+                    })) || []
+                  }
                   onValueChange={(value) =>
                     field.onChange(value === 'null' ? null : Number(value))
                   }
+                  placeholder="Selecciona una cuenta padre"
                   defaultValue={field.value?.toString() || 'null'}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona cuenta padre" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                    <SelectItem key={0} value="null">
-                      Ninguno
-                    </SelectItem>
-                    {AccoutingAccounts?.data?.map((account) => (
-                      <SelectItem
-                        key={account.id}
-                        value={account.id!.toString()}
-                      >
-                        {account.code} - {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 <FormMessage />
               </FormItem>
             )}

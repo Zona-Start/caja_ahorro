@@ -57,6 +57,23 @@ export class ExchangeRatesController {
     };
   }
 
+  @Get('config')
+  @RequirePermissions('read:exchange-rates')
+  @ApiOperation({
+    summary: 'Get all Exchange Rate',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Return  Exchange Rate .',
+  })
+  async findAllConfig() {
+    const result = await this.exchangeRatesService.findAllConfig();
+    return {
+      message: 'Exchange Rate fetched successfully',
+      data: result.data,
+    };
+  }
+
   @Get('/:id')
   @RequirePermissions('read:exchange-rates')
   @ApiOperation({ summary: 'Get a Exchange Rate by ID' })

@@ -14,6 +14,9 @@ export class SettingSystem {
   description?: string | null;
 
   @ApiProperty({ required: false })
+  group?: string | null;
+
+  @ApiProperty({ required: false })
   createdAt?: Date;
 
   @ApiProperty({ required: false })

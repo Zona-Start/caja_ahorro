@@ -10,7 +10,7 @@ export function useCategoriesTypesTableFilters() {
     searchParams.q
       .withOptions({
         shallow: false,
-        throttleMs: 500, // Add 500ms delay
+        throttleMs: 700, // Add 500ms delay
         // Removed dedupingInterval as it's not a valid option
       })
       .withDefault(''),

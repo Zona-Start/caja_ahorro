@@ -45,9 +45,11 @@ export function TransactionTypeModal({
           <DialogTitle>
             {readOnly ? 'Ver Tipo de Transacción' : defaultValues ? 'Editar Tipo de Transacción' : 'Crear Tipo de Transacción'} 
           </DialogTitle>
-          <DialogDescription>
-            Complete los campos para {defaultValues?.id ? 'actualizar' : 'crear'} el tipo de transacción
-          </DialogDescription>
+          {!readOnly && (
+            <DialogDescription>
+              Complete los campos para {defaultValues?.id ? 'actualizar' : 'crear'} el tipo de transacción
+            </DialogDescription>
+          )}
         </DialogHeader>
         <TransactionTypeForm
           onSuccess={handleSuccess}
