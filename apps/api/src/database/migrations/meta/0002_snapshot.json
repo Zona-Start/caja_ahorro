@@ -1,6 +1,6 @@
 {
-  "id": "afc1c424-2fd5-47e7-afd6-528273fda732",
-  "prevId": "bb907cdb-2c69-403b-ae1a-2cc8bf0c174c",
+  "id": "c6347c4c-776a-49b8-82b7-5c9f34695f86",
+  "prevId": "d2b58f4e-2ace-4d76-a2cc-09634e71413b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3218,14 +3218,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "base_currency_code": {
-          "name": "base_currency_code",
-          "type": "currency_code_enum",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'VES'"
-        },
         "contact_person": {
           "name": "contact_person",
           "type": "text",
@@ -3235,6 +3227,12 @@
         "contact_phone": {
           "name": "contact_phone",
           "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
         },
@@ -4233,6 +4231,187 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "core.type_operations": {
+      "name": "type_operations",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "deferred_date": {
+          "name": "deferred_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "date_canceled": {
+          "name": "date_canceled",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deferred_number": {
+          "name": "deferred_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "number_canceled": {
+          "name": "number_canceled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group": {
+          "name": "group",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "associated_account": {
+          "name": "associated_account",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "employer_account": {
+          "name": "employer_account",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "loan_account": {
+          "name": "loan_account",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "type_operations_associated_account_account_plan_id_fk": {
+          "name": "type_operations_associated_account_account_plan_id_fk",
+          "tableFrom": "type_operations",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "associated_account"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "type_operations_employer_account_account_plan_id_fk": {
+          "name": "type_operations_employer_account_account_plan_id_fk",
+          "tableFrom": "type_operations",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "employer_account"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "type_operations_loan_account_account_plan_id_fk": {
+          "name": "type_operations_loan_account_account_plan_id_fk",
+          "tableFrom": "type_operations",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "loan_account"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "type_operations_created_by_id_users_id_fk": {
+          "name": "type_operations_created_by_id_users_id_fk",
+          "tableFrom": "type_operations",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "type_operations_updated_by_id_users_id_fk": {
+          "name": "type_operations_updated_by_id_users_id_fk",
+          "tableFrom": "type_operations",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "savings_banks.associate_account_movements": {
       "name": "associate_account_movements",
       "schema": "savings_banks",
@@ -4525,21 +4704,15 @@
           "notNull": false,
           "default": "now()"
         },
+        "closing_date": {
+          "name": "closing_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "bank_id": {
           "name": "bank_id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "salary": {
-          "name": "salary",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "salary_total": {
-          "name": "salary_total",
-          "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": false
         },
@@ -4643,6 +4816,21 @@
           "columns": [
             {
               "expression": "opening_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "associate_accounts_closing_date_idx": {
+          "name": "associate_accounts_closing_date_idx",
+          "columns": [
+            {
+              "expression": "closing_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5556,137 +5744,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "savings_banks.loan_types": {
-      "name": "loan_types",
-      "schema": "savings_banks",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "interest_rate_annual": {
-          "name": "interest_rate_annual",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_loan_amount": {
-          "name": "max_loan_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "min_loan_amount": {
-          "name": "min_loan_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "term_months_min": {
-          "name": "term_months_min",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "term_months_max": {
-          "name": "term_months_max",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "loan_types_name_idx": {
-          "name": "loan_types_name_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "loan_types_created_by_id_users_id_fk": {
-          "name": "loan_types_created_by_id_users_id_fk",
-          "tableFrom": "loan_types",
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "loan_types_updated_by_id_users_id_fk": {
-          "name": "loan_types_updated_by_id_users_id_fk",
-          "tableFrom": "loan_types",
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "savings_banks.loans": {
       "name": "loans",
       "schema": "savings_banks",
@@ -5962,11 +6019,11 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "loans_loan_type_id_loan_types_id_fk": {
-          "name": "loans_loan_type_id_loan_types_id_fk",
+        "loans_loan_type_id_type_operations_id_fk": {
+          "name": "loans_loan_type_id_type_operations_id_fk",
           "tableFrom": "loans",
-          "tableTo": "loan_types",
-          "schemaTo": "savings_banks",
+          "tableTo": "type_operations",
+          "schemaTo": "core",
           "columnsFrom": [
             "loan_type_id"
           ],
@@ -6049,175 +6106,6 @@
         "loans_updated_by_id_users_id_fk": {
           "name": "loans_updated_by_id_users_id_fk",
           "tableFrom": "loans",
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "savings_banks.transaction_type": {
-      "name": "transaction_type",
-      "schema": "savings_banks",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "varchar(10)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "deferred_date": {
-          "name": "deferred_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "date_canceled": {
-          "name": "date_canceled",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "deferred_number": {
-          "name": "deferred_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "number_canceled": {
-          "name": "number_canceled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "associated_account": {
-          "name": "associated_account",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "employer_account": {
-          "name": "employer_account",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "loan_account": {
-          "name": "loan_account",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "transaction_type_associated_account_account_plan_id_fk": {
-          "name": "transaction_type_associated_account_account_plan_id_fk",
-          "tableFrom": "transaction_type",
-          "tableTo": "account_plan",
-          "schemaTo": "accounting",
-          "columnsFrom": [
-            "associated_account"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transaction_type_employer_account_account_plan_id_fk": {
-          "name": "transaction_type_employer_account_account_plan_id_fk",
-          "tableFrom": "transaction_type",
-          "tableTo": "account_plan",
-          "schemaTo": "accounting",
-          "columnsFrom": [
-            "employer_account"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transaction_type_loan_account_account_plan_id_fk": {
-          "name": "transaction_type_loan_account_account_plan_id_fk",
-          "tableFrom": "transaction_type",
-          "tableTo": "account_plan",
-          "schemaTo": "accounting",
-          "columnsFrom": [
-            "loan_account"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transaction_type_created_by_id_users_id_fk": {
-          "name": "transaction_type_created_by_id_users_id_fk",
-          "tableFrom": "transaction_type",
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "transaction_type_updated_by_id_users_id_fk": {
-          "name": "transaction_type_updated_by_id_users_id_fk",
-          "tableFrom": "transaction_type",
           "tableTo": "users",
           "schemaTo": "auth",
           "columnsFrom": [

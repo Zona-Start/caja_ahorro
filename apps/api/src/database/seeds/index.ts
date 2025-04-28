@@ -8,6 +8,7 @@ import { seedBankDirectory } from './banks-directory';
 import { seedCategories } from './categorys';
 import { seedCompany } from './company';
 import { seedCurrencies } from './currents';
+import { seedExchangeRate } from './exchage-rates';
 import { seedLocalities } from './localities';
 import { seedMunicipalites } from './municipalities';
 import { seedParishes } from './parishes';
@@ -39,6 +40,7 @@ async function main() {
     await seedBankDirectory(db); // Assuming this function is defined in the same file or imported correctly
     await seedCategories(db); // Assuming this function is defined in the same file or imported correctly
     await seedAccountPlan(db); // Assuming this function is defined in the same file or imported correctly
+    await seedExchangeRate(db); // Assuming this function is defined in the same file or imported correctly
 
     console.log('All seeds completed successfully');
   } catch (error) {

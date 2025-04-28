@@ -11,6 +11,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps, timestampsShort } from '../timestamps';
+import { accountPlan } from './accounting';
 import * as enums from './enum'; // Importa tus enums
 import { coreSchema } from './schemas';
 
@@ -24,12 +25,9 @@ export const company = coreSchema.table(
     address: text('address'),
     phone: varchar('phone', { length: 50 }),
     email: varchar('email', { length: 100 }).unique(),
-    baseCurrencyCode: enums
-      .currencyCodeEnum('base_currency_code')
-      .notNull()
-      .default('VES'), // moneda base contabilidad
     contactPerson: text('contact_person'),
     contactPhone: varchar('contact_phone', { length: 50 }),
+    contactEmail: varchar('contact_email', { length: 100 }),
     ...timestampsShort,
   },
   (table) => ({
@@ -98,6 +96,31 @@ export const categoryType = coreSchema.table(
     ),
   }),
 );
+
+//Tabla de tipos de operaciones (Ej: Aportes, Retiro, Préstamo, etc.)
+export const typeOperations = coreSchema.table('type_operations', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 10 }).notNull(),
+  description: text('description').notNull(),
+  deferredDate: date('deferred_date'),
+  dateCanceled: date('date_canceled'),
+  deferredNumber: integer('deferred_number'),
+  numberCanceled: integer('number_canceled'),
+  group: varchar('group', { length: 100 }).notNull(), // Ej: 'PAYROLL_TYPE', 'WORKER_TYPE', 'DISCOUNT_FREQ', 'ASSOCIATE_ACCOUNT_TYPE'
+  metadata: jsonb('metadata'), // Opciones extra en formato JSON si es necesario
+  associatedAccount: integer('associated_account').references(
+    () => accountPlan.id,
+    { onDelete: 'set null' },
+  ),
+  employerAccount: integer('employer_account').references(
+    () => accountPlan.id,
+    { onDelete: 'set null' },
+  ),
+  loanAccount: integer('loan_account').references(() => accountPlan.id, {
+    onDelete: 'set null',
+  }),
+  ...timestamps,
+});
 
 // Tabla Estados
 export const states = coreSchema.table(

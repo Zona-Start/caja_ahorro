@@ -96,12 +96,10 @@ export class AssociatesService {
           balance: (createAssociateDto.baseSalary * 0.1).toString(),
           openingDate: new Date(),
           bankDirectoryId: createAssociateDto.bankDirectoryId,
-          salary: createAssociateDto.baseSalary?.toString(),
-          salaryTotal: createAssociateDto.baseSalary?.toString(),
           status: createAssociateDto.status,
           createdById: userId,
         };
-        const insertassociateAccount = await this.drizzle
+        const insertAssociateAccount = await this.drizzle
           .insert(associateAccounts)
           .values({
             ...associateAccountData,
@@ -119,7 +117,7 @@ export class AssociatesService {
 
         return {
           associate: insertAssociate[0],
-          associateAccount: insertassociateAccount[0],
+          associateAccount: insertAssociateAccount[0],
         };
       });
       return {
@@ -374,8 +372,6 @@ export class AssociatesService {
           accountNumber: updateAssociateDto.accountNumber,
           currencyCode: currencyCode[0].code,
           bankDirectoryId: updateAssociateDto.bankDirectoryId,
-          salary: updateAssociateDto.baseSalary?.toString(),
-          salaryTotal: updateAssociateDto.baseSalary?.toString(),
           status: updateAssociateDto.status,
           updatedById: userId,
         };
@@ -467,11 +463,9 @@ export class AssociatesService {
       associateId: createAssociateAccountsDto.associateId,
       accountNumber: createAssociateAccountsDto.accountNumber,
       currencyCode: createAssociateAccountsDto.currencyCode,
-      balance: (createAssociateAccountsDto.salaryTotal * 0.1).toString(),
+      balance: (createAssociateAccountsDto.baseSalary * 0.1).toString(),
       openingDate: new Date(),
       bankDirectoryId: createAssociateAccountsDto.bankDirectoryId,
-      salary: createAssociateAccountsDto.salary?.toString(),
-      salaryTotal: createAssociateAccountsDto.salaryTotal?.toString(),
       status: createAssociateAccountsDto.status,
       createdById: userId,
     };

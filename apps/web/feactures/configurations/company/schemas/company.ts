@@ -6,13 +6,11 @@ export const companyFormSchema = z.object({
   name: z.string().nonempty({ message: 'El nombre es requerido' }),
   rif: z.string().nonempty({ message: 'El rif es requerido' }),
   address: z.string().nonempty({ message: 'La dirección es requerido' }),
-  phone: z.string(),
+  phone: z.string().nullable(),
   email: z.string().nonempty({ message: 'El correo electrónico es requerido' }),
-  baseCurrencyCode: z.string(),
-  contactPerson: z.string(),
-  contactPhone: z.string(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
+  contactPerson: z.string().nullable(),
+  contactPhone: z.string().nullable(),
+  contactEmail: z.string().nullable(),
 });
 
 export const companyApiAllResponseSchema = z.object({

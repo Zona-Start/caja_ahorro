@@ -1,0 +1,138 @@
+'use server';
+import { safeFetchApi } from '@/lib/fetch.api';
+import {
+  bankAccountDeleteResponseSchema,
+  bankAccountResponseAllSchema,
+  bankAccountResponseOneSchema,
+} from '../schemas/bank-account-response-api';
+import { BankAccount } from '../schemas/bank-account.schema';
+
+export const getBankAccountAction = async (params: {
+  page?: number;
+  limit?: number;
+  status?: string;
+  accountType?: string;
+  currentyType?: string;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}) => {
+  const searchParams = new URLSearchParams({
+    page: (params.page || 1).toString(),
+    limit: (params.limit || 10).toString(),
+    ...(params.search && { search: params.search }),
+    ...(params.status && { status: params.status }),
+    ...(params.accountType && { accountType: params.accountType }),
+    ...(params.currentyType && { currentyType: params.currentyType }),
+    ...(params.sortBy && { sortBy: params.sortBy }),
+    ...(params.sortOrder && { sortOrder: params.sortOrder }),
+  });
+
+  const [error, response] = await safeFetchApi(
+    bankAccountResponseAllSchema,
+    `/bakings/bank-accounts?${searchParams}`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching bank account data');
+  }
+
+  return {
+    data: response?.data || [],
+    meta: response?.meta || {
+      page: 1,
+      limit: 10,
+      totalCount: 0,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      nextPage: null,
+      previousPage: null,
+    },
+  };
+};
+
+export const createBankAccountAction = async (bankAccount: BankAccount) => {
+  const { id, ...payloadWithoutId } = bankAccount;
+
+  const [error, data] = await safeFetchApi(
+    bankAccountResponseOneSchema,
+    '/bakings/bank-accounts',
+    'POST',
+    payloadWithoutId,
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error create associate');
+  }
+
+  return data;
+};
+
+export const updateBankAccountAction = async (bankAccount: BankAccount) => {
+  const { id, ...payloadWithoutId } = bankAccount;
+
+  const payload = {
+    ...payloadWithoutId,
+    openingDate: payloadWithoutId?.openingDate
+      ? payloadWithoutId?.openingDate.toISOString().split('T')[0]
+      : null,
+  };
+  const [error, data] = await safeFetchApi(
+    bankAccountResponseOneSchema,
+    `/bakings/bank-accounts/${id}`,
+    'PATCH',
+    payload,
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error update bank account');
+  }
+
+  return data;
+};
+
+export const deleteBankAccountAction = async (id: number) => {
+  const [error, data] = await safeFetchApi(
+    bankAccountDeleteResponseSchema,
+    `/bakings/bank-accounts/${id}`,
+    'DELETE',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error delete bank account');
+  }
+
+  return data;
+};
+
+export const getBankAccountByIdAction = async (id: number) => {
+  const [error, data] = await safeFetchApi(
+    bankAccountResponseOneSchema,
+    `/bakings/bank-accounts/${id}`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching associate data');
+  }
+  return data;
+};
+
+export const saveBankAccountAction = async (bankAccount: BankAccount) => {
+  try {
+    if (bankAccount.id) {
+      return await updateBankAccountAction(bankAccount);
+    } else {
+      return await createBankAccountAction(bankAccount);
+    }
+  } catch (error: any) {
+    throw new Error(error.message || 'Error saving associate data');
+  }
+};

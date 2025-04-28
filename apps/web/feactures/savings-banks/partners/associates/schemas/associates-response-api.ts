@@ -10,7 +10,7 @@ export const associateApiSchema = z.object({
   gender: z.enum(['FEMENINO', 'MASCULINO']),
   birthdate: z.string(),
   dateAdmission: z.string(),
-  dateGraduation: z.string().optional(),
+  dateGraduation: z.string().optional().nullable(),
   discountFrequencyId: z.number(),
   status: z.enum(['ACTIVE', 'INACTIVE']),
   isPayrollCredit: z.boolean(),

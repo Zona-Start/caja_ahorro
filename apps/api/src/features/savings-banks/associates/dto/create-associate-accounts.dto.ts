@@ -50,12 +50,7 @@ export class CreateAssociateAccountsDto {
   @ApiProperty({ description: 'Base salary' })
   @IsInt()
   @IsNotEmpty()
-  salary: number;
-
-  @ApiProperty({ description: 'Total salary' })
-  @IsInt()
-  @IsNotEmpty()
-  salaryTotal: number;
+  baseSalary: number;
 
   @ApiProperty({
     description: 'Account status',

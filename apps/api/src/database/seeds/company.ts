@@ -15,7 +15,7 @@ export async function seedCompany(db: NodePgDatabase<typeof schema>) {
         email: 'caja@caprebicentenario.com.ve',
         contactPerson: 'KARIM MIRANDA',
         contactPhone: '04165339790',
-        baseCurrencyCode: 'VES',
+        contactEmail: 'karimmiranda@gmail.com',
       })
       .onConflictDoNothing();
 

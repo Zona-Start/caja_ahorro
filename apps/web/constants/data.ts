@@ -15,26 +15,42 @@ export const savingBankItems: NavItem[] = [
         url: '/dashboard/socios/asociados',
         icon: 'login',
       },
+    ], // No child items
+  },
+  {
+    title: 'Haberes',
+    url: '#',
+    icon: 'handshake',
+    shortcut: ['s', 's'],
+    isActive: false,
+    items: [
       {
-        title: 'Frecuencias de Pagos',
+        title: 'Carga Individual',
         shortcut: ['l', 'l'],
-        url: '/dashboard/socios/frecuencias-pago',
+        url: '#',
         icon: 'login',
       },
       {
-        title: 'Tipos de Trabajadores',
+        title: 'Carga Masiva',
         shortcut: ['l', 'l'],
-        url: '/dashboard/socios/tipo-trabajadores',
+        url: '#',
         icon: 'login',
       },
       {
-        title: 'Tipos de Transacciones',
+        title: 'Retiro Parcial',
         shortcut: ['l', 'l'],
-        url: '/dashboard/socios/tipo-transacciones',
+        url: '#',
+        icon: 'login',
+      },
+      {
+        title: 'Liquidación',
+        shortcut: ['l', 'l'],
+        url: '#',
         icon: 'login',
       },
     ], // No child items
   },
+
   {
     title: 'Prestamos',
     url: '/dashboard/prestamos', // Placeholder as there is no direct link for the parent
@@ -88,6 +104,33 @@ export const savingBankItems: NavItem[] = [
         icon: 'login',
       },
     ],
+  },
+  {
+    title: 'Categorías',
+    url: '#',
+    icon: 'handshake',
+    shortcut: ['s', 's'],
+    isActive: false,
+    items: [
+      {
+        title: 'Frecuencias de Pagos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/categorias/frecuencias-pago',
+        icon: 'login',
+      },
+      {
+        title: 'Tipos de Trabajadores',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/categorias/tipo-trabajadores',
+        icon: 'login',
+      },
+      {
+        title: 'Tipos de Operaciones',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/categorias/tipo-operaciones',
+        icon: 'login',
+      },
+    ], // No child items
   },
 ];
 
@@ -197,7 +240,7 @@ export const BankItems: NavItem[] = [
   },
   {
     title: 'Cuentas Bancarias',
-    url: '#',
+    url: '/dashboard/bancos/cuentas-bancarias',
     icon: 'wallet',
     shortcut: ['p', 'p'],
     isActive: false,
@@ -237,7 +280,7 @@ export const ConfigItems: NavItem[] = [
       {
         title: 'Numeración  Documentos',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
         icon: 'login',
       },
     ],

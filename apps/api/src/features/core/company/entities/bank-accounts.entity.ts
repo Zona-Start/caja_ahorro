@@ -39,7 +39,7 @@ export class BankAccounts {
   linkedChartAccountId: number;
 
   @ApiProperty()
-  is_active: boolean;
+  isActive: boolean;
 
   @ApiProperty({ required: false })
   createdAt?: Date;

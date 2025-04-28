@@ -11,10 +11,10 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
-import { accountingEntries, accountPlan } from './accounting';
+import { accountingEntries } from './accounting';
 import { users } from './auth';
 import { bankDirectory } from './banking';
-import { categoryType, company, states } from './core';
+import { categoryType, company, states, typeOperations } from './core';
 import {
   associateMovementTypeEnum,
   currencyCodeEnum,
@@ -41,7 +41,7 @@ export const associates = savingsBanksSchema.table(
     birthdate: date('birthdate'), //fecha de nacimiento
     dateAdmission: date('admission_date').notNull(), //fecha ingreso
     dateGraduation: date('graduation_date'), //fecha de egreso
-    discountFrequencyId: integer('discount_frequency_id'), //fecha de descuento
+    discountFrequencyId: integer('discount_frequency_id'), //fecuencia de descuento
     status: statusEnum('status').notNull().default('ACTIVE'), //estatus del asociado
     isPayrollCredit: boolean('is_payroll_credit').notNull().default(false), // posee credinomina
     localityId: integer('locality_id').references(() => states.id, {
@@ -98,11 +98,10 @@ export const associateAccounts = savingsBanksSchema.table(
       .default('0.00')
       .notNull(), // Saldo actual inicial (GUARDADO)
     openingDate: date('opening_date').defaultNow(), //fecha apertura
+    closingDate: date('closing_date'), // Fecha de cierre de la cuenta (si aplica)
     bankDirectoryId: integer('bank_id').references(() => bankDirectory.id, {
       onDelete: 'set null',
     }), // id del banco
-    salary: numeric('salary', { precision: 18, scale: 2 }), //salario base
-    salaryTotal: numeric('salary_total', { precision: 18, scale: 2 }), //salario total
     status: statusEnum('status').notNull().default('ACTIVE'),
     ...timestamps,
   },
@@ -118,6 +117,9 @@ export const associateAccounts = savingsBanksSchema.table(
       table.currencyCode,
     ),
     openingDateIdx: index('associate_opening_date_idx').on(table.openingDate),
+    closingDateIdx: index('associate_accounts_closing_date_idx').on(
+      table.closingDate,
+    ),
   }),
 );
 
@@ -167,49 +169,27 @@ export const associateAccountMovements = savingsBanksSchema.table(
   }),
 );
 
-export const transactionType = savingsBanksSchema.table('transaction_type', {
-  id: serial('id').primaryKey(),
-  code: varchar('code', { length: 10 }).notNull(),
-  description: text('description').notNull(),
-  deferredDate: date('deferred_date').notNull(),
-  dateCanceled: date('date_canceled').notNull(),
-  deferredNumber: integer('deferred_number'),
-  numberCanceled: integer('number_canceled'),
-  associatedAccount: integer('associated_account').references(
-    () => accountPlan.id,
-    { onDelete: 'set null' },
-  ),
-  employerAccount: integer('employer_account').references(
-    () => accountPlan.id,
-    { onDelete: 'set null' },
-  ),
-  loanAccount: integer('loan_account').references(() => accountPlan.id, {
-    onDelete: 'set null',
-  }),
-  ...timestamps,
-});
-
 // Tabla para tipos de préstamo
-export const loanTypes = savingsBanksSchema.table(
-  'loan_types',
-  {
-    id: serial('id').primaryKey(), // ID único del tipo de préstamo
-    name: varchar('name', { length: 100 }).notNull(), // Nombre del tipo de préstamo (Ej. "Personal", "Hipotecario", "Estudiantil")
-    description: text('description'), // Descripción del tipo de préstamo
-    interestRateAnnual: numeric('interest_rate_annual', {
-      precision: 5,
-      scale: 2,
-    }), // Tasa de interés anual asociada al tipo de préstamo
-    maxLoanAmount: numeric('max_loan_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el préstamo de este tipo
-    minLoanAmount: numeric('min_loan_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el préstamo de este tipo
-    termMonthsMin: integer('term_months_min'), // Duración mínima en meses para el préstamo de este tipo
-    termMonthsMax: integer('term_months_max'), // Duración máxima en meses para el préstamo de este tipo
-    ...timestamps, // created_at y updated_at
-  },
-  (table) => ({
-    nameIdx: index('loan_types_name_idx').on(table.name), // Índice para búsqueda por nombre del tipo de préstamo
-  }),
-);
+// export const loanTypes = savingsBanksSchema.table(
+//   'loan_types',
+//   {
+//     id: serial('id').primaryKey(), // ID único del tipo de préstamo
+//     name: varchar('name', { length: 100 }).notNull(), // Nombre del tipo de préstamo (Ej. "Personal", "Hipotecario", "Estudiantil")
+//     description: text('description'), // Descripción del tipo de préstamo
+//     interestRateAnnual: numeric('interest_rate_annual', {
+//       precision: 5,
+//       scale: 2,
+//     }), // Tasa de interés anual asociada al tipo de préstamo
+//     maxLoanAmount: numeric('max_loan_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el préstamo de este tipo
+//     minLoanAmount: numeric('min_loan_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el préstamo de este tipo
+//     termMonthsMin: integer('term_months_min'), // Duración mínima en meses para el préstamo de este tipo
+//     termMonthsMax: integer('term_months_max'), // Duración máxima en meses para el préstamo de este tipo
+//     ...timestamps, // created_at y updated_at
+//   },
+//   (table) => ({
+//     nameIdx: index('loan_types_name_idx').on(table.name), // Índice para búsqueda por nombre del tipo de préstamo
+//   }),
+// );
 
 //Solicitudes y gestión de préstamos a asociados.
 export const loans = savingsBanksSchema.table(
@@ -224,7 +204,7 @@ export const loans = savingsBanksSchema.table(
       .references(() => company.id, { onDelete: 'cascade' }), // FK a la empresa o cooperativa
     loanTypeId: integer('loan_type_id') // Tipo de préstamo (FK a tabla de tipos)
       .notNull()
-      .references(() => loanTypes.id),
+      .references(() => typeOperations.id),
     requestDate: date('request_date').notNull().defaultNow(), // Fecha en que se solicita
     approvalDate: date('approval_date'), // Fecha de aprobación (si aplica)
     disbursementDate: date('disbursement_date'), // Fecha del desembolso

@@ -19,14 +19,14 @@ export class CompanyEntity {
   @ApiProperty({ required: false })
   email?: string | null;
 
-  @ApiProperty()
-  baseCurrencyCode: string;
-
   @ApiProperty({ required: false })
   contactPerson?: string | null;
 
   @ApiProperty({ required: false })
   contactPhone?: string | null;
+
+  @ApiProperty({ required: false })
+  contactEmail?: string | null;
 
   @ApiProperty({ required: false })
   createdAt?: Date;

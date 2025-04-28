@@ -38,16 +38,35 @@ export class CompanyService {
   }
 
   async findAll(): Promise<CompanyEntity[]> {
-    const companies = await this.drizzle.select().from(company);
-    return companies.map((c) => ({
-      ...c,
-      updatedAt: c.updatedAt || undefined,
-    }));
+    const companies = await this.drizzle
+      .select({
+        id: company.id,
+        name: company.name,
+        rif: company.rif,
+        address: company.address,
+        phone: company.phone,
+        email: company.email,
+        contactPerson: company.contactPerson,
+        contactPhone: company.contactPhone,
+        contactEmail: company.contactEmail,
+      })
+      .from(company);
+    return companies;
   }
 
   async findOne(id: number): Promise<CompanyEntity> {
     const result = await this.drizzle
-      .select()
+      .select({
+        id: company.id,
+        name: company.name,
+        rif: company.rif,
+        address: company.address,
+        phone: company.phone,
+        email: company.email,
+        contactPerson: company.contactPerson,
+        contactPhone: company.contactPhone,
+        contactEmail: company.contactEmail,
+      })
       .from(company)
       .where(eq(company.id, id));
 
@@ -55,10 +74,7 @@ export class CompanyService {
       throw new NotFoundException(`Company with ID ${id} not found`);
     }
 
-    return {
-      ...result[0],
-      updatedAt: result[0].updatedAt || undefined,
-    };
+    return result[0];
   }
 
   async update(
@@ -77,12 +93,19 @@ export class CompanyService {
         ...updateCompanyDto,
       })
       .where(eq(company.id, id))
-      .returning();
+      .returning({
+        id: company.id,
+        name: company.name,
+        rif: company.rif,
+        address: company.address,
+        phone: company.phone,
+        email: company.email,
+        contactPerson: company.contactPerson,
+        contactPhone: company.contactPhone,
+        contactEmail: company.contactEmail,
+      });
 
-    return {
-      ...result[0],
-      updatedAt: result[0].updatedAt || undefined,
-    };
+    return result[0];
   }
 
   async remove(id: number) {
@@ -239,7 +262,7 @@ export class CompanyService {
     await this.drizzle
       .update(schema.bankAccounts)
       .set({
-        is_active: false,
+        isActive: false,
       })
       .where(eq(schema.bankAccounts.id, id));
 

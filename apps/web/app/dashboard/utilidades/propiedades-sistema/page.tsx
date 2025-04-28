@@ -29,13 +29,17 @@ export default async function Page(props: pageProps) {
   return (
     <PageContainer scrollable={false}>
       <div className="flex flex-1 flex-col space-y-4">
-        <SettingSystemHeader />
-        <SettingSystemTableAction />
+        <SettingSystemHeader
+          title="Propiedades del Sistema"
+          description="Gestiona las propiedades del sistema"
+        />
+        <SettingSystemTableAction filterVisibility="ALL" />
         <SettingSystemList
           initialPage={page}
           initialSearch={search}
           initialLimit={pageLimit}
           initialType={type}
+          group="ALL"
         />
       </div>
     </PageContainer>

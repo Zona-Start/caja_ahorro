@@ -44,12 +44,10 @@ export class AssociateAccountsService {
         accountNumber: updateAssociateAccountsDto.accountNumber?.toString(),
         currencyCode: updateAssociateAccountsDto.currencyCode,
         balance: (
-          (updateAssociateAccountsDto.salaryTotal || 0) * 0.1
+          (updateAssociateAccountsDto.baseSalary || 0) * 0.1
         ).toString(),
         openingDate: updateAssociateAccountsDto.openingDate?.toString(),
         bankDirectoryId: updateAssociateAccountsDto.bankDirectoryId,
-        salary: updateAssociateAccountsDto.salary?.toString(),
-        salaryTotal: updateAssociateAccountsDto.salaryTotal?.toString(),
         status: updateAssociateAccountsDto.status,
         updatedById: userId,
       })
@@ -62,8 +60,6 @@ export class AssociateAccountsService {
       openingDate: result[0].openingDate
         ? new Date(result[0].openingDate)
         : null,
-      salary: Number(result[0].salary),
-      salaryTotal: Number(result[0].salaryTotal),
     } as AssociateAccounts;
     return convertedResult;
   }

@@ -287,8 +287,8 @@ export function AccountPlanForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="w-full min-w-[200px]">
-                    <SelectItem value="true">Sí</SelectItem>
-                    <SelectItem value="false">No</SelectItem>
+                    <SelectItem value="true">Activa</SelectItem>
+                    <SelectItem value="false">Inactiva</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

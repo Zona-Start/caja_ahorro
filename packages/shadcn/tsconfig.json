@@ -6,6 +6,6 @@
       "@repo/shadcn/*": ["./src/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../../apps/web/components/use-toast.ts"],
   "exclude": ["node_modules"]
 }

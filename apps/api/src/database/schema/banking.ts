@@ -68,10 +68,9 @@ export const bankAccounts = bankingSchema.table(
     }), //Saldo del último extracto cargado
     lastStatementDate: date('last_statement_date'),
     linkedChartAccountId: integer('linked_chart_account_id')
-      .unique()
       .references(() => accountPlan.id, { onDelete: 'set null' })
       .notNull(), //Cuenta contable (Activo) que representa esta cuenta bancaria
-    is_active: boolean('is_active').default(true).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
     ...timestamps,
   },
   (table) => ({

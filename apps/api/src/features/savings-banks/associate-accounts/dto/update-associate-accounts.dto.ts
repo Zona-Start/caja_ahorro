@@ -42,12 +42,7 @@ export class UpdateAssociateAccountsDto {
   @ApiProperty({ description: 'Base salary' })
   @IsInt()
   @IsOptional()
-  salary?: number;
-
-  @ApiProperty({ description: 'Total salary' })
-  @IsInt()
-  @IsOptional()
-  salaryTotal?: number;
+  baseSalary?: number;
 
   @ApiProperty({
     description: 'Account status',

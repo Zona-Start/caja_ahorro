@@ -1,8 +1,8 @@
 import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
-import { PaginationDto } from '@/common/dto/pagination.dto';
 import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { FilterSettingTypeDto } from './dto/filter-setting-type.dto';
 import { KeySettingSystemDto } from './dto/settings-key.dto';
 import { UpdateSettingSystemDto } from './dto/update-setting-system.dto';
 import { SettingsSystemService } from './settings-system.service';
@@ -25,11 +25,11 @@ export class SettingsSystemController {
   @ApiResponse({ status: 200, description: 'Return all settings system.' })
   async findAllByGroup(
     @Param('group') group: string,
-    @Query() paginationDto: PaginationDto,
+    @Query() filterSettingTypeDto: FilterSettingTypeDto,
   ) {
     const result = await this.settingsSystemService.findAllByGroup(
       group,
-      paginationDto,
+      filterSettingTypeDto,
     );
     return {
       message: 'Settings System fetchedsuccessfully',

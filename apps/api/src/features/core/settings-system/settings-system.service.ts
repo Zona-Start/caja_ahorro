@@ -1,10 +1,10 @@
-import { PaginationDto } from '@/common/dto/pagination.dto';
 import { systemSettings } from '@/database/schema/core';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { FilterSettingTypeDto } from './dto/filter-setting-type.dto';
 import { UpdateSettingSystemDto } from './dto/update-setting-system.dto';
 import { SettingSystem } from './entities/settings-system.entity';
 
@@ -20,7 +20,7 @@ export class SettingsSystemService {
 
   async findAllByGroup(
     group: string,
-    paginationDto?: PaginationDto,
+    filterSettingTypeDto?: FilterSettingTypeDto,
   ): Promise<{ data: SettingSystem[]; meta: any }> {
     const {
       page = 1,
@@ -28,7 +28,8 @@ export class SettingsSystemService {
       search = '',
       sortBy = 'id',
       sortOrder = 'asc',
-    } = paginationDto || {};
+      type = '',
+    } = filterSettingTypeDto || {};
 
     // Calculate offset
     const offset = (page - 1) * limit;
@@ -41,12 +42,21 @@ export class SettingsSystemService {
       searchCondition = sql`${systemSettings.group} != 'DOCUMENTS'`;
     }
 
+    if (type) {
+      const typeFilter = eq(systemSettings.group, type);
+      searchCondition = searchCondition
+        ? sql`${searchCondition} AND ${typeFilter}`
+        : typeFilter;
+    }
+
     if (search) {
       const searchFilter = ilike(systemSettings.description, `%${search}%`);
       searchCondition = searchCondition
         ? sql`${searchCondition} AND ${searchFilter}`
         : searchFilter;
     }
+
+    console.log(searchCondition);
 
     // Build sort condition
     const orderBy =

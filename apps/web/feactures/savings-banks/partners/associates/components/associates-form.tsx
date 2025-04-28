@@ -3,7 +3,7 @@
 import { useBanksQuery } from '@/feactures/banks/bank-directory/hooks/use-banks-querys';
 import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { useStatesQuery } from '@/feactures/common/states/hooks/use-querys-states';
-import { useTransactionType } from '@/feactures/configurations/transaction-type/hooks/use-query-transaction-type';
+import { useTypeOperations } from '@/feactures/configurations/type-operations/hooks/use-query-type-operations';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import { CustomCalendar } from '@repo/shadcn/custom-calendar';
@@ -50,7 +50,7 @@ export function AssociatesForm({
   const { data: StatesQuery } = useStatesQuery();
   const { data: CategoryFrecuentia } = useCategoriesTypesGroup('DISCOUNT_FREQ');
   const { data: WorkerType } = useCategoriesTypesGroup('WORKING_TYPE');
-  const { data: PayrollType } = useTransactionType();
+  const { data: OperationsType } = useTypeOperations();
   const { data: Banks } = useBanksQuery();
 
   const form = useForm<AssociatesMutate>({
@@ -73,7 +73,7 @@ export function AssociatesForm({
         : new Date(),
       dateGraduation: defaultValues?.dateGraduation
         ? new Date(defaultValues.dateGraduation)
-        : new Date(),
+        : null,
       isPayrollCredit: defaultValues?.isPayrollCredit || false,
       discountFrequencyId: defaultValues?.discountFrequencyId,
       payrollTypeId: defaultValues?.payrollTypeId,
@@ -230,28 +230,19 @@ export function AssociatesForm({
               render={({ field }) => (
                 <FormItem className="w-full">
                   <FormLabel>Ubicación</FormLabel>
-                  <Select
+
+                  <SelectSearchable
+                    options={
+                      StatesQuery?.map((item) => ({
+                        value: item.id!.toString(),
+                        label: `${item.name}`,
+                      })) || []
+                    }
                     onValueChange={(value) => field.onChange(Number(value))}
-                    defaultValue={String(field.value)}
+                    placeholder="Selecciona un estado"
+                    defaultValue={field.value?.toString()}
                     disabled={readOnly}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Selecciona un estado" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                      {StatesQuery?.map((item) => (
-                        <SelectItem
-                          key={item.id}
-                          value={item.id!.toString()}
-                          className={readOnly ? 'bg-muted' : ''}
-                        >
-                          {item.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -323,8 +314,8 @@ export function AssociatesForm({
                   <FormLabel>Fecha Egreso</FormLabel>
                   <FormControl>
                     <CustomCalendar
-                      value={field.value}
-                      onChange={field.onChange}
+                      value={field.value || null} // Si no hay valor, se establece como null
+                      onChange={(date) => field.onChange(date || null)} // Si no se selecciona nada, se envía como null
                       onBlur={field.onBlur}
                       placeholder="Seleccione la fecha"
                       disabled={readOnly}
@@ -376,7 +367,7 @@ export function AssociatesForm({
                 <FormItem className="w-full">
                   <FormLabel>Posee Credi-Nomina</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => field.onChange(value === 'true')} // Convertir el valor a booleano
                     defaultValue={String(field.value)}
                     disabled={readOnly}
                   >
@@ -438,7 +429,7 @@ export function AssociatesForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                      {PayrollType?.data?.map((item: any) => (
+                      {OperationsType?.data?.map((item: any) => (
                         <SelectItem
                           key={item.id}
                           value={item.id!.toString()}

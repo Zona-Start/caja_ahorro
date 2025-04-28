@@ -24,12 +24,6 @@ export class AssociateAccounts {
   bankDirectoryId: number;
 
   @ApiProperty()
-  salary: number;
-
-  @ApiProperty()
-  salaryTotal: number;
-
-  @ApiProperty()
   status: StatusEnum;
 
   @ApiProperty({ required: false })

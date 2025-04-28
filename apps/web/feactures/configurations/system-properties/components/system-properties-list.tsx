@@ -10,6 +10,7 @@ interface SettingSystemListProps {
   initialSearch?: string | null;
   initialLimit: number;
   initialType?: string | null;
+  group: string;
 }
 
 export default function SettingSystemList({
@@ -17,6 +18,7 @@ export default function SettingSystemList({
   initialSearch,
   initialLimit,
   initialType,
+  group,
 }: SettingSystemListProps) {
   const filters = {
     page: initialPage,
@@ -25,7 +27,7 @@ export default function SettingSystemList({
     ...(initialType && { type: initialType }),
   };
 
-  const { data, isLoading } = useSettingsSystemGet(filters);
+  const { data, isLoading } = useSettingsSystemGet(filters, group);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={6} rowCount={initialLimit} />;

@@ -84,7 +84,7 @@ export function SettingSystemForm({
               <FormItem>
                 <FormLabel>Nombre</FormLabel>
                 <FormControl>
-                  <Input {...field} value={field.value ?? ''} />
+                  <Input {...field} value={field.value ?? ''} disabled />
                 </FormControl>
                 <FormMessage />
               </FormItem>

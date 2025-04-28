@@ -1,6 +1,5 @@
 export const GROUP_TYPES = {
   GENERAL: 'General',
-  DOCUMENTS: 'Documentos',
   LOANS: 'Prestamos',
   ACCOUTING: 'Contabilidad',
   ASSOCIATES: 'Asociados',

@@ -1,12 +1,5 @@
-import { CurrencyCodeEnum } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateCompanyDto {
   @ApiProperty({ description: 'Name of the company' })
@@ -34,14 +27,6 @@ export class CreateCompanyDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({
-    description: 'Accounting base currency',
-    enum: CurrencyCodeEnum,
-    enumName: 'CurrencyCodeEnum',
-  })
-  @IsEnum(CurrencyCodeEnum)
-  baseCurrencyCode: CurrencyCodeEnum;
-
   @ApiProperty({ description: 'Contact person name', required: false })
   @IsOptional()
   @IsString()
@@ -51,4 +36,9 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   contactPhone?: string;
+
+  @ApiProperty({ description: 'Contact person email', required: false })
+  @IsOptional()
+  @IsString()
+  contactEmail?: string;
 }

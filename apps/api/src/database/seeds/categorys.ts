@@ -55,19 +55,8 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
           description: frequency.description,
           options: frequency.options,
           isActive: true,
-        })
-        .onConflictDoNothing();
-    }
-
-    // Insert Payroll Types
-    for (const payrollType of payrollTypes) {
-      await db
-        .insert(categoryType)
-        .values({
-          group: 'PAYROLL_TYPE',
-          description: payrollType.description,
-          options: payrollType.options,
-          isActive: true,
+          createdById: 1,
+          updatedById: 1,
         })
         .onConflictDoNothing();
     }
@@ -81,6 +70,8 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
           description: workingTypes.description,
           options: workingTypes.options,
           isActive: true,
+          createdById: 1,
+          updatedById: 1,
         })
         .onConflictDoNothing();
     }

@@ -50,7 +50,7 @@ export const AssociateMutationSchema = z.object({
   }),
   birthdate: z.date({ message: 'Fecha de nacimiento inválida' }),
   dateAdmission: z.date({ message: 'Fecha inválida' }),
-  dateGraduation: z.date({ message: 'Fecha inválida' }).optional(),
+  dateGraduation: z.date({ message: 'Fecha inválida' }).optional().nullable(),
   discountFrequencyId: z.number({
     message: 'La frecuencia de descuento es requerida',
   }),

@@ -7,7 +7,7 @@ import { MunicipalitiesModule } from './municipalities/municipalities.module';
 import { ParishesModule } from './parishes/parishes.module';
 import { SettingsSystemModule } from './settings-system/settings-system.module';
 import { StatesModule } from './states/states.module';
-import { TransactionTypeModule } from './transaction-type/transaction-type.module';
+import { TypeOperationsModule } from './type-operations/type-operations.module';
 
 @Module({
   imports: [
@@ -15,7 +15,7 @@ import { TransactionTypeModule } from './transaction-type/transaction-type.modul
     MunicipalitiesModule,
     ParishesModule,
     CategoryTypesModule,
-    TransactionTypeModule,
+    TypeOperationsModule,
     CompanyModule,
     SettingsSystemModule,
     CurrenciesModule,
