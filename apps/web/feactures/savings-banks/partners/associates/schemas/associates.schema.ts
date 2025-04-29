@@ -18,7 +18,7 @@ export const associatesSchema = z.object({
   phone: z.string(),
   email: z.string(),
   payrollTypeId: z.number().optional(),
-  workerTypeId: z.number().optional(),
+  associatedTypeId: z.number().optional(),
   jobTitle: z.string().nullable().optional(),
   baseSalary: z.string().optional(),
   accountNumber: z.string(),
@@ -65,8 +65,8 @@ export const AssociateMutationSchema = z.object({
   payrollTypeId: z
     .number({ message: 'El tipo de nomina es requerido' })
     .optional(),
-  workerTypeId: z
-    .number({ message: 'El tipo de trabajador es requerido' })
+  associatedTypeId: z
+    .number({ message: 'El tipo de Asociado es requerido' })
     .optional(),
   jobTitle: z.string().optional(),
   baseSalary: z.string().min(1, 'Sueldo base es requerido'),

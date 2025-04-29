@@ -98,7 +98,7 @@ export const categoryType = coreSchema.table(
 );
 
 //Tabla de tipos de operaciones (Ej: Aportes, Retiro, Préstamo, etc.)
-export const typeOperations = coreSchema.table('type_operations', {
+export const typePayrolls = coreSchema.table('type_payrolls', {
   id: serial('id').primaryKey(),
   code: varchar('code', { length: 10 }).notNull(),
   description: text('description').notNull(),

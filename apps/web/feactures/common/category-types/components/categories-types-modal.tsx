@@ -33,7 +33,7 @@ export function CategoriesTypesModal({
   };
 
   let name;
-  if (group === GROUP_TYPES.ASSOCIATE_TYPE || group === 'TIPO ASOCIADO') {
+  if (group === GROUP_TYPES.ASSOCIATED_TYPE || group === 'TIPO ASOCIADO') {
     name = 'Tipo Asociado';
   } else if (
     group === GROUP_TYPES.DISCOUNT_FREQ ||

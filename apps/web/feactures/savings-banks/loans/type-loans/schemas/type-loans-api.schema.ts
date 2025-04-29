@@ -3,13 +3,34 @@ import { z } from 'zod';
 export const typeLoanSchema = z.object({
   id: z.number().optional(),
   name: z.string(),
-  description: z.string(),
-  interestRateAnnual: z.string(),
-  maxLoanAmount: z.string().nullable(),
-  minLoanAmount: z.string().nullable(),
-  termMonthsMin: z.number(),
-  termMonthsMax: z.number(),
+  description: z.string().optional().nullable(),
+  interestRate: z.string(),
+  termType: z.enum(['CUOTAS', 'PLAZO']),
+  termUnits: z.number(),
+  cancellationPercentage: z.string().optional().nullable(),
+  loanAccountChartId: z.number(),
+  interestEarnedAccountChartId: z.number(),
+  specialQuotaAccountChartId: z.number().optional().nullable(),
+  expenseAccountChartId: z.number().optional().nullable(),
+  specialQuotaNumber: z.number().optional().nullable(),
+  specialQuotaPercentage: z.string().optional(),
+  maxLoanAmount: z.string().nullable().optional(),
+  minLoanAmount: z.string().nullable().optional(),
+  payrollTypeId: z.number().nullable().optional(),
+  administrativeExpensePercentage: z.string().optional().nullable(),
+  minimumSeniorityMonths: z.number().optional().nullable(),
+  acceptsDebitBalance: z.boolean().optional().nullable(),
+  acceptsGuarantors: z.boolean().optional().nullable(),
+  acceptsAvailability: z.boolean().optional().nullable(),
+  acceptsRefinancing: z.boolean().optional().nullable(),
+  createdAt: z.string().optional().nullable(),
+  updatedAt: z.string().optional().nullable(),
+  createdById: z.number().optional().nullable(),
+  updatedById: z.number().optional().nullable(),
 });
+
+// Define el tipo TypesLoan basado en el esquema de Zod
+export type TypesLoan = z.infer<typeof typeLoanSchema>;
 
 // Response schemas for the API create, update
 export const typeLoanApiResponseSchema = z.object({
@@ -22,24 +43,20 @@ export const typeLoanDeleteResponseSchema = z.object({
   message: z.string(),
 });
 
-// Response schemas for the API all
+// Update the paginated response schema to use the API schema
 export const typeLoanAllResponseSchema = z.object({
   message: z.string(),
   data: z.array(typeLoanSchema),
-});
-
-// Update the paginated response schema to use the API schema
-export const typeLoanAllPagResponseSchema = z.object({
-  message: z.string(),
-  data: z.array(typeLoanSchema),
-  meta: z.object({
-    page: z.number(),
-    limit: z.number(),
-    totalCount: z.number(),
-    totalPages: z.number(),
-    hasNextPage: z.boolean(),
-    hasPreviousPage: z.boolean(),
-    nextPage: z.number().nullable(),
-    previousPage: z.number().nullable(),
-  }),
+  meta: z
+    .object({
+      page: z.number(),
+      limit: z.number(),
+      totalCount: z.number(),
+      totalPages: z.number(),
+      hasNextPage: z.boolean(),
+      hasPreviousPage: z.boolean(),
+      nextPage: z.number().nullable(),
+      previousPage: z.number().nullable(),
+    })
+    .optional(),
 });

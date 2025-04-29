@@ -1,1 +1,0 @@
-ALTER TABLE "banking"."bank_accounts" DROP CONSTRAINT "bank_accounts_linked_chart_account_id_unique";

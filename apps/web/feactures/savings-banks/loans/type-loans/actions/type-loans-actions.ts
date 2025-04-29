@@ -1,7 +1,6 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
-  typeLoanAllPagResponseSchema,
   typeLoanAllResponseSchema,
   typeLoanApiResponseSchema,
   typeLoanDeleteResponseSchema,
@@ -21,16 +20,7 @@ export const getTypeLoansAction = async () => {
   }
 
   return {
-    data: data?.data.map((item) => ({
-      ...item,
-      interestRateAnnual: item.interestRateAnnual
-        ? Number(item.interestRateAnnual)
-        : null,
-      maxLoanAmount: item.maxLoanAmount ? Number(item.maxLoanAmount) : null,
-      minLoanAmount: item.minLoanAmount ? Number(item.minLoanAmount) : null,
-      termMonthsMin: item.termMonthsMin ? Number(item.termMonthsMin) : null,
-      termMonthsMax: item.termMonthsMax ? Number(item.termMonthsMax) : null,
-    })),
+    data: data?.data,
   };
 };
 
@@ -50,7 +40,7 @@ export const getPaginatedTypeLoansAction = async (params: {
   });
 
   const [error, response] = await safeFetchApi(
-    typeLoanAllPagResponseSchema,
+    typeLoanAllResponseSchema,
     `/savings-banks/loan-types/paginated?${searchParams}`,
     'GET',
   );
@@ -61,16 +51,7 @@ export const getPaginatedTypeLoansAction = async (params: {
   }
 
   return {
-    data: response?.data.map((item) => ({
-      ...item,
-      interestRateAnnual: item.interestRateAnnual
-        ? Number(item.interestRateAnnual)
-        : null,
-      maxLoanAmount: item.maxLoanAmount ? Number(item.maxLoanAmount) : null,
-      minLoanAmount: item.minLoanAmount ? Number(item.minLoanAmount) : null,
-      termMonthsMin: item.termMonthsMin ? Number(item.termMonthsMin) : null,
-      termMonthsMax: item.termMonthsMax ? Number(item.termMonthsMax) : null,
-    })),
+    data: response?.data,
     meta: response?.meta || {
       page: 1,
       limit: 10,
@@ -146,24 +127,7 @@ export const getTypeLoansByIdAction = async (id: number) => {
     throw new Error(error.message || 'An unknown error occurred');
   }
 
-  return {
-    ...data,
-    interestRateAnnual: data?.data.interestRateAnnual
-      ? Number(data?.data.interestRateAnnual)
-      : null,
-    maxLoanAmount: data?.data.maxLoanAmount
-      ? Number(data?.data.maxLoanAmount)
-      : null,
-    minLoanAmount: data?.data.minLoanAmount
-      ? Number(data?.data.minLoanAmount)
-      : null,
-    termMonthsMin: data?.data.termMonthsMin
-      ? Number(data?.data.termMonthsMin)
-      : null,
-    termMonthsMax: data?.data.termMonthsMax
-      ? Number(data?.data.termMonthsMax)
-      : null,
-  };
+  return data;
 };
 
 export const saveTypeLoansAction = async (payload: TypeLoan) => {

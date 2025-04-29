@@ -33,7 +33,7 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
     ];
 
     // Associate Types (from the image "tipos_Asociados.jpg")
-    const WorkingTypes = [
+    const AssociatedTypes = [
       { description: 'Empleados', options: null },
       { description: 'Nivel Gerencial', options: null },
       { description: 'Pensionados', options: null },
@@ -62,13 +62,13 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
     }
 
     // Insert Associate Types
-    for (const workingTypes of WorkingTypes) {
+    for (const associatedTypes of AssociatedTypes) {
       await db
         .insert(categoryType)
         .values({
-          group: 'WORKING_TYPE',
-          description: workingTypes.description,
-          options: workingTypes.options,
+          group: 'ASSOCIATED_TYPE',
+          description: associatedTypes.description,
+          options: associatedTypes.options,
           isActive: true,
           createdById: 1,
           updatedById: 1,

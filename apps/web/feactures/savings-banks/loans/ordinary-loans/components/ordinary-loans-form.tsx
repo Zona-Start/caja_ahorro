@@ -3,7 +3,7 @@
 import { useBanksQuery } from '@/feactures/banks/bank-directory/hooks/use-banks-querys';
 import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { useStatesQuery } from '@/feactures/common/states/hooks/use-querys-states';
-import { useTypeOperations } from '@/feactures/configurations/type-operations/hooks/use-query-type-operations';
+import { useTypePayroll } from '@/feactures/configurations/type-payroll/hooks/use-query-type-payroll';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import { CustomCalendar } from '@repo/shadcn/custom-calendar';
@@ -50,7 +50,7 @@ export function AssociatesForm({
   const { data: StatesQuery } = useStatesQuery();
   const { data: CategoryFrecuentia } = useCategoriesTypesGroup('DISCOUNT_FREQ');
   const { data: WorkerType } = useCategoriesTypesGroup('WORKING_TYPE');
-  const { data: PayrollType } = useTypeOperations();
+  const { data: PayrollType } = useTypePayroll();
   const { data: Banks } = useBanksQuery();
 
   const form = useForm<AssociatesMutate>({

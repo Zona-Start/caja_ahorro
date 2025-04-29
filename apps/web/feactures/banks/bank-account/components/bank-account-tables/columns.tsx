@@ -46,7 +46,9 @@ export const columns: ColumnDef<BankAccount>[] = [
     cell: ({ row }) => {
       const currency = row.original.currencyCode === 'VES' ? 'VES' : 'USD';
       return (
-        <span>{formatCurrency(row.original.currentBalance, currency)}</span>
+        <span>
+          {formatCurrency(row.original.currentBalance ?? 0, currency)}
+        </span>
       );
     },
   },

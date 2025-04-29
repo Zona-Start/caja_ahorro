@@ -11,10 +11,10 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
-import { accountingEntries } from './accounting';
+import { accountingEntries, accountPlan } from './accounting';
 import { users } from './auth';
 import { bankDirectory } from './banking';
-import { categoryType, company, states, typeOperations } from './core';
+import { categoryType, company, states, typePayrolls } from './core';
 import {
   associateMovementTypeEnum,
   currencyCodeEnum,
@@ -50,12 +50,15 @@ export const associates = savingsBanksSchema.table(
     phone: varchar('phone', { length: 50 }), // telefono
     email: varchar('email', { length: 100 }), // correo
     payrollTypeId: integer('payroll_type_id').references(
-      () => categoryType.id,
+      () => typePayrolls.id,
       { onDelete: 'set null' },
     ), // tipo de nomina
-    workerTypeId: integer('worker_type_id').references(() => categoryType.id, {
-      onDelete: 'set null',
-    }), // tipo de trabajador
+    associatedTypeId: integer('associated_type_id').references(
+      () => categoryType.id,
+      {
+        onDelete: 'set null',
+      },
+    ), // tipo de trabajador
     jobTitle: text('job_title'), // cargo del asosciado,
     baseSalary: numeric('base_salary', { precision: 15, scale: 2 }), //Salario base informativo
     ...timestamps,
@@ -79,7 +82,9 @@ export const associates = savingsBanksSchema.table(
     payrollTypeIdIdx: index('associates_payroll_type_idx').on(
       table.payrollTypeId,
     ),
-    workerTypeIdIdx: index('associates_worker_type_idx').on(table.workerTypeId),
+    associatedTypeIdIdx: index('associates_type_idx').on(
+      table.associatedTypeId,
+    ),
     localityIdIdx: index('associates_locality_idx').on(table.localityId),
   }),
 );
@@ -169,27 +174,85 @@ export const associateAccountMovements = savingsBanksSchema.table(
   }),
 );
 
-// Tabla para tipos de préstamo
-// export const loanTypes = savingsBanksSchema.table(
-//   'loan_types',
-//   {
-//     id: serial('id').primaryKey(), // ID único del tipo de préstamo
-//     name: varchar('name', { length: 100 }).notNull(), // Nombre del tipo de préstamo (Ej. "Personal", "Hipotecario", "Estudiantil")
-//     description: text('description'), // Descripción del tipo de préstamo
-//     interestRateAnnual: numeric('interest_rate_annual', {
-//       precision: 5,
-//       scale: 2,
-//     }), // Tasa de interés anual asociada al tipo de préstamo
-//     maxLoanAmount: numeric('max_loan_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el préstamo de este tipo
-//     minLoanAmount: numeric('min_loan_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el préstamo de este tipo
-//     termMonthsMin: integer('term_months_min'), // Duración mínima en meses para el préstamo de este tipo
-//     termMonthsMax: integer('term_months_max'), // Duración máxima en meses para el préstamo de este tipo
-//     ...timestamps, // created_at y updated_at
-//   },
-//   (table) => ({
-//     nameIdx: index('loan_types_name_idx').on(table.name), // Índice para búsqueda por nombre del tipo de préstamo
-//   }),
-// );
+export const loanTypes = savingsBanksSchema.table(
+  'loan_types',
+  {
+    id: serial('id').primaryKey(), // ID único del tipo de préstamo
+    name: varchar('name', { length: 100 }).notNull(), // Nombre del tipo de préstamo
+    description: text('description'), // Descripción del tipo de préstamo
+    interestRate: numeric('interest_rate', {
+      precision: 5,
+      scale: 2,
+    }).notNull(), // Tasa de interés (puede ser mensual o anual, especificar en la descripción)
+    termType: varchar('term_type', { length: 20 }).notNull(), // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
+    termUnits: integer('term_units').notNull(), // Número de cuotas o duración del plazo (en meses, días, etc., según se especifique)
+    cancellationPercentage: numeric('cancellation_percentage', {
+      precision: 5,
+      scale: 2,
+    }), // Porcentaje de cancelación anticipada (si aplica)
+    loanAccountChartId: integer('loan_account_chart_id')
+      .references(() => accountPlan.id, { onDelete: 'set null' })
+      .notNull(), // Cuenta contable para los préstamos otorgados
+    interestEarnedAccountChartId: integer('interest_earned_account_chart_id')
+      .references(() => accountPlan.id, { onDelete: 'set null' })
+      .notNull(), // Cuenta contable para los intereses ganados
+    specialQuotaAccountChartId: integer(
+      'special_quota_account_chart_id',
+    ).references(() => accountPlan.id, { onDelete: 'set null' }), // Cuenta contable para las cuotas especiales (opcional)
+    expenseAccountChartId: integer('expense_account_chart_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ), // Cuenta contable para los gastos asociados al préstamo (opcional)
+    specialQuotaNumber: integer('special_quota_number').default(0), // Número de cuotas especiales permitidas
+    specialQuotaPercentage: numeric('special_quota_percentage', {
+      precision: 5,
+      scale: 2,
+    }).default('0'), // Porcentaje de las cuotas especiales
+    maxLoanAmount: numeric('max_loan_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el préstamo
+    minLoanAmount: numeric('min_loan_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el préstamo
+    payrollTypeId: integer('payroll_type_id').references(
+      () => categoryType.id,
+      {
+        onDelete: 'set null',
+      },
+    ), // Relación con el tipo de nómina (opcional)
+    administrativeExpensePercentage: numeric(
+      'administrative_expense_percentage',
+      {
+        precision: 5,
+        scale: 2,
+      },
+    ).default('0'), // Porcentaje de gastos administrativos
+    minimumSeniorityMonths: integer('minimum_seniority_months').default(0), // Antigüedad mínima requerida en la caja de ahorro (en meses)
+    acceptsDebitBalance: boolean('accepts_debit_balance')
+      .notNull()
+      .default(false), // ¿Acepta saldo deudor?
+    acceptsGuarantors: boolean('accepts_guarantors').notNull().default(false), // ¿Acepta fiadores?
+    acceptsAvailability: boolean('accepts_availability')
+      .notNull()
+      .default(false), // ¿Acepta usar la disponibilidad como garantía?
+    acceptsRefinancing: boolean('accepts_refinancing').notNull().default(false), // ¿Acepta refinanciamiento de préstamo?
+    ...timestamps, // created_at y updated_at
+  },
+  (table) => ({
+    nameIdx: index('loan_types_name_idx').on(table.name), // Índice para búsqueda por nombre del tipo de préstamo
+    loanAccountChartIdIdx: index('loan_types_loan_account_chart_id_idx').on(
+      table.loanAccountChartId,
+    ),
+    interestEarnedAccountChartIdIdx: index(
+      'loan_types_interest_earned_account_chart_id_idx',
+    ).on(table.interestEarnedAccountChartId),
+    specialQuotaAccountChartIdIdx: index(
+      'loan_types_special_quota_account_chart_id_idx',
+    ).on(table.specialQuotaAccountChartId),
+    expenseAccountChartIdIdx: index(
+      'loan_types_expense_account_chart_id_idx',
+    ).on(table.expenseAccountChartId),
+    payrollTypeIdIdx: index('loan_types_payroll_type_id_idx').on(
+      table.payrollTypeId,
+    ),
+  }),
+);
 
 //Solicitudes y gestión de préstamos a asociados.
 export const loans = savingsBanksSchema.table(
@@ -204,7 +267,7 @@ export const loans = savingsBanksSchema.table(
       .references(() => company.id, { onDelete: 'cascade' }), // FK a la empresa o cooperativa
     loanTypeId: integer('loan_type_id') // Tipo de préstamo (FK a tabla de tipos)
       .notNull()
-      .references(() => typeOperations.id),
+      .references(() => loanTypes.id),
     requestDate: date('request_date').notNull().defaultNow(), // Fecha en que se solicita
     approvalDate: date('approval_date'), // Fecha de aprobación (si aplica)
     disbursementDate: date('disbursement_date'), // Fecha del desembolso

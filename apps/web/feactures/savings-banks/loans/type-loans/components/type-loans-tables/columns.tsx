@@ -10,16 +10,17 @@ export const columns: ColumnDef<TypeLoan>[] = [
     header: 'Nombre',
   },
   {
-    accessorKey: 'interestRateAnnual',
+    accessorKey: 'interestRate',
     header: 'Interesés Anual',
+    cell: ({ getValue }) => `${Math.round(Number(getValue()))} %`,
   },
   {
-    accessorKey: 'termMonthsMin',
-    header: 'Duración Mínima (Meses)',
+    accessorKey: 'termType',
+    header: 'Plazo o Cuotas',
   },
   {
-    accessorKey: 'termMonthsMax',
-    header: 'Duración Máxima (Meses)',
+    accessorKey: 'termUnits',
+    header: 'Número de plazo o cuotas',
   },
   {
     id: 'actions',

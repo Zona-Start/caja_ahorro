@@ -51,7 +51,7 @@ export class Associates {
   payrollTypeId?: number;
 
   @ApiProperty({ required: false })
-  workerTypeId?: number;
+  associatedTypeId?: number;
 
   @ApiProperty({ required: false })
   jobTitle?: string;

@@ -51,15 +51,12 @@ export const getPaginatedCategoryTypesAction = async (params: {
   const mapper = response?.data.map((item: any) => {
     let name;
     let options;
-    if (item.group === GROUP_TYPES.ASSOCIATE_TYPE) {
+    if (item.group === GROUP_TYPES.ASSOCIATED_TYPE) {
       name = 'TIPO ASOCIADO';
       options = null;
     } else if (item.group === GROUP_TYPES.DISCOUNT_FREQ) {
       name = 'FRECUENCIA NOMINA';
       options = item.options[0].frequency;
-    } else if (item.group === GROUP_TYPES.WORKING_TYPE) {
-      name = 'TIPO TRABAJADOR';
-      options = null;
     }
     return {
       ...item,

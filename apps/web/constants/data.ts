@@ -119,15 +119,15 @@ export const savingBankItems: NavItem[] = [
         icon: 'login',
       },
       {
-        title: 'Tipos de Trabajadores',
+        title: 'Tipos de Asociados',
         shortcut: ['l', 'l'],
-        url: '/dashboard/categorias/tipo-trabajadores',
+        url: '/dashboard/categorias/tipo-asociados',
         icon: 'login',
       },
       {
-        title: 'Tipos de Operaciones',
+        title: 'Tipos de Nomina',
         shortcut: ['l', 'l'],
-        url: '/dashboard/categorias/tipo-operaciones',
+        url: '/dashboard/categorias/tipo-nomina',
         icon: 'login',
       },
     ], // No child items

@@ -110,10 +110,10 @@ export class CreateAssociateDto {
   @IsInt()
   payrollTypeId?: number;
 
-  @ApiProperty({ description: 'Worker type ID', required: false })
+  @ApiProperty({ description: 'Associated type ID', required: false })
   @IsOptional()
   @IsInt()
-  workerTypeId?: number;
+  associatedTypeId?: number;
 
   @ApiProperty({ description: 'jobTitle/Position', required: false })
   @IsOptional()

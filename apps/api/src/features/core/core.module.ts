@@ -7,7 +7,7 @@ import { MunicipalitiesModule } from './municipalities/municipalities.module';
 import { ParishesModule } from './parishes/parishes.module';
 import { SettingsSystemModule } from './settings-system/settings-system.module';
 import { StatesModule } from './states/states.module';
-import { TypeOperationsModule } from './type-operations/type-operations.module';
+import { TypePayrollModule } from './type-payroll/type-payroll.module';
 
 @Module({
   imports: [
@@ -15,7 +15,7 @@ import { TypeOperationsModule } from './type-operations/type-operations.module';
     MunicipalitiesModule,
     ParishesModule,
     CategoryTypesModule,
-    TypeOperationsModule,
+    TypePayrollModule,
     CompanyModule,
     SettingsSystemModule,
     CurrenciesModule,
