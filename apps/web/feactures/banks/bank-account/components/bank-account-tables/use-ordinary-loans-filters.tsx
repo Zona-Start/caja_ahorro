@@ -48,7 +48,7 @@ export function useBankAccountFilters() {
   );
 
   const [curenciesFilter, setCurenciesFilter] = useQueryState(
-    'currencies',
+    'currencyCode',
     searchParams.q.withOptions({ shallow: false }).withDefault(''),
   );
 

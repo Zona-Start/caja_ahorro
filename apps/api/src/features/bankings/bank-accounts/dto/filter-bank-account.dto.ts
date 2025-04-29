@@ -6,7 +6,7 @@ export class FilterBankAccountDto extends PartialType(PaginationDto) {
   @ApiPropertyOptional({ description: 'Column isActive' })
   @IsOptional()
   @IsString()
-  isActive?: string;
+  status?: string;
 
   @ApiPropertyOptional({ description: 'Column currency code' })
   @IsOptional()

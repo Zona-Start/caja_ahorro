@@ -5,6 +5,7 @@ export const bankAccountApiSchema = z.object({
   id: z.number(),
   companyId: z.number(),
   bankDirectoryId: z.number(),
+  bankDirectoryName: z.string().optional(),
   accountNumber: z.string(),
   accountName: z.string().optional().nullable(),
   accountType: z.string(),

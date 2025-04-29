@@ -39,22 +39,22 @@ export default function BankAccountTableAction() {
           setPage={setPage}
         />
         <DataTableFilterBox
-          filterKey="Por estatus"
-          title="Estatus"
+          filterKey="status"
+          title="Estado"
           options={ESTATUS_OPTIONS}
           setFilterValue={setStatusFilter}
           filterValue={statusFilter}
         />
         <DataTableFilterBox
           filterKey="accountType"
-          title="Tipo de Cuenta"
+          title="Cuenta"
           options={ACCOUNTS_OPTIONS}
           setFilterValue={setAccountTypeFilter}
           filterValue={accountTypeFilter}
         />
         <DataTableFilterBox
-          filterKey="accountType"
-          title="Tipo de Moneda"
+          filterKey="currencyCode"
+          title="Moneda"
           options={CURRENCIES_OPTIONS}
           setFilterValue={setCurenciesFilter}
           filterValue={curenciesFilter}

@@ -8,7 +8,6 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
 import { FilterBankAccountDto } from './dto/filter-bank-account.dto';
 import { UpdateBankAccountDto } from './dto/update-bank-account.dto';
-import { BankAccount } from './entities/bank-account.entity';
 
 @Injectable()
 export class BankAccountsService {
@@ -63,18 +62,16 @@ export class BankAccountsService {
     return result[0];
   }
 
-  async findAllByPagination(
-    filterBankAccountDto?: FilterBankAccountDto,
-  ): Promise<{ data: BankAccount[]; meta: any }> {
+  async findAllByPagination(filterBankAccountDto?: FilterBankAccountDto) {
     const {
       page = 1,
       limit = 10,
       search = '',
       sortBy = 'id',
       sortOrder = 'asc',
-      isActive = '',
-      accountType = '',
-      currencyCode = '',
+      status,
+      accountType,
+      currencyCode,
     } = filterBankAccountDto || {};
 
     // Calculate offset
@@ -88,6 +85,8 @@ export class BankAccountsService {
 
     // Agregué una condición para filtrar por grupo si el parámetro `group` está presente.
     if (accountType) {
+      console.log('entre', accountType);
+
       searchCondition = searchCondition
         ? sql`${searchCondition} AND ${schema.bankAccounts.accountType} = ${accountType}`
         : sql`${schema.bankAccounts.accountType} = ${accountType}`;
@@ -99,10 +98,11 @@ export class BankAccountsService {
         : sql`${schema.bankAccounts.currencyCode} = ${currencyCode}`;
     }
 
-    if (isActive) {
+    if (status) {
+      const transforStatus = status === 'ACTIVE' ? true : false;
       searchCondition = searchCondition
-        ? sql`${searchCondition} AND ${schema.bankAccounts.isActive} = ${isActive}`
-        : sql`${schema.bankAccounts.isActive} = ${isActive}`;
+        ? sql`${searchCondition} AND ${schema.bankAccounts.isActive} = ${transforStatus}`
+        : sql`${schema.bankAccounts.isActive} = ${transforStatus}`;
     }
 
     // Build sort condition
@@ -126,6 +126,7 @@ export class BankAccountsService {
         id: schema.bankAccounts.id,
         companyId: schema.bankAccounts.companyId,
         bankDirectoryId: schema.bankAccounts.bankDirectoryId,
+        bankDirectoryName: schema.bankDirectory.name,
         accountNumber: schema.bankAccounts.accountNumber,
         accountName: schema.bankAccounts.accountName,
         accountType: schema.bankAccounts.accountType,
@@ -139,6 +140,10 @@ export class BankAccountsService {
       })
       .from(schema.bankAccounts)
       .where(searchCondition)
+      .leftJoin(
+        schema.bankDirectory,
+        eq(schema.bankDirectory.id, schema.bankAccounts.bankDirectoryId),
+      )
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -160,13 +165,8 @@ export class BankAccountsService {
       accountName: item.accountName ?? undefined,
       currencyCode: item.currencyCode as CurrencyCodeEnum,
       openingDate: item.openingDate ? new Date(item.openingDate) : undefined,
-      currentBalance: item.currentBalance
-        ? parseFloat(item.currentBalance)
-        : undefined,
-      lastStatementBalance:
-        item.lastStatementBalance !== null
-          ? Number(item.lastStatementBalance)
-          : undefined,
+      currentBalance: item.currentBalance,
+      lastStatementBalance: item.lastStatementBalance,
       lastStatementDate: item.lastStatementDate
         ? new Date(item.lastStatementDate)
         : undefined,
@@ -178,7 +178,7 @@ export class BankAccountsService {
     };
   }
 
-  async create(data: CreateBankAccountDto) {
+  async create(userId: number, data: CreateBankAccountDto) {
     const existingAccount = await this.drizzle
       .select()
       .from(schema.bankAccounts)
@@ -207,6 +207,7 @@ export class BankAccountsService {
       lastStatementDate: data.lastStatementDate
         ? new Date(data.lastStatementDate).toISOString().split('T')[0]
         : null,
+      createdById: userId,
     };
 
     const result = await this.drizzle
@@ -231,15 +232,21 @@ export class BankAccountsService {
     return result[0];
   }
 
-  async update(id: number, data: UpdateBankAccountDto) {
+  async update(id: number, userId: number, data: UpdateBankAccountDto) {
     const existing = await this.findOne(id);
 
     if (!existing) {
       throw new NotFoundException(`Bank Account with ID ${id} not found`);
     }
 
+    const currenciesCode = await this.drizzle
+      .select()
+      .from(currencies)
+      .where(eq(currencies.id, Number(data.currencyCode)));
+
     const formatData = {
       ...data,
+      currencyCode: currenciesCode[0].code,
       openingDate: data.openingDate
         ? new Date(data.openingDate).toISOString()
         : null,
@@ -248,6 +255,7 @@ export class BankAccountsService {
       lastStatementDate: data.lastStatementDate
         ? new Date(data.lastStatementDate).toISOString()
         : null,
+      updatedById: userId,
     };
 
     const result = await this.drizzle

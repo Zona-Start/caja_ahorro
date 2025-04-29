@@ -1,10 +1,22 @@
 'use client';
 
+import { Badge } from '@repo/shadcn/badge';
 import { ColumnDef } from '@tanstack/react-table';
 import { BankAccount } from '../../schemas/bank-account.schema';
 import { CellAction } from './cell-action';
 
+const formatCurrency = (value: number, currency: 'VES' | 'USD') =>
+  new Intl.NumberFormat('es-VE', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(value);
+
 export const columns: ColumnDef<BankAccount>[] = [
+  {
+    accessorKey: 'bankDirectoryName',
+    header: 'Banco',
+  },
   {
     accessorKey: 'accountNumber',
     header: 'Número Cuenta',
@@ -16,6 +28,13 @@ export const columns: ColumnDef<BankAccount>[] = [
   {
     accessorKey: 'accountType',
     header: 'Tipo',
+    cell: ({ row }) => {
+      if (row.original.accountType === 'CURRENT') {
+        return <span>Corriente</span>;
+      } else {
+        return <span>Ahorro</span>;
+      }
+    },
   },
   {
     accessorKey: 'currencyCode',
@@ -24,16 +43,22 @@ export const columns: ColumnDef<BankAccount>[] = [
   {
     accessorKey: 'currentBalance',
     header: 'Saldo Actual',
+    cell: ({ row }) => {
+      const currency = row.original.currencyCode === 'VES' ? 'VES' : 'USD';
+      return (
+        <span>{formatCurrency(row.original.currentBalance, currency)}</span>
+      );
+    },
   },
   {
     accessorKey: 'status',
     header: 'Estado',
     cell: ({ row }) => {
-      if (row.original.isActive === true) {
-        return <span className="text-green-500">Activa</span>;
-      } else {
-        return <span className="text-red-500">Inactiva</span>;
-      }
+      return (
+        <Badge variant={row.original.isActive ? 'success' : 'danger'}>
+          {row.original.isActive ? 'Activa' : 'Inactiva'}
+        </Badge>
+      );
     },
   },
   {

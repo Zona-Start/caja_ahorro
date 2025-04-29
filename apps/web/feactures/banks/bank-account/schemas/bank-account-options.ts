@@ -1,12 +1,11 @@
 export const ESTATUS_TYPES = {
-  ACTIVE: 'Activo',
-  INACTIVE: 'Inactivo',
+  ACTIVE: 'Activa',
+  INACTIVE: 'Inactiva',
 } as const;
 
 export const CURRENCY_TYPE = {
   VES: 'VES',
   USD: 'USD',
-  EUR: 'EUR',
 } as const;
 
 export const ACCOUNT_TYPES = {

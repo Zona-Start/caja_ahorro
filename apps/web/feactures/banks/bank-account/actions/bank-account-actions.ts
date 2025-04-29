@@ -12,7 +12,7 @@ export const getBankAccountAction = async (params: {
   limit?: number;
   status?: string;
   accountType?: string;
-  currentyType?: string;
+  currencyCode?: string;
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
@@ -23,14 +23,14 @@ export const getBankAccountAction = async (params: {
     ...(params.search && { search: params.search }),
     ...(params.status && { status: params.status }),
     ...(params.accountType && { accountType: params.accountType }),
-    ...(params.currentyType && { currentyType: params.currentyType }),
+    ...(params.currencyCode && { currencyCode: params.currencyCode }),
     ...(params.sortBy && { sortBy: params.sortBy }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
   });
 
   const [error, response] = await safeFetchApi(
     bankAccountResponseAllSchema,
-    `/bakings/bank-accounts?${searchParams}`,
+    `/bakings/bank-accounts/paginated?${searchParams}`,
     'GET',
   );
 
@@ -75,17 +75,11 @@ export const createBankAccountAction = async (bankAccount: BankAccount) => {
 export const updateBankAccountAction = async (bankAccount: BankAccount) => {
   const { id, ...payloadWithoutId } = bankAccount;
 
-  const payload = {
-    ...payloadWithoutId,
-    openingDate: payloadWithoutId?.openingDate
-      ? payloadWithoutId?.openingDate.toISOString().split('T')[0]
-      : null,
-  };
   const [error, data] = await safeFetchApi(
     bankAccountResponseOneSchema,
     `/bakings/bank-accounts/${id}`,
     'PATCH',
-    payload,
+    payloadWithoutId,
   );
 
   if (error) {

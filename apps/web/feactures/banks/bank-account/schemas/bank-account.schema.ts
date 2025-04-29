@@ -4,7 +4,10 @@ export const bankAccountSchema = z.object({
   id: z.number().optional(),
   companyId: z.number(),
   bankDirectoryId: z.number().min(1, { message: 'requerido' }),
-  accountNumber: z.string().min(20, { message: 'requerido' }),
+  accountNumber: z
+    .string()
+    .min(20, { message: 'requerido' })
+    .max(20, { message: 'máximo 20 dígitos' }),
   accountName: z.string().optional(),
   accountType: z.string().min(1, { message: 'requerido' }),
   currencyCode: z.string(),

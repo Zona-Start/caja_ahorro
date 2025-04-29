@@ -10,7 +10,8 @@ export const searchParams = {
   limit: parseAsInteger.withDefault(10),
   q: parseAsString,
   status: parseAsString,
-  payroll: parseAsString,
+  currencyCode: parseAsString,
+  accountType: parseAsString,
 };
 
 export const searchParamsCache = createSearchParamsCache(searchParams);

@@ -12,6 +12,7 @@ import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteBankAccount } from '../../hooks/use-mutation-bank-account';
 import { BankAccount } from '../../schemas/bank-account.schema';
+import { BankAccountModal } from '../bank-account-modal';
 
 interface CellActionProps {
   data: BankAccount;
@@ -23,11 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const { mutate: deleteBankAccount } = useDeleteBankAccount();
-  const [associateId, setAssociateId] = useState<number | null>(null);
-
-  // const { data: associateData } = useAssociatesById(associateId!, {
-  //   enabled: !!associateId,
-  // });
+  const [bankAccountId, setBankAccountId] = useState<number | null>(null);
 
   const onConfirm = async () => {
     try {
@@ -42,7 +39,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleEdit = () => {
-    setAssociateId(data.id!);
+    console.log(data.isActive);
+
+    setBankAccountId(data.id!);
     setShowEditModal(true);
   };
 
@@ -53,58 +52,41 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
         loading={loading}
-        title="¿Estás seguro que desea eliminar al Asociado?"
+        title="¿Estás seguro que desea eliminar la cuenta bancaria?"
         description="Esta acción no se puede deshacer."
       />
 
-      {/* {associateData?.data && (
-        <>
-          <AssociatesModal
-            open={showEditModal}
-            onOpenChange={(open) => {
-              setShowEditModal(open);
-              if (!open) setAssociateId(null);
-            }}
-            defaultValues={{
-              ...associateData.data,
-              birthdate: associateData.data.birthdate
-                ? new Date(associateData.data.birthdate)
-                : undefined,
-              dateAdmission: associateData.data.dateAdmission
-                ? new Date(associateData.data.dateAdmission)
-                : undefined,
-              dateGraduation: associateData.data.dateGraduation
-                ? new Date(associateData.data.dateGraduation)
-                : undefined,
-              jobTitle: associateData.data.jobTitle || undefined,
-              isPayrollCredit: associateData.data.isPayrollCredit,
-            }}
-          />
+      <BankAccountModal
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        defaultValues={{
+          ...data,
+          currencyCode:
+            data.currencyCode === 'VES'
+              ? '1'
+              : data.currencyCode === 'USD'
+                ? '2'
+                : '3',
+        }}
+      />
 
-          <AssociatesModal
-            open={showViewModal}
-            onOpenChange={(open) => {
-              setShowViewModal(open);
-              if (!open) setAssociateId(null);
-            }}
-            defaultValues={{
-              ...associateData.data,
-              birthdate: associateData.data.birthdate
-                ? new Date(associateData.data.birthdate)
-                : undefined,
-              dateAdmission: associateData.data.dateAdmission
-                ? new Date(associateData.data.dateAdmission)
-                : undefined,
-              dateGraduation: associateData.data.dateGraduation
-                ? new Date(associateData.data.dateGraduation)
-                : undefined,
-              jobTitle: associateData.data.jobTitle || undefined,
-              isPayrollCredit: associateData.data.isPayrollCredit,
-            }}
-            readOnly={true}
-          />
-        </>
-      )} */}
+      <BankAccountModal
+        open={showViewModal}
+        onOpenChange={(open) => {
+          setShowViewModal(open);
+          if (!open) setBankAccountId(null);
+        }}
+        defaultValues={{
+          ...data,
+          currencyCode:
+            data.currencyCode === 'VES'
+              ? '1'
+              : data.currencyCode === 'USD'
+                ? '2'
+                : '3',
+        }}
+        readOnly={true}
+      />
 
       <div className="flex gap-1">
         <TooltipProvider>
@@ -114,7 +96,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setAssociateId(data.id!);
+                  setBankAccountId(data.id!);
                   setShowViewModal(true);
                 }}
               >

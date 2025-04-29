@@ -72,14 +72,12 @@ export function BankAccountForm({
         ? defaultValues?.lastStatementDate
         : undefined,
       linkedChartAccountId: defaultValues?.linkedChartAccountId,
-      isActive: defaultValues?.isActive || true,
+      isActive: defaultValues?.isActive ?? true,
     },
     mode: 'onChange', // Enable real-time validation
   });
 
   const onSubmit = async (data: BankAccount) => {
-    console.log(data);
-
     saveBankAccount(data, {
       onSuccess: () => {
         form.reset();
@@ -179,8 +177,11 @@ export function BankAccountForm({
                       field.onChange(value); // Asignar el valor seleccionado directamente al campo `group`
                     }}
                     value={selectedAccountType}
+                    disabled={readOnly}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger
+                      className={readOnly ? 'bg-muted w-full' : 'w-full'}
+                    >
                       <SelectValue placeholder="Seleccione un grupo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -206,8 +207,11 @@ export function BankAccountForm({
                     <Select
                       onValueChange={(value) => field.onChange(value)}
                       value={field.value}
+                      disabled={readOnly}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger
+                        className={readOnly ? 'bg-muted w-full' : 'w-full'}
+                      >
                         <SelectValue placeholder="Seleccione una moneda" />
                       </SelectTrigger>
                       <SelectContent>
@@ -348,7 +352,9 @@ export function BankAccountForm({
                     disabled={readOnly}
                   >
                     <FormControl>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger
+                        className={readOnly ? 'bg-muted w-full' : 'w-full'}
+                      >
                         <SelectValue placeholder="Seleccione" />
                       </SelectTrigger>
                     </FormControl>

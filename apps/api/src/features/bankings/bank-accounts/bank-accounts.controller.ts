@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BankAccountsService } from './bank-accounts.service';
@@ -26,8 +27,12 @@ export class BankAccountsController {
     status: 201,
     description: 'Bank account created successfully.',
   })
-  async create(@Body() createBankAccountDto: any) {
-    const data = await this.bankAccountsService.create(createBankAccountDto);
+  async create(@Req() req: Request, @Body() createBankAccountDto: any) {
+    const userId = req['user'].id;
+    const data = await this.bankAccountsService.create(
+      userId,
+      createBankAccountDto,
+    );
     return { message: 'Bank Account created successfully', data };
   }
 
@@ -80,9 +85,15 @@ export class BankAccountsController {
     description: 'Bank account updated successfully.',
   })
   @ApiResponse({ status: 404, description: 'Bank account not found.' })
-  async update(@Param('id') id: string, @Body() updateBankAccountDto: any) {
+  async update(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() updateBankAccountDto: any,
+  ) {
+    const userId = req['user'].id;
     const data = await this.bankAccountsService.update(
       +id,
+      userId,
       updateBankAccountDto,
     );
     return { message: 'Bank Account updated successfully', data };

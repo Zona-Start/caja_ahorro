@@ -26,6 +26,8 @@ export default async function Page(props: pageProps) {
   const search = searchParamsCache.get('q');
   const pageLimit = Number(searchParamsCache.get('limit')) || 10;
   const status = searchParamsCache.get('status');
+  const currencyCode = searchParamsCache.get('currencyCode');
+  const accountType = searchParamsCache.get('accountType');
 
   return (
     <PageContainer scrollable={false}>
@@ -37,6 +39,8 @@ export default async function Page(props: pageProps) {
           initialPage={page}
           initialSearch={search}
           initialLimit={pageLimit}
+          initialAccountType={accountType}
+          initialCurrencyCode={currencyCode}
         />
       </div>
     </PageContainer>
