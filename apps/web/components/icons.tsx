@@ -46,6 +46,8 @@ import {
   UserX2Icon,
   Wallet,
   X,
+  Album,
+  TicketPlus,
 } from 'lucide-react';
 
 export type Icon = LucideIcon;
@@ -95,6 +97,8 @@ export const Icons = {
   trendingUp: TrendingUp,
   fileChartLine: FileChartLine,
   handPlatter: HandPlatter,
+  album: Album,
+  ticketPlus: TicketPlus,
   gitHub: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

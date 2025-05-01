@@ -14,7 +14,7 @@ import { timestamps } from '../timestamps';
 import { accountingEntries, accountPlan } from './accounting';
 import { users } from './auth';
 import { bankDirectory } from './banking';
-import { categoryType, company, states, typePayrolls } from './core';
+import { categoryType, company, exchangeRates, states, typePayrolls } from './core';
 import {
   associateMovementTypeEnum,
   currencyCodeEnum,
@@ -128,7 +128,6 @@ export const associateAccounts = savingsBanksSchema.table(
   }),
 );
 
-//Historial de movimientos (créditos/débitos) en las cuentas de los asociados.
 export const associateAccountMovements = savingsBanksSchema.table(
   'associate_account_movements',
   {
@@ -138,24 +137,16 @@ export const associateAccountMovements = savingsBanksSchema.table(
       .references(() => associateAccounts.id, { onDelete: 'cascade' }),
     movementType: associateMovementTypeEnum('movement_type').notNull(),
     amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto siempre positivo
-    movementSign: integer('movement_sign').notNull(), // Para calcular saldo fácilmente
     currencyCode: currencyCodeEnum('currency_code').notNull(), // Moneda de la transacción
     transactionDate: timestamp('transaction_date').notNull().defaultNow(), // Fecha y hora de la transacción
     description: text('description'),
-    referenceId: text('reference_id'), // ID de la operación origen (ej: loan_id, withdrawal_request_id)
-    referencType: varchar('reference_type', { length: 50 }), // Tipo de operación origen (ej: 'LOAN_PAYMENT', 'WITHDRAWAL')
-    accountingEntryId: integer('accounting_entry_id').references(
-      () => accountingEntries.id,
-      { onDelete: 'set null' },
-    ), // Enlace al asiento contable generado
-    exchangeRateUsed: numeric('exchange_rate_used', {
-      precision: 18,
-      scale: 8,
-    }), //campos para la conversión si la transacción fue en otra moneda
-    amountBaseCurrency: numeric('amount_base_currency', {
-      precision: 18,
-      scale: 2,
-    }), //campos para la conversión si la transacción fue en otra moneda
+    referenceId: text('reference_id'), // ID de la operación origen
+    referenceType: varchar('reference_type', { length: 50 }), // Tipo de operación origen (tabla de donde es la referencia id)
+    referenceNumber:  varchar('reference_number', { length: 20 }).unique().notNull(),
+    exchangeRateId: integer('exchange_rate_id').references(
+      () => exchangeRates.id,
+      { onDelete: 'set null' }, // O 'restrict' según tus necesidades
+    ),
     ...timestamps,
   },
   (table) => ({
@@ -165,15 +156,123 @@ export const associateAccountMovements = savingsBanksSchema.table(
     ),
     typeIdx: index('assoc_acct_mov_type_idx').on(table.movementType),
     referenceIdx: index('assoc_acct_mov_reference_idx').on(
-      table.referencType,
+      table.referenceType,
       table.referenceId,
     ),
-    accountingEntryIdx: index('assoc_acct_mov_acct_entry_idx').on(
-      table.accountingEntryId,
+    // Índice para el nuevo campo de tasa de cambio (opcional pero recomendado)
+    exchangeRateIdx: index('assoc_acct_mov_exchange_rate_idx').on(
+      table.exchangeRateId,
     ),
   }),
 );
 
+// historial de saldo 
+export const associateAccountBalanceHistory = savingsBanksSchema.table(
+  'associate_account_balance_history',
+  {
+    id: serial('id').primaryKey(),
+    associateAccountId: integer('associate_account_id')
+      .notNull()
+      .references(() => associateAccounts.id, { onDelete: 'cascade' }),
+    balanceDate: timestamp('balance_date').notNull().defaultNow(), // Fecha y hora del saldo
+    balance: numeric('balance', { precision: 18, scale: 2 }).notNull(), // Saldo en ese momento
+    movementId: integer('movement_id').references(
+      () => associateAccountMovements.id,
+      { onDelete: 'set null' },
+    ), // ID del movimiento que causó este saldo
+    reason: varchar('reason', { length: 255 }), // Razón del cambio de saldo (ej: 'Nuevo movimiento', 'Corrección de saldo')
+    ...timestamps,
+  },
+  (table) => ({
+    accountDateIdx: index('assoc_acct_bal_hist_account_date_idx').on(
+      table.associateAccountId,
+      table.balanceDate,
+    ),
+    movementIdx: index('assoc_acct_bal_hist_movement_idx').on(
+      table.movementId,
+    ),
+  }),
+);
+
+
+
+//tipos de tipos  retiros 
+export const withdrawalTypes = savingsBanksSchema.table(
+  'withdrawal_types',
+  {
+    id: serial('id').primaryKey(),
+    description: varchar('description', { length: 255 }).notNull().unique(), // Descripción del tipo de retiro (ej: 'Retiro regular', 'Retiro por emergencia')
+    withdrawalPercentage: numeric('withdrawal_percentage', { precision: 5, scale: 2 }), // Porcentaje máximo del saldo que se puede retirar (si aplica)
+    accountDebit: integer('account_debit').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ), // Cuenta contable para el débito del retiro
+    expenseAccount: integer('expense_account').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ), // Cuenta contable para el gasto administrativo (si aplica)
+    administrativeFeePercentage: numeric('administrative_fee_percentage', { precision: 5, scale: 2 }).default('0.00'), // Porcentaje del retiro para el gasto administrativo (si aplica)
+    withdrawalLimitQuantity: integer('withdrawal_limit_quantity'), // Cantidad máxima de retiros permitidos (ej: por mes, si aplica)
+    minimumAntiquityDays: integer('minimum_antiquity_days'), // Antigüedad mínima requerida del asociado para este tipo de retiro (en días, si aplica)
+    withdrawalFrequencyRelation: integer('category_id').references(
+      () => categoryType.id, // Relación con una tabla de categorías (ej: categorías de asociados para diferentes frecuencias de retiro)
+      { onDelete: 'set null' },
+    ),
+    ...timestamps,
+  },
+  (table) => ({
+    descriptionIdx: uniqueIndex('withdrawal_types_description_uidx').on(
+      table.description,
+    ), // Índice único para la descripción
+    accountDebitIdx: index('withdrawal_types_account_debit_idx').on(
+      table.accountDebit,
+    ), // Índice para la cuenta de débito
+    expenseAccountIdx: index('withdrawal_types_expense_account_idx').on(
+      table.expenseAccount,
+    ), // Índice para la cuenta de gasto
+    withdrawalFrequencyRelationIdx: index(
+      'withdrawal_types_frequency_relation_idx',
+    ).on(table.withdrawalFrequencyRelation), // Índice para la relación de frecuencia
+  }),
+);
+
+//tabla de retiros
+export const withdrawalsAssociates = savingsBanksSchema.table(
+  'withdrawals_associates',
+  {
+    id: serial('id').primaryKey(),
+    associateAccountId: integer('associate_account_id')
+      .notNull()
+      .references(() => associateAccounts.id, { onDelete: 'cascade' }),
+    withdrawalTypeId: integer('withdrawal_type_id').references(
+      () => withdrawalTypes.id, // Referencia a la tabla de tipos de retiro
+      { onDelete: 'set null' },
+    ),
+    withdrawalDate: timestamp('withdrawal_date').notNull().defaultNow(),
+    requestedAmount: numeric('requested_amount', { precision: 18, scale: 2 }).notNull(), // Monto bruto solicitado por el asociado
+    administrativeFee: numeric('administrative_fee', { precision: 18, scale: 2 }).default('0.00'),
+    disbursedAmount: numeric('disbursed_amount', { precision: 18, scale: 2 }), // Monto neto desembolsado (requestedAmount - administrativeFee)
+    paymentMethod: paymentMethodEnum('payment_method'), // Ej: 'Transferencia', 'Cheque', 'Efectivo'
+    referenceCode: varchar('reference_code', { length: 100 }).unique(), // Código de referencia único generado por el backend
+    ...timestamps,
+  },
+  (table) => ({
+    associateAccountIdx: index('withdrawals_associate_account_idx').on(
+      table.associateAccountId,
+    ), // Índice para buscar retiros por asociado
+    withdrawalTypeIdx: index('withdrawals_withdrawal_type_idx').on(
+      table.withdrawalTypeId,
+    ), // Índice para buscar retiros por tipo
+    withdrawalDateIdx: index('withdrawals_withdrawal_date_idx').on(
+      table.withdrawalDate,
+    ), // Índice para buscar retiros por fecha
+    referenceCodeIdx: uniqueIndex('withdrawals_reference_code_uidx').on(
+      table.referenceCode,
+    ), // Índice único para el código de referencia
+  }),
+);
+
+// tipos de prestamos
 export const loanTypes = savingsBanksSchema.table(
   'loan_types',
   {

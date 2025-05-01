@@ -19,6 +19,8 @@ import { ChevronRightIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icons } from './icons';
+import { IconWrapper } from './icon-wrapper';
+
 
 export function NavMain({
   titleGroup,
@@ -29,6 +31,7 @@ export function NavMain({
     title: string;
     url: string;
     icon?: keyof typeof Icons;
+    colorIcons?: string
     isActive?: boolean;
     items?: {
       title: string;
@@ -38,12 +41,15 @@ export function NavMain({
   }[];
 }) {
   const pathname = usePathname();
+  
   return (
     <SidebarGroup className="mt-0">
       <SidebarGroupLabel className="text-md">{titleGroup}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          const Icon = item.icon ? Icons[item.icon] : Icons.logo;
+          const Icon = item.icon 
+          ? 
+          Icons[item.icon] : Icons.logo;
           return item?.items && item?.items?.length > 0 ? (
             <Collapsible
               key={item.title}
@@ -56,8 +62,13 @@ export function NavMain({
                   <SidebarMenuButton
                     tooltip={item.title}
                     isActive={pathname === item.url}
+
                   >
-                    {item.icon && <Icon />}
+                     {item.icon && (
+                      <IconWrapper color={item.colorIcons || 'blue'}  className="w-5 h-5">
+                        <Icon />
+                      </IconWrapper>
+                    )}
                     <span>{item.title}</span>
                     <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                   </SidebarMenuButton>
@@ -88,7 +99,9 @@ export function NavMain({
                 isActive={pathname === item.url}
               >
                 <Link href={item.url}>
-                  <Icon />
+                <IconWrapper color={item.colorIcons || 'blue'}  className="w-5 h-5">
+                    <Icon />
+                  </IconWrapper>
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>

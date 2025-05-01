@@ -71,17 +71,22 @@ export const paymentStatusEnum = pgEnum('payment_status_enum', [
 export const associateMovementTypeEnum = pgEnum(
   'associate_movement_type_enum',
   [
-    'SAVING_CONTRIBUTION',
-    'EMPLOYER_CONTRIBUTION',
-    'DIVIDEND_CREDIT',
-    'LOAN_DISBURSEMENT_CREDIT',
-    'OTHER_CREDIT',
-    'SAVING_WITHDRAWAL',
-    'LOAN_PAYMENT_DEBIT',
-    'FEE_DEBIT',
-    'OTHER_DEBIT',
-    'ADJUSTMENT_CREDIT',
-    'ADJUSTMENT_DEBIT',
+    'SAVING_CONTRIBUTION', // Aporte regular o adicional del asociado a su cuenta de ahorros.
+    'EMPLOYER_CONTRIBUTION', // Aporte realizado por el empleador a la cuenta del asociado (si aplica).
+    'DIVIDEND_CREDIT', // Acreditación de dividendos o excedentes a la cuenta del asociado.
+    'LOAN_DISBURSEMENT_CREDIT', // Acreditación del monto de un préstamo a la cuenta del asociado.
+    'OTHER_CREDIT', // Otros tipos de créditos no especificados.
+    'SAVING_WITHDRAWAL', // Retiro de fondos de la cuenta de ahorros del asociado.
+    'LOAN_PAYMENT_DEBIT', // Débito por el pago de una cuota de préstamo realizado por el asociado.
+    'FEE_DEBIT', // Débito genérico por comisiones o cargos varios.
+    'WITHDRAWAL_FEE_DEBIT', // Débito específico por comisiones asociadas a retiros.
+    'LOAN_INTEREST_DEBIT', // Débito específico por los intereses generados por un préstamo.
+    'OTHER_DEBIT', // Otros tipos de débitos no especificados.
+    'ADJUSTMENT_CREDIT', // Crédito por ajustes o correcciones en el saldo de la cuenta.
+    'ADJUSTMENT_DEBIT', // Débito por ajustes o correcciones en el saldo de la cuenta.
+    'FEE_REIMBURSEMENT_CREDIT', // Crédito por el reintegro de una comisión o cargo cobrado previamente (asumiendo que "Reintegro de Cuota" es un crédito).
+    // Si "Reintegro de Cuota" fuera un débito, usarías algo como:
+    'FEE_CORRECTION_DEBIT', // Débito para corregir un cobro de cuota incorrecto.
   ],
 );
 
@@ -124,4 +129,5 @@ export const paymentMethodEnum = pgEnum('payment_method_enum', [
   'CHECK', // Cheque
   'DEPOSIT', // Depósito
   'OTHER', // Otro método
+  'MOBILE_PAYMENT', //PAGO MOVIL
 ]);

@@ -298,6 +298,45 @@ export class AssociatesService {
     return result[0];
   }
 
+  async findByCedula(cedula: string) {
+    const result = await this.drizzle
+      .select({
+        id: associates.id,
+        companyId: associates.companyId,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        nationality: associates.nationality,
+        gender: associates.gender,
+        birthdate: associates.birthdate,
+        dateAdmission: associates.dateAdmission,
+        dateGraduation: associates.dateGraduation,
+        discountFrequencyId: associates.discountFrequencyId,
+        status: associates.status,
+        isPayrollCredit: associates.isPayrollCredit,
+        localityId: associates.localityId,
+        phone: associates.phone,
+        email: associates.email,
+        payrollTypeId: associates.payrollTypeId,
+        associatedTypeId: associates.associatedTypeId,
+        jobTitle: associates.jobTitle,
+        baseSalary: associates.baseSalary,
+        associateAccountsId: associateAccounts.id,
+        accountNumber: associateAccounts.accountNumber,
+        currencyCode: associateAccounts.currencyCode,
+        balance: associateAccounts.balance,
+        openingDate: associateAccounts.openingDate,
+        bankDirectoryId: associateAccounts.bankDirectoryId,
+      })
+      .from(associates)
+      .where(eq(associates.cedula, cedula))
+      .leftJoin(associateAccounts, eq(associateAccounts.associateId, associates.id));
+    if (!result.length) {
+      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+    }
+
+    return result[0];
+  }
+
   async update(
     userId: number,
     id: number,

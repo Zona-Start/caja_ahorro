@@ -1,11 +1,13 @@
 import { NavItem } from '@/types';
 
+
 //Info: The following data is used for the sidebar navigation and Cmd K bar.
 export const savingBankItems: NavItem[] = [
   {
     title: 'Socios',
     url: '#',
     icon: 'handshake',
+    colorIcons: 'blue',
     shortcut: ['s', 's'],
     isActive: false,
     items: [
@@ -13,40 +15,40 @@ export const savingBankItems: NavItem[] = [
         title: 'Asociados',
         shortcut: ['l', 'l'],
         url: '/dashboard/socios/asociados',
-        icon: 'login',
       },
     ], // No child items
   },
   {
     title: 'Haberes',
     url: '#',
-    icon: 'handshake',
+    icon: 'ticketPlus',
+    colorIcons: 'green',
     shortcut: ['s', 's'],
     isActive: false,
     items: [
       {
         title: 'Carga Individual',
         shortcut: ['l', 'l'],
-        url: '#',
-        icon: 'login',
+        url: '/dashboard/haberes/carga-individual',
+
       },
       {
         title: 'Carga Masiva',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
       {
         title: 'Retiro Parcial',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
       {
         title: 'Liquidación',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
     ], // No child items
   },
@@ -55,32 +57,32 @@ export const savingBankItems: NavItem[] = [
     title: 'Prestamos',
     url: '/dashboard/prestamos', // Placeholder as there is no direct link for the parent
     icon: 'handCoins',
+    colorIcons: 'yellow',
     isActive: false,
 
     items: [
       {
         title: 'Prestamos Ordinarios',
         url: '/dashboard/prestamos/ordinarios',
-        icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Tipos Prestamos',
         shortcut: ['l', 'l'],
         url: '/dashboard/prestamos/tipo-prestamos',
-        icon: 'login',
+
       },
       {
         title: 'Refinanciamiento',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
       {
         title: 'Reintegros',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
     ],
   },
@@ -88,27 +90,27 @@ export const savingBankItems: NavItem[] = [
     title: 'Creditos',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'creditCard',
+    colorIcons: 'orange',
     isActive: false,
 
     items: [
       {
         title: 'Ordinarios',
         url: '#',
-        icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Con Cuotas Espciales',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
     ],
   },
   {
     title: 'Categorías',
     url: '#',
-    icon: 'handshake',
+    icon: 'album',
     shortcut: ['s', 's'],
     isActive: false,
     items: [
@@ -116,19 +118,19 @@ export const savingBankItems: NavItem[] = [
         title: 'Frecuencias de Pagos',
         shortcut: ['l', 'l'],
         url: '/dashboard/categorias/frecuencias-pago',
-        icon: 'login',
+
       },
       {
         title: 'Tipos de Asociados',
         shortcut: ['l', 'l'],
         url: '/dashboard/categorias/tipo-asociados',
-        icon: 'login',
+
       },
       {
         title: 'Tipos de Nomina',
         shortcut: ['l', 'l'],
         url: '/dashboard/categorias/tipo-nomina',
-        icon: 'login',
+
       },
     ], // No child items
   },
@@ -139,19 +141,19 @@ export const AccountingItems: NavItem[] = [
     title: 'Catálogos',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'swatchBook',
+    colorIcons: 'cyan',
     isActive: false,
     items: [
       {
         title: 'Plan de Cuentas',
         url: '/dashboard/contabilidad/cuentas-contables',
-        icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Cuentas de Asociados',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
     ],
   },
@@ -160,24 +162,24 @@ export const AccountingItems: NavItem[] = [
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'betweenHorizonalStart',
     isActive: false,
+    colorIcons: 'red',
     items: [
       {
         title: 'Asientos Contables',
         url: '#',
-        icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Libro Diario',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
       {
         title: 'Libro Mayor',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
     ],
   },
@@ -186,24 +188,25 @@ export const AccountingItems: NavItem[] = [
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'fileChartLine',
     isActive: false,
+    colorIcons: 'emerald',
     items: [
       {
         title: 'Balance Comprobación',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
       {
         title: 'Balance general',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
       {
         title: 'Estado de Resultados',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
     ],
   },
@@ -212,18 +215,19 @@ export const AccountingItems: NavItem[] = [
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'handPlatter',
     isActive: false,
+    colorIcons: 'rose',
     items: [
       {
         title: 'Balance de Asociados',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
       {
         title: 'Cuentas de Asociados',
         shortcut: ['l', 'l'],
         url: '#',
-        icon: 'login',
+
       },
     ],
   },
@@ -234,6 +238,7 @@ export const BankItems: NavItem[] = [
     title: 'Directorio de Bancos',
     url: '/dashboard/bancos/tipos-bancos',
     icon: 'landmark',
+    colorIcons: 'teal',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items
@@ -242,6 +247,7 @@ export const BankItems: NavItem[] = [
     title: 'Cuentas Bancarias',
     url: '/dashboard/bancos/cuentas-bancarias',
     icon: 'wallet',
+    colorIcons: 'yellow',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items
@@ -250,6 +256,7 @@ export const BankItems: NavItem[] = [
     title: 'Movimientos Bancarios',
     url: '#',
     icon: 'receiptText',
+    colorIcons: 'cyan',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items
@@ -258,6 +265,7 @@ export const BankItems: NavItem[] = [
     title: 'Conciliacion Bancaria',
     url: '#',
     icon: 'squarePercent',
+    colorIcons: 'rose',
     shortcut: ['p', 'p'],
     isActive: false,
     items: [], // No child items
@@ -269,19 +277,19 @@ export const ConfigItems: NavItem[] = [
     title: 'Configuración',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'settings',
+    colorIcons: 'indigo',
     isActive: false,
     items: [
       {
         title: 'Datos Caja Ahorro',
         url: '/dashboard/utilidades/configuraciones/datos-caja-ahorro',
-        icon: 'userPen',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Numeración  Documentos',
         shortcut: ['l', 'l'],
         url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
-        icon: 'login',
+
       },
     ],
   },
@@ -289,6 +297,7 @@ export const ConfigItems: NavItem[] = [
     title: 'Gestión Usuarios',
     url: '#',
     icon: 'usersRound',
+    colorIcons: 'red',
     isActive: true,
     items: [],
   },
@@ -296,6 +305,7 @@ export const ConfigItems: NavItem[] = [
     title: 'Propiedades del Sistema',
     url: '/dashboard/utilidades/propiedades-sistema',
     icon: 'tableProperties',
+    colorIcons: 'blue',
     isActive: true,
     items: [],
   },
@@ -303,6 +313,7 @@ export const ConfigItems: NavItem[] = [
     title: 'Respaldos Bade de Datos',
     url: '#',
     icon: 'databaseBackup',
+    colorIcons: 'amber',
     isActive: true,
     items: [],
   },

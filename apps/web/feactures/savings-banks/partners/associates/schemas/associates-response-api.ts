@@ -21,6 +21,7 @@ export const associateApiSchema = z.object({
   associatedTypeId: z.number().optional(),
   jobTitle: z.string().optional(),
   baseSalary: z.string(),
+  associateAccountsId: z.number().optional(),
   accountNumber: z.string(),
   currencyCode: z.string().optional(),
   balance: z.string().optional(),
