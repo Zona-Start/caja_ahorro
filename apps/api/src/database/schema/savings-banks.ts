@@ -11,10 +11,16 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
-import { accountingEntries, accountPlan } from './accounting';
+import { accountPlan } from './accounting';
 import { users } from './auth';
 import { bankDirectory } from './banking';
-import { categoryType, company, exchangeRates, states, typePayrolls } from './core';
+import {
+  categoryType,
+  company,
+  exchangeRates,
+  states,
+  typePayrolls,
+} from './core';
 import {
   associateMovementTypeEnum,
   currencyCodeEnum,
@@ -142,7 +148,9 @@ export const associateAccountMovements = savingsBanksSchema.table(
     description: text('description'),
     referenceId: text('reference_id'), // ID de la operación origen
     referenceType: varchar('reference_type', { length: 50 }), // Tipo de operación origen (tabla de donde es la referencia id)
-    referenceNumber:  varchar('reference_number', { length: 20 }).unique().notNull(),
+    referenceNumber: varchar('reference_number', { length: 20 })
+      .unique()
+      .notNull(),
     exchangeRateId: integer('exchange_rate_id').references(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
@@ -166,7 +174,7 @@ export const associateAccountMovements = savingsBanksSchema.table(
   }),
 );
 
-// historial de saldo 
+// historial de saldo
 export const associateAccountBalanceHistory = savingsBanksSchema.table(
   'associate_account_balance_history',
   {
@@ -188,30 +196,31 @@ export const associateAccountBalanceHistory = savingsBanksSchema.table(
       table.associateAccountId,
       table.balanceDate,
     ),
-    movementIdx: index('assoc_acct_bal_hist_movement_idx').on(
-      table.movementId,
-    ),
+    movementIdx: index('assoc_acct_bal_hist_movement_idx').on(table.movementId),
   }),
 );
 
-
-
-//tipos de tipos  retiros 
+//tipos de tipos  retiros
 export const withdrawalTypes = savingsBanksSchema.table(
   'withdrawal_types',
   {
     id: serial('id').primaryKey(),
     description: varchar('description', { length: 255 }).notNull().unique(), // Descripción del tipo de retiro (ej: 'Retiro regular', 'Retiro por emergencia')
-    withdrawalPercentage: numeric('withdrawal_percentage', { precision: 5, scale: 2 }), // Porcentaje máximo del saldo que se puede retirar (si aplica)
-    accountDebit: integer('account_debit').references(
-      () => accountPlan.id,
-      { onDelete: 'set null' },
-    ), // Cuenta contable para el débito del retiro
+    withdrawalPercentage: numeric('withdrawal_percentage', {
+      precision: 5,
+      scale: 2,
+    }), // Porcentaje máximo del saldo que se puede retirar (si aplica)
+    accountDebit: integer('account_debit').references(() => accountPlan.id, {
+      onDelete: 'set null',
+    }), // Cuenta contable para el débito del retiro
     expenseAccount: integer('expense_account').references(
       () => accountPlan.id,
       { onDelete: 'set null' },
     ), // Cuenta contable para el gasto administrativo (si aplica)
-    administrativeFeePercentage: numeric('administrative_fee_percentage', { precision: 5, scale: 2 }).default('0.00'), // Porcentaje del retiro para el gasto administrativo (si aplica)
+    administrativeFeePercentage: numeric('administrative_fee_percentage', {
+      precision: 5,
+      scale: 2,
+    }).default('0.00'), // Porcentaje del retiro para el gasto administrativo (si aplica)
     withdrawalLimitQuantity: integer('withdrawal_limit_quantity'), // Cantidad máxima de retiros permitidos (ej: por mes, si aplica)
     minimumAntiquityDays: integer('minimum_antiquity_days'), // Antigüedad mínima requerida del asociado para este tipo de retiro (en días, si aplica)
     withdrawalFrequencyRelation: integer('category_id').references(
@@ -249,8 +258,14 @@ export const withdrawalsAssociates = savingsBanksSchema.table(
       { onDelete: 'set null' },
     ),
     withdrawalDate: timestamp('withdrawal_date').notNull().defaultNow(),
-    requestedAmount: numeric('requested_amount', { precision: 18, scale: 2 }).notNull(), // Monto bruto solicitado por el asociado
-    administrativeFee: numeric('administrative_fee', { precision: 18, scale: 2 }).default('0.00'),
+    requestedAmount: numeric('requested_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), // Monto bruto solicitado por el asociado
+    administrativeFee: numeric('administrative_fee', {
+      precision: 18,
+      scale: 2,
+    }).default('0.00'),
     disbursedAmount: numeric('disbursed_amount', { precision: 18, scale: 2 }), // Monto neto desembolsado (requestedAmount - administrativeFee)
     paymentMethod: paymentMethodEnum('payment_method'), // Ej: 'Transferencia', 'Cheque', 'Efectivo'
     referenceCode: varchar('reference_code', { length: 100 }).unique(), // Código de referencia único generado por el backend
@@ -376,16 +391,6 @@ export const loans = savingsBanksSchema.table(
     }).notNull(), // Monto solicitado
     approvedAmount: numeric('approved_amount', { precision: 18, scale: 2 }), // Monto aprobado
     disbursedAmount: numeric('disbursed_amount', { precision: 18, scale: 2 }), // Monto efectivamente desembolsado
-    interestRate_annual: numeric('interest_rate_annual', {
-      precision: 5,
-      scale: 2,
-    }).notNull(), // % interés anual
-    termMonths: integer('term_months').notNull(), // Duración en meses
-    installmentsCount: integer('installments_count').notNull(), // Número de cuotas
-    projectedInstallmentAmount: numeric('projected_installment_amount', {
-      precision: 18,
-      scale: 2,
-    }), // Cuota estimada
     startDate: date('start_date'), // Fecha de inicio de pago
     endDate: date('end_date'), // Fecha final del préstamo
     totalInterest: numeric('total_interest', { precision: 18, scale: 2 }), // Intereses totales

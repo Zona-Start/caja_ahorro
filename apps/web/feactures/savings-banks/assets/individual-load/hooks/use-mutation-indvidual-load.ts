@@ -1,10 +1,15 @@
-import { useMutation } from "@tanstack/react-query";
-import { saveIndividualLoadAction } from "../actions/individual-load.action";
-import { LoadAssest } from "../schemas/individual-load-schema";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { saveIndividualLoadAction } from '../actions/individual-load.action';
+import { LoadAssest } from '../schemas/individual-load-schema';
 
 export function useIndividualLoadMutation() {
+  const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (loadAssest: LoadAssest) => saveIndividualLoadAction(loadAssest),
+    mutationFn: (loadAssest: LoadAssest) =>
+      saveIndividualLoadAction(loadAssest),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['associates-by-cedula'] });
+    },
   });
 
   return mutation;

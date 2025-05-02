@@ -1,4 +1,4 @@
-import { LoanStatusEnum } from '@/types/enum';
+import { LoanStatusEnum, paymentMethodEnum } from '@/types/enum';
 import {
   IsDateString,
   IsEnum,
@@ -20,33 +20,52 @@ export class CreateLoanDto {
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
-  amount: number; // Monto solicitado
+  companyId: number;
+
+  @IsNumber()
+  @IsPositive()
+  @IsNotEmpty()
+  loanTypeId: number;
+
+  @IsDateString()
+  @IsNotEmpty()
+  requestDate: Date; // Fecha de solicitud
+
+  @IsNumber()
+  @IsPositive()
+  @IsNotEmpty()
+  requestedAmount: number; // Monto solicitado
 
   @IsInt()
   @IsPositive()
   @Min(1)
   @IsNotEmpty()
-  termMonths: number; // Plazo en meses
+  expensesAmount: number; // Monto de gastos administrativo
 
   @IsNumber()
   @IsPositive()
   @IsOptional()
-  interestRate?: number; // Tasa de interés anual (puede ser opcional si se toma de settings)
+  overdraftAmount?: number; // Sobregiro si aplica
+
+  @IsNumber()
+  @IsPositive()
+  @IsOptional()
+  previousLoanId: number; // Relación con préstamo anterior si existe
+
+  @IsEnum(paymentMethodEnum)
+  paymentMethod: paymentMethodEnum;
+
+  @IsInt()
+  @IsPositive()
+  @Min(1)
+  @IsNotEmpty()
+  disbursementAccountId: number;
 
   @IsEnum(LoanStatusEnum)
   @IsNotEmpty()
   status: LoanStatusEnum;
 
-  @IsDateString()
-  @IsNotEmpty()
-  requestDate: string; // Fecha de solicitud
-
   @IsString()
   @IsOptional()
-  purpose?: string; // Propósito del préstamo
-
-  @IsInt()
-  @IsPositive()
-  @IsNotEmpty()
-  createdById: number; // ID del usuario que crea el registro
+  notes?: string; // Observaciones
 }

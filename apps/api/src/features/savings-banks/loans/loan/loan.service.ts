@@ -1,9 +1,12 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
+  associateAccounts,
+  associates,
   loanAmortizationSchedule,
   loans,
   loanStatusHistory,
+  loanTypes,
   systemSettings,
 } from '@/database/index';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
@@ -13,7 +16,7 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateLoanDto } from './dto/create-loan.dto';
 import { UpdateLoanDto } from './dto/update-loan.dto';
@@ -152,42 +155,134 @@ export class LoanService {
     return schedule;
   }
 
+  // Helper function to calculate percentage
+  private calculatePercentage(value: number, percentage: number): number {
+    return value * (percentage / 100);
+  }
+
+  // Helper function to add months to a date
+  private addMonthsToDate(date: Date, months: number): Date {
+    const result = new Date(date);
+    result.setMonth(result.getMonth() + months);
+    return result;
+  }
+
   async create(createLoanDto: CreateLoanDto, userId: number): Promise<Loan> {
     const {
       associateId,
-      amount,
-      termMonths,
+      requestedAmount,
       status,
+      companyId,
       requestDate,
-      purpose,
-      createdById,
+      disbursementAccountId,
+      expensesAmount,
+      loanTypeId,
+      paymentMethod,
+      previousLoanId,
+      notes,
+      overdraftAmount,
     } = createLoanDto;
 
-    //Fetch interest rate from systemSettings
-    const interestRateSetting = await this.db.query.systemSettings.findFirst({
-      where: eq(systemSettings.key, 'porcentaje_prestamos'), // Use the correct key
-    });
+    // Verificar si existe un préstamo duplicado con las mismas características
+    const existingLoan = await this.db
+      .select()
+      .from(loans)
+      .where(
+        and(
+          eq(loans.associateId, associateId),
+          eq(loans.requestedAmount, requestedAmount),
+          eq(loans.loanTypeId, loanTypeId),
+          eq(loans.status, status),
+        ),
+      );
 
-    if (!interestRateSetting || !interestRateSetting.value) {
+    if (existingLoan.length > 0) {
       throw new InternalServerErrorException(
-        'Loan interest rate setting not found or invalid.',
+        'A loan with the same characteristics already exists.',
       );
     }
-    const annualInterestRate = parseFloat(interestRateSetting.value);
+
+    // Verificar si el asociado tiene un préstamo aprobado o desembolsado
+    const activeLoan = await this.db
+      .select()
+      .from(loans)
+      .where(
+        or(
+          and(
+            eq(loans.associateId, associateId),
+            eq(loans.status, LoanStatusEnum.APPROVED),
+          ),
+          and(
+            eq(loans.associateId, associateId),
+            eq(loans.status, LoanStatusEnum.DISBURSED),
+          ),
+        ),
+      );
+
+    if (activeLoan.length > 0) {
+      throw new InternalServerErrorException(
+        'The member already has an approved or disbursed loan in the payment process.',
+      );
+    }
+
+    const [associate] = await this.db
+      .select({
+        isPayrollCredit: associates.isPayrollCredit,
+        balance: associateAccounts.balance,
+      })
+      .from(associates)
+      .where(eq(associates.id, associateId))
+      .leftJoin(
+        associateAccounts,
+        eq(associateAccounts.associateId, associateId),
+      );
+
+    // verifica si el asociado tiene un credinomina activo
+    if (associate.isPayrollCredit) {
+      throw new InternalServerErrorException('has an active payroll credit.');
+    }
+
+    const assetsPercentage = this.calculatePercentage(
+      Number(associate?.balance ?? 0),
+      80,
+    );
+
+    //valida  que le monto solicitado sea menor al 80 de sus haberes disponible
+    if (Number(assetsPercentage) < Number(requestedAmount)) {
+      throw new InternalServerErrorException(
+        'Your available funds are less than the requested amount.',
+      );
+    }
+
+    //Fetch type loan
+    const [getLoanTypes] = await this.db
+      .select()
+      .from(loanTypes)
+      .where(eq(loanTypes.id, loanTypeId));
+
+    const annualInterestRate = parseFloat(getLoanTypes.interestRate);
     const monthlyInterestRate = annualInterestRate / 100 / 12;
 
     // 1. Perform calculations
     // Using the standard formula for annuity loan payments
     const monthlyPayment =
-      amount *
+      requestedAmount *
       (monthlyInterestRate /
-        (1 - Math.pow(1 + monthlyInterestRate, -termMonths)));
-    const totalAmountToPay = monthlyPayment * termMonths;
-    const totalInterestAmount = totalAmountToPay - amount;
+        (1 - Math.pow(1 + monthlyInterestRate, -getLoanTypes.termUnits))); //Cálculo del pago mensual
+    const totalAmountToPay = monthlyPayment * getLoanTypes.termUnits; //Cálculo del monto total a pagar
+    const totalInterestAmount = totalAmountToPay - requestedAmount; //Cálculo del monto total de intereses
+
+    const totalDisbursedAmount = requestedAmount - expensesAmount;
 
     let customReference: string | null = null;
     let approvalDate: Date | null = null;
-    const currentDate = new Date();
+    const currentDate = new Date(); // Fecha actual
+    const nextMonthDate = this.addMonthsToDate(currentDate, 1); // fecha de comienzo pago
+
+    const finalDate = this.addMonthsToDate(
+      nextMonthDate,
+      getLoanTypes.termUnits,
+    ); //fecha finalizacion del pago
 
     // 2 & 3. Handle APPROVED status
     if (status === LoanStatusEnum.APPROVED) {
@@ -202,19 +297,30 @@ export class LoanService {
         .insert(loans)
         .values({
           associateId: Number(associateId),
-          amount,
-          termMonths,
-          interestRate: annualInterestRate, // Store annual rate
+          companyId: Number(companyId),
+          loanTypeId: Number(loanTypeId),
+          requestDate: requestDate.toISOString().split('T')[0],
+          approvalDate: approvalDate,
+          disbursementDate: status === 'DISBURSED' ? new Date() : null,
+          requestedAmount: requestedAmount,
+          approvedAmount: requestedAmount,
+          disbursedAmount: totalDisbursedAmount,
+          startDate: nextMonthDate,
+          endDate: finalDate,
           totalInterestAmount: parseFloat(totalInterestAmount.toFixed(2)),
-          totalAmount: parseFloat(totalAmountToPay.toFixed(2)), // Total principal + interest
-          monthlyPayment: parseFloat(monthlyPayment.toFixed(2)),
-          status,
-          requestDate: new Date(requestDate),
-          approvalDate,
-          customReference,
-          purpose,
+          totalPayable: parseFloat(totalAmountToPay.toFixed(2)),
+          expensesAmount: expensesAmount,
+          overdraftAmount: overdraftAmount ?? null,
+          previousLoanId: previousLoanId ?? null,
+          paymentMethod: paymentMethod,
+          disbursementAccountId: disbursementAccountId,
+          status: status,
+          approvedByUserId: userId,
+          disbursedByUserId: status === 'DISBURSED' ? userId : null,
+          notes: notes ?? null,
+          customReference: customReference,
           createdById: userId,
-          updatedById: createdById, // Set updatedById initially
+          updatedById: userId, // Set updatedById initially
         })
         .returning();
 
@@ -240,9 +346,9 @@ export class LoanService {
       if (status === LoanStatusEnum.APPROVED) {
         const schedule = this.generateAmortizationSchedule(
           newLoan.id,
-          amount,
+          requestedAmount,
           monthlyInterestRate,
-          termMonths,
+          getLoanTypes.termUnits,
           monthlyPayment,
           approvalDate || currentDate, // Use approval date or current if somehow null
         );
