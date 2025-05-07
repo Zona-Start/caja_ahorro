@@ -4,8 +4,8 @@ import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
-import { AssociatesModal } from '../ordinary-loans-modal';
 import {
   ESTATUS_OPTIONS,
   PAYROLL_OPTIONS,
@@ -50,11 +50,11 @@ export default function AssociatesTableAction() {
           filterValue={payrollFilter}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="h-4 w-4" /> Nuevo Préstamos
-      </Button>
-
-      <AssociatesModal open={open} onOpenChange={setOpen} />
+      <Link href="/dashboard/prestamos/ordinarios/nuevo">
+        <Button size="sm">
+          <Plus className="h-4 w-4" /> Nuevo Préstamos
+        </Button>
+      </Link>
     </div>
   );
 }
