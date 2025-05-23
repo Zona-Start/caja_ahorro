@@ -30,7 +30,7 @@ export interface GeneralConfig {
   group: string;
 }
 
-interface SystemConfigState {
+export interface SystemConfigState {
   generalConfig: GeneralConfig[];
   currencies: Currency[];
   exchangeRates: ExchangeRates[];

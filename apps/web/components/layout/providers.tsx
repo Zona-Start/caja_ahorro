@@ -1,6 +1,7 @@
 'use client';
 import { ThemeProvider } from '@repo/shadcn/themes-provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { SessionProvider, SessionProviderProps } from 'next-auth/react';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { ReactNode } from 'react';
@@ -38,6 +39,7 @@ const Providers = ({
         >
           <NuqsAdapter>
             <SessionProvider session={session}>{children}</SessionProvider>
+            <ReactQueryDevtools initialIsOpen={false} />
           </NuqsAdapter>
         </ThemeProvider>
       </QueryClientProvider>

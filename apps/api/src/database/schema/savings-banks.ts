@@ -25,6 +25,7 @@ import {
   associateMovementTypeEnum,
   currencyCodeEnum,
   genderEnum,
+  loanModalityTypeEnum,
   loanStatusEnum,
   nationalityEnum,
   paymentMethodEnum,
@@ -382,6 +383,7 @@ export const loans = savingsBanksSchema.table(
     loanTypeId: integer('loan_type_id') // Tipo de préstamo (FK a tabla de tipos)
       .notNull()
       .references(() => loanTypes.id),
+    loanModality: loanModalityTypeEnum('loan_modality').notNull(), // Modalidad del préstamo (Ej: ordinario, cuotas especiales)
     requestDate: date('request_date').notNull().defaultNow(), // Fecha en que se solicita
     approvalDate: date('approval_date'), // Fecha de aprobación (si aplica)
     disbursementDate: date('disbursement_date'), // Fecha del desembolso
@@ -394,6 +396,10 @@ export const loans = savingsBanksSchema.table(
     startDate: date('start_date'), // Fecha de inicio de pago
     endDate: date('end_date'), // Fecha final del préstamo
     totalInterest: numeric('total_interest', { precision: 18, scale: 2 }), // Intereses totales
+    installmentAmount: numeric('Installment_amount', {
+      precision: 18,
+      scale: 2,
+    }), // monto de la cuota
     totalPayable: numeric('total_payable', { precision: 18, scale: 2 }), // Total a pagar
     expensesAmount: numeric('expenses_amount', { precision: 18, scale: 2 }), // Monto de gastos administrativos
     overdraftAmount: numeric('overdraft_amount', { precision: 18, scale: 2 }), // Sobregiro si aplica
@@ -409,6 +415,11 @@ export const loans = savingsBanksSchema.table(
     ), // Usuario que desembolsa
     notes: text('notes'), // Observaciones
     customReference: varchar('custom_reference', { length: 50 }), // Nro. solicitud personalizado
+    currencyCode: currencyCodeEnum('currency_code'), // Moneda del préstamo (VES, USD)
+    exchangeRateId: integer('exchange_rate_id').references(
+      () => exchangeRates.id,
+      { onDelete: 'set null' }, // O 'restrict' según tus necesidades
+    ),
     ...timestamps, // created_at y updated_at
   },
   (table) => ({

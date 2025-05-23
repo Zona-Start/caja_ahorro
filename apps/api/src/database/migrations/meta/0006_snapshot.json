@@ -1,6 +1,6 @@
 {
-  "id": "54f47085-ef72-468f-a492-2b63ad6ab4c8",
-  "prevId": "48a1da61-4202-439c-9ac2-ca80481f0056",
+  "id": "f5f18183-f1fe-4c40-b41e-ec12c8023fbe",
+  "prevId": "5236299c-b645-427e-a654-fda65d70dc3e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6298,6 +6298,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "loan_modality": {
+          "name": "loan_modality",
+          "type": "loan_modality_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
         "request_date": {
           "name": "request_date",
           "type": "date",
@@ -6349,6 +6356,12 @@
         },
         "total_interest": {
           "name": "total_interest",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Installment_amount": {
+          "name": "Installment_amount",
           "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": false
@@ -6433,7 +6446,7 @@
           "type": "currency_code_enum",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "exchange_rate_id": {
           "name": "exchange_rate_id",
@@ -7204,6 +7217,14 @@
         "FEMENINO",
         "MASCULINO",
         "OTRO"
+      ]
+    },
+    "public.loan_modality_type_enum": {
+      "name": "loan_modality_type_enum",
+      "schema": "public",
+      "values": [
+        "ORDINARY",
+        "SPECIAL_QUOTAS"
       ]
     },
     "public.loan_status_enum": {

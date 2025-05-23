@@ -131,3 +131,9 @@ export const paymentMethodEnum = pgEnum('payment_method_enum', [
   'OTHER', // Otro método
   'MOBILE_PAYMENT', //PAGO MOVIL
 ]);
+
+// Enum Modalidad de prestamos
+export const loanModalityTypeEnum = pgEnum('loan_modality_type_enum', [
+  'ORDINARY',
+  'SPECIAL_QUOTAS',
+]);

@@ -1,6 +1,6 @@
 {
-  "id": "82c92ef6-81c5-4311-8141-e97faa9dfd73",
-  "prevId": "c842fed2-68e1-40ac-bb57-b952195e0f39",
+  "id": "4d49a98c-8760-4ba5-a821-54ca95cd9420",
+  "prevId": "54f47085-ef72-468f-a492-2b63ad6ab4c8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4635,6 +4635,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "reference_number": {
+          "name": "reference_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "exchange_rate_id": {
           "name": "exchange_rate_id",
           "type": "integer",
@@ -4800,7 +4806,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "associate_account_movements_reference_number_unique": {
+          "name": "associate_account_movements_reference_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference_number"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -6321,30 +6335,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "interest_rate_annual": {
-          "name": "interest_rate_annual",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "term_months": {
-          "name": "term_months",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "installments_count": {
-          "name": "installments_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "projected_installment_amount": {
-          "name": "projected_installment_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "start_date": {
           "name": "start_date",
           "type": "date",
@@ -6435,6 +6425,19 @@
         "custom_reference": {
           "name": "custom_reference",
           "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "exchange_rate_id": {
+          "name": "exchange_rate_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -6599,6 +6602,20 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loans_exchange_rate_id_exchange_rates_id_fk": {
+          "name": "loans_exchange_rate_id_exchange_rates_id_fk",
+          "tableFrom": "loans",
+          "tableTo": "exchange_rates",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "exchange_rate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "loans_created_by_id_users_id_fk": {
@@ -7158,7 +7175,8 @@
         "OTHER_DEBIT",
         "ADJUSTMENT_CREDIT",
         "ADJUSTMENT_DEBIT",
-        "FEE_REIMBURSEMENT_CREDIT"
+        "FEE_REIMBURSEMENT_CREDIT",
+        "FEE_CORRECTION_DEBIT"
       ]
     },
     "public.currency_code_enum": {

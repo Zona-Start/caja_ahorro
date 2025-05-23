@@ -1,6 +1,5 @@
 import { NavItem } from '@/types';
 
-
 //Info: The following data is used for the sidebar navigation and Cmd K bar.
 export const savingBankItems: NavItem[] = [
   {
@@ -30,25 +29,21 @@ export const savingBankItems: NavItem[] = [
         title: 'Carga Individual',
         shortcut: ['l', 'l'],
         url: '/dashboard/haberes/carga-individual',
-
       },
       {
         title: 'Carga Masiva',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
       {
         title: 'Retiro Parcial',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
       {
         title: 'Liquidación',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
     ], // No child items
   },
@@ -62,27 +57,24 @@ export const savingBankItems: NavItem[] = [
 
     items: [
       {
-        title: 'Prestamos Ordinarios',
-        url: '/dashboard/prestamos/ordinarios',
+        title: 'Gestión de Prestamos',
+        url: '/dashboard/prestamos/gestion',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Tipos Prestamos',
         shortcut: ['l', 'l'],
         url: '/dashboard/prestamos/tipo-prestamos',
-
       },
       {
         title: 'Refinanciamiento',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
       {
         title: 'Reintegros',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
     ],
   },
@@ -103,7 +95,6 @@ export const savingBankItems: NavItem[] = [
         title: 'Con Cuotas Espciales',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
     ],
   },
@@ -118,19 +109,16 @@ export const savingBankItems: NavItem[] = [
         title: 'Frecuencias de Pagos',
         shortcut: ['l', 'l'],
         url: '/dashboard/categorias/frecuencias-pago',
-
       },
       {
         title: 'Tipos de Asociados',
         shortcut: ['l', 'l'],
         url: '/dashboard/categorias/tipo-asociados',
-
       },
       {
         title: 'Tipos de Nomina',
         shortcut: ['l', 'l'],
         url: '/dashboard/categorias/tipo-nomina',
-
       },
     ], // No child items
   },
@@ -153,7 +141,6 @@ export const AccountingItems: NavItem[] = [
         title: 'Cuentas de Asociados',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
     ],
   },
@@ -173,13 +160,11 @@ export const AccountingItems: NavItem[] = [
         title: 'Libro Diario',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
       {
         title: 'Libro Mayor',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
     ],
   },
@@ -194,19 +179,16 @@ export const AccountingItems: NavItem[] = [
         title: 'Balance Comprobación',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
       {
         title: 'Balance general',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
       {
         title: 'Estado de Resultados',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
     ],
   },
@@ -221,13 +203,11 @@ export const AccountingItems: NavItem[] = [
         title: 'Balance de Asociados',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
       {
         title: 'Cuentas de Asociados',
         shortcut: ['l', 'l'],
         url: '#',
-
       },
     ],
   },
@@ -289,7 +269,6 @@ export const ConfigItems: NavItem[] = [
         title: 'Numeración  Documentos',
         shortcut: ['l', 'l'],
         url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
-
       },
     ],
   },

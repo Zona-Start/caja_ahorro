@@ -1,6 +1,6 @@
 {
-  "id": "54f47085-ef72-468f-a492-2b63ad6ab4c8",
-  "prevId": "48a1da61-4202-439c-9ac2-ca80481f0056",
+  "id": "189e1bfe-e469-40ec-ac73-07f0f8656233",
+  "prevId": "31d444b4-3f79-4040-9fa9-b8cb7c5a2a0b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6353,6 +6353,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "Installment_amount": {
+          "name": "Installment_amount",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
         "total_payable": {
           "name": "total_payable",
           "type": "numeric(18, 2)",
@@ -6433,7 +6439,7 @@
           "type": "currency_code_enum",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "exchange_rate_id": {
           "name": "exchange_rate_id",

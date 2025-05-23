@@ -1,6 +1,6 @@
 {
-  "id": "3ae686b3-cfe3-431c-b2fe-c6905ccb29e4",
-  "prevId": "82c92ef6-81c5-4311-8141-e97faa9dfd73",
+  "id": "31d444b4-3f79-4040-9fa9-b8cb7c5a2a0b",
+  "prevId": "4d49a98c-8760-4ba5-a821-54ca95cd9420",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6335,30 +6335,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "interest_rate_annual": {
-          "name": "interest_rate_annual",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "term_months": {
-          "name": "term_months",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "installments_count": {
-          "name": "installments_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "projected_installment_amount": {
-          "name": "projected_installment_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "start_date": {
           "name": "start_date",
           "type": "date",
@@ -6374,6 +6350,12 @@
         "total_interest": {
           "name": "total_interest",
           "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Installment_amount": {
+          "name": "Installment_amount",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -6449,6 +6431,19 @@
         "custom_reference": {
           "name": "custom_reference",
           "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "exchange_rate_id": {
+          "name": "exchange_rate_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -6613,6 +6608,20 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "loans_exchange_rate_id_exchange_rates_id_fk": {
+          "name": "loans_exchange_rate_id_exchange_rates_id_fk",
+          "tableFrom": "loans",
+          "tableTo": "exchange_rates",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "exchange_rate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "loans_created_by_id_users_id_fk": {

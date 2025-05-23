@@ -8,8 +8,8 @@ interface AlertModalProps {
   title?: string;
   description?: string;
   onClose: () => void;
-  onConfirm: () => void;
-  loading: boolean;
+  onConfirm?: () => void;
+  loading?: boolean;
 }
 
 export const AlertModal: React.FC<AlertModalProps> = ({

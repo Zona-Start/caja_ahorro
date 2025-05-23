@@ -41,6 +41,8 @@ export interface CustomCalendarProps {
   id?: string;
   /** Requerido (para formularios) */
   required?: boolean;
+  /** Fecha mínima seleccionable */
+  minDate?: Date;
   /** Referencia al elemento DOM */
   ref?: React.Ref<HTMLButtonElement>;
 }
@@ -62,6 +64,7 @@ export const CustomCalendar = forwardRef<
       name,
       id,
       required = false,
+      minDate, // <-- nueva prop
       ...props
     },
     ref,
@@ -293,8 +296,10 @@ export const CustomCalendar = forwardRef<
                           isToday(day) && 'bg-accent text-accent-foreground',
                           isSelected(day) &&
                             'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground',
+                          minDate && day < new Date(minDate.setHours(0,0,0,0)) && 'opacity-40 pointer-events-none' // deshabilita días menores a minDate
                         )}
                         onClick={() => handleSelectDay(day)}
+                        disabled={minDate && day < new Date(minDate.setHours(0,0,0,0))}
                       >
                         {day.getDate()}
                       </Button>

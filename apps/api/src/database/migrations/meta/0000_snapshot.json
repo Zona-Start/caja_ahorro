@@ -1,5 +1,5 @@
 {
-  "id": "2337557a-f1ee-436d-8503-485d4be4a304",
+  "id": "48a1da61-4202-439c-9ac2-ca80481f0056",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -4405,6 +4405,175 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "savings_banks.associate_account_balance_history": {
+      "name": "associate_account_balance_history",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associate_account_id": {
+          "name": "associate_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance_date": {
+          "name": "balance_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "movement_id": {
+          "name": "movement_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "name": "reason",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "assoc_acct_bal_hist_account_date_idx": {
+          "name": "assoc_acct_bal_hist_account_date_idx",
+          "columns": [
+            {
+              "expression": "associate_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "balance_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assoc_acct_bal_hist_movement_idx": {
+          "name": "assoc_acct_bal_hist_movement_idx",
+          "columns": [
+            {
+              "expression": "movement_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "associate_account_balance_history_associate_account_id_associate_accounts_id_fk": {
+          "name": "associate_account_balance_history_associate_account_id_associate_accounts_id_fk",
+          "tableFrom": "associate_account_balance_history",
+          "tableTo": "associate_accounts",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "associate_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "associate_account_balance_history_movement_id_associate_account_movements_id_fk": {
+          "name": "associate_account_balance_history_movement_id_associate_account_movements_id_fk",
+          "tableFrom": "associate_account_balance_history",
+          "tableTo": "associate_account_movements",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "movement_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "associate_account_balance_history_created_by_id_users_id_fk": {
+          "name": "associate_account_balance_history_created_by_id_users_id_fk",
+          "tableFrom": "associate_account_balance_history",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "associate_account_balance_history_updated_by_id_users_id_fk": {
+          "name": "associate_account_balance_history_updated_by_id_users_id_fk",
+          "tableFrom": "associate_account_balance_history",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "savings_banks.associate_account_movements": {
       "name": "associate_account_movements",
       "schema": "savings_banks",
@@ -4431,12 +4600,6 @@
         "amount": {
           "name": "amount",
           "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "movement_sign": {
-          "name": "movement_sign",
-          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
@@ -4472,21 +4635,15 @@
           "primaryKey": false,
           "notNull": false
         },
-        "accounting_entry_id": {
-          "name": "accounting_entry_id",
+        "reference_number": {
+          "name": "reference_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exchange_rate_id": {
+          "name": "exchange_rate_id",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "exchange_rate_used": {
-          "name": "exchange_rate_used",
-          "type": "numeric(18, 8)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount_base_currency": {
-          "name": "amount_base_currency",
-          "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": false
         },
@@ -4574,11 +4731,11 @@
           "method": "btree",
           "with": {}
         },
-        "assoc_acct_mov_acct_entry_idx": {
-          "name": "assoc_acct_mov_acct_entry_idx",
+        "assoc_acct_mov_exchange_rate_idx": {
+          "name": "assoc_acct_mov_exchange_rate_idx",
           "columns": [
             {
-              "expression": "accounting_entry_id",
+              "expression": "exchange_rate_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4605,13 +4762,13 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "associate_account_movements_accounting_entry_id_accounting_entries_id_fk": {
-          "name": "associate_account_movements_accounting_entry_id_accounting_entries_id_fk",
+        "associate_account_movements_exchange_rate_id_exchange_rates_id_fk": {
+          "name": "associate_account_movements_exchange_rate_id_exchange_rates_id_fk",
           "tableFrom": "associate_account_movements",
-          "tableTo": "accounting_entries",
-          "schemaTo": "accounting",
+          "tableTo": "exchange_rates",
+          "schemaTo": "core",
           "columnsFrom": [
-            "accounting_entry_id"
+            "exchange_rate_id"
           ],
           "columnsTo": [
             "id"
@@ -4649,7 +4806,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "associate_account_movements_reference_number_unique": {
+          "name": "associate_account_movements_reference_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference_number"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -5763,7 +5928,7 @@
           "name": "interest_rate",
           "type": "numeric(5, 2)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "term_type": {
           "name": "term_type",
@@ -6170,30 +6335,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "interest_rate_annual": {
-          "name": "interest_rate_annual",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "term_months": {
-          "name": "term_months",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "installments_count": {
-          "name": "installments_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "projected_installment_amount": {
-          "name": "projected_installment_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "start_date": {
           "name": "start_date",
           "type": "date",
@@ -6484,6 +6625,460 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "savings_banks.withdrawal_types": {
+      "name": "withdrawal_types",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "withdrawal_percentage": {
+          "name": "withdrawal_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "account_debit": {
+          "name": "account_debit",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expense_account": {
+          "name": "expense_account",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "administrative_fee_percentage": {
+          "name": "administrative_fee_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "withdrawal_limit_quantity": {
+          "name": "withdrawal_limit_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "minimum_antiquity_days": {
+          "name": "minimum_antiquity_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "withdrawal_types_description_uidx": {
+          "name": "withdrawal_types_description_uidx",
+          "columns": [
+            {
+              "expression": "description",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "withdrawal_types_account_debit_idx": {
+          "name": "withdrawal_types_account_debit_idx",
+          "columns": [
+            {
+              "expression": "account_debit",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "withdrawal_types_expense_account_idx": {
+          "name": "withdrawal_types_expense_account_idx",
+          "columns": [
+            {
+              "expression": "expense_account",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "withdrawal_types_frequency_relation_idx": {
+          "name": "withdrawal_types_frequency_relation_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "withdrawal_types_account_debit_account_plan_id_fk": {
+          "name": "withdrawal_types_account_debit_account_plan_id_fk",
+          "tableFrom": "withdrawal_types",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "account_debit"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "withdrawal_types_expense_account_account_plan_id_fk": {
+          "name": "withdrawal_types_expense_account_account_plan_id_fk",
+          "tableFrom": "withdrawal_types",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "expense_account"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "withdrawal_types_category_id_category_types_id_fk": {
+          "name": "withdrawal_types_category_id_category_types_id_fk",
+          "tableFrom": "withdrawal_types",
+          "tableTo": "category_types",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "withdrawal_types_created_by_id_users_id_fk": {
+          "name": "withdrawal_types_created_by_id_users_id_fk",
+          "tableFrom": "withdrawal_types",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "withdrawal_types_updated_by_id_users_id_fk": {
+          "name": "withdrawal_types_updated_by_id_users_id_fk",
+          "tableFrom": "withdrawal_types",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "withdrawal_types_description_unique": {
+          "name": "withdrawal_types_description_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "description"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.withdrawals_associates": {
+      "name": "withdrawals_associates",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associate_account_id": {
+          "name": "associate_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "withdrawal_type_id": {
+          "name": "withdrawal_type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawal_date": {
+          "name": "withdrawal_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "requested_amount": {
+          "name": "requested_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "administrative_fee": {
+          "name": "administrative_fee",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "disbursed_amount": {
+          "name": "disbursed_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference_code": {
+          "name": "reference_code",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "withdrawals_associate_account_idx": {
+          "name": "withdrawals_associate_account_idx",
+          "columns": [
+            {
+              "expression": "associate_account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "withdrawals_withdrawal_type_idx": {
+          "name": "withdrawals_withdrawal_type_idx",
+          "columns": [
+            {
+              "expression": "withdrawal_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "withdrawals_withdrawal_date_idx": {
+          "name": "withdrawals_withdrawal_date_idx",
+          "columns": [
+            {
+              "expression": "withdrawal_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "withdrawals_reference_code_uidx": {
+          "name": "withdrawals_reference_code_uidx",
+          "columns": [
+            {
+              "expression": "reference_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "withdrawals_associates_associate_account_id_associate_accounts_id_fk": {
+          "name": "withdrawals_associates_associate_account_id_associate_accounts_id_fk",
+          "tableFrom": "withdrawals_associates",
+          "tableTo": "associate_accounts",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "associate_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "withdrawals_associates_withdrawal_type_id_withdrawal_types_id_fk": {
+          "name": "withdrawals_associates_withdrawal_type_id_withdrawal_types_id_fk",
+          "tableFrom": "withdrawals_associates",
+          "tableTo": "withdrawal_types",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "withdrawal_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "withdrawals_associates_created_by_id_users_id_fk": {
+          "name": "withdrawals_associates_created_by_id_users_id_fk",
+          "tableFrom": "withdrawals_associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "withdrawals_associates_updated_by_id_users_id_fk": {
+          "name": "withdrawals_associates_updated_by_id_users_id_fk",
+          "tableFrom": "withdrawals_associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "withdrawals_associates_reference_code_unique": {
+          "name": "withdrawals_associates_reference_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "reference_code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -6548,9 +7143,13 @@
         "SAVING_WITHDRAWAL",
         "LOAN_PAYMENT_DEBIT",
         "FEE_DEBIT",
+        "WITHDRAWAL_FEE_DEBIT",
+        "LOAN_INTEREST_DEBIT",
         "OTHER_DEBIT",
         "ADJUSTMENT_CREDIT",
-        "ADJUSTMENT_DEBIT"
+        "ADJUSTMENT_DEBIT",
+        "FEE_REIMBURSEMENT_CREDIT",
+        "FEE_CORRECTION_DEBIT"
       ]
     },
     "public.currency_code_enum": {
@@ -6610,7 +7209,8 @@
         "BANK_TRANSFER",
         "CHECK",
         "DEPOSIT",
-        "OTHER"
+        "OTHER",
+        "MOBILE_PAYMENT"
       ]
     },
     "public.payment_status_enum": {

@@ -133,3 +133,8 @@ export enum paymentMethodEnum {
   OTHER = 'OTHER',
   MOBILE_PAYMENT = 'MOBILE_PAYMENT',
 }
+
+export enum loanModalityTypeEnum {
+  ORDINARY = 'ORDINARY',
+  SPECIAL_QUOTAS = 'SPECIAL_QUOTAS',
+}
