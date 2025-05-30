@@ -101,3 +101,10 @@ export const LoanAssociateGetResponseSchema = z.object({
   exchangeRateId: z.number().nullable(),
   totalLoans: z.number().nullable(),
 });
+
+export const loanManagementAllCountResponseSchema = z.object({
+  totalLoansOrdinary: z.number(),
+  totalLoanSpecialQuotas: z.number(),
+  totalLoanPaid: z.number(),
+  totalLoanInPaymet: z.number(),
+});

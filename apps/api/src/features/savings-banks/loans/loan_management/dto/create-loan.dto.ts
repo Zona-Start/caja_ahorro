@@ -52,7 +52,6 @@ export class CreateLoanDto {
   expensesAmount: number; // Monto de gastos administrativo
 
   @IsNumber()
-  @IsPositive()
   @IsOptional()
   overdraftAmount?: number; // Sobregiro si aplica
 

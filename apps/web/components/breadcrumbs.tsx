@@ -8,7 +8,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@repo/shadcn/breadcrumb';
-import { Slash } from 'lucide-react';
 import { Fragment } from 'react';
 
 export function Breadcrumbs() {
@@ -24,11 +23,7 @@ export function Breadcrumbs() {
                 <BreadcrumbLink href={item.link}>{item.title}</BreadcrumbLink>
               </BreadcrumbItem>
             )}
-            {index < items.length - 1 && (
-              <BreadcrumbSeparator className="hidden md:block">
-                <Slash />
-              </BreadcrumbSeparator>
-            )}
+            {index < items.length - 1 && <BreadcrumbSeparator />}
             {index === items.length - 1 && (
               <BreadcrumbItem>
                 <BreadcrumbPage>{item.title}</BreadcrumbPage>

@@ -30,11 +30,11 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/haberes/carga-individual',
       },
-      {
-        title: 'Carga Masiva',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
+      // {
+      //   title: 'Carga Masiva',
+      //   shortcut: ['l', 'l'],
+      //   url: '#',
+      // },
       {
         title: 'Retiro Parcial',
         shortcut: ['l', 'l'],
@@ -67,15 +67,15 @@ export const savingBankItems: NavItem[] = [
         url: '/dashboard/prestamos/tipo-prestamos',
       },
       {
-        title: 'Refinanciamiento',
+        title: 'Gestión de Pagos',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/prestamos/pagos',
       },
-      {
-        title: 'Reintegros',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
+      // {
+      //   title: 'Reintegros',
+      //   shortcut: ['l', 'l'],
+      //   url: '#',
+      // },
     ],
   },
   {
@@ -87,12 +87,17 @@ export const savingBankItems: NavItem[] = [
 
     items: [
       {
-        title: 'Ordinarios',
+        title: 'Gestion de Créditos',
         url: '#',
         shortcut: ['m', 'm'],
       },
       {
-        title: 'Con Cuotas Espciales',
+        title: 'Tipos de Créditos',
+        url: '#',
+        shortcut: ['m', 'm'],
+      },
+      {
+        title: 'Gestión de Pagos',
         shortcut: ['l', 'l'],
         url: '#',
       },

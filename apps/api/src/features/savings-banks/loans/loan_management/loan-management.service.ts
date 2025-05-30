@@ -92,6 +92,7 @@ export class LoanManagementService {
     administrativeFeeRate: number, // Tasa de interés por gasto administrativo
     startDate: Date, // Fecha de inicio del préstamo
     loanId: number, // Identificador del préstamo
+    createdById: number,
   ): Omit<
     LoanAmortizationSchedule,
     | 'id'
@@ -100,7 +101,6 @@ export class LoanManagementService {
     | 'accountingEntryId'
     | 'createdAt'
     | 'updatedAt'
-    | 'createdById'
     | 'updatedById'
   >[] {
     const totalInterest = (loanAmount * annualInterestRate) / 100;
@@ -118,7 +118,6 @@ export class LoanManagementService {
       | 'accountingEntryId'
       | 'createdAt'
       | 'updatedAt'
-      | 'createdById'
       | 'updatedById'
     >[] = [];
     let remainingBalance = loanAmount;
@@ -147,6 +146,7 @@ export class LoanManagementService {
           ),
           principalBalancePending: 0, // Should be zero on the last payment
           paymentStatus: PaymentStatusEnum.PENDING, // Default status
+          createdById: createdById,
         });
         remainingBalance = 0; // Ensure remaining balance is exactly zero
       } else {
@@ -166,6 +166,7 @@ export class LoanManagementService {
           totalInstallmentAmount: parseFloat(monthlyPayment.toFixed(2)),
           principalBalancePending: parseFloat(remainingBalance.toFixed(2)),
           paymentStatus: PaymentStatusEnum.PENDING, // Default status
+          createdById: createdById,
         });
       }
 
@@ -413,7 +414,10 @@ export class LoanManagementService {
       });
 
       // 5. Generate and save amortization schedule if APPROVED
-      if (status === LoanStatusEnum.APPROVED) {
+      if (
+        status === LoanStatusEnum.APPROVED ||
+        status === LoanStatusEnum.DISBURSED
+      ) {
         const schedule = this.generateAmortizationSchedule(
           requestedAmount, // Monto del préstamo solicitado
           term, // Plazos en meses
@@ -421,6 +425,7 @@ export class LoanManagementService {
           expensePercentage, // Tasa de interés por gasto administrativo
           approvalDate || currentDate, // Fecha de inicio del préstamo
           newLoan.id, // Identificador del préstamo
+          userId,
         );
         if (schedule.length > 0) {
           await tx.insert(loanAmortizationSchedule).values(
@@ -431,6 +436,7 @@ export class LoanManagementService {
               interestAmount: item.interestAmount.toString(),
               totalInstallmentAmount: item.totalInstallmentAmount.toString(),
               principalBalancePending: item.principalBalancePending.toString(),
+              createdById: item.createdById,
             })),
           );
         }
@@ -853,42 +859,6 @@ export class LoanManagementService {
       approvalDate = currentDate;
     }
 
-    const dataprueba = {
-      ...updateLoanDto,
-      associateId: Number(updateLoanDto.associateId),
-      loanTypeId: Number(updateLoanDto.loanTypeId),
-      loanModality: updateLoanDto?.loanModality,
-      requestDate: updateLoanDto?.requestDate?.toISOString().split('T')[0],
-      approvalDate: approvalDate?.toISOString().split('T')[0],
-      disbursementDate:
-        updateLoanDto?.status === 'DISBURSED'
-          ? currentDate.toISOString().split('T')[0]
-          : null,
-      requestedAmount: updateLoanDto.requestedAmount!.toString(),
-      approvedAmount: updateLoanDto.requestedAmount!.toString(),
-      disbursedAmount: updateLoanDto.requestedAmount!.toString(),
-      startDate: updateLoanDto?.startDate?.toISOString().split('T')[0],
-      endDate: finalDate.toISOString().split('T')[0],
-      totalInterest: String(totalInterest.toFixed(2)),
-      totalPayable: String(totalPayable.toFixed(2)),
-      installmentAmount: String(totalQuota.toFixed(2)),
-      expensesAmount: String(installmentAmount.toFixed(2)),
-      overdraftAmount: updateLoanDto.overdraftAmount ?? null,
-      previousLoanId: updateLoanDto.previousLoanId ?? null,
-      paymentMethod: updateLoanDto.paymentMethod,
-      disbursementAccountId: updateLoanDto.disbursementAccountId,
-      status: updateLoanDto?.status,
-      approvedByUserId: userId,
-      disbursedByUserId: updateLoanDto?.status === 'DISBURSED' ? userId : null,
-      notes: updateLoanDto.notes ?? null,
-      currencyCode: setting?.value === '1' ? 'VES' : 'USD',
-      exchangeRateId: setting?.value === '2' ? exchangeRateData?.id : null,
-      customReference: customReference,
-      updatedById: userId, // Set updatedById initially
-      updatedAt: new Date(),
-    };
-    console.log(dataprueba);
-
     // 4. Actualizar el préstamo y la tabla de amortización en una transacción
     const updatedLoan = await this.db.transaction(async (tx) => {
       // Actualizar préstamo
@@ -965,48 +935,6 @@ export class LoanManagementService {
           customReference: loans.customReference,
         });
 
-      // const [loanUpdated] = await tx
-      //   .update(loans)
-      //   .set({
-      //     ...updateLoanDto,
-      //     associateId: Number(updateLoanDto.associateId),
-      //     loanTypeId: Number(updateLoanDto.loanTypeId),
-      //     loanModality: updateLoanDto?.loanModality,
-      //     requestDate: updateLoanDto?.requestDate?.toISOString().split('T')[0],
-      //     approvalDate: approvalDate?.toISOString().split('T')[0],
-      //     disbursementDate:
-      //       updateLoanDto?.status === 'DISBURSED'
-      //         ? currentDate.toISOString().split('T')[0]
-      //         : null,
-      //     requestedAmount: updateLoanDto.requestedAmount!.toString(),
-      //     approvedAmount: updateLoanDto.requestedAmount!.toString(),
-      //     disbursedAmount: updateLoanDto.requestedAmount!.toString(),
-      //     startDate: updateLoanDto?.startDate?.toISOString().split('T')[0],
-      //     endDate: finalDate.toISOString().split('T')[0],
-      //     totalInterest: String(totalInterest.toFixed(2)),
-      //     totalPayable: String(totalPayable.toFixed(2)),
-      //     installmentAmount: String(totalQuota.toFixed(2)),
-      //     expensesAmount: String(installmentAmount.toFixed(2)),
-      //     overdraftAmount: String(updateLoanDto.overdraftAmount) ?? null,
-      //     previousLoanId: updateLoanDto.previousLoanId ?? null,
-      //     paymentMethod: updateLoanDto.paymentMethod,
-      //     disbursementAccountId: updateLoanDto.disbursementAccountId,
-      //     status: updateLoanDto?.status,
-      //     approvedByUserId: userId,
-      //     disbursedByUserId:
-      //       updateLoanDto?.status === 'DISBURSED' ? userId : null,
-      //     notes: updateLoanDto.notes ?? null,
-      //     currencyCode: setting?.value === '1' ? 'VES' : 'USD',
-      //     exchangeRateId: setting?.value === '2' ? exchangeRateData?.id : null,
-      //     customReference: customReference,
-      //     updatedById: userId, // Set updatedById initially
-      //     updatedAt: new Date(),
-      //   })
-      //   .where(eq(loans.id, id))
-      //   .returning({
-      //     id: loans.id,
-      //     customReference: loans.customReference,
-      //   });
       if (!loanUpdated) {
         throw new InternalServerErrorException('Failed to update loan.');
       }
@@ -1024,6 +952,7 @@ export class LoanManagementService {
         expensePercentage,
         updateLoanDto.startDate!,
         id,
+        userId,
       );
       if (schedule.length > 0) {
         await tx.insert(loanAmortizationSchedule).values(
@@ -1063,28 +992,52 @@ export class LoanManagementService {
       throw new HttpException('Loan not found', HttpStatus.NOT_FOUND);
     }
 
-    // 1. Verificar que el préstamo existe
-    // const existingLoan = await this.db.query.loans.findFirst({
-    //   where: eq(loans.id, id),
-    // });
-    // if (!existingLoan) {
-    //   throw new InternalServerErrorException('Loan not found.');
-    // }
-
-    // // 2. Ejecutar la eliminación en una transacción
-    // await this.db.transaction(async (tx) => {
-    //   // Eliminar la tabla de amortización asociada
-
-    //   // await tx
-    //   //   .delete(loanAmortizationSchedule)
-    //   //   .where(eq(loanAmortizationSchedule.loanId, id));
-    //   // // Eliminar historial de estatus
-    //   // await tx
-    //   //   .delete(loanStatusHistory)
-    //   //   .where(eq(loanStatusHistory.loanId, id));
-    //   // Eliminar el préstamo
-    // });
     await this.db.delete(loans).where(eq(loans.id, id));
     return { message: 'Loan deleted successfully' };
+  }
+
+  async findCountAllLoans() {
+    const totalLoansOrdinary = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.loanModality, loanModalityTypeEnum.ORDINARY),
+          or(
+            eq(loans.status, LoanStatusEnum.APPROVED),
+            eq(loans.status, LoanStatusEnum.DISBURSED),
+          ),
+        ),
+      );
+
+    const totalLoanSpecialQuotas = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.loanModality, loanModalityTypeEnum.SPECIAL_QUOTAS),
+          or(
+            eq(loans.status, LoanStatusEnum.APPROVED),
+            eq(loans.status, LoanStatusEnum.DISBURSED),
+          ),
+        ),
+      );
+
+    const totalLoanPaid = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(eq(loans.status, LoanStatusEnum.PAID));
+
+    const totalLoanInPaymet = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(eq(loans.status, LoanStatusEnum.IN_PAYMENT));
+
+    return {
+      totalLoansOrdinary: Number(totalLoansOrdinary[0].count),
+      totalLoanSpecialQuotas: Number(totalLoanSpecialQuotas[0].count),
+      totalLoanPaid: Number(totalLoanPaid[0].count),
+      totalLoanInPaymet: Number(totalLoanInPaymet[0].count),
+    };
   }
 }

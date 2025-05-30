@@ -3,6 +3,7 @@ import { AssociateAccountsMovementsModule } from './associate-accounts-movements
 import { AssociateAccountsModule } from './associate-accounts/associate-accounts.module';
 import { AssociatesModule } from './associates/associates.module';
 import { LoansFeaturesModule } from './loans/loans.module';
+import { AssociateWithdrawalTypesModule } from './associate-withdrawal-types/associate-withdrawal-types.module';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { LoansFeaturesModule } from './loans/loans.module';
     AssociateAccountsModule,
     LoansFeaturesModule,
     AssociateAccountsMovementsModule,
+    AssociateWithdrawalTypesModule,
   ],
 })
 export class SavingsBanksFeatureModule {}

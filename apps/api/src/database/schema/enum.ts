@@ -137,3 +137,9 @@ export const loanModalityTypeEnum = pgEnum('loan_modality_type_enum', [
   'ORDINARY',
   'SPECIAL_QUOTAS',
 ]);
+
+// Enum Modalidad de pago de prestamo
+export const loanPaymentTypeEnum = pgEnum('loan_payment_type_enum', [
+  'PAYING',
+  'CANCELLATION',
+]);

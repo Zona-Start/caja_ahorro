@@ -53,7 +53,7 @@ export default function UserAuthForm() {
 
         // Si la autenticación es exitosa y `redirect: false`, necesitamos redirigir manualmente
         if (login?.ok && !login?.error) {
-          toast.success('Ingreso Exitoso!');
+          //toast.success('Ingreso Exitoso!');
           router.push(callbackUrl ?? '/dashboard');
         }
       } catch (error) {

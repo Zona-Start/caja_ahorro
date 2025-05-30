@@ -3,6 +3,7 @@ import { safeFetchApi } from '@/lib/fetch.api';
 import { loadAssociateApiResponseSchema } from '../schemas/individual-load-api-schema';
 import {
   LoanAssociateGetResponseSchema,
+  loanManagementAllCountResponseSchema,
   LoanManagementMutationResponse,
   LoanManagementResponseAllSchema,
   LoansDeleteResponseSchema,
@@ -66,11 +67,6 @@ export const getLoanManagementByIdAction = async (id: number) => {
     associateAccountNumber: data?.associateAccountNumber,
     associateBalance: data?.associateBalance,
   };
-
-  // You might need to fetch the loan type details separately to get termMonths, interestRate, etc.
-  // Or ensure the single loan endpoint returns this information.
-  // For now, we'll leave them as empty strings and rely on the form's useEffect to populate them
-  // when loanTypeId is set.
 
   return transformedData;
 };
@@ -244,6 +240,21 @@ export const deleteLoanManagementAction = async (id: number) => {
     console.error('Error:', error);
     throw new Error(error.message || `Error delete loan with ID ${id}`);
   }
+  return data;
+};
+
+export const getLoanManagementAllCountAction = async () => {
+  const [error, data] = await safeFetchApi(
+    loanManagementAllCountResponseSchema, // Use the schema for a single loan
+    `/loan/count`, // API endpoint for a single loan
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || `Error fetching loan count}`);
+  }
+
   return data;
 };
 

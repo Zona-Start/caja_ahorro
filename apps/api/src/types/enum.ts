@@ -138,3 +138,8 @@ export enum loanModalityTypeEnum {
   ORDINARY = 'ORDINARY',
   SPECIAL_QUOTAS = 'SPECIAL_QUOTAS',
 }
+
+export enum loanPaymetTypeEnum {
+  CANCELLATION = 'CANCELLATION',
+  PAYING = 'PAYING',
+}

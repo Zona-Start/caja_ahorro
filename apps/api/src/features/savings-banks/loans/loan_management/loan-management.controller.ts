@@ -35,6 +35,14 @@ export class LoanManagementController {
     return this.loanManagementService.findAll(paginationDto);
   }
 
+  @Get('count')
+  @RequirePermissions('read:loan-management-count')
+  @ApiOperation({ summary: 'Get all Loan count' })
+  @ApiResponse({ status: 200, description: 'Return all Loan count.' })
+  findCountAllLoans() {
+    return this.loanManagementService.findCountAllLoans();
+  }
+
   @Get('request/:cedula')
   @RequirePermissions('read:loan-management-requests')
   @ApiOperation({ summary: 'Get one Loan associate' })

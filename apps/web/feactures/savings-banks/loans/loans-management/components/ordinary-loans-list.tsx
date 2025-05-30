@@ -29,7 +29,7 @@ export default function LoansList({
     ...(initialSearch && { search: initialSearch }),
     ...(initialStatus && { status: initialStatus }),
     ...(initialType && { type: initialType }),
-    ...(inititalModality && { mdoality: inititalModality }),
+    ...(inititalModality && { modality: inititalModality }),
   };
 
   const { data, isLoading } = useQueryLoanManagement(filters);

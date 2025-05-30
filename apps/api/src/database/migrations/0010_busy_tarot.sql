@@ -1,0 +1,1 @@
+ALTER TABLE "savings_banks"."loan_payments" ADD COLUMN "balance_pending" numeric(18, 2) NOT NULL;

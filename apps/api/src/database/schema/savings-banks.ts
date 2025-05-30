@@ -26,6 +26,7 @@ import {
   currencyCodeEnum,
   genderEnum,
   loanModalityTypeEnum,
+  loanPaymentTypeEnum,
   loanStatusEnum,
   nationalityEnum,
   paymentMethodEnum,
@@ -420,6 +421,7 @@ export const loans = savingsBanksSchema.table(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
     ),
+    balanceInFavor: numeric('balance_in_favor', { precision: 18, scale: 2 }), // balance a favor si aplica
     ...timestamps, // created_at y updated_at
   },
   (table) => ({
@@ -491,25 +493,67 @@ export const loanStatusHistory = savingsBanksSchema.table(
     changedByUserId: integer('changed_by_user_id').references(() => users.id), // Usuario que realizó el cambio
     comment: text('comment'), // Comentario u observación sobre el cambio
   },
+  (table) => ({
+    loanStatusHistoryIdx: index('loan_status_history_idx').on(table.status),
+  }),
 );
 
 // tabla registro de los pagos
-export const loanPayments = savingsBanksSchema.table('loan_payments', {
-  id: serial('id').primaryKey(),
-  loanId: integer('loan_id')
-    .notNull()
-    .references(() => loans.id, { onDelete: 'cascade' }),
-  installmentId: integer('installment_id').references(
-    () => loanAmortizationSchedule.id,
-    { onDelete: 'cascade' },
-  ), // Si aplica a una cuota específica
-  paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
-  amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
-  bankId: integer('bank_id')
-    .notNull()
-    .references(() => bankDirectory.id), // Banco que procesó el pago
-  paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
-  transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
-  comment: text('comment'),
-  ...timestamps,
-});
+export const loanPayments = savingsBanksSchema.table(
+  'loan_payments',
+  {
+    id: serial('id').primaryKey(),
+    loanId: integer('loan_id')
+      .notNull()
+      .references(() => loans.id, { onDelete: 'cascade' }),
+    paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
+    paymentType: loanPaymentTypeEnum('payment-type').notNull(),
+    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    balancePending: numeric('balance_pending', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), //saldo pendiente luego del pago
+    bankId: integer('bank_id')
+      .notNull()
+      .references(() => bankDirectory.id), // Banco que procesó el pago
+    paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
+    transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
+    comment: text('comment'),
+    customReference: varchar('custom_reference', { length: 50 }), // Nro. solicitud personalizado
+    ...timestamps,
+  },
+  (table) => ({
+    loanPaymentsReferenceIdx: uniqueIndex('loan_payments_uidx').on(
+      table.customReference,
+    ),
+    paymentDateIdx: index('loan_payments_date_idx').on(table.paymentDate),
+    customReferenceIdx: index('loan_payments_reference_idx').on(
+      table.customReference,
+    ),
+    transactionReferenceIdx: index(
+      'loan_payments_transaction_reference_idx',
+    ).on(table.transactionReference),
+  }),
+);
+
+// tabla registro de los pagos
+export const loanPaymentsDetails = savingsBanksSchema.table(
+  'loan_payment_details',
+  {
+    id: serial('id').primaryKey(),
+    loanPaymentId: integer('loan_payment_id')
+      .notNull()
+      .references(() => loanPayments.id, { onDelete: 'cascade' }),
+    installmentId: integer('installment_id').references(
+      () => loanAmortizationSchedule.id,
+      { onDelete: 'cascade' },
+    ), // Si aplica a una cuota específica
+    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    ...timestamps,
+  },
+  (table) => ({
+    installmentIdx: index('loan_payments_details_installment_idx').on(
+      table.installmentId,
+    ),
+  }),
+);

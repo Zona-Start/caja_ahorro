@@ -1,6 +1,7 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import {
   getLoanManagementAllAction,
+  getLoanManagementAllCountAction,
   getLoanManagementByIdAction,
 } from '../actions/loans-management-actions'; // Import the new action
 
@@ -23,5 +24,13 @@ export function useQueryLoanManagementById(
       enabled: id != null && (options?.enabled ?? true), // Only enabled if id is not null and options allow
       ...options,
     },
+  );
+}
+
+// Hook for a single LoanManagement by ID
+export function useQueryLoanManagementAllCount() {
+  return useSafeQuery(
+    ['loan-management-count'], // Use a query key that includes the ID
+    () => getLoanManagementAllCountAction(), // Call the new action
   );
 }
