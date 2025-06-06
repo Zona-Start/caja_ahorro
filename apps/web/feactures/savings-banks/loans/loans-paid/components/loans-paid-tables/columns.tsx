@@ -49,6 +49,14 @@ export const columns: ColumnDef<LoanPaymentApi>[] = [
     header: 'Referencia Banco',
   },
   {
+    accessorKey: 'associateCedula',
+    header: 'Cédula Asociado',
+  },
+  {
+    accessorKey: 'associateFullname',
+    header: 'Nombre y apellido asociado',
+  },
+  {
     id: 'actions',
     header: 'Acciones',
     cell: ({ row }) => <CellAction data={row.original} />,

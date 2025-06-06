@@ -10,8 +10,27 @@ import { LoanPaid } from '../schemas/loans-paid.schema';
 
 // Mutation hook remains the same
 export function useLoanPaidMutation() {
+  const queryClient = useQueryClient();
+
   const mutation = useMutation({
     mutationFn: (loanPaid: LoanPaid) => saveLoanPaidAction(loanPaid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['loan-paid'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['loan-paid-associate', ''],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['loan-paid-associate'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['loan-management'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['loan-management-count'],
+      });
+    },
   });
 
   return mutation;

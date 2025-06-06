@@ -88,18 +88,18 @@ export const savingBankItems: NavItem[] = [
     items: [
       {
         title: 'Gestion de Créditos',
-        url: '#',
+        url: '/dashboard/creditos/gestion',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Tipos de Créditos',
-        url: '#',
+        url: '/dashboard/creditos/tipo-creditos',
         shortcut: ['m', 'm'],
       },
       {
         title: 'Gestión de Pagos',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/creditos/pagos',
       },
     ],
   },
@@ -303,12 +303,27 @@ export const ConfigItems: NavItem[] = [
   },
 ];
 
-export type Product = {
-  name: string;
-  description: string;
-  created_at: string;
-  price: number;
-  id: number;
-  category: string;
-  updated_at: string;
+export const useTypeSuppliers = () => {
+  const data = [
+    {
+      id: 1,
+      name: 'Inventario Caprebicentenario',
+    },
+    {
+      id: 2,
+      name: 'Jornada de Salud',
+    },
+    {
+      id: 3,
+      name: 'Inventario de Combos Escolar',
+    },
+    {
+      id: 4,
+      name: 'FarmaHogarPlus',
+    },
+  ];
+
+  return {
+    data: data,
+  };
 };

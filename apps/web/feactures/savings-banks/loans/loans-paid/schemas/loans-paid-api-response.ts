@@ -11,6 +11,8 @@ export const loanPaymentApiSchema = z.object({
   transactionReference: z.string(),
   amount: z.string(),
   balancePending: z.string(),
+  associateCedula: z.string(),
+  associateFullname: z.string(),
 });
 
 // Tipo inferido

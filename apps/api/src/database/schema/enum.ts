@@ -59,6 +59,14 @@ export const loanStatusEnum = pgEnum('loan_status_enum', [
   'OVERDUE',
 ]);
 
+// Enum Estado Créditos
+export const creditStatusEnum = pgEnum('credit_status_enum', [
+  'REQUESTED',
+  'APPROVED',
+  'IN_PAYMENT',
+  'PAID',
+]);
+
 // Enum Estado Cuota Préstamo
 export const paymentStatusEnum = pgEnum('payment_status_enum', [
   'PENDING',
@@ -138,8 +146,20 @@ export const loanModalityTypeEnum = pgEnum('loan_modality_type_enum', [
   'SPECIAL_QUOTAS',
 ]);
 
+// Enum Modalidad de creditos
+export const creditModalityTypeEnum = pgEnum('credit_modality_type_enum', [
+  'ORDINARY',
+  'SPECIAL_QUOTAS',
+]);
+
 // Enum Modalidad de pago de prestamo
 export const loanPaymentTypeEnum = pgEnum('loan_payment_type_enum', [
+  'PAYING',
+  'CANCELLATION',
+]);
+
+// Enum Modalidad de pago de prestamo
+export const creditPaymentTypeEnum = pgEnum('credit_payment_type_enum', [
   'PAYING',
   'CANCELLATION',
 ]);

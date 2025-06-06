@@ -23,6 +23,9 @@ import {
 } from './core';
 import {
   associateMovementTypeEnum,
+  creditModalityTypeEnum,
+  creditPaymentTypeEnum,
+  creditStatusEnum,
   currencyCodeEnum,
   genderEnum,
   loanModalityTypeEnum,
@@ -553,6 +556,269 @@ export const loanPaymentsDetails = savingsBanksSchema.table(
   },
   (table) => ({
     installmentIdx: index('loan_payments_details_installment_idx').on(
+      table.installmentId,
+    ),
+  }),
+);
+
+// tipos de creditos
+export const creditsTypes = savingsBanksSchema.table(
+  'credits_types',
+  {
+    id: serial('id').primaryKey(), // ID único del tipo de credito
+    name: varchar('name', { length: 100 }).notNull(), // Nombre del tipo de credito
+    description: text('description'), // Descripción del tipo de credito
+    interestRate: numeric('interest_rate', {
+      precision: 5,
+      scale: 2,
+    }).notNull(), // Tasa de interés (puede ser mensual o anual, especificar en la descripción)
+    termType: varchar('term_type', { length: 20 }).notNull(), // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
+    termUnits: integer('term_units').notNull(), // Número de cuotas o duración del plazo (en meses, días, etc., según se especifique)
+    cancellationPercentage: numeric('cancellation_percentage', {
+      precision: 5,
+      scale: 2,
+    }), // Porcentaje de cancelación anticipada (si aplica)
+    creditAccountChartId: integer('credit_account_chart_id')
+      .references(() => accountPlan.id, { onDelete: 'set null' })
+      .notNull(), // Cuenta contable para los credito otorgados
+    interestEarnedAccountChartId: integer('interest_earned_account_chart_id')
+      .references(() => accountPlan.id, { onDelete: 'set null' })
+      .notNull(), // Cuenta contable para los intereses ganados
+    specialQuotaAccountChartId: integer(
+      'special_quota_account_chart_id',
+    ).references(() => accountPlan.id, { onDelete: 'set null' }), // Cuenta contable para las cuotas especiales (opcional)
+    expenseAccountChartId: integer('expense_account_chart_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ), // Cuenta contable para los gastos asociados al credito (opcional)
+    specialQuotaNumber: integer('special_quota_number').default(0), // Número de cuotas especiales permitidas
+    specialQuotaPercentage: numeric('special_quota_percentage', {
+      precision: 5,
+      scale: 2,
+    }).default('0'), // Porcentaje de las cuotas especiales
+    maxCreditAmount: numeric('max_credit_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el credito
+    minCreditAmount: numeric('min_credit_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el credito
+    payrollTypeId: integer('payroll_type_id').references(
+      () => categoryType.id,
+      {
+        onDelete: 'set null',
+      },
+    ), // Relación con el tipo de nómina (opcional)
+    administrativeExpensePercentage: numeric(
+      'administrative_expense_percentage',
+      {
+        precision: 5,
+        scale: 2,
+      },
+    ).default('0'), // Porcentaje de gastos administrativos
+    minimumSeniorityMonths: integer('minimum_seniority_months').default(0), // Antigüedad mínima requerida en la caja de ahorro (en meses)
+    acceptsDebitBalance: boolean('accepts_debit_balance')
+      .notNull()
+      .default(false), // ¿Acepta saldo deudor?
+    acceptsGuarantors: boolean('accepts_guarantors').notNull().default(false), // ¿Acepta fiadores?
+    acceptsAvailability: boolean('accepts_availability')
+      .notNull()
+      .default(false), // ¿Acepta usar la disponibilidad como garantía?
+    acceptsRefinancing: boolean('accepts_refinancing').notNull().default(false), // ¿Acepta refinanciamiento de credito?
+    ...timestamps, // created_at y updated_at
+  },
+  (table) => ({
+    nameIdx: index('credits_types_name_idx').on(table.name), // Índice para búsqueda por nombre del tipo de credito
+    creditAccountChartIdIdx: index(
+      'credits_types_credit_account_chart_id_idx',
+    ).on(table.creditAccountChartId),
+    interestEarnedAccountChartIdIdx: index(
+      'credits_types_interest_earned_account_chart_id_idx',
+    ).on(table.interestEarnedAccountChartId),
+    specialQuotaAccountChartIdIdx: index(
+      'credits_types_special_quota_account_chart_id_idx',
+    ).on(table.specialQuotaAccountChartId),
+    expenseAccountChartIdIdx: index(
+      'credits_types_expense_account_chart_id_idx',
+    ).on(table.expenseAccountChartId),
+    payrollTypeIdIdx: index('credits_types_payroll_type_id_idx').on(
+      table.payrollTypeId,
+    ),
+  }),
+);
+
+//Solicitudes y gestión de creditos a asociados.
+export const credits = savingsBanksSchema.table(
+  'credits',
+  {
+    id: serial('id').primaryKey(), // ID único del préstamo
+    associateId: integer('associate_id')
+      .notNull()
+      .references(() => associates.id, { onDelete: 'restrict' }), // FK al asociado
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, { onDelete: 'cascade' }), // FK a la empresa o cooperativa
+    creditTypeId: integer('credit_type_id') // Tipo de credito (FK a tabla de tipos)
+      .notNull()
+      .references(() => creditsTypes.id),
+    creditModality: creditModalityTypeEnum('credit_modality').notNull(), // Modalidad del credito (Ej: ordinario, cuotas especiales)
+    requestDate: date('request_date').notNull().defaultNow(), // Fecha en que se solicita
+    approvalDate: date('approval_date'), // Fecha de aprobación (si aplica)
+    requestedAmount: numeric('requested_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), // Monto solicitado
+    startDate: date('start_date'), // Fecha de inicio de pago
+    endDate: date('end_date'), // Fecha final del préstamo
+    totalInterest: numeric('total_interest', { precision: 18, scale: 2 }), // Intereses totales
+    installmentAmount: numeric('Installment_amount', {
+      precision: 18,
+      scale: 2,
+    }), // monto de la cuota
+    totalPayable: numeric('total_payable', { precision: 18, scale: 2 }), // Total a pagar
+    expensesAmount: numeric('expenses_amount', { precision: 18, scale: 2 }), // Monto de gastos administrativos
+    overdraftAmount: numeric('overdraft_amount', { precision: 18, scale: 2 }), // Sobregiro si aplica
+    previousCreditId: integer('previous_credit_id').references(
+      () => credits.id,
+    ), // Relación con credito anterior si existe
+    status: creditStatusEnum('status').notNull().default('REQUESTED'), // Estado actual del préstamo
+    rejectionReason: text('rejection_reason'), // En caso de rechazo
+    approvedByUserId: integer('approved_by_user_id').references(() => users.id), // Usuario que aprueba
+    notes: text('notes'), // Observaciones
+    customReference: varchar('custom_reference', { length: 50 }), // Nro. solicitud personalizado
+    currencyCode: currencyCodeEnum('currency_code'), // Moneda del préstamo (VES, USD)
+    exchangeRateId: integer('exchange_rate_id').references(
+      () => exchangeRates.id,
+      { onDelete: 'set null' }, // O 'restrict' según tus necesidades
+    ),
+    balanceInFavor: numeric('balance_in_favor', { precision: 18, scale: 2 }), // balance a favor si aplica
+    commercialHouseId: integer('commercial_house_id'),
+    invoiceNumber: varchar('invoice_number', { length: 50 }),
+    ...timestamps, // created_at y updated_at
+  },
+  (table) => ({
+    associateIdx: index('credit_associate_idx').on(table.associateId),
+    statusDateIdx: index('credit_status_date_idx').on(
+      table.status,
+      table.requestDate,
+    ),
+  }),
+);
+
+// Tabla de amortización del préstamo
+export const creditAmortizationSchedule = savingsBanksSchema.table(
+  'credit_amortization_schedule',
+  {
+    id: serial('id').primaryKey(),
+    creditId: integer('credit_id')
+      .notNull()
+      .references(() => credits.id, { onDelete: 'cascade' }), // FK al préstamo
+    installmentNumber: integer('installment_number').notNull(), // Número de cuota (1, 2, 3, ...)
+    dueDate: date('due_date').notNull(), // Fecha en que debe pagarse esta cuota
+    principalAmount: numeric('principal_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), // Monto del capital de esta cuota
+    interestAmount: numeric('interest_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), // Monto del interés de esta cuota
+    totalInstallmentAmount: numeric('total_installment_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), // Total a pagar en esta cuota
+    principalBalancePending: numeric('principal_balance_pending', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), // Saldo de capital pendiente después de esta cuota
+    paymentStatus: paymentStatusEnum('payment_status')
+      .notNull()
+      .default('PENDING'), // Estado de la cuota (PENDING, PAID, LATE, etc.)
+    paidAmount: numeric('paid_amount', { precision: 18, scale: 2 }).default(
+      '0.00',
+    ), // Monto total pagado hasta ahora para esta cuota
+    lastPaymentDate: timestamp('last_payment_date'), // Última fecha en que se realizó un pago para esta cuota
+    ...timestamps, // created_at y updated_at
+  },
+  (table) => ({
+    creditInstallmentIdx: uniqueIndex(
+      'credit_amort_credit_installment_uidx',
+    ).on(table.creditId, table.installmentNumber), // Cada cuota debe ser única por credito
+    dueDateStatusIdx: index('credit_amort_due_date_status_idx').on(
+      table.dueDate,
+      table.paymentStatus,
+    ), // Para consultas rápidas por vencimiento y estado
+  }),
+);
+
+// Tabla para registrar cambios de estado del préstamo
+export const creditStatusHistory = savingsBanksSchema.table(
+  'credit_status_history',
+  {
+    id: serial('id').primaryKey(),
+    creditId: integer('credit_id')
+      .notNull()
+      .references(() => credits.id, { onDelete: 'cascade' }), // Relación al credito correspondiente
+    status: creditStatusEnum('status').notNull(), // Nuevo estado aplicado al credito
+    changedAt: timestamp('changed_at').notNull().defaultNow(), // Fecha y hora del cambio de estado
+    changedByUserId: integer('changed_by_user_id').references(() => users.id), // Usuario que realizó el cambio
+    comment: text('comment'), // Comentario u observación sobre el cambio
+  },
+  (table) => ({
+    creditStatusHistoryIdx: index('credit_status_history_idx').on(table.status),
+  }),
+);
+
+// tabla registro de los pagos
+export const creditPayments = savingsBanksSchema.table(
+  'credit_payments',
+  {
+    id: serial('id').primaryKey(),
+    creditId: integer('credit_id')
+      .notNull()
+      .references(() => credits.id, { onDelete: 'cascade' }),
+    paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
+    paymentType: creditPaymentTypeEnum('payment-type').notNull(),
+    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    balancePending: numeric('balance_pending', {
+      precision: 18,
+      scale: 2,
+    }).notNull(), //saldo pendiente luego del pago
+    bankId: integer('bank_id')
+      .notNull()
+      .references(() => bankDirectory.id), // Banco que procesó el pago
+    paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
+    transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
+    comment: text('comment'),
+    customReference: varchar('custom_reference', { length: 50 }), // Nro. solicitud personalizado
+    ...timestamps,
+  },
+  (table) => ({
+    creditPaymentsReferenceIdx: uniqueIndex('credit_payments_uidx').on(
+      table.customReference,
+    ),
+    paymentDateIdx: index('credit_payments_date_idx').on(table.paymentDate),
+    customReferenceIdx: index('credit_payments_reference_idx').on(
+      table.customReference,
+    ),
+    transactionReferenceIdx: index(
+      'credit_payments_transaction_reference_idx',
+    ).on(table.transactionReference),
+  }),
+);
+
+// tabla registro de los pagos
+export const creditPaymentsDetails = savingsBanksSchema.table(
+  'credit_payment_details',
+  {
+    id: serial('id').primaryKey(),
+    creditPaymentId: integer('credit_payment_id')
+      .notNull()
+      .references(() => creditPayments.id, { onDelete: 'cascade' }),
+    installmentId: integer('installment_id').references(
+      () => creditAmortizationSchedule.id,
+      { onDelete: 'cascade' },
+    ), // Si aplica a una cuota específica
+    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    ...timestamps,
+  },
+  (table) => ({
+    installmentIdx: index('credit_payments_details_installment_idx').on(
       table.installmentId,
     ),
   }),

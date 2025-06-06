@@ -660,11 +660,20 @@ export function LoanForm({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Total a Pagar
+                        Total Préstamo a Pagar
                       </p>
                       <p className="text-lg font-medium">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}
                         {loanSummary.totalPayable}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Total Monto Desembolso
+                      </p>
+                      <p className="text-lg font-medium">
+                        {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}
+                        {loanSummary.totalDisbursement}
                       </p>
                     </div>
                   </div>

@@ -14,8 +14,9 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { UserFormValue, formSchema } from '../schemas/login';
+
+import { toast, Toaster } from 'sonner';
+import { formSchema, UserFormValue } from '../schemas/login';
 
 export default function UserAuthForm() {
   const searchParams = useSearchParams();
@@ -53,7 +54,7 @@ export default function UserAuthForm() {
 
         // Si la autenticación es exitosa y `redirect: false`, necesitamos redirigir manualmente
         if (login?.ok && !login?.error) {
-          //toast.success('Ingreso Exitoso!');
+          toast.success('Ingreso Exitoso!');
           router.push(callbackUrl ?? '/dashboard');
         }
       } catch (error) {
@@ -125,6 +126,7 @@ export default function UserAuthForm() {
               Ingresar
             </Button>
           </div>
+          <Toaster richColors />
         </form>
       </Form>
       <div className="relative hidden bg-muted md:block border-muted border-2 rounded-lg overflow-hidden">

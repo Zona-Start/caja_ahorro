@@ -13,7 +13,6 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  Min,
 } from 'class-validator';
 
 export class CreateLoanDto {
@@ -44,12 +43,6 @@ export class CreateLoanDto {
   @IsPositive()
   @IsNotEmpty()
   requestedAmount: number; // Monto solicitado
-
-  @IsInt()
-  @IsPositive()
-  @Min(1)
-  @IsNotEmpty()
-  expensesAmount: number; // Monto de gastos administrativo
 
   @IsNumber()
   @IsOptional()

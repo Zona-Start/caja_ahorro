@@ -17,6 +17,7 @@ export function useLoanManagementMutation() {
       saveLoanManagementAction(loanManagement),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan-management'] });
+      queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
     },
     onError: (error) => {
       console.error('Error:', error);
@@ -33,6 +34,7 @@ export function useDeleteLoan() {
     mutationFn: (id: number) => deleteLoanManagementAction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan-management'] });
+      queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
       toast.success('Prestamo eliminado exitosamente');
     },
     onError: (error) => {

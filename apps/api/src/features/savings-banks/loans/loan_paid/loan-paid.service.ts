@@ -101,35 +101,27 @@ export class LoanPaidService {
       END ASC,
       id ASC`);
 
-    // Cuotas pendientes
-    const pendingQuotas = loanAmortization.filter(
-      (item) => item.quotaStatus === 'PENDING',
+    // Cuotas pendientes (PENDING o PARTIAL)
+    const pendingOrPartialQuotas = loanAmortization.filter(
+      (item) =>
+        item.quotaStatus === 'PENDING' || item.quotaStatus === 'PARTIAL',
     );
 
-    // Cuotas parcialmente pagadas
-    const partialQuotas = loanAmortization.filter(
-      (item) => item.quotaStatus === 'PARTIAL',
-    );
-
-    // Sumar todas las cuotas PENDING directamente
-    const totalPending = pendingQuotas.reduce((acc, item) => {
-      const amount = Number(item.quotaAmount) || 0;
-      return acc + amount;
-    }, 0);
-
-    // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
-    const totalPartial = partialQuotas.reduce((acc, item) => {
+    // Suma el monto restante a pagar de todas las cuotas PENDING y PARTIAL
+    const totalPendingAmount = pendingOrPartialQuotas.reduce((acc, item) => {
       const totalAmount = Number(item.quotaAmount) || 0;
       const paidAmount = Number(item.paidAmount) || 0;
       const remaining = totalAmount - paidAmount;
-      return acc + (remaining > 0 ? remaining : 0); // evitar negativos
+      return acc + (remaining > 0 ? remaining : 0); // Evitar negativos
     }, 0);
 
-    // Suma final de lo pendiente antes del abono
-    const totalPendingAmount = totalPending + totalPartial;
+    // Redondea el total pendiente antes de restar el pago
+    const roundedTotalPendingAmount = parseFloat(totalPendingAmount.toFixed(2));
 
-    // Calcular el nuevo saldo pendiente después del abono
-    const newPendingAmount = Math.max(totalPendingAmount - amount, 0);
+    // Calcular el nuevo saldo pendiente después del abono, redondeando el resultado
+    const newPendingAmount = parseFloat(
+      Math.max(roundedTotalPendingAmount - amount, 0).toFixed(2),
+    );
 
     return newPendingAmount;
   }
@@ -155,33 +147,46 @@ export class LoanPaidService {
         orderBy: loanAmortizationSchedule.installmentNumber,
       });
 
-    let coveredAmount = 0;
     const paidInstallmentDetails: { id: number; amount: number }[] = [];
     let partialInstallment: { id: number; paidAmount: number } | undefined;
-    let remainingAmount = amount;
+    let remainingAmount = amount; // Este es el monto que queda del pago para aplicar
+
+    // Definir una pequeña tolerancia para comparaciones de punto flotante
+    const EPSILON = 0.01; // 1 centavo de tolerancia
 
     for (const installment of pendingInstallments) {
-      const dueAmount =
-        Number(installment.totalInstallmentAmount) -
-        Number(installment.paidAmount || 0);
-      const canPay = Math.min(remainingAmount, dueAmount);
+      const installmentTotal = Number(installment.totalInstallmentAmount);
+      const installmentPaid = Number(installment.paidAmount || 0);
 
-      if (canPay >= dueAmount) {
+      // Calcula y redondea el monto pendiente de esta cuota
+      let dueAmount = parseFloat(
+        (installmentTotal - installmentPaid).toFixed(2),
+      );
+
+      // Determina cuánto se puede pagar de esta cuota, redondeando
+      const canPay = parseFloat(
+        Math.min(remainingAmount, dueAmount).toFixed(2),
+      );
+
+      if (canPay >= dueAmount - EPSILON) {
+        // La cuota se paga completamente o con una diferencia mínima
         paidInstallmentDetails.push({ id: installment.id, amount: dueAmount });
-        coveredAmount += dueAmount;
-        remainingAmount -= dueAmount;
+        remainingAmount = parseFloat((remainingAmount - dueAmount).toFixed(2)); // Restar el monto exacto de la cuota
       } else if (canPay > 0) {
+        // La cuota se paga parcialmente
         partialInstallment = {
           id: installment.id,
-          paidAmount: Number(installment.paidAmount || 0) + canPay,
+          paidAmount: parseFloat((installmentPaid + canPay).toFixed(2)),
         };
-        coveredAmount += canPay;
-        remainingAmount -= canPay;
-        break; // No more full installments can be covered
+        remainingAmount = parseFloat((remainingAmount - canPay).toFixed(2));
+        break; // No se pueden cubrir más cuotas completas, se detiene aquí
       } else {
-        break; // No more amount to cover
+        break; // No hay más monto disponible para cubrir cuotas
       }
     }
+
+    // Asegurarse de que remainingAmount no sea negativo debido a errores de redondeo
+    remainingAmount = Math.max(0, remainingAmount);
 
     return { paidInstallmentDetails, partialInstallment, remainingAmount };
   }
@@ -198,7 +203,8 @@ export class LoanPaidService {
       transactionReference,
     } = createLoanPaidDto;
 
-    //consulta los datos de la  moneda y tasa de cambio
+    // Las líneas comentadas para moneda y tasa de cambio no son parte de la lógica central
+    // de pago del préstamo, pero las dejo si son necesarias para otras funcionalidades.
     // const setting = await this.db.query.systemSettings.findFirst({
     //   where: eq(systemSettings.key, 'moneda'),
     // });
@@ -207,22 +213,32 @@ export class LoanPaidService {
     //   where: eq(exchangeRates.date, entryDate),
     // });
 
-    // Start transaction
+    // Inicia la transacción para asegurar la atomicidad de las operaciones
     await this.db.transaction(async (tx) => {
+      // 1. Calcula qué cuotas se cubren con el monto del pago
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
         await this._calculateCoveredInstallments(loanId, amount);
 
-      const customReference = await this.generateCustomReference(); //genera la referencia
-      const totalPending = await this._calculateBalancePending(amount, loanId); //calcula total pendiente
+      // 2. Genera una referencia única para este pago de préstamo
+      // Asegúrate de que generateCustomReference() tenga una clave diferente para préstamos vs créditos
+      const customReference = await this.generateCustomReference();
 
-      const [InsertLoanPayment] = await tx
+      // 3. Calcula el nuevo saldo pendiente del préstamo después de aplicar este pago.
+      // Esta es la métrica clave para determinar si el préstamo está saldado.
+      const newBalancePending = await this._calculateBalancePending(
+        amount,
+        loanId,
+      );
+
+      // 4. Inserta el registro principal del pago en la tabla 'loanPayments'
+      const [insertedPayment] = await tx
         .insert(loanPayments)
         .values({
           loanId: String(loanId),
           paymentDate,
           paymentType,
           amount: amount,
-          balancePending: String(totalPending),
+          balancePending: String(newBalancePending.toFixed(2)), // Guarda el nuevo saldo pendiente
           bankId:
             bankId !== undefined && bankId !== null
               ? Number(bankId)
@@ -233,30 +249,36 @@ export class LoanPaidService {
           createdById: Number(userId),
           customReference: customReference,
         })
-        .returning({ id: loans.id });
+        // Asegúrate que 'loans' es el esquema correcto para retornar el ID.
+        // Si InsertLoanPayment.id es el ID del pago, entonces 'loans.id' aquí es un error.
+        // Debería ser algo como 'loanPayments.id' si existe ese esquema.
+        // Asumiendo que `InsertLoanPayment` debería ser el ID del pago registrado.
+        .returning({ id: loanPayments.id }); // <--- Corregido: debería retornar el ID del pago insertado
 
-      // Insert into loanPaymentsDetails for each fully paid installment
+      // 5. Procesa las cuotas que fueron PAGADAS COMPLETAMENTE
       for (const installment of paidInstallmentDetails) {
+        // Registra el detalle del pago para esta cuota
         await tx.insert(loanPaymentsDetails).values({
-          loanPaymentId: String(InsertLoanPayment.id),
+          loanPaymentId: String(insertedPayment.id),
           installmentId: String(installment.id),
           amount: String(installment.amount),
           createdById: String(userId),
         });
 
-        // Update loanAmortizationSchedule for fully paid installments
+        // Actualiza el estado de la cuota en la tabla de amortización a 'PAID'
         await tx
           .update(loanAmortizationSchedule)
           .set({
             paymentStatus: 'PAID',
             updatedById: Number(userId),
-            paidAmount: sql`total_installment_amount`, // Update paidAmount with totalInstallmentAmount
+            paidAmount: sql`total_installment_amount`, // Marcar como pagado el total de la cuota
           })
           .where(eq(loanAmortizationSchedule.id, installment.id));
       }
 
-      // Update loanAmortizationSchedule for partially paid installment
+      // 6. Procesa la cuota que fue PAGADA PARCIALMENTE (si existe)
       if (partialInstallment) {
+        // Actualiza el estado de la cuota en la tabla de amortización a 'PARTIAL'
         await tx
           .update(loanAmortizationSchedule)
           .set({
@@ -266,49 +288,45 @@ export class LoanPaidService {
           })
           .where(eq(loanAmortizationSchedule.id, partialInstallment.id));
 
-        // Insert loanPaymentDetails record for the partial payment
+        // Registra el detalle del pago parcial para esta cuota
         await tx.insert(loanPaymentsDetails).values({
-          loanPaymentId: String(InsertLoanPayment.id),
+          loanPaymentId: String(insertedPayment.id),
           installmentId: partialInstallment.id,
           amount: partialInstallment.paidAmount,
           createdById: Number(userId),
         });
       }
 
-      // Handle remaining amount as a negative paidAmount for the loan
-      if (remainingAmount > 0) {
-        // Find the last installment to potentially apply the overpayment
-        const lastInstallment =
-          await tx.query.loanAmortizationSchedule.findFirst({
-            where: eq(loanAmortizationSchedule.loanId, loanId),
-            orderBy: [sql`installment_number DESC`],
-          });
+      // 7. Lógica para ACTUALIZAR el estado del PRÉSTAMO principal y el SALDO A FAVOR
+      let newLoanStatus: any; // Por defecto, el préstamo sigue activo
+      let balanceInFavorValue = 0; // Por defecto, no hay saldo a favor
 
-        if (lastInstallment) {
-          await tx
-            .update(loanAmortizationSchedule)
-            .set({
-              paidAmount: sql`${loanAmortizationSchedule.paidAmount}`,
-              paymentStatus:
-                lastInstallment.paymentStatus === 'PAID' ? 'PAID' : 'PARTIAL', // Keep status if already paid
-              updatedById: Number(userId),
-            })
-            .where(eq(loanAmortizationSchedule.id, lastInstallment.id));
-
-          await tx
-            .update(loans)
-            .set({
-              status: 'PAID',
-              balanceInFavor: String(remainingAmount.toFixed(2)),
-              updatedById: Number(userId),
-            })
-            .where(eq(loans.id, loanId));
+      // Si el saldo pendiente del préstamo es cero o insignificante (manejo de flotantes)
+      if (newBalancePending <= 0.01) {
+        // Usa 0.01 como tolerancia para los centavos
+        newLoanStatus = 'PAID'; // El préstamo está completamente saldado
+        balanceInFavorValue = remainingAmount; // Cualquier excedente es el saldo a favor
+      } else {
+        if (amount > 0 || partialInstallment) {
+          newLoanStatus = 'IN_PAYMENT'; // El préstamo está en proceso de pago
         }
+        balanceInFavorValue = 0;
       }
+
+      // Realiza la actualización final del registro del préstamo principal
+      await tx
+        .update(loans) // Asegúrate que 'loans' es la tabla correcta para el préstamo principal
+        .set({
+          status: newLoanStatus,
+          balanceInFavor: String(balanceInFavorValue.toFixed(2)),
+          updatedById: Number(userId),
+        })
+        .where(eq(loans.id, loanId));
     });
 
+    // Retorna una respuesta de éxito
     return {
-      message: 'laon paid create success',
+      message: 'Loan paid create success',
     };
   }
 
@@ -381,10 +399,14 @@ export class LoanPaidService {
         transactionReference: loanPayments.transactionReference,
         amount: loanPayments.amount,
         balancePending: loanPayments.balancePending,
+        associateCedula: associates.cedula,
+        associateFullname: associates.fullname,
       })
       .from(loanPayments)
       .where(searchCondition)
       .leftJoin(bankDirectory, eq(bankDirectory.id, loanPayments.bankId))
+      .leftJoin(loans, eq(loans.id, loanPayments.loanId))
+      .leftJoin(associates, eq(associates.id, loans.associateId))
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -601,11 +623,11 @@ export class LoanPaidService {
         fullname: associate[0].fullname,
         phone: associate[0].phone,
         email: associate[0].email,
-        loanId: result[0]?.loanId,
-        loanType: result[0]?.loanType,
+        loanId: result.length === 0 ? null : result[0]?.loanId,
+        loanType: result.length === 0 ? null : result[0]?.loanType,
         loanTotalAmount: String(totalPendingAmount.toFixed(2)),
-        loanModality: result[0]?.loanModality,
-        loanAmortization: loanAmortization || [],
+        loanModality: result.length === 0 ? null : result[0]?.loanModality,
+        loanAmortization: loanAmortization || null,
       };
     } catch (error) {
       console.log(error);

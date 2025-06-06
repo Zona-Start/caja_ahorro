@@ -88,8 +88,8 @@ export class LoanManagementService {
   private generateAmortizationSchedule(
     loanAmount: number, // Monto del préstamo solicitado
     termMonths: number, // Plazos en meses
-    annualInterestRate: number, // Tasa de interés anual
-    administrativeFeeRate: number, // Tasa de interés por gasto administrativo
+    annualInterestRate: number, // Tasa de interés anual (se usará para calcular un total fijo)
+    administrativeFeeRate: number, // Tasa de interés por gasto administrativo (se usa para el desembolso, no para amortización)
     startDate: Date, // Fecha de inicio del préstamo
     loanId: number, // Identificador del préstamo
     createdById: number,
@@ -103,13 +103,31 @@ export class LoanManagementService {
     | 'updatedAt'
     | 'updatedById'
   >[] {
-    const totalInterest = (loanAmount * annualInterestRate) / 100;
-    const totalAdministrativeFee = (loanAmount * administrativeFeeRate) / 100;
-    const totalAmountPayable =
-      loanAmount + totalInterest + totalAdministrativeFee;
-    const monthlyPayment = totalAmountPayable / termMonths;
-    const monthlyInterestRate = annualInterestRate / 12 / 100; // Convert annual to monthly
+    // 1. Cálculo del interés total FIJO para todo el plazo
+    // Si el 6% es anual y el préstamo es de 80 meses (6.67 años), deberías ajustar esta línea.
+    // Pero si el 6% es la tasa "fija" para el total del préstamo, como en tu ejemplo de 12 meses,
+    // entonces esta línea es correcta.
+    // Basado en tu último ejemplo de 12 cuotas, el interés total sería 90 Bs. (1500 * 0.06).
+    const totalInterestFixed = (loanAmount * annualInterestRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
 
+    // 2. Gasto Administrativo (para el desembolso, no para la amortización)
+    // const administrativeFeeAmount = (loanAmount * administrativeFeeRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
+    // El monto a desembolsar al cliente sería: loanAmount - administrativeFeeAmount
+
+    // 3. Monto Total a Pagar por el Cliente (Capital + Interés Fijo)
+    const totalAmountToPayByClient = loanAmount + totalInterestFixed; // Ej: 1500 + 90 = 1590 Bs.
+
+    // 4. Cálculo de la Cuota Mensual Fija
+    const monthlyPayment = totalAmountToPayByClient / termMonths; // Ej: 1590 / 12 = 132.50 Bs.
+
+    // 5. Componente de Interés FIJO por Cuota
+    const monthlyInterestComponent = totalInterestFixed / termMonths; // Ej: 90 / 12 = 7.50 Bs.
+
+    // 6. Componente de Capital FIJO por Cuota
+    const monthlyPrincipalComponent = loanAmount / termMonths; // Ej: 1500 / 12 = 125 Bs.
+
+    // Opcional: Para verificación, monthlyPayment debería ser monthlyPrincipalComponent + monthlyInterestComponent
+    // 125 + 7.50 = 132.50. ¡Coincide!
     const schedule: Omit<
       LoanAmortizationSchedule,
       | 'id'
@@ -120,57 +138,53 @@ export class LoanManagementService {
       | 'updatedAt'
       | 'updatedById'
     >[] = [];
-    let remainingBalance = loanAmount;
+
+    let remainingBalance = loanAmount; // El saldo pendiente es solo el capital
+
+    // Clonar la fecha de inicio para evitar modificar el objeto original
     let currentDueDate = new Date(startDate);
+    currentDueDate.setMonth(currentDueDate.getMonth() + 1); // ¡Avanza un mes para la primera cuota!
 
     for (let i = 1; i <= termMonths; i++) {
-      const interestComponent = remainingBalance * monthlyInterestRate;
-      const principalComponent = monthlyPayment - interestComponent;
+      let principalComponentForInstallment = monthlyPrincipalComponent;
+      let interestComponentForInstallment = monthlyInterestComponent;
+      let totalInstallmentAmountForInstallment = monthlyPayment;
 
-      // Adjust last payment to avoid rounding errors
+      // Ajuste del último pago para evitar errores de redondeo
+      // Aseguramos que el capital restante sea 0 después del último pago
       if (i === termMonths) {
-        // The last principal payment should be the remaining balance
-        // The last total payment will be the remaining balance + interest for that period
-        const lastInterestComponent = remainingBalance * monthlyInterestRate;
-        const lastPrincipalComponent = remainingBalance;
-        const lastTotalInstallmentAmount =
-          lastPrincipalComponent + lastInterestComponent;
-        schedule.push({
-          loanId,
-          installmentNumber: i,
-          dueDate: new Date(currentDueDate), // Clone date object
-          principalAmount: parseFloat(lastPrincipalComponent.toFixed(2)),
-          interestAmount: parseFloat(lastInterestComponent.toFixed(2)),
-          totalInstallmentAmount: parseFloat(
-            lastTotalInstallmentAmount.toFixed(2),
-          ),
-          principalBalancePending: 0, // Should be zero on the last payment
-          paymentStatus: PaymentStatusEnum.PENDING, // Default status
-          createdById: createdById,
-        });
-        remainingBalance = 0; // Ensure remaining balance is exactly zero
-      } else {
-        remainingBalance -= principalComponent;
-
-        // Ensure remaining balance doesn't go below zero due to floating point issues
-        if (remainingBalance < 0.005) {
-          remainingBalance = 0;
-        }
-
-        schedule.push({
-          loanId,
-          installmentNumber: i,
-          dueDate: new Date(currentDueDate), // Clone date object
-          principalAmount: parseFloat(principalComponent.toFixed(2)),
-          interestAmount: parseFloat(interestComponent.toFixed(2)),
-          totalInstallmentAmount: parseFloat(monthlyPayment.toFixed(2)),
-          principalBalancePending: parseFloat(remainingBalance.toFixed(2)),
-          paymentStatus: PaymentStatusEnum.PENDING, // Default status
-          createdById: createdById,
-        });
+        principalComponentForInstallment = remainingBalance; // El último capital es lo que queda
+        // El interés sigue siendo fijo para esta cuota
+        // La cuota total se ajusta para incluir el capital restante y el interés fijo
+        totalInstallmentAmountForInstallment =
+          principalComponentForInstallment + interestComponentForInstallment;
       }
 
-      // Calculate next due date (e.g., add one month)
+      // Se resta el componente de capital del saldo pendiente
+      remainingBalance -= principalComponentForInstallment;
+
+      // Asegurarse de que el saldo no sea negativo debido a errores de coma flotante en el último pago
+      if (remainingBalance < 0.005) {
+        remainingBalance = 0;
+      }
+
+      schedule.push({
+        loanId,
+        installmentNumber: i,
+        dueDate: new Date(currentDueDate), // Clonar para cada entrada
+        principalAmount: parseFloat(
+          principalComponentForInstallment.toFixed(2),
+        ),
+        interestAmount: parseFloat(interestComponentForInstallment.toFixed(2)),
+        totalInstallmentAmount: parseFloat(
+          totalInstallmentAmountForInstallment.toFixed(2),
+        ),
+        principalBalancePending: parseFloat(remainingBalance.toFixed(2)),
+        paymentStatus: PaymentStatusEnum.PENDING, // Estado por defecto
+        createdById: createdById,
+      });
+
+      // Avanzar la fecha al próximo mes
       currentDueDate.setMonth(currentDueDate.getMonth() + 1);
     }
 
@@ -314,6 +328,7 @@ export class LoanManagementService {
     let totalInterest = 0; //Cálculo del monto total de intereses
     let installmentAmount = 0; //total gasto administrativo
     let totalPayable = 0; //Cálculo del monto total a pagar
+    let totalDisbursed = 0; // calculo del monto a desembolsar
     if (setting && setting.value === 'USD' && exchangeRateData) {
       totalQuota =
         (requestedAmount + percentageInterest + percentageExpenses) /
@@ -328,14 +343,16 @@ export class LoanManagementService {
         100 /
         Number(exchangeRateData.rate);
       totalPayable =
-        (requestedAmount + totalInterest + installmentAmount) /
-        Number(exchangeRateData.rate);
+        (requestedAmount + totalInterest) / Number(exchangeRateData.rate);
+      totalDisbursed =
+        (requestedAmount - installmentAmount) / Number(exchangeRateData.rate);
     } else {
       totalQuota =
         (requestedAmount + percentageInterest + percentageExpenses) / term;
       totalInterest = (requestedAmount * annualInterestRate) / 100;
       installmentAmount = (requestedAmount * expensePercentage) / 100;
-      totalPayable = requestedAmount + totalInterest + installmentAmount;
+      totalPayable = requestedAmount + totalInterest;
+      totalDisbursed = requestedAmount - installmentAmount;
     }
 
     let customReference: string | null = null;
@@ -369,7 +386,7 @@ export class LoanManagementService {
           disbursementDate: status === 'DISBURSED' ? new Date() : null,
           requestedAmount: requestedAmount,
           approvedAmount: requestedAmount,
-          disbursedAmount: requestedAmount,
+          disbursedAmount: totalDisbursed,
           startDate: startDate.toISOString().split('T')[0],
           endDate: finalDate,
           totalInterest: String(totalInterest.toFixed(2)),
@@ -806,6 +823,7 @@ export class LoanManagementService {
     let totalInterest = 0; //Cálculo del monto total de intereses
     let installmentAmount = 0; //total gasto administrativo
     let totalPayable = 0; //Cálculo del monto total a pagar
+    let totalDisbursed = 0; //calculo desembolso
     if (setting && setting.value === 'USD' && exchangeRateData) {
       totalQuota =
         ((updateLoanDto?.requestedAmount ?? 0) +
@@ -822,9 +840,10 @@ export class LoanManagementService {
         100 /
         Number(exchangeRateData.rate);
       totalPayable =
-        ((updateLoanDto?.requestedAmount ?? 0) +
-          totalInterest +
-          installmentAmount) /
+        ((updateLoanDto?.requestedAmount ?? 0) + totalInterest) /
+        Number(exchangeRateData.rate);
+      totalDisbursed =
+        ((updateLoanDto?.requestedAmount ?? 0) - installmentAmount) /
         Number(exchangeRateData.rate);
     } else {
       totalQuota =
@@ -836,10 +855,9 @@ export class LoanManagementService {
         ((updateLoanDto?.requestedAmount ?? 0) * annualInterestRate) / 100;
       installmentAmount =
         ((updateLoanDto?.requestedAmount ?? 0) * expensePercentage) / 100;
-      totalPayable =
-        (updateLoanDto?.requestedAmount ?? 0) +
-        totalInterest +
-        installmentAmount;
+      totalPayable = (updateLoanDto?.requestedAmount ?? 0) + totalInterest;
+      totalDisbursed =
+        (updateLoanDto?.requestedAmount ?? 0) - installmentAmount;
     }
 
     let customReference: string | null | undefined = undefined;
@@ -889,7 +907,7 @@ export class LoanManagementService {
           disbursedAmount:
             updateLoanDto.requestedAmount !== null &&
             updateLoanDto.requestedAmount !== undefined
-              ? String(updateLoanDto.requestedAmount)
+              ? String(totalDisbursed)
               : undefined, // Usa undefined en vez de null
           startDate: updateLoanDto?.startDate?.toISOString().split('T')[0],
           endDate: finalDate.toISOString().split('T')[0],

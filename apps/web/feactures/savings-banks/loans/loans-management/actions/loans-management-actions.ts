@@ -168,7 +168,6 @@ export const createLoanManagementAction = async (
     requestDate: payloadWithoutId.requestDate.toISOString().split('T')[0],
     startDate: payloadWithoutId.startDate.toISOString().split('T')[0],
     requestedAmount: Number(payloadWithoutId.requestedAmount),
-    expensesAmount: Number(payloadWithoutId.expensesAmount),
     overdraftAmount:
       payloadWithoutId.overdraftAmount === ''
         ? null
@@ -205,7 +204,6 @@ export const updateLoanManagementAction = async (
     requestDate: payloadWithoutId.requestDate.toISOString().split('T')[0],
     startDate: payloadWithoutId.startDate.toISOString().split('T')[0],
     requestedAmount: Number(payloadWithoutId.requestedAmount),
-    expensesAmount: Number(payloadWithoutId.expensesAmount),
     overdraftAmount:
       payloadWithoutId.overdraftAmount === ''
         ? null

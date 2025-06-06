@@ -50,8 +50,15 @@ export const getPaginatedTypeLoansAction = async (params: {
     throw new Error(error.message || 'An unknown error occurred');
   }
 
+  const dataTrasform = response?.data.map((item) => ({
+    ...item,
+    termUnits: String(item.termUnits),
+    specialQuotaNumber: String(item.specialQuotaNumber),
+    minimumSeniorityMonths: String(item.minimumSeniorityMonths),
+  }));
+
   return {
-    data: response?.data,
+    data: dataTrasform,
     meta: response?.meta || {
       page: 1,
       limit: 10,

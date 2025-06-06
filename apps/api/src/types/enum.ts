@@ -60,6 +60,14 @@ export enum LoanStatusEnum {
   OVERDUE = 'OVERDUE',
 }
 
+// Enum Estado Credito
+export enum CreditStatusEnum {
+  REQUESTED = 'REQUESTED',
+  APPROVED = 'APPROVED',
+  IN_PAYMENT = 'IN_PAYMENT',
+  PAID = 'PAID',
+}
+
 // Enum Estado Cuota Préstamo
 export enum PaymentStatusEnum {
   PENDING = 'PENDING',
@@ -140,6 +148,16 @@ export enum loanModalityTypeEnum {
 }
 
 export enum loanPaymetTypeEnum {
+  CANCELLATION = 'CANCELLATION',
+  PAYING = 'PAYING',
+}
+
+export enum creditModalityTypeEnum {
+  ORDINARY = 'ORDINARY',
+  SPECIAL_QUOTAS = 'SPECIAL_QUOTAS',
+}
+
+export enum creditPaymetTypeEnum {
   CANCELLATION = 'CANCELLATION',
   PAYING = 'PAYING',
 }

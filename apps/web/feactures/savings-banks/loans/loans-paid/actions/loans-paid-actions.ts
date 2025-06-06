@@ -125,6 +125,8 @@ export const getLoanPaidAllAction = async (params: {
       transactionReference: item.transactionReference,
       amount: item.amount,
       balancePending: item.balancePending,
+      associateCedula: item.associateCedula,
+      associateFullname: item.associateFullname,
     })) || [];
 
   return {

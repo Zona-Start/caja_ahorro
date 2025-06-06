@@ -17,12 +17,12 @@ export const loanAssociate = z.object({
   fullname: z.string(),
   phone: z.string(),
   email: z.string(),
-  loanId: z.number(),
-  loanPaidId: z.number().optional(),
+  loanId: z.number().nullable(),
+  loanPaidId: z.number().optional().nullable(),
   loanType: z.string(),
   loanTotalAmount: z.string(),
-  loanModality: z.string(),
-  loanAmortization: z.array(loanQuotasAssociate),
+  loanModality: z.string().nullable(),
+  loanAmortization: z.array(loanQuotasAssociate).nullable(),
 });
 
 export type AssociatesLoan = z.infer<typeof loanAssociate>;

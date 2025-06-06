@@ -156,15 +156,22 @@ export function LoanPaidView({ isEdit = false, initialData }: LoanViewProps) {
           title: 'Pago de Préstamo creado con éxito',
           description: `Se ha registrado un pago de préstamo de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.amount} para ${selectedAssociate?.fullname}.`,
         });
-        console.log('me ejecute ');
-        console.log(selectedAssociate?.cedula);
-
-        queryClient.removeQueries({
+        queryClient.invalidateQueries({
           queryKey: ['loan-paid-associate', selectedAssociate?.cedula],
         });
-        queryClient.removeQueries({
+        queryClient.invalidateQueries({
+          queryKey: ['loan-paid'],
+        });
+        queryClient.invalidateQueries({
           queryKey: ['loan-paid-associate', ''],
         });
+        queryClient.invalidateQueries({
+          queryKey: ['loan-management'],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ['loan-management-count'],
+        });
+
         handleCancel();
       },
       onError: () => {

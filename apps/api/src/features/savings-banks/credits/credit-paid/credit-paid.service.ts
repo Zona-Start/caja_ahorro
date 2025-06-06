@@ -1,0 +1,933 @@
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/index';
+import {
+  associates,
+  bankDirectory,
+  creditAmortizationSchedule,
+  creditPayments,
+  creditPaymentsDetails,
+  credits,
+  creditsTypes,
+  systemSettings,
+} from '@/database/index';
+import {
+  CreditStatusEnum,
+  loanPaymetTypeEnum,
+  paymentMethodEnum,
+} from '@/types/enum';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { CreateCreditPaidDto } from './dto/create-credit.dto';
+import { FilterCreditPaidDto } from './dto/filter-credit-paid.dto';
+
+@Injectable()
+export class CreditPaidService {
+  constructor(
+    @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
+  ) {}
+
+  // --- Helper function to generate custom reference ---
+  private async generateCustomReference(): Promise<string> {
+    // Fetch the current correlative number and increment it
+    const key = 'correlativo_pago_credito';
+    try {
+      const result = await this.db.transaction(async (tx) => {
+        // Lock the row for update
+        const setting = await tx.query.systemSettings.findFirst({
+          where: eq(systemSettings.key, key),
+          // Add forUpdate() if your Drizzle version supports it for row locking
+          // Example: columns: {}, with: { forUpdate: true }
+        });
+
+        if (!setting) {
+          throw new InternalServerErrorException(
+            `System setting '${key}' not found.`,
+          );
+        }
+
+        const currentNumber = parseInt(setting.value, 10);
+        if (isNaN(currentNumber)) {
+          throw new InternalServerErrorException(
+            `Invalid correlative number format for '${key}'.`,
+          );
+        }
+
+        const nextNumber = currentNumber + 1;
+        const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
+
+        // Update the setting with the new value
+        await tx
+          .update(systemSettings)
+          .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
+          .where(eq(systemSettings.id, setting.id));
+
+        return nextValue; // Return the generated reference
+      });
+      return `PGCREDIT${result}`; // Prefix the reference
+    } catch (error) {
+      console.error('Error generating custom reference:', error);
+      throw new InternalServerErrorException(
+        'Failed to generate custom credit reference.',
+      );
+    }
+  }
+
+  // calculate balance pending
+  private async _calculateBalancePending(amount: number, creditId: number) {
+    const creditAmortization = await this.db
+      .select({
+        id: creditAmortizationSchedule.id,
+        quotaNumber: creditAmortizationSchedule.installmentNumber,
+        quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+        quotaDate: creditAmortizationSchedule.dueDate,
+        quotaStatus: creditAmortizationSchedule.paymentStatus,
+        quotaPartial: creditAmortizationSchedule.paidAmount,
+        principalBalancePending:
+          creditAmortizationSchedule.principalBalancePending,
+        paidAmount: creditAmortizationSchedule.paidAmount,
+      })
+      .from(creditAmortizationSchedule)
+      .where(eq(creditAmortizationSchedule.creditId, creditId))
+      .orderBy(sql<string>`
+      CASE payment_status
+        WHEN 'PARTIAL' THEN 1
+        WHEN 'PENDING' THEN 2
+        WHEN 'PAID' THEN 3
+        ELSE 4
+      END ASC,
+      id ASC`);
+
+    // Cuotas pendientes
+    const pendingQuotas = creditAmortization.filter(
+      (item) => item.quotaStatus === 'PENDING',
+    );
+
+    // Cuotas parcialmente pagadas
+    const partialQuotas = creditAmortization.filter(
+      (item) => item.quotaStatus === 'PARTIAL',
+    );
+
+    // Sumar todas las cuotas PENDING directamente
+    const totalPending = pendingQuotas.reduce((acc, item) => {
+      const amount = Number(item.quotaAmount) || 0;
+      return acc + amount;
+    }, 0);
+
+    // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
+    const totalPartial = partialQuotas.reduce((acc, item) => {
+      const totalAmount = Number(item.quotaAmount) || 0;
+      const paidAmount = Number(item.paidAmount) || 0;
+      const remaining = totalAmount - paidAmount;
+      return acc + (remaining > 0 ? remaining : 0); // evitar negativos
+    }, 0);
+
+    // Suma final de lo pendiente antes del abono
+    const totalPendingAmount = totalPending + totalPartial;
+
+    // Calcular el nuevo saldo pendiente después del abono
+    const newPendingAmount = Math.max(totalPendingAmount - amount, 0);
+
+    return newPendingAmount;
+  }
+
+  // calculate page quotas
+  private async _calculateCoveredInstallments(
+    creditId: number,
+    amount: number,
+  ): Promise<{
+    paidInstallmentDetails: { id: number; amount: number }[];
+    partialInstallment?: { id: number; paidAmount: number };
+    remainingAmount: number;
+  }> {
+    const pendingInstallments =
+      await this.db.query.creditAmortizationSchedule.findMany({
+        where: and(
+          eq(creditAmortizationSchedule.creditId, creditId),
+          inArray(creditAmortizationSchedule.paymentStatus, [
+            'PENDING',
+            'PARTIAL',
+          ]),
+        ),
+        orderBy: creditAmortizationSchedule.installmentNumber,
+      });
+
+    let coveredAmount = 0;
+    const paidInstallmentDetails: { id: number; amount: number }[] = [];
+    let partialInstallment: { id: number; paidAmount: number } | undefined;
+    let remainingAmount = amount; // Este es el monto que queda del pago para aplicar
+
+    for (const installment of pendingInstallments) {
+      // Calcular el monto pendiente de esta cuota
+      const installmentTotal = Number(installment.totalInstallmentAmount);
+      const installmentPaid = Number(installment.paidAmount || 0);
+      let dueAmount = installmentTotal - installmentPaid;
+
+      // Redondear el monto pendiente de la cuota para evitar problemas de flotantes
+      dueAmount = parseFloat(dueAmount.toFixed(2));
+
+      // Determinar cuánto se puede pagar de esta cuota
+      // remainingAmount también debe ser redondeado antes de la comparación crítica
+      const canPay = parseFloat(
+        Math.min(remainingAmount, dueAmount).toFixed(2),
+      );
+
+      // Usar una pequeña tolerancia para la comparación de pago completo
+      const EPSILON = 0.01; // Tolerancia de 1 centavo, ajústala si es necesario
+
+      if (canPay >= dueAmount - EPSILON) {
+        // Si el pago cubre (o casi cubre) la cuota restante
+        // La cuota se paga completamente
+        paidInstallmentDetails.push({ id: installment.id, amount: dueAmount });
+        coveredAmount += dueAmount;
+        remainingAmount = parseFloat((remainingAmount - dueAmount).toFixed(2)); // Restar el monto exacto de la cuota
+      } else if (canPay > 0) {
+        // La cuota se paga parcialmente
+        partialInstallment = {
+          id: installment.id,
+          paidAmount: parseFloat((installmentPaid + canPay).toFixed(2)),
+        };
+        coveredAmount += canPay;
+        remainingAmount = parseFloat((remainingAmount - canPay).toFixed(2));
+        break; // No se pueden cubrir más cuotas completas
+      } else {
+        break; // No hay más monto para cubrir
+      }
+    }
+
+    // Asegurarse de que remainingAmount no sea negativo debido a errores de redondeo
+    remainingAmount = Math.max(0, remainingAmount);
+
+    return { paidInstallmentDetails, partialInstallment, remainingAmount };
+  }
+
+  async create(dto: CreateCreditPaidDto, userId: number) {
+    const {
+      amount,
+      bankId,
+      creditId,
+      paymentDate,
+      paymentMethod,
+      paymentType,
+      comment,
+      transactionReference,
+    } = dto;
+
+    // Las líneas comentadas para moneda y tasa de cambio no son parte de la lógica central
+    // de pago del crédito, pero las dejo si son necesarias para otras funcionalidades.
+    // const setting = await this.db.query.systemSettings.findFirst({
+    //   where: eq(systemSettings.key, 'moneda'),
+    // });
+    // const entryDate = new Date().toISOString().split('T')[0];
+    // const exchangeRateData = await this.db.query.exchangeRates.findFirst({
+    //   where: eq(exchangeRates.date, entryDate),
+    // });
+
+    // Inicia la transacción para asegurar la atomicidad de las operaciones
+    await this.db.transaction(async (tx) => {
+      // 1. Calcula qué cuotas se cubren con el monto del pago
+      const { paidInstallmentDetails, partialInstallment, remainingAmount } =
+        await this._calculateCoveredInstallments(creditId, amount);
+
+      // 2. Genera una referencia única para este pago
+      const customReference = await this.generateCustomReference();
+
+      // 3. Calcula el nuevo saldo pendiente del crédito después de aplicar este pago.
+      // Esta es la métrica clave para determinar si el crédito está saldado.
+      const newBalancePending = await this._calculateBalancePending(
+        amount,
+        creditId,
+      );
+
+      // 4. Inserta el registro principal del pago en la tabla 'creditPayments'
+      const [insertedPayment] = await tx
+        .insert(creditPayments)
+        .values({
+          creditId: String(creditId),
+          paymentDate,
+          paymentType,
+          amount: amount,
+          balancePending: String(newBalancePending.toFixed(2)), // Guarda el nuevo saldo pendiente
+          bankId:
+            bankId !== undefined && bankId !== null
+              ? Number(bankId)
+              : undefined,
+          paymentMethod,
+          transactionReference,
+          comment,
+          createdById: Number(userId),
+          customReference: customReference,
+        })
+        .returning({ id: creditPayments.id });
+
+      // 5. Procesa las cuotas que fueron PAGADAS COMPLETAMENTE
+      for (const installment of paidInstallmentDetails) {
+        // Registra el detalle del pago para esta cuota
+        await tx.insert(creditPaymentsDetails).values({
+          creditPaymentId: String(insertedPayment.id),
+          installmentId: String(installment.id),
+          amount: String(installment.amount),
+          createdById: String(userId),
+        });
+
+        // Actualiza el estado de la cuota en la tabla de amortización a 'PAID'
+        await tx
+          .update(creditAmortizationSchedule)
+          .set({
+            paymentStatus: 'PAID',
+            updatedById: Number(userId),
+            paidAmount: sql`total_installment_amount`, // Marcar como pagado el total de la cuota
+          })
+          .where(eq(creditAmortizationSchedule.id, installment.id));
+      }
+
+      // 6. Procesa la cuota que fue PAGADA PARCIALMENTE (si existe)
+      if (partialInstallment) {
+        // Actualiza el estado de la cuota en la tabla de amortización a 'PARTIAL'
+        await tx
+          .update(creditAmortizationSchedule)
+          .set({
+            paymentStatus: 'PARTIAL',
+            paidAmount: String(partialInstallment.paidAmount),
+            updatedById: Number(userId),
+          })
+          .where(eq(creditAmortizationSchedule.id, partialInstallment.id));
+
+        // Registra el detalle del pago parcial para esta cuota
+        await tx.insert(creditPaymentsDetails).values({
+          creditPaymentId: String(insertedPayment.id),
+          installmentId: partialInstallment.id,
+          amount: partialInstallment.paidAmount,
+          createdById: Number(userId),
+        });
+      }
+
+      // 7. Lógica para ACTUALIZAR el estado del CRÉDITO principal y el SALDO A FAVOR
+      let newCreditStatus = 'APPROVED'; // Por defecto, el crédito sigue activo
+      let balanceInFavorValue = 0; // Por defecto, no hay saldo a favor
+
+      // Si el saldo pendiente del crédito es cero o insignificante (manejo de flotantes)
+      if (newBalancePending <= 0.01) {
+        newCreditStatus = 'PAID'; // El crédito está completamente saldado
+        balanceInFavorValue = remainingAmount; // Cualquier excedente es el saldo a favor
+      } else {
+        // Si el crédito no está completamente pagado, nos aseguramos de que el saldo a favor sea 0
+        balanceInFavorValue = 0;
+      }
+
+      // Realiza la actualización final del registro del crédito principal
+      await tx
+        .update(credits)
+        .set({
+          status: newCreditStatus as CreditStatusEnum,
+          balanceInFavor: String(balanceInFavorValue.toFixed(2)),
+          updatedById: Number(userId),
+        })
+        .where(eq(credits.id, creditId));
+    });
+
+    // Retorna una respuesta de éxito
+    return {
+      message: 'Credit paid create success',
+    };
+  }
+
+  async findAll(paginationDto: FilterCreditPaidDto) {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+      bank = '',
+      type = '',
+      method = '',
+    } = paginationDto || {};
+
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Build search condition
+    let searchConditions: SQL<unknown>[] = [];
+
+    if (search) {
+      searchConditions.push(
+        ilike(creditPayments.customReference, `%${search}%`),
+      );
+    }
+
+    if (bank !== '') {
+      searchConditions.push(eq(creditPayments.bankId, Number(bank)));
+    }
+
+    if (type !== '') {
+      searchConditions.push(
+        eq(creditPayments.paymentType, type as loanPaymetTypeEnum),
+      );
+    }
+
+    if (method) {
+      searchConditions.push(
+        eq(creditPayments.paymentMethod, method as paymentMethodEnum),
+      );
+    }
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    // Build sort condition
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${creditPayments[sortBy as keyof typeof creditPayments]} asc`
+        : sql`${creditPayments[sortBy as keyof typeof creditPayments]} desc`;
+
+    // Get total count for pagination
+    const totalCountResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(creditPayments)
+      .where(searchCondition);
+
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Get paginated data
+    const data = await this.db
+      .select({
+        id: creditPayments.id,
+        customReference: creditPayments.customReference,
+        paymentDate: creditPayments.paymentDate,
+        paymentType: creditPayments.paymentType,
+        paymentMethod: creditPayments.paymentMethod,
+        bankName: bankDirectory.name,
+        transactionReference: creditPayments.transactionReference,
+        amount: creditPayments.amount,
+        balancePending: creditPayments.balancePending,
+        associateCedula: associates.cedula,
+        associatesFullname: associates.fullname,
+      })
+      .from(creditPayments)
+      .where(searchCondition)
+      .leftJoin(bankDirectory, eq(bankDirectory.id, creditPayments.bankId))
+      .leftJoin(credits, eq(credits.id, creditPayments.creditId))
+      .leftJoin(associates, eq(associates.id, credits.associateId))
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    // Build pagination metadata
+    const meta = {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return {
+      data: data,
+      meta,
+    };
+  }
+
+  // async findRequestByEdit(id: number) {
+  //   // Get paginated data
+  //   const [data] = await this.db
+  //     .select({
+  //       id: loans.id,
+  //       associateId: loans.associateId,
+  //       associateCedula: associates.cedula,
+  //       associateFullname: associates.fullname,
+  //       associatePhone: associates.phone,
+  //       associateEmail: associates.email,
+  //       associateDateAdmission: associates.dateAdmission,
+  //       associateIsPayrollCredit: associates.isPayrollCredit,
+  //       associateAccountId: associateAccounts.id,
+  //       associateAccountNumber: associateAccounts.accountNumber,
+  //       associateBalance: associateAccounts.balance,
+  //       loanTypeId: loans.loanTypeId,
+  //       loanModality: loans.loanModality,
+  //       loanTypeName: loanTypes.name,
+  //       requestDate: loans.requestDate,
+  //       approvalDate: loans.approvalDate,
+  //       disbursementDate: loans.disbursementDate,
+  //       requestedAmount: loans.requestedAmount,
+  //       approvedAmount: loans.approvedAmount,
+  //       disbursedAmount: loans.disbursedAmount,
+  //       startDate: loans.startDate,
+  //       endDate: loans.endDate,
+  //       totalInterest: loans.totalInterest,
+  //       totalPayable: loans.totalPayable,
+  //       expensesAmount: loans.expensesAmount,
+  //       overdraftAmount: loans.overdraftAmount,
+  //       previousLoanId: loans.previousLoanId,
+  //       paymentMethod: loans.paymentMethod,
+  //       disbursementAccountId: loans.disbursementAccountId,
+  //       status: loans.status,
+  //       rejectionReason: loans.rejectionReason,
+  //       approvedByUserId: loans.approvedByUserId,
+  //       disbursedByUserId: loans.disbursedByUserId,
+  //       notes: loans.notes,
+  //       customReference: loans.customReference,
+  //       currencyCode: loans.currencyCode,
+  //       exchangeRateId: loans.exchangeRateId,
+  //     })
+  //     .from(loans)
+  //     .where(eq(loans.id, id))
+  //     .leftJoin(associates, eq(loans.associateId, associates.id))
+  //     .leftJoin(
+  //       associateAccounts,
+  //       eq(loans.associateId, associateAccounts.associateId),
+  //     )
+  //     .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id));
+
+  //   const [{ count: total }] = await this.db
+  //     .select({
+  //       count: count(),
+  //     })
+  //     .from(loans)
+  //     .where(
+  //       and(
+  //         eq(loans.associateId, data.associateId),
+  //         ne(loans.status, LoanStatusEnum.PAID),
+  //       ),
+  //     );
+
+  //   return {
+  //     id: data.id,
+  //     associateId: data.associateId,
+  //     associateCedula: data.associateCedula,
+  //     associateFullname: data.associateFullname,
+  //     associatePhone: data.associatePhone,
+  //     associateEmail: data.associateEmail,
+  //     associateDateAdmission: data.associateDateAdmission,
+  //     associateIsPayrollCredit: data.associateIsPayrollCredit,
+  //     associateAccountId: data.associateAccountId,
+  //     associateAccountNumber: data.associateAccountNumber,
+  //     associateBalance: data.associateBalance,
+  //     loanTypeId: data.loanTypeId,
+  //     loanModality: data.loanModality,
+  //     loanTypeName: data.loanTypeName,
+  //     requestDate: data.requestDate,
+  //     approvalDate: data.approvalDate,
+  //     disbursementDate: data.disbursementDate,
+  //     requestedAmount: data.requestedAmount,
+  //     approvedAmount: data.approvedAmount,
+  //     disbursedAmount: data.disbursedAmount,
+  //     startDate: data.startDate,
+  //     endDate: data.endDate,
+  //     totalInterest: data.totalInterest,
+  //     totalPayable: data.totalPayable,
+  //     expensesAmount: data.expensesAmount,
+  //     overdraftAmount: data.overdraftAmount,
+  //     previousLoanId: data.previousLoanId,
+  //     paymentMethod: data.paymentMethod,
+  //     disbursementAccountId: data.disbursementAccountId,
+  //     status: data.status,
+  //     rejectionReason: data.rejectionReason,
+  //     approvedByUserId: data.approvedByUserId,
+  //     disbursedByUserId: data.disbursedByUserId,
+  //     notes: data.notes,
+  //     customReference: data.customReference,
+  //     currencyCode: data.currencyCode,
+  //     exchangeRateId: data.exchangeRateId,
+  //     totalLoans: total,
+  //   };
+  // }
+
+  async findOneRequest(cedula: string) {
+    try {
+      const associate = await this.db
+        .select({
+          id: associates.id,
+          cedula: associates.cedula,
+          fullname: associates.fullname,
+          phone: associates.phone,
+          email: associates.email,
+        })
+        .from(associates)
+        .where(
+          and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
+        );
+
+      const result = await this.db
+        .select({
+          creditId: credits.id,
+          creditType: creditsTypes.name,
+          creditTotalAmount: credits.totalPayable,
+          creditModality: credits.creditModality,
+        })
+        .from(credits)
+        .where(
+          and(
+            eq(credits.associateId, associate[0].id),
+            ne(credits.status, CreditStatusEnum.PAID),
+          ),
+        )
+        .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id))
+        .leftJoin(
+          creditAmortizationSchedule,
+          eq(credits.id, creditAmortizationSchedule.creditId),
+        );
+
+      const creditAmortization = await this.db
+        .select({
+          id: creditAmortizationSchedule.id,
+          quotaNumber: creditAmortizationSchedule.installmentNumber,
+          quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+          quotaDate: creditAmortizationSchedule.dueDate,
+          quotaStatus: creditAmortizationSchedule.paymentStatus,
+          quotaPartial: creditAmortizationSchedule.paidAmount,
+          principalBalancePending:
+            creditAmortizationSchedule.principalBalancePending,
+          paidAmount: creditAmortizationSchedule.paidAmount,
+        })
+        .from(creditAmortizationSchedule)
+        .where(eq(creditAmortizationSchedule.creditId, result[0]?.creditId))
+        .orderBy(sql<string>`
+    CASE payment_status
+      WHEN 'PARTIAL' THEN 1
+      WHEN 'PENDING' THEN 2
+      WHEN 'PAID' THEN 3
+      ELSE 4
+    END ASC,
+    id ASC`);
+
+      const pendingQuotas = creditAmortization.filter(
+        (item) => item.quotaStatus === 'PENDING',
+      );
+
+      const partialQuotas = creditAmortization.filter(
+        (item) => item.quotaStatus === 'PARTIAL',
+      );
+
+      // Sumar todas las cuotas PENDING directamente
+      const totalPending = pendingQuotas.reduce((acc, item) => {
+        const amount = Number(item.quotaAmount) || 0;
+        return acc + amount;
+      }, 0);
+
+      // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
+      const totalPartial = partialQuotas.reduce((acc, item) => {
+        const totalAmount = Number(item.quotaAmount) || 0;
+        const paidAmount = Number(item.paidAmount) || 0;
+        const remaining = totalAmount - paidAmount;
+        return acc + (remaining > 0 ? remaining : 0); // evitar negativos
+      }, 0);
+
+      // Suma final
+      const totalPendingAmount = totalPending + totalPartial;
+
+      return {
+        id: associate[0].id,
+        cedula: associate[0].cedula,
+        fullname: associate[0].fullname,
+        phone: associate[0].phone,
+        email: associate[0].email,
+        creditId: result.length === 0 ? null : result[0]?.creditId,
+        creditType: result.length === 0 ? null : result[0]?.creditType,
+        creditTotalAmount: String(totalPendingAmount.toFixed(2)),
+        creditModality: result.length === 0 ? null : result[0]?.creditModality,
+        creditAmortization: creditAmortization || null,
+      };
+    } catch (error) {
+      console.log(error);
+
+      return new InternalServerErrorException(
+        'Error fetching loan request details.',
+      );
+    }
+  }
+
+  // async update(
+  //   id: number,
+  //   updateLoanDto: UpdateLoanDto,
+  //   userId: number,
+  // ): Promise<{ id: number; customReference: string | null }> {
+  //   // 1. Obtener el préstamo actual
+
+  //   const existingLoan = await this.db
+  //     .select()
+  //     .from(loans)
+  //     .where(eq(loans.id, id));
+  //   if (existingLoan.length === 0) {
+  //     throw new InternalServerErrorException('Loan not found.');
+  //   }
+
+  //   const setting = await this.db.query.systemSettings.findFirst({
+  //     where: eq(systemSettings.key, 'moneda'),
+  //   });
+  //   const entryDate = new Date().toISOString().split('T')[0];
+  //   const exchangeRateData = await this.db.query.exchangeRates.findFirst({
+  //     where: eq(exchangeRates.date, entryDate),
+  //   });
+
+  //   // 2. Obtener datos relevantes para el cálculo
+  //   const [getLoanTypes] = await this.db
+  //     .select()
+  //     .from(loanTypes)
+  //     .where(
+  //       eq(
+  //         loanTypes.id,
+  //         updateLoanDto.loanTypeId ?? existingLoan[0].loanTypeId,
+  //       ),
+  //     );
+
+  //   // 3. Calcular nuevos valores si corresponde
+  //   // 1. Perform calculations
+  //   // Using the standard formula for annuity loan payments
+  //   const annualInterestRate = parseFloat(getLoanTypes.interestRate); // Tasa de interés anual
+  //   const term = getLoanTypes.termUnits; // Plazo en meses
+  //   const expensePercentage = parseFloat(
+  //     getLoanTypes.administrativeExpensePercentage ?? '0',
+  //   ); //  Tasa Porcentaje de gastos administrativos
+  //   const percentageInterest =
+  //     ((updateLoanDto.requestedAmount ?? 0) * annualInterestRate) / 100; // Porcentaje de cuota
+  //   const percentageExpenses =
+  //     ((updateLoanDto.requestedAmount ?? 0) * expensePercentage) / 100; // Porcentaje de gastos
+
+  //   let totalQuota = 0; //Cálculo del pago cuotas mesual
+  //   let totalInterest = 0; //Cálculo del monto total de intereses
+  //   let installmentAmount = 0; //total gasto administrativo
+  //   let totalPayable = 0; //Cálculo del monto total a pagar
+  //   if (setting && setting.value === 'USD' && exchangeRateData) {
+  //     totalQuota =
+  //       ((updateLoanDto?.requestedAmount ?? 0) +
+  //         percentageInterest +
+  //         percentageExpenses) /
+  //       term /
+  //       Number(exchangeRateData.rate);
+  //     totalInterest =
+  //       ((updateLoanDto?.requestedAmount ?? 0) * annualInterestRate) /
+  //       100 /
+  //       Number(exchangeRateData.rate);
+  //     installmentAmount =
+  //       ((updateLoanDto?.requestedAmount ?? 0) * expensePercentage) /
+  //       100 /
+  //       Number(exchangeRateData.rate);
+  //     totalPayable =
+  //       ((updateLoanDto?.requestedAmount ?? 0) +
+  //         totalInterest +
+  //         installmentAmount) /
+  //       Number(exchangeRateData.rate);
+  //   } else {
+  //     totalQuota =
+  //       ((updateLoanDto?.requestedAmount ?? 0) +
+  //         percentageInterest +
+  //         percentageExpenses) /
+  //       term;
+  //     totalInterest =
+  //       ((updateLoanDto?.requestedAmount ?? 0) * annualInterestRate) / 100;
+  //     installmentAmount =
+  //       ((updateLoanDto?.requestedAmount ?? 0) * expensePercentage) / 100;
+  //     totalPayable =
+  //       (updateLoanDto?.requestedAmount ?? 0) +
+  //       totalInterest +
+  //       installmentAmount;
+  //   }
+
+  //   let customReference: string | null | undefined = undefined;
+  //   let approvalDate: Date | null = null;
+  //   const currentDate = new Date(); // Fecha actual
+  //   const finalDate = this.addMonthsToDate(
+  //     updateLoanDto?.startDate ?? currentDate,
+  //     getLoanTypes.termUnits,
+  //   ); //fecha finalizacion del pago
+
+  //   // 2 & 3. Handle APPROVED status
+  //   if (
+  //     updateLoanDto?.status !== LoanStatusEnum.REQUESTED &&
+  //     updateLoanDto?.status !== LoanStatusEnum.REJECTED
+  //   ) {
+  //     customReference = await this.generateCustomReference();
+  //     approvalDate = currentDate;
+  //   }
+
+  //   // 4. Actualizar el préstamo y la tabla de amortización en una transacción
+  //   const updatedLoan = await this.db.transaction(async (tx) => {
+  //     // Actualizar préstamo
+
+  //     const [loanUpdated] = await tx
+  //       .update(loans)
+  //       .set({
+  //         ...updateLoanDto,
+  //         associateId: Number(updateLoanDto.associateId),
+  //         loanTypeId: Number(updateLoanDto.loanTypeId),
+  //         loanModality: updateLoanDto?.loanModality,
+  //         requestDate: updateLoanDto?.requestDate?.toISOString().split('T')[0],
+  //         approvalDate: approvalDate?.toISOString().split('T')[0],
+  //         disbursementDate:
+  //           updateLoanDto?.status === 'DISBURSED'
+  //             ? currentDate.toISOString().split('T')[0]
+  //             : null,
+  //         requestedAmount:
+  //           updateLoanDto.requestedAmount !== null &&
+  //           updateLoanDto.requestedAmount !== undefined
+  //             ? String(updateLoanDto.requestedAmount)
+  //             : undefined, // Usa undefined en vez de null
+  //         approvedAmount:
+  //           updateLoanDto.requestedAmount !== null &&
+  //           updateLoanDto.requestedAmount !== undefined
+  //             ? String(updateLoanDto.requestedAmount)
+  //             : undefined, // Usa undefined en vez de null
+  //         disbursedAmount:
+  //           updateLoanDto.requestedAmount !== null &&
+  //           updateLoanDto.requestedAmount !== undefined
+  //             ? String(updateLoanDto.requestedAmount)
+  //             : undefined, // Usa undefined en vez de null
+  //         startDate: updateLoanDto?.startDate?.toISOString().split('T')[0],
+  //         endDate: finalDate.toISOString().split('T')[0],
+  //         totalInterest:
+  //           totalInterest !== null && totalInterest !== undefined
+  //             ? String(totalInterest.toFixed(2))
+  //             : undefined, // Usa undefined en vez de null
+  //         totalPayable:
+  //           totalPayable !== null && totalPayable !== undefined
+  //             ? String(totalPayable.toFixed(2))
+  //             : undefined, // Usa undefined en vez de null
+  //         installmentAmount:
+  //           totalQuota !== null && totalQuota !== undefined
+  //             ? String(totalQuota.toFixed(2))
+  //             : undefined, // Usa undefined en vez de null
+  //         expensesAmount:
+  //           installmentAmount !== null && installmentAmount !== undefined
+  //             ? String(installmentAmount.toFixed(2))
+  //             : undefined, // Usa undefined en vez de null
+  //         // *** LÍNEA CORREGIDA PARA overdraftAmount ***
+  //         overdraftAmount:
+  //           updateLoanDto.overdraftAmount !== null &&
+  //           updateLoanDto.overdraftAmount !== undefined
+  //             ? String(updateLoanDto.overdraftAmount)
+  //             : undefined, // Usa undefined en vez de null
+  //         previousLoanId: updateLoanDto.previousLoanId ?? null,
+  //         paymentMethod: updateLoanDto.paymentMethod,
+  //         disbursementAccountId: updateLoanDto.disbursementAccountId,
+  //         status: updateLoanDto?.status,
+  //         approvedByUserId: userId,
+  //         disbursedByUserId:
+  //           updateLoanDto?.status === 'DISBURSED' ? userId : null,
+  //         notes: updateLoanDto.notes ?? null,
+  //         currencyCode: setting?.value === '1' ? 'VES' : 'USD',
+  //         exchangeRateId: setting?.value === '2' ? exchangeRateData?.id : null,
+  //         customReference: customReference,
+  //         updatedById: userId,
+  //         updatedAt: new Date(),
+  //       })
+  //       .where(eq(loans.id, id))
+  //       .returning({
+  //         id: loans.id,
+  //         customReference: loans.customReference,
+  //       });
+
+  //     if (!loanUpdated) {
+  //       throw new InternalServerErrorException('Failed to update loan.');
+  //     }
+
+  //     // Eliminar tabla de amortización anterior
+  //     await tx
+  //       .delete(creditAmortizationSchedule)
+  //       .where(eq(creditAmortizationSchedule.loanId, id));
+
+  //     // Generar y guardar nueva tabla de amortización
+  //     const schedule = this.generateAmortizationSchedule(
+  //       updateLoanDto.requestedAmount!,
+  //       term,
+  //       annualInterestRate,
+  //       expensePercentage,
+  //       updateLoanDto.startDate!,
+  //       id,
+  //     );
+  //     if (schedule.length > 0) {
+  //       await tx.insert(creditAmortizationSchedule).values(
+  //         schedule.map((item) => ({
+  //           ...item,
+  //           dueDate: item.dueDate.toISOString(),
+  //           principalAmount: item.principalAmount.toString(),
+  //           interestAmount: item.interestAmount.toString(),
+  //           totalInstallmentAmount: item.totalInstallmentAmount.toString(),
+  //           principalBalancePending: item.principalBalancePending.toString(),
+  //         })),
+  //       );
+  //     }
+
+  //     // Registrar historial de estatus
+  //     await tx.insert(loanStatusHistory).values({
+  //       loanId: id,
+  //       status: updateLoanDto.status!,
+  //       changedAt: new Date(),
+  //       changedByUserId: userId,
+  //       comment: 'Loan updated',
+  //     });
+
+  //     return loanUpdated;
+  //   });
+
+  //   return updatedLoan;
+  // }
+
+  // async remove(id: number): Promise<{ message: string }> {
+  //   const [existingLoan] = await this.db
+  //     .select()
+  //     .from(loans)
+  //     .where(eq(loans.id, id));
+
+  //   if (!existingLoan) {
+  //     throw new HttpException('Loan not found', HttpStatus.NOT_FOUND);
+  //   }
+
+  //   await this.db.delete(loans).where(eq(loans.id, id));
+  //   return { message: 'Loan deleted successfully' };
+  // }
+
+  // async findCountAllLoans() {
+  //   const totalLoansOrdinary = await this.db
+  //     .select({ count: sql<number>`count(*)` })
+  //     .from(loans)
+  //     .where(
+  //       and(
+  //         eq(loans.loanModality, loanModalityTypeEnum.ORDINARY),
+  //         or(
+  //           eq(loans.status, LoanStatusEnum.APPROVED),
+  //           eq(loans.status, LoanStatusEnum.DISBURSED),
+  //         ),
+  //       ),
+  //     );
+
+  //   const totalLoanSpecialQuotas = await this.db
+  //     .select({ count: sql<number>`count(*)` })
+  //     .from(loans)
+  //     .where(
+  //       and(
+  //         eq(loans.loanModality, loanModalityTypeEnum.SPECIAL_QUOTAS),
+  //         or(
+  //           eq(loans.status, LoanStatusEnum.APPROVED),
+  //           eq(loans.status, LoanStatusEnum.DISBURSED),
+  //         ),
+  //       ),
+  //     );
+
+  //   const totalLoanPaid = await this.db
+  //     .select({ count: sql<number>`count(*)` })
+  //     .from(loans)
+  //     .where(eq(loans.status, LoanStatusEnum.PAID));
+
+  //   const totalLoanInPaymet = await this.db
+  //     .select({ count: sql<number>`count(*)` })
+  //     .from(loans)
+  //     .where(eq(loans.status, LoanStatusEnum.IN_PAYMENT));
+
+  //   return {
+  //     totalLoansOrdinary: Number(totalLoansOrdinary[0].count),
+  //     totalLoanSpecialQuotas: Number(totalLoanSpecialQuotas[0].count),
+  //     totalLoanPaid: Number(totalLoanPaid[0].count),
+  //     totalLoanInPaymet: Number(totalLoanInPaymet[0].count),
+  //   };
+  // }
+}

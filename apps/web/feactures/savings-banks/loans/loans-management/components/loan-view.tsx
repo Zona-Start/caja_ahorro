@@ -36,6 +36,7 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
     totalInterest: string;
     totalPayable: string;
     installmentAmount: string;
+    totalDisbursement: string;
   } | null>(null);
   const [formValues, setFormValues] = useState({});
   const [selectedLoanType, setSelectedLoanType] = useState<TypesLoan | null>(
@@ -197,28 +198,26 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
         // Cálculo simple de interés (en la práctica se usaría una fórmula más compleja)
 
         const percentageInterest = (amount * rate) / 100; // Porcentaje de cuota
-        const percentageExpenses = (amount * expenses) / 100; // Porcentaje de gastos
+        // const percentageExpenses = (amount * expenses) / 100; // Porcentaje de gastos
         let totalQuota = 0;
         let totalInterest = 0;
         let installmentAmount = 0;
         let totalPayable = 0;
+        let totalDisbursement = 0;
         const exchangeRate = Number(currentExchangeRate);
 
         if (currentCurrencyCode === 'USD' && currentExchangeRate) {
-          totalQuota =
-            (amount + percentageInterest + percentageExpenses) /
-            term /
-            exchangeRate;
+          totalQuota = (amount + percentageInterest) / term / exchangeRate;
           totalInterest = (amount * rate) / 100 / exchangeRate;
           installmentAmount = (amount * expenses) / 100 / exchangeRate;
-          totalPayable =
-            (amount + totalInterest + installmentAmount) / exchangeRate;
+          totalPayable = (amount + totalInterest) / exchangeRate;
+          totalDisbursement = (amount - installmentAmount) / exchangeRate;
         } else {
-          totalQuota =
-            (amount + percentageInterest + percentageExpenses) / term;
+          totalQuota = (amount + percentageInterest) / term;
           totalInterest = (amount * rate) / 100;
           installmentAmount = (amount * expenses) / 100;
-          totalPayable = amount + totalInterest + installmentAmount;
+          totalPayable = amount + totalInterest;
+          totalDisbursement = amount - installmentAmount;
         }
 
         setLoanSummary({
@@ -226,6 +225,7 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
           totalInterest: totalInterest.toFixed(2),
           totalPayable: totalPayable.toFixed(2),
           installmentAmount: installmentAmount.toFixed(2),
+          totalDisbursement: totalDisbursement.toFixed(2),
         });
       } else {
         setLoanSummary(null);
