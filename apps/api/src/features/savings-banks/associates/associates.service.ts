@@ -1,5 +1,10 @@
 import { associateAccounts, associates } from '@/database/schema/savings-banks';
-import { StatusEnum } from '@/types/enum';
+import { associateHaberesBalance } from '@/database/schema/views';
+import {
+  AssociateMovementTypeEnum,
+  CurrencyCodeEnum,
+  StatusEnum,
+} from '@/types/enum';
 import {
   Inject,
   Injectable,
@@ -11,6 +16,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { currencies, systemSettings } from 'src/database/index';
+import { AssociateAccountsMovementsService } from '../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateAssociateAccountsDto } from './dto/create-associate-accounts.dto';
 import { CreateAssociateDto } from './dto/create-associate.dto';
 import { FilterAssociateDto } from './dto/filter-associate.dto';
@@ -21,6 +27,7 @@ import { Associates } from './entities/entity';
 export class AssociatesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
   ) {}
 
   async create(userId: number, createAssociateDto: CreateAssociateDto) {
@@ -93,7 +100,7 @@ export class AssociatesService {
           associateId: associate,
           accountNumber: createAssociateDto.accountNumber,
           currencyCode: currencyCode[0].code,
-          balance: (createAssociateDto.baseSalary * 0.1).toString(),
+          balance: (0).toString(),
           openingDate: new Date(),
           bankDirectoryId: createAssociateDto.bankDirectoryId,
           status: createAssociateDto.status,
@@ -114,6 +121,23 @@ export class AssociatesService {
             bankDirectoryId: associateAccounts.bankDirectoryId,
             status: associateAccounts.status,
           });
+
+        const payloadMovement = {
+          associateAccountId: insertAssociateAccount[0].id,
+          movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+          amount: createAssociateDto.baseSalary * 0.1,
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: createAssociateDto.dateAdmission,
+          description: 'APERTURA CUENTA',
+          referenceId: undefined,
+          referenceType: undefined,
+          referenceNumber: undefined,
+        };
+
+        await this.associateAccountsMovementsService.create(
+          userId,
+          payloadMovement,
+        );
 
         return {
           associate: insertAssociate[0],
@@ -323,13 +347,20 @@ export class AssociatesService {
         associateAccountsId: associateAccounts.id,
         accountNumber: associateAccounts.accountNumber,
         currencyCode: associateAccounts.currencyCode,
-        balance: associateAccounts.balance,
+        balance: associateHaberesBalance.haberesBalance,
         openingDate: associateAccounts.openingDate,
         bankDirectoryId: associateAccounts.bankDirectoryId,
       })
       .from(associates)
       .where(eq(associates.cedula, cedula))
-      .leftJoin(associateAccounts, eq(associateAccounts.associateId, associates.id));
+      .leftJoin(
+        associateAccounts,
+        eq(associateAccounts.associateId, associates.id),
+      )
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+      );
     if (!result.length) {
       throw new NotFoundException(`Associate with cedula ${cedula} not found`);
     }

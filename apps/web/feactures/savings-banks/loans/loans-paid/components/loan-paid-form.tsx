@@ -115,8 +115,8 @@ export function LoanPaidForm({
   //Actualizar el associateId cuando cambia el asociado seleccionado
   useEffect(() => {
     if (selectedAssociate) {
-      form.setValue('loanPaidId', selectedAssociate.loanPaidId);
-      form.setValue('loanId', selectedAssociate.loanId);
+      form.setValue('loanPaidId', selectedAssociate?.loanPaidId ?? undefined);
+      form.setValue('loanId', selectedAssociate?.loanId ?? 0);
     } else {
       form.setValue('id', 0);
       // form.reset({
@@ -143,7 +143,11 @@ export function LoanPaidForm({
 
       // Evita ciclos si el valor ya es el correcto
       if (amount !== calculatedAmount) {
-        form.setValue('amount', calculatedAmount, { shouldValidate: true });
+        form.setValue(
+          'amount',
+          calculatedAmount != null ? String(calculatedAmount) : '',
+          { shouldValidate: true },
+        );
       }
 
       setIsCancellation(true);

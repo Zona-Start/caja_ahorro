@@ -1,8 +1,10 @@
+import { generateUniqueReference } from '@/common/utils/reference';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
   associateAccounts,
   associates,
+  auditLogs,
   company,
   creditAmortizationSchedule,
   credits,
@@ -11,10 +13,13 @@ import {
   exchangeRates,
   systemSettings,
 } from '@/database/index';
+import { associateHaberesBalance } from '@/database/schema/views';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import {
+  AssociateMovementTypeEnum,
   creditModalityTypeEnum,
   CreditStatusEnum,
+  CurrencyCodeEnum,
   PaymentStatusEnum,
 } from '@/types/enum';
 import {
@@ -26,6 +31,7 @@ import {
 } from '@nestjs/common';
 import { and, count, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateCreditDto } from './dto/create-credit.dto';
 import { FilterCreditManagementDto } from './dto/filter-credit-management.dto';
 import { UpdateCreditDto } from './dto/update-credit.dto';
@@ -36,60 +42,60 @@ export class CreditManagementService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly settingsSystemService: SettingsSystemService,
+    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
   ) {}
 
   // --- Helper function to generate custom reference ---
-  private async generateCustomReference(): Promise<string> {
-    // Fetch the current correlative number and increment it
-    const key = 'correlativo_credito';
-    try {
-      const result = await this.db.transaction(async (tx) => {
-        // Lock the row for update
-        const setting = await tx.query.systemSettings.findFirst({
-          where: eq(systemSettings.key, key),
-          // Add forUpdate() if your Drizzle version supports it for row locking
-          // Example: columns: {}, with: { forUpdate: true }
-        });
+  // private async generateCustomReference(): Promise<string> {
+  //   // Fetch the current correlative number and increment it
+  //   const key = 'correlativo_credito';
+  //   try {
+  //     const result = await this.db.transaction(async (tx) => {
+  //       // Lock the row for update
+  //       const setting = await tx.query.systemSettings.findFirst({
+  //         where: eq(systemSettings.key, key),
+  //         // Add forUpdate() if your Drizzle version supports it for row locking
+  //         // Example: columns: {}, with: { forUpdate: true }
+  //       });
 
-        if (!setting) {
-          throw new InternalServerErrorException(
-            `System setting '${key}' not found.`,
-          );
-        }
+  //       if (!setting) {
+  //         throw new InternalServerErrorException(
+  //           `System setting '${key}' not found.`,
+  //         );
+  //       }
 
-        const currentNumber = parseInt(setting.value, 10);
-        if (isNaN(currentNumber)) {
-          throw new InternalServerErrorException(
-            `Invalid correlative number format for '${key}'.`,
-          );
-        }
+  //       const currentNumber = parseInt(setting.value, 10);
+  //       if (isNaN(currentNumber)) {
+  //         throw new InternalServerErrorException(
+  //           `Invalid correlative number format for '${key}'.`,
+  //         );
+  //       }
 
-        const nextNumber = currentNumber + 1;
-        const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
+  //       const nextNumber = currentNumber + 1;
+  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
 
-        // Update the setting with the new value
-        await tx
-          .update(systemSettings)
-          .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-          .where(eq(systemSettings.id, setting.id));
+  //       // Update the setting with the new value
+  //       await tx
+  //         .update(systemSettings)
+  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
+  //         .where(eq(systemSettings.id, setting.id));
 
-        return nextValue; // Return the generated reference
-      });
-      return `CREDIT-${result}`; // Prefix the reference
-    } catch (error) {
-      console.error('Error generating custom reference:', error);
-      throw new InternalServerErrorException(
-        'Failed to generate custom credit reference.',
-      );
-    }
-  }
+  //       return nextValue; // Return the generated reference
+  //     });
+  //     return `CREDIT-${result}`; // Prefix the reference
+  //   } catch (error) {
+  //     console.error('Error generating custom reference:', error);
+  //     throw new InternalServerErrorException(
+  //       'Failed to generate custom credit reference.',
+  //     );
+  //   }
+  // }
 
   // --- Helper function to generate amortization schedule ---
   private generateAmortizationSchedule(
     creditAmount: number, // Monto del credito solicitado
     termMonths: number, // Plazos en meses
     annualInterestRate: number, // Tasa de interés anual
-    administrativeFeeRate: number, // Tasa de interés por gasto administrativo
     startDate: Date, // Fecha de inicio del credito
     creditId: number, // Identificador del credito
     createdById: number,
@@ -259,6 +265,7 @@ export class CreditManagementService {
       .select({
         isPayrollCredit: associates.isPayrollCredit,
         balance: associateAccounts.balance,
+        associateAccountId: associateAccounts.id,
       })
       .from(associates)
       .where(eq(associates.id, associateId))
@@ -335,7 +342,7 @@ export class CreditManagementService {
 
     // 2 & 3. Handle APPROVED status
     if (status !== CreditStatusEnum.REQUESTED) {
-      customReference = await this.generateCustomReference();
+      customReference = generateUniqueReference();
       approvalDate = currentDate;
     }
 
@@ -404,7 +411,6 @@ export class CreditManagementService {
           requestedAmount, // Monto del préstamo solicitado
           term, // Plazos en meses
           annualInterestRate, // Tasa de interés anual
-          expensePercentage, // Tasa de interés por gasto administrativo
           approvalDate || currentDate, // Fecha de inicio del préstamo
           newCredit.id, // Identificador del préstamo
           userId,
@@ -422,9 +428,92 @@ export class CreditManagementService {
             })),
           );
         }
+
+        // 6. Generate audit
+        const paylodAuditData = {
+          associateId: Number(associateId),
+          companyId: Number(requestCompanyId.id),
+          creditTypeId: Number(creditTypeId),
+          creditModality: creditModality,
+          requestDate: requestDate.toISOString().split('T')[0],
+          approvalDate: approvalDate
+            ? approvalDate.toISOString().split('T')[0]
+            : null,
+          requestedAmount: requestedAmount,
+          approvedAmount: requestedAmount,
+          disbursedAmount: requestedAmount,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: finalDate,
+          totalInterest: String(totalInterest.toFixed(2)),
+          totalPayable: String(totalPayable.toFixed(2)),
+          installmentAmount: String(totalQuota.toFixed(2)),
+          expensesAmount: installmentAmount.toString(),
+          overdraftAmount: overdraftAmount ?? null,
+          previousCreditId: previousCreditId ?? null,
+          status: status,
+          approvedByUserId: userId,
+          notes: notes ?? null,
+          customReference: customReference,
+          currencyCode: setting?.value === '1' ? 'VES' : 'USD',
+          currencyRate: setting?.value === '2' ? exchangeRateData?.id : null,
+          commercialHouseId: Number(commercialHouseId),
+          invoiceNumber: invoiceNumber,
+          createdById: userId,
+          updatedById: userId, // Set updatedById initially
+        };
+
+        await tx.insert(auditLogs).values({
+          tableName: 'credits',
+          recordId: String(newCredit.id),
+          action: 'INSERT',
+          userId: Number(userId),
+          area: 'CREDITOS',
+          description: 'CREDITO APROBADO',
+          newData: [paylodAuditData],
+        });
       }
-      return newCredit;
+      return {
+        id: newCredit.id,
+        customReference: newCredit.customReference,
+        transation: true,
+      };
     });
+
+    if (newCredit.transation && status === CreditStatusEnum.APPROVED) {
+      const payloadMovementCredits = {
+        associateAccountId: Number(associate.associateAccountId),
+        movementType: 'CREDIT_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
+        amount: requestedAmount,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: approvalDate ? approvalDate : undefined,
+        description: 'APROBACION CREDITO',
+        referenceId: String(newCredit.id),
+        referenceType: 'credits',
+        referenceNumber: newCredit.customReference ?? undefined,
+      };
+
+      const payloadMovementCreditsDebit = {
+        associateAccountId: Number(associate.associateAccountId),
+        movementType: 'CREDIT_ADMIN_FEE_DEBIT' as AssociateMovementTypeEnum,
+        amount: installmentAmount,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: approvalDate ? approvalDate : undefined,
+        description: 'DEBITO GASTOS ADMINISTRATIVOS',
+        referenceId: String(newCredit.id),
+        referenceType: 'credits',
+        referenceNumber: newCredit.customReference ?? undefined,
+      };
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        payloadMovementCredits,
+      );
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        payloadMovementCreditsDebit,
+      );
+    }
 
     // Convert to unknown first to safely cast to Credit type
     return newCredit;
@@ -668,9 +757,13 @@ export class CreditManagementService {
         .select({
           associateAccountId: associateAccounts.id,
           accountNumber: associateAccounts.accountNumber,
-          balance: associateAccounts.balance,
+          balance: associateHaberesBalance.haberesBalance,
         })
         .from(associateAccounts)
+        .leftJoin(
+          associateHaberesBalance,
+          eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+        )
         .where(eq(associateAccounts.associateId, associate[0].id));
 
       const [{ count: total }] = await this.db
@@ -797,7 +890,7 @@ export class CreditManagementService {
 
     // 2 & 3. Handle APPROVED status
     if (dto?.status !== CreditStatusEnum.REQUESTED) {
-      customReference = await this.generateCustomReference();
+      customReference = generateUniqueReference();
       approvalDate = currentDate;
     }
 
@@ -873,7 +966,6 @@ export class CreditManagementService {
         dto.requestedAmount!,
         term,
         annualInterestRate,
-        expensePercentage,
         dto.startDate!,
         id,
         userId,

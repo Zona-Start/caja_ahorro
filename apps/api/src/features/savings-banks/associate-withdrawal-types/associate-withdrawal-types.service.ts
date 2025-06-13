@@ -45,7 +45,7 @@ export class AssociateWithdrawalTypesService {
   }
 
   async findAll() {
-    return await this.drizzle
+    const response = await this.drizzle
       .select({
         id: withdrawalTypes.id,
         description: withdrawalTypes.description,
@@ -56,6 +56,8 @@ export class AssociateWithdrawalTypesService {
         minimumAntiquityDays: withdrawalTypes.minimumAntiquityDays,
       })
       .from(withdrawalTypes);
+
+    return response;
   }
 
   async findOne(id: number) {

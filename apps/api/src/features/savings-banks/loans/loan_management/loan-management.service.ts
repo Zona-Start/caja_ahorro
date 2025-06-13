@@ -1,8 +1,10 @@
+import { generateUniqueReference } from '@/common/utils/reference';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
   associateAccounts,
   associates,
+  auditLogs,
   company,
   exchangeRates,
   loanAmortizationSchedule,
@@ -11,8 +13,11 @@ import {
   loanTypes,
   systemSettings,
 } from '@/database/index';
+import { associateHaberesBalance } from '@/database/schema/views';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import {
+  AssociateMovementTypeEnum,
+  CurrencyCodeEnum,
   loanModalityTypeEnum,
   LoanStatusEnum,
   PaymentStatusEnum,
@@ -26,6 +31,7 @@ import {
 } from '@nestjs/common';
 import { and, count, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateLoanDto } from './dto/create-loan.dto';
 import { FilterLoanManagementDto } from './dto/filter-loan-management.dto';
 import { UpdateLoanDto } from './dto/update-loan.dto';
@@ -36,61 +42,171 @@ export class LoanManagementService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly settingsSystemService: SettingsSystemService,
+    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
   ) {}
 
   // --- Helper function to generate custom reference ---
-  private async generateCustomReference(): Promise<string> {
-    // Fetch the current correlative number and increment it
-    const key = 'correlativo_prestamo';
-    try {
-      const result = await this.db.transaction(async (tx) => {
-        // Lock the row for update
-        const setting = await tx.query.systemSettings.findFirst({
-          where: eq(systemSettings.key, key),
-          // Add forUpdate() if your Drizzle version supports it for row locking
-          // Example: columns: {}, with: { forUpdate: true }
-        });
+  // private async generateCustomReference(): Promise<string> {
+  //   // Fetch the current correlative number and increment it
+  //   const key = 'correlativo_prestamo';
+  //   try {
+  //     const result = await this.db.transaction(async (tx) => {
+  //       // Lock the row for update
+  //       const setting = await tx.query.systemSettings.findFirst({
+  //         where: eq(systemSettings.key, key),
+  //         // Add forUpdate() if your Drizzle version supports it for row locking
+  //         // Example: columns: {}, with: { forUpdate: true }
+  //       });
 
-        if (!setting) {
-          throw new InternalServerErrorException(
-            `System setting '${key}' not found.`,
-          );
-        }
+  //       if (!setting) {
+  //         throw new InternalServerErrorException(
+  //           `System setting '${key}' not found.`,
+  //         );
+  //       }
 
-        const currentNumber = parseInt(setting.value, 10);
-        if (isNaN(currentNumber)) {
-          throw new InternalServerErrorException(
-            `Invalid correlative number format for '${key}'.`,
-          );
-        }
+  //       const currentNumber = parseInt(setting.value, 10);
+  //       if (isNaN(currentNumber)) {
+  //         throw new InternalServerErrorException(
+  //           `Invalid correlative number format for '${key}'.`,
+  //         );
+  //       }
 
-        const nextNumber = currentNumber + 1;
-        const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
+  //       const nextNumber = currentNumber + 1;
+  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
 
-        // Update the setting with the new value
-        await tx
-          .update(systemSettings)
-          .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-          .where(eq(systemSettings.id, setting.id));
+  //       // Update the setting with the new value
+  //       await tx
+  //         .update(systemSettings)
+  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
+  //         .where(eq(systemSettings.id, setting.id));
 
-        return nextValue; // Return the generated reference
-      });
-      return `PREST-${result}`; // Prefix the reference
-    } catch (error) {
-      console.error('Error generating custom reference:', error);
-      throw new InternalServerErrorException(
-        'Failed to generate custom loan reference.',
-      );
-    }
-  }
+  //       return nextValue; // Return the generated reference
+  //     });
+  //     return `PREST-${result}`; // Prefix the reference
+  //   } catch (error) {
+  //     console.error('Error generating custom reference:', error);
+  //     throw new InternalServerErrorException(
+  //       'Failed to generate custom loan reference.',
+  //     );
+  //   }
+  // }
+
+  // // --- Helper function to generate amortization schedule ---
+  // private generateAmortizationSchedule(
+  //   loanAmount: number, // Monto del préstamo solicitado
+  //   termMonths: number, // Plazos en meses
+  //   annualInterestRate: number, // Tasa de interés anual (se usará para calcular un total fijo)
+  //   administrativeFeeRate: number, // Tasa de interés por gasto administrativo (se usa para el desembolso, no para amortización)
+  //   startDate: Date, // Fecha de inicio del préstamo
+  //   loanId: number, // Identificador del préstamo
+  //   createdById: number,
+  // ): Omit<
+  //   LoanAmortizationSchedule,
+  //   | 'id'
+  //   | 'paymentDate'
+  //   | 'paidAmount'
+  //   | 'accountingEntryId'
+  //   | 'createdAt'
+  //   | 'updatedAt'
+  //   | 'updatedById'
+  // >[] {
+  //   // 1. Cálculo del interés total FIJO para todo el plazo
+  //   // Si el 6% es anual y el préstamo es de 80 meses (6.67 años), deberías ajustar esta línea.
+  //   // Pero si el 6% es la tasa "fija" para el total del préstamo, como en tu ejemplo de 12 meses,
+  //   // entonces esta línea es correcta.
+  //   // Basado en tu último ejemplo de 12 cuotas, el interés total sería 90 Bs. (1500 * 0.06).
+  //   const totalInterestFixed = (loanAmount * annualInterestRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
+
+  //   // 2. Gasto Administrativo (para el desembolso, no para la amortización)
+  //   // const administrativeFeeAmount = (loanAmount * administrativeFeeRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
+  //   // El monto a desembolsar al cliente sería: loanAmount - administrativeFeeAmount
+
+  //   // 3. Monto Total a Pagar por el Cliente (Capital + Interés Fijo)
+  //   const totalAmountToPayByClient = loanAmount + totalInterestFixed; // Ej: 1500 + 90 = 1590 Bs.
+
+  //   // 4. Cálculo de la Cuota Mensual Fija
+  //   const monthlyPayment = totalAmountToPayByClient / termMonths; // Ej: 1590 / 12 = 132.50 Bs.
+
+  //   // 5. Componente de Interés FIJO por Cuota
+  //   const monthlyInterestComponent = totalInterestFixed / termMonths; // Ej: 90 / 12 = 7.50 Bs.
+
+  //   // 6. Componente de Capital FIJO por Cuota
+  //   const monthlyPrincipalComponent = loanAmount / termMonths; // Ej: 1500 / 12 = 125 Bs.
+
+  //   // Opcional: Para verificación, monthlyPayment debería ser monthlyPrincipalComponent + monthlyInterestComponent
+  //   // 125 + 7.50 = 132.50. ¡Coincide!
+  //   const schedule: Omit<
+  //     LoanAmortizationSchedule,
+  //     | 'id'
+  //     | 'paymentDate'
+  //     | 'paidAmount'
+  //     | 'accountingEntryId'
+  //     | 'createdAt'
+  //     | 'updatedAt'
+  //     | 'updatedById'
+  //   >[] = [];
+
+  //   let remainingBalance = loanAmount; // El saldo pendiente es solo el capital
+
+  //   // Clonar la fecha de inicio para evitar modificar el objeto original
+  //   let currentDueDate = new Date(startDate);
+  //   currentDueDate.setMonth(currentDueDate.getMonth() + 1); // ¡Avanza un mes para la primera cuota!
+
+  //   for (let i = 1; i <= termMonths; i++) {
+  //     let principalComponentForInstallment = monthlyPrincipalComponent;
+  //     let interestComponentForInstallment = monthlyInterestComponent;
+  //     let totalInstallmentAmountForInstallment = monthlyPayment;
+
+  //     // Ajuste del último pago para evitar errores de redondeo
+  //     // Aseguramos que el capital restante sea 0 después del último pago
+  //     if (i === termMonths) {
+  //       principalComponentForInstallment = remainingBalance; // El último capital es lo que queda
+  //       // El interés sigue siendo fijo para esta cuota
+  //       // La cuota total se ajusta para incluir el capital restante y el interés fijo
+  //       totalInstallmentAmountForInstallment =
+  //         principalComponentForInstallment + interestComponentForInstallment;
+  //     }
+
+  //     // Se resta el componente de capital del saldo pendiente
+  //     remainingBalance -= principalComponentForInstallment;
+
+  //     // Asegurarse de que el saldo no sea negativo debido a errores de coma flotante en el último pago
+  //     if (remainingBalance < 0.005) {
+  //       remainingBalance = 0;
+  //     }
+
+  //     schedule.push({
+  //       loanId,
+  //       installmentNumber: i,
+  //       dueDate: new Date(currentDueDate), // Clonar para cada entrada
+  //       principalAmount: parseFloat(
+  //         principalComponentForInstallment.toFixed(2),
+  //       ),
+  //       interestAmount: parseFloat(interestComponentForInstallment.toFixed(2)),
+  //       totalInstallmentAmount: parseFloat(
+  //         totalInstallmentAmountForInstallment.toFixed(2),
+  //       ),
+  //       principalBalancePending: parseFloat(remainingBalance.toFixed(2)),
+  //       paymentStatus: PaymentStatusEnum.PENDING, // Estado por defecto
+  //       createdById: createdById,
+  //     });
+
+  //     // Avanzar la fecha al próximo mes
+  //     currentDueDate.setMonth(currentDueDate.getMonth() + 1);
+  //   }
+
+  //   return schedule;
+  // }
+
+  ///----version nueva---->
 
   // --- Helper function to generate amortization schedule ---
   private generateAmortizationSchedule(
-    loanAmount: number, // Monto del préstamo solicitado
+    loanAmount: number, // Monto del préstamo solicitado (capital)
     termMonths: number, // Plazos en meses
-    annualInterestRate: number, // Tasa de interés anual (se usará para calcular un total fijo)
-    administrativeFeeRate: number, // Tasa de interés por gasto administrativo (se usa para el desembolso, no para amortización)
-    startDate: Date, // Fecha de inicio del préstamo
+    annualInterestRate: number, // Tasa de interés anual (para calcular interés total fijo)
+    // administrativeFeeRate: number, // Ya no se usa aquí para la amortización, solo para el desembolso.
+    startDate: Date, // Fecha de inicio del préstamo (para determinar la primera cuota)
     loanId: number, // Identificador del préstamo
     createdById: number,
   ): Omit<
@@ -103,31 +219,28 @@ export class LoanManagementService {
     | 'updatedAt'
     | 'updatedById'
   >[] {
+    // Asegúrate de que `PaymentStatusEnum` esté definido y accesible.
+    // import { PaymentStatusEnum } from './enums'; // Ejemplo de importación
+
     // 1. Cálculo del interés total FIJO para todo el plazo
-    // Si el 6% es anual y el préstamo es de 80 meses (6.67 años), deberías ajustar esta línea.
-    // Pero si el 6% es la tasa "fija" para el total del préstamo, como en tu ejemplo de 12 meses,
-    // entonces esta línea es correcta.
-    // Basado en tu último ejemplo de 12 cuotas, el interés total sería 90 Bs. (1500 * 0.06).
-    const totalInterestFixed = (loanAmount * annualInterestRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
+    const totalInterestFixed = (loanAmount * annualInterestRate) / 100;
 
-    // 2. Gasto Administrativo (para el desembolso, no para la amortización)
-    // const administrativeFeeAmount = (loanAmount * administrativeFeeRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
-    // El monto a desembolsar al cliente sería: loanAmount - administrativeFeeAmount
+    // 2. Monto Total a Pagar por el Cliente (Capital + Interés Fijo)
+    const totalAmountToPayByClient = loanAmount + totalInterestFixed;
 
-    // 3. Monto Total a Pagar por el Cliente (Capital + Interés Fijo)
-    const totalAmountToPayByClient = loanAmount + totalInterestFixed; // Ej: 1500 + 90 = 1590 Bs.
+    // 3. Cálculo del número TOTAL de cuotas quincenales
+    // Si son 'termMonths' meses y hay 2 cuotas por mes, entonces termMonths * 2
+    const totalInstallments = termMonths * 2;
 
-    // 4. Cálculo de la Cuota Mensual Fija
-    const monthlyPayment = totalAmountToPayByClient / termMonths; // Ej: 1590 / 12 = 132.50 Bs.
+    // 4. Cálculo de la Cuota Quincenal Fija
+    const biweeklyPayment = totalAmountToPayByClient / totalInstallments;
 
-    // 5. Componente de Interés FIJO por Cuota
-    const monthlyInterestComponent = totalInterestFixed / termMonths; // Ej: 90 / 12 = 7.50 Bs.
+    // 5. Componente de Interés FIJO por Cuota Quincenal
+    const biweeklyInterestComponent = totalInterestFixed / totalInstallments;
 
-    // 6. Componente de Capital FIJO por Cuota
-    const monthlyPrincipalComponent = loanAmount / termMonths; // Ej: 1500 / 12 = 125 Bs.
+    // 6. Componente de Capital FIJO por Cuota Quincenal
+    const biweeklyPrincipalComponent = loanAmount / totalInstallments;
 
-    // Opcional: Para verificación, monthlyPayment debería ser monthlyPrincipalComponent + monthlyInterestComponent
-    // 125 + 7.50 = 132.50. ¡Coincide!
     const schedule: Omit<
       LoanAmortizationSchedule,
       | 'id'
@@ -139,39 +252,110 @@ export class LoanManagementService {
       | 'updatedById'
     >[] = [];
 
-    let remainingBalance = loanAmount; // El saldo pendiente es solo el capital
+    let remainingPrincipalBalance = loanAmount; // El saldo pendiente es solo el capital
 
-    // Clonar la fecha de inicio para evitar modificar el objeto original
-    let currentDueDate = new Date(startDate);
-    currentDueDate.setMonth(currentDueDate.getMonth() + 1); // ¡Avanza un mes para la primera cuota!
+    // Clonar la fecha de inicio para calcular la primera cuota
+    let currentCalculationDate = new Date(startDate);
 
-    for (let i = 1; i <= termMonths; i++) {
-      let principalComponentForInstallment = monthlyPrincipalComponent;
-      let interestComponentForInstallment = monthlyInterestComponent;
-      let totalInstallmentAmountForInstallment = monthlyPayment;
+    // Función auxiliar para obtener el último día de un mes
+    const getLastDayOfMonth = (year: number, month: number): number => {
+      return new Date(year, month + 1, 0).getDate();
+    };
+
+    // Función auxiliar para determinar la fecha de vencimiento quincenal
+    const getNextBiweeklyDueDate = (
+      currentDate: Date,
+      isFirstHalf: boolean, // true para el 16, false para el 30/28
+    ): Date => {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth(); // 0-11
+
+      let day: number;
+      let targetMonth = month;
+      let targetYear = year;
+
+      if (isFirstHalf) {
+        // Si estamos en la segunda mitad del mes actual (después del 16)
+        // o es el día 16 o antes pero ya pasó el 16 del mes anterior, la siguiente fecha es el 16 del mes actual.
+        // Si la fecha actual es 17, 18, 19, etc. del mes, la primera cuota será el 16 del SIGUIENTE mes.
+        // Si la fecha actual es 1 al 16, la primera cuota será el 16 del MES ACTUAL.
+        if (currentDate.getDate() > 16) {
+          targetMonth = month + 1; // Mover al siguiente mes
+          if (targetMonth > 11) {
+            // Si pasamos de diciembre
+            targetMonth = 0;
+            targetYear++;
+          }
+        }
+        day = 16;
+      } else {
+        // Si estamos en la primera mitad del mes actual (antes del 30/28)
+        // o es el día 30/28 o antes pero ya pasó la fecha del 30/28 del mes anterior, la siguiente fecha es el 30/28 del mes actual.
+        // Si la fecha actual es 1 al 30/28, la cuota es el 30/28 del MES ACTUAL.
+        // Si la fecha actual es 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30
+        // Si la fecha actual es 1 al 15, la cuota es el 30/28 del MES ACTUAL.
+        // Si la fecha actual es 17 al 31, la cuota es el 30/28 del MES SIGUIENTE.
+        if (currentDate.getDate() > getLastDayOfMonth(year, month) - 1) {
+          // Si ya pasamos el día 30/28 del mes actual
+          targetMonth = month + 1; // Mover al siguiente mes
+          if (targetMonth > 11) {
+            // Si pasamos de diciembre
+            targetMonth = 0;
+            targetYear++;
+          }
+        }
+        day = getLastDayOfMonth(targetYear, targetMonth); // Ajustar para 28/29 en febrero y 30 en meses de 30 días
+      }
+
+      const nextDate = new Date(targetYear, targetMonth, day);
+      // Asegurarse de que la hora se establezca al inicio del día para evitar problemas de zona horaria
+      nextDate.setHours(0, 0, 0, 0);
+      return nextDate;
+    };
+
+    // Determinar la primera fecha de pago
+    let nextDueDate: Date;
+    let installmentCounter = 0;
+
+    // Lógica para determinar la primera fecha de pago basada en `startDate`
+    // Si `startDate` es 1 al 15, la primera cuota es el 30/28 del mismo mes.
+    // Si `startDate` es 16 al 31, la primera cuota es el 16 del mes siguiente.
+
+    // Si el préstamo comienza antes del día 16, la primera cuota es el día 30/28 del mismo mes
+    if (startDate.getDate() <= 15) {
+      nextDueDate = getNextBiweeklyDueDate(startDate, false); // Es la segunda mitad del mes actual
+    } else {
+      // Si el préstamo comienza después del día 15, la primera cuota es el día 16 del siguiente mes
+      nextDueDate = getNextBiweeklyDueDate(startDate, true); // Es la primera mitad del siguiente mes
+    }
+
+    while (installmentCounter < totalInstallments) {
+      installmentCounter++;
+
+      let principalComponentForInstallment = biweeklyPrincipalComponent;
+      let interestComponentForInstallment = biweeklyInterestComponent;
+      let totalInstallmentAmountForInstallment = biweeklyPayment;
 
       // Ajuste del último pago para evitar errores de redondeo
       // Aseguramos que el capital restante sea 0 después del último pago
-      if (i === termMonths) {
-        principalComponentForInstallment = remainingBalance; // El último capital es lo que queda
-        // El interés sigue siendo fijo para esta cuota
-        // La cuota total se ajusta para incluir el capital restante y el interés fijo
+      if (installmentCounter === totalInstallments) {
+        principalComponentForInstallment = remainingPrincipalBalance; // El último capital es lo que queda
         totalInstallmentAmountForInstallment =
           principalComponentForInstallment + interestComponentForInstallment;
       }
 
       // Se resta el componente de capital del saldo pendiente
-      remainingBalance -= principalComponentForInstallment;
+      remainingPrincipalBalance -= principalComponentForInstallment;
 
       // Asegurarse de que el saldo no sea negativo debido a errores de coma flotante en el último pago
-      if (remainingBalance < 0.005) {
-        remainingBalance = 0;
+      if (remainingPrincipalBalance < 0.005) {
+        remainingPrincipalBalance = 0;
       }
 
       schedule.push({
         loanId,
-        installmentNumber: i,
-        dueDate: new Date(currentDueDate), // Clonar para cada entrada
+        installmentNumber: installmentCounter,
+        dueDate: new Date(nextDueDate), // Clonar para cada entrada
         principalAmount: parseFloat(
           principalComponentForInstallment.toFixed(2),
         ),
@@ -179,13 +363,21 @@ export class LoanManagementService {
         totalInstallmentAmount: parseFloat(
           totalInstallmentAmountForInstallment.toFixed(2),
         ),
-        principalBalancePending: parseFloat(remainingBalance.toFixed(2)),
+        principalBalancePending: parseFloat(
+          remainingPrincipalBalance.toFixed(2),
+        ),
         paymentStatus: PaymentStatusEnum.PENDING, // Estado por defecto
         createdById: createdById,
       });
 
-      // Avanzar la fecha al próximo mes
-      currentDueDate.setMonth(currentDueDate.getMonth() + 1);
+      // Calcular la PRÓXIMA fecha de vencimiento
+      if (nextDueDate.getDate() === 16) {
+        // Si la cuota actual fue el 16, la próxima es el 30/28 del mismo mes
+        nextDueDate = getNextBiweeklyDueDate(nextDueDate, false);
+      } else {
+        // Si la cuota actual fue el 30/28, la próxima es el 16 del SIGUIENTE mes
+        nextDueDate = getNextBiweeklyDueDate(nextDueDate, true);
+      }
     }
 
     return schedule;
@@ -283,6 +475,7 @@ export class LoanManagementService {
       .select({
         isPayrollCredit: associates.isPayrollCredit,
         balance: associateAccounts.balance,
+        associateAccountId: associateAccounts.id,
       })
       .from(associates)
       .where(eq(associates.id, associateId))
@@ -296,17 +489,17 @@ export class LoanManagementService {
       throw new InternalServerErrorException('has an active payroll credit.');
     }
 
-    // const assetsPercentage = this.calculatePercentage(
-    //   Number(associate?.balance ?? 0),
-    //   80,
-    // );
+    const maxAllowedAmount = this.calculatePercentage(
+      Number(associate?.balance ?? 0),
+      80,
+    );
 
-    // //valida  que le monto solicitado sea menor al 80 de sus haberes disponible
-    // if (Number(assetsPercentage) < Number(requestedAmount)) {
-    //   throw new InternalServerErrorException(
-    //     'Your available funds are less than the requested amount.',
-    //   );
-    // }
+    //valida  que le monto solicitado sea menor al 80 de sus haberes disponible
+    if (Number(requestedAmount) > maxAllowedAmount) {
+      throw new InternalServerErrorException(
+        'Your available funds are less than the requested amount.',
+      );
+    }
 
     //Fetch type loan
     const [getLoanTypes] = await this.db
@@ -365,7 +558,7 @@ export class LoanManagementService {
       status !== LoanStatusEnum.REQUESTED &&
       status !== LoanStatusEnum.REJECTED
     ) {
-      customReference = await this.generateCustomReference();
+      customReference = generateUniqueReference();
       approvalDate = currentDate;
     }
 
@@ -435,11 +628,44 @@ export class LoanManagementService {
         status === LoanStatusEnum.APPROVED ||
         status === LoanStatusEnum.DISBURSED
       ) {
+        // 6. Generate audit
+        const paylodAuditData = {
+          associateId: Number(associateId),
+          companyId: Number(requestCompanyId.id),
+          loanTypeId: Number(loanTypeId),
+          loanModality: loanModality,
+          requestDate: requestDate.toISOString().split('T')[0],
+          approvalDate: approvalDate
+            ? approvalDate.toISOString().split('T')[0]
+            : null,
+          disbursementDate: status === 'DISBURSED' ? new Date() : null,
+          requestedAmount: requestedAmount,
+          approvedAmount: requestedAmount,
+          disbursedAmount: totalDisbursed,
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: finalDate,
+          totalInterest: String(totalInterest.toFixed(2)),
+          totalPayable: String(totalPayable.toFixed(2)),
+          installmentAmount: String(totalQuota.toFixed(2)),
+          expensesAmount: installmentAmount.toString(),
+          overdraftAmount: overdraftAmount ?? null,
+          previousLoanId: previousLoanId ?? null,
+          paymentMethod: paymentMethod,
+          disbursementAccountId: disbursementAccountId,
+          status: status,
+          approvedByUserId: userId,
+          disbursedByUserId: status === 'DISBURSED' ? userId : null,
+          notes: notes ?? null,
+          customReference: customReference,
+          currencyCode: setting?.value === '1' ? 'VES' : 'USD',
+          currencyRate: setting?.value === '2' ? exchangeRateData?.id : null,
+          createdById: userId,
+          updatedById: userId, // Set updatedById initially
+        };
         const schedule = this.generateAmortizationSchedule(
           requestedAmount, // Monto del préstamo solicitado
           term, // Plazos en meses
           annualInterestRate, // Tasa de interés anual
-          expensePercentage, // Tasa de interés por gasto administrativo
           approvalDate || currentDate, // Fecha de inicio del préstamo
           newLoan.id, // Identificador del préstamo
           userId,
@@ -457,9 +683,59 @@ export class LoanManagementService {
             })),
           );
         }
+
+        await tx.insert(auditLogs).values({
+          tableName: 'loans',
+          recordId: String(newLoan.id),
+          action: 'INSERT',
+          userId: Number(userId),
+          area: 'PRESTAMOS',
+          description:
+            status === LoanStatusEnum.APPROVED
+              ? 'APROBACION DE PRESTAMO'
+              : 'DESEMBOLSO DE PRESTAMO',
+          newData: [paylodAuditData],
+        });
       }
       return newLoan;
     });
+
+    //6. generate movemet associate account
+    if (newLoan.id && status === LoanStatusEnum.DISBURSED) {
+      const payloadMovementLoan = {
+        associateAccountId: Number(associate.associateAccountId),
+        movementType: 'LOAN_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
+        amount: requestedAmount,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: approvalDate ? approvalDate : undefined,
+        description: 'DESEMBOLSO DE PRESTAMO',
+        referenceId: String(newLoan.id),
+        referenceType: 'loans',
+        referenceNumber: newLoan.customReference ?? undefined,
+      };
+
+      const payloadMovementLoanDebit = {
+        associateAccountId: Number(associate.associateAccountId),
+        movementType: 'LOAN_FEE_DEBIT' as AssociateMovementTypeEnum,
+        amount: installmentAmount,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: approvalDate ? approvalDate : undefined,
+        description: 'DEBITO GASTOS ADMINISTRATIVOS',
+        referenceId: String(newLoan.id),
+        referenceType: 'loans',
+        referenceNumber: newLoan.customReference ?? undefined,
+      };
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        payloadMovementLoan,
+      );
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        payloadMovementLoanDebit,
+      );
+    }
 
     // Convert to unknown first to safely cast to Loan type
     return newLoan;
@@ -718,9 +994,13 @@ export class LoanManagementService {
         .select({
           associateAccountId: associateAccounts.id,
           accountNumber: associateAccounts.accountNumber,
-          balance: associateAccounts.balance,
+          balance: associateHaberesBalance.haberesBalance,
         })
         .from(associateAccounts)
+        .leftJoin(
+          associateHaberesBalance,
+          eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+        )
         .where(eq(associateAccounts.associateId, associate[0].id));
 
       const [{ count: total }] = await this.db
@@ -873,7 +1153,7 @@ export class LoanManagementService {
       updateLoanDto?.status !== LoanStatusEnum.REQUESTED &&
       updateLoanDto?.status !== LoanStatusEnum.REJECTED
     ) {
-      customReference = await this.generateCustomReference();
+      customReference = generateUniqueReference();
       approvalDate = currentDate;
     }
 
@@ -967,7 +1247,6 @@ export class LoanManagementService {
         updateLoanDto.requestedAmount!,
         term,
         annualInterestRate,
-        expensePercentage,
         updateLoanDto.startDate!,
         id,
         userId,

@@ -86,8 +86,6 @@ export function LoanPaidSearch({
           });
         }
       } else if (associateData) {
-        console.log(associateData);
-
         if (associateData.loanTotalAmount === '0.00') {
           setSelectedAssociate(null);
           toast({

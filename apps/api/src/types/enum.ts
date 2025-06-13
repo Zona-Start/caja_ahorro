@@ -77,22 +77,48 @@ export enum PaymentStatusEnum {
 }
 
 // Enum Tipo Movimiento Cuenta Asociado
+// Enum Tipo Movimiento Cuenta Asociado
 export enum AssociateMovementTypeEnum {
-  SAVING_CONTRIBUTION = 'SAVING_CONTRIBUTION',
-  EMPLOYER_CONTRIBUTION = 'EMPLOYER_CONTRIBUTION',
-  DIVIDEND_CREDIT = 'DIVIDEND_CREDIT',
-  LOAN_DISBURSEMENT_CREDIT = 'LOAN_DISBURSEMENT_CREDIT',
-  OTHER_CREDIT = 'OTHER_CREDIT',
-  SAVING_WITHDRAWAL = 'SAVING_WITHDRAWAL',
-  LOAN_PAYMENT_DEBIT = 'LOAN_PAYMENT_DEBIT',
-  FEE_DEBIT = 'FEE_DEBIT',
-  WITHDRAWAL_FEE_DEBIT = 'WITHDRAWAL_FEE_DEBIT',
-  LOAN_INTEREST_DEBIT = 'LOAN_INTEREST_DEBIT',
-  OTHER_DEBIT = 'OTHER_DEBIT',
-  ADJUSTMENT_CREDIT = 'ADJUSTMENT_CREDIT',
-  ADJUSTMENT_DEBIT = 'ADJUSTMENT_DEBIT',
-  FEE_REIMBURSEMENT_CREDIT = 'FEE_REIMBURSEMENT_CREDIT',
-  FEE_CORRECTION_DEBIT = 'FEE_CORRECTION_DEBIT',
+  // 1. Contribuciones y Aportes
+  SAVING_CONTRIBUTION = 'SAVING_CONTRIBUTION', // Aporte regular o adicional del asociado a su cuenta de ahorros.
+  EMPLOYER_CONTRIBUTION = 'EMPLOYER_CONTRIBUTION', // Aporte realizado por el empleador a la cuenta del asociado.
+
+  // 2. Retiros y Liquidaciones
+  SAVING_WITHDRAWAL = 'SAVING_WITHDRAWAL', // Retiro de fondos de la cuenta de ahorros del asociado (parcial o liquidación).
+
+  // 3. Gastos Administrativos por Retiros
+  WITHDRAWAL_FEE_DEBIT = 'WITHDRAWAL_FEE_DEBIT', // Débito específico por comisiones asociadas a retiros.
+
+  // 4. Préstamos (Desembolsos)
+  LOAN_DISBURSEMENT_CREDIT = 'LOAN_DISBURSEMENT_CREDIT', // Acreditación del monto de un préstamo desembolsado a la cuenta del asociado.
+  CREDIT_DISBURSEMENT_CREDIT = 'CREDIT_DISBURSEMENT_CREDIT',
+
+  // 5. Pagos y Gastos de Préstamos
+  LOAN_PAYMENT_DEBIT = 'LOAN_PAYMENT_DEBIT', // Débito por el pago de una cuota de préstamo realizado por el asociado.
+  CREDIT_PAYMENT_DEBIT = 'CREDIT_PAYMENT_DEBIT', // Débito por el pago de una cuota de credito realizado por el asociado.
+  LOAN_INTEREST_DEBIT = 'LOAN_INTEREST_DEBIT', // Débito específico por los intereses generados por un préstamo.
+  LOAN_FEE_DEBIT = 'LOAN_FEE_DEBIT', // debito por prestamo
+  LOAN_OVERPAYMENT_CREDIT = 'LOAN_OVERPAYMENT_CREDIT', //CRÉDITO POR SOBREPAGO DE PRÉSTAMO
+  CREDIT_OVERPAYMENT_CREDIT = 'CREDIT_OVERPAYMENT_CREDIT', // CREDITO POR SOBREPAGO DE CREDITO
+  // Podrías añadir LOAN_FEE_DEBIT = 'LOAN_FEE_DEBIT' si hay comisiones por préstamos separadas de los intereses.
+
+  // 6. Otros Créditos (No Préstamos)
+  DIVIDEND_CREDIT = 'DIVIDEND_CREDIT', // Acreditación de dividendos o excedentes a la cuenta del asociado.
+  FEE_REIMBURSEMENT_CREDIT = 'FEE_REIMBURSEMENT_CREDIT', // Crédito por el reintegro de una comisión o cargo cobrado previamente.
+
+  // 7. Débito por Gastos Administrativos por Créditos (si aplica a 'OTHER_CREDIT' o 'DIVIDEND_CREDIT')
+  CREDIT_ADMIN_FEE_DEBIT = 'CREDIT_ADMIN_FEE_DEBIT',
+
+  // 7. Ajustes y Correcciones
+  ADJUSTMENT_CREDIT = 'ADJUSTMENT_CREDIT', // Crédito por ajustes o correcciones positivas en el saldo o haberes.
+  ADJUSTMENT_DEBIT = 'ADJUSTMENT_DEBIT', // Débito por ajustes o correcciones negativas en el saldo o haberes.
+  FEE_CORRECTION_DEBIT = 'FEE_CORRECTION_DEBIT', // Débito para corregir un cobro incorrecto de una comisión.
+
+  // 8. Otros Genéricos
+  OTHER_CREDIT = 'OTHER_CREDIT', // Otros tipos de créditos no especificados en categorías anteriores.
+  OTHER_DEBIT = 'OTHER_DEBIT', // Otros tipos de débitos no especificados en categorías anteriores.
+  FEE_DEBIT = 'FEE_DEBIT', // Débito genérico por comisiones o cargos varios no específicos.
+  ADMIN_FEE_DEBIT = 'ADMIN_FEE_DEBIT', // Gasto administrativo general que puede aplicarse a retiros, etc.
 }
 
 // Enum Estado Conciliación

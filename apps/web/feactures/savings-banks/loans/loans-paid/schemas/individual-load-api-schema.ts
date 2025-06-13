@@ -19,10 +19,13 @@ export const loanAssociate = z.object({
   email: z.string(),
   loanId: z.number().nullable(),
   loanPaidId: z.number().optional().nullable(),
-  loanType: z.string(),
-  loanTotalAmount: z.string(),
+  loanType: z.string().nullable(),
+  loanTotalAmount: z.string().nullable(),
   loanModality: z.string().nullable(),
-  loanAmortization: z.array(loanQuotasAssociate).nullable(),
+  loanAmortization: z
+    .array(loanQuotasAssociate)
+    .nullable()
+    .transform((val) => (val && val.length === 0 ? null : val)),
 });
 
 export type AssociatesLoan = z.infer<typeof loanAssociate>;

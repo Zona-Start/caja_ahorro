@@ -1,17 +1,20 @@
+import { generateUniqueReference } from '@/common/utils/reference';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
   associates,
+  auditLogs,
   bankDirectory,
   creditAmortizationSchedule,
   creditPayments,
   creditPaymentsDetails,
   credits,
   creditsTypes,
-  systemSettings,
 } from '@/database/index';
 import {
+  AssociateMovementTypeEnum,
   CreditStatusEnum,
+  CurrencyCodeEnum,
   loanPaymetTypeEnum,
   paymentMethodEnum,
 } from '@/types/enum';
@@ -22,6 +25,7 @@ import {
 } from '@nestjs/common';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateCreditPaidDto } from './dto/create-credit.dto';
 import { FilterCreditPaidDto } from './dto/filter-credit-paid.dto';
 
@@ -29,53 +33,54 @@ import { FilterCreditPaidDto } from './dto/filter-credit-paid.dto';
 export class CreditPaidService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
+    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
   ) {}
 
   // --- Helper function to generate custom reference ---
-  private async generateCustomReference(): Promise<string> {
-    // Fetch the current correlative number and increment it
-    const key = 'correlativo_pago_credito';
-    try {
-      const result = await this.db.transaction(async (tx) => {
-        // Lock the row for update
-        const setting = await tx.query.systemSettings.findFirst({
-          where: eq(systemSettings.key, key),
-          // Add forUpdate() if your Drizzle version supports it for row locking
-          // Example: columns: {}, with: { forUpdate: true }
-        });
+  // private async generateCustomReference(): Promise<string> {
+  //   // Fetch the current correlative number and increment it
+  //   const key = 'correlativo_pago_credito';
+  //   try {
+  //     const result = await this.db.transaction(async (tx) => {
+  //       // Lock the row for update
+  //       const setting = await tx.query.systemSettings.findFirst({
+  //         where: eq(systemSettings.key, key),
+  //         // Add forUpdate() if your Drizzle version supports it for row locking
+  //         // Example: columns: {}, with: { forUpdate: true }
+  //       });
 
-        if (!setting) {
-          throw new InternalServerErrorException(
-            `System setting '${key}' not found.`,
-          );
-        }
+  //       if (!setting) {
+  //         throw new InternalServerErrorException(
+  //           `System setting '${key}' not found.`,
+  //         );
+  //       }
 
-        const currentNumber = parseInt(setting.value, 10);
-        if (isNaN(currentNumber)) {
-          throw new InternalServerErrorException(
-            `Invalid correlative number format for '${key}'.`,
-          );
-        }
+  //       const currentNumber = parseInt(setting.value, 10);
+  //       if (isNaN(currentNumber)) {
+  //         throw new InternalServerErrorException(
+  //           `Invalid correlative number format for '${key}'.`,
+  //         );
+  //       }
 
-        const nextNumber = currentNumber + 1;
-        const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
+  //       const nextNumber = currentNumber + 1;
+  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
 
-        // Update the setting with the new value
-        await tx
-          .update(systemSettings)
-          .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-          .where(eq(systemSettings.id, setting.id));
+  //       // Update the setting with the new value
+  //       await tx
+  //         .update(systemSettings)
+  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
+  //         .where(eq(systemSettings.id, setting.id));
 
-        return nextValue; // Return the generated reference
-      });
-      return `PGCREDIT${result}`; // Prefix the reference
-    } catch (error) {
-      console.error('Error generating custom reference:', error);
-      throw new InternalServerErrorException(
-        'Failed to generate custom credit reference.',
-      );
-    }
-  }
+  //       return nextValue; // Return the generated reference
+  //     });
+  //     return `PGCREDIT${result}`; // Prefix the reference
+  //   } catch (error) {
+  //     console.error('Error generating custom reference:', error);
+  //     throw new InternalServerErrorException(
+  //       'Failed to generate custom credit reference.',
+  //     );
+  //   }
+  // }
 
   // calculate balance pending
   private async _calculateBalancePending(amount: number, creditId: number) {
@@ -228,13 +233,13 @@ export class CreditPaidService {
     // });
 
     // Inicia la transacción para asegurar la atomicidad de las operaciones
-    await this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       // 1. Calcula qué cuotas se cubren con el monto del pago
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
         await this._calculateCoveredInstallments(creditId, amount);
 
       // 2. Genera una referencia única para este pago
-      const customReference = await this.generateCustomReference();
+      const customReference = generateUniqueReference();
 
       // 3. Calcula el nuevo saldo pendiente del crédito después de aplicar este pago.
       // Esta es la métrica clave para determinar si el crédito está saldado.
@@ -262,7 +267,10 @@ export class CreditPaidService {
           createdById: Number(userId),
           customReference: customReference,
         })
-        .returning({ id: creditPayments.id });
+        .returning({
+          id: creditPayments.id,
+          customReference: creditPayments.customReference,
+        });
 
       // 5. Procesa las cuotas que fueron PAGADAS COMPLETAMENTE
       for (const installment of paidInstallmentDetails) {
@@ -328,7 +336,92 @@ export class CreditPaidService {
           updatedById: Number(userId),
         })
         .where(eq(credits.id, creditId));
+
+      const paylodAuditData = {
+        creditId: String(creditId),
+        paymentDate,
+        paymentType,
+        amount: amount,
+        balancePending: String(newBalancePending.toFixed(2)), // Guarda el nuevo saldo pendiente
+        bankId:
+          bankId !== undefined && bankId !== null ? Number(bankId) : undefined,
+        paymentMethod,
+        transactionReference,
+        comment,
+        createdById: Number(userId),
+        customReference: customReference,
+      };
+
+      await tx.insert(auditLogs).values({
+        tableName: 'creditsPayments',
+        recordId: String(insertedPayment.id),
+        action: 'INSERT',
+        userId: Number(userId),
+        area: 'CREDITOS',
+        description: 'PAGO CREDITOS',
+        newData: [paylodAuditData],
+      });
+
+      return {
+        transation: true,
+        insertedPaymentId: insertedPayment.id,
+        customReference: insertedPayment.customReference,
+        balanceInFavorValue: balanceInFavorValue,
+      };
     });
+
+    // si transaccion se genero satifactoria se registra el movimiento en cuenta asocaido
+    if (result.transation) {
+      const resutAccount = await this.db
+        .select({
+          id: schema.associateAccounts.id,
+          referenceLoans: credits.customReference,
+        })
+        .from(schema.credits)
+        .leftJoin(
+          schema.associateAccounts,
+          eq(schema.associateAccounts.associateId, schema.credits.associateId),
+        )
+        .where(eq(schema.credits.id, creditId));
+      const payloadMovementLoan = {
+        associateAccountId: Number(resutAccount[0].id),
+        movementType: 'CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
+        amount: amount,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: paymentDate ? paymentDate : undefined,
+        description: 'PAGO CREDITO',
+        referenceId: String(result.insertedPaymentId),
+        referenceType: 'creditPayments',
+        referenceNumber: result.customReference ?? undefined,
+        area: 'CREDITOS',
+      };
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        payloadMovementLoan,
+      );
+
+      if (result.balanceInFavorValue !== 0) {
+        const payloadMovementLoan = {
+          associateAccountId: Number(resutAccount[0].id),
+          movementType:
+            'CREDIT_OVERPAYMENT_CREDIT' as AssociateMovementTypeEnum,
+          amount: result.balanceInFavorValue,
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: paymentDate ? paymentDate : undefined,
+          description: 'CREDITO SOBREGIRO CREDITO',
+          referenceId: String(creditId),
+          referenceType: 'credits',
+          referenceNumber: undefined,
+          area: 'CREDITOS',
+        };
+
+        await this.associateAccountsMovementsService.create(
+          userId,
+          payloadMovementLoan,
+        );
+      }
+    }
 
     // Retorna una respuesta de éxito
     return {

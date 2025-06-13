@@ -1,0 +1,1 @@
+ALTER TYPE "public"."associate_movement_type_enum" ADD VALUE 'CREDIT_PAYMENT_DEBIT' BEFORE 'LOAN_INTEREST_DEBIT';

@@ -38,7 +38,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Retiro Parcial',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/haberes/retiros',
       },
       {
         title: 'Liquidación',
@@ -142,11 +142,11 @@ export const AccountingItems: NavItem[] = [
         url: '/dashboard/contabilidad/cuentas-contables',
         shortcut: ['m', 'm'],
       },
-      {
-        title: 'Cuentas de Asociados',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
+      // {
+      //   title: 'Cuentas de Asociados',
+      //   shortcut: ['l', 'l'],
+      //   url: '#',
+      // },
     ],
   },
   {
@@ -270,11 +270,11 @@ export const ConfigItems: NavItem[] = [
         url: '/dashboard/utilidades/configuraciones/datos-caja-ahorro',
         shortcut: ['m', 'm'],
       },
-      {
-        title: 'Numeración  Documentos',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
-      },
+      // {
+      //   title: 'Numeración  Documentos',
+      //   shortcut: ['l', 'l'],
+      //   url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
+      // },
     ],
   },
   {
@@ -293,14 +293,14 @@ export const ConfigItems: NavItem[] = [
     isActive: true,
     items: [],
   },
-  {
-    title: 'Respaldos Bade de Datos',
-    url: '#',
-    icon: 'databaseBackup',
-    colorIcons: 'amber',
-    isActive: true,
-    items: [],
-  },
+  // {
+  //   title: 'Respaldos Bade de Datos',
+  //   url: '#',
+  //   icon: 'databaseBackup',
+  //   colorIcons: 'amber',
+  //   isActive: true,
+  //   items: [],
+  // },
 ];
 
 export const useTypeSuppliers = () => {

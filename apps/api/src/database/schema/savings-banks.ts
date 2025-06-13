@@ -153,9 +153,7 @@ export const associateAccountMovements = savingsBanksSchema.table(
     description: text('description'),
     referenceId: text('reference_id'), // ID de la operación origen
     referenceType: varchar('reference_type', { length: 50 }), // Tipo de operación origen (tabla de donde es la referencia id)
-    referenceNumber: varchar('reference_number', { length: 20 })
-      .unique()
-      .notNull(),
+    referenceNumber: varchar('reference_number', { length: 20 }).notNull(),
     exchangeRateId: integer('exchange_rate_id').references(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
@@ -821,5 +819,45 @@ export const creditPaymentsDetails = savingsBanksSchema.table(
     installmentIdx: index('credit_payments_details_installment_idx').on(
       table.installmentId,
     ),
+  }),
+);
+
+// Definición de la tabla de liquidaciones
+export const liquidationsAssociates = savingsBanksSchema.table(
+  'liquidations_associates',
+  {
+    id: serial('id').primaryKey(),
+    associateId: integer('associate_id')
+      .notNull()
+      .references(() => associates.id, { onDelete: 'restrict' }), // FK al asociado
+    liquidationDate: date('liquidation_date').notNull().defaultNow(), // Fecha en que se procesó la liquidación
+    effectiveDate: date('effective_date'), // Opcional: Si la liquidación tiene una fecha efectiva diferente
+    currencyCode: currencyCodeEnum('currency_code').notNull(), // Moneda de la liquidación
+    totalSavingsBalanceAtLiquidation: numeric(
+      'total_savings_balance_at_liquidation',
+      { precision: 18, scale: 4 },
+    ).notNull(), // Saldo de ahorros en el momento de la liquidación
+    totalOutstandingLoansAtLiquidation: numeric(
+      'total_outstanding_loans_at_liquidation',
+      { precision: 18, scale: 4 },
+    ).notNull(), // Deuda de préstamos en el momento de la liquidación
+    totalOutstandingCreditsAtLiquidation: numeric(
+      'total_outstanding_credits_at_liquidation',
+      { precision: 18, scale: 4 },
+    ).notNull(), // Deuda de créditos en el momento de la liquidación
+    netLiquidationAmount: numeric('net_liquidation_amount', {
+      precision: 18,
+      scale: 4,
+    }).notNull(), // El monto neto final (lo que se paga/se debe)
+    status: varchar('status', { length: 50 }).notNull().default('PROCESSED'), // 'PROCESSED', 'PENDING_PAYOUT', 'PENDING_COLLECTION', 'CANCELLED'
+    payoutTransactionId: integer('payout_transaction_id'), // Opcional: FK a una tabla de transacciones de pago si la tienes
+    notes: text('notes'), // Campo para cualquier nota relevante de la liquidación
+    ...timestamps, // created_at y updated_at
+  },
+  (table) => ({
+    // Puedes añadir índices aquí si los necesitas para búsquedas frecuentes
+    associateLiquidationIdx: uniqueIndex(
+      'liquidations_associate_liquidation_uidx',
+    ).on(table.associateId, table.liquidationDate),
   }),
 );

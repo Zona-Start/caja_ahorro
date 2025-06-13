@@ -1,0 +1,31 @@
+import { z } from 'zod';
+
+// export const loanQuotasAssociate = z.object({
+//   id: z.number(), // id de la cuota
+//   quotaNumber: z.number(), //numero de cuota
+//   quotaAmount: z.string(), // monto de la cuota
+//   quotaDate: z.string(), // fecha de la cuota
+//   quotaPartial: z.string().nullable().optional(),
+//   quotaStatus: z.string(), // estado de la cuota
+//   principalBalancePending: z.string(), // saldo pendiente de capital
+//   paidAmount: z.string(), // monto pagado para esta cuota
+// });
+
+export const withdrawalAssociate = z.object({
+  id: z.number(),
+  cedula: z.string(),
+  fullname: z.string(),
+  phone: z.string(),
+  email: z.string(),
+  isPayrollCredit: z.boolean(),
+  associateAccountId: z.number(),
+  accountNumber: z.string(),
+  balance: z.string(),
+  withdrawalId: z.number().nullable(),
+  withdrawalRequestAmout: z.string().nullable(),
+  withdrawalDate: z.string().nullable(),
+  totalLoansAssociate: z.number().nullable().optional(),
+  totalCreditsAssociate: z.number().nullable().optional(),
+});
+
+export type AssociatesWithdrawal = z.infer<typeof withdrawalAssociate>;

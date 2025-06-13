@@ -44,4 +44,8 @@ export class CreateAssociateAccountsMovementDto {
   @IsOptional()
   @IsString()
   referenceNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  area?: string;
 }

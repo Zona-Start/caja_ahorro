@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@repo/shadcn/card';
+import { Badge } from '@repo/shadcn/components/ui/badge';
 import { CustomCalendar } from '@repo/shadcn/components/ui/custom-calendar';
 import {
   Form,
@@ -29,7 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/shadcn/tabs';
 import { Textarea } from '@repo/shadcn/textarea';
 import { CalendarDays, Check, CreditCard } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useTypeLoans } from '../../type-loans/hooks/use-query-type-loans';
@@ -113,6 +114,8 @@ export function LoanForm({
             notes: '',
           },
   });
+
+  const [exceedingAvailability, setExceedingAvailability] = useState(false);
 
   // <-- Agrega este efecto para resetear el formulario cuando initialData cambie
   useEffect(() => {
@@ -243,16 +246,27 @@ export function LoanForm({
     onCancel();
   };
 
-  // Verificar si el monto solicitado excede la disponibilidad
-  // const requestedAmount = Number.parseFloat(
-  //   form.watch('requestedAmount') || '0',
-  // );
+  //Verificar si el monto solicitado excede la disponibilidad
+  const requestedAmount = Number.parseFloat(
+    form.watch('requestedAmount') || '0',
+  );
 
-  // const balance = Number(selectedAssociate?.associate.balance);
-  // const availability = balance * 0.8;
-
-  // const isAmountExceedingAvailability =
-  //   selectedAssociate && requestedAmount > availability;
+  useEffect(() => {
+    if (!selectedAssociate) return;
+    if (requestedAmount) {
+      // Calcular resumen del préstamo
+      const amount = requestedAmount; //monto soclitado
+      const balance = Number(selectedAssociate?.associate.balance);
+      const availability = balance * 0.8;
+      if (amount > availability) {
+        setExceedingAvailability(true);
+      } else {
+        setExceedingAvailability(false);
+      }
+    } else if (requestedAmount === 0) {
+      setExceedingAvailability(false);
+    }
+  }, [requestedAmount]);
 
   return (
     <Card>
@@ -622,7 +636,7 @@ export function LoanForm({
               </TabsContent>
             </Tabs>
 
-            {loanSummary && (
+            {loanSummary && !exceedingAvailability && (
               <Card className="bg-muted/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">
@@ -681,6 +695,16 @@ export function LoanForm({
               </Card>
             )}
 
+            {exceedingAvailability && (
+              <div className="flex items-center justify-center mt-4">
+                <Badge
+                  className={`text-white text-lg bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700`}
+                >
+                  El monto solicitado excede la disponibilidad
+                </Badge>
+              </div>
+            )}
+
             <div className="flex justify-end space-x-4">
               <Button
                 variant="outline"
@@ -695,7 +719,8 @@ export function LoanForm({
                   !selectedAssociate ||
                   isSubmitting ||
                   !form.formState.isValid ||
-                  isAssociateBlocked // <-- Added isAssociateBlocked
+                  isAssociateBlocked ||
+                  exceedingAvailability
                 }
               >
                 {isSubmitting ? (

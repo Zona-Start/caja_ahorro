@@ -1,16 +1,19 @@
+import { generateUniqueReference } from '@/common/utils/reference';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
   associates,
+  auditLogs,
   bankDirectory,
   loanAmortizationSchedule,
   loanPayments,
   loanPaymentsDetails,
   loans,
   loanTypes,
-  systemSettings,
 } from '@/database/index';
 import {
+  AssociateMovementTypeEnum,
+  CurrencyCodeEnum,
   loanPaymetTypeEnum,
   LoanStatusEnum,
   paymentMethodEnum,
@@ -22,6 +25,7 @@ import {
 } from '@nestjs/common';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateLoanPaidDto } from './dto/create-loan.dto';
 import { FilterLoanPaidDto } from './dto/filter-loan-paid.dto';
 
@@ -29,53 +33,54 @@ import { FilterLoanPaidDto } from './dto/filter-loan-paid.dto';
 export class LoanPaidService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
+    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
   ) {}
 
   // --- Helper function to generate custom reference ---
-  private async generateCustomReference(): Promise<string> {
-    // Fetch the current correlative number and increment it
-    const key = 'correlativo_pago_prestamo';
-    try {
-      const result = await this.db.transaction(async (tx) => {
-        // Lock the row for update
-        const setting = await tx.query.systemSettings.findFirst({
-          where: eq(systemSettings.key, key),
-          // Add forUpdate() if your Drizzle version supports it for row locking
-          // Example: columns: {}, with: { forUpdate: true }
-        });
+  // private async generateCustomReference(): Promise<string> {
+  //   // Fetch the current correlative number and increment it
+  //   const key = 'correlativo_pago_prestamo';
+  //   try {
+  //     const result = await this.db.transaction(async (tx) => {
+  //       // Lock the row for update
+  //       const setting = await tx.query.systemSettings.findFirst({
+  //         where: eq(systemSettings.key, key),
+  //         // Add forUpdate() if your Drizzle version supports it for row locking
+  //         // Example: columns: {}, with: { forUpdate: true }
+  //       });
 
-        if (!setting) {
-          throw new InternalServerErrorException(
-            `System setting '${key}' not found.`,
-          );
-        }
+  //       if (!setting) {
+  //         throw new InternalServerErrorException(
+  //           `System setting '${key}' not found.`,
+  //         );
+  //       }
 
-        const currentNumber = parseInt(setting.value, 10);
-        if (isNaN(currentNumber)) {
-          throw new InternalServerErrorException(
-            `Invalid correlative number format for '${key}'.`,
-          );
-        }
+  //       const currentNumber = parseInt(setting.value, 10);
+  //       if (isNaN(currentNumber)) {
+  //         throw new InternalServerErrorException(
+  //           `Invalid correlative number format for '${key}'.`,
+  //         );
+  //       }
 
-        const nextNumber = currentNumber + 1;
-        const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
+  //       const nextNumber = currentNumber + 1;
+  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
 
-        // Update the setting with the new value
-        await tx
-          .update(systemSettings)
-          .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-          .where(eq(systemSettings.id, setting.id));
+  //       // Update the setting with the new value
+  //       await tx
+  //         .update(systemSettings)
+  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
+  //         .where(eq(systemSettings.id, setting.id));
 
-        return nextValue; // Return the generated reference
-      });
-      return `PGPRES${result}`; // Prefix the reference
-    } catch (error) {
-      console.error('Error generating custom reference:', error);
-      throw new InternalServerErrorException(
-        'Failed to generate custom loan reference.',
-      );
-    }
-  }
+  //       return nextValue; // Return the generated reference
+  //     });
+  //     return `PGPRES${result}`; // Prefix the reference
+  //   } catch (error) {
+  //     console.error('Error generating custom reference:', error);
+  //     throw new InternalServerErrorException(
+  //       'Failed to generate custom loan reference.',
+  //     );
+  //   }
+  // }
 
   // calculate balance pending
   private async _calculateBalancePending(amount: number, loanId: number) {
@@ -214,14 +219,14 @@ export class LoanPaidService {
     // });
 
     // Inicia la transacción para asegurar la atomicidad de las operaciones
-    await this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       // 1. Calcula qué cuotas se cubren con el monto del pago
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
         await this._calculateCoveredInstallments(loanId, amount);
 
       // 2. Genera una referencia única para este pago de préstamo
       // Asegúrate de que generateCustomReference() tenga una clave diferente para préstamos vs créditos
-      const customReference = await this.generateCustomReference();
+      const customReference = generateUniqueReference();
 
       // 3. Calcula el nuevo saldo pendiente del préstamo después de aplicar este pago.
       // Esta es la métrica clave para determinar si el préstamo está saldado.
@@ -253,7 +258,10 @@ export class LoanPaidService {
         // Si InsertLoanPayment.id es el ID del pago, entonces 'loans.id' aquí es un error.
         // Debería ser algo como 'loanPayments.id' si existe ese esquema.
         // Asumiendo que `InsertLoanPayment` debería ser el ID del pago registrado.
-        .returning({ id: loanPayments.id }); // <--- Corregido: debería retornar el ID del pago insertado
+        .returning({
+          id: loanPayments.id,
+          customReference: loanPayments.customReference,
+        }); // <--- Corregido: debería retornar el ID del pago insertado
 
       // 5. Procesa las cuotas que fueron PAGADAS COMPLETAMENTE
       for (const installment of paidInstallmentDetails) {
@@ -322,7 +330,91 @@ export class LoanPaidService {
           updatedById: Number(userId),
         })
         .where(eq(loans.id, loanId));
+
+      const paylodAuditData = {
+        loanId: String(loanId),
+        paymentDate,
+        paymentType,
+        amount: amount,
+        balancePending: String(newBalancePending.toFixed(2)), // Guarda el nuevo saldo pendiente
+        bankId:
+          bankId !== undefined && bankId !== null ? Number(bankId) : undefined,
+        paymentMethod,
+        transactionReference,
+        comment,
+        createdById: Number(userId),
+        customReference: customReference,
+      };
+
+      await tx.insert(auditLogs).values({
+        tableName: 'loansPayments',
+        recordId: String(insertedPayment.id),
+        action: 'INSERT',
+        userId: Number(userId),
+        area: 'PRESTAMOS',
+        description: 'PAGO PRESTAMOS',
+        newData: [paylodAuditData],
+      });
+
+      return {
+        transation: true,
+        insertedPaymentId: insertedPayment.id,
+        customReference: insertedPayment.customReference,
+        balanceInFavorValue: balanceInFavorValue,
+      };
     });
+
+    // si transaccion se genero satifactoria se registra el movimiento en cuenta asocaido
+    if (result.transation) {
+      const resutAccount = await this.db
+        .select({
+          id: schema.associateAccounts.id,
+          referenceLoans: loans.customReference,
+        })
+        .from(schema.loans)
+        .leftJoin(
+          schema.associateAccounts,
+          eq(schema.associateAccounts.associateId, schema.loans.associateId),
+        )
+        .where(eq(schema.loans.id, loanId));
+      const payloadMovementLoan = {
+        associateAccountId: Number(resutAccount[0].id),
+        movementType: 'LOAN_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
+        amount: amount,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: paymentDate ? paymentDate : undefined,
+        description: 'PAGO PRESTAMO',
+        referenceId: String(result.insertedPaymentId),
+        referenceType: 'loansPayments',
+        referenceNumber: result.customReference ?? undefined,
+        area: 'PRESTAMOS',
+      };
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        payloadMovementLoan,
+      );
+
+      if (result.balanceInFavorValue !== 0) {
+        const payloadMovementLoan = {
+          associateAccountId: Number(resutAccount[0].id),
+          movementType: 'LOAN_OVERPAYMENT_CREDIT' as AssociateMovementTypeEnum,
+          amount: result.balanceInFavorValue,
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: paymentDate ? paymentDate : undefined,
+          description: 'CREDITO SOBREGIRO PRESTAMO',
+          referenceId: String(loanId),
+          referenceType: 'loans',
+          referenceNumber: undefined,
+          area: 'PRESTAMOS',
+        };
+
+        await this.associateAccountsMovementsService.create(
+          userId,
+          payloadMovementLoan,
+        );
+      }
+    }
 
     // Retorna una respuesta de éxito
     return {

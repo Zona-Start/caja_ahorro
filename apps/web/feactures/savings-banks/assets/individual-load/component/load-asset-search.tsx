@@ -13,6 +13,7 @@ import {
 } from '@repo/shadcn/card';
 import { Input } from '@repo/shadcn/input';
 import { Separator } from '@repo/shadcn/separator';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Search, User, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAssociatesByCedula } from '../hooks/use-query-individual-load';
@@ -35,7 +36,7 @@ export function LoadAssetsSearch({
   const [searchResults, setSearchResults] = useState<Associates | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [shouldFetch, setShouldFetch] = useState(false);
-
+  const queryClient = useQueryClient();
   // Usar el hook con la opción `enabled` para controlar su ejecución
   const { data, error, status, isError, isLoading } = useAssociatesByCedula(
     searchTerm,
@@ -66,7 +67,7 @@ export function LoadAssetsSearch({
     }
 
     setIsSearching(false); // Finaliza el estado de búsqueda
-    setShouldFetch(false); // Resetea el estado para evitar ejecuciones innecesarias
+    setShouldFetch(false); // Resetea el estado para evitar ejecuciones innecesariasv
   }, [data, isError, error]);
 
   // Efecto para limpiar el input cuando shouldClearSearch sea true
@@ -88,6 +89,9 @@ export function LoadAssetsSearch({
 
   // Función para limpiar la selección de asociado
   const clearAssociate = () => {
+    queryClient.removeQueries({
+      queryKey: ['associates-by-cedula'],
+    });
     onSelectAssociate(null);
     setSearchTerm('');
     setSearchResults(null);
