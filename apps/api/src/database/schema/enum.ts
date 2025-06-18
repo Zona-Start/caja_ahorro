@@ -79,48 +79,63 @@ export const paymentStatusEnum = pgEnum('payment_status_enum', [
 export const associateMovementTypeEnum = pgEnum(
   'associate_movement_type_enum',
   [
-    // 1. Contribuciones (Personal y Empleador)
-    'SAVING_CONTRIBUTION', // Aporte regular o adicional del asociado a su cuenta de ahorros.
-    'EMPLOYER_CONTRIBUTION', // Aporte realizado por el empleador a la cuenta del asociado (si aplica).
+    // 1. Contribuciones y Aportes a Cuentas de Ahorro
+    'SAVING_CONTRIBUTION',
+    'EMPLOYER_CONTRIBUTION',
+    'VOLUNTARY_SAVINGS',
 
-    // 2. Retiros (Parciales y Liquidaciones)
-    'SAVING_WITHDRAWAL', // Retiro de fondos de la cuenta de ahorros del asociado (parcial o liquidación).
+    // 2. Retiros de Cuentas de Ahorro
+    'SAVING_WITHDRAWAL',
 
-    // 3. Débito por Gasto Administrativo por Retiros
-    'WITHDRAWAL_FEE_DEBIT', // Débito específico por comisiones asociadas a retiros (parciales o liquidaciones).
-    // Si necesitas un tipo genérico para otros gastos administrativos no específicos de retiro:
+    // 3. Desembolsos de Préstamos y Créditos
+    'LOAN_DISBURSEMENT_CREDIT',
+    'SPECIAL_LOAN_DISBURSEMENT_CREDIT',
+    'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT',
+    'SPECIAL_CREDIT_DISBURSEMENT_CREDIT',
 
-    // 4. Préstamos (Desembolsos)
-    'LOAN_DISBURSEMENT_CREDIT', // Acreditación del monto de un préstamo desembolsado a la cuenta del asociado.
-    'CREDIT_DISBURSEMENT_CREDIT', //acreditacion de monto de un credito
+    // 4. Refinanciamiento de Préstamos
+    'LOAN_REFINANCING_DEBIT',
+    'LOAN_REFINANCING_CREDIT',
 
-    // 5. Débito por Gastos Administrativos por Préstamos y Pagos de Préstamos
-    'LOAN_PAYMENT_DEBIT', // Débito por el pago de una cuota de préstamo realizado por el asociado.
-    'CREDIT_PAYMENT_DEBIT', // Débito por el pago de una cuota de credito realizado por el asociado.
-    'LOAN_INTEREST_DEBIT', // Débito específico por los intereses generados por un préstamo.
-    'LOAN_OVERPAYMENT_CREDIT', //credito por sobrepago de prestamo
-    'CREDIT_OVERPAYMENT_CREDIT', //credito por sobrepago de credito
-    // Considera si necesitas un tipo de débito específico para gastos de originación/manejo de préstamos:
-    'LOAN_FEE_DEBIT', // Débito por comisiones administrativas asociadas a préstamos.
+    // 5. Pagos de Préstamos y Créditos
+    'LOAN_PAYMENT_DEBIT',
+    'COMMERCIAL_CREDIT_PAYMENT_DEBIT',
 
-    // 6. Créditos (Otros Créditos / No Préstamos)
-    'DIVIDEND_CREDIT', // Acreditación de dividendos o excedentes a la cuenta del asociado.
-    'FEE_REIMBURSEMENT_CREDIT', // Crédito por el reintegro de una comisión o cargo cobrado previamente.
+    // 6. Sobregiros y Reintegros de Préstamos/Créditos
+    'LOAN_REIMBURSEMENT_CREDIT',
+    'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT',
+    'LOAN_OVERPAYMENT_CREDIT', // <<-- ¡QUITADO EL ESPACIO AQUÍ!
+    'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT',
 
-    // 7. Débito por Gastos Administrativos por Créditos (si aplica a 'OTHER_CREDIT' o 'DIVIDEND_CREDIT')
-    // Si un 'OTHER_CREDIT' o 'DIVIDEND_CREDIT' tuviera un cargo administrativo asociado:
-    'CREDIT_ADMIN_FEE_DEBIT', // Débito por gastos administrativos asociados a ciertos créditos.
+    // 7. Cargos y Comisiones Relacionados con Préstamos/Créditos
+    'LOAN_PARTIAL_DISBURSEMENT_CREDIT',
 
-    // 8. Ajustes Varios
-    'ADJUSTMENT_CREDIT', // Crédito por ajustes o correcciones positivas en el saldo de la cuenta o haberes.
-    'ADJUSTMENT_DEBIT', // Débito por ajustes o correcciones negativas en el saldo de la cuenta o haberes.
-    'FEE_CORRECTION_DEBIT', // Débito para corregir un cobro de cuota incorrecto (o cualquier comisión).
+    // 8. Otros Cargos y Reversiones
+    'WITHDRAWAL_FEE_DEBIT',
+    'LOAN_INTEREST_DEBIT',
+    'LOAN_FEE_DEBIT',
+    'LOAN_ADMIN_FEE_DEBIT',
+    'LATE_PAYMENT_FEE_DEBIT',
+    'PAYMENT_REVERSAL_DEBIT',
+    'CREDIT_ADMIN_FEE_DEBIT',
 
-    // 9. Otros (Catch-all)
-    'OTHER_CREDIT', // Otros tipos de créditos no especificados en las categorías anteriores.
-    'OTHER_DEBIT', // Otros tipos de débitos no especificados en las categorías anteriores.
-    'FEE_DEBIT', // Débito genérico por comisiones o cargos varios no cubiertos por otros tipos específicos de FEE_DEBIT.
-    'ADMIN_FEE_DEBIT', // Gasto administrativo general que puede aplicarse a retiros, etc.
+    // 9. Ajustes y Correcciones
+    'DIVIDEND_CREDIT',
+    'FEE_REIMBURSEMENT_CREDIT',
+    'ADJUSTMENT_CREDIT',
+
+    // 10. Otros (Uso general para transacciones no clasificadas en las anteriores)
+    'ADJUSTMENT_DEBIT',
+    'FEE_CORRECTION_DEBIT',
+    'ADMIN_FEE_DEBIT',
+    'OTHER_DEBIT',
+    'FEE_DEBIT',
+
+    //11. tipos genericos
+    'OTHER_CREDIT',
+
+    //12. liqudiacion
+    'LIQUIDATION_BALANCE',
   ],
 );
 

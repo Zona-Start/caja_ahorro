@@ -1,3 +1,0 @@
-ALTER TABLE "savings_banks"."loans" ADD COLUMN "currency_code" "currency_code_enum" NOT NULL;--> statement-breakpoint
-ALTER TABLE "savings_banks"."loans" ADD COLUMN "exchange_rate_id" integer;--> statement-breakpoint
-ALTER TABLE "savings_banks"."loans" ADD CONSTRAINT "loans_exchange_rate_id_exchange_rates_id_fk" FOREIGN KEY ("exchange_rate_id") REFERENCES "core"."exchange_rates"("id") ON DELETE set null ON UPDATE no action;

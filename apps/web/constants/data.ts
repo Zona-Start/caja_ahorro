@@ -43,7 +43,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Liquidación',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/haberes/liquidacion',
       },
     ], // No child items
   },

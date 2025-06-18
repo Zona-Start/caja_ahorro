@@ -716,11 +716,11 @@ export class LoanManagementService {
 
       const payloadMovementLoanDebit = {
         associateAccountId: Number(associate.associateAccountId),
-        movementType: 'LOAN_FEE_DEBIT' as AssociateMovementTypeEnum,
+        movementType: 'LOAN_ADMIN_FEE_DEBIT' as AssociateMovementTypeEnum,
         amount: installmentAmount,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: approvalDate ? approvalDate : undefined,
-        description: 'DEBITO GASTOS ADMINISTRATIVOS',
+        description: 'DEBITO GASTOS ADMINISTRATIVOS PRESTAMOS',
         referenceId: String(newLoan.id),
         referenceType: 'loans',
         referenceNumber: newLoan.customReference ?? undefined,

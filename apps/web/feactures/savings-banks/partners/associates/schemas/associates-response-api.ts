@@ -12,7 +12,7 @@ export const associateApiSchema = z.object({
   dateAdmission: z.string(),
   dateGraduation: z.string().optional().nullable(),
   discountFrequencyId: z.number(),
-  status: z.enum(['ACTIVE', 'INACTIVE']),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'RETIRED']),
   isPayrollCredit: z.boolean(),
   localityId: z.number(),
   phone: z.string(),

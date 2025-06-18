@@ -1,1 +1,0 @@
-ALTER TABLE "savings_banks"."loans" ADD COLUMN "balance_in_favor" numeric(18, 2);

@@ -1,1 +1,0 @@
-ALTER TABLE "savings_banks"."loans" ADD COLUMN "Installment_amount" integer;

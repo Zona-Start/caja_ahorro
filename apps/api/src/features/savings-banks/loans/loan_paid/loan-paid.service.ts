@@ -402,7 +402,7 @@ export class LoanPaidService {
           amount: result.balanceInFavorValue,
           currencyCode: 'VES' as CurrencyCodeEnum,
           transactionDate: paymentDate ? paymentDate : undefined,
-          description: 'CREDITO SOBREGIRO PRESTAMO',
+          description: 'CREDITO SOBREGIRO DE PRESTAMO',
           referenceId: String(loanId),
           referenceType: 'loans',
           referenceNumber: undefined,
@@ -627,55 +627,54 @@ export class LoanPaidService {
   // }
 
   async findOneRequest(cedula: string) {
-    try {
-      const associate = await this.db
-        .select({
-          id: associates.id,
-          cedula: associates.cedula,
-          fullname: associates.fullname,
-          phone: associates.phone,
-          email: associates.email,
-        })
-        .from(associates)
-        .where(
-          and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
-        );
+    const associate = await this.db
+      .select({
+        id: associates.id,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        phone: associates.phone,
+        email: associates.email,
+      })
+      .from(associates)
+      .where(
+        and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
+      );
 
-      const result = await this.db
-        .select({
-          loanId: loans.id,
-          loanType: loanTypes.name,
-          loanTotalAmount: loans.totalPayable,
-          loanModality: loans.loanModality,
-        })
-        .from(loans)
-        .where(
-          and(
-            eq(loans.associateId, associate[0].id),
-            ne(loans.status, LoanStatusEnum.PAID),
-          ),
-        )
-        .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id))
-        .leftJoin(
-          loanAmortizationSchedule,
-          eq(loans.id, loanAmortizationSchedule.loanId),
-        );
+    const result = await this.db
+      .select({
+        loanId: loans.id,
+        loanType: loanTypes.name,
+        loanTotalAmount: loans.totalPayable,
+        loanModality: loans.loanModality,
+      })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.associateId, associate[0].id),
+          ne(loans.status, LoanStatusEnum.PAID),
+        ),
+      )
+      .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id))
+      .leftJoin(
+        loanAmortizationSchedule,
+        eq(loans.id, loanAmortizationSchedule.loanId),
+      );
 
-      const loanAmortization = await this.db
-        .select({
-          id: loanAmortizationSchedule.id,
-          quotaNumber: loanAmortizationSchedule.installmentNumber,
-          quotaAmount: loanAmortizationSchedule.totalInstallmentAmount,
-          quotaDate: loanAmortizationSchedule.dueDate,
-          quotaStatus: loanAmortizationSchedule.paymentStatus,
-          quotaPartial: loanAmortizationSchedule.paidAmount,
-          principalBalancePending:
-            loanAmortizationSchedule.principalBalancePending,
-          paidAmount: loanAmortizationSchedule.paidAmount,
-        })
-        .from(loanAmortizationSchedule)
-        .where(eq(loanAmortizationSchedule.loanId, result[0]?.loanId))
-        .orderBy(sql<string>`
+    const loanAmortization = await this.db
+      .select({
+        id: loanAmortizationSchedule.id,
+        quotaNumber: loanAmortizationSchedule.installmentNumber,
+        quotaAmount: loanAmortizationSchedule.totalInstallmentAmount,
+        quotaDate: loanAmortizationSchedule.dueDate,
+        quotaStatus: loanAmortizationSchedule.paymentStatus,
+        quotaPartial: loanAmortizationSchedule.paidAmount,
+        principalBalancePending:
+          loanAmortizationSchedule.principalBalancePending,
+        paidAmount: loanAmortizationSchedule.paidAmount,
+      })
+      .from(loanAmortizationSchedule)
+      .where(eq(loanAmortizationSchedule.loanId, result[0]?.loanId))
+      .orderBy(sql<string>`
     CASE payment_status
       WHEN 'PARTIAL' THEN 1
       WHEN 'PENDING' THEN 2
@@ -684,50 +683,49 @@ export class LoanPaidService {
     END ASC,
     id ASC`);
 
-      const pendingQuotas = loanAmortization.filter(
-        (item) => item.quotaStatus === 'PENDING',
-      );
+    const pendingQuotas = loanAmortization.filter(
+      (item) => item.quotaStatus === 'PENDING',
+    );
 
-      const partialQuotas = loanAmortization.filter(
-        (item) => item.quotaStatus === 'PARTIAL',
-      );
+    const partialQuotas = loanAmortization.filter(
+      (item) => item.quotaStatus === 'PARTIAL',
+    );
 
-      // Sumar todas las cuotas PENDING directamente
-      const totalPending = pendingQuotas.reduce((acc, item) => {
-        const amount = Number(item.quotaAmount) || 0;
-        return acc + amount;
-      }, 0);
+    // Sumar todas las cuotas PENDING directamente
+    const totalPending = pendingQuotas.reduce((acc, item) => {
+      const amount = Number(item.quotaAmount) || 0;
+      return acc + amount;
+    }, 0);
 
-      // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
-      const totalPartial = partialQuotas.reduce((acc, item) => {
-        const totalAmount = Number(item.quotaAmount) || 0;
-        const paidAmount = Number(item.paidAmount) || 0;
-        const remaining = totalAmount - paidAmount;
-        return acc + (remaining > 0 ? remaining : 0); // evitar negativos
-      }, 0);
+    // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
+    const totalPartial = partialQuotas.reduce((acc, item) => {
+      const totalAmount = Number(item.quotaAmount) || 0;
+      const paidAmount = Number(item.paidAmount) || 0;
+      const remaining = totalAmount - paidAmount;
+      return acc + (remaining > 0 ? remaining : 0); // evitar negativos
+    }, 0);
 
-      // Suma final
-      const totalPendingAmount = totalPending + totalPartial;
+    // Suma final
+    const totalPendingAmount = totalPending + totalPartial;
 
-      return {
-        id: associate[0].id,
-        cedula: associate[0].cedula,
-        fullname: associate[0].fullname,
-        phone: associate[0].phone,
-        email: associate[0].email,
-        loanId: result.length === 0 ? null : result[0]?.loanId,
-        loanType: result.length === 0 ? null : result[0]?.loanType,
-        loanTotalAmount: String(totalPendingAmount.toFixed(2)),
-        loanModality: result.length === 0 ? null : result[0]?.loanModality,
-        loanAmortization: loanAmortization || null,
-      };
-    } catch (error) {
-      console.log(error);
-
-      return new InternalServerErrorException(
-        'Error fetching loan request details.',
+    if (associate.length === 0) {
+      throw new InternalServerErrorException(
+        'No active associate found with the provided cedula.',
       );
     }
+
+    return {
+      id: associate[0].id,
+      cedula: associate[0].cedula,
+      fullname: associate[0].fullname,
+      phone: associate[0].phone,
+      email: associate[0].email,
+      loanId: result.length === 0 ? null : result[0]?.loanId,
+      loanType: result.length === 0 ? null : result[0]?.loanType,
+      loanTotalAmount: String(totalPendingAmount.toFixed(2)),
+      loanModality: result.length === 0 ? null : result[0]?.loanModality,
+      loanAmortization: loanAmortization || null,
+    };
   }
 
   // async update(

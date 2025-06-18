@@ -1,6 +1,8 @@
 export const ESTATUS_TYPES = {
   ACTIVE: 'Activo',
   INACTIVE: 'Inactivo',
+  SUSPENDED: 'Supendido',
+  RETIRED: 'Retirado',
 } as const;
 
 export const PAYROLL_TYPE = {

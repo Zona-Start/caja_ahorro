@@ -385,7 +385,8 @@ export class CreditPaidService {
         .where(eq(schema.credits.id, creditId));
       const payloadMovementLoan = {
         associateAccountId: Number(resutAccount[0].id),
-        movementType: 'CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
+        movementType:
+          'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
         amount: amount,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: paymentDate ? paymentDate : undefined,
@@ -405,11 +406,11 @@ export class CreditPaidService {
         const payloadMovementLoan = {
           associateAccountId: Number(resutAccount[0].id),
           movementType:
-            'CREDIT_OVERPAYMENT_CREDIT' as AssociateMovementTypeEnum,
+            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT' as AssociateMovementTypeEnum,
           amount: result.balanceInFavorValue,
           currencyCode: 'VES' as CurrencyCodeEnum,
           transactionDate: paymentDate ? paymentDate : undefined,
-          description: 'CREDITO SOBREGIRO CREDITO',
+          description: 'CREDITO SOBREGIRO PAGO DE CREDITO',
           referenceId: String(creditId),
           referenceType: 'credits',
           referenceNumber: undefined,
@@ -636,55 +637,54 @@ export class CreditPaidService {
   // }
 
   async findOneRequest(cedula: string) {
-    try {
-      const associate = await this.db
-        .select({
-          id: associates.id,
-          cedula: associates.cedula,
-          fullname: associates.fullname,
-          phone: associates.phone,
-          email: associates.email,
-        })
-        .from(associates)
-        .where(
-          and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
-        );
+    const associate = await this.db
+      .select({
+        id: associates.id,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        phone: associates.phone,
+        email: associates.email,
+      })
+      .from(associates)
+      .where(
+        and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
+      );
 
-      const result = await this.db
-        .select({
-          creditId: credits.id,
-          creditType: creditsTypes.name,
-          creditTotalAmount: credits.totalPayable,
-          creditModality: credits.creditModality,
-        })
-        .from(credits)
-        .where(
-          and(
-            eq(credits.associateId, associate[0].id),
-            ne(credits.status, CreditStatusEnum.PAID),
-          ),
-        )
-        .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id))
-        .leftJoin(
-          creditAmortizationSchedule,
-          eq(credits.id, creditAmortizationSchedule.creditId),
-        );
+    const result = await this.db
+      .select({
+        creditId: credits.id,
+        creditType: creditsTypes.name,
+        creditTotalAmount: credits.totalPayable,
+        creditModality: credits.creditModality,
+      })
+      .from(credits)
+      .where(
+        and(
+          eq(credits.associateId, associate[0].id),
+          ne(credits.status, CreditStatusEnum.PAID),
+        ),
+      )
+      .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id))
+      .leftJoin(
+        creditAmortizationSchedule,
+        eq(credits.id, creditAmortizationSchedule.creditId),
+      );
 
-      const creditAmortization = await this.db
-        .select({
-          id: creditAmortizationSchedule.id,
-          quotaNumber: creditAmortizationSchedule.installmentNumber,
-          quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
-          quotaDate: creditAmortizationSchedule.dueDate,
-          quotaStatus: creditAmortizationSchedule.paymentStatus,
-          quotaPartial: creditAmortizationSchedule.paidAmount,
-          principalBalancePending:
-            creditAmortizationSchedule.principalBalancePending,
-          paidAmount: creditAmortizationSchedule.paidAmount,
-        })
-        .from(creditAmortizationSchedule)
-        .where(eq(creditAmortizationSchedule.creditId, result[0]?.creditId))
-        .orderBy(sql<string>`
+    const creditAmortization = await this.db
+      .select({
+        id: creditAmortizationSchedule.id,
+        quotaNumber: creditAmortizationSchedule.installmentNumber,
+        quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+        quotaDate: creditAmortizationSchedule.dueDate,
+        quotaStatus: creditAmortizationSchedule.paymentStatus,
+        quotaPartial: creditAmortizationSchedule.paidAmount,
+        principalBalancePending:
+          creditAmortizationSchedule.principalBalancePending,
+        paidAmount: creditAmortizationSchedule.paidAmount,
+      })
+      .from(creditAmortizationSchedule)
+      .where(eq(creditAmortizationSchedule.creditId, result[0]?.creditId))
+      .orderBy(sql<string>`
     CASE payment_status
       WHEN 'PARTIAL' THEN 1
       WHEN 'PENDING' THEN 2
@@ -693,50 +693,49 @@ export class CreditPaidService {
     END ASC,
     id ASC`);
 
-      const pendingQuotas = creditAmortization.filter(
-        (item) => item.quotaStatus === 'PENDING',
-      );
+    const pendingQuotas = creditAmortization.filter(
+      (item) => item.quotaStatus === 'PENDING',
+    );
 
-      const partialQuotas = creditAmortization.filter(
-        (item) => item.quotaStatus === 'PARTIAL',
-      );
+    const partialQuotas = creditAmortization.filter(
+      (item) => item.quotaStatus === 'PARTIAL',
+    );
 
-      // Sumar todas las cuotas PENDING directamente
-      const totalPending = pendingQuotas.reduce((acc, item) => {
-        const amount = Number(item.quotaAmount) || 0;
-        return acc + amount;
-      }, 0);
+    // Sumar todas las cuotas PENDING directamente
+    const totalPending = pendingQuotas.reduce((acc, item) => {
+      const amount = Number(item.quotaAmount) || 0;
+      return acc + amount;
+    }, 0);
 
-      // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
-      const totalPartial = partialQuotas.reduce((acc, item) => {
-        const totalAmount = Number(item.quotaAmount) || 0;
-        const paidAmount = Number(item.paidAmount) || 0;
-        const remaining = totalAmount - paidAmount;
-        return acc + (remaining > 0 ? remaining : 0); // evitar negativos
-      }, 0);
+    // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
+    const totalPartial = partialQuotas.reduce((acc, item) => {
+      const totalAmount = Number(item.quotaAmount) || 0;
+      const paidAmount = Number(item.paidAmount) || 0;
+      const remaining = totalAmount - paidAmount;
+      return acc + (remaining > 0 ? remaining : 0); // evitar negativos
+    }, 0);
 
-      // Suma final
-      const totalPendingAmount = totalPending + totalPartial;
+    // Suma final
+    const totalPendingAmount = totalPending + totalPartial;
 
-      return {
-        id: associate[0].id,
-        cedula: associate[0].cedula,
-        fullname: associate[0].fullname,
-        phone: associate[0].phone,
-        email: associate[0].email,
-        creditId: result.length === 0 ? null : result[0]?.creditId,
-        creditType: result.length === 0 ? null : result[0]?.creditType,
-        creditTotalAmount: String(totalPendingAmount.toFixed(2)),
-        creditModality: result.length === 0 ? null : result[0]?.creditModality,
-        creditAmortization: creditAmortization || null,
-      };
-    } catch (error) {
-      console.log(error);
-
-      return new InternalServerErrorException(
-        'Error fetching loan request details.',
+    if (associate.length === 0) {
+      throw new InternalServerErrorException(
+        'No active associate found with the provided cedula.',
       );
     }
+
+    return {
+      id: associate[0].id,
+      cedula: associate[0].cedula,
+      fullname: associate[0].fullname,
+      phone: associate[0].phone,
+      email: associate[0].email,
+      creditId: result.length === 0 ? null : result[0]?.creditId,
+      creditType: result.length === 0 ? null : result[0]?.creditType,
+      creditTotalAmount: String(totalPendingAmount.toFixed(2)),
+      creditModality: result.length === 0 ? null : result[0]?.creditModality,
+      creditAmortization: creditAmortization || null,
+    };
   }
 
   // async update(

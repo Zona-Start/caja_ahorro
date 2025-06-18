@@ -1,0 +1,1 @@
+ALTER TYPE "public"."associate_movement_type_enum" ADD VALUE 'LIQUIDATION_BALANCE';

@@ -70,6 +70,17 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         updatedById: 1,
       })
       .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'tiempo_retiro',
+        value: '6',
+        description: 'TIEMPO RETIROS EN MESES',
+        group: 'WITHDRAWAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
     console.log('System Setting seeded successfully');
   } catch (error) {
     console.error('Error creating System Setting:', error);

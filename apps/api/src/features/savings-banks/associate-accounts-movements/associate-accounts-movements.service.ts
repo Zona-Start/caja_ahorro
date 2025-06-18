@@ -153,16 +153,31 @@ export class AssociateAccountsMovementsService {
         // 6. Actualiza el balance de associateAccounts con el valor de amount según el tipo de movimiento
         let newBalanceSql: SQL<unknown>;
         const creditMovements: AssociateMovementTypeEnum[] = [
+          // 1. Contribuciones y Aportes a Cuentas de Ahorro
           AssociateMovementTypeEnum.SAVING_CONTRIBUTION,
           AssociateMovementTypeEnum.EMPLOYER_CONTRIBUTION,
-          AssociateMovementTypeEnum.DIVIDEND_CREDIT,
+
+          // 2. Desembolsos de Préstamos y Créditos (Aumentan el balance del asociado)
           AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT,
-          AssociateMovementTypeEnum.CREDIT_DISBURSEMENT_CREDIT,
-          AssociateMovementTypeEnum.OTHER_CREDIT,
-          AssociateMovementTypeEnum.ADJUSTMENT_CREDIT,
-          AssociateMovementTypeEnum.FEE_REIMBURSEMENT_CREDIT,
+          AssociateMovementTypeEnum.SPECIAL_LOAN_DISBURSEMENT_CREDIT,
+          AssociateMovementTypeEnum.LOAN_PARTIAL_DISBURSEMENT_CREDIT, // If disbursed to associate's account
+          AssociateMovementTypeEnum.COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT,
+          AssociateMovementTypeEnum.SPECIAL_CREDIT_DISBURSEMENT_CREDIT,
+
+          // 3. Refinanciamiento de Préstamos (La parte que acredita el nuevo préstamo)
+          AssociateMovementTypeEnum.LOAN_REFINANCING_CREDIT,
+
+          // 4. Sobregiros y Reintegros (Aumentan el balance del asociado)
           AssociateMovementTypeEnum.LOAN_OVERPAYMENT_CREDIT,
-          AssociateMovementTypeEnum.CREDIT_OVERPAYMENT_CREDIT,
+          AssociateMovementTypeEnum.COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT,
+          AssociateMovementTypeEnum.LOAN_REIMBURSEMENT_CREDIT,
+          AssociateMovementTypeEnum.COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT,
+
+          // 5. Otros Créditos (Aumentan el balance del asociado)
+          AssociateMovementTypeEnum.DIVIDEND_CREDIT,
+          AssociateMovementTypeEnum.FEE_REIMBURSEMENT_CREDIT,
+          AssociateMovementTypeEnum.ADJUSTMENT_CREDIT, // Positive adjustments
+          AssociateMovementTypeEnum.OTHER_CREDIT, // General credits
         ];
 
         if (creditMovements.includes(movementType)) {

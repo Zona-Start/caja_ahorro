@@ -16,7 +16,10 @@ export const associateAccountBalances = savingsBanksSchema
     associatedId: integer('associated_id').notNull(),
     accountNumber: text('account_number').notNull(),
     currencyCode: text('currency_code').notNull(),
-    calculatedBalance: integer('calculated_balance').notNull(),
+    calculatedBalance: numeric('calculated_balance', {
+      precision: 18,
+      scale: 4,
+    }).notNull(), // Asumiendo numeric, no integer
   })
   .as(
     sql`
@@ -27,16 +30,43 @@ export const associateAccountBalances = savingsBanksSchema
       aa.currency_code,
       COALESCE(SUM(
         CASE
-          WHEN aam.movement_type IN (
-            'SAVING_CONTRIBUTION', 'EMPLOYER_CONTRIBUTION', 'DIVIDEND_CREDIT', 
-            'LOAN_DISBURSEMENT_CREDIT', 'OTHER_CREDIT', 'ADJUSTMENT_CREDIT', 
-            'FEE_REIMBURSEMENT_CREDIT'
-          ) THEN aam.amount
-          WHEN aam.movement_type IN (
-            'SAVING_WITHDRAWAL', 'LOAN_PAYMENT_DEBIT', 'FEE_DEBIT', 
-            'WITHDRAWAL_FEE_DEBIT', 'LOAN_INTEREST_DEBIT', 'OTHER_DEBIT', 
-            'ADJUSTMENT_DEBIT', 'FEE_CORRECTION_DEBIT'
-          ) THEN -aam.amount
+          WHEN aam.movement_type = ANY (ARRAY[
+            'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,
+            'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,
+            'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,
+            'LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'SPECIAL_LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'SPECIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'LOAN_REFINANCING_CREDIT'::public.associate_movement_type_enum,
+            'LOAN_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,
+            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,
+            'LOAN_PARTIAL_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'DIVIDEND_CREDIT'::public.associate_movement_type_enum,
+            'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+            'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,
+            'OTHER_CREDIT'::public.associate_movement_type_enum
+          ]) THEN aam.amount
+          WHEN aam.movement_type = ANY (ARRAY[
+            'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,
+            'LOAN_REFINANCING_DEBIT'::public.associate_movement_type_enum,
+            'LOAN_PAYMENT_DEBIT'::public.associate_movement_type_enum,
+            'COMMERCIAL_CREDIT_PAYMENT_DEBIT'::public.associate_movement_type_enum,
+            'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,
+            'LOAN_INTEREST_DEBIT'::public.associate_movement_type_enum,
+            'LOAN_FEE_DEBIT'::public.associate_movement_type_enum,
+            'LOAN_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,
+            'LATE_PAYMENT_FEE_DEBIT'::public.associate_movement_type_enum,
+            'PAYMENT_REVERSAL_DEBIT'::public.associate_movement_type_enum,
+            'CREDIT_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,
+            'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,
+            'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,
+            'ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,
+            'OTHER_DEBIT'::public.associate_movement_type_enum,
+            'FEE_DEBIT'::public.associate_movement_type_enum
+          ]) THEN - aam.amount
           ELSE 0
         END
       ), 0) AS calculated_balance
@@ -115,34 +145,105 @@ export const associateHaberesBalance = savingsBanksSchema.view(
     associateAccountId: integer('associate_account_id').notNull(),
     haberesBalance: numeric('haberes_balance', {
       precision: 18,
-      scale: 2,
+      scale: 4, // Asegúrate de que la escala sea la misma que 'amount'
     }).notNull(),
     lastMovementDate: timestamp('last_movement_date'),
+
+    // --- Columnas de desglose ---
+    haberesContribution: numeric('haberes_contribution', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    haberesVoluntary: numeric('haberes_voluntary', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    haberesEmployer: numeric('haberes_employer', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    surpluses: numeric('surpluses', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    totalWithdrawals: numeric('total_withdrawals', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    totalWithdrawalFees: numeric('total_withdrawal_fees', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    // --- Fin de nuevas columnas ---
   },
 ).as(sql`
   SELECT
       ${associateAccountMovements.associateAccountId},
+      -- Saldo total de haberes (la suma y resta de todos los movimientos que componen el haber)
       SUM(
           CASE
               -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)
-              WHEN ${associateAccountMovements.movementType} IN (
-                  'SAVING_CONTRIBUTION',
-                  'EMPLOYER_CONTRIBUTION',
-                  'ADJUSTMENT_CREDIT',
-                  'LOAN_OVERPAYMENT_CREDIT',
-                  'CREDIT_OVERPAYMENT_CREDIT'
-              ) THEN ${associateAccountMovements.amount}
+              WHEN ${associateAccountMovements.movementType} = ANY (ARRAY[
+                  'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,
+                  'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,
+                  'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,
+                  'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,
+                  'DIVIDEND_CREDIT'::public.associate_movement_type_enum,
+                  'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,
+                  'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,
+                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum
+              ]) THEN ${associateAccountMovements.amount}
               -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)
-              WHEN ${associateAccountMovements.movementType} IN (
-                  'SAVING_WITHDRAWAL',
-                  'WITHDRAWAL_FEE_DEBIT',
-                  'ADJUSTMENT_DEBIT',
-                  'FEE_CORRECTION_DEBIT'
-              ) THEN -${associateAccountMovements.amount}
+              WHEN ${associateAccountMovements.movementType} = ANY (ARRAY[
+                  'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,
+                  'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,
+                  'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,
+                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum
+              ]) THEN -${associateAccountMovements.amount}
               ELSE 0
           END
       ) AS haberes_balance,
-      MAX(${associateAccountMovements.transactionDate}) AS last_movement_date
+      MAX(${associateAccountMovements.transactionDate}) AS last_movement_date,
+
+      -- --- Columnas de desglose ---
+      COALESCE(SUM(
+          CASE
+              WHEN ${associateAccountMovements.movementType} = 'SAVING_CONTRIBUTION'::public.associate_movement_type_enum THEN ${associateAccountMovements.amount}
+              ELSE 0
+          END
+      ), 0) AS haberes_contribution,
+      COALESCE(SUM(
+          CASE
+              WHEN ${associateAccountMovements.movementType} = 'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum THEN ${associateAccountMovements.amount}
+              ELSE 0
+          END
+      ), 0) AS haberes_voluntary,
+      COALESCE(SUM(
+          CASE
+              WHEN ${associateAccountMovements.movementType} = 'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum THEN ${associateAccountMovements.amount}
+              ELSE 0
+          END
+      ), 0) AS haberes_employer,
+      COALESCE(SUM(
+          CASE
+              WHEN ${associateAccountMovements.movementType} = 'DIVIDEND_CREDIT'::public.associate_movement_type_enum THEN ${associateAccountMovements.amount}
+              ELSE 0
+          END
+      ), 0) AS surpluses,
+      -- Nueva columna para la suma de todos los retiros
+      COALESCE(SUM(
+          CASE
+              WHEN ${associateAccountMovements.movementType} = 'SAVING_WITHDRAWAL'::public.associate_movement_type_enum THEN ${associateAccountMovements.amount}
+              ELSE 0
+          END
+      ), 0) AS total_withdrawals,
+      -- Nueva columna para la suma de todos los gastos administrativos por retiros
+      COALESCE(SUM(
+          CASE
+              WHEN ${associateAccountMovements.movementType} = 'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum THEN ${associateAccountMovements.amount}
+              ELSE 0
+          END
+      ), 0) AS total_withdrawal_fees
   FROM
       ${associateAccountMovements}
   GROUP BY

@@ -482,7 +482,8 @@ export class CreditManagementService {
     if (newCredit.transation && status === CreditStatusEnum.APPROVED) {
       const payloadMovementCredits = {
         associateAccountId: Number(associate.associateAccountId),
-        movementType: 'CREDIT_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
+        movementType:
+          'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
         amount: requestedAmount,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: approvalDate ? approvalDate : undefined,
@@ -498,7 +499,7 @@ export class CreditManagementService {
         amount: installmentAmount,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: approvalDate ? approvalDate : undefined,
-        description: 'DEBITO GASTOS ADMINISTRATIVOS',
+        description: 'DEBITO GASTOS ADMINISTRATIVOS POR CREDITO',
         referenceId: String(newCredit.id),
         referenceType: 'credits',
         referenceNumber: newCredit.customReference ?? undefined,

@@ -13,7 +13,7 @@ export class SettlementAssociateController {
   @RequirePermissions('create:settlement-associate')
   create(@Req() req: Request, @Body() dto: CreateSettlementAssociateDto) {
     const userdId = req['user'].id;
-    //return this.service.create(dto, userdId);
+    return this.service.create(dto, userdId);
   }
 
   @Get()
@@ -32,6 +32,6 @@ export class SettlementAssociateController {
   @ApiResponse({ status: 200, description: 'Return on settlement associate.' })
   @ApiResponse({ status: 404, description: 'settlement Associate  not found.' })
   findOneRequest(@Param('cedula') cedula: string) {
-    // return this.service.findOneRequest(cedula);
+    return this.service.findOneRequest(cedula);
   }
 }

@@ -171,8 +171,6 @@ export class WithdrawalAssociateService {
       100;
     const calculeTotalPay = requestedAmount - calculateAadministrative;
 
-    console.log(calculeTotalPay);
-
     // Inicia la transacción para asegurar la atomicidad de las operaciones
     await this.db.transaction(async (tx) => {
       // 1. Genera una referencia única para este retiro
@@ -207,10 +205,28 @@ export class WithdrawalAssociateService {
         area: 'HABERES',
       };
 
+      const dataMovementsAdministrativeFee = {
+        associateAccountId: Number(associateAccountId),
+        movementType: 'WITHDRAWAL_FEE_DEBIT' as AssociateMovementTypeEnum,
+        amount: calculateAadministrative,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: withdrawalDate,
+        description: 'DEBITO GASTOS ADMINISTRATIVOS POR RETIRO HABERES',
+        referenceId: String(insertedWithdrawal.id),
+        referenceType: 'withdrawalsAssociates',
+        referenceNumber: customReference,
+        area: 'HABERES',
+      };
+
       //registra el movimiento en la cuenta asociado
       await this.associateAccountsMovementsService.create(
         userId,
         dataMovements,
+      );
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        dataMovementsAdministrativeFee,
       );
 
       // Registra el log auditoria

@@ -1,0 +1,1 @@
+ALTER TABLE "savings_banks"."liquidations_associates" ADD COLUMN "beneficiary" jsonb;

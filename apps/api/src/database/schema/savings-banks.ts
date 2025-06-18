@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   serial,
   text,
@@ -514,9 +515,7 @@ export const loanPayments = savingsBanksSchema.table(
       precision: 18,
       scale: 2,
     }).notNull(), //saldo pendiente luego del pago
-    bankId: integer('bank_id')
-      .notNull()
-      .references(() => bankDirectory.id), // Banco que procesó el pago
+    bankId: integer('bank_id').references(() => bankDirectory.id), // Banco que procesó el pago
     paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
     transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
     comment: text('comment'),
@@ -777,9 +776,7 @@ export const creditPayments = savingsBanksSchema.table(
       precision: 18,
       scale: 2,
     }).notNull(), //saldo pendiente luego del pago
-    bankId: integer('bank_id')
-      .notNull()
-      .references(() => bankDirectory.id), // Banco que procesó el pago
+    bankId: integer('bank_id').references(() => bankDirectory.id), // Banco que procesó el pago
     paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
     transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
     comment: text('comment'),
@@ -851,6 +848,8 @@ export const liquidationsAssociates = savingsBanksSchema.table(
     }).notNull(), // El monto neto final (lo que se paga/se debe)
     status: varchar('status', { length: 50 }).notNull().default('PROCESSED'), // 'PROCESSED', 'PENDING_PAYOUT', 'PENDING_COLLECTION', 'CANCELLED'
     payoutTransactionId: integer('payout_transaction_id'), // Opcional: FK a una tabla de transacciones de pago si la tienes
+    customReference: varchar('custom_reference', { length: 50 }), // Nro. trasaccion personalizado
+    beneficiary: jsonb('beneficiary'), // Información del beneficiario (puede ser un objeto JSON con nombre, cuenta bancaria, etc.)
     notes: text('notes'), // Campo para cualquier nota relevante de la liquidación
     ...timestamps, // created_at y updated_at
   },

@@ -2,6 +2,7 @@ import { DrizzleModule } from '@/database/drizzle.module';
 import { SettingsSystemModule } from '@/features/core/settings-system/settings-system.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../associate-accounts-movements/associate-accounts-movements.module';
+import { CreditPaidModule } from '../../credits/credit-paid/credit-paid.module';
 import { LoanPaidModule } from '../../loans/loan_paid/loan-paid.module';
 import { SettlementAssociateController } from './settlement-associate.controller';
 import { SettlementAssociateService } from './settlement-associate.service';
@@ -12,6 +13,7 @@ import { SettlementAssociateService } from './settlement-associate.service';
     DrizzleModule,
     AssociateAccountsMovementsModule,
     LoanPaidModule,
+    CreditPaidModule,
   ],
   controllers: [SettlementAssociateController],
   providers: [SettlementAssociateService],

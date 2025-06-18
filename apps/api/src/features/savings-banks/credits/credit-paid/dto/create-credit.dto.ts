@@ -32,7 +32,7 @@ export class CreateCreditPaidDto {
   @IsNumber()
   @IsPositive()
   @IsNotEmpty()
-  bankId: number; // id del banco
+  bankId: number | undefined; // id del banco
 
   @IsNumber()
   @IsPositive()

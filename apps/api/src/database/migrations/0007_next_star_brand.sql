@@ -1,2 +1,0 @@
-CREATE TYPE "public"."loan_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION');--> statement-breakpoint
-ALTER TABLE "savings_banks"."loan_payments" ADD COLUMN "payment-type" "loan_payment_type_enum" NOT NULL;

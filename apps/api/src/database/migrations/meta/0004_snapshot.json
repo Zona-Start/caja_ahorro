@@ -1,6 +1,6 @@
 {
-  "id": "189e1bfe-e469-40ec-ac73-07f0f8656233",
-  "prevId": "31d444b4-3f79-4040-9fa9-b8cb7c5a2a0b",
+  "id": "cefc0b56-5990-47f6-b1b3-0f04d47cb611",
+  "prevId": "24a7a337-f18e-4b8b-9707-e14e2b652934",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4806,15 +4806,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "associate_account_movements_reference_number_unique": {
-          "name": "associate_account_movements_reference_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "reference_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -5464,6 +5456,1550 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "savings_banks.credit_amortization_schedule": {
+      "name": "credit_amortization_schedule",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "credit_id": {
+          "name": "credit_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "installment_number": {
+          "name": "installment_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_amount": {
+          "name": "principal_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interest_amount": {
+          "name": "interest_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_installment_amount": {
+          "name": "total_installment_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "principal_balance_pending": {
+          "name": "principal_balance_pending",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_status": {
+          "name": "payment_status",
+          "type": "payment_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "paid_amount": {
+          "name": "paid_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "last_payment_date": {
+          "name": "last_payment_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "credit_amort_credit_installment_uidx": {
+          "name": "credit_amort_credit_installment_uidx",
+          "columns": [
+            {
+              "expression": "credit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "installment_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credit_amort_due_date_status_idx": {
+          "name": "credit_amort_due_date_status_idx",
+          "columns": [
+            {
+              "expression": "due_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "payment_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credit_amortization_schedule_credit_id_credits_id_fk": {
+          "name": "credit_amortization_schedule_credit_id_credits_id_fk",
+          "tableFrom": "credit_amortization_schedule",
+          "tableTo": "credits",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "credit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credit_amortization_schedule_created_by_id_users_id_fk": {
+          "name": "credit_amortization_schedule_created_by_id_users_id_fk",
+          "tableFrom": "credit_amortization_schedule",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credit_amortization_schedule_updated_by_id_users_id_fk": {
+          "name": "credit_amortization_schedule_updated_by_id_users_id_fk",
+          "tableFrom": "credit_amortization_schedule",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.credit_payments": {
+      "name": "credit_payments",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "credit_id": {
+          "name": "credit_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_date": {
+          "name": "payment_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "payment-type": {
+          "name": "payment-type",
+          "type": "credit_payment_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance_pending": {
+          "name": "balance_pending",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_id": {
+          "name": "bank_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_reference": {
+          "name": "transaction_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_reference": {
+          "name": "custom_reference",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "credit_payments_uidx": {
+          "name": "credit_payments_uidx",
+          "columns": [
+            {
+              "expression": "custom_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credit_payments_date_idx": {
+          "name": "credit_payments_date_idx",
+          "columns": [
+            {
+              "expression": "payment_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credit_payments_reference_idx": {
+          "name": "credit_payments_reference_idx",
+          "columns": [
+            {
+              "expression": "custom_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credit_payments_transaction_reference_idx": {
+          "name": "credit_payments_transaction_reference_idx",
+          "columns": [
+            {
+              "expression": "transaction_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credit_payments_credit_id_credits_id_fk": {
+          "name": "credit_payments_credit_id_credits_id_fk",
+          "tableFrom": "credit_payments",
+          "tableTo": "credits",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "credit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credit_payments_bank_id_bank_directory_id_fk": {
+          "name": "credit_payments_bank_id_bank_directory_id_fk",
+          "tableFrom": "credit_payments",
+          "tableTo": "bank_directory",
+          "schemaTo": "banking",
+          "columnsFrom": [
+            "bank_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "credit_payments_created_by_id_users_id_fk": {
+          "name": "credit_payments_created_by_id_users_id_fk",
+          "tableFrom": "credit_payments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credit_payments_updated_by_id_users_id_fk": {
+          "name": "credit_payments_updated_by_id_users_id_fk",
+          "tableFrom": "credit_payments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.credit_payment_details": {
+      "name": "credit_payment_details",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "credit_payment_id": {
+          "name": "credit_payment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "installment_id": {
+          "name": "installment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "credit_payments_details_installment_idx": {
+          "name": "credit_payments_details_installment_idx",
+          "columns": [
+            {
+              "expression": "installment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credit_payment_details_credit_payment_id_credit_payments_id_fk": {
+          "name": "credit_payment_details_credit_payment_id_credit_payments_id_fk",
+          "tableFrom": "credit_payment_details",
+          "tableTo": "credit_payments",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "credit_payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credit_payment_details_installment_id_credit_amortization_schedule_id_fk": {
+          "name": "credit_payment_details_installment_id_credit_amortization_schedule_id_fk",
+          "tableFrom": "credit_payment_details",
+          "tableTo": "credit_amortization_schedule",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "installment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credit_payment_details_created_by_id_users_id_fk": {
+          "name": "credit_payment_details_created_by_id_users_id_fk",
+          "tableFrom": "credit_payment_details",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credit_payment_details_updated_by_id_users_id_fk": {
+          "name": "credit_payment_details_updated_by_id_users_id_fk",
+          "tableFrom": "credit_payment_details",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.credit_status_history": {
+      "name": "credit_status_history",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "credit_id": {
+          "name": "credit_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "credit_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "changed_at": {
+          "name": "changed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "changed_by_user_id": {
+          "name": "changed_by_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "comment": {
+          "name": "comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "credit_status_history_idx": {
+          "name": "credit_status_history_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credit_status_history_credit_id_credits_id_fk": {
+          "name": "credit_status_history_credit_id_credits_id_fk",
+          "tableFrom": "credit_status_history",
+          "tableTo": "credits",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "credit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credit_status_history_changed_by_user_id_users_id_fk": {
+          "name": "credit_status_history_changed_by_user_id_users_id_fk",
+          "tableFrom": "credit_status_history",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "changed_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.credits": {
+      "name": "credits",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_type_id": {
+          "name": "credit_type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_modality": {
+          "name": "credit_modality",
+          "type": "credit_modality_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "request_date": {
+          "name": "request_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "approval_date": {
+          "name": "approval_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "requested_amount": {
+          "name": "requested_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_interest": {
+          "name": "total_interest",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "Installment_amount": {
+          "name": "Installment_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_payable": {
+          "name": "total_payable",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expenses_amount": {
+          "name": "expenses_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "overdraft_amount": {
+          "name": "overdraft_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "previous_credit_id": {
+          "name": "previous_credit_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "credit_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'REQUESTED'"
+        },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approved_by_user_id": {
+          "name": "approved_by_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "custom_reference": {
+          "name": "custom_reference",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "exchange_rate_id": {
+          "name": "exchange_rate_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "balance_in_favor": {
+          "name": "balance_in_favor",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commercial_house_id": {
+          "name": "commercial_house_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoice_number": {
+          "name": "invoice_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "credit_associate_idx": {
+          "name": "credit_associate_idx",
+          "columns": [
+            {
+              "expression": "associate_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credit_status_date_idx": {
+          "name": "credit_status_date_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "request_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credits_associate_id_associates_id_fk": {
+          "name": "credits_associate_id_associates_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "associates",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "associate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "credits_company_id_company_id_fk": {
+          "name": "credits_company_id_company_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "company",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credits_credit_type_id_credits_types_id_fk": {
+          "name": "credits_credit_type_id_credits_types_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "credits_types",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "credit_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "credits_previous_credit_id_credits_id_fk": {
+          "name": "credits_previous_credit_id_credits_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "credits",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "previous_credit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "credits_approved_by_user_id_users_id_fk": {
+          "name": "credits_approved_by_user_id_users_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "approved_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "credits_exchange_rate_id_exchange_rates_id_fk": {
+          "name": "credits_exchange_rate_id_exchange_rates_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "exchange_rates",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "exchange_rate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_created_by_id_users_id_fk": {
+          "name": "credits_created_by_id_users_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_updated_by_id_users_id_fk": {
+          "name": "credits_updated_by_id_users_id_fk",
+          "tableFrom": "credits",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.credits_types": {
+      "name": "credits_types",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "interest_rate": {
+          "name": "interest_rate",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_type": {
+          "name": "term_type",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "term_units": {
+          "name": "term_units",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cancellation_percentage": {
+          "name": "cancellation_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit_account_chart_id": {
+          "name": "credit_account_chart_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interest_earned_account_chart_id": {
+          "name": "interest_earned_account_chart_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "special_quota_account_chart_id": {
+          "name": "special_quota_account_chart_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expense_account_chart_id": {
+          "name": "expense_account_chart_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "special_quota_number": {
+          "name": "special_quota_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "special_quota_percentage": {
+          "name": "special_quota_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "max_credit_amount": {
+          "name": "max_credit_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_credit_amount": {
+          "name": "min_credit_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payroll_type_id": {
+          "name": "payroll_type_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "administrative_expense_percentage": {
+          "name": "administrative_expense_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "minimum_seniority_months": {
+          "name": "minimum_seniority_months",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "accepts_debit_balance": {
+          "name": "accepts_debit_balance",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "accepts_guarantors": {
+          "name": "accepts_guarantors",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "accepts_availability": {
+          "name": "accepts_availability",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "accepts_refinancing": {
+          "name": "accepts_refinancing",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "credits_types_name_idx": {
+          "name": "credits_types_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credits_types_credit_account_chart_id_idx": {
+          "name": "credits_types_credit_account_chart_id_idx",
+          "columns": [
+            {
+              "expression": "credit_account_chart_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credits_types_interest_earned_account_chart_id_idx": {
+          "name": "credits_types_interest_earned_account_chart_id_idx",
+          "columns": [
+            {
+              "expression": "interest_earned_account_chart_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credits_types_special_quota_account_chart_id_idx": {
+          "name": "credits_types_special_quota_account_chart_id_idx",
+          "columns": [
+            {
+              "expression": "special_quota_account_chart_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credits_types_expense_account_chart_id_idx": {
+          "name": "credits_types_expense_account_chart_id_idx",
+          "columns": [
+            {
+              "expression": "expense_account_chart_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credits_types_payroll_type_id_idx": {
+          "name": "credits_types_payroll_type_id_idx",
+          "columns": [
+            {
+              "expression": "payroll_type_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credits_types_credit_account_chart_id_account_plan_id_fk": {
+          "name": "credits_types_credit_account_chart_id_account_plan_id_fk",
+          "tableFrom": "credits_types",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "credit_account_chart_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_types_interest_earned_account_chart_id_account_plan_id_fk": {
+          "name": "credits_types_interest_earned_account_chart_id_account_plan_id_fk",
+          "tableFrom": "credits_types",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "interest_earned_account_chart_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_types_special_quota_account_chart_id_account_plan_id_fk": {
+          "name": "credits_types_special_quota_account_chart_id_account_plan_id_fk",
+          "tableFrom": "credits_types",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "special_quota_account_chart_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_types_expense_account_chart_id_account_plan_id_fk": {
+          "name": "credits_types_expense_account_chart_id_account_plan_id_fk",
+          "tableFrom": "credits_types",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "expense_account_chart_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_types_payroll_type_id_category_types_id_fk": {
+          "name": "credits_types_payroll_type_id_category_types_id_fk",
+          "tableFrom": "credits_types",
+          "tableTo": "category_types",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "payroll_type_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_types_created_by_id_users_id_fk": {
+          "name": "credits_types_created_by_id_users_id_fk",
+          "tableFrom": "credits_types",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credits_types_updated_by_id_users_id_fk": {
+          "name": "credits_types_updated_by_id_users_id_fk",
+          "tableFrom": "credits_types",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.liquidations_associates": {
+      "name": "liquidations_associates",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "liquidation_date": {
+          "name": "liquidation_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "effective_date": {
+          "name": "effective_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_savings_balance_at_liquidation": {
+          "name": "total_savings_balance_at_liquidation",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_outstanding_loans_at_liquidation": {
+          "name": "total_outstanding_loans_at_liquidation",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_outstanding_credits_at_liquidation": {
+          "name": "total_outstanding_credits_at_liquidation",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "net_liquidation_amount": {
+          "name": "net_liquidation_amount",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PROCESSED'"
+        },
+        "payout_transaction_id": {
+          "name": "payout_transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "liquidations_associate_liquidation_uidx": {
+          "name": "liquidations_associate_liquidation_uidx",
+          "columns": [
+            {
+              "expression": "associate_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "liquidation_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "liquidations_associates_associate_id_associates_id_fk": {
+          "name": "liquidations_associates_associate_id_associates_id_fk",
+          "tableFrom": "liquidations_associates",
+          "tableTo": "associates",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "associate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "liquidations_associates_created_by_id_users_id_fk": {
+          "name": "liquidations_associates_created_by_id_users_id_fk",
+          "tableFrom": "liquidations_associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "liquidations_associates_updated_by_id_users_id_fk": {
+          "name": "liquidations_associates_updated_by_id_users_id_fk",
+          "tableFrom": "liquidations_associates",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "savings_banks.loan_amortization_schedule": {
       "name": "loan_amortization_schedule",
       "schema": "savings_banks",
@@ -5673,12 +7209,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "installment_id": {
-          "name": "installment_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "payment_date": {
           "name": "payment_date",
           "type": "timestamp",
@@ -5686,8 +7216,21 @@
           "notNull": true,
           "default": "now()"
         },
+        "payment-type": {
+          "name": "payment-type",
+          "type": "loan_payment_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
         "amount": {
           "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance_pending": {
+          "name": "balance_pending",
           "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": true
@@ -5717,6 +7260,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "custom_reference": {
+          "name": "custom_reference",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -5743,7 +7292,68 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "loan_payments_uidx": {
+          "name": "loan_payments_uidx",
+          "columns": [
+            {
+              "expression": "custom_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "loan_payments_date_idx": {
+          "name": "loan_payments_date_idx",
+          "columns": [
+            {
+              "expression": "payment_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "loan_payments_reference_idx": {
+          "name": "loan_payments_reference_idx",
+          "columns": [
+            {
+              "expression": "custom_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "loan_payments_transaction_reference_idx": {
+          "name": "loan_payments_transaction_reference_idx",
+          "columns": [
+            {
+              "expression": "transaction_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "loan_payments_loan_id_loans_id_fk": {
           "name": "loan_payments_loan_id_loans_id_fk",
@@ -5752,20 +7362,6 @@
           "schemaTo": "savings_banks",
           "columnsFrom": [
             "loan_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "loan_payments_installment_id_loan_amortization_schedule_id_fk": {
-          "name": "loan_payments_installment_id_loan_amortization_schedule_id_fk",
-          "tableFrom": "loan_payments",
-          "tableTo": "loan_amortization_schedule",
-          "schemaTo": "savings_banks",
-          "columnsFrom": [
-            "installment_id"
           ],
           "columnsTo": [
             "id"
@@ -5804,6 +7400,141 @@
         "loan_payments_updated_by_id_users_id_fk": {
           "name": "loan_payments_updated_by_id_users_id_fk",
           "tableFrom": "loan_payments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.loan_payment_details": {
+      "name": "loan_payment_details",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "loan_payment_id": {
+          "name": "loan_payment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "installment_id": {
+          "name": "installment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "loan_payments_details_installment_idx": {
+          "name": "loan_payments_details_installment_idx",
+          "columns": [
+            {
+              "expression": "installment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "loan_payment_details_loan_payment_id_loan_payments_id_fk": {
+          "name": "loan_payment_details_loan_payment_id_loan_payments_id_fk",
+          "tableFrom": "loan_payment_details",
+          "tableTo": "loan_payments",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "loan_payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "loan_payment_details_installment_id_loan_amortization_schedule_id_fk": {
+          "name": "loan_payment_details_installment_id_loan_amortization_schedule_id_fk",
+          "tableFrom": "loan_payment_details",
+          "tableTo": "loan_amortization_schedule",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "installment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "loan_payment_details_created_by_id_users_id_fk": {
+          "name": "loan_payment_details_created_by_id_users_id_fk",
+          "tableFrom": "loan_payment_details",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "loan_payment_details_updated_by_id_users_id_fk": {
+          "name": "loan_payment_details_updated_by_id_users_id_fk",
+          "tableFrom": "loan_payment_details",
           "tableTo": "users",
           "schemaTo": "auth",
           "columnsFrom": [
@@ -5865,7 +7596,23 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "loan_status_history_idx": {
+          "name": "loan_status_history_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "loan_status_history_loan_id_loans_id_fk": {
           "name": "loan_status_history_loan_id_loans_id_fk",
@@ -6298,6 +8045,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "loan_modality": {
+          "name": "loan_modality",
+          "type": "loan_modality_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
         "request_date": {
           "name": "request_date",
           "type": "date",
@@ -6355,7 +8109,7 @@
         },
         "Installment_amount": {
           "name": "Installment_amount",
-          "type": "numeric",
+          "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": false
         },
@@ -6444,6 +8198,12 @@
         "exchange_rate_id": {
           "name": "exchange_rate_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "balance_in_favor": {
+          "name": "balance_in_favor",
+          "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": false
         },
@@ -7170,19 +8930,63 @@
       "values": [
         "SAVING_CONTRIBUTION",
         "EMPLOYER_CONTRIBUTION",
-        "DIVIDEND_CREDIT",
-        "LOAN_DISBURSEMENT_CREDIT",
-        "OTHER_CREDIT",
+        "VOLUNTARY_SAVINGS",
         "SAVING_WITHDRAWAL",
+        "LOAN_DISBURSEMENT_CREDIT",
+        "SPECIAL_LOAN_DISBURSEMENT_CREDIT",
+        "COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT",
+        "SPECIAL_CREDIT_DISBURSEMENT_CREDIT",
+        "LOAN_REFINANCING_DEBIT",
+        "LOAN_REFINANCING_CREDIT",
         "LOAN_PAYMENT_DEBIT",
-        "FEE_DEBIT",
+        "COMMERCIAL_CREDIT_PAYMENT_DEBIT",
+        "LOAN_REIMBURSEMENT_CREDIT",
+        "COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT",
+        "LOAN_OVERPAYMENT_CREDIT",
+        "COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT",
+        "LOAN_PARTIAL_DISBURSEMENT_CREDIT",
         "WITHDRAWAL_FEE_DEBIT",
         "LOAN_INTEREST_DEBIT",
-        "OTHER_DEBIT",
+        "LOAN_FEE_DEBIT",
+        "LOAN_ADMIN_FEE_DEBIT",
+        "LATE_PAYMENT_FEE_DEBIT",
+        "PAYMENT_REVERSAL_DEBIT",
+        "CREDIT_ADMIN_FEE_DEBIT",
+        "DIVIDEND_CREDIT",
+        "FEE_REIMBURSEMENT_CREDIT",
         "ADJUSTMENT_CREDIT",
         "ADJUSTMENT_DEBIT",
-        "FEE_REIMBURSEMENT_CREDIT",
-        "FEE_CORRECTION_DEBIT"
+        "FEE_CORRECTION_DEBIT",
+        "ADMIN_FEE_DEBIT",
+        "OTHER_DEBIT",
+        "FEE_DEBIT",
+        "OTHER_CREDIT"
+      ]
+    },
+    "public.credit_modality_type_enum": {
+      "name": "credit_modality_type_enum",
+      "schema": "public",
+      "values": [
+        "ORDINARY",
+        "SPECIAL_QUOTAS"
+      ]
+    },
+    "public.credit_payment_type_enum": {
+      "name": "credit_payment_type_enum",
+      "schema": "public",
+      "values": [
+        "PAYING",
+        "CANCELLATION"
+      ]
+    },
+    "public.credit_status_enum": {
+      "name": "credit_status_enum",
+      "schema": "public",
+      "values": [
+        "REQUESTED",
+        "APPROVED",
+        "IN_PAYMENT",
+        "PAID"
       ]
     },
     "public.currency_code_enum": {
@@ -7210,6 +9014,22 @@
         "FEMENINO",
         "MASCULINO",
         "OTRO"
+      ]
+    },
+    "public.loan_modality_type_enum": {
+      "name": "loan_modality_type_enum",
+      "schema": "public",
+      "values": [
+        "ORDINARY",
+        "SPECIAL_QUOTAS"
+      ]
+    },
+    "public.loan_payment_type_enum": {
+      "name": "loan_payment_type_enum",
+      "schema": "public",
+      "values": [
+        "PAYING",
+        "CANCELLATION"
       ]
     },
     "public.loan_status_enum": {
@@ -7302,7 +9122,200 @@
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
+  "views": {
+    "savings_banks.associate_account_balances": {
+      "columns": {
+        "associate_account_id": {
+          "name": "associate_account_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associated_id": {
+          "name": "associated_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calculated_balance": {
+          "name": "calculated_balance",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n    SELECT\n      aa.id AS associate_account_id,\n      aa.associated_id,\n      aa.account_number,\n      aa.currency_code,\n      COALESCE(SUM(\n        CASE\n          WHEN aam.movement_type = ANY (ARRAY[\n            'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n            'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,\n            'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n            'LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'SPECIAL_LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'SPECIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_REFINANCING_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_PARTIAL_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n            'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n            'OTHER_CREDIT'::public.associate_movement_type_enum\n          ]) THEN aam.amount\n          WHEN aam.movement_type = ANY (ARRAY[\n            'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n            'LOAN_REFINANCING_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_PAYMENT_DEBIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_PAYMENT_DEBIT'::public.associate_movement_type_enum,\n            'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_INTEREST_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LATE_PAYMENT_FEE_DEBIT'::public.associate_movement_type_enum,\n            'PAYMENT_REVERSAL_DEBIT'::public.associate_movement_type_enum,\n            'CREDIT_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n            'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,\n            'ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'OTHER_DEBIT'::public.associate_movement_type_enum,\n            'FEE_DEBIT'::public.associate_movement_type_enum\n          ]) THEN - aam.amount\n          ELSE 0\n        END\n      ), 0) AS calculated_balance\n    FROM\n      \"savings_banks\".\"associate_accounts\" aa\n    LEFT JOIN\n      \"savings_banks\".\"associate_account_movements\" aam ON aa.id = aam.associate_account_id\n    GROUP BY\n      aa.id, aa.associated_id, aa.account_number, aa.currency_code\n  ",
+      "name": "associate_account_balances",
+      "schema": "savings_banks",
+      "isExisting": false,
+      "materialized": false
+    },
+    "savings_banks.associate_haberes_balance": {
+      "columns": {
+        "associate_account_id": {
+          "name": "associate_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_balance": {
+          "name": "haberes_balance",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_movement_date": {
+          "name": "last_movement_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "haberes_contribution": {
+          "name": "haberes_contribution",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_voluntary": {
+          "name": "haberes_voluntary",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_employer": {
+          "name": "haberes_employer",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surpluses": {
+          "name": "surpluses",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_withdrawals": {
+          "name": "total_withdrawals",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_withdrawal_fees": {
+          "name": "total_withdrawal_fees",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\",\n      -- Saldo total de haberes (la suma y resta de todos los movimientos que componen el haber)\n      SUM(\n          CASE\n              -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,\n                  'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n                  'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n                  'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n                  'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum\n              ]) THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n                  'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum\n              ]) THEN -\"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ) AS haberes_balance,\n      MAX(\"savings_banks\".\"associate_account_movements\".\"transaction_date\") AS last_movement_date,\n\n      -- --- Columnas de desglose ---\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_contribution,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_voluntary,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_employer,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'DIVIDEND_CREDIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS surpluses,\n      -- Nueva columna para la suma de todos los retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_WITHDRAWAL'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawals,\n      -- Nueva columna para la suma de todos los gastos administrativos por retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawal_fees\n  FROM\n      \"savings_banks\".\"associate_account_movements\"\n  GROUP BY\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\"\n",
+      "name": "associate_haberes_balance",
+      "schema": "savings_banks",
+      "isExisting": false,
+      "materialized": false
+    },
+    "savings_banks.credit_outstanding_balance": {
+      "columns": {
+        "credit_id": {
+          "name": "credit_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_status": {
+          "name": "credit_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requested_amount": {
+          "name": "requested_amount",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outstanding_principal_balance": {
+          "name": "outstanding_principal_balance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n    c.associate_id,\n    c.currency_code,\n    c.status AS credit_status,\n    c.requested_amount,\n    cas.principal_amount + cas.principal_balance_pending AS outstanding_principal_balance\n  FROM\n    \"savings_banks\".\"credits\" c\n  JOIN\n     \"savings_banks\".\"credit_amortization_schedule\" cas ON c.id = cas.credit_id\n  WHERE\n    c.status IN ('APPROVED', 'IN_PAYMENT') AND cas.payment_status IN ('PENDING', 'PARTIAL')\n  GROUP BY c.id, c.associate_id, c.currency_code, c.status, c.requested_amount , cas.principal_amount,cas.installment_number, cas.principal_balance_pending\n  ORDER BY cas.installment_number\n  LIMIT 1\n",
+      "name": "credit_outstanding_balance",
+      "schema": "savings_banks",
+      "isExisting": false,
+      "materialized": false
+    },
+    "savings_banks.loan_outstanding_balance": {
+      "columns": {
+        "loan_id": {
+          "name": "loan_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loan_status": {
+          "name": "loan_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "approved_amount": {
+          "name": "approved_amount",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outstanding_principal_balance": {
+          "name": "outstanding_principal_balance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n    l.id AS loan_id,\n    l.associate_id,\n    l.currency_code,\n    l.status AS loan_status,\n    l.approved_amount,\n    (las.principal_amount + las.principal_balance_pending) AS outstanding_principal_balance\n  FROM\n    \"savings_banks\".\"loans\" l\n  JOIN\n     \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n    l.status IN ('APPROVED', 'DISBURSED', 'IN_PAYMENT', 'OVERDUE')\n    AND las.payment_status IN ('PENDING', 'PARTIAL')\n  GROUP BY\n    l.id, l.associate_id, l.currency_code, l.status, l.approved_amount, las.principal_amount, las.installment_number,las.principal_balance_pending\n  ORDER BY las.installment_number asc\n  LIMIT 1\n",
+      "name": "loan_outstanding_balance",
+      "schema": "savings_banks",
+      "isExisting": false,
+      "materialized": false
+    }
+  },
   "_meta": {
     "columns": {},
     "schemas": {},

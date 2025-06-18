@@ -1,6 +1,6 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../index';
-import { categoryType } from '../index';
+import { categoryType, typePayrolls } from '../index';
 
 export async function seedCategories(db: NodePgDatabase<typeof schema>) {
   try {
@@ -16,20 +16,19 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
 
     // Payroll Types (from the image "tipo_nomina.jpg")
     const payrollTypes = [
-      { description: 'Aportes Empleados (5501)', options: null },
-      { description: 'Descuentos Caja (5800)', options: null },
-      { description: 'Prestamos Personales (5502)', options: null },
-      { description: 'Prestamo Hipotecario (5504)', options: null },
-      { description: 'Credito Moto (5508)', options: null },
-      { description: 'Prestamos Afianzados (5518)', options: null },
-      { description: 'Credito Vehiculo (5559)', options: null },
-      { description: 'Prestamo Mediano Plazo (5634)', options: null },
-      { description: 'Prestamo Largo Plazo (5635)', options: null },
-      { description: 'Reintegro Caja (0059)', options: null },
-      { description: 'Reintegro Prestamos (0020)', options: null },
-      { description: 'Credito Telefono (5594)', options: null },
-      { description: 'Credisalario (5022)', options: null },
-      { description: 'Credito Comercial (5025)', options: null },
+      {
+        code: '5502',
+        description: 'Aportes Asociado (5502)',
+        deferred_date: '2022-03-31',
+        date_canceled: '2022-03-31',
+        deferred_number: 81,
+        number_canceled: 91,
+        group: 'ASSETS',
+        metadata: null,
+        associated_account: 60,
+        employer_account: 548,
+        loan_account: 525,
+      },
     ];
 
     // Associate Types (from the image "tipos_Asociados.jpg")
@@ -46,7 +45,7 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
       },
     ];
 
-    // Insert Payroll Frequencies
+    // Insert  Frequencies
     for (const frequency of frequencies) {
       await db
         .insert(categoryType)
@@ -70,6 +69,28 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
           description: associatedTypes.description,
           options: associatedTypes.options,
           isActive: true,
+          createdById: 1,
+          updatedById: 1,
+        })
+        .onConflictDoNothing();
+    }
+
+    // Insert Payroll Types
+    for (const payrollTypes2 of payrollTypes) {
+      await db
+        .insert(typePayrolls)
+        .values({
+          code: payrollTypes2.code,
+          description: payrollTypes2.description,
+          deferredDate: payrollTypes2.deferred_date,
+          dateCanceled: payrollTypes2.date_canceled,
+          deferredNumber: payrollTypes2.deferred_number,
+          numberCanceled: payrollTypes2.number_canceled,
+          group: payrollTypes2.group,
+          metadata: payrollTypes2.metadata,
+          associatedAccount: payrollTypes2.associated_account,
+          employerAccount: payrollTypes2.employer_account,
+          loanAccount: payrollTypes2.loan_account,
           createdById: 1,
           updatedById: 1,
         })

@@ -1,1 +1,0 @@
-ALTER TABLE "savings_banks"."loans" ALTER COLUMN "currency_code" DROP NOT NULL;

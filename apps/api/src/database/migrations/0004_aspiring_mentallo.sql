@@ -1,1 +1,0 @@
-ALTER TABLE "savings_banks"."loans" ALTER COLUMN "Installment_amount" SET DATA TYPE numeric;

@@ -13,5 +13,6 @@ import { CreditPaidService } from './credit-paid.service';
   ],
   controllers: [CrediPaidController],
   providers: [CreditPaidService],
+  exports: [CreditPaidService],
 })
 export class CreditPaidModule {}
