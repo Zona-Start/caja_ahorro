@@ -16,7 +16,7 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(
       error.message || 'Error fetching associate withdrawal data',
     );
@@ -34,7 +34,7 @@ export const getWithdrawalTypeAction = async () => {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || 'Error fetching withdrawal type data');
   }
   return {
@@ -79,7 +79,7 @@ export const getWithdrawalAction = async (params: {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || 'Error fetching withdrawal data');
   }
 
@@ -127,7 +127,7 @@ export const createWithdrawalAction = async (withdrawal: Withdrawal) => {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || 'Error create withdrawal Management');
   }
 
@@ -141,7 +141,7 @@ export const deleteWithdrawalAction = async (id: number) => {
     'DELETE',
   );
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || `Error delete withdrawal with ID ${id}`);
   }
   return data;

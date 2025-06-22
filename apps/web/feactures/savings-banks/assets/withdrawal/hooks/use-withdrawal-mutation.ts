@@ -22,7 +22,7 @@ export function useWithdrawalMutation() {
         queryKey: ['withdrawal-type'],
       });
       queryClient.removeQueries({
-        queryKey: ['withdrawal-associate', ''],
+        queryKey: ['withdrawal-associate-individual'],
       });
     },
   });

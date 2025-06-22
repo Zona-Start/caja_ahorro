@@ -18,11 +18,8 @@ export function useLoanPaidMutation() {
       queryClient.invalidateQueries({
         queryKey: ['loan-paid'],
       });
-      queryClient.invalidateQueries({
-        queryKey: ['loan-paid-associate', ''],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ['loan-paid-associate'],
+      queryClient.removeQueries({
+        queryKey: ['loan-paid-associate-individul-by-cedula'],
       });
       queryClient.invalidateQueries({
         queryKey: ['loan-management'],

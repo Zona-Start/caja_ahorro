@@ -1,3 +1,4 @@
+-- Custom SQL migration file, put your code below! --
 CREATE OR REPLACE FUNCTION savings_banks.calculate_associate_liquidation(p_identification_number character varying)
  RETURNS TABLE(associate_id integer, fullname character varying, cedula character varying, admission_date date, phone character varying, email character varying, is_payroll_credit boolean, associate_account_id integer, account_number character varying, currency_code currency_code_enum, total_savings_balance numeric, haberes_contribution numeric, haberes_voluntary numeric, haberes_employer numeric, surpluses numeric, total_withdrawals numeric, total_withdrawal_fees numeric, total_outstanding_loans numeric, total_outstanding_credits numeric, net_liquidation_amount numeric)
  LANGUAGE plpgsql
@@ -80,14 +81,14 @@ BEGIN
     WHERE sahb.associate_account_id = v_main_account_id;
 
     -- 3. Calcular el total de préstamos pendientes (Deducción)
-    SELECT COALESCE(SUM(outstanding_principal_balance), 0)
+    SELECT COALESCE(SUM(outstanding_total_balance), 0)
     INTO v_total_loans
     FROM savings_banks.loan_outstanding_balance l
     WHERE l.associate_id = v_associate_id
       AND l.currency_code = v_liquidation_currency;
 
     -- 4. Calcular el total de créditos pendientes (Deducción)
-    SELECT COALESCE(SUM(outstanding_principal_balance), 0)
+    SELECT COALESCE(SUM(outstanding_total_balance), 0)
     INTO v_total_credits
     FROM savings_banks.credit_outstanding_balance c
     WHERE c.associate_id = v_associate_id

@@ -6,7 +6,7 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['associates-by-cedula'],
+    ['credit-associates-individual-by-cedula'],
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula ? options?.enabled : false,

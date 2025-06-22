@@ -65,7 +65,7 @@ export const exchangeRates = coreSchema.table(
     date: date('date').notNull(),
     fromCurrencyCode: enums.currencyCodeEnum('from_currency_code').notNull(), //.references(() => currencies.code), // FK si code es PK/Unique en currencies
     toCurrencyCode: enums.currencyCodeEnum('to_currency_code').notNull(), //.references(() => currencies.code),
-    rate: numeric('rate', { precision: 18, scale: 8 }).notNull(), // Tasa de conversión (1 FROM = rate TO)
+    rate: numeric('rate', { precision: 20, scale: 6 }).notNull(), // Tasa de conversión (1 FROM = rate TO)
     source: varchar('source', { length: 50 }), // Ej: BCV, Monitor Dolar, Manual
     ...timestamps,
   },

@@ -1,1 +1,0 @@
-ALTER TABLE "savings_banks"."liquidations_associates" ADD COLUMN "custom_reference" varchar(50);

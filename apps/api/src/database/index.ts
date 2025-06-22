@@ -4,3 +4,4 @@ export * from './schema/auth';
 export * from './schema/banking';
 export * from './schema/core';
 export * from './schema/savings-banks';
+export * from './schema/views';

@@ -352,7 +352,7 @@ export class AssociatesService {
         bankDirectoryId: associateAccounts.bankDirectoryId,
       })
       .from(associates)
-      .where(eq(associates.cedula, cedula))
+      .where(and(eq(associates.cedula, cedula)))
       .leftJoin(
         associateAccounts,
         eq(associateAccounts.associateId, associates.id),
@@ -365,7 +365,18 @@ export class AssociatesService {
       throw new NotFoundException(`Associate with cedula ${cedula} not found`);
     }
 
-    return result[0];
+    if (result[0].status === 'INACTIVE') {
+      throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
+    }
+
+    if (result[0].status === 'RETIRED') {
+      throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
+    }
+
+    return {
+      ...result[0],
+      balance: Number(result[0].balance).toFixed(2),
+    };
   }
 
   async update(

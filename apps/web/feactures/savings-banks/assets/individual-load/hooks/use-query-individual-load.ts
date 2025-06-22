@@ -6,7 +6,7 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['associates-by-cedula'],
+    ['assets-individual-load-associates-by-cedula'],
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula ? options?.enabled : false,

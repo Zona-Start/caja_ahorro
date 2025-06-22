@@ -134,10 +134,10 @@ export const accountingEntryDetails = accountingSchema.table(
     accountPlanId: integer('account_plan_id')
       .notNull()
       .references(() => accountPlan.id, { onDelete: 'restrict' }), // No borrar cuenta si tiene movimientos
-    debit: numeric('debit', { precision: 18, scale: 2 })
+    debit: numeric('debit', { precision: 20, scale: 6 })
       .notNull()
       .default('0.00'),
-    credit: numeric('credit', { precision: 18, scale: 2 })
+    credit: numeric('credit', { precision: 20, scale: 6 })
       .notNull()
       .default('0.00'),
     description: text('description'),

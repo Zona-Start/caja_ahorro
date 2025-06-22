@@ -15,9 +15,9 @@ export function useCreditPaidMutation() {
     mutationFn: (creditPaid: CreditPaid) => saveCreditPaidAction(creditPaid),
     onSuccess: () => {
       queryClient.removeQueries({
-        queryKey: ['credit-paid-associate'],
+        queryKey: ['credit-paid-associate-individual-by-cedula'],
       });
-      queryClient.removeQueries({
+      queryClient.invalidateQueries({
         queryKey: ['credit-paid'],
       });
     },

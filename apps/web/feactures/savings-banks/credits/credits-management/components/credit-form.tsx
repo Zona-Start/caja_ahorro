@@ -471,11 +471,14 @@ export function CreditForm({
                       </FormControl>
 
                       <SelectContent>
-                        {Object.entries(ESTATUS_TYPES).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
+                       {Object.entries(ESTATUS_TYPES)
+                          .filter(([value]) => ['REQUESTED', 'APPROVED'].includes(value)) // <-- FILTRO APLICADO AQUÍ
+                          .map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ),
+                      )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

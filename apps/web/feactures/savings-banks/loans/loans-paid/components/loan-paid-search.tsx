@@ -79,10 +79,20 @@ export function LoanPaidSearch({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
-        } else {
+        } else if (errorMessage.includes('retired'))  {
+            toast({
+              title: 'Asociado retirado',
+              description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+            });
+        } else if (errorMessage.includes('inactive'))  {
+            toast({
+              title: 'Asociado inactivo',
+              description: 'el asociado está inactivo y no puede ser seleccionado.',
+            });
+        }  else {
           toast({
             title: 'Error realizando la búsqueda',
-            description: errorMessage,
+            description: 'Conctate con el administrador del sistema.',
           });
         }
       } else if (associateData) {
@@ -166,18 +176,11 @@ export function LoanPaidSearch({
     clearAllLoanData();
     setSelectedAssociate(null);
     setSearchTerm('');
-    const termToClear = submittedSearchTerm; // Captura el valor actual antes de limpiarlo
     setSubmittedSearchTerm('');
     setShouldFetch(false);
-
-    // Remover la query específica de la caché
-    if (termToClear) {
       queryClient.removeQueries({
-        queryKey: ['loan-paid-associate', termToClear],
+        queryKey: ['loan-paid-associate-individul-by-cedula'],
       });
-    }
-    // Considera remover también la genérica si tu lógica lo requiere
-    // queryClient.removeQueries({ queryKey: ['associates-by-cedula'], exact: false });
   }, [
     clearAllLoanData,
     submittedSearchTerm, // Para `termToClear`

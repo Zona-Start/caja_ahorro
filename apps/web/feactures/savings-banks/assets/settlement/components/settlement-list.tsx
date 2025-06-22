@@ -2,6 +2,8 @@
 
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { columns } from './settlement-tables/columns';
+import { useQuerySettlement } from '../hooks/use-query-settlement';
+import { DataTableSkeleton } from '@repo/shadcn/components/ui/table/data-table-skeleton';
 
 interface SettlementtListProps {
   initialPage: number;
@@ -14,26 +16,24 @@ export default function SettlementList({
   initialPage,
   initialSearch,
   initialLimit,
-  initialType,
 }: SettlementtListProps) {
   const filters = {
     page: initialPage,
     limit: initialLimit,
     ...(initialSearch && { search: initialSearch }),
-    ...(initialType && { type: initialType }),
   };
 
-  // const { data, isLoading } = useQueryWithdrawal(filters);
+  const { data, isLoading } = useQuerySettlement(filters);
 
-  // if (isLoading) {
-  //   return <DataTableSkeleton columnCount={6} rowCount={initialLimit} />;
-  // }
+  if (isLoading) {
+    return <DataTableSkeleton columnCount={6} rowCount={initialLimit} />;
+  }
 
   return (
     <DataTable
       columns={columns}
-      data={[]}
-      totalItems={0}
+      data={data?.data || []}
+      totalItems={data?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

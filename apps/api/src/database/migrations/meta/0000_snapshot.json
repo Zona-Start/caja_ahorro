@@ -1,5 +1,5 @@
 {
-  "id": "ddd6ddb9-6a33-4956-ad75-9eea251c1f8d",
+  "id": "38c46ae7-a0d4-49f5-8c00-68c8d33eef1f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -838,14 +838,14 @@
         },
         "debit": {
           "name": "debit",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true,
           "default": "'0.00'"
         },
         "credit": {
           "name": "credit",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true,
           "default": "'0.00'"
@@ -2005,14 +2005,14 @@
         },
         "current_balance": {
           "name": "current_balance",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false,
           "default": "'0.00'"
         },
         "last_statement_balance": {
           "name": "last_statement_balance",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -2383,7 +2383,7 @@
         },
         "adjustment_amount": {
           "name": "adjustment_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -2603,25 +2603,25 @@
         },
         "statement_ending_balance": {
           "name": "statement_ending_balance",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "book_balance_before": {
           "name": "book_balance_before",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "book_balance_after": {
           "name": "book_balance_after",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "difference": {
           "name": "difference",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -2842,21 +2842,21 @@
         },
         "debit_amount": {
           "name": "debit_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false,
           "default": "'0.00'"
         },
         "credit_amount": {
           "name": "credit_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false,
           "default": "'0.00'"
         },
         "resulting_balance": {
           "name": "resulting_balance",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -3443,7 +3443,7 @@
         },
         "rate": {
           "name": "rate",
-          "type": "numeric(18, 8)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -4430,7 +4430,7 @@
         },
         "balance": {
           "name": "balance",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -4599,7 +4599,7 @@
         },
         "amount": {
           "name": "amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -4842,7 +4842,7 @@
         },
         "balance": {
           "name": "balance",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true,
           "default": "'0.00'"
@@ -5183,7 +5183,7 @@
         },
         "base_salary": {
           "name": "base_salary",
-          "type": "numeric(15, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -5486,25 +5486,25 @@
         },
         "principal_amount": {
           "name": "principal_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "interest_amount": {
           "name": "interest_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "total_installment_amount": {
           "name": "total_installment_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "principal_balance_pending": {
           "name": "principal_balance_pending",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -5518,7 +5518,7 @@
         },
         "paid_amount": {
           "name": "paid_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false,
           "default": "'0.00'"
@@ -5681,13 +5681,13 @@
         },
         "amount": {
           "name": "amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "balance_pending": {
           "name": "balance_pending",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -5695,7 +5695,7 @@
           "name": "bank_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "payment_method": {
           "name": "payment_method",
@@ -5898,7 +5898,7 @@
         },
         "amount": {
           "name": "amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -6155,7 +6155,7 @@
         },
         "requested_amount": {
           "name": "requested_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -6173,31 +6173,31 @@
         },
         "total_interest": {
           "name": "total_interest",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "Installment_amount": {
           "name": "Installment_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "total_payable": {
           "name": "total_payable",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "expenses_amount": {
           "name": "expenses_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "overdraft_amount": {
           "name": "overdraft_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -6254,7 +6254,7 @@
         },
         "balance_in_favor": {
           "name": "balance_in_favor",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -6540,13 +6540,13 @@
         },
         "max_credit_amount": {
           "name": "max_credit_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "min_credit_amount": {
           "name": "min_credit_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -6895,6 +6895,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "custom_reference": {
+          "name": "custom_reference",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "beneficiary": {
+          "name": "beneficiary",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "notes": {
           "name": "notes",
           "type": "text",
@@ -7030,25 +7042,25 @@
         },
         "principal_amount": {
           "name": "principal_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "interest_amount": {
           "name": "interest_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "total_installment_amount": {
           "name": "total_installment_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "principal_balance_pending": {
           "name": "principal_balance_pending",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -7062,7 +7074,7 @@
         },
         "paid_amount": {
           "name": "paid_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false,
           "default": "'0.00'"
@@ -7225,7 +7237,7 @@
         },
         "amount": {
           "name": "amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -7239,7 +7251,7 @@
           "name": "bank_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "payment_method": {
           "name": "payment_method",
@@ -7442,7 +7454,7 @@
         },
         "amount": {
           "name": "amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -7735,13 +7747,13 @@
         },
         "max_loan_amount": {
           "name": "max_loan_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "min_loan_amount": {
           "name": "min_loan_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -8073,19 +8085,19 @@
         },
         "requested_amount": {
           "name": "requested_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "approved_amount": {
           "name": "approved_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "disbursed_amount": {
           "name": "disbursed_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -8103,31 +8115,31 @@
         },
         "total_interest": {
           "name": "total_interest",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "Installment_amount": {
           "name": "Installment_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "total_payable": {
           "name": "total_payable",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "expenses_amount": {
           "name": "expenses_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
         "overdraft_amount": {
           "name": "overdraft_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -8203,7 +8215,7 @@
         },
         "balance_in_favor": {
           "name": "balance_in_favor",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -8683,20 +8695,20 @@
         },
         "requested_amount": {
           "name": "requested_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
         "administrative_fee": {
           "name": "administrative_fee",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false,
           "default": "'0.00'"
         },
         "disbursed_amount": {
           "name": "disbursed_amount",
-          "type": "numeric(18, 2)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": false
         },
@@ -8930,6 +8942,7 @@
       "values": [
         "SAVING_CONTRIBUTION",
         "EMPLOYER_CONTRIBUTION",
+        "VOLUNTARY_SAVINGS",
         "SAVING_WITHDRAWAL",
         "LOAN_DISBURSEMENT_CREDIT",
         "SPECIAL_LOAN_DISBURSEMENT_CREDIT",
@@ -8959,7 +8972,8 @@
         "ADMIN_FEE_DEBIT",
         "OTHER_DEBIT",
         "FEE_DEBIT",
-        "OTHER_CREDIT"
+        "OTHER_CREDIT",
+        "LIQUIDATION_BALANCE"
       ]
     },
     "public.credit_modality_type_enum": {
@@ -9150,12 +9164,12 @@
         },
         "calculated_balance": {
           "name": "calculated_balance",
-          "type": "numeric(18, 4)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         }
       },
-      "definition": "\n    SELECT\n      aa.id AS associate_account_id,\n      aa.associated_id,\n      aa.account_number,\n      aa.currency_code,\n      COALESCE(SUM(\n        CASE\n          WHEN aam.movement_type = ANY (ARRAY[\n            'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n            'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n            'LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'SPECIAL_LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'SPECIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_REFINANCING_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_PARTIAL_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n            'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n            'OTHER_CREDIT'::public.associate_movement_type_enum\n          ]) THEN aam.amount\n          WHEN aam.movement_type = ANY (ARRAY[\n            'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n            'LOAN_REFINANCING_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_PAYMENT_DEBIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_PAYMENT_DEBIT'::public.associate_movement_type_enum,\n            'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_INTEREST_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LATE_PAYMENT_FEE_DEBIT'::public.associate_movement_type_enum,\n            'PAYMENT_REVERSAL_DEBIT'::public.associate_movement_type_enum,\n            'CREDIT_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n            'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,\n            'ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'OTHER_DEBIT'::public.associate_movement_type_enum,\n            'FEE_DEBIT'::public.associate_movement_type_enum\n          ]) THEN - aam.amount\n          ELSE 0\n        END\n      ), 0) AS calculated_balance\n    FROM\n      \"savings_banks\".\"associate_accounts\" aa\n    LEFT JOIN\n      \"savings_banks\".\"associate_account_movements\" aam ON aa.id = aam.associate_account_id\n    GROUP BY\n      aa.id, aa.associated_id, aa.account_number, aa.currency_code\n  ",
+      "definition": "\n    SELECT\n      aa.id AS associate_account_id,\n      aa.associated_id,\n      aa.account_number,\n      aa.currency_code,\n      COALESCE(SUM(\n        CASE\n          WHEN aam.movement_type = ANY (ARRAY[\n            'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n            'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,\n            'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n            'LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'SPECIAL_LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'SPECIAL_CREDIT_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_REFINANCING_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n            'LOAN_PARTIAL_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n            'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n            'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n            'OTHER_CREDIT'::public.associate_movement_type_enum\n          ]) THEN aam.amount\n          WHEN aam.movement_type = ANY (ARRAY[\n            'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n            'LOAN_REFINANCING_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_PAYMENT_DEBIT'::public.associate_movement_type_enum,\n            'COMMERCIAL_CREDIT_PAYMENT_DEBIT'::public.associate_movement_type_enum,\n            'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_INTEREST_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LOAN_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'LATE_PAYMENT_FEE_DEBIT'::public.associate_movement_type_enum,\n            'PAYMENT_REVERSAL_DEBIT'::public.associate_movement_type_enum,\n            'CREDIT_ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n            'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,\n            'ADMIN_FEE_DEBIT'::public.associate_movement_type_enum,\n            'OTHER_DEBIT'::public.associate_movement_type_enum,\n            'FEE_DEBIT'::public.associate_movement_type_enum\n          ]) THEN - aam.amount\n          ELSE 0\n        END\n      ), 0) AS calculated_balance\n    FROM\n      \"savings_banks\".\"associate_accounts\" aa\n    LEFT JOIN\n      \"savings_banks\".\"associate_account_movements\" aam ON aa.id = aam.associate_account_id\n    GROUP BY\n      aa.id, aa.associated_id, aa.account_number, aa.currency_code\n  ",
       "name": "associate_account_balances",
       "schema": "savings_banks",
       "isExisting": false,
@@ -9171,7 +9185,7 @@
         },
         "haberes_balance": {
           "name": "haberes_balance",
-          "type": "numeric(18, 4)",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
@@ -9180,9 +9194,45 @@
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false
+        },
+        "haberes_contribution": {
+          "name": "haberes_contribution",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_voluntary": {
+          "name": "haberes_voluntary",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_employer": {
+          "name": "haberes_employer",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surpluses": {
+          "name": "surpluses",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_withdrawals": {
+          "name": "total_withdrawals",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_withdrawal_fees": {
+          "name": "total_withdrawal_fees",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
         }
       },
-      "definition": "\n  SELECT\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\",\n      SUM(\n          CASE\n              -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n                  'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n                  'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n                  'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum\n              ]) THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n                  'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum\n              ]) THEN -\"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ) AS haberes_balance,\n      MAX(\"savings_banks\".\"associate_account_movements\".\"transaction_date\") AS last_movement_date\n  FROM\n      \"savings_banks\".\"associate_account_movements\"\n  GROUP BY\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\"\n",
+      "definition": "\n  SELECT\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\",\n      -- Saldo total de haberes (la suma y resta de todos los movimientos que componen el haber)\n      SUM(\n          CASE\n              -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,\n                  'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n                  'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n                  'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n                  'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum\n              ]) THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n                  'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum\n              ]) THEN -\"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ) AS haberes_balance,\n      MAX(\"savings_banks\".\"associate_account_movements\".\"transaction_date\") AS last_movement_date,\n\n      -- --- Columnas de desglose ---\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_contribution,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_voluntary,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_employer,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'DIVIDEND_CREDIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS surpluses,\n      -- Nueva columna para la suma de todos los retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_WITHDRAWAL'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawals,\n      -- Nueva columna para la suma de todos los gastos administrativos por retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawal_fees\n  FROM\n      \"savings_banks\".\"associate_account_movements\"\n  GROUP BY\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\"\n",
       "name": "associate_haberes_balance",
       "schema": "savings_banks",
       "isExisting": false,
@@ -9214,20 +9264,26 @@
           "primaryKey": false,
           "notNull": true
         },
-        "requested_amount": {
-          "name": "requested_amount",
-          "type": "text",
+        "total_principal_pending": {
+          "name": "total_principal_pending",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
-        "outstanding_principal_balance": {
-          "name": "outstanding_principal_balance",
-          "type": "text",
+        "total_interest_pending": {
+          "name": "total_interest_pending",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
+        },
+        "outstanding_total_balance": {
+          "name": "outstanding_total_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
         }
       },
-      "definition": "\n  SELECT\n    c.associate_id,\n    c.currency_code,\n    c.status AS credit_status,\n    c.requested_amount,\n    cas.principal_amount + cas.principal_balance_pending AS outstanding_principal_balance\n  FROM\n    \"savings_banks\".\"credits\" c\n  JOIN\n     \"savings_banks\".\"credit_amortization_schedule\" cas ON c.id = cas.credit_id\n  WHERE\n    c.status IN ('APPROVED', 'IN_PAYMENT') AND cas.payment_status IN ('PENDING', 'PARTIAL')\n  GROUP BY c.id, c.associate_id, c.currency_code, c.status, c.requested_amount , cas.principal_amount,cas.installment_number, cas.principal_balance_pending\n  ORDER BY cas.installment_number\n  LIMIT 1\n",
+      "definition": "\n  SELECT\n      c.id AS credit_id,\n      c.associate_id,\n      c.currency_code,\n      c.status AS credit_status,\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"credits\" c\n  JOIN\n      \"savings_banks\".\"credit_amortization_schedule\" cas ON c.id = cas.credit_id\n  WHERE\n      c.status IN ('APPROVED'::credit_status_enum, 'IN_PAYMENT'::credit_status_enum)\n  GROUP BY\n      c.id,\n      c.associate_id,\n      c.currency_code,\n      c.status\n",
       "name": "credit_outstanding_balance",
       "schema": "savings_banks",
       "isExisting": false,
@@ -9259,20 +9315,26 @@
           "primaryKey": false,
           "notNull": true
         },
-        "approved_amount": {
-          "name": "approved_amount",
-          "type": "text",
+        "total_principal_pending": {
+          "name": "total_principal_pending",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
         },
-        "outstanding_principal_balance": {
-          "name": "outstanding_principal_balance",
-          "type": "text",
+        "total_interest_pending": {
+          "name": "total_interest_pending",
+          "type": "numeric(20, 6)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
+        },
+        "outstanding_total_balance": {
+          "name": "outstanding_total_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
         }
       },
-      "definition": "\n  SELECT\n    l.id AS loan_id,\n    l.associate_id,\n    l.currency_code,\n    l.status AS loan_status,\n    l.approved_amount,\n    (las.principal_amount + las.principal_balance_pending) AS outstanding_principal_balance\n  FROM\n    \"savings_banks\".\"loans\" l\n  JOIN\n     \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n    l.status IN ('APPROVED', 'DISBURSED', 'IN_PAYMENT', 'OVERDUE')\n    AND las.payment_status IN ('PENDING', 'PARTIAL')\n  GROUP BY\n    l.id, l.associate_id, l.currency_code, l.status, l.approved_amount, las.principal_amount, las.installment_number,las.principal_balance_pending\n  ORDER BY las.installment_number asc\n  LIMIT 1\n",
+      "definition": "\n  SELECT\n      l.id AS loan_id,\n      l.associate_id,\n      l.currency_code,\n      l.status AS loan_status,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"loans\" l\n  JOIN\n      \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n      l.status IN ('APPROVED'::loan_status_enum, 'DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)\n  GROUP BY\n      l.id,\n      l.associate_id,\n      l.currency_code,\n      l.status\n",
       "name": "loan_outstanding_balance",
       "schema": "savings_banks",
       "isExisting": false,

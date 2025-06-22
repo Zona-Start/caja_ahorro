@@ -45,7 +45,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     toast({
       variant: 'destructive',
       title: 'No se puede editar el crédito',
-      description: `Solo se puede editar el prestamo si el estado es 'solicitado'`,
+      description: `Solo se puede editar el crédito si el estado es 'solicitado'`,
     });
   };
 

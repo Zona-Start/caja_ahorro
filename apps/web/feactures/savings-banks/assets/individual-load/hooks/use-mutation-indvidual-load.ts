@@ -8,7 +8,7 @@ export function useIndividualLoadMutation() {
     mutationFn: (loadAssest: LoadAssest) =>
       saveIndividualLoadAction(loadAssest),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['associates-by-cedula'] });
+      queryClient.invalidateQueries({ queryKey: ['assets-individual-load-associates-by-cedula'] });
     },
   });
 

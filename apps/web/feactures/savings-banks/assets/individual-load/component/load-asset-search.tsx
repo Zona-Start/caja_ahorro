@@ -15,7 +15,7 @@ import { Input } from '@repo/shadcn/input';
 import { Separator } from '@repo/shadcn/separator';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Search, User, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAssociatesByCedula } from '../hooks/use-query-individual-load';
 import { Associates } from '../schemas/individual-load-api-schema';
 
@@ -32,72 +32,126 @@ export function LoadAssetsSearch({
   shouldClearSearch,
   onClearSearch,
 }: LoadAssetsSearchProps) {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Controla el valor del input
+   const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
+   const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
+
   const [searchResults, setSearchResults] = useState<Associates | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [shouldFetch, setShouldFetch] = useState(false);
+
   const queryClient = useQueryClient();
   // Usar el hook con la opción `enabled` para controlar su ejecución
-  const { data, error, status, isError, isLoading } = useAssociatesByCedula(
-    searchTerm,
+  const { data, error, isLoading, isError } = useAssociatesByCedula(
+    submittedSearchTerm,
     {
-      enabled: shouldFetch, // Solo se ejecuta si `searchTerm` no está vacío
+       enabled: shouldFetch && !!submittedSearchTerm.trim(), // Activar solo si shouldFetch es true y hay un término
     },
   );
 
   // Efecto para manejar los resultados de la búsqueda cuando el hook devuelve datos
   useEffect(() => {
-    if (data) {
-      setSearchResults(data.data); // Actualiza los resultados con los datos del servidor
-      onSelectAssociate(data.data);
-    } else if (isError) {
-      // Manejo del error
-      const errorMessage = error.message || 'Error desconocido';
-      if (errorMessage.includes('not found')) {
-        toast({
-          title: 'Asociado no encontrado',
-          description: `No se encontró un asociado con la cédula ${searchTerm}.`,
-        });
-      } else {
-        toast({
-          title: 'Error realizando la búsqueda',
-          description: errorMessage,
-        });
-      }
+    if (!shouldFetch && !submittedSearchTerm) {
+      // No actuar si no se ha iniciado una búsqueda explícita y no estamos cargando.
+      return;
     }
 
-    setIsSearching(false); // Finaliza el estado de búsqueda
-    setShouldFetch(false); // Resetea el estado para evitar ejecuciones innecesariasv
-  }, [data, isError, error]);
+    if (isLoading) {
+      // La búsqueda está en progreso.
+      return;
+    }
+
+    if (shouldFetch) {
+      // Solo si *nosotros* activamos la búsqueda
+      setShouldFetch(false); // Reseteamos nuestro flag, la query ya se ejecutó o falló.
+
+      if (isError) {
+        // Manejo del error
+        const errorMessage = error.message || 'Error desconocido';
+        if (errorMessage.includes('not found')) {
+          toast({
+            title: 'Asociado no encontrado',
+            description: `No se encontró un asociado con la cédula ${searchTerm}.`,
+          });
+          
+        }  else if (errorMessage.includes('retired'))  {
+          toast({
+            title: 'Asociado retirado',
+            description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+          });
+        } else  {
+          toast({
+            title: 'Error realizando la búsqueda',
+            description: 'Conctate con el administrador del sistema.',
+          });
+        }
+      } else if(data) {
+         setSearchResults(data.data); // Actualiza los resultados con los datos del servidor
+        onSelectAssociate(data.data);
+      } else {
+           setSearchResults(null); // Actualiza los resultados con los datos del servidor
+          onSelectAssociate(null);
+           toast({
+          title: 'Información no disponible',
+          description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
+        });
+      }
+    } 
+
+  }, [data, isError, error, isLoading,setSearchResults, submittedSearchTerm,shouldFetch]);
 
   // Efecto para limpiar el input cuando shouldClearSearch sea true
   useEffect(() => {
     if (shouldClearSearch) {
       setSearchTerm(''); // Limpiar el input
+      setSubmittedSearchTerm('');
       setSearchResults(null); // Limpiar los resultados de búsqueda
       onClearSearch(); // Notificar al componente padre que se limpió el input
     }
-  }, [shouldClearSearch, onClearSearch]);
+  }, [shouldClearSearch,queryClient,setSearchResults, onClearSearch]);
 
   // Función para buscar asociados
-  const handleSearch = () => {
-    if (!searchTerm.trim()) return; // No ejecutar si el término de búsqueda está vacío
+  const handleSearch =  useCallback(() => {
+   const trimmedSearchTerm = searchTerm.trim();
+    if (!trimmedSearchTerm) {
+      toast({
+        title: 'Campo vacío',
+        description: 'Por favor, ingrese una cédula para buscar.',
+      });
+      return;
+    }
+    // Previene búsquedas repetidas con el mismo término si ya hay un resultado
+    if (trimmedSearchTerm === submittedSearchTerm && selectedAssociate) {
+      toast({
+        title: 'Información ya cargada',
+        description: `Ya se muestran los datos para la cédula ${trimmedSearchTerm}.`,
+      });
+      return;
+    }
 
-    setIsSearching(true);
+    setSubmittedSearchTerm(trimmedSearchTerm);
     setShouldFetch(true); // Activa la ejecución del hook
-  };
+  }, [
+    searchTerm,
+    submittedSearchTerm,
+    selectedAssociate,
+    setSearchResults,
+  ]);
 
   // Función para limpiar la selección de asociado
-  const clearAssociate = () => {
+  const clearAssociate =  useCallback(() => {
     queryClient.removeQueries({
-      queryKey: ['associates-by-cedula'],
+      queryKey: ['assets-individual-load-associates-by-cedula'], exact: true
     });
     onSelectAssociate(null);
     setSearchTerm('');
     setSearchResults(null);
+    setSubmittedSearchTerm('');
     setShouldFetch(false);
-    setTimeout(() => setShouldFetch(true), 0); // Reinicia el estado para permitir nuevas búsquedas
-  };
+  }, [
+    setSearchResults,
+    queryClient,
+    setShouldFetch
+  ]);
 
   // Efecto para manejar la tecla Enter en la búsqueda
   useEffect(() => {
@@ -136,13 +190,14 @@ export function LoadAssetsSearch({
                 placeholder="Buscar por nombre o documento..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)} // Solo actualiza el estado, no ejecuta la búsqueda
+                disabled={isLoading} // Deshabilitar mientras carga
               />
             </div>
             <Button
               onClick={handleSearch}
               disabled={!searchTerm.trim() || isSearching}
             >
-              {isSearching ? (
+              {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Search className="h-4 w-4" />
@@ -151,7 +206,19 @@ export function LoadAssetsSearch({
             </Button>
           </div>
 
-          {selectedAssociate ? (
+             {/* Visualización del asociado seleccionado o estado vacío/carga */}
+          {isLoading &&
+            !selectedAssociate && ( // Mostrar solo si estamos cargando y no hay un asociado previo
+              <div className="rounded-lg border border-dashed p-8 text-center mt-4">
+                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                  <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                  <p>Buscando asociado...</p>
+                </div>
+              </div>
+            )}
+
+
+          {!isLoading && selectedAssociate && (
             <div className="rounded-lg border p-4 mt-4">
               <div className="flex justify-between items-start">
                 <div>
@@ -167,7 +234,7 @@ export function LoadAssetsSearch({
                     </Badge>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={clearAssociate}>
+                <Button variant="ghost" size="icon" onClick={clearAssociate}  disabled={isLoading} >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -179,14 +246,22 @@ export function LoadAssetsSearch({
                 </span>
               </div>
             </div>
-          ) : (
-            <div className="rounded-lg border border-dashed p-8 text-center">
+          )}
+
+          {!isLoading && !selectedAssociate && (
+            <div className="rounded-lg border border-dashed p-8 text-center mt-4">
               <div className="flex flex-col items-center justify-center text-muted-foreground">
                 <User className="h-8 w-8 mb-2" />
-                <p>Ningún asociado seleccionado</p>
-                <p className="text-sm">
-                  Busque y seleccione un asociado para continuar
+                <p>
+                  {submittedSearchTerm
+                    ? 'No se encontró el asociado o no hay datos.'
+                    : 'Ningún asociado seleccionado'}
                 </p>
+                {!submittedSearchTerm && (
+                  <p className="text-sm">
+                    Busque y seleccione un asociado para continuar
+                  </p>
+                )}
               </div>
             </div>
           )}

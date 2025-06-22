@@ -2,7 +2,6 @@
 
 import { IconWrapper } from '@/components/icon-wrapper';
 import { toast } from '@/components/use-toast';
-import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { Button } from '@repo/shadcn/button';
 import {
   Card,
@@ -41,7 +40,6 @@ export function SettlementSearch({
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
 
   const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
-  const { generalConfig } = useSystemConfigStore();
   const queryClient = useQueryClient();
 
   const {
@@ -80,10 +78,25 @@ export function SettlementSearch({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
-        } else {
+        } else if (errorMessage.includes('retired'))  {
+            toast({
+              title: 'Asociado retirado',
+              description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+            });
+        } else if (errorMessage.includes('inactive'))  {
+            toast({
+              title: 'Asociado Inactivo',
+              description: 'el asociado tiene un estatus de inactivo y no puede ser seleccionado.',
+            });
+        } else if (errorMessage.includes('no liquidation data'))  {
+            toast({
+              title: 'Asociado sin datos de liquidación',
+              description: 'el asociado no tiene datos para ser liquidado y no puede ser seleccionado.',
+            });
+        }  else {
           toast({
             title: 'Error realizando la búsqueda',
-            description: errorMessage,
+            description: 'Conctate con el administrador del sistema.',
           });
         }
       } else if (associateData) {
@@ -156,16 +169,12 @@ export function SettlementSearch({
     clearAllLoanData();
     setSelectedAssociate(null);
     setSearchTerm('');
-    const termToClear = submittedSearchTerm; // Captura el valor actual antes de limpiarlo
     setSubmittedSearchTerm('');
     setShouldFetch(false);
-
-    // Remover la query específica de la caché
-    if (termToClear) {
-      queryClient.removeQueries({
-        queryKey: ['settlement-associate', termToClear],
+     queryClient.removeQueries({
+        queryKey: ['settlement-associate-individual-by-cedula'],
       });
-    }
+      queryClient.invalidateQueries({queryKey: ['settlement-all']});
   }, [
     clearAllLoanData,
     submittedSearchTerm, // Para `termToClear`

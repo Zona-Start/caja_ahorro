@@ -17,6 +17,7 @@ export function useLoanManagementMutation() {
       saveLoanManagementAction(loanManagement),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan-management'] });
+      queryClient.removeQueries({ queryKey: ['loans-associates-by-cedula'] });
       queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
     },
     onError: (error) => {

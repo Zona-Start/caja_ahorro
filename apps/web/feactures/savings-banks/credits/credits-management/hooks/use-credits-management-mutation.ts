@@ -16,6 +16,7 @@ export function useCreditManagementMutation() {
     mutationFn: (creditManagement: CreditManagement) =>
       saveCreditManagementAction(creditManagement),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['credit-associates-individual-by-cedula'] });
       queryClient.invalidateQueries({ queryKey: ['credit-management'] });
       queryClient.invalidateQueries({ queryKey: ['credit-management-count'] });
     },

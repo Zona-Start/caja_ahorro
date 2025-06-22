@@ -59,12 +59,12 @@ export const bankAccounts = bankingSchema.table(
     currencyCode: currencyCodeEnum('currency_code').notNull(),
     openingDate: date('opening_date'),
     currentBalance: numeric('current_balance', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).default('0.00'), //Saldo según libros (calculado o almacenado con cuidado)
     lastStatementBalance: numeric('last_statement_balance', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }), //Saldo del último extracto cargado
     lastStatementDate: date('last_statement_date'),
     linkedChartAccountId: integer('linked_chart_account_id')
@@ -97,13 +97,13 @@ export const bankTransactions = bankingSchema.table(
     valueDate: date('value_date'), // Fecha valor
     description: text('description').notNull(),
     bankReference: varchar('bank_reference', { length: 100 }), // Referencia única del banco para este movimiento
-    debitAmount: numeric('debit_amount', { precision: 18, scale: 2 }).default(
+    debitAmount: numeric('debit_amount', { precision: 20, scale: 6 }).default(
       '0.00',
     ),
-    creditAmount: numeric('credit_amount', { precision: 18, scale: 2 }).default(
+    creditAmount: numeric('credit_amount', { precision: 20, scale: 6 }).default(
       '0.00',
     ),
-    resultingBalance: numeric('resulting_balance', { precision: 18, scale: 2 }), // Saldo después del movimiento según extracto
+    resultingBalance: numeric('resulting_balance', { precision: 20, scale: 6 }), // Saldo después del movimiento según extracto
     reconciliationStatus: reconciliationItemStatusEnum('reconciliation_status')
       .notNull()
       .default('PENDING'),
@@ -142,18 +142,18 @@ export const bankReconciliations = bankingSchema.table(
       .references(() => bankAccounts.id, { onDelete: 'restrict' }),
     statementDate: date('statement_date').notNull(), //Fecha de corte del extracto'
     statementEndingBalance: numeric('statement_ending_balance', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), //Saldo final según extracto
     bookBalanceBefore: numeric('book_balance_before', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), //Saldo en libros ANTES de ajustes de esta conciliación
     bookBalanceAfter: numeric('book_balance_after', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }), //Saldo en libros DESPUÉS de ajustes de esta conciliación
-    difference: numeric('difference', { precision: 18, scale: 2 }), //Diferencia (debería ser 0 si está cuadrada)
+    difference: numeric('difference', { precision: 20, scale: 6 }), //Diferencia (debería ser 0 si está cuadrada)
     reconciliationDate: timestamp('reconciliation_date').defaultNow(),
     status: reconciliationStatusEnum('status').notNull().default('IN_PROGRESS'),
     preparedByUserId: integer('prepared_by_user_id').references(() => users.id),
@@ -186,8 +186,8 @@ export const bankReconciliationDetails = bankingSchema.table(
     ), //Movimiento en libros conciliado (si aplica)
     adjustmentType: varchar('adjustment_type', { length: 50 }), //Ej: DEPOSITO_TRANSITO, CHEQUE_TRANSITO, ERROR_BANCO, ERROR_LIBRO, NOTA_CREDITO, NOTA_DEBITO
     adjustmentAmount: numeric('adjustment_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }),
     description: text('description'),
     isBookAdjustment: boolean('is_book_adjustment').default(false), //Indica si este item requiere un asiento de ajuste en libros

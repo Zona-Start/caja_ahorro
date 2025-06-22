@@ -4,10 +4,11 @@ import { z } from 'zod';
 export const settlementApiSchema = z.object({
   id: z.number().optional(),
   customReference: z.string(),
-  withdrawalTypeId: z.number(),
-  withdrawalType: z.string(),
-  withdrawalDate: z.string(),
-  requestedAmount: z.string(),
+  liquidationDate: z.string(),
+  totalSavingsBalanceAtLiquidation: z.string(),
+  totalOutstandingLoansAtLiquidation: z.string(),
+  totalOutstandingCreditsAtLiquidation: z.string(),
+  netLiquidationAmount: z.string(),
   associateCedula: z.string(),
   associateFullname: z.string(),
 });

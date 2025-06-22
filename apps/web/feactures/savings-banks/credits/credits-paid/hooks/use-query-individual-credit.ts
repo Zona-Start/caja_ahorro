@@ -6,7 +6,7 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['credit-paid-associate', cedula], // Use a query key that includes the cedula
+    ['credit-paid-associate-individual-by-cedula'], // Use a query key that includes the cedula
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula?.trim() ? options?.enabled : false,
@@ -16,3 +16,5 @@ export function useAssociatesByCedula(
     },
   );
 }
+
+

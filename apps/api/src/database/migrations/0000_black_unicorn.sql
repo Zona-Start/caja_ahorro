@@ -15,7 +15,7 @@ CREATE TYPE "public"."account_type_enum" AS ENUM('ASSET', 'LIABILITY', 'EQUITY',
 CREATE TYPE "public"."audit_action_enum" AS ENUM('INSERT', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'PROCESS');--> statement-breakpoint
 CREATE TYPE "public"."audit_auth_action_enum" AS ENUM('LOGIN', 'LOGOUT');--> statement-breakpoint
 CREATE TYPE "public"."associate_account_type_enum" AS ENUM('SAVINGS', 'EMPLOYER_CONTRIBUTION', 'MANDATORY_SAVINGS');--> statement-breakpoint
-CREATE TYPE "public"."associate_movement_type_enum" AS ENUM('SAVING_CONTRIBUTION', 'EMPLOYER_CONTRIBUTION', 'VOLUNTARY_SAVINGS', 'SAVING_WITHDRAWAL', 'LOAN_DISBURSEMENT_CREDIT', 'SPECIAL_LOAN_DISBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT', 'SPECIAL_CREDIT_DISBURSEMENT_CREDIT', 'LOAN_REFINANCING_DEBIT', 'LOAN_REFINANCING_CREDIT', 'LOAN_PAYMENT_DEBIT', 'COMMERCIAL_CREDIT_PAYMENT_DEBIT', 'LOAN_REIMBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT', 'LOAN_OVERPAYMENT_CREDIT', 'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT', 'LOAN_PARTIAL_DISBURSEMENT_CREDIT', 'WITHDRAWAL_FEE_DEBIT', 'LOAN_INTEREST_DEBIT', 'LOAN_FEE_DEBIT', 'LOAN_ADMIN_FEE_DEBIT', 'LATE_PAYMENT_FEE_DEBIT', 'PAYMENT_REVERSAL_DEBIT', 'CREDIT_ADMIN_FEE_DEBIT', 'DIVIDEND_CREDIT', 'FEE_REIMBURSEMENT_CREDIT', 'ADJUSTMENT_CREDIT', 'ADJUSTMENT_DEBIT', 'FEE_CORRECTION_DEBIT', 'ADMIN_FEE_DEBIT', 'OTHER_DEBIT', 'FEE_DEBIT', 'OTHER_CREDIT');--> statement-breakpoint
+CREATE TYPE "public"."associate_movement_type_enum" AS ENUM('SAVING_CONTRIBUTION', 'EMPLOYER_CONTRIBUTION', 'VOLUNTARY_SAVINGS', 'SAVING_WITHDRAWAL', 'LOAN_DISBURSEMENT_CREDIT', 'SPECIAL_LOAN_DISBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT', 'SPECIAL_CREDIT_DISBURSEMENT_CREDIT', 'LOAN_REFINANCING_DEBIT', 'LOAN_REFINANCING_CREDIT', 'LOAN_PAYMENT_DEBIT', 'COMMERCIAL_CREDIT_PAYMENT_DEBIT', 'LOAN_REIMBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT', 'LOAN_OVERPAYMENT_CREDIT', 'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT', 'LOAN_PARTIAL_DISBURSEMENT_CREDIT', 'WITHDRAWAL_FEE_DEBIT', 'LOAN_INTEREST_DEBIT', 'LOAN_FEE_DEBIT', 'LOAN_ADMIN_FEE_DEBIT', 'LATE_PAYMENT_FEE_DEBIT', 'PAYMENT_REVERSAL_DEBIT', 'CREDIT_ADMIN_FEE_DEBIT', 'DIVIDEND_CREDIT', 'FEE_REIMBURSEMENT_CREDIT', 'ADJUSTMENT_CREDIT', 'ADJUSTMENT_DEBIT', 'FEE_CORRECTION_DEBIT', 'ADMIN_FEE_DEBIT', 'OTHER_DEBIT', 'FEE_DEBIT', 'OTHER_CREDIT', 'LIQUIDATION_BALANCE');--> statement-breakpoint
 CREATE TYPE "public"."credit_modality_type_enum" AS ENUM('ORDINARY', 'SPECIAL_QUOTAS');--> statement-breakpoint
 CREATE TYPE "public"."credit_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION');--> statement-breakpoint
 CREATE TYPE "public"."credit_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'IN_PAYMENT', 'PAID');--> statement-breakpoint
@@ -99,8 +99,8 @@ CREATE TABLE "accounting"."accounting_entry_details" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"accounting_entry_id" integer NOT NULL,
 	"account_plan_id" integer NOT NULL,
-	"debit" numeric(18, 2) DEFAULT '0.00' NOT NULL,
-	"credit" numeric(18, 2) DEFAULT '0.00' NOT NULL,
+	"debit" numeric(20, 6) DEFAULT '0.00' NOT NULL,
+	"credit" numeric(20, 6) DEFAULT '0.00' NOT NULL,
 	"description" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
@@ -216,8 +216,8 @@ CREATE TABLE "banking"."bank_accounts" (
 	"account_type" varchar(50) NOT NULL,
 	"currency_code" "currency_code_enum" NOT NULL,
 	"opening_date" date,
-	"current_balance" numeric(18, 2) DEFAULT '0.00',
-	"last_statement_balance" numeric(18, 2),
+	"current_balance" numeric(20, 6) DEFAULT '0.00',
+	"last_statement_balance" numeric(20, 6),
 	"last_statement_date" date,
 	"linked_chart_account_id" integer NOT NULL,
 	"is_active" boolean DEFAULT true NOT NULL,
@@ -247,7 +247,7 @@ CREATE TABLE "banking"."bank_reconciliation_details" (
 	"bank_transaction_id" integer,
 	"accounting_entry_detail_id" integer,
 	"adjustment_type" varchar(50),
-	"adjustment_amount" numeric(18, 2),
+	"adjustment_amount" numeric(20, 6),
 	"description" text,
 	"is_book_adjustment" boolean DEFAULT false,
 	"adjustment_entry_id" integer,
@@ -262,10 +262,10 @@ CREATE TABLE "banking"."bank_reconciliations" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"bank_account_id" integer NOT NULL,
 	"statement_date" date NOT NULL,
-	"statement_ending_balance" numeric(18, 2) NOT NULL,
-	"book_balance_before" numeric(18, 2) NOT NULL,
-	"book_balance_after" numeric(18, 2),
-	"difference" numeric(18, 2),
+	"statement_ending_balance" numeric(20, 6) NOT NULL,
+	"book_balance_before" numeric(20, 6) NOT NULL,
+	"book_balance_after" numeric(20, 6),
+	"difference" numeric(20, 6),
 	"reconciliation_date" timestamp DEFAULT now(),
 	"status" "reconciliation_status_enum" DEFAULT 'IN_PROGRESS' NOT NULL,
 	"prepared_by_user_id" integer,
@@ -284,9 +284,9 @@ CREATE TABLE "banking"."bank_transactions" (
 	"value_date" date,
 	"description" text NOT NULL,
 	"bank_reference" varchar(100),
-	"debit_amount" numeric(18, 2) DEFAULT '0.00',
-	"credit_amount" numeric(18, 2) DEFAULT '0.00',
-	"resulting_balance" numeric(18, 2),
+	"debit_amount" numeric(20, 6) DEFAULT '0.00',
+	"credit_amount" numeric(20, 6) DEFAULT '0.00',
+	"resulting_balance" numeric(20, 6),
 	"reconciliation_status" "reconciliation_item_status_enum" DEFAULT 'PENDING' NOT NULL,
 	"bank_reconciliation_id" integer,
 	"upload_batch_id" text,
@@ -344,7 +344,7 @@ CREATE TABLE "core"."exchange_rates" (
 	"date" date NOT NULL,
 	"from_currency_code" "currency_code_enum" NOT NULL,
 	"to_currency_code" "currency_code_enum" NOT NULL,
-	"rate" numeric(18, 8) NOT NULL,
+	"rate" numeric(20, 6) NOT NULL,
 	"source" varchar(50),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
@@ -430,7 +430,7 @@ CREATE TABLE "savings_banks"."associate_account_balance_history" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"associate_account_id" integer NOT NULL,
 	"balance_date" timestamp DEFAULT now() NOT NULL,
-	"balance" numeric(18, 2) NOT NULL,
+	"balance" numeric(20, 6) NOT NULL,
 	"movement_id" integer,
 	"reason" varchar(255),
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -443,7 +443,7 @@ CREATE TABLE "savings_banks"."associate_account_movements" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"associate_account_id" integer NOT NULL,
 	"movement_type" "associate_movement_type_enum" NOT NULL,
-	"amount" numeric(18, 2) NOT NULL,
+	"amount" numeric(20, 6) NOT NULL,
 	"currency_code" "currency_code_enum" NOT NULL,
 	"transaction_date" timestamp DEFAULT now() NOT NULL,
 	"description" text,
@@ -462,7 +462,7 @@ CREATE TABLE "savings_banks"."associate_accounts" (
 	"associated_id" integer,
 	"account_number" varchar(20) NOT NULL,
 	"currency_code" "currency_code_enum" NOT NULL,
-	"balance" numeric(18, 2) DEFAULT '0.00' NOT NULL,
+	"balance" numeric(20, 6) DEFAULT '0.00' NOT NULL,
 	"opening_date" date DEFAULT now(),
 	"closing_date" date,
 	"bank_id" integer,
@@ -493,7 +493,7 @@ CREATE TABLE "savings_banks"."associates" (
 	"payroll_type_id" integer,
 	"associated_type_id" integer,
 	"job_title" text,
-	"base_salary" numeric(15, 2),
+	"base_salary" numeric(20, 6),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -506,12 +506,12 @@ CREATE TABLE "savings_banks"."credit_amortization_schedule" (
 	"credit_id" integer NOT NULL,
 	"installment_number" integer NOT NULL,
 	"due_date" date NOT NULL,
-	"principal_amount" numeric(18, 2) NOT NULL,
-	"interest_amount" numeric(18, 2) NOT NULL,
-	"total_installment_amount" numeric(18, 2) NOT NULL,
-	"principal_balance_pending" numeric(18, 2) NOT NULL,
+	"principal_amount" numeric(20, 6) NOT NULL,
+	"interest_amount" numeric(20, 6) NOT NULL,
+	"total_installment_amount" numeric(20, 6) NOT NULL,
+	"principal_balance_pending" numeric(20, 6) NOT NULL,
 	"payment_status" "payment_status_enum" DEFAULT 'PENDING' NOT NULL,
-	"paid_amount" numeric(18, 2) DEFAULT '0.00',
+	"paid_amount" numeric(20, 6) DEFAULT '0.00',
 	"last_payment_date" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
@@ -524,9 +524,9 @@ CREATE TABLE "savings_banks"."credit_payments" (
 	"credit_id" integer NOT NULL,
 	"payment_date" timestamp DEFAULT now() NOT NULL,
 	"payment-type" "credit_payment_type_enum" NOT NULL,
-	"amount" numeric(18, 2) NOT NULL,
-	"balance_pending" numeric(18, 2) NOT NULL,
-	"bank_id" integer NOT NULL,
+	"amount" numeric(20, 6) NOT NULL,
+	"balance_pending" numeric(20, 6) NOT NULL,
+	"bank_id" integer,
 	"payment_method" "payment_method_enum" NOT NULL,
 	"transaction_reference" text,
 	"comment" text,
@@ -541,7 +541,7 @@ CREATE TABLE "savings_banks"."credit_payment_details" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"credit_payment_id" integer NOT NULL,
 	"installment_id" integer,
-	"amount" numeric(18, 2) NOT NULL,
+	"amount" numeric(20, 6) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -565,14 +565,14 @@ CREATE TABLE "savings_banks"."credits" (
 	"credit_modality" "credit_modality_type_enum" NOT NULL,
 	"request_date" date DEFAULT now() NOT NULL,
 	"approval_date" date,
-	"requested_amount" numeric(18, 2) NOT NULL,
+	"requested_amount" numeric(20, 6) NOT NULL,
 	"start_date" date,
 	"end_date" date,
-	"total_interest" numeric(18, 2),
-	"Installment_amount" numeric(18, 2),
-	"total_payable" numeric(18, 2),
-	"expenses_amount" numeric(18, 2),
-	"overdraft_amount" numeric(18, 2),
+	"total_interest" numeric(20, 6),
+	"Installment_amount" numeric(20, 6),
+	"total_payable" numeric(20, 6),
+	"expenses_amount" numeric(20, 6),
+	"overdraft_amount" numeric(20, 6),
 	"previous_credit_id" integer,
 	"status" "credit_status_enum" DEFAULT 'REQUESTED' NOT NULL,
 	"rejection_reason" text,
@@ -581,7 +581,7 @@ CREATE TABLE "savings_banks"."credits" (
 	"custom_reference" varchar(50),
 	"currency_code" "currency_code_enum",
 	"exchange_rate_id" integer,
-	"balance_in_favor" numeric(18, 2),
+	"balance_in_favor" numeric(20, 6),
 	"commercial_house_id" integer,
 	"invoice_number" varchar(50),
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -604,8 +604,8 @@ CREATE TABLE "savings_banks"."credits_types" (
 	"expense_account_chart_id" integer,
 	"special_quota_number" integer DEFAULT 0,
 	"special_quota_percentage" numeric(5, 2) DEFAULT '0',
-	"max_credit_amount" numeric(18, 2),
-	"min_credit_amount" numeric(18, 2),
+	"max_credit_amount" numeric(20, 6),
+	"min_credit_amount" numeric(20, 6),
 	"payroll_type_id" integer,
 	"administrative_expense_percentage" numeric(5, 2) DEFAULT '0',
 	"minimum_seniority_months" integer DEFAULT 0,
@@ -631,6 +631,8 @@ CREATE TABLE "savings_banks"."liquidations_associates" (
 	"net_liquidation_amount" numeric(18, 4) NOT NULL,
 	"status" varchar(50) DEFAULT 'PROCESSED' NOT NULL,
 	"payout_transaction_id" integer,
+	"custom_reference" varchar(50),
+	"beneficiary" jsonb,
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
@@ -643,12 +645,12 @@ CREATE TABLE "savings_banks"."loan_amortization_schedule" (
 	"loan_id" integer NOT NULL,
 	"installment_number" integer NOT NULL,
 	"due_date" date NOT NULL,
-	"principal_amount" numeric(18, 2) NOT NULL,
-	"interest_amount" numeric(18, 2) NOT NULL,
-	"total_installment_amount" numeric(18, 2) NOT NULL,
-	"principal_balance_pending" numeric(18, 2) NOT NULL,
+	"principal_amount" numeric(20, 6) NOT NULL,
+	"interest_amount" numeric(20, 6) NOT NULL,
+	"total_installment_amount" numeric(20, 6) NOT NULL,
+	"principal_balance_pending" numeric(20, 6) NOT NULL,
 	"payment_status" "payment_status_enum" DEFAULT 'PENDING' NOT NULL,
-	"paid_amount" numeric(18, 2) DEFAULT '0.00',
+	"paid_amount" numeric(20, 6) DEFAULT '0.00',
 	"last_payment_date" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
@@ -661,9 +663,9 @@ CREATE TABLE "savings_banks"."loan_payments" (
 	"loan_id" integer NOT NULL,
 	"payment_date" timestamp DEFAULT now() NOT NULL,
 	"payment-type" "loan_payment_type_enum" NOT NULL,
-	"amount" numeric(18, 2) NOT NULL,
+	"amount" numeric(20, 6) NOT NULL,
 	"balance_pending" numeric(18, 2) NOT NULL,
-	"bank_id" integer NOT NULL,
+	"bank_id" integer,
 	"payment_method" "payment_method_enum" NOT NULL,
 	"transaction_reference" text,
 	"comment" text,
@@ -678,7 +680,7 @@ CREATE TABLE "savings_banks"."loan_payment_details" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"loan_payment_id" integer NOT NULL,
 	"installment_id" integer,
-	"amount" numeric(18, 2) NOT NULL,
+	"amount" numeric(20, 6) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -708,8 +710,8 @@ CREATE TABLE "savings_banks"."loan_types" (
 	"expense_account_chart_id" integer,
 	"special_quota_number" integer DEFAULT 0,
 	"special_quota_percentage" numeric(5, 2) DEFAULT '0',
-	"max_loan_amount" numeric(18, 2),
-	"min_loan_amount" numeric(18, 2),
+	"max_loan_amount" numeric(20, 6),
+	"min_loan_amount" numeric(20, 6),
 	"payroll_type_id" integer,
 	"administrative_expense_percentage" numeric(5, 2) DEFAULT '0',
 	"minimum_seniority_months" integer DEFAULT 0,
@@ -732,16 +734,16 @@ CREATE TABLE "savings_banks"."loans" (
 	"request_date" date DEFAULT now() NOT NULL,
 	"approval_date" date,
 	"disbursement_date" date,
-	"requested_amount" numeric(18, 2) NOT NULL,
-	"approved_amount" numeric(18, 2),
-	"disbursed_amount" numeric(18, 2),
+	"requested_amount" numeric(20, 6) NOT NULL,
+	"approved_amount" numeric(20, 6),
+	"disbursed_amount" numeric(20, 6),
 	"start_date" date,
 	"end_date" date,
-	"total_interest" numeric(18, 2),
-	"Installment_amount" numeric(18, 2),
-	"total_payable" numeric(18, 2),
-	"expenses_amount" numeric(18, 2),
-	"overdraft_amount" numeric(18, 2),
+	"total_interest" numeric(20, 6),
+	"Installment_amount" numeric(20, 6),
+	"total_payable" numeric(20, 6),
+	"expenses_amount" numeric(20, 6),
+	"overdraft_amount" numeric(20, 6),
 	"previous_loan_id" integer,
 	"payment_method" "payment_method_enum",
 	"disbursement_account_id" integer,
@@ -753,7 +755,7 @@ CREATE TABLE "savings_banks"."loans" (
 	"custom_reference" varchar(50),
 	"currency_code" "currency_code_enum",
 	"exchange_rate_id" integer,
-	"balance_in_favor" numeric(18, 2),
+	"balance_in_favor" numeric(20, 6),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -782,9 +784,9 @@ CREATE TABLE "savings_banks"."withdrawals_associates" (
 	"associate_account_id" integer NOT NULL,
 	"withdrawal_type_id" integer,
 	"withdrawal_date" timestamp DEFAULT now() NOT NULL,
-	"requested_amount" numeric(18, 2) NOT NULL,
-	"administrative_fee" numeric(18, 2) DEFAULT '0.00',
-	"disbursed_amount" numeric(18, 2),
+	"requested_amount" numeric(20, 6) NOT NULL,
+	"administrative_fee" numeric(20, 6) DEFAULT '0.00',
+	"disbursed_amount" numeric(20, 6),
 	"payment_method" "payment_method_enum",
 	"reference_code" varchar(100),
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -1088,6 +1090,7 @@ CREATE VIEW "savings_banks"."associate_account_balances" AS (
         CASE
           WHEN aam.movement_type = ANY (ARRAY[
             'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,
+            'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,
             'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,
             'LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,
             'SPECIAL_LOAN_DISBURSEMENT_CREDIT'::public.associate_movement_type_enum,
@@ -1135,11 +1138,13 @@ CREATE VIEW "savings_banks"."associate_account_balances" AS (
 CREATE VIEW "savings_banks"."associate_haberes_balance" AS (
   SELECT
       "savings_banks"."associate_account_movements"."associate_account_id",
+      -- Saldo total de haberes (la suma y resta de todos los movimientos que componen el haber)
       SUM(
           CASE
               -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)
               WHEN "savings_banks"."associate_account_movements"."movement_type" = ANY (ARRAY[
                   'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,
+                  'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,
                   'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,
                   'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,
                   'DIVIDEND_CREDIT'::public.associate_movement_type_enum,
@@ -1157,7 +1162,47 @@ CREATE VIEW "savings_banks"."associate_haberes_balance" AS (
               ELSE 0
           END
       ) AS haberes_balance,
-      MAX("savings_banks"."associate_account_movements"."transaction_date") AS last_movement_date
+      MAX("savings_banks"."associate_account_movements"."transaction_date") AS last_movement_date,
+
+      -- --- Columnas de desglose ---
+      COALESCE(SUM(
+          CASE
+              WHEN "savings_banks"."associate_account_movements"."movement_type" = 'SAVING_CONTRIBUTION'::public.associate_movement_type_enum THEN "savings_banks"."associate_account_movements"."amount"
+              ELSE 0
+          END
+      ), 0) AS haberes_contribution,
+      COALESCE(SUM(
+          CASE
+              WHEN "savings_banks"."associate_account_movements"."movement_type" = 'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum THEN "savings_banks"."associate_account_movements"."amount"
+              ELSE 0
+          END
+      ), 0) AS haberes_voluntary,
+      COALESCE(SUM(
+          CASE
+              WHEN "savings_banks"."associate_account_movements"."movement_type" = 'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum THEN "savings_banks"."associate_account_movements"."amount"
+              ELSE 0
+          END
+      ), 0) AS haberes_employer,
+      COALESCE(SUM(
+          CASE
+              WHEN "savings_banks"."associate_account_movements"."movement_type" = 'DIVIDEND_CREDIT'::public.associate_movement_type_enum THEN "savings_banks"."associate_account_movements"."amount"
+              ELSE 0
+          END
+      ), 0) AS surpluses,
+      -- Nueva columna para la suma de todos los retiros
+      COALESCE(SUM(
+          CASE
+              WHEN "savings_banks"."associate_account_movements"."movement_type" = 'SAVING_WITHDRAWAL'::public.associate_movement_type_enum THEN "savings_banks"."associate_account_movements"."amount"
+              ELSE 0
+          END
+      ), 0) AS total_withdrawals,
+      -- Nueva columna para la suma de todos los gastos administrativos por retiros
+      COALESCE(SUM(
+          CASE
+              WHEN "savings_banks"."associate_account_movements"."movement_type" = 'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum THEN "savings_banks"."associate_account_movements"."amount"
+              ELSE 0
+          END
+      ), 0) AS total_withdrawal_fees
   FROM
       "savings_banks"."associate_account_movements"
   GROUP BY
@@ -1165,38 +1210,45 @@ CREATE VIEW "savings_banks"."associate_haberes_balance" AS (
 );--> statement-breakpoint
 CREATE VIEW "savings_banks"."credit_outstanding_balance" AS (
   SELECT
-    c.associate_id,
-    c.currency_code,
-    c.status AS credit_status,
-    c.requested_amount,
-    cas.principal_amount + cas.principal_balance_pending AS outstanding_principal_balance
+      c.id AS credit_id,
+      c.associate_id,
+      c.currency_code,
+      c.status AS credit_status,
+      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.principal_amount ELSE 0 END) AS total_principal_pending,
+      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.interest_amount ELSE 0 END) AS total_interest_pending,
+      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.principal_amount ELSE 0 END) +
+      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.interest_amount ELSE 0 END) AS outstanding_total_balance
   FROM
-    "savings_banks"."credits" c
+      "savings_banks"."credits" c
   JOIN
-     "savings_banks"."credit_amortization_schedule" cas ON c.id = cas.credit_id
+      "savings_banks"."credit_amortization_schedule" cas ON c.id = cas.credit_id
   WHERE
-    c.status IN ('APPROVED', 'IN_PAYMENT') AND cas.payment_status IN ('PENDING', 'PARTIAL')
-  GROUP BY c.id, c.associate_id, c.currency_code, c.status, c.requested_amount , cas.principal_amount,cas.installment_number, cas.principal_balance_pending
-  ORDER BY cas.installment_number
-  LIMIT 1
+      c.status IN ('APPROVED'::credit_status_enum, 'IN_PAYMENT'::credit_status_enum)
+  GROUP BY
+      c.id,
+      c.associate_id,
+      c.currency_code,
+      c.status
 );--> statement-breakpoint
 CREATE VIEW "savings_banks"."loan_outstanding_balance" AS (
   SELECT
-    l.id AS loan_id,
-    l.associate_id,
-    l.currency_code,
-    l.status AS loan_status,
-    l.approved_amount,
-    (las.principal_amount + las.principal_balance_pending) AS outstanding_principal_balance
+      l.id AS loan_id,
+      l.associate_id,
+      l.currency_code,
+      l.status AS loan_status,
+      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,
+      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,
+      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +
+      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance
   FROM
-    "savings_banks"."loans" l
+      "savings_banks"."loans" l
   JOIN
-     "savings_banks"."loan_amortization_schedule" las ON l.id = las.loan_id
+      "savings_banks"."loan_amortization_schedule" las ON l.id = las.loan_id
   WHERE
-    l.status IN ('APPROVED', 'DISBURSED', 'IN_PAYMENT', 'OVERDUE')
-    AND las.payment_status IN ('PENDING', 'PARTIAL')
+      l.status IN ('APPROVED'::loan_status_enum, 'DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)
   GROUP BY
-    l.id, l.associate_id, l.currency_code, l.status, l.approved_amount, las.principal_amount, las.installment_number,las.principal_balance_pending
-  ORDER BY las.installment_number asc
-  LIMIT 1
+      l.id,
+      l.associate_id,
+      l.currency_code,
+      l.status
 );

@@ -333,14 +333,18 @@ export class WithdrawalAssociateService {
       previousPage: page > 1 ? page - 1 : null,
     };
 
+    const transformedData = data.map((item) => ({
+      ...item,
+      requestedAmount: Number(item.requestedAmount).toFixed(2),
+    }))
+
     return {
-      data: data,
+      data: transformedData,
       meta,
     };
   }
 
   async findOneRequest(cedula: string) {
-    try {
       const result = await this.db
         .select({
           id: associates.id,
@@ -355,6 +359,7 @@ export class WithdrawalAssociateService {
           withdrawalId: withdrawalsAssociates.id,
           withdrawalRequestAmout: withdrawalsAssociates.requestedAmount,
           withdrawalDate: withdrawalsAssociates.withdrawalDate,
+          status: associates.status,
         })
         .from(associates)
         .leftJoin(
@@ -370,10 +375,22 @@ export class WithdrawalAssociateService {
           eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
         )
         .where(
-          and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
+          eq(associates.cedula, cedula),
         )
         .orderBy(desc(withdrawalsAssociates.createdAt))
         .limit(1);
+
+         if (!result.length) {
+              throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+            }
+        
+       if (result[0].status === 'INACTIVE') {
+          throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
+        }
+
+        if (result[0].status === 'RETIRED') {
+          throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
+        }
 
       const totalLoansAssociate = await this.db
         .select({ count: sql<number>`count(*)` })
@@ -398,6 +415,7 @@ export class WithdrawalAssociateService {
           ),
         );
 
+      
       return {
         id: result[0].id,
         cedula: result[0].cedula,
@@ -407,20 +425,14 @@ export class WithdrawalAssociateService {
         isPayrollCredit: result[0].isPayrollCredit,
         associateAccountId: result[0].associateAccountId,
         accountNumber: result[0].accountNumber,
-        balance: result[0].balance,
+        balance: Number(result[0].balance).toFixed(2),
         withdrawalId: result[0].withdrawalId,
         withdrawalRequestAmout: result[0].withdrawalRequestAmout,
         withdrawalDate: result[0].withdrawalDate,
         totalLoansAssociate: Number(totalLoansAssociate[0].count),
         totalCreditsAssociate: Number(totalCreditsAssociate[0].count),
       };
-    } catch (error) {
-      console.log(error);
 
-      return new InternalServerErrorException(
-        'Error fetching withdrawal request details.',
-      );
-    }
   }
 
   // async remove(id: number): Promise<{ message: string }> {

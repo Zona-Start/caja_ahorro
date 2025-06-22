@@ -107,7 +107,7 @@ export function SettlementSummary({
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Total Retiros</span>
+              <span className="text-sm font-medium">Retiros</span>
               <span className="font-medium">
                 {formatCurrency(
                   Number(selectedAssociate?.total_withdrawals),
@@ -127,7 +127,19 @@ export function SettlementSummary({
               </span>
             </div>
 
-            <div className="flex items-center justify-between">
+            <Separator />
+             <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Total Haberes</span>
+              <span className="font-medium">
+                {formatCurrency(
+                  Number(selectedAssociate?.total_savings_balance),
+                  '',
+                )}
+              </span>
+            </div>
+
+
+            <div className="flex items-center justify-between pt-10">
               <span className="text-sm font-medium">Préstamos Pendientes</span>
               <span className="font-medium">
                 {formatCurrency(

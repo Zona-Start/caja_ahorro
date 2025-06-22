@@ -245,7 +245,7 @@ export function CreditView({ isEdit = false, initialData }: CreditViewProps) {
       onSuccess: () => {
         toast({
           title: `${isEdit ? 'Crédito actualizado' : 'Crédito creado'} con éxito`,
-          description: `Se ha ${isEdit ? 'actualizado' : 'registrado'}  un préstamo de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.requestedAmount} para ${selectedAssociate?.associate.fullname}.`,
+          description: `Se ha ${isEdit ? 'actualizado' : 'registrado'}  un crédito de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.requestedAmount} para ${selectedAssociate?.associate.fullname}.`,
         });
         handleCancel();
       },

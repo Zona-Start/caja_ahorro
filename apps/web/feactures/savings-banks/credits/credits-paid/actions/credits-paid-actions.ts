@@ -15,7 +15,7 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associate data');
   }
   return data;
@@ -62,7 +62,7 @@ export const getCreditPaidAllAction = async (params: {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associates data');
   }
 
@@ -115,7 +115,7 @@ export const createCreditPaidAction = async (creditPaid: CreditPaid) => {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || 'Error create credit Management');
   }
 
@@ -149,7 +149,7 @@ export const updateCreditPaidAction = async (creditPaid: CreditPaid) => {
     //payload,
   );
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(
       error.message || `Error update credit with ID ${creditPaidId}`,
     );
@@ -165,7 +165,7 @@ export const deleteCreditPaidAction = async (id: number) => {
     'DELETE',
   );
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(error.message || `Error delete credit with ID ${id}`);
   }
   return data;

@@ -72,7 +72,7 @@ export const associates = savingsBanksSchema.table(
       },
     ), // tipo de trabajador
     jobTitle: text('job_title'), // cargo del asosciado,
-    baseSalary: numeric('base_salary', { precision: 15, scale: 2 }), //Salario base informativo
+    baseSalary: numeric('base_salary', { precision: 20, scale: 6 }), //Salario base informativo
     ...timestamps,
   },
   (table) => ({
@@ -111,7 +111,7 @@ export const associateAccounts = savingsBanksSchema.table(
     }), // id asosciado
     accountNumber: varchar('account_number', { length: 20 }).notNull().unique(), // numero de cuenta
     currencyCode: currencyCodeEnum('currency_code').notNull(), // Moneda de la cuenta (VES, USD)
-    balance: numeric('balance', { precision: 18, scale: 2 })
+    balance: numeric('balance', { precision: 20, scale: 6 })
       .default('0.00')
       .notNull(), // Saldo actual inicial (GUARDADO)
     openingDate: date('opening_date').defaultNow(), //fecha apertura
@@ -148,7 +148,7 @@ export const associateAccountMovements = savingsBanksSchema.table(
       .notNull()
       .references(() => associateAccounts.id, { onDelete: 'cascade' }),
     movementType: associateMovementTypeEnum('movement_type').notNull(),
-    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto siempre positivo
+    amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto siempre positivo
     currencyCode: currencyCodeEnum('currency_code').notNull(), // Moneda de la transacción
     transactionDate: timestamp('transaction_date').notNull().defaultNow(), // Fecha y hora de la transacción
     description: text('description'),
@@ -187,7 +187,7 @@ export const associateAccountBalanceHistory = savingsBanksSchema.table(
       .notNull()
       .references(() => associateAccounts.id, { onDelete: 'cascade' }),
     balanceDate: timestamp('balance_date').notNull().defaultNow(), // Fecha y hora del saldo
-    balance: numeric('balance', { precision: 18, scale: 2 }).notNull(), // Saldo en ese momento
+    balance: numeric('balance', { precision: 20, scale: 6 }).notNull(), // Saldo en ese momento
     movementId: integer('movement_id').references(
       () => associateAccountMovements.id,
       { onDelete: 'set null' },
@@ -263,14 +263,14 @@ export const withdrawalsAssociates = savingsBanksSchema.table(
     ),
     withdrawalDate: timestamp('withdrawal_date').notNull().defaultNow(),
     requestedAmount: numeric('requested_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Monto bruto solicitado por el asociado
     administrativeFee: numeric('administrative_fee', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).default('0.00'),
-    disbursedAmount: numeric('disbursed_amount', { precision: 18, scale: 2 }), // Monto neto desembolsado (requestedAmount - administrativeFee)
+    disbursedAmount: numeric('disbursed_amount', { precision: 20, scale: 6 }), // Monto neto desembolsado (requestedAmount - administrativeFee)
     paymentMethod: paymentMethodEnum('payment_method'), // Ej: 'Transferencia', 'Cheque', 'Efectivo'
     referenceCode: varchar('reference_code', { length: 100 }).unique(), // Código de referencia único generado por el backend
     ...timestamps,
@@ -326,8 +326,8 @@ export const loanTypes = savingsBanksSchema.table(
       precision: 5,
       scale: 2,
     }).default('0'), // Porcentaje de las cuotas especiales
-    maxLoanAmount: numeric('max_loan_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el préstamo
-    minLoanAmount: numeric('min_loan_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el préstamo
+    maxLoanAmount: numeric('max_loan_amount', { precision: 20, scale: 6 }), // Monto máximo permitido para el préstamo
+    minLoanAmount: numeric('min_loan_amount', { precision: 20, scale: 6 }), // Monto mínimo permitido para el préstamo
     payrollTypeId: integer('payroll_type_id').references(
       () => categoryType.id,
       {
@@ -391,21 +391,21 @@ export const loans = savingsBanksSchema.table(
     approvalDate: date('approval_date'), // Fecha de aprobación (si aplica)
     disbursementDate: date('disbursement_date'), // Fecha del desembolso
     requestedAmount: numeric('requested_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Monto solicitado
-    approvedAmount: numeric('approved_amount', { precision: 18, scale: 2 }), // Monto aprobado
-    disbursedAmount: numeric('disbursed_amount', { precision: 18, scale: 2 }), // Monto efectivamente desembolsado
+    approvedAmount: numeric('approved_amount', { precision: 20, scale: 6 }), // Monto aprobado
+    disbursedAmount: numeric('disbursed_amount', { precision: 20, scale: 6 }), // Monto efectivamente desembolsado
     startDate: date('start_date'), // Fecha de inicio de pago
     endDate: date('end_date'), // Fecha final del préstamo
-    totalInterest: numeric('total_interest', { precision: 18, scale: 2 }), // Intereses totales
+    totalInterest: numeric('total_interest', { precision: 20, scale: 6 }), // Intereses totales
     installmentAmount: numeric('Installment_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }), // monto de la cuota
-    totalPayable: numeric('total_payable', { precision: 18, scale: 2 }), // Total a pagar
-    expensesAmount: numeric('expenses_amount', { precision: 18, scale: 2 }), // Monto de gastos administrativos
-    overdraftAmount: numeric('overdraft_amount', { precision: 18, scale: 2 }), // Sobregiro si aplica
+    totalPayable: numeric('total_payable', { precision: 20, scale: 6 }), // Total a pagar
+    expensesAmount: numeric('expenses_amount', { precision: 20, scale: 6 }), // Monto de gastos administrativos
+    overdraftAmount: numeric('overdraft_amount', { precision: 20, scale: 6 }), // Sobregiro si aplica
     previousLoanId: integer('previous_loan_id').references(() => loans.id), // Relación con préstamo anterior si existe
     paymentMethod: paymentMethodEnum('payment_method'), // Forma de pago (transferencia, cheque, efectivo)
     disbursementAccountId: integer('disbursement_account_id') // Cuenta del asociado donde se desembolsa
@@ -423,7 +423,7 @@ export const loans = savingsBanksSchema.table(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
     ),
-    balanceInFavor: numeric('balance_in_favor', { precision: 18, scale: 2 }), // balance a favor si aplica
+    balanceInFavor: numeric('balance_in_favor', { precision: 20, scale: 6 }), // balance a favor si aplica
     ...timestamps, // created_at y updated_at
   },
   (table) => ({
@@ -446,25 +446,25 @@ export const loanAmortizationSchedule = savingsBanksSchema.table(
     installmentNumber: integer('installment_number').notNull(), // Número de cuota (1, 2, 3, ...)
     dueDate: date('due_date').notNull(), // Fecha en que debe pagarse esta cuota
     principalAmount: numeric('principal_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Monto del capital de esta cuota
     interestAmount: numeric('interest_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Monto del interés de esta cuota
     totalInstallmentAmount: numeric('total_installment_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Total a pagar en esta cuota
     principalBalancePending: numeric('principal_balance_pending', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Saldo de capital pendiente después de esta cuota
     paymentStatus: paymentStatusEnum('payment_status')
       .notNull()
       .default('PENDING'), // Estado de la cuota (PENDING, PAID, LATE, etc.)
-    paidAmount: numeric('paid_amount', { precision: 18, scale: 2 }).default(
+    paidAmount: numeric('paid_amount', { precision: 20, scale: 6 }).default(
       '0.00',
     ), // Monto total pagado hasta ahora para esta cuota
     lastPaymentDate: timestamp('last_payment_date'), // Última fecha en que se realizó un pago para esta cuota
@@ -510,7 +510,7 @@ export const loanPayments = savingsBanksSchema.table(
       .references(() => loans.id, { onDelete: 'cascade' }),
     paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
     paymentType: loanPaymentTypeEnum('payment-type').notNull(),
-    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto pagado
     balancePending: numeric('balance_pending', {
       precision: 18,
       scale: 2,
@@ -548,7 +548,7 @@ export const loanPaymentsDetails = savingsBanksSchema.table(
       () => loanAmortizationSchedule.id,
       { onDelete: 'cascade' },
     ), // Si aplica a una cuota específica
-    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto pagado
     ...timestamps,
   },
   (table) => ({
@@ -593,8 +593,8 @@ export const creditsTypes = savingsBanksSchema.table(
       precision: 5,
       scale: 2,
     }).default('0'), // Porcentaje de las cuotas especiales
-    maxCreditAmount: numeric('max_credit_amount', { precision: 18, scale: 2 }), // Monto máximo permitido para el credito
-    minCreditAmount: numeric('min_credit_amount', { precision: 18, scale: 2 }), // Monto mínimo permitido para el credito
+    maxCreditAmount: numeric('max_credit_amount', { precision: 20, scale: 6 }), // Monto máximo permitido para el credito
+    minCreditAmount: numeric('min_credit_amount', { precision: 20, scale: 6 }), // Monto mínimo permitido para el credito
     payrollTypeId: integer('payroll_type_id').references(
       () => categoryType.id,
       {
@@ -657,19 +657,19 @@ export const credits = savingsBanksSchema.table(
     requestDate: date('request_date').notNull().defaultNow(), // Fecha en que se solicita
     approvalDate: date('approval_date'), // Fecha de aprobación (si aplica)
     requestedAmount: numeric('requested_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Monto solicitado
     startDate: date('start_date'), // Fecha de inicio de pago
     endDate: date('end_date'), // Fecha final del préstamo
-    totalInterest: numeric('total_interest', { precision: 18, scale: 2 }), // Intereses totales
+    totalInterest: numeric('total_interest', { precision: 20, scale: 6 }), // Intereses totales
     installmentAmount: numeric('Installment_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }), // monto de la cuota
-    totalPayable: numeric('total_payable', { precision: 18, scale: 2 }), // Total a pagar
-    expensesAmount: numeric('expenses_amount', { precision: 18, scale: 2 }), // Monto de gastos administrativos
-    overdraftAmount: numeric('overdraft_amount', { precision: 18, scale: 2 }), // Sobregiro si aplica
+    totalPayable: numeric('total_payable', { precision: 20, scale: 6 }), // Total a pagar
+    expensesAmount: numeric('expenses_amount', { precision: 20, scale: 6 }), // Monto de gastos administrativos
+    overdraftAmount: numeric('overdraft_amount', { precision: 20, scale: 6 }), // Sobregiro si aplica
     previousCreditId: integer('previous_credit_id').references(
       () => credits.id,
     ), // Relación con credito anterior si existe
@@ -683,7 +683,7 @@ export const credits = savingsBanksSchema.table(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
     ),
-    balanceInFavor: numeric('balance_in_favor', { precision: 18, scale: 2 }), // balance a favor si aplica
+    balanceInFavor: numeric('balance_in_favor', { precision: 20, scale: 6 }), // balance a favor si aplica
     commercialHouseId: integer('commercial_house_id'),
     invoiceNumber: varchar('invoice_number', { length: 50 }),
     ...timestamps, // created_at y updated_at
@@ -708,25 +708,25 @@ export const creditAmortizationSchedule = savingsBanksSchema.table(
     installmentNumber: integer('installment_number').notNull(), // Número de cuota (1, 2, 3, ...)
     dueDate: date('due_date').notNull(), // Fecha en que debe pagarse esta cuota
     principalAmount: numeric('principal_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Monto del capital de esta cuota
     interestAmount: numeric('interest_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Monto del interés de esta cuota
     totalInstallmentAmount: numeric('total_installment_amount', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Total a pagar en esta cuota
     principalBalancePending: numeric('principal_balance_pending', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), // Saldo de capital pendiente después de esta cuota
     paymentStatus: paymentStatusEnum('payment_status')
       .notNull()
       .default('PENDING'), // Estado de la cuota (PENDING, PAID, LATE, etc.)
-    paidAmount: numeric('paid_amount', { precision: 18, scale: 2 }).default(
+    paidAmount: numeric('paid_amount', { precision: 20, scale: 6 }).default(
       '0.00',
     ), // Monto total pagado hasta ahora para esta cuota
     lastPaymentDate: timestamp('last_payment_date'), // Última fecha en que se realizó un pago para esta cuota
@@ -771,10 +771,10 @@ export const creditPayments = savingsBanksSchema.table(
       .references(() => credits.id, { onDelete: 'cascade' }),
     paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
     paymentType: creditPaymentTypeEnum('payment-type').notNull(),
-    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto pagado
     balancePending: numeric('balance_pending', {
-      precision: 18,
-      scale: 2,
+      precision: 20,
+      scale: 6,
     }).notNull(), //saldo pendiente luego del pago
     bankId: integer('bank_id').references(() => bankDirectory.id), // Banco que procesó el pago
     paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
@@ -809,7 +809,7 @@ export const creditPaymentsDetails = savingsBanksSchema.table(
       () => creditAmortizationSchedule.id,
       { onDelete: 'cascade' },
     ), // Si aplica a una cuota específica
-    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // Monto pagado
+    amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto pagado
     ...timestamps,
   },
   (table) => ({

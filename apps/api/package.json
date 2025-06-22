@@ -5,7 +5,7 @@
     "build": "nest build",
     "db:generate": "drizzle-kit generate --config ./src/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config ./src/drizzle.config.ts",
-    "db:migrate-custom": "drizzle-kit generate --custom --name=function-calculate-associate-liquidation --config ./src/drizzle.config.ts",
+    "db:generate-custom": "drizzle-kit generate --custom --name=function-calculate-associate-liquidation --config ./src/drizzle.config.ts",
     "db:push": "drizzle-kit push --config ./src/drizzle.config.ts",
     "db:seed": "ts-node -r tsconfig-paths/register ./src/database/seeds/index.ts",
     "dev": "nest start -b swc -w",

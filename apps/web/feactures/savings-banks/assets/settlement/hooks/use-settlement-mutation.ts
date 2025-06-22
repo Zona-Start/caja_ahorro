@@ -3,21 +3,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { saveSettlementAction } from '../actions/settlement-actions';
 import { Settlement } from '../schemas/settlement.schema';
-import { useSettlementStore } from '../store/settlementStore';
+
 
 // Mutation hook remains the same
 export function useSettlementMutation() {
   const queryClient = useQueryClient();
-  const { selectedAssociate } = useSettlementStore();
 
   const mutation = useMutation({
     mutationFn: (settlement: Settlement) => saveSettlementAction(settlement),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ['settlement'],
+        queryKey: ['settlement-all'],
       });
       queryClient.removeQueries({
-        queryKey: ['settlement-associate', selectedAssociate?.cedula],
+        queryKey: ['settlement-associate-individual-by-cedula'],
       });
     },
   });

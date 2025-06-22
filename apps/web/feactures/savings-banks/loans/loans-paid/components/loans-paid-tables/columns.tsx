@@ -28,10 +28,6 @@ export const columns: ColumnDef<LoanPaymentApi>[] = [
     },
   },
   {
-    accessorKey: 'bankName',
-    header: 'Nombre Banco',
-  },
-  {
     accessorKey: 'paymentMethod',
     header: 'Metodo Pago',
     cell: ({ row }) => {
@@ -43,10 +39,6 @@ export const columns: ColumnDef<LoanPaymentApi>[] = [
   {
     accessorKey: 'amount',
     header: 'Monto',
-  },
-  {
-    accessorKey: 'transactionReference',
-    header: 'Referencia Banco',
   },
   {
     accessorKey: 'associateCedula',

@@ -211,7 +211,7 @@ export function AssociatesForm({
                   <FormLabel>Fecha nacimiento</FormLabel>
                   <FormControl>
                     <CustomCalendar
-                      value={field.value}
+                      value={field.value || null}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       placeholder="Seleccione la fecha"
@@ -293,7 +293,7 @@ export function AssociatesForm({
                   <FormLabel>Fecha Ingreso</FormLabel>
                   <FormControl>
                     <CustomCalendar
-                      value={field.value}
+                      value={field.value || null}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
                       placeholder="Seleccione la fecha"

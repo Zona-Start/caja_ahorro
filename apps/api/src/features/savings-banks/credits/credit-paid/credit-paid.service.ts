@@ -22,12 +22,21 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateCreditPaidDto } from './dto/create-credit.dto';
 import { FilterCreditPaidDto } from './dto/filter-credit-paid.dto';
+
+// Define una tolerancia para comparar montos monetarios después de redondeo.
+// Esto es para CUADRAR el pago si hay una diferencia mínima causada por el toFixed(2) del usuario.
+// Por ejemplo, si la cuota es 17.666667 y el usuario paga 17.67, la diferencia es 0.003333.
+// Queremos que 17.67 sea "suficiente" para 17.666667.
+const ROUNDING_ACCEPTANCE_TOLERANCE = 0.005; // Permite hasta medio centavo de ajuste
+const EPSILON_COMPARISON = 0.050000; // Para errores de punto flotante muy pequeños
+
 
 @Injectable()
 export class CreditPaidService {
@@ -83,18 +92,12 @@ export class CreditPaidService {
   // }
 
   // calculate balance pending
-  private async _calculateBalancePending(amount: number, creditId: number) {
+  private async _calculateBalancePending(creditId: number): Promise<number> {
     const creditAmortization = await this.db
       .select({
-        id: creditAmortizationSchedule.id,
-        quotaNumber: creditAmortizationSchedule.installmentNumber,
         quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
-        quotaDate: creditAmortizationSchedule.dueDate,
-        quotaStatus: creditAmortizationSchedule.paymentStatus,
-        quotaPartial: creditAmortizationSchedule.paidAmount,
-        principalBalancePending:
-          creditAmortizationSchedule.principalBalancePending,
         paidAmount: creditAmortizationSchedule.paidAmount,
+        quotaStatus: creditAmortizationSchedule.paymentStatus,
       })
       .from(creditAmortizationSchedule)
       .where(eq(creditAmortizationSchedule.creditId, creditId))
@@ -107,37 +110,14 @@ export class CreditPaidService {
       END ASC,
       id ASC`);
 
-    // Cuotas pendientes
-    const pendingQuotas = creditAmortization.filter(
-      (item) => item.quotaStatus === 'PENDING',
-    );
-
-    // Cuotas parcialmente pagadas
-    const partialQuotas = creditAmortization.filter(
-      (item) => item.quotaStatus === 'PARTIAL',
-    );
-
-    // Sumar todas las cuotas PENDING directamente
-    const totalPending = pendingQuotas.reduce((acc, item) => {
-      const amount = Number(item.quotaAmount) || 0;
-      return acc + amount;
+      const totalRemainingExact = creditAmortization.reduce((acc, item) => {
+      const total = Number(item.quotaAmount);
+      const paid = Number(item.paidAmount || 0);
+      const remaining = total - paid;
+      return acc + (remaining > EPSILON_COMPARISON ? remaining : 0);
     }, 0);
 
-    // Para cuotas PARTIAL, sumar (totalInstallmentAmount - paidAmount)
-    const totalPartial = partialQuotas.reduce((acc, item) => {
-      const totalAmount = Number(item.quotaAmount) || 0;
-      const paidAmount = Number(item.paidAmount) || 0;
-      const remaining = totalAmount - paidAmount;
-      return acc + (remaining > 0 ? remaining : 0); // evitar negativos
-    }, 0);
-
-    // Suma final de lo pendiente antes del abono
-    const totalPendingAmount = totalPending + totalPartial;
-
-    // Calcular el nuevo saldo pendiente después del abono
-    const newPendingAmount = Math.max(totalPendingAmount - amount, 0);
-
-    return newPendingAmount;
+    return parseFloat(totalRemainingExact.toFixed(6));
   }
 
   // calculate page quotas
@@ -145,8 +125,8 @@ export class CreditPaidService {
     creditId: number,
     amount: number,
   ): Promise<{
-    paidInstallmentDetails: { id: number; amount: number }[];
-    partialInstallment?: { id: number; paidAmount: number };
+     paidInstallmentDetails: { id: number; amount: number }[];
+    partialInstallment?: { id: number; paidAmount: number; originalPaidAmount: number };
     remainingAmount: number;
   }> {
     const pendingInstallments =
@@ -161,53 +141,80 @@ export class CreditPaidService {
         orderBy: creditAmortizationSchedule.installmentNumber,
       });
 
-    let coveredAmount = 0;
+
     const paidInstallmentDetails: { id: number; amount: number }[] = [];
-    let partialInstallment: { id: number; paidAmount: number } | undefined;
-    let remainingAmount = amount; // Este es el monto que queda del pago para aplicar
+    let partialInstallment: { id: number; paidAmount: number; originalPaidAmount: number } | undefined;
+    let remainingPaymentAmount = amount; 
 
     for (const installment of pendingInstallments) {
-      // Calcular el monto pendiente de esta cuota
       const installmentTotal = Number(installment.totalInstallmentAmount);
       const installmentPaid = Number(installment.paidAmount || 0);
-      let dueAmount = installmentTotal - installmentPaid;
+      let dueAmountExact = installmentTotal - installmentPaid; 
 
-      // Redondear el monto pendiente de la cuota para evitar problemas de flotantes
-      dueAmount = parseFloat(dueAmount.toFixed(2));
+      if (dueAmountExact <= EPSILON_COMPARISON) {
+        continue;
+      }
 
-      // Determinar cuánto se puede pagar de esta cuota
-      // remainingAmount también debe ser redondeado antes de la comparación crítica
-      const canPay = parseFloat(
-        Math.min(remainingAmount, dueAmount).toFixed(2),
-      );
+      // *** LÓGICA DE COMPARACIÓN MODIFICADA AQUÍ ***
+      const diffBetweenPaymentAndDue = Math.abs(remainingPaymentAmount - dueAmountExact);
 
-      // Usar una pequeña tolerancia para la comparación de pago completo
-      const EPSILON = 0.01; // Tolerancia de 1 centavo, ajústala si es necesario
+      if (
+        remainingPaymentAmount >= dueAmountExact - EPSILON_COMPARISON || // Suficiente para cubrir (incluyendo pequeñas diferencias flotantes)
+        diffBetweenPaymentAndDue <= ROUNDING_ACCEPTANCE_TOLERANCE // O está muy cerca del monto exacto (dentro de la tolerancia)
+      ) {
+        // La cuota se cubre completamente.
+        // Registramos el monto EXACTO que se debía para esta cuota.
+        paidInstallmentDetails.push({
+          id: installment.id,
+          amount: parseFloat(dueAmountExact.toFixed(6)), 
+        });
 
-      if (canPay >= dueAmount - EPSILON) {
-        // Si el pago cubre (o casi cubre) la cuota restante
-        // La cuota se paga completamente
-        paidInstallmentDetails.push({ id: installment.id, amount: dueAmount });
-        coveredAmount += dueAmount;
-        remainingAmount = parseFloat((remainingAmount - dueAmount).toFixed(2)); // Restar el monto exacto de la cuota
-      } else if (canPay > 0) {
-        // La cuota se paga parcialmente
+        // Ajustamos el remainingPaymentAmount del pago.
+        // Si el pago era ligeramente mayor, se reduce por el dueAmountExact.
+        // Si el pago era ligeramente menor, se considera que se consumió todo para completar la cuota.
+        remainingPaymentAmount = Math.max(0, remainingPaymentAmount - dueAmountExact);
+
+        // Si después de completar una cuota, el `remainingPaymentAmount` es un valor pequeño
+        // (por ejemplo, el resultado de una resta de flotantes muy cercanos, o el exceso absorbido)
+        // lo forzamos a 0 para que no quede un "saldo a favor" insignificante.
+        if (
+          remainingPaymentAmount > EPSILON_COMPARISON &&
+          remainingPaymentAmount <= ROUNDING_ACCEPTANCE_TOLERANCE
+        ) {
+          remainingPaymentAmount = 0; 
+          break; // Se absorbe el remanente, no hay más para procesar.
+        }
+      } else {
+        // La cuota se paga parcialmente.
         partialInstallment = {
           id: installment.id,
-          paidAmount: parseFloat((installmentPaid + canPay).toFixed(2)),
+          paidAmount: parseFloat(
+            (installmentPaid + remainingPaymentAmount).toFixed(6),
+          ),
+          originalPaidAmount: installmentPaid, 
         };
-        coveredAmount += canPay;
-        remainingAmount = parseFloat((remainingAmount - canPay).toFixed(2));
-        break; // No se pueden cubrir más cuotas completas
-      } else {
-        break; // No hay más monto para cubrir
+        remainingPaymentAmount = 0;
+        break; 
+      }
+
+      if (remainingPaymentAmount <= EPSILON_COMPARISON) {
+        remainingPaymentAmount = 0;
+        break;
       }
     }
 
-    // Asegurarse de que remainingAmount no sea negativo debido a errores de redondeo
-    remainingAmount = Math.max(0, remainingAmount);
+    if (
+      remainingPaymentAmount < EPSILON_COMPARISON &&
+      remainingPaymentAmount > -EPSILON_COMPARISON
+    ) {
+      remainingPaymentAmount = 0;
+    }
 
-    return { paidInstallmentDetails, partialInstallment, remainingAmount };
+    return {
+      paidInstallmentDetails,
+      partialInstallment,
+      remainingAmount: parseFloat(remainingPaymentAmount.toFixed(6)), 
+    };
   }
 
   async create(dto: CreateCreditPaidDto, userId: number) {
@@ -234,19 +241,24 @@ export class CreditPaidService {
 
     // Inicia la transacción para asegurar la atomicidad de las operaciones
     const result = await this.db.transaction(async (tx) => {
-      // 1. Calcula qué cuotas se cubren con el monto del pago
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
-        await this._calculateCoveredInstallments(creditId, amount);
+              await this._calculateCoveredInstallments(creditId, amount);
+      
+      const currentBalanceCalculatedFromInstallments = await this._calculateBalancePending(creditId);
 
-      // 2. Genera una referencia única para este pago
-      const customReference = generateUniqueReference();
+      const appliedAmountExact = amount - remainingAmount;
 
-      // 3. Calcula el nuevo saldo pendiente del crédito después de aplicar este pago.
-      // Esta es la métrica clave para determinar si el crédito está saldado.
-      const newBalancePending = await this._calculateBalancePending(
-        amount,
-        creditId,
+      let newBalancePending = Math.max(
+        0,
+        currentBalanceCalculatedFromInstallments - appliedAmountExact,
       );
+
+      if (newBalancePending < EPSILON_COMPARISON) {
+        newBalancePending = 0;
+      }
+      
+      const customReference = generateUniqueReference();
+      
 
       // 4. Inserta el registro principal del pago en la tabla 'creditPayments'
       const [insertedPayment] = await tx
@@ -256,7 +268,7 @@ export class CreditPaidService {
           paymentDate,
           paymentType,
           amount: amount,
-          balancePending: String(newBalancePending.toFixed(2)), // Guarda el nuevo saldo pendiente
+          balancePending: String(newBalancePending.toFixed(6)), // Guarda el nuevo saldo pendiente
           bankId:
             bankId !== undefined && bankId !== null
               ? Number(bankId)
@@ -304,27 +316,27 @@ export class CreditPaidService {
             updatedById: Number(userId),
           })
           .where(eq(creditAmortizationSchedule.id, partialInstallment.id));
+        
+        const amountAppliedToPartial = partialInstallment.paidAmount - partialInstallment.originalPaidAmount;
 
         // Registra el detalle del pago parcial para esta cuota
         await tx.insert(creditPaymentsDetails).values({
           creditPaymentId: String(insertedPayment.id),
           installmentId: partialInstallment.id,
-          amount: partialInstallment.paidAmount,
+          amount: String(amountAppliedToPartial.toFixed(6)),
           createdById: Number(userId),
         });
       }
 
       // 7. Lógica para ACTUALIZAR el estado del CRÉDITO principal y el SALDO A FAVOR
-      let newCreditStatus = 'APPROVED'; // Por defecto, el crédito sigue activo
-      let balanceInFavorValue = 0; // Por defecto, no hay saldo a favor
+      let newCreditStatus = 'APPROVED'; 
+      let balanceInFavorValue = remainingAmount; 
 
       // Si el saldo pendiente del crédito es cero o insignificante (manejo de flotantes)
-      if (newBalancePending <= 0.01) {
+      if (newBalancePending <= 0) {
         newCreditStatus = 'PAID'; // El crédito está completamente saldado
-        balanceInFavorValue = remainingAmount; // Cualquier excedente es el saldo a favor
       } else {
-        // Si el crédito no está completamente pagado, nos aseguramos de que el saldo a favor sea 0
-        balanceInFavorValue = 0;
+        newCreditStatus = 'IN_PAYMENT';
       }
 
       // Realiza la actualización final del registro del crédito principal
@@ -332,7 +344,7 @@ export class CreditPaidService {
         .update(credits)
         .set({
           status: newCreditStatus as CreditStatusEnum,
-          balanceInFavor: String(balanceInFavorValue.toFixed(2)),
+          balanceInFavor: String(balanceInFavorValue.toFixed(6)),
           updatedById: Number(userId),
         })
         .where(eq(credits.id, creditId));
@@ -342,7 +354,7 @@ export class CreditPaidService {
         paymentDate,
         paymentType,
         amount: amount,
-        balancePending: String(newBalancePending.toFixed(2)), // Guarda el nuevo saldo pendiente
+        balancePending: String(newBalancePending.toFixed(6)), // Guarda el nuevo saldo pendiente
         bankId:
           bankId !== undefined && bankId !== null ? Number(bankId) : undefined,
         paymentMethod,
@@ -383,6 +395,7 @@ export class CreditPaidService {
           eq(schema.associateAccounts.associateId, schema.credits.associateId),
         )
         .where(eq(schema.credits.id, creditId));
+        
       const payloadMovementLoan = {
         associateAccountId: Number(resutAccount[0].id),
         movementType:
@@ -526,7 +539,10 @@ export class CreditPaidService {
     };
 
     return {
-      data: data,
+      data: data.map((item) => ({
+        ...item,
+        amount: Number(item.amount).toFixed(2),
+      })),
       meta,
     };
   }
@@ -644,11 +660,24 @@ export class CreditPaidService {
         fullname: associates.fullname,
         phone: associates.phone,
         email: associates.email,
+        status: associates.status,
       })
       .from(associates)
       .where(
-        and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
+        eq(associates.cedula, cedula),
       );
+
+      
+      if (!associate.length) {
+            throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+      }
+        if (associate[0].status === 'INACTIVE') {
+          throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
+        }
+
+        if (associate[0].status === 'RETIRED') {
+          throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
+        }
 
     const result = await this.db
       .select({
@@ -723,6 +752,11 @@ export class CreditPaidService {
         'No active associate found with the provided cedula.',
       );
     }
+    const transformCreditAmortization = creditAmortization.map((item) => ({
+      ...item,
+      quotaAmount: Number(item.quotaAmount).toFixed(2),
+      paidAmount: Number(item.paidAmount).toFixed(2),
+     }))
 
     return {
       id: associate[0].id,
@@ -734,7 +768,7 @@ export class CreditPaidService {
       creditType: result.length === 0 ? null : result[0]?.creditType,
       creditTotalAmount: String(totalPendingAmount.toFixed(2)),
       creditModality: result.length === 0 ? null : result[0]?.creditModality,
-      creditAmortization: creditAmortization || null,
+      creditAmortization: transformCreditAmortization || null,
     };
   }
 
@@ -878,19 +912,19 @@ export class CreditPaidService {
   //         endDate: finalDate.toISOString().split('T')[0],
   //         totalInterest:
   //           totalInterest !== null && totalInterest !== undefined
-  //             ? String(totalInterest.toFixed(2))
+  //             ? String(totalInterest.toFixed(6))
   //             : undefined, // Usa undefined en vez de null
   //         totalPayable:
   //           totalPayable !== null && totalPayable !== undefined
-  //             ? String(totalPayable.toFixed(2))
+  //             ? String(totalPayable.toFixed(6))
   //             : undefined, // Usa undefined en vez de null
   //         installmentAmount:
   //           totalQuota !== null && totalQuota !== undefined
-  //             ? String(totalQuota.toFixed(2))
+  //             ? String(totalQuota.toFixed(6))
   //             : undefined, // Usa undefined en vez de null
   //         expensesAmount:
   //           installmentAmount !== null && installmentAmount !== undefined
-  //             ? String(installmentAmount.toFixed(2))
+  //             ? String(installmentAmount.toFixed(6))
   //             : undefined, // Usa undefined en vez de null
   //         // *** LÍNEA CORREGIDA PARA overdraftAmount ***
   //         overdraftAmount:

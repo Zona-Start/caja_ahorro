@@ -2,8 +2,8 @@ import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateSettlementAssociateDto } from './dto/create-settlement-associate.dto';
-import { FilterWithdrawalAssociateDto } from './dto/filter-settlement-associate.dto';
 import { SettlementAssociateService } from './settlement-associate.service';
+import { PaginationDto } from '@/common/dto/pagination.dto';
 
 @Controller('savings-banks/settlement-associate')
 export class SettlementAssociateController {
@@ -22,8 +22,8 @@ export class SettlementAssociateController {
     summary: 'Get allsettlement or filter bysettlement associate ',
   })
   @ApiResponse({ status: 200, description: 'Return all settlement.' })
-  findAll(@Query() paginationDto: FilterWithdrawalAssociateDto) {
-    //return this.service.findAll(paginationDto);
+  findAll(@Query() paginationDto: PaginationDto) {
+    return this.service.findAll(paginationDto);
   }
 
   @Get('request/:cedula')

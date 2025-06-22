@@ -18,7 +18,7 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
   );
 
   if (error) {
-    console.error('Error:', error);
+   // console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associate data');
   }
   return data;
@@ -32,7 +32,7 @@ export const getCreditManagementByIdAction = async (id: number) => {
   );
 
   if (error) {
-    console.error('Error:', error);
+   // console.error('Error:', error);
     throw new Error(error.message || `Error fetching loan with ID ${id}`);
   }
 
@@ -111,7 +111,7 @@ export const getCreditManagementAllAction = async (params: {
   );
 
   if (error) {
-    console.error('Error:', error);
+   // console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associates data');
   }
 
@@ -184,7 +184,7 @@ export const createCreditManagementAction = async (
   );
 
   if (error) {
-    console.error('Error:', error);
+   // console.error('Error:', error);
     throw new Error(error.message || 'Error create loan Management');
   }
 
@@ -219,7 +219,7 @@ export const updateCreditManagementAction = async (
     payload,
   );
   if (error) {
-    console.error('Error:', error);
+   // console.error('Error:', error);
     throw new Error(error.message || `Error update loan with ID ${id}`);
   }
   return data;
@@ -233,7 +233,7 @@ export const deleteCreditManagementAction = async (id: number) => {
     'DELETE',
   );
   if (error) {
-    console.error('Error:', error);
+   // console.error('Error:', error);
     throw new Error(error.message || `Error delete loan with ID ${id}`);
   }
   return data;
@@ -247,7 +247,7 @@ export const getCreditManagementAllCountAction = async () => {
   );
 
   if (error) {
-    console.error('Error:', error);
+   // console.error('Error:', error);
     throw new Error(error.message || `Error fetching loan count}`);
   }
 

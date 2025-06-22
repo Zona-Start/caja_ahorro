@@ -1,7 +1,7 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import { associateLiquidationResponseSchema } from '../schemas/individual-settlement-api-schema';
-import { settlementMutationSchema } from '../schemas/settlement-api-response';
+import { settlementApiResponseSchema, settlementMutationSchema } from '../schemas/settlement-api-response';
 import { Settlement } from '../schemas/settlement.schema';
 
 export const getAssociatesByCedulaAction = async (cedula: string) => {
@@ -12,7 +12,7 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
   );
 
   if (error) {
-    console.error('Error:', error);
+    //console.error('Error:', error);
     throw new Error(
       error.message || 'Error fetching associate withdrawal data',
     );
@@ -21,74 +21,60 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
   return data?.data;
 };
 
-// export const getWithdrawalAction = async (params: {
-//   page?: number;
-//   limit?: number;
-//   type?: string;
-//   search?: string;
-//   sortBy?: string;
-//   sortOrder?: 'asc' | 'desc';
-// }) => {
-//   let searchType = '';
-//   let searchValue = '';
+export const getSettlementAction = async (params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}) => {
 
-//   if (params.search) {
-//     if (/^\d/.test(params.search)) {
-//       searchType = 'cedula';
-//     } else {
-//       searchType = 'fullname';
-//     }
-//     searchValue = params.search.toUpperCase();
-//   }
+  const searchParams = new URLSearchParams({
+    page: (params.page || 1).toString(),
+    limit: (params.limit || 10).toString(),
+    ...(params.search && { search: params.search }),
+    ...(params.sortBy && { sortBy: params.sortBy }),
+    ...(params.sortOrder && { sortOrder: params.sortOrder }),
+  });
 
-//   const searchParams = new URLSearchParams({
-//     page: (params.page || 1).toString(),
-//     limit: (params.limit || 10).toString(),
-//     ...(searchType && { searchType }),
-//     ...(searchValue && { search: searchValue }),
-//     ...(params.type && { type: params.type }),
-//     ...(params.sortBy && { sortBy: params.sortBy }),
-//     ...(params.sortOrder && { sortOrder: params.sortOrder }),
-//   });
+  const [error, response] = await safeFetchApi(
+    settlementApiResponseSchema,
+    `/savings-banks/settlement-associate?${searchParams}`,
+    'GET',
+  );
 
-//   const [error, response] = await safeFetchApi(
-//     withdrawalApiResponseSchema,
-//     `/savings-banks/withdrawal-associate?${searchParams}`,
-//     'GET',
-//   );
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching withdrawal data');
+  }
 
-//   if (error) {
-//     console.error('Error:', error);
-//     throw new Error(error.message || 'Error fetching withdrawal data');
-//   }
+  //Transform data to match DataTable expected type
+  // const tableData =
+  //   response?.data?.map((item: any) => ({
+  //     id: item.id,
+  //     customReference: item.customReference,
+  //     withdrawalTypeId: item.withdrawalTypeId,
+  //     withdrawalType: item.withdrawalType,
+  //     withdrawalDate: item.withdrawalDate.split('T')[0],
+  //     requestedAmount: item.requestedAmount,
+  //     associateCedula: item.associateCedula,
+  //     associateFullname: item.associateFullname,
+  //   })) || [];
 
-//   //Transform data to match DataTable expected type
-//   const tableData =
-//     response?.data?.map((item: any) => ({
-//       id: item.id,
-//       customReference: item.customReference,
-//       withdrawalTypeId: item.withdrawalTypeId,
-//       withdrawalType: item.withdrawalType,
-//       withdrawalDate: item.withdrawalDate.split('T')[0],
-//       requestedAmount: item.requestedAmount,
-//       associateCedula: item.associateCedula,
-//       associateFullname: item.associateFullname,
-//     })) || [];
-
-//   return {
-//     data: tableData || [],
-//     meta: response?.meta || {
-//       page: 1,
-//       limit: 10,
-//       totalCount: 0,
-//       totalPages: 1,
-//       hasNextPage: false,
-//       hasPreviousPage: false,
-//       nextPage: null,
-//       previousPage: null,
-//     },
-//   };
-// };
+  return {
+    data: response?.data || [],
+    meta: response?.meta || {
+      page: 1,
+      limit: 10,
+      totalCount: 0,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      nextPage: null,
+      previousPage: null,
+    },
+  };
+};
 
 export const createSettlementAction = async (settlement: Settlement) => {
   const { id, ...payloadWithoutId } = settlement;

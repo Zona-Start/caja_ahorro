@@ -9,20 +9,7 @@ export const columns: ColumnDef<SettlementPaymentApi>[] = [
     accessorKey: 'customReference',
     header: 'Referencia',
   },
-  {
-    accessorKey: 'withdrawalDate',
-    header: 'Fecha Retiro',
-  },
-
-  {
-    accessorKey: 'withdrawalType',
-    header: 'Tipo',
-  },
-  {
-    accessorKey: 'requestedAmount',
-    header: 'Monto',
-  },
-  {
+   {
     accessorKey: 'associateCedula',
     header: 'Cédula Asociado',
   },
@@ -30,6 +17,28 @@ export const columns: ColumnDef<SettlementPaymentApi>[] = [
     accessorKey: 'associateFullname',
     header: 'Nombre y apellido asociado',
   },
+  {
+    accessorKey: 'netLiquidationAmount',
+    header: 'Monto Liquidado',
+  },
+  {
+    accessorKey: 'liquidationDate',
+    header: 'Fecha Liquidación',
+  },
+
+  {
+    accessorKey: 'totalSavingsBalanceAtLiquidation',
+    header: 'Haberes Totales',
+  },
+  {
+    accessorKey: 'totalOutstandingLoansAtLiquidation',
+    header: 'Préstamos Pendientes',
+  },
+  {
+    accessorKey: 'totalOutstandingCreditsAtLiquidation',
+    header: 'Créditos Pendientes',
+  },
+  
   {
     id: 'actions',
     header: 'Acciones',

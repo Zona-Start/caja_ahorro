@@ -141,6 +141,7 @@ export function LoanPaidForm({
       //const calculatedAmount = calculateAmount();
       const calculatedAmount = selectedAssociate.loanTotalAmount;
 
+     
       // Evita ciclos si el valor ya es el correcto
       if (amount !== calculatedAmount) {
         form.setValue(
@@ -148,6 +149,7 @@ export function LoanPaidForm({
           calculatedAmount != null ? String(calculatedAmount) : '',
           { shouldValidate: true },
         );
+        
       }
 
       setIsCancellation(true);

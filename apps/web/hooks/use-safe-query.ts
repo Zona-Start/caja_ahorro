@@ -11,3 +11,4 @@ export function useSafeQuery<T, K = unknown>(
     ...options,
   });
 }
+

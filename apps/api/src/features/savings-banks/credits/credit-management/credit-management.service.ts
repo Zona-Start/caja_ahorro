@@ -28,6 +28,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { and, count, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -36,6 +37,7 @@ import { CreateCreditDto } from './dto/create-credit.dto';
 import { FilterCreditManagementDto } from './dto/filter-credit-management.dto';
 import { UpdateCreditDto } from './dto/update-credit.dto';
 import { CreditAmortizationSchedule } from './entities/credit-amortization-schedule.entity';
+import { stat } from 'fs';
 
 @Injectable()
 export class CreditManagementService {
@@ -158,13 +160,13 @@ export class CreditManagementService {
         installmentNumber: i,
         dueDate: new Date(currentDueDate), // Clonar para cada entrada
         principalAmount: parseFloat(
-          principalComponentForInstallment.toFixed(2),
+          principalComponentForInstallment.toFixed(6),
         ),
-        interestAmount: parseFloat(interestComponentForInstallment.toFixed(2)),
+        interestAmount: parseFloat(interestComponentForInstallment.toFixed(6)),
         totalInstallmentAmount: parseFloat(
-          totalInstallmentAmountForInstallment.toFixed(2),
+          totalInstallmentAmountForInstallment.toFixed(6),
         ),
-        principalBalancePending: parseFloat(remainingBalance.toFixed(2)),
+        principalBalancePending: parseFloat(remainingBalance.toFixed(6)),
         paymentStatus: PaymentStatusEnum.PENDING, // Estado por defecto
         createdById: createdById,
       });
@@ -264,7 +266,7 @@ export class CreditManagementService {
     const [associate] = await this.db
       .select({
         isPayrollCredit: associates.isPayrollCredit,
-        balance: associateAccounts.balance,
+        balance: associateHaberesBalance.haberesBalance,
         associateAccountId: associateAccounts.id,
       })
       .from(associates)
@@ -272,24 +274,24 @@ export class CreditManagementService {
       .leftJoin(
         associateAccounts,
         eq(associateAccounts.associateId, associateId),
-      );
+      ).leftJoin(associateHaberesBalance, eq(associateHaberesBalance.associateAccountId, associateAccounts.id));;
 
     // verifica si el asociado tiene un credinomina activo
     if (associate.isPayrollCredit) {
       throw new InternalServerErrorException('has an active payroll credit.');
     }
 
-    // const assetsPercentage = this.calculatePercentage(
-    //   Number(associate?.balance ?? 0),
-    //   80,
-    // );
+    const assetsPercentage = this.calculatePercentage(
+      Number(associate?.balance ?? 0),
+      80,
+    );
 
-    // //valida  que le monto solicitado sea menor al 80 de sus haberes disponible
-    // if (Number(assetsPercentage) < Number(requestedAmount)) {
-    //   throw new InternalServerErrorException(
-    //     'Your available funds are less than the requested amount.',
-    //   );
-    // }
+    //valida  que le monto solicitado sea menor al 80 de sus haberes disponible
+    if (Number(assetsPercentage) < Number(requestedAmount)) {
+      throw new InternalServerErrorException(
+        'Your available funds are less than the requested amount.',
+      );
+    }
 
     //Fetch type Credit
     const [getCreditTypes] = await this.db
@@ -313,7 +315,7 @@ export class CreditManagementService {
     let totalPayable = 0; //Cálculo del monto total a pagar
     if (setting && setting.value === 'USD' && exchangeRateData) {
       totalQuota =
-        (requestedAmount + percentageInterest + percentageExpenses) /
+        (requestedAmount + percentageInterest) /
         term /
         Number(exchangeRateData.rate);
       totalInterest =
@@ -329,7 +331,7 @@ export class CreditManagementService {
         Number(exchangeRateData.rate);
     } else {
       totalQuota =
-        (requestedAmount + percentageInterest + percentageExpenses) / term;
+        (requestedAmount + percentageInterest) / term;
       totalInterest = (requestedAmount * annualInterestRate) / 100;
       installmentAmount = (requestedAmount * expensePercentage) / 100;
       totalPayable = requestedAmount + totalInterest + installmentAmount;
@@ -365,9 +367,9 @@ export class CreditManagementService {
           disbursedAmount: requestedAmount,
           startDate: startDate.toISOString().split('T')[0],
           endDate: finalDate,
-          totalInterest: String(totalInterest.toFixed(2)),
-          totalPayable: String(totalPayable.toFixed(2)),
-          installmentAmount: String(totalQuota.toFixed(2)),
+          totalInterest: String(totalInterest.toFixed(6)),
+          totalPayable: String(totalPayable.toFixed(6)),
+          installmentAmount: String(totalQuota.toFixed(6)),
           expensesAmount: installmentAmount.toString(),
           overdraftAmount: overdraftAmount ?? null,
           previousCreditId: previousCreditId ?? null,
@@ -444,9 +446,9 @@ export class CreditManagementService {
           disbursedAmount: requestedAmount,
           startDate: startDate.toISOString().split('T')[0],
           endDate: finalDate,
-          totalInterest: String(totalInterest.toFixed(2)),
-          totalPayable: String(totalPayable.toFixed(2)),
-          installmentAmount: String(totalQuota.toFixed(2)),
+          totalInterest: String(totalInterest.toFixed(6)),
+          totalPayable: String(totalPayable.toFixed(6)),
+          installmentAmount: String(totalQuota.toFixed(6)),
           expensesAmount: installmentAmount.toString(),
           overdraftAmount: overdraftAmount ?? null,
           previousCreditId: previousCreditId ?? null,
@@ -636,6 +638,7 @@ export class CreditManagementService {
     return {
       data: data.map((credit): any => ({
         ...credit,
+        requestedAmount: Number(credit.requestedAmount).toFixed(2),
       })),
       meta,
     };
@@ -738,7 +741,6 @@ export class CreditManagementService {
   }
 
   async findOneRequest(cedula: string) {
-    try {
       const associate = await this.db
         .select({
           id: associates.id,
@@ -748,11 +750,24 @@ export class CreditManagementService {
           email: associates.email,
           dateAdmission: associates.dateAdmission,
           isPayrollCredit: associates.isPayrollCredit,
+          status: associates.status,
         })
         .from(associates)
         .where(
-          and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
+          eq(associates.cedula, cedula),
         );
+
+      	
+      if (!associate.length) {
+            throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+      }
+       if (associate[0].status === 'INACTIVE') {
+          throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
+        }
+
+        if (associate[0].status === 'RETIRED') {
+          throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
+        }
 
       const associateAccount = await this.db
         .select({
@@ -785,17 +800,11 @@ export class CreditManagementService {
           ...associate[0],
           associateAccountId: associateAccount[0].associateAccountId,
           accountNumber: associateAccount[0].accountNumber,
-          balance: associateAccount[0].balance,
+          balance: Number(associateAccount[0].balance).toFixed(2)
         },
         totalCredits: total,
       };
-    } catch (error) {
-      console.log(error);
-
-      return new InternalServerErrorException(
-        'Error fetching credit request details.',
-      );
-    }
+  
   }
 
   findOne(id: number) {
@@ -853,8 +862,7 @@ export class CreditManagementService {
     if (setting && setting.value === 'USD' && exchangeRateData) {
       totalQuota =
         ((dto?.requestedAmount ?? 0) +
-          percentageInterest +
-          percentageExpenses) /
+          percentageInterest) /
         term /
         Number(exchangeRateData.rate);
       totalInterest =
@@ -871,8 +879,7 @@ export class CreditManagementService {
     } else {
       totalQuota =
         ((dto?.requestedAmount ?? 0) +
-          percentageInterest +
-          percentageExpenses) /
+          percentageInterest) /
         term;
       totalInterest = ((dto?.requestedAmount ?? 0) * annualInterestRate) / 100;
       installmentAmount =
@@ -916,19 +923,19 @@ export class CreditManagementService {
           endDate: finalDate.toISOString().split('T')[0],
           totalInterest:
             totalInterest !== null && totalInterest !== undefined
-              ? String(totalInterest.toFixed(2))
+              ? String(totalInterest.toFixed(6))
               : undefined, // Usa undefined en vez de null
           totalPayable:
             totalPayable !== null && totalPayable !== undefined
-              ? String(totalPayable.toFixed(2))
+              ? String(totalPayable.toFixed(6))
               : undefined, // Usa undefined en vez de null
           installmentAmount:
             totalQuota !== null && totalQuota !== undefined
-              ? String(totalQuota.toFixed(2))
+              ? String(totalQuota.toFixed(6))
               : undefined, // Usa undefined en vez de null
           expensesAmount:
             installmentAmount !== null && installmentAmount !== undefined
-              ? String(installmentAmount.toFixed(2))
+              ? String(installmentAmount.toFixed(6))
               : undefined, // Usa undefined en vez de null
           // *** LÍNEA CORREGIDA PARA overdraftAmount ***
           overdraftAmount:
