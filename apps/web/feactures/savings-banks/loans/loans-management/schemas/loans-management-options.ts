@@ -4,6 +4,8 @@ export const ESTATUS_TYPES = {
   DISBURSED: 'DESEMBOLSADO',
   IN_PAYMENT: 'EN_PAGO',
   PAID: 'PAGADO',
+  CANCELLED: 'CANCELADO',
+  REJECTED: 'RECHAZADO',
 } as const;
 
 export const PAYMENT_METHOD = {

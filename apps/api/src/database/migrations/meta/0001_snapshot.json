@@ -1,6 +1,6 @@
 {
-  "id": "801f16f3-20d9-450d-a043-841768336c8a",
-  "prevId": "38c46ae7-a0d4-49f5-8c00-68c8d33eef1f",
+  "id": "65c753d0-a751-43e8-ad6a-cba1c05d085c",
+  "prevId": "db21c3a6-275f-4e63-ad1c-67d296fd9b1a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8914,9 +8914,11 @@
         "INSERT",
         "UPDATE",
         "DELETE",
-        "LOGIN",
-        "LOGOUT",
-        "PROCESS"
+        "PROCESS_EXECUTION",
+        "DATA_IMPORT",
+        "CONFIGURATION_CHANGE",
+        "ADJUSTMENT",
+        "VIEW_REPORT"
       ]
     },
     "public.audit_auth_action_enum": {
@@ -8973,7 +8975,17 @@
         "OTHER_DEBIT",
         "FEE_DEBIT",
         "OTHER_CREDIT",
-        "LIQUIDATION_BALANCE"
+        "LIQUIDATION_BALANCE",
+        "LOAN_DISBURSEMENT_REVERSAL_DEBIT",
+        "SPECIAL_LOAN_DISBURSEMENT_REVERSAL_DEBIT",
+        "COMMERCIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT",
+        "SPECIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT",
+        "LOAN_PAYMENT_REVERSAL_CREDIT",
+        "COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT",
+        "SAVING_WITHDRAWAL_REVERSAL_CREDIT",
+        "LIQUIDATION_BALANCE_REVERSAL_CREDIT",
+        "ACCOUNTING_ADJUSTMENT_DEBIT",
+        "ACCOUNTING_ADJUSTMENT_CREDIT"
       ]
     },
     "public.credit_modality_type_enum": {
@@ -9052,11 +9064,15 @@
         "REQUESTED",
         "APPROVED",
         "REJECTED",
+        "CANCELLED",
+        "PENDING_DISBURSEMENT_BANK_BATCH",
         "DISBURSED",
+        "DISBURSEMENT_FAILED",
+        "DISBURSED_REVERSED",
         "IN_PAYMENT",
         "PAID",
-        "CANCELLED",
-        "OVERDUE"
+        "OVERDUE",
+        "ADJUSTED"
       ]
     },
     "public.nationality": {
@@ -9118,9 +9134,9 @@
         "INACTIVE",
         "PENDING",
         "SUSPENDED",
-        "CLOSED",
         "LOCKED",
-        "RETIRED"
+        "RETIRED",
+        "ARCHIVED"
       ]
     }
   },

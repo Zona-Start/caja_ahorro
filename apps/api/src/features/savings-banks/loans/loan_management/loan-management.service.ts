@@ -4,7 +4,6 @@ import * as schema from '@/database/index';
 import {
   associateAccounts,
   associates,
-  auditLogs,
   company,
   exchangeRates,
   loanAmortizationSchedule,
@@ -14,10 +13,9 @@ import {
   systemSettings,
 } from '@/database/index';
 import { associateHaberesBalance } from '@/database/schema/views';
-import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
+import { AuditLogsService } from '@/features/audit/audit-logs/audit-logs.service';
 import {
-  AssociateMovementTypeEnum,
-  CurrencyCodeEnum,
+  ActionEnumAudit,
   loanModalityTypeEnum,
   LoanStatusEnum,
   PaymentStatusEnum,
@@ -32,7 +30,6 @@ import {
 } from '@nestjs/common';
 import { and, count, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateLoanDto } from './dto/create-loan.dto';
 import { FilterLoanManagementDto } from './dto/filter-loan-management.dto';
 import { UpdateLoanDto } from './dto/update-loan.dto';
@@ -42,8 +39,8 @@ import { LoanAmortizationSchedule } from './entities/loan-amortization-schedule.
 export class LoanManagementService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-    private readonly settingsSystemService: SettingsSystemService,
-    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
+    //private readonly settingsSystemService: SettingsSystemService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   // --- Helper function to generate custom reference ---
@@ -92,156 +89,15 @@ export class LoanManagementService {
   //   }
   // }
 
-  // // --- Helper function to generate amortization schedule ---
-  // private generateAmortizationSchedule(
-  //   loanAmount: number, // Monto del préstamo solicitado
-  //   termMonths: number, // Plazos en meses
-  //   annualInterestRate: number, // Tasa de interés anual (se usará para calcular un total fijo)
-  //   administrativeFeeRate: number, // Tasa de interés por gasto administrativo (se usa para el desembolso, no para amortización)
-  //   startDate: Date, // Fecha de inicio del préstamo
-  //   loanId: number, // Identificador del préstamo
-  //   createdById: number,
-  // ): Omit<
-  //   LoanAmortizationSchedule,
-  //   | 'id'
-  //   | 'paymentDate'
-  //   | 'paidAmount'
-  //   | 'accountingEntryId'
-  //   | 'createdAt'
-  //   | 'updatedAt'
-  //   | 'updatedById'
-  // >[] {
-  //   // 1. Cálculo del interés total FIJO para todo el plazo
-  //   // Si el 6% es anual y el préstamo es de 80 meses (6.67 años), deberías ajustar esta línea.
-  //   // Pero si el 6% es la tasa "fija" para el total del préstamo, como en tu ejemplo de 12 meses,
-  //   // entonces esta línea es correcta.
-  //   // Basado en tu último ejemplo de 12 cuotas, el interés total sería 90 Bs. (1500 * 0.06).
-  //   const totalInterestFixed = (loanAmount * annualInterestRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
-
-  //   // 2. Gasto Administrativo (para el desembolso, no para la amortización)
-  //   // const administrativeFeeAmount = (loanAmount * administrativeFeeRate) / 100; // Ej: 1500 * 0.06 = 90 Bs.
-  //   // El monto a desembolsar al cliente sería: loanAmount - administrativeFeeAmount
-
-  //   // 3. Monto Total a Pagar por el Cliente (Capital + Interés Fijo)
-  //   const totalAmountToPayByClient = loanAmount + totalInterestFixed; // Ej: 1500 + 90 = 1590 Bs.
-
-  //   // 4. Cálculo de la Cuota Mensual Fija
-  //   const monthlyPayment = totalAmountToPayByClient / termMonths; // Ej: 1590 / 12 = 132.50 Bs.
-
-  //   // 5. Componente de Interés FIJO por Cuota
-  //   const monthlyInterestComponent = totalInterestFixed / termMonths; // Ej: 90 / 12 = 7.50 Bs.
-
-  //   // 6. Componente de Capital FIJO por Cuota
-  //   const monthlyPrincipalComponent = loanAmount / termMonths; // Ej: 1500 / 12 = 125 Bs.
-
-  //   // Opcional: Para verificación, monthlyPayment debería ser monthlyPrincipalComponent + monthlyInterestComponent
-  //   // 125 + 7.50 = 132.50. ¡Coincide!
-  //   const schedule: Omit<
-  //     LoanAmortizationSchedule,
-  //     | 'id'
-  //     | 'paymentDate'
-  //     | 'paidAmount'
-  //     | 'accountingEntryId'
-  //     | 'createdAt'
-  //     | 'updatedAt'
-  //     | 'updatedById'
-  //   >[] = [];
-
-  //   let remainingBalance = loanAmount; // El saldo pendiente es solo el capital
-
-  //   // Clonar la fecha de inicio para evitar modificar el objeto original
-  //   let currentDueDate = new Date(startDate);
-  //   currentDueDate.setMonth(currentDueDate.getMonth() + 1); // ¡Avanza un mes para la primera cuota!
-
-  //   for (let i = 1; i <= termMonths; i++) {
-  //     let principalComponentForInstallment = monthlyPrincipalComponent;
-  //     let interestComponentForInstallment = monthlyInterestComponent;
-  //     let totalInstallmentAmountForInstallment = monthlyPayment;
-
-  //     // Ajuste del último pago para evitar errores de redondeo
-  //     // Aseguramos que el capital restante sea 0 después del último pago
-  //     if (i === termMonths) {
-  //       principalComponentForInstallment = remainingBalance; // El último capital es lo que queda
-  //       // El interés sigue siendo fijo para esta cuota
-  //       // La cuota total se ajusta para incluir el capital restante y el interés fijo
-  //       totalInstallmentAmountForInstallment =
-  //         principalComponentForInstallment + interestComponentForInstallment;
-  //     }
-
-  //     // Se resta el componente de capital del saldo pendiente
-  //     remainingBalance -= principalComponentForInstallment;
-
-  //     // Asegurarse de que el saldo no sea negativo debido a errores de coma flotante en el último pago
-  //     if (remainingBalance < 0.005) {
-  //       remainingBalance = 0;
-  //     }
-
-  //     schedule.push({
-  //       loanId,
-  //       installmentNumber: i,
-  //       dueDate: new Date(currentDueDate), // Clonar para cada entrada
-  //       principalAmount: parseFloat(
-  //         principalComponentForInstallment.toFixed(6),
-  //       ),
-  //       interestAmount: parseFloat(interestComponentForInstallment.toFixed(6)),
-  //       totalInstallmentAmount: parseFloat(
-  //         totalInstallmentAmountForInstallment.toFixed(6),
-  //       ),
-  //       principalBalancePending: parseFloat(remainingBalance.toFixed(6)),
-  //       paymentStatus: PaymentStatusEnum.PENDING, // Estado por defecto
-  //       createdById: createdById,
-  //     });
-
-  //     // Avanzar la fecha al próximo mes
-  //     currentDueDate.setMonth(currentDueDate.getMonth() + 1);
-  //   }
-
-  //   return schedule;
-  // }
-
-  ///----version nueva---->
-
- // Importa Decimal.js o similar si lo vas a usar para mayor precisión
-// import Decimal from 'decimal.js'; // Necesitas instalarlo: npm install decimal.js
-
-// --- Helper function to generate amortization schedule ---
-private generateAmortizationSchedule(
-  loanAmount: number, // Monto del préstamo solicitado (capital)
-  termMonths: number, // Plazos en meses
-  annualInterestRate: number, // Tasa de interés anual (para calcular interés total fijo)
-  startDate: Date, // Fecha de inicio del préstamo (para determinar la primera cuota)
-  loanId: number, // Identificador del préstamo
-  createdById: number,
-): Omit<
-  LoanAmortizationSchedule,
-  | 'id'
-  | 'paymentDate'
-  | 'paidAmount'
-  | 'accountingEntryId'
-  | 'createdAt'
-  | 'updatedAt'
-  | 'updatedById'
->[] {
-  // 1. Cálculo del interés total FIJO para todo el plazo
-  const totalInterestFixed = (loanAmount * annualInterestRate) / 100; // Ej: 450 * 0.06 = 27
-
-  // 2. Monto Total a Pagar por el Cliente (Capital + Interés Fijo)
-  const totalAmountToPayByClient = loanAmount + totalInterestFixed; // Ej: 450 + 27 = 477
-
-  // 3. Cálculo del número TOTAL de cuotas quincenales (asumiendo que termMonths ya es el total de cuotas)
-  // Si termMonths es 24 (cuotas), entonces totalInstallments = 24
-  const totalInstallments = termMonths;
-
-  // 4. Cálculo de la Cuota Quincenal Fija (sin redondear inicialmente)
-  const biweeklyPaymentExact = totalAmountToPayByClient / totalInstallments; // Ej: 477 / 24 = 19.875
-
-  // 5. Componente de Interés FIJO por Cuota Quincenal (sin redondear inicialmente)
-  const biweeklyInterestComponentExact = totalInterestFixed / totalInstallments; // Ej: 27 / 24 = 1.125
-
-  // 6. Componente de Capital FIJO por Cuota Quincenal (sin redondear inicialmente)
-  const biweeklyPrincipalComponentExact = loanAmount / totalInstallments; // Ej: 450 / 24 = 18.75
-
-  const schedule: Omit<
+  // --- Helper function to generate amortization schedule ---
+  private generateAmortizationSchedule(
+    loanAmount: number, // Monto del préstamo solicitado (capital)
+    termMonths: number, // Plazos en meses
+    annualInterestRate: number, // Tasa de interés anual (para calcular interés total fijo)
+    startDate: Date, // Fecha de inicio del préstamo (para determinar la primera cuota)
+    loanId: number, // Identificador del préstamo
+    createdById: number,
+  ): Omit<
     LoanAmortizationSchedule,
     | 'id'
     | 'paymentDate'
@@ -250,147 +106,188 @@ private generateAmortizationSchedule(
     | 'createdAt'
     | 'updatedAt'
     | 'updatedById'
-  >[] = [];
+  >[] {
+    // 1. Cálculo del interés total FIJO para todo el plazo
+    const totalInterestFixed = (loanAmount * annualInterestRate) / 100; // Ej: 450 * 0.06 = 27
 
-  let remainingPrincipalBalance = loanAmount; // Saldo de capital restante (con alta precisión)
-  let totalInterestAccrued = 0; // Interés total acumulado para verificación
-  let totalPrincipalPaid = 0; // Capital total pagado para verificación
-  let totalPaymentsMade = 0; // Pagos totales realizados para verificación
+    // 2. Monto Total a Pagar por el Cliente (Capital + Interés Fijo)
+    const totalAmountToPayByClient = loanAmount + totalInterestFixed; // Ej: 450 + 27 = 477
 
-  let currentCalculationDate = new Date(startDate); // Fecha de cálculo actual
+    // 3. Cálculo del número TOTAL de cuotas quincenales (asumiendo que termMonths ya es el total de cuotas)
+    // Si termMonths es 24 (cuotas), entonces totalInstallments = 24
+    const totalInstallments = termMonths;
 
-  // Función auxiliar para obtener el último día de un mes
-  const getLastDayOfMonth = (year: number, month: number): number => {
-    return new Date(year, month + 1, 0).getDate();
-  };
+    // 4. Cálculo de la Cuota Quincenal Fija (sin redondear inicialmente)
+    const biweeklyPaymentExact = totalAmountToPayByClient / totalInstallments; // Ej: 477 / 24 = 19.875
 
-  // Función auxiliar para determinar la fecha de vencimiento quincenal
-  const getNextBiweeklyDueDate = (
-    currentDate: Date,
-    isFirstHalf: boolean, // true para el 16, false para el 30/28
-  ): Date => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth(); // 0-11
+    // 5. Componente de Interés FIJO por Cuota Quincenal (sin redondear inicialmente)
+    const biweeklyInterestComponentExact =
+      totalInterestFixed / totalInstallments; // Ej: 27 / 24 = 1.125
 
-    let day: number;
-    let targetMonth = month;
-    let targetYear = year;
+    // 6. Componente de Capital FIJO por Cuota Quincenal (sin redondear inicialmente)
+    const biweeklyPrincipalComponentExact = loanAmount / totalInstallments; // Ej: 450 / 24 = 18.75
 
-    if (isFirstHalf) {
-      if (currentDate.getDate() > 16) {
-        targetMonth = month + 1;
-        if (targetMonth > 11) {
-          targetMonth = 0;
-          targetYear++;
+    const schedule: Omit<
+      LoanAmortizationSchedule,
+      | 'id'
+      | 'paymentDate'
+      | 'paidAmount'
+      | 'accountingEntryId'
+      | 'createdAt'
+      | 'updatedAt'
+      | 'updatedById'
+    >[] = [];
+
+    let remainingPrincipalBalance = loanAmount; // Saldo de capital restante (con alta precisión)
+    let totalInterestAccrued = 0; // Interés total acumulado para verificación
+    let totalPrincipalPaid = 0; // Capital total pagado para verificación
+    let totalPaymentsMade = 0; // Pagos totales realizados para verificación
+
+    let currentCalculationDate = new Date(startDate); // Fecha de cálculo actual
+
+    // Función auxiliar para obtener el último día de un mes
+    const getLastDayOfMonth = (year: number, month: number): number => {
+      return new Date(year, month + 1, 0).getDate();
+    };
+
+    // Función auxiliar para determinar la fecha de vencimiento quincenal
+    const getNextBiweeklyDueDate = (
+      currentDate: Date,
+      isFirstHalf: boolean, // true para el 16, false para el 30/28
+    ): Date => {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth(); // 0-11
+
+      let day: number;
+      let targetMonth = month;
+      let targetYear = year;
+
+      if (isFirstHalf) {
+        if (currentDate.getDate() > 16) {
+          targetMonth = month + 1;
+          if (targetMonth > 11) {
+            targetMonth = 0;
+            targetYear++;
+          }
         }
-      }
-      day = 16;
-    } else {
-      if (currentDate.getDate() > getLastDayOfMonth(year, month) - 1) { // Lógica revisada para determinar si ya pasó el día de fin de mes
-        targetMonth = month + 1;
-        if (targetMonth > 11) {
-          targetMonth = 0;
-          targetYear++;
+        day = 16;
+      } else {
+        if (currentDate.getDate() > getLastDayOfMonth(year, month) - 1) {
+          // Lógica revisada para determinar si ya pasó el día de fin de mes
+          targetMonth = month + 1;
+          if (targetMonth > 11) {
+            targetMonth = 0;
+            targetYear++;
+          }
         }
+        day = getLastDayOfMonth(targetYear, targetMonth);
       }
-      day = getLastDayOfMonth(targetYear, targetMonth);
-    }
 
-    const nextDate = new Date(targetYear, targetMonth, day);
-    nextDate.setHours(0, 0, 0, 0); // Asegurar hora al inicio del día
-    return nextDate;
-  };
+      const nextDate = new Date(targetYear, targetMonth, day);
+      nextDate.setHours(0, 0, 0, 0); // Asegurar hora al inicio del día
+      return nextDate;
+    };
 
-  // Determinar la primera fecha de pago
-  let nextDueDate: Date;
-  if (startDate.getDate() <= 15) {
-    nextDueDate = getNextBiweeklyDueDate(startDate, false); // Es la segunda mitad del mes actual (fin de mes)
-  } else {
-    nextDueDate = getNextBiweeklyDueDate(startDate, true); // Es la primera mitad del siguiente mes (día 16)
-  }
-
-  for (let installmentCounter = 1; installmentCounter <= totalInstallments; installmentCounter++) {
-    let principalComponentForInstallment = biweeklyPrincipalComponentExact;
-    let interestComponentForInstallment = biweeklyInterestComponentExact;
-    let totalInstallmentAmountForInstallment = biweeklyPaymentExact;
-
-    // --- Ajuste para la ÚLTIMA cuota ---
-    if (installmentCounter === totalInstallments) {
-      // Ajustar el capital de la última cuota para que el saldo sea exactamente 0
-      principalComponentForInstallment = remainingPrincipalBalance;
-      
-      // La cuota total es la suma de este capital ajustado y el interés.
-      // Aquí puedes decidir si el interés de la última cuota también se ajusta si hay una desviación muy pequeña,
-      // o si solo el capital absorbe la diferencia.
-      // Para un interés fijo por cuota, es más común que el capital sea el que "cuadre" el saldo.
-      totalInstallmentAmountForInstallment = principalComponentForInstallment + interestComponentForInstallment;
-      
-      // Opcional: Asegurarse de que el monto total sea exactamente totalAmountToPayByClient
-      // Este paso es más para verificación si se hicieron ajustes complejos.
-      // En tu caso de interés fijo, `totalInterestFixed` ya es exacto.
-      // Si `biweeklyPaymentExact` y `biweeklyInterestComponentExact` ya se calcularon con alta precisión,
-      // la suma final debería ser correcta.
-    }
-
-    // Se resta el componente de capital del saldo pendiente
-    remainingPrincipalBalance -= principalComponentForInstallment;
-
-    // Acumular totales (sin redondear aquí)
-    totalPrincipalPaid += principalComponentForInstallment;
-    totalInterestAccrued += interestComponentForInstallment;
-    totalPaymentsMade += totalInstallmentAmountForInstallment;
-
-    schedule.push({
-      loanId,
-      installmentNumber: installmentCounter,
-      dueDate: new Date(nextDueDate), // Clonar la fecha
-      // --- Redondeo FINAL al exportar para la base de datos o visualización ---
-      principalAmount: parseFloat(principalComponentForInstallment.toFixed(6)),
-      interestAmount: parseFloat(interestComponentForInstallment.toFixed(6)),
-      totalInstallmentAmount: parseFloat(totalInstallmentAmountForInstallment.toFixed(6)),
-      // El saldo pendiente del principal debe ser 0 para la última cuota,
-      // pero debe reflejar el saldo exacto para las intermedias, redondeado solo al guardar/mostrar.
-      principalBalancePending: parseFloat(remainingPrincipalBalance.toFixed(6)),
-      paymentStatus: PaymentStatusEnum.PENDING,
-      createdById: createdById,
-    });
-
-    // Calcular la PRÓXIMA fecha de vencimiento
-    if (nextDueDate.getDate() === 16) {
-      nextDueDate = getNextBiweeklyDueDate(nextDueDate, false);
+    // Determinar la primera fecha de pago
+    let nextDueDate: Date;
+    if (startDate.getDate() <= 15) {
+      nextDueDate = getNextBiweeklyDueDate(startDate, false); // Es la segunda mitad del mes actual (fin de mes)
     } else {
-      nextDueDate = getNextBiweeklyDueDate(nextDueDate, true);
+      nextDueDate = getNextBiweeklyDueDate(startDate, true); // Es la primera mitad del siguiente mes (día 16)
     }
+
+    for (
+      let installmentCounter = 1;
+      installmentCounter <= totalInstallments;
+      installmentCounter++
+    ) {
+      let principalComponentForInstallment = biweeklyPrincipalComponentExact;
+      let interestComponentForInstallment = biweeklyInterestComponentExact;
+      let totalInstallmentAmountForInstallment = biweeklyPaymentExact;
+
+      // --- Ajuste para la ÚLTIMA cuota ---
+      if (installmentCounter === totalInstallments) {
+        // Ajustar el capital de la última cuota para que el saldo sea exactamente 0
+        principalComponentForInstallment = remainingPrincipalBalance;
+
+        // La cuota total es la suma de este capital ajustado y el interés.
+        // Aquí puedes decidir si el interés de la última cuota también se ajusta si hay una desviación muy pequeña,
+        // o si solo el capital absorbe la diferencia.
+        // Para un interés fijo por cuota, es más común que el capital sea el que "cuadre" el saldo.
+        totalInstallmentAmountForInstallment =
+          principalComponentForInstallment + interestComponentForInstallment;
+
+        // Opcional: Asegurarse de que el monto total sea exactamente totalAmountToPayByClient
+        // Este paso es más para verificación si se hicieron ajustes complejos.
+        // En tu caso de interés fijo, `totalInterestFixed` ya es exacto.
+        // Si `biweeklyPaymentExact` y `biweeklyInterestComponentExact` ya se calcularon con alta precisión,
+        // la suma final debería ser correcta.
+      }
+
+      // Se resta el componente de capital del saldo pendiente
+      remainingPrincipalBalance -= principalComponentForInstallment;
+
+      // Acumular totales (sin redondear aquí)
+      totalPrincipalPaid += principalComponentForInstallment;
+      totalInterestAccrued += interestComponentForInstallment;
+      totalPaymentsMade += totalInstallmentAmountForInstallment;
+
+      schedule.push({
+        loanId,
+        installmentNumber: installmentCounter,
+        dueDate: new Date(nextDueDate), // Clonar la fecha
+        // --- Redondeo FINAL al exportar para la base de datos o visualización ---
+        principalAmount: parseFloat(
+          principalComponentForInstallment.toFixed(6),
+        ),
+        interestAmount: parseFloat(interestComponentForInstallment.toFixed(6)),
+        totalInstallmentAmount: parseFloat(
+          totalInstallmentAmountForInstallment.toFixed(6),
+        ),
+        // El saldo pendiente del principal debe ser 0 para la última cuota,
+        // pero debe reflejar el saldo exacto para las intermedias, redondeado solo al guardar/mostrar.
+        principalBalancePending: parseFloat(
+          remainingPrincipalBalance.toFixed(6),
+        ),
+        paymentStatus: PaymentStatusEnum.PENDING,
+        createdById: createdById,
+      });
+
+      // Calcular la PRÓXIMA fecha de vencimiento
+      if (nextDueDate.getDate() === 16) {
+        nextDueDate = getNextBiweeklyDueDate(nextDueDate, false);
+      } else {
+        nextDueDate = getNextBiweeklyDueDate(nextDueDate, true);
+      }
+    }
+
+    // --- Verificaciones finales para asegurar la precisión total ---
+    // Estos `toFixed(2)` son solo para la verificación, no para los cálculos internos
+    // const finalTotalInterestAccrued = parseFloat(totalInterestAccrued.toFixed(6));
+    // const finalTotalPrincipalPaid = parseFloat(totalPrincipalPaid.toFixed(6));
+    // const finalTotalPaymentsMade = parseFloat(totalPaymentsMade.toFixed(6));
+
+    // Opcional: Comprobaciones de depuración
+    // console.log('Total Capital Calculado:', finalTotalPrincipalPaid);
+    // console.log('Total Intereses Calculados:', finalTotalInterestAccrued);
+    // console.log('Suma Total Cuotas Calculadas:', finalTotalPaymentsMade);
+    // console.log('Capital original:', loanAmount);
+    // console.log('Interés Total original:', totalInterestFixed);
+    // console.log('Monto Total a Pagar original:', totalAmountToPayByClient);
+
+    // Puedes añadir validaciones si los totales finales no cuadran como esperas:
+    // if (Math.abs(finalTotalPrincipalPaid - loanAmount) > 0.01) {
+    //   console.warn("Discrepancia en el total de capital pagado.");
+    // }
+    // if (Math.abs(finalTotalInterestAccrued - totalInterestFixed) > 0.01) {
+    //   console.warn("Discrepancia en el total de interés pagado.");
+    // }
+    // if (Math.abs(finalTotalPaymentsMade - totalAmountToPayByClient) > 0.01) {
+    //   console.warn("Discrepancia en el total de pagos realizados.");
+    // }
+
+    return schedule;
   }
-
-  // --- Verificaciones finales para asegurar la precisión total ---
-  // Estos `toFixed(2)` son solo para la verificación, no para los cálculos internos
-  const finalTotalInterestAccrued = parseFloat(totalInterestAccrued.toFixed(6));
-  const finalTotalPrincipalPaid = parseFloat(totalPrincipalPaid.toFixed(6));
-  const finalTotalPaymentsMade = parseFloat(totalPaymentsMade.toFixed(6));
-
-  // Opcional: Comprobaciones de depuración
-  // console.log('Total Capital Calculado:', finalTotalPrincipalPaid);
-  // console.log('Total Intereses Calculados:', finalTotalInterestAccrued);
-  // console.log('Suma Total Cuotas Calculadas:', finalTotalPaymentsMade);
-  // console.log('Capital original:', loanAmount);
-  // console.log('Interés Total original:', totalInterestFixed);
-  // console.log('Monto Total a Pagar original:', totalAmountToPayByClient);
-
-  // Puedes añadir validaciones si los totales finales no cuadran como esperas:
-  // if (Math.abs(finalTotalPrincipalPaid - loanAmount) > 0.01) {
-  //   console.warn("Discrepancia en el total de capital pagado.");
-  // }
-  // if (Math.abs(finalTotalInterestAccrued - totalInterestFixed) > 0.01) {
-  //   console.warn("Discrepancia en el total de interés pagado.");
-  // }
-  // if (Math.abs(finalTotalPaymentsMade - totalAmountToPayByClient) > 0.01) {
-  //   console.warn("Discrepancia en el total de pagos realizados.");
-  // }
-
-
-  return schedule;
-}
 
   // Helper function to calculate percentage
   private calculatePercentage(value: number, percentage: number): number {
@@ -492,7 +389,10 @@ private generateAmortizationSchedule(
         associateAccounts,
         eq(associateAccounts.associateId, associateId),
       )
-      .leftJoin(associateHaberesBalance, eq(associateHaberesBalance.associateAccountId, associateAccounts.id));
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+      );
 
     // verifica si el asociado tiene un credinomina activo
     if (associate.isPayrollCredit) {
@@ -525,7 +425,6 @@ private generateAmortizationSchedule(
       getLoanTypes.administrativeExpensePercentage ?? '0',
     ); //  Tasa Porcentaje de gastos administrativos
     const percentageInterest = (requestedAmount * annualInterestRate) / 100; // Porcentaje de cuota
-    const percentageExpenses = (requestedAmount * expensePercentage) / 100; // Porcentaje de gastos
 
     let totalQuota = 0; //Cálculo del pago cuotas mesual
     let totalInterest = 0; //Cálculo del monto total de intereses
@@ -550,8 +449,7 @@ private generateAmortizationSchedule(
       totalDisbursed =
         (requestedAmount - installmentAmount) / Number(exchangeRateData.rate);
     } else {
-      totalQuota =
-        (requestedAmount + percentageInterest) / term;
+      totalQuota = (requestedAmount + percentageInterest) / term;
       totalInterest = (requestedAmount * annualInterestRate) / 100;
       installmentAmount = (requestedAmount * expensePercentage) / 100;
       totalPayable = requestedAmount + totalInterest;
@@ -562,13 +460,13 @@ private generateAmortizationSchedule(
     let approvalDate: Date | null = null;
     const currentDate = new Date(); // Fecha actual
     const finalDate = this.addMonthsToDate(startDate, getLoanTypes.termUnits); //fecha finalizacion del pago
+    customReference = generateUniqueReference();
 
     // 2 & 3. Handle APPROVED status
     if (
       status !== LoanStatusEnum.REQUESTED &&
       status !== LoanStatusEnum.REJECTED
     ) {
-      customReference = generateUniqueReference();
       approvalDate = currentDate;
     }
 
@@ -608,7 +506,6 @@ private generateAmortizationSchedule(
           currencyCode: setting?.value === '1' ? 'VES' : 'USD',
           currencyRate: setting?.value === '2' ? exchangeRateData?.id : null,
           createdById: userId,
-          updatedById: userId, // Set updatedById initially
         })
         .returning({
           id: loans.id,
@@ -633,45 +530,53 @@ private generateAmortizationSchedule(
         comment: 'Loan created',
       });
 
+      // 6. Generate audit
+      const paylodAuditData = {
+        associateId: Number(associateId),
+        companyId: Number(requestCompanyId.id),
+        loanTypeId: Number(loanTypeId),
+        loanModality: loanModality,
+        requestDate: requestDate.toISOString().split('T')[0],
+        approvalDate: approvalDate
+          ? approvalDate.toISOString().split('T')[0]
+          : null,
+        disbursementDate: null,
+        requestedAmount: requestedAmount,
+        approvedAmount: requestedAmount,
+        disbursedAmount: totalDisbursed,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: finalDate,
+        totalInterest: String(totalInterest.toFixed(6)),
+        totalPayable: String(totalPayable.toFixed(6)),
+        installmentAmount: String(totalQuota.toFixed(6)),
+        expensesAmount: installmentAmount.toString(),
+        overdraftAmount: overdraftAmount ?? null,
+        previousLoanId: previousLoanId ?? null,
+        paymentMethod: paymentMethod,
+        disbursementAccountId: disbursementAccountId,
+        status: status,
+        approvedByUserId: userId,
+        disbursedByUserId: null,
+        notes: notes ?? null,
+        customReference: customReference,
+        currencyCode: setting?.value === '1' ? 'VES' : 'USD',
+        currencyRate: setting?.value === '2' ? exchangeRateData?.id : null,
+        createdById: userId,
+      };
+
+      // generate audit table register
+      await this.auditLogsService.create({
+        action: 'INSERT' as ActionEnumAudit,
+        area: 'PRESTAMOS',
+        description: 'APROBACION DE PRESTAMO',
+        recordId: String(newLoan.id),
+        tableName: 'loans',
+        userId: Number(userId),
+        newData: [paylodAuditData],
+      });
+
       // 5. Generate and save amortization schedule if APPROVED
-      if (
-        status === LoanStatusEnum.APPROVED ||
-        status === LoanStatusEnum.DISBURSED
-      ) {
-        // 6. Generate audit
-        const paylodAuditData = {
-          associateId: Number(associateId),
-          companyId: Number(requestCompanyId.id),
-          loanTypeId: Number(loanTypeId),
-          loanModality: loanModality,
-          requestDate: requestDate.toISOString().split('T')[0],
-          approvalDate: approvalDate
-            ? approvalDate.toISOString().split('T')[0]
-            : null,
-          disbursementDate: status === 'DISBURSED' ? new Date() : null,
-          requestedAmount: requestedAmount,
-          approvedAmount: requestedAmount,
-          disbursedAmount: totalDisbursed,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: finalDate,
-          totalInterest: String(totalInterest.toFixed(6)),
-          totalPayable: String(totalPayable.toFixed(6)),
-          installmentAmount: String(totalQuota.toFixed(6)),
-          expensesAmount: installmentAmount.toString(),
-          overdraftAmount: overdraftAmount ?? null,
-          previousLoanId: previousLoanId ?? null,
-          paymentMethod: paymentMethod,
-          disbursementAccountId: disbursementAccountId,
-          status: status,
-          approvedByUserId: userId,
-          disbursedByUserId: status === 'DISBURSED' ? userId : null,
-          notes: notes ?? null,
-          customReference: customReference,
-          currencyCode: setting?.value === '1' ? 'VES' : 'USD',
-          currencyRate: setting?.value === '2' ? exchangeRateData?.id : null,
-          createdById: userId,
-          updatedById: userId, // Set updatedById initially
-        };
+      if (status === LoanStatusEnum.APPROVED) {
         const schedule = this.generateAmortizationSchedule(
           requestedAmount, // Monto del préstamo solicitado
           term, // Plazos en meses
@@ -693,59 +598,46 @@ private generateAmortizationSchedule(
             })),
           );
         }
-
-        await tx.insert(auditLogs).values({
-          tableName: 'loans',
-          recordId: String(newLoan.id),
-          action: 'INSERT',
-          userId: Number(userId),
-          area: 'PRESTAMOS',
-          description:
-            status === LoanStatusEnum.APPROVED
-              ? 'APROBACION DE PRESTAMO'
-              : 'DESEMBOLSO DE PRESTAMO',
-          newData: [paylodAuditData],
-        });
       }
       return newLoan;
     });
 
     //6. generate movemet associate account
-    if (newLoan.id && status === LoanStatusEnum.DISBURSED) {
-      const payloadMovementLoan = {
-        associateAccountId: Number(associate.associateAccountId),
-        movementType: 'LOAN_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
-        amount: requestedAmount,
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: approvalDate ? approvalDate : undefined,
-        description: 'DESEMBOLSO DE PRESTAMO',
-        referenceId: String(newLoan.id),
-        referenceType: 'loans',
-        referenceNumber: newLoan.customReference ?? undefined,
-      };
+    // if (newLoan.id && status === LoanStatusEnum.DISBURSED) {
+    //   const payloadMovementLoan = {
+    //     associateAccountId: Number(associate.associateAccountId),
+    //     movementType: 'LOAN_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
+    //     amount: requestedAmount,
+    //     currencyCode: 'VES' as CurrencyCodeEnum,
+    //     transactionDate: approvalDate ? approvalDate : undefined,
+    //     description: 'DESEMBOLSO DE PRESTAMO',
+    //     referenceId: String(newLoan.id),
+    //     referenceType: 'loans',
+    //     referenceNumber: newLoan.customReference ?? undefined,
+    //   };
 
-      const payloadMovementLoanDebit = {
-        associateAccountId: Number(associate.associateAccountId),
-        movementType: 'LOAN_ADMIN_FEE_DEBIT' as AssociateMovementTypeEnum,
-        amount: installmentAmount,
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: approvalDate ? approvalDate : undefined,
-        description: 'DEBITO GASTOS ADMINISTRATIVOS PRESTAMOS',
-        referenceId: String(newLoan.id),
-        referenceType: 'loans',
-        referenceNumber: newLoan.customReference ?? undefined,
-      };
+    //   const payloadMovementLoanDebit = {
+    //     associateAccountId: Number(associate.associateAccountId),
+    //     movementType: 'LOAN_ADMIN_FEE_DEBIT' as AssociateMovementTypeEnum,
+    //     amount: installmentAmount,
+    //     currencyCode: 'VES' as CurrencyCodeEnum,
+    //     transactionDate: approvalDate ? approvalDate : undefined,
+    //     description: 'DEBITO GASTOS ADMINISTRATIVOS PRESTAMOS',
+    //     referenceId: String(newLoan.id),
+    //     referenceType: 'loans',
+    //     referenceNumber: newLoan.customReference ?? undefined,
+    //   };
 
-      await this.associateAccountsMovementsService.create(
-        userId,
-        payloadMovementLoan,
-      );
+    //   await this.associateAccountsMovementsService.create(
+    //     userId,
+    //     payloadMovementLoan,
+    //   );
 
-      await this.associateAccountsMovementsService.create(
-        userId,
-        payloadMovementLoanDebit,
-      );
-    }
+    //   await this.associateAccountsMovementsService.create(
+    //     userId,
+    //     payloadMovementLoanDebit,
+    //   );
+    // }
 
     // Convert to unknown first to safely cast to Loan type
     return newLoan;
@@ -985,88 +877,84 @@ private generateAmortizationSchedule(
   }
 
   async findOneRequest(cedula: string) {
+    const associate = await this.db
+      .select({
+        id: associates.id,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        phone: associates.phone,
+        email: associates.email,
+        dateAdmission: associates.dateAdmission,
+        isPayrollCredit: associates.isPayrollCredit,
+        status: associates.status,
+      })
+      .from(associates)
+      .where(eq(associates.cedula, cedula));
 
-      const associate = await this.db
-        .select({
-          id: associates.id,
-          cedula: associates.cedula,
-          fullname: associates.fullname,
-          phone: associates.phone,
-          email: associates.email,
-          dateAdmission: associates.dateAdmission,
-          isPayrollCredit: associates.isPayrollCredit,
-          status: associates.status,
-        })
-        .from(associates)
-        .where(
-          eq(associates.cedula, cedula),
-        );
-         	
-      if (!associate.length) {
-        throw new NotFoundException(`Associate with cedula ${cedula} not found`);
-      }
-      if (associate[0].status === 'INACTIVE') {
-        throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
-      }
+    if (!associate.length) {
+      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+    }
+    if (associate[0].status === 'INACTIVE') {
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} is inactive`,
+      );
+    }
 
-      if (associate[0].status === 'RETIRED') {
-        throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
-      }
+    if (associate[0].status === 'RETIRED') {
+      throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
+    }
 
-      const associateAccount = await this.db
-        .select({
-          associateAccountId: associateAccounts.id,
-          accountNumber: associateAccounts.accountNumber,
-          balance: associateHaberesBalance.haberesBalance,
-        })
-        .from(associateAccounts)
-        .leftJoin(
-          associateHaberesBalance,
-          eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
-        )
-        .where(eq(associateAccounts.associateId, associate[0].id));
+    const associateAccount = await this.db
+      .select({
+        associateAccountId: associateAccounts.id,
+        accountNumber: associateAccounts.accountNumber,
+        balance: associateHaberesBalance.haberesBalance,
+      })
+      .from(associateAccounts)
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+      )
+      .where(eq(associateAccounts.associateId, associate[0].id));
 
-      const [{ count: total }] = await this.db
-        .select({
-          count: count(),
-        })
-        .from(loans)
-        .where(
-          and(
-            eq(loans.associateId, associate[0].id),
-            ne(loans.status, LoanStatusEnum.PAID),
-            ne(loans.status, LoanStatusEnum.REQUESTED),
-          ),
-        );
+    const [{ count: total }] = await this.db
+      .select({
+        count: count(),
+      })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.associateId, associate[0].id),
+          ne(loans.status, LoanStatusEnum.PAID),
+          ne(loans.status, LoanStatusEnum.REQUESTED),
+          ne(loans.status, LoanStatusEnum.CANCELLED),
+          ne(loans.status, LoanStatusEnum.REJECTED),
+        ),
+      );
 
-      const result = await this.db
-        .select({
-          requestedAprrobed: loans.approvedAmount,
-        })
-        .from(loans)
-        .where(
-          and(
-            eq(loans.associateId, associate[0].id),
-            ne(loans.status, LoanStatusEnum.PAID),
-          ),
-        );
+    const result = await this.db
+      .select({
+        requestedAprrobed: loans.approvedAmount,
+      })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.associateId, associate[0].id),
+          ne(loans.status, LoanStatusEnum.PAID),
+        ),
+      );
 
-      return {
-        associate: {
-          ...associate[0],
-          associateAccountId: associateAccount[0].associateAccountId,
-          accountNumber: associateAccount[0].accountNumber,
-          balance: Number(associateAccount[0].balance).toFixed(2),
-          requestedAprrobed:
-            result.length !== 0 ? result[0].requestedAprrobed : null,
-        },
-        totalLoans: total,
-      };
-
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} loan`;
+    return {
+      associate: {
+        ...associate[0],
+        associateAccountId: associateAccount[0].associateAccountId,
+        accountNumber: associateAccount[0].accountNumber,
+        balance: Number(associateAccount[0].balance).toFixed(2),
+        requestedAprrobed:
+          result.length !== 0 ? result[0].requestedAprrobed : null,
+      },
+      totalLoans: total,
+    };
   }
 
   async update(
@@ -1082,6 +970,12 @@ private generateAmortizationSchedule(
       .where(eq(loans.id, id));
     if (existingLoan.length === 0) {
       throw new InternalServerErrorException('Loan not found.');
+    }
+
+    if (existingLoan[0].status !== 'REQUESTED') {
+      throw new InternalServerErrorException(
+        'A loan with a status other than requested cannot be updated.',
+      );
     }
 
     const setting = await this.db.query.systemSettings.findFirst({
@@ -1113,8 +1007,6 @@ private generateAmortizationSchedule(
     ); //  Tasa Porcentaje de gastos administrativos
     const percentageInterest =
       ((updateLoanDto.requestedAmount ?? 0) * annualInterestRate) / 100; // Porcentaje de cuota
-    const percentageExpenses =
-      ((updateLoanDto.requestedAmount ?? 0) * expensePercentage) / 100; // Porcentaje de gastos
 
     let totalQuota = 0; //Cálculo del pago cuotas mesual
     let totalInterest = 0; //Cálculo del monto total de intereses
@@ -1123,8 +1015,7 @@ private generateAmortizationSchedule(
     let totalDisbursed = 0; //calculo desembolso
     if (setting && setting.value === 'USD' && exchangeRateData) {
       totalQuota =
-        ((updateLoanDto?.requestedAmount ?? 0) +
-          percentageInterest) /
+        ((updateLoanDto?.requestedAmount ?? 0) + percentageInterest) /
         term /
         Number(exchangeRateData.rate);
       totalInterest =
@@ -1143,9 +1034,7 @@ private generateAmortizationSchedule(
         Number(exchangeRateData.rate);
     } else {
       totalQuota =
-        ((updateLoanDto?.requestedAmount ?? 0) +
-          percentageInterest) /
-        term;
+        ((updateLoanDto?.requestedAmount ?? 0) + percentageInterest) / term;
       totalInterest =
         ((updateLoanDto?.requestedAmount ?? 0) * annualInterestRate) / 100;
       installmentAmount =
@@ -1164,11 +1053,7 @@ private generateAmortizationSchedule(
     ); //fecha finalizacion del pago
 
     // 2 & 3. Handle APPROVED status
-    if (
-      updateLoanDto?.status !== LoanStatusEnum.REQUESTED &&
-      updateLoanDto?.status !== LoanStatusEnum.REJECTED
-    ) {
-      customReference = generateUniqueReference();
+    if (updateLoanDto?.status === LoanStatusEnum.APPROVED) {
       approvalDate = currentDate;
     }
 
@@ -1185,10 +1070,7 @@ private generateAmortizationSchedule(
           loanModality: updateLoanDto?.loanModality,
           requestDate: updateLoanDto?.requestDate?.toISOString().split('T')[0],
           approvalDate: approvalDate?.toISOString().split('T')[0],
-          disbursementDate:
-            updateLoanDto?.status === 'DISBURSED'
-              ? currentDate.toISOString().split('T')[0]
-              : null,
+          disbursementDate: null,
           requestedAmount:
             updateLoanDto.requestedAmount !== null &&
             updateLoanDto.requestedAmount !== undefined
@@ -1233,12 +1115,10 @@ private generateAmortizationSchedule(
           disbursementAccountId: updateLoanDto.disbursementAccountId,
           status: updateLoanDto?.status,
           approvedByUserId: userId,
-          disbursedByUserId:
-            updateLoanDto?.status === 'DISBURSED' ? userId : null,
+          disbursedByUserId: null,
           notes: updateLoanDto.notes ?? null,
           currencyCode: setting?.value === '1' ? 'VES' : 'USD',
           exchangeRateId: setting?.value === '2' ? exchangeRateData?.id : null,
-          customReference: customReference,
           updatedById: userId,
           updatedAt: new Date(),
         })
@@ -1252,41 +1132,80 @@ private generateAmortizationSchedule(
         throw new InternalServerErrorException('Failed to update loan.');
       }
 
-      // Eliminar tabla de amortización anterior
-      await tx
-        .delete(loanAmortizationSchedule)
-        .where(eq(loanAmortizationSchedule.loanId, id));
+      //  // 6. Generate audit
+      const paylodAuditData = {
+        associateId: Number(updateLoanDto?.associateId),
+        loanTypeId: Number(updateLoanDto?.loanTypeId),
+        loanModality: updateLoanDto?.loanModality,
+        requestDate: updateLoanDto?.requestDate?.toISOString().split('T')[0],
+        approvalDate: approvalDate
+          ? approvalDate.toISOString().split('T')[0]
+          : null,
+        disbursementDate: null,
+        requestedAmount: updateLoanDto?.requestedAmount,
+        approvedAmount: updateLoanDto?.requestedAmount,
+        disbursedAmount: totalDisbursed,
+        startDate: updateLoanDto?.startDate?.toISOString().split('T')[0],
+        endDate: finalDate,
+        totalInterest: String(totalInterest.toFixed(6)),
+        totalPayable: String(totalPayable.toFixed(6)),
+        installmentAmount: String(totalQuota.toFixed(6)),
+        expensesAmount: installmentAmount.toString(),
+        overdraftAmount: updateLoanDto?.overdraftAmount ?? null,
+        previousLoanId: updateLoanDto?.previousLoanId ?? null,
+        paymentMethod: updateLoanDto?.paymentMethod,
+        disbursementAccountId: updateLoanDto?.disbursementAccountId,
+        status: updateLoanDto?.status,
+        approvedByUserId: userId,
+        disbursedByUserId: null,
+        notes: updateLoanDto?.notes ?? null,
+        customReference: loanUpdated.customReference,
+        updatedById: userId, // Set updatedById initially
+      };
 
-      // Generar y guardar nueva tabla de amortización
-      const schedule = this.generateAmortizationSchedule(
-        updateLoanDto.requestedAmount!,
-        term,
-        annualInterestRate,
-        updateLoanDto.startDate!,
-        id,
-        userId,
-      );
-      if (schedule.length > 0) {
-        await tx.insert(loanAmortizationSchedule).values(
-          schedule.map((item) => ({
-            ...item,
-            dueDate: item.dueDate.toISOString(),
-            principalAmount: item.principalAmount.toString(),
-            interestAmount: item.interestAmount.toString(),
-            totalInstallmentAmount: item.totalInstallmentAmount.toString(),
-            principalBalancePending: item.principalBalancePending.toString(),
-          })),
-        );
-      }
-
-      // Registrar historial de estatus
-      await tx.insert(loanStatusHistory).values({
-        loanId: id,
-        status: updateLoanDto.status!,
-        changedAt: new Date(),
-        changedByUserId: userId,
-        comment: 'Loan updated',
+      //generate audit table register
+      await this.auditLogsService.create({
+        action: 'UPDATE' as ActionEnumAudit,
+        area: 'PRESTAMOS',
+        description: 'ACTUALIZACION DE PRESTAMO',
+        recordId: String(loanUpdated.id),
+        tableName: 'loans',
+        userId: Number(userId),
+        newData: [paylodAuditData],
       });
+
+      if (updateLoanDto?.status === LoanStatusEnum.APPROVED) {
+        // Generar y guardar nueva tabla de amortización
+        const schedule = this.generateAmortizationSchedule(
+          updateLoanDto.requestedAmount!,
+          term,
+          annualInterestRate,
+          updateLoanDto.startDate!,
+          id,
+          userId,
+        );
+        if (schedule.length > 0) {
+          await tx.insert(loanAmortizationSchedule).values(
+            schedule.map((item) => ({
+              ...item,
+              dueDate: item.dueDate.toISOString(),
+              principalAmount: item.principalAmount.toString(),
+              interestAmount: item.interestAmount.toString(),
+              totalInstallmentAmount: item.totalInstallmentAmount.toString(),
+              principalBalancePending: item.principalBalancePending.toString(),
+            })),
+          );
+        }
+
+        // Registrar historial de estatus
+        await tx.insert(loanStatusHistory).values({
+          loanId: id,
+          status: updateLoanDto.status!,
+          changedAt: new Date(),
+          changedByUserId: userId,
+          comment: 'Loan updated',
+        });
+      }
 
       return loanUpdated;
     });
@@ -1294,7 +1213,7 @@ private generateAmortizationSchedule(
     return updatedLoan;
   }
 
-  async remove(id: number): Promise<{ message: string }> {
+  async remove(id: number, userId: number): Promise<{ message: string }> {
     const [existingLoan] = await this.db
       .select()
       .from(loans)
@@ -1304,8 +1223,54 @@ private generateAmortizationSchedule(
       throw new HttpException('Loan not found', HttpStatus.NOT_FOUND);
     }
 
-    await this.db.delete(loans).where(eq(loans.id, id));
-    return { message: 'Loan deleted successfully' };
+    if (
+      existingLoan.status !== 'APPROVED' &&
+      existingLoan.status !== 'REQUESTED'
+    ) {
+      throw new HttpException(
+        'The loan can only be cancelled if the status is requested or approved.',
+        HttpStatus.EXPECTATION_FAILED,
+      );
+    }
+    const updatedLoan = await this.db.transaction(async (tx) => {
+      const loansRecord = await tx
+        .update(loans)
+        .set({ status: 'CANCELLED' })
+        .where(eq(loans.id, id));
+      // Registrar historial de estatus
+      await tx.insert(loanStatusHistory).values({
+        loanId: id,
+        status: 'CANCELLED',
+        changedAt: new Date(),
+        changedByUserId: userId,
+        comment: 'Loan canceled',
+      });
+
+      await tx
+        .update(loanAmortizationSchedule)
+        .set({ paymentStatus: 'CANCELED' })
+        .where(eq(loanAmortizationSchedule.loanId, id));
+
+      //generate audit table register
+      await this.auditLogsService.create({
+        action: 'CANCELED' as ActionEnumAudit,
+        area: 'PRESTAMOS',
+        description: 'CANCELACION DE PRESTAMO',
+        recordId: String(id),
+        tableName: 'loans',
+        userId: Number(userId),
+        previousData: loansRecord,
+      });
+
+      return true;
+    });
+    if (!updatedLoan) {
+      throw new HttpException(
+        'error canceling the loan.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    return { message: 'Loan canceled successfully' };
   }
 
   async findCountAllLoans() {

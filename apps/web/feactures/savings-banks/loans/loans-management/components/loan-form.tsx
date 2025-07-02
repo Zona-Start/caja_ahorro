@@ -485,13 +485,16 @@ export function LoanForm({
 
                           <SelectContent>
                             {Object.entries(ESTATUS_TYPES)
-                                .filter(([value]) => ['REQUESTED', 'APPROVED'].includes(value)) // <-- FILTRO APLICADO AQUÍ
-                                .map(([value, label]) => (
-                                  <SelectItem key={value} value={value}>
-                                    {label}
-                                  </SelectItem>
+                              .filter(([value]) =>
+                                ['REQUESTED', 'APPROVED', 'REJECTED'].includes(
+                                  value,
                                 ),
-                            )}
+                              ) // <-- FILTRO APLICADO AQUÍ
+                              .map(([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />

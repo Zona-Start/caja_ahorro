@@ -125,6 +125,11 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/categorias/tipo-nomina',
       },
+      {
+        title: 'Tipos de Rétiros',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/haberes/retiros/tipo-retiros',
+      },
     ], // No child items
   },
 ];

@@ -44,6 +44,7 @@ export class AssociateAccountsMovementsService {
 
     return result[0]; // Devuelve el primer resultado encontrado
   }
+
   async create(
     userId: number,
     createAssociateAccountsMovementDto: CreateAssociateAccountsMovementDto,
@@ -217,6 +218,7 @@ export class AssociateAccountsMovementsService {
 
         return {
           message: 'successful loaded movement',
+          data: newMovement
         };
       });
     } catch (error) {
@@ -248,7 +250,4 @@ export class AssociateAccountsMovementsService {
     return `This action updates a #${id} associateAccountsMovement`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} associateAccountsMovement`;
-  }
 }

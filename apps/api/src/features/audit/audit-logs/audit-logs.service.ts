@@ -8,6 +8,7 @@ import { CreateAuditLogsDto } from './dto/create-audit.dto';
 import { UpdateAuditLogsDto } from './dto/update-audit.dto';
 import { Audit } from './entities/audit.entity';
 import { Action } from './dto/audit-logs-enum';
+import { ActionEnumAudit } from '@/types/enum';
 
 @Injectable()
 export class AuditLogsService {
@@ -19,7 +20,7 @@ export class AuditLogsService {
     const results = await this.drizzle.select().from(auditLogs);
     return results.map((record) => ({
       ...record,
-      action: record.action as Action,
+      action: record.action as ActionEnumAudit,
       previousData: record.previousData as JSON,
       newData: record.newData  as JSON,
     }));
@@ -37,7 +38,7 @@ export class AuditLogsService {
 
     return {
       ...auditRecord[0],
-      action: auditRecord[0].action as Action,
+      action: auditRecord[0].action as ActionEnumAudit,
       previousData: auditRecord[0].previousData as JSON,
       newData: auditRecord[0].newData  as JSON,
     };
@@ -49,11 +50,10 @@ export class AuditLogsService {
       .values({
         tableName: createAuditLogsDto.tableName,
         recordId: createAuditLogsDto.recordId,
-        action: createAuditLogsDto.action,
+        action: createAuditLogsDto.action as ActionEnumAudit,
         userId: createAuditLogsDto.userId,
         area: createAuditLogsDto.area,
         description: createAuditLogsDto.description,
-        timestamp: createAuditLogsDto.timestamp,
         previousData: createAuditLogsDto.previousData,
         newData: createAuditLogsDto.newData,
       })
@@ -61,7 +61,7 @@ export class AuditLogsService {
 
     return {
       ...auditRecord,
-      action: auditRecord.action as Action,
+      action: auditRecord.action as ActionEnumAudit,
       previousData: auditRecord.previousData as JSON,
       newData: auditRecord.newData  as JSON,
     };
@@ -76,7 +76,7 @@ export class AuditLogsService {
       .set({
         tableName: updateAuditLogsDto.tableName,
         recordId: updateAuditLogsDto.recordId,
-        action: updateAuditLogsDto.action,
+        action: updateAuditLogsDto.action as ActionEnumAudit,
         userId: updateAuditLogsDto.userId,
         area: updateAuditLogsDto.area,
         description: updateAuditLogsDto.description,

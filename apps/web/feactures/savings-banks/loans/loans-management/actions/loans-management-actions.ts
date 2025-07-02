@@ -43,7 +43,7 @@ export const getLoanManagementByIdAction = async (id: number) => {
     loanTypeId: String(data?.loanTypeId),
     loanModality: data?.loanModality,
     requestDate: data?.requestDate ? new Date(data.requestDate) : new Date(),
-    requestedAmount: data?.requestedAmount ?? '',
+    requestedAmount: Number(data?.requestedAmount).toFixed(2) ?? '',
     startDate: data?.startDate,
     endDate: data?.endDate,
     expensesAmount: data?.expensesAmount,
@@ -65,7 +65,7 @@ export const getLoanManagementByIdAction = async (id: number) => {
     associateIsPayrollCredit: data?.associateIsPayrollCredit,
     associateAccountId: data?.associateAccountId,
     associateAccountNumber: data?.associateAccountNumber,
-    associateBalance: data?.associateBalance,
+    associateBalance: Number(data?.associateBalance).toFixed(2),
   };
 
   return transformedData;
@@ -186,7 +186,7 @@ export const createLoanManagementAction = async (
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || 'Error create loan Management');
   }
 
@@ -235,7 +235,7 @@ export const deleteLoanManagementAction = async (id: number) => {
     'DELETE',
   );
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error delete loan with ID ${id}`);
   }
   return data;
@@ -249,7 +249,7 @@ export const getLoanManagementAllCountAction = async () => {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error fetching loan count}`);
   }
 

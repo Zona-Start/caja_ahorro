@@ -2,8 +2,6 @@
 
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/button';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
-import { Toaster } from '@repo/shadcn/toaster';
 import {
   Tooltip,
   TooltipContent,
@@ -11,48 +9,33 @@ import {
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
 import { Edit, Trash } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useDeleteLoan } from '../../hooks/use-loans-management-mutation';
-import { LoanManagement } from '../../schemas/loans-management.schema';
+import { useDeleteWithdrawalTypes } from '../../hooks/use-mutation-withdrawal-types';
+import { WithdrawalTypes } from '../../schemas/withdrawal-types.schema';
+import { WithdrawalTypesModal } from '../withdrawal-types-modal';
 
 interface CellActionProps {
-  data: LoanManagement;
+  data: WithdrawalTypes;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const { mutate: deleteLoan } = useDeleteLoan();
-  const router = useRouter();
-  const { toast } = useToast();
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [mode, setMode] = useState(false);
+
+  const { mutate: deleteTypeLoans } = useDeleteWithdrawalTypes();
 
   const onConfirm = async () => {
     try {
       setLoading(true);
-      deleteLoan(Number(data.id!));
+      deleteTypeLoans(data.id!);
       setOpen(false);
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const onUpdate = async () => {
-    toast({
-      variant: 'destructive',
-      title: 'No se puede editar el prestamo',
-      description: `Solo se puede editar el prestamo si el estatus es solicitado`,
-    });
-  };
-
-  const onDeleteMessage = async () => {
-    toast({
-      variant: 'destructive',
-      title: 'No se puede anular el prestamo',
-      description: `Solo se puede anular si su estado es solicitado o aprobado`,
-    });
   };
 
   return (
@@ -62,10 +45,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
         loading={loading}
-        title="¿Estás seguro que desea anular el Prestamo? "
+        title="¿Estás seguro que desea eliminar este tipo de rétiro?"
         description="Esta acción no se puede deshacer."
       />
-      <Toaster />
+
+      <WithdrawalTypesModal
+        open={showEditModal}
+        onOpenChange={setShowEditModal}
+        defaultValues={data}
+        readOnly={mode}
+      />
+
       <div className="flex gap-1">
         <TooltipProvider>
           <Tooltip>
@@ -74,13 +64,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  if (data.status !== 'REQUESTED') {
-                    onUpdate();
-                  } else {
-                    router.push(
-                      `/dashboard/prestamos/gestion/editar/${data.id}`,
-                    );
-                  }
+                  setMode(false);
+                  setShowEditModal(true);
                 }}
               >
                 <Edit className="h-4 w-4" />
@@ -98,22 +83,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  if (
-                    data.status === 'REQUESTED' ||
-                    data.status === 'APPROVED'
-                  ) {
-                    setOpen(true);
-                  } else {
-                    onDeleteMessage();
-                  }
-                }}
+                onClick={() => setOpen(true)}
               >
                 <Trash className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Anular</p>
+              <p>Eliminar</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

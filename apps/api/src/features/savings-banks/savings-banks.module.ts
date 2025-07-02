@@ -7,6 +7,7 @@ import { AssociateWithdrawalTypesModule } from './associate-withdrawal-types/ass
 import { AssociatesModule } from './associates/associates.module';
 import { CreditsFeaturesModule } from './credits/credits.module';
 import { LoansFeaturesModule } from './loans/loans.module';
+import { WithdrawalTypesModule } from './assets/withdrawal-types/withdrawal-types.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { LoansFeaturesModule } from './loans/loans.module';
     AssociateWithdrawalTypesModule,
     WithdrawalAssociateModule,
     SettlementAssociateModule,
+    WithdrawalTypesModule,
   ],
 })
 export class SavingsBanksFeatureModule {}

@@ -36,10 +36,10 @@ export function useDeleteLoan() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan-management'] });
       queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
-      toast.success('Prestamo eliminado exitosamente');
+      toast.success('Prestamo cancelado exitosamente');
     },
     onError: (error) => {
-      toast.error('Error al eliminar el prestamo');
+      toast.error('Error al cancelar el prestamo');
       console.error('Error:', error);
     },
   });

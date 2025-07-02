@@ -61,11 +61,6 @@ export class LoanManagementController {
     return this.loanManagementService.findRequestByEdit(+id);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.loanManagementService.findOne(+id);
-  }
-
   @Patch(':id')
   @RequirePermissions('update:loan-management')
   @ApiOperation({ summary: 'Update an Loan ' })
@@ -92,7 +87,8 @@ export class LoanManagementController {
     description: 'Loan  deleted successfully.',
   })
   @ApiResponse({ status: 404, description: 'Loan  not found.' })
-  remove(@Param('id') id: string) {
-    return this.loanManagementService.remove(+id);
+  remove(@Param('id') id: string, @Req() req: Request) {
+    const userId = req['user'].id;
+    return this.loanManagementService.remove(+id, userId);
   }
 }

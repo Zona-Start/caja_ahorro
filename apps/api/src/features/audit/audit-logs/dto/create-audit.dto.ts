@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
-import { Action } from './audit-logs-enum';
+import {  IsEnum, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { ActionEnumAudit } from '@/types/enum';
 
 export class CreateAuditLogsDto {
   @ApiProperty({ description: 'Name of the affected table' })
@@ -14,13 +14,13 @@ export class CreateAuditLogsDto {
 
 
   @ApiProperty({ description: 'Action performed (insert, update, delete)' })
-  @IsNotEmpty()
-  action: Action;
+  @IsEnum(ActionEnumAudit)
+  action: ActionEnumAudit;
 
   @ApiProperty({ description: 'User who performed the action', required: false })
   @IsNumber()
-  @IsOptional()
-  userId?: number;
+  @IsNotEmpty()
+  userId: number;
 
   @ApiProperty({ description: 'specify the responsible unit' })
   @IsString()
@@ -31,11 +31,6 @@ export class CreateAuditLogsDto {
   @IsString()
   @IsNotEmpty()
   description: string;
-
-  @ApiProperty({ description: 'description log' })
-  @IsDateString()
-  @IsNotEmpty()
-  timestamp: Date
 
   @ApiProperty({ description: 'Additional details previos in JSON format', required: false })
   @IsObject()

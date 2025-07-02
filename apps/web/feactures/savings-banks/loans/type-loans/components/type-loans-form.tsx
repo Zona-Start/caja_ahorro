@@ -535,7 +535,7 @@ export function TypeLoansForm({
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                   <div className="space-y-0.5">
-                    <FormLabel>Acepta Disponibilidad</FormLabel>
+                    <FormLabel>Afecta Disponibilidad</FormLabel>
                   </div>
                   <FormControl>
                     <Switch

@@ -3,13 +3,13 @@ import { authSchema } from './schemas';
 
 // Enums Generales
 export const statusEnum = pgEnum('status_enum', [
-  'ACTIVE',
-  'INACTIVE',
-  'PENDING',
-  'SUSPENDED',
-  'CLOSED',
-  'LOCKED',
-  'RETIRED',
+  'ACTIVE', // Asociado activo, puede realizar operaciones
+  'INACTIVE', // Asociado inactivo temporalmente
+  'PENDING', // Asociado en proceso de registro/aprobación
+  'SUSPENDED', // Asociado suspendido (ej. por mora grave)
+  'LOCKED', // Cuenta bloqueada
+  'RETIRED', // Asociado retirado y liqudiado (ya no es miembro, pero su historial se mantiene)
+  'ARCHIVED', // Nuevo: Para asociados o registros antiguos que se mantienen por historia pero no son activos ni liquidados
 ]);
 export const genderEnum = authSchema.enum('gender', [
   'FEMENINO',
@@ -49,14 +49,18 @@ export const cycleStatusEnum = pgEnum('cycle_status_enum', [
 
 // Enum Estado Préstamo
 export const loanStatusEnum = pgEnum('loan_status_enum', [
-  'REQUESTED',
-  'APPROVED',
-  'REJECTED',
-  'DISBURSED',
-  'IN_PAYMENT',
-  'PAID',
-  'CANCELLED',
-  'OVERDUE',
+  'REQUESTED', // Solicitado por el asociado
+  'APPROVED', // Aprobado, listo para desembolsar (o incluido en TXT)
+  'REJECTED', // Rechazado (nunca se desembolsa)
+  'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
+  'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
+  'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)
+  'DISBURSEMENT_FAILED', // Nuevo: Desembolso falló en el banco (revisar y reintentar o anular)
+  'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
+  'IN_PAYMENT', // En proceso de pago (al menos una cuota pagada)
+  'PAID', // Completamente pagado
+  'OVERDUE', // Con cuotas vencidas
+  'ADJUSTED', // Nuevo: Indica que el préstamo ha sido afectado por un ajuste contable
 ]);
 
 // Enum Estado Créditos
@@ -73,6 +77,7 @@ export const paymentStatusEnum = pgEnum('payment_status_enum', [
   'PAID',
   'OVERDUE',
   'PARTIAL',
+  'CANCELED',
 ]);
 
 // Enum Tipo Movimiento Cuenta Asociado
@@ -136,6 +141,27 @@ export const associateMovementTypeEnum = pgEnum(
 
     //12. liqudiacion
     'LIQUIDATION_BALANCE',
+
+    // --- NUEVOS TIPOS PARA REVERSIONES Y AJUSTES ---
+    // Reversiones de Desembolsos
+    'LOAN_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de préstamo (Débito a la cuenta del asociado)
+    'SPECIAL_LOAN_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de préstamo especial
+    'COMMERCIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de crédito comercial
+    'SPECIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de crédito especial
+
+    // Reversiones de Pagos (lo que antes era 'PAYMENT_REVERSAL_DEBIT')
+    'LOAN_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de préstamo (Crédito a la cuenta del asociado)
+    'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de crédito comercial
+
+    // Reversiones de Retiros
+    'SAVING_WITHDRAWAL_REVERSAL_CREDIT', // Nuevo: Reversión de un retiro de ahorros
+
+    // Reversiones de Liquidación
+    'LIQUIDATION_BALANCE_REVERSAL_CREDIT', // Nuevo: Reversión de una liquidación de balance
+
+    // Ajustes Contables Específicos (para ajustes que no son reversiones directas de un tipo específico)
+    'ACCOUNTING_ADJUSTMENT_DEBIT', // Nuevo: Ajuste contable general (Débito)
+    'ACCOUNTING_ADJUSTMENT_CREDIT', // Nuevo: Ajuste contable general (Crédito)
   ],
 );
 
@@ -156,9 +182,12 @@ export const actionEnumAudit = pgEnum('audit_action_enum', [
   'INSERT',
   'UPDATE',
   'DELETE',
-  'LOGIN',
-  'LOGOUT',
-  'PROCESS',
+  'CANCELED',
+  'PROCESS_EXECUTION', // Más descriptivo: ejecución de un proceso (TXT, importación, etc.)
+  'DATA_IMPORT', // Nuevo: Para la carga masiva de datos
+  'CONFIGURATION_CHANGE', // Nuevo: Cambios en configuraciones críticas
+  'ADJUSTMENT', // Nuevo: Para registrar la ejecución de un asiento de ajuste/reversión manual
+  'VIEW_REPORT', // Opcional: Si quieres auditar el acceso a reportes críticos
 ]);
 export const actionEnumAuditAuth = pgEnum('audit_auth_action_enum', [
   'LOGIN',

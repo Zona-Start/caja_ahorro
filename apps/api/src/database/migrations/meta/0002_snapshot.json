@@ -1,6 +1,6 @@
 {
-  "id": "db21c3a6-275f-4e63-ad1c-67d296fd9b1a",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "c09fc0a6-8a11-4bac-950f-cb70361024e4",
+  "prevId": "65c753d0-a751-43e8-ad6a-cba1c05d085c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -8914,6 +8914,7 @@
         "INSERT",
         "UPDATE",
         "DELETE",
+        "CANCELED",
         "PROCESS_EXECUTION",
         "DATA_IMPORT",
         "CONFIGURATION_CHANGE",
@@ -9102,7 +9103,8 @@
         "PENDING",
         "PAID",
         "OVERDUE",
-        "PARTIAL"
+        "PARTIAL",
+        "CANCELED"
       ]
     },
     "public.reconciliation_item_status_enum": {

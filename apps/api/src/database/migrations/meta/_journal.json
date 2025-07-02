@@ -5,15 +5,22 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1750613969586,
-      "tag": "0000_black_unicorn",
+      "when": 1751389171426,
+      "tag": "0000_illegal_nehzno",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1750614021755,
+      "when": 1751389178293,
       "tag": "0001_function-calculate-associate-liquidation",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1751423989779,
+      "tag": "0002_odd_shadowcat",
       "breakpoints": true
     }
   ]

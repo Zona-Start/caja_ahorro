@@ -1,12 +1,12 @@
 // Enums Generales
 export enum StatusEnum {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-  PENDING = 'PENDING',
-  SUSPENDED = 'SUSPENDED',
-  CLOSED = 'CLOSED',
-  LOCKED = 'LOCKED',
-  RETIRED = 'RETIRED',
+  ACTIVE = 'ACTIVE', // Asociado activo, puede realizar operaciones
+  INACTIVE = 'INACTIVE', // Asociado inactivo temporalmente
+  PENDING = 'PENDING', // Asociado en proceso de registro/aprobación
+  SUSPENDED = 'SUSPENDED', // Asociado suspendido (ej. por mora grave)
+  LOCKED = 'LOCKED', // Cuenta bloqueada
+  RETIRED = 'RETIRED', // Asociado retirado y liqudiado (ya no es miembro, pero su historial se mantiene)
+  ARCHIVED = 'ARCHIVED', // Nuevo: Para asociados o registros antiguos que se mantienen por historia pero no son activos ni liquidados
 }
 
 export enum GenderEnum {
@@ -50,14 +50,18 @@ export enum CycleStatusEnum {
 
 // Enum Estado Préstamo
 export enum LoanStatusEnum {
-  REQUESTED = 'REQUESTED',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  DISBURSED = 'DISBURSED',
-  IN_PAYMENT = 'IN_PAYMENT',
-  PAID = 'PAID',
-  CANCELLED = 'CANCELLED',
-  OVERDUE = 'OVERDUE',
+  REQUESTED = 'REQUESTED', // Solicitado por el asociado
+  APPROVED = 'APPROVED', // Aprobado, listo para desembolsar (o incluido en TXT)
+  REJECTED = 'REJECTED', // Rechazado (nunca se desembolsa)
+  CANCELLED = 'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
+  PENDING_DISBURSEMENT_BANK_BATCH = 'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
+  DISBURSED = 'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)
+  DISBURSEMENT_FAILED = 'DISBURSEMENT_FAILED', // Nuevo: Desembolso falló en el banco (revisar y reintentar o anular)
+  DISBURSED_REVERSED = 'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
+  IN_PAYMENT = 'IN_PAYMENT', // En proceso de pago (al menos una cuota pagada)
+  PAID = 'PAID', // Completamente pagado
+  OVERDUE = 'OVERDUE', // Con cuotas vencidas
+  ADJUSTED = 'ADJUSTED', // Nuevo: Indica que el préstamo ha sido afectado por un ajuste contable
 }
 
 // Enum Estado Credito
@@ -74,6 +78,7 @@ export enum PaymentStatusEnum {
   PAID = 'PAID',
   OVERDUE = 'OVERDUE',
   PARTIAL = 'PARTIAL',
+  CANCELED = 'CANCELED',
 }
 
 // Enum Tipo Movimiento Cuenta Asociado
@@ -143,6 +148,27 @@ export enum AssociateMovementTypeEnum {
   //12. liqudiacion
 
   LIQUIDATION_BALANCE = 'LIQUIDATION_BALANCE',
+
+  // --- NUEVOS TIPOS PARA REVERSIONES Y AJUSTES ---
+  // Reversiones de Desembolsos
+  LOAN_DISBURSEMENT_REVERSAL_DEBIT = 'LOAN_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de préstamo (Débito a la cuenta del asociado)
+  SPECIAL_LOAN_DISBURSEMENT_REVERSAL_DEBIT = 'SPECIAL_LOAN_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de préstamo especial
+  COMMERCIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT = 'COMMERCIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de crédito comercial
+  SPECIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT = 'SPECIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', // Nuevo: Reversión de desembolso de crédito especial
+
+  // Reversiones de Pagos (lo que antes era 'PAYMENT_REVERSAL_DEBIT')
+  LOAN_PAYMENT_REVERSAL_CREDIT = 'LOAN_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de préstamo (Crédito a la cuenta del asociado)
+  COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT = 'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de crédito comercial
+
+  // Reversiones de Retiros
+  SAVING_WITHDRAWAL_REVERSAL_CREDIT = 'SAVING_WITHDRAWAL_REVERSAL_CREDIT', // Nuevo: Reversión de un retiro de ahorros
+
+  // Reversiones de Liquidación
+  LIQUIDATION_BALANCE_REVERSAL_CREDIT = 'LIQUIDATION_BALANCE_REVERSAL_CREDIT', // Nuevo: Reversión de una liquidación de balance
+
+  // Ajustes Contables Específicos (para ajustes que no son reversiones directas de un tipo específico)
+  ACCOUNTING_ADJUSTMENT_DEBIT = 'ACCOUNTING_ADJUSTMENT_DEBIT', // Nuevo: Ajuste contable general (Débito)
+  ACCOUNTING_ADJUSTMENT_CREDIT = 'ACCOUNTING_ADJUSTMENT_CREDIT', // Nuevo: Ajuste contable general (Crédito)
 }
 
 // Enum Estado Conciliación
@@ -166,9 +192,13 @@ export enum ActionEnumAudit {
   INSERT = 'INSERT',
   UPDATE = 'UPDATE',
   DELETE = 'DELETE',
-  LOGIN = 'LOGIN',
-  LOGOUT = 'LOGOUT',
+  CANCELED = 'CANCELED',
   PROCESS = 'PROCESS',
+  PROCESS_EXECUTION = 'PROCESS_EXECUTION', // Más descriptivo: ejecución de un proceso (TXT, importación, etc.)
+  DATA_IMPORT = 'DATA_IMPORT',
+  CONFIGURATION_CHANGE = 'CONFIGURATION_CHANGE', // Nuevo: Cambios en configuraciones críticas
+  ADJUSTMENT = 'ADJUSTMENT', // Nuevo: Para registrar la ejecución de un asiento de ajuste/reversión manual
+  VIEW_REPORT = 'VIEW_REPORT', // Opcional: Si quieres auditar el acceso a reportes críticos
 }
 
 export enum ActionEnumAuditAuth {

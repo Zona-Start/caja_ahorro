@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Action } from '../dto/audit-logs-enum';
+import { ActionEnumAudit } from '@/types/enum';
 
 export class Audit {
   @ApiProperty()
@@ -12,7 +13,7 @@ export class Audit {
   recordId: string;
 
   @ApiProperty()
-  action: Action;
+  action: ActionEnumAudit;
 
   @ApiProperty({ required: false })
   userId?: number | null;
