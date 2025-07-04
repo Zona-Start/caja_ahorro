@@ -13,7 +13,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, sql, SQL } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { CreateAssociateAccountsMovementDto } from './dto/create-associate-accounts-movement.dto';
@@ -151,47 +151,6 @@ export class AssociateAccountsMovementsService {
           createdById: userId,
         });
 
-        // 6. Actualiza el balance de associateAccounts con el valor de amount según el tipo de movimiento
-        let newBalanceSql: SQL<unknown>;
-        const creditMovements: AssociateMovementTypeEnum[] = [
-          // 1. Contribuciones y Aportes a Cuentas de Ahorro
-          AssociateMovementTypeEnum.SAVING_CONTRIBUTION,
-          AssociateMovementTypeEnum.EMPLOYER_CONTRIBUTION,
-
-          // 2. Desembolsos de Préstamos y Créditos (Aumentan el balance del asociado)
-          AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT,
-          AssociateMovementTypeEnum.SPECIAL_LOAN_DISBURSEMENT_CREDIT,
-          AssociateMovementTypeEnum.LOAN_PARTIAL_DISBURSEMENT_CREDIT, // If disbursed to associate's account
-          AssociateMovementTypeEnum.COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT,
-          AssociateMovementTypeEnum.SPECIAL_CREDIT_DISBURSEMENT_CREDIT,
-
-          // 3. Refinanciamiento de Préstamos (La parte que acredita el nuevo préstamo)
-          AssociateMovementTypeEnum.LOAN_REFINANCING_CREDIT,
-
-          // 4. Sobregiros y Reintegros (Aumentan el balance del asociado)
-          AssociateMovementTypeEnum.LOAN_OVERPAYMENT_CREDIT,
-          AssociateMovementTypeEnum.COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT,
-          AssociateMovementTypeEnum.LOAN_REIMBURSEMENT_CREDIT,
-          AssociateMovementTypeEnum.COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT,
-
-          // 5. Otros Créditos (Aumentan el balance del asociado)
-          AssociateMovementTypeEnum.DIVIDEND_CREDIT,
-          AssociateMovementTypeEnum.FEE_REIMBURSEMENT_CREDIT,
-          AssociateMovementTypeEnum.ADJUSTMENT_CREDIT, // Positive adjustments
-          AssociateMovementTypeEnum.OTHER_CREDIT, // General credits
-        ];
-
-        if (creditMovements.includes(movementType)) {
-          newBalanceSql = sql`${associateAccounts.balance} + ${amount}`;
-        } else {
-          newBalanceSql = sql`${associateAccounts.balance} - ${amount}`;
-        }
-
-        await tx
-          .update(associateAccounts)
-          .set({ balance: newBalanceSql, updatedById: userId })
-          .where(eq(associateAccounts.id, associateAccountId));
-
         const paylodAuditData = {
           associateAccountId,
           movementType: movementType as AssociateMovementTypeEnum,
@@ -218,7 +177,7 @@ export class AssociateAccountsMovementsService {
 
         return {
           message: 'successful loaded movement',
-          data: newMovement
+          data: newMovement,
         };
       });
     } catch (error) {
@@ -249,5 +208,4 @@ export class AssociateAccountsMovementsService {
   ) {
     return `This action updates a #${id} associateAccountsMovement`;
   }
-
 }

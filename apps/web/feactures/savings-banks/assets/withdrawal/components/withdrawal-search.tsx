@@ -107,38 +107,61 @@ export function WithdrawalSearch({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
-        } else if (errorMessage.includes('retired'))  {
-            toast({
-              title: 'Asociado retirado',
-              description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
-            });
-        } else if (errorMessage.includes('inactive'))  {
-            toast({
-              title: 'Asociado inactivo',
-              description: 'el asociado está inactivo y no puede ser seleccionado.',
-            });
-        }  else {
+        } else if (errorMessage.includes('retired')) {
+          toast({
+            title: 'Asociado retirado',
+            description:
+              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+          });
+        } else if (errorMessage.includes('inactive')) {
+          toast({
+            title: `Asociado inactivo`,
+            description:
+              'el asociado está inactivo y no puede ser seleccionado.',
+          });
+        } else {
           toast({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
         }
       } else if (associateData) {
-        setSelectedAssociate(associateData);
+        if (
+          associateData.withdrawalStatus === 'APPROVED' ||
+          associateData.withdrawalStatus === 'REQUESTED' ||
+          associateData.withdrawalStatus === 'PENDING_DISBURSEMENT_BANK_BATCH'
+        ) {
+          toast({
+            title: `No se puede realizar retiros para ${associateData.fullname}`,
+            description: `Debe desembolsar el ultimo retiro realizado`,
+          });
+          clearAssociate();
+        } else if (associateData.withdrawalStatus === 'DISBURSED') {
+          const findTime = generalConfig.filter(
+            (item) => item.key === 'tiempo_retiro',
+          );
 
-        const findTime = generalConfig.filter(
-          (item) => item.key === 'tiempo_retiro',
-        );
-
-        const withdrawalDate = associateData?.withdrawalDate
-          ? new Date(associateData.withdrawalDate)
-          : null;
-        const BlockedTime = hasElapsedMonths(
-          new Date(),
-          Number(findTime[0]?.value),
-          withdrawalDate,
-        );
-        setEnabledTime(BlockedTime);
+          const withdrawalDate = associateData?.withdrawalDate
+            ? new Date(associateData.withdrawalDate)
+            : null;
+          const BlockedTime = hasElapsedMonths(
+            new Date(),
+            Number(findTime[0]?.value),
+            withdrawalDate,
+          );
+          //setEnabledTime(BlockedTime);
+          if (!BlockedTime) {
+            toast({
+              title: `No se puede realizar retiros para ${associateData.fullname}`,
+              description: `Tiene menos de 6 meses último retiro`,
+            });
+            clearAssociate();
+          } else {
+            setSelectedAssociate(associateData);
+          }
+        } else {
+          setSelectedAssociate(associateData);
+        }
       } else if (submittedSearchTerm && !associateData) {
         // La búsqueda fue "exitosa" (sin error de red/servidor) pero no devolvió datos
         setSelectedAssociate(null);
@@ -215,9 +238,10 @@ export function WithdrawalSearch({
     setSubmittedSearchTerm('');
     setShouldFetch(false);
     setEnabledTime(true);
-     queryClient.removeQueries({
-        queryKey: ['withdrawal-associate-individual'], exact: true
-      });
+    queryClient.removeQueries({
+      queryKey: ['withdrawal-associate-individual'],
+      exact: true,
+    });
   }, [
     clearAllLoanData,
     queryClient,
@@ -262,8 +286,6 @@ export function WithdrawalSearch({
         : selectedAssociate?.isPayrollCredit
           ? true
           : false;
-
-
 
   return (
     <Card>

@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { decimal, integer, numeric, serial, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  decimal,
+  integer,
+  numeric,
+  serial,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 import {
   associateAccountMovements,
   associateAccounts,
@@ -76,7 +83,7 @@ export const associateAccountBalances = savingsBanksSchema
       ${associateAccountMovements} aam ON aa.id = aam.associate_account_id
     GROUP BY
       aa.id, aa.associated_id, aa.account_number, aa.currency_code
-  `
+  `,
   );
 
 export const loanOutstandingBalance = savingsBanksSchema.view(
@@ -86,9 +93,18 @@ export const loanOutstandingBalance = savingsBanksSchema.view(
     associateId: integer('associate_id').notNull(),
     currencyCode: text('currency_code').notNull(),
     loanStatus: text('loan_status').notNull(),
-    totalPrincipalPending: decimal('total_principal_pending', { precision: 20, scale: 6 }).notNull(),
-    totalInterestPending: decimal('total_interest_pending', { precision: 20, scale: 6 }).notNull(),
-    outstandingTotalBalance: decimal('outstanding_total_balance', { precision: 20, scale: 6 }).notNull(),
+    totalPrincipalPending: decimal('total_principal_pending', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    totalInterestPending: decimal('total_interest_pending', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    outstandingTotalBalance: decimal('outstanding_total_balance', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
   },
 ).as(sql`
   SELECT
@@ -105,14 +121,13 @@ export const loanOutstandingBalance = savingsBanksSchema.view(
   JOIN
       ${loanAmortizationSchedule} las ON l.id = las.loan_id
   WHERE
-      l.status IN ('APPROVED'::loan_status_enum, 'DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)
+      l.status IN ('DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)
   GROUP BY
       l.id,
       l.associate_id,
       l.currency_code,
       l.status
 `);
-
 
 export const creditOutstandingBalance = savingsBanksSchema.view(
   'credit_outstanding_balance',
@@ -121,9 +136,18 @@ export const creditOutstandingBalance = savingsBanksSchema.view(
     associateId: integer('associate_id').notNull(),
     currencyCode: text('currency_code').notNull(),
     creditStatus: text('credit_status').notNull(),
-    totalPrincipalPending: decimal('total_principal_pending', { precision: 20, scale: 6 }).notNull(),
-    totalInterestPending: decimal('total_interest_pending', { precision: 20, scale: 6 }).notNull(),
-    outstandingTotalBalance: decimal('outstanding_total_balance', { precision: 20, scale: 6 }).notNull(),
+    totalPrincipalPending: decimal('total_principal_pending', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    totalInterestPending: decimal('total_interest_pending', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    outstandingTotalBalance: decimal('outstanding_total_balance', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
   },
 ).as(sql`
   SELECT
@@ -201,14 +225,24 @@ export const associateHaberesBalance = savingsBanksSchema.view(
                   'DIVIDEND_CREDIT'::public.associate_movement_type_enum,
                   'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,
                   'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,
-                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum
+                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,
+                  'SAVING_WITHDRAWAL_REVERSAL_CREDIT'::associate_movement_type_enum,
+                  'LIQUIDATION_BALANCE_REVERSAL_CREDIT'::associate_movement_type_enum,
+                  'ACCOUNTING_ADJUSTMENT_CREDIT'::associate_movement_type_enum,
+                  'OTHER_CREDIT'::associate_movement_type_enum
               ]) THEN ${associateAccountMovements.amount}
               -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)
               WHEN ${associateAccountMovements.movementType} = ANY (ARRAY[
                   'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,
                   'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,
                   'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,
-                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum
+                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,
+                  'PAYMENT_REVERSAL_DEBIT'::associate_movement_type_enum, -- Aunque es "PAYMENT", podría ser una reversión de pago de algo no crediticio
+                  'ADMIN_FEE_DEBIT'::associate_movement_type_enum,
+                  'OTHER_DEBIT'::associate_movement_type_enum,
+                  'FEE_DEBIT'::associate_movement_type_enum,
+                  'LIQUIDATION_BALANCE'::associate_movement_type_enum,
+                  'ACCOUNTING_ADJUSTMENT_DEBIT'::associate_movement_type_enum
               ]) THEN -${associateAccountMovements.amount}
               ELSE 0
           END

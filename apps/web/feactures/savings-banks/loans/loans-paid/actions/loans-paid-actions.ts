@@ -15,58 +15,13 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associate data');
   }
   return data;
 };
 
-// export const getLoanManagementByIdAction = async (id: number) => {
-//   const [error, data] = await safeFetchApi(
-//     LoanAssociateGetResponseSchema, // Use the schema for a single loan
-//     `/loan/request/byEdit/${id}`, // API endpoint for a single loan
-//     'GET',
-//   );
 
-//   if (error) {
-//    console.error('Error:', error);
-//     throw new Error(error.message || `Error fetching loan with ID ${id}`);
-//   }
-
-//   // Transform data to match the LoanManagement schema expected by the form/view
-//   const transformedData = {
-//     id: String(data?.id),
-//     associateId: Number(data?.associateId),
-//     loanTypeId: String(data?.loanTypeId),
-//     loanModality: data?.loanModality,
-//     requestDate: data?.requestDate ? new Date(data.requestDate) : new Date(),
-//     requestedAmount: data?.requestedAmount ?? '',
-//     startDate: data?.startDate,
-//     endDate: data?.endDate,
-//     expensesAmount: data?.expensesAmount,
-//     overdraftAmount: data?.overdraftAmount ?? '',
-//     paymentMethod: data?.paymentMethod ?? '',
-//     disbursementAccountId: String(data?.disbursementAccountId) ?? '',
-//     termMonths: data?.expensesAmount ?? '',
-//     interestRate: data?.totalInterest ?? '',
-//     installmentsCount: data?.expensesAmount ?? '',
-//     status: data?.status ?? '',
-//     notes: data?.notes,
-//     customReference: data?.customReference,
-//     loanTypeName: data?.loanTypeName,
-//     associateCedula: data?.associateCedula,
-//     associateFullname: data?.associateFullname,
-//     associatePhone: data?.associatePhone,
-//     associateEmail: data?.associateEmail,
-//     associateDateAdmission: data?.associateDateAdmission,
-//     associateIsPayrollCredit: data?.associateIsPayrollCredit,
-//     associateAccountId: data?.associateAccountId,
-//     associateAccountNumber: data?.associateAccountNumber,
-//     associateBalance: data?.associateBalance,
-//   };
-
-//   return transformedData;
-// };
 
 export const getLoanPaidAllAction = async (params: {
   page?: number;
@@ -109,7 +64,7 @@ export const getLoanPaidAllAction = async (params: {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associates data');
   }
 
@@ -127,6 +82,7 @@ export const getLoanPaidAllAction = async (params: {
       balancePending: item.balancePending,
       associateCedula: item.associateCedula,
       associateFullname: item.associateFullname,
+      paymentStatus: item.paymentStatus,
     })) || [];
 
   return {
@@ -162,7 +118,7 @@ export const createLoanPaidAction = async (loanPaid: LoanPaid) => {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || 'Error create loan Management');
   }
 
@@ -196,7 +152,7 @@ export const updateLoanPaidAction = async (loanPaid: LoanPaid) => {
     //payload,
   );
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error update loan with ID ${loanPaidId}`);
   }
   return data;
@@ -209,10 +165,6 @@ export const deleteLoanPaidAction = async (id: number) => {
     `/loan-paid/${id}`,
     'DELETE',
   );
-  if (error) {
-   // console.error('Error:', error);
-    throw new Error(error.message || `Error delete loan with ID ${id}`);
-  }
   return data;
 };
 

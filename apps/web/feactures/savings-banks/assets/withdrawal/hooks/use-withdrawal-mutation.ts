@@ -37,7 +37,7 @@ export function useDeleteWithdrawal() {
     mutationFn: (id: number) => deleteWithdrawalAction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['withdrawal'] });
-      toast.success('Retiro eliminado exitosamente');
+      toast.success('Retiro procesado exitosamente');
     },
     onError: (error) => {
       toast.error('Error al eliminar el retiro');

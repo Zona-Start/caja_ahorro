@@ -79,17 +79,22 @@ export function LoanPaidSearch({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
-        } else if (errorMessage.includes('retired'))  {
-            toast({
-              title: 'Asociado retirado',
-              description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
-            });
-        } else if (errorMessage.includes('inactive'))  {
-            toast({
-              title: 'Asociado inactivo',
-              description: 'el asociado está inactivo y no puede ser seleccionado.',
-            });
-        }  else {
+          clearAssociate();
+        } else if (errorMessage.includes('retired')) {
+          toast({
+            title: 'Asociado retirado',
+            description:
+              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+          });
+          clearAssociate();
+        } else if (errorMessage.includes('inactive')) {
+          toast({
+            title: 'Asociado inactivo',
+            description:
+              'el asociado está inactivo y no puede ser seleccionado.',
+          });
+          clearAssociate();
+        } else {
           toast({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
@@ -102,6 +107,17 @@ export function LoanPaidSearch({
             title: 'Pago de prestamos no disponibles',
             description: `El Asociado no tiene pagos de prestamos pendientes`,
           });
+          clearAssociate();
+        } else if (
+          associateData.loanStatus !== 'DISBURSED' &&
+          associateData.loanStatus !== 'IN_PAYMENT'
+        ) {
+          setSelectedAssociate(null);
+          toast({
+            title: 'Préstamo no disponible para pago',
+            description: `El préstamo del asociado no ha sido desembolsado`,
+          });
+          clearAssociate();
         } else {
           setSelectedAssociate(associateData);
         }
@@ -112,6 +128,7 @@ export function LoanPaidSearch({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
+        clearAssociate();
       }
     }
   }, [
@@ -178,9 +195,9 @@ export function LoanPaidSearch({
     setSearchTerm('');
     setSubmittedSearchTerm('');
     setShouldFetch(false);
-      queryClient.removeQueries({
-        queryKey: ['loan-paid-associate-individul-by-cedula'],
-      });
+    queryClient.removeQueries({
+      queryKey: ['loan-paid-associate-individul-by-cedula'],
+    });
   }, [
     clearAllLoanData,
     submittedSearchTerm, // Para `termToClear`

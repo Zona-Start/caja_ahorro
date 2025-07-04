@@ -1,5 +1,5 @@
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateWithdrawalAssociateDto } from './dto/create-withdrawal-associate.dto';
 import { FilterWithdrawalAssociateDto } from './dto/filter-withdrawal-associate.dto';
@@ -33,5 +33,15 @@ export class WithdrawalAssociateController {
   @ApiResponse({ status: 404, description: 'withdrawal Associate  not found.' })
   findOneRequest(@Param('cedula') cedula: string) {
     return this.service.findOneRequest(cedula);
+  }
+
+  @Delete(':id')
+  @RequirePermissions('delete:withdrawal-associate')
+  @ApiOperation({ summary: 'Cancel or reverse a Withdrawal' })
+  @ApiResponse({ status: 200, description: 'Withdrawal canceled/reversed successfully.' })
+  @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
+  remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = req['user'].id;
+    return this.service.remove(+id, userId);
   }
 }

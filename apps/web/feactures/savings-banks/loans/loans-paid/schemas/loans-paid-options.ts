@@ -14,8 +14,14 @@ export const PAYMENT_METHOD = {
   OTHER: 'OTRO',
 } as const;
 
+export const PAYMENT_STATUS = {
+  DONE: 'REALIZADO',
+  CANCELED: 'CANCELADO',
+} as const;
+
 export type LoanPaymentTypes = keyof typeof LOAN_PAYMENT_TYPES;
 export type PaymentMethod = keyof typeof PAYMENT_METHOD;
+export type PaymentStatus = keyof typeof PAYMENT_STATUS;
 
 // Enums equivalentes a los de la base de datos
 export const loanPaymentTypeEnum = z.enum(['PAYING', 'CANCELLATION']);

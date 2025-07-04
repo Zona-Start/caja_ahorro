@@ -42,7 +42,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
         loading={loading}
-        title="¿Estás seguro que desea eliminar el retiro? "
+        title="¿Estás seguro que desea anular el retiro? "
         description="Esta acción no se puede deshacer."
       />
       <Toaster />
@@ -59,7 +59,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Eliminar</p>
+              <p>Anular</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

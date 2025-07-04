@@ -2,6 +2,8 @@
 
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/button';
+import { Toaster } from '@repo/shadcn/components/ui/toaster';
+import { toast } from '@repo/shadcn/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -44,8 +46,18 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleEdit = () => {
-    setAssociateId(data.id!);
-    setShowEditModal(true);
+    const allowedStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
+
+    if (allowedStatuses.includes(data.status)) {
+      setAssociateId(data.id!);
+      setShowEditModal(true);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'No se puede editar el asociado',
+        description: 'El estatus del asociado no permite modificación',
+      });
+    }
   };
 
   return (
@@ -80,6 +92,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 : undefined,
               jobTitle: associateData.data.jobTitle || undefined,
               isPayrollCredit: associateData.data.isPayrollCredit,
+              baseSalary: String(
+                parseInt(associateData.data.baseSalary).toFixed(2),
+              ),
             }}
           />
 
@@ -102,12 +117,15 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 : undefined,
               jobTitle: associateData.data.jobTitle || undefined,
               isPayrollCredit: associateData.data.isPayrollCredit,
+              baseSalary: String(
+                parseInt(associateData.data.baseSalary).toFixed(2),
+              ),
             }}
             readOnly={true}
           />
         </>
       )}
-
+      <Toaster />
       <div className="flex gap-1">
         <TooltipProvider>
           <Tooltip>

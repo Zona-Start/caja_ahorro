@@ -29,13 +29,16 @@ import {
   creditStatusEnum,
   currencyCodeEnum,
   genderEnum,
+  liquidationsStatusEnum,
   loanModalityTypeEnum,
   loanPaymentTypeEnum,
   loanStatusEnum,
   nationalityEnum,
   paymentMethodEnum,
+  paymentStatus,
   paymentStatusEnum,
   statusEnum,
+  withdrawalStatusEnum,
 } from './enum';
 import { savingsBanksSchema } from './schemas';
 
@@ -273,6 +276,7 @@ export const withdrawalsAssociates = savingsBanksSchema.table(
     disbursedAmount: numeric('disbursed_amount', { precision: 20, scale: 6 }), // Monto neto desembolsado (requestedAmount - administrativeFee)
     paymentMethod: paymentMethodEnum('payment_method'), // Ej: 'Transferencia', 'Cheque', 'Efectivo'
     referenceCode: varchar('reference_code', { length: 100 }).unique(), // Código de referencia único generado por el backend
+    status: withdrawalStatusEnum('status').default('REQUESTED').notNull(),
     ...timestamps,
   },
   (table) => ({
@@ -518,6 +522,7 @@ export const loanPayments = savingsBanksSchema.table(
     bankId: integer('bank_id').references(() => bankDirectory.id), // Banco que procesó el pago
     paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
     transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
+    status: paymentStatus('payment_status').default('DONE').notNull(),
     comment: text('comment'),
     customReference: varchar('custom_reference', { length: 50 }), // Nro. solicitud personalizado
     ...timestamps,
@@ -549,6 +554,7 @@ export const loanPaymentsDetails = savingsBanksSchema.table(
       { onDelete: 'cascade' },
     ), // Si aplica a una cuota específica
     amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto pagado
+    status: paymentStatus('payment_status').default('DONE').notNull(),
     ...timestamps,
   },
   (table) => ({
@@ -846,7 +852,7 @@ export const liquidationsAssociates = savingsBanksSchema.table(
       precision: 18,
       scale: 4,
     }).notNull(), // El monto neto final (lo que se paga/se debe)
-    status: varchar('status', { length: 50 }).notNull().default('PROCESSED'), // 'PROCESSED', 'PENDING_PAYOUT', 'PENDING_COLLECTION', 'CANCELLED'
+    status: liquidationsStatusEnum('status').notNull().default('REQUESTED'), // 'PROCESSED', 'PENDING_PAYOUT', 'PENDING_COLLECTION', 'CANCELLED'
     payoutTransactionId: integer('payout_transaction_id'), // Opcional: FK a una tabla de transacciones de pago si la tienes
     customReference: varchar('custom_reference', { length: 50 }), // Nro. trasaccion personalizado
     beneficiary: jsonb('beneficiary'), // Información del beneficiario (puede ser un objeto JSON con nombre, cuenta bancaria, etc.)

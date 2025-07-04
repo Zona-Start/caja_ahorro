@@ -24,6 +24,7 @@ export const withdrawalAssociate = z.object({
   withdrawalId: z.number().nullable(),
   withdrawalRequestAmout: z.string().nullable(),
   withdrawalDate: z.string().nullable(),
+  withdrawalStatus: z.string().nullable(),
   totalLoansAssociate: z.number().nullable().optional(),
   totalCreditsAssociate: z.number().nullable().optional(),
 });

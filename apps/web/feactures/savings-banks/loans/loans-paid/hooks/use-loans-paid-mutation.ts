@@ -40,11 +40,18 @@ export function useDeleteLoanPaid() {
     mutationFn: (id: number) => deleteLoanPaidAction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan-paid-associate'] });
-      toast.success('Pago de Préstamo eliminado exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['loan-paid'] });
+      toast.success('Pago de Préstamo Anulado exitosamente');
     },
     onError: (error) => {
-      toast.error('Error al eliminar el pago del prestamo');
-      console.error('Error:', error);
+      if (error.message === 'The payment was not found.') {
+        toast.error('No se encontró el pago.');
+      } else if (error.message === 'This payment has already been cancelled.') {
+        toast.error('Este pago ya ha sido cancelado.');
+      } else {
+        toast.error('Error al anular el pago del prestamo');
+        console.error('Error:', error);
+      }
     },
   });
 }

@@ -10,6 +10,7 @@ export const withdrawalApiSchema = z.object({
   requestedAmount: z.string(),
   associateCedula: z.string(),
   associateFullname: z.string(),
+  status: z.string(),
 });
 
 // Tipo inferido
@@ -42,8 +43,8 @@ export const withdrawalTypeApiSchema = z.object({
   description: z.string(),
   withdrawalPercentage: z.string(),
   administrativeFeePercentage: z.string(),
-  withdrawalLimitQuantity: z.number(),
-  minimumAntiquityDays: z.number(),
+  withdrawalLimitQuantity: z.number().nullable(),
+  minimumAntiquityDays: z.number().nullable(),
 });
 
 export type WithdrawalType = z.infer<typeof withdrawalTypeApiSchema>;

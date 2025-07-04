@@ -39,8 +39,24 @@ export function useDeleteAssociate() {
       toast.success('Asociado eliminado exitosamente');
     },
     onError: (error) => {
-      toast.error('Error al eliminar el asociado');
-      console.error('Error:', error);
+      if (
+        error.message ===
+        'The partner cannot be deleted because there are transactions in their account other than the opening transaction.'
+      ) {
+        toast.error(
+          'No se puede eliminar el asociado posee movimientos en su cuenta',
+        );
+      } else if (
+        error.message ===
+        'You cannot delete a retired or archived partner because they are part of your history.'
+      ) {
+        toast.error(
+          'No se puede eliminar asociado retirado o archivado porque es parte del histórico.',
+        );
+      } else {
+        toast.error('Error al inhabilitar el asociado');
+        console.error('Error:', error);
+      }
     },
   });
 }

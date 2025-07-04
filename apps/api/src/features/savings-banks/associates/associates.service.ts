@@ -6,6 +6,7 @@ import {
   StatusEnum,
 } from '@/types/enum';
 import {
+  BadRequestException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -366,11 +367,13 @@ export class AssociatesService {
     }
 
     if (result[0].status === 'INACTIVE') {
-      throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} is inactive`,
+      );
     }
 
     if (result[0].status === 'RETIRED') {
-      throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
+      throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
     }
 
     return {
@@ -387,6 +390,23 @@ export class AssociatesService {
     const key = 'moneda';
     try {
       const result = await this.drizzle.transaction(async (tx) => {
+        // 1. Validar que el asociado a actualizar existe
+        const associateToUpdate = await tx.query.associates.findFirst({
+          where: eq(associates.id, id),
+        });
+
+        if (!associateToUpdate) {
+          throw new NotFoundException(`Associate with ID ${id} not found`);
+        }
+
+        // 2. Validar el estado del asociado
+        const allowedStatusToUpdate = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
+        if (!allowedStatusToUpdate.includes(associateToUpdate.status)) {
+          throw new BadRequestException(
+            `A partner with that status cannot be updated.`,
+          );
+        }
+
         //genera un transaccion si ocurre un error no se guarda nada
         const setting = await tx.query.systemSettings.findFirst({
           where: eq(systemSettings.key, key),
@@ -490,19 +510,91 @@ export class AssociatesService {
   }
 
   async remove(id: number) {
+    // 1. Validar que exista el asociado
     const existingAssociate = await this.findOne(id);
-
     if (!existingAssociate) {
       throw new NotFoundException(`Associate with ID ${id} not found`);
     }
+
+    // 2. Validar si el status es RETIRED o ARCHIVED
+    if (
+      existingAssociate.status === 'RETIRED' ||
+      existingAssociate.status === 'ARCHIVED'
+    ) {
+      throw new BadRequestException(
+        `You cannot delete a retired or archived partner because they are part of your history.`,
+      );
+    }
+
+    // 3. Validar movimientos
+    const associateAccount =
+      await this.drizzle.query.associateAccounts.findFirst({
+        where: eq(schema.associateAccounts.associateId, id),
+      });
+
+    // Si no tiene cuenta, no puede tener movimientos. Se puede inactivar.
+    if (!associateAccount) {
+      await this.drizzle
+        .update(associates)
+        .set({ status: 'INACTIVE' })
+        .where(eq(associates.id, id));
+      return { message: 'Associate set to INACTIVE successfully' };
+    }
+
+    const movements =
+      await this.drizzle.query.associateAccountMovements.findMany({
+        where: eq(
+          schema.associateAccountMovements.associateAccountId,
+          associateAccount.id,
+        ),
+      });
+
+    // 4. Si tiene un solo movimiento y es 'APERTURA CUENTA', eliminar físicamente
+    if (
+      movements.length === 1 &&
+      movements[0].description === 'APERTURA CUENTA'
+    ) {
+      try {
+        await this.drizzle.transaction(async (tx) => {
+          // Eliminar el movimiento
+          await tx
+            .delete(schema.associateAccountMovements)
+            .where(
+              eq(
+                schema.associateAccountMovements.associateAccountId,
+                associateAccount.id,
+              ),
+            );
+          // Eliminar la cuenta
+          await tx
+            .delete(schema.associateAccounts)
+            .where(eq(schema.associateAccounts.associateId, id));
+          // Eliminar el asociado
+          await tx.delete(associates).where(eq(associates.id, id));
+        });
+        return { message: 'Associate deleted successfully' };
+      } catch (error) {
+        console.error('Error during hard delete of associate:', error);
+        throw new InternalServerErrorException(
+          'A problem occurred while permanently deleting the associate.',
+        );
+      }
+    }
+
+    // 3. (continuación) Validar si tiene más de un movimiento o uno incorrecto
+    if (movements.length > 0) {
+      throw new BadRequestException(
+        'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
+      );
+    }
+
+    // 5. Si no se cumplen las validaciones anteriores (es decir, tiene 0 movimientos), cambiar status a INACTIVE
     await this.drizzle
       .update(associates)
-      .set({
-        status: 'INACTIVE',
-      })
+      .set({ status: 'INACTIVE' })
       .where(eq(associates.id, id));
 
-    return { message: 'Associate deleted successfully' };
+    return { message: 'Associate set to INACTIVE successfully' };
   }
 
   //ACCOUNT BY ID ASSOCIATE

@@ -182,6 +182,7 @@ export const actionEnumAudit = pgEnum('audit_action_enum', [
   'INSERT',
   'UPDATE',
   'DELETE',
+  'REVERSED',
   'CANCELED',
   'PROCESS_EXECUTION', // Más descriptivo: ejecución de un proceso (TXT, importación, etc.)
   'DATA_IMPORT', // Nuevo: Para la carga masiva de datos
@@ -210,6 +211,8 @@ export const paymentMethodEnum = pgEnum('payment_method_enum', [
   'MOBILE_PAYMENT', //PAGO MOVIL
 ]);
 
+export const paymentStatus = pgEnum('payment_status', ['DONE', 'CANCELED']);
+
 // Enum Modalidad de prestamos
 export const loanModalityTypeEnum = pgEnum('loan_modality_type_enum', [
   'ORDINARY',
@@ -232,4 +235,30 @@ export const loanPaymentTypeEnum = pgEnum('loan_payment_type_enum', [
 export const creditPaymentTypeEnum = pgEnum('credit_payment_type_enum', [
   'PAYING',
   'CANCELLATION',
+]);
+
+export const withdrawalStatusEnum = pgEnum('withdrawal_status_enum', [
+  'REQUESTED', // Solicitado por el asociado
+  'APPROVED', // Aprobado, listo para desembolsar (o incluido en TXT)
+  'REJECTED', // Rechazado (nunca se desembolsa)
+  'REVERSED',
+  'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
+  'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
+  'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)
+  'DISBURSEMENT_FAILED', // Nuevo: Desembolso falló en el banco (revisar y reintentar o anular)
+  'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
+  'ADJUSTED', // Nuevo: Indica que el retiro ha sido afectado por un ajuste contable
+]);
+
+export const liquidationsStatusEnum = pgEnum('liquidations_status_enum', [
+  'REQUESTED', // Solicitado por el asociado
+  'PROCESSED', // Aprobado, listo para desembolsar (o incluido en TXT)
+  'REJECTED', // Rechazado (nunca se desembolsa),
+  'REVERSED',
+  'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
+  'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
+  'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)
+  'DISBURSEMENT_FAILED', // Nuevo: Desembolso falló en el banco (revisar y reintentar o anular)
+  'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
+  'ADJUSTED', // Nuevo: Indica que el retiro ha sido afectado por un ajuste contable
 ]);

@@ -1,0 +1,4 @@
+CREATE TYPE "public"."liquidations_status_enum" AS ENUM('REQUESTED', 'PROCESSED', 'REJECTED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'ADJUSTED');--> statement-breakpoint
+CREATE TYPE "public"."withdrawal_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'ADJUSTED');--> statement-breakpoint
+ALTER TABLE "savings_banks"."withdrawals_associates" ADD COLUMN "status" "withdrawal_status_enum" DEFAULT 'REQUESTED' NOT NULL;--> statement-breakpoint
+ALTER TABLE "savings_banks"."liquidations_associates" DROP COLUMN "status";

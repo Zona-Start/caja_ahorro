@@ -2,7 +2,7 @@
 
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/button';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
+import { toast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import {
   Tooltip,
@@ -11,7 +11,6 @@ import {
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
 import { Trash } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useDeleteLoanPaid } from '../../hooks/use-loans-paid-mutation';
 import { LoanPaymentApi } from '../../schemas/loans-paid-api-response';
@@ -24,14 +23,21 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const { mutate: deleteLoanPaid } = useDeleteLoanPaid();
-  const router = useRouter();
-  const { toast } = useToast();
 
   const onConfirm = async () => {
     try {
-      setLoading(true);
-      deleteLoanPaid(Number(data.id!));
-      setOpen(false);
+      if (data.paymentStatus === 'DONE') {
+        setLoading(true);
+        deleteLoanPaid(Number(data.id!));
+        setOpen(false);
+      } else {
+        setOpen(false);
+        toast({
+          variant: 'destructive',
+          title: 'No se puede anular el pago',
+          description: 'El pago ya fue cancelado',
+        });
+      }
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -46,7 +52,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
         loading={loading}
-        title="¿Estás seguro que desea eliminar el Prestamo? "
+        title="¿Estás seguro que desea anular el pago? "
         description="Esta acción no se puede deshacer."
       />
       <Toaster />
@@ -82,7 +88,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Eliminar</p>
+              <p>Anular</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

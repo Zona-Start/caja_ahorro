@@ -94,6 +94,7 @@ export const getWithdrawalAction = async (params: {
       requestedAmount: item.requestedAmount,
       associateCedula: item.associateCedula,
       associateFullname: item.associateFullname,
+      status: item.status,
     })) || [];
 
   return {

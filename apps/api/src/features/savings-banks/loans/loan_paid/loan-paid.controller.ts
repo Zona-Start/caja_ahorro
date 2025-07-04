@@ -1,5 +1,5 @@
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
-import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateLoanPaidDto } from './dto/create-loan.dto';
 import { FilterLoanPaidDto } from './dto/filter-loan-paid.dto';
@@ -84,4 +84,14 @@ export class LoanPaidController {
   // remove(@Param('id') id: string) {
   //   return this.loanManagementService.remove(+id);
   // }
+
+  @Delete(':id')
+  @RequirePermissions('delete:loan-paid')
+  @ApiOperation({ summary: 'Cancel a Loan Payment' })
+  @ApiResponse({ status: 200, description: 'Loan payment canceled successfully.' })
+  @ApiResponse({ status: 404, description: 'Loan payment not found.' })
+  remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = req['user'].id;
+    return this.loanPaidService.remove(+id, userId);
+  }
 }

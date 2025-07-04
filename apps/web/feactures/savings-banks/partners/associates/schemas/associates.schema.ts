@@ -54,7 +54,7 @@ export const AssociateMutationSchema = z.object({
   discountFrequencyId: z.number({
     message: 'La frecuencia de descuento es requerida',
   }),
-  status: z.enum(['ACTIVE', 'INACTIVE']),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'RETIRED']),
   isPayrollCredit: z.boolean(),
   localityId: z.number({ message: 'El Estado es requerido' }),
   phone: z

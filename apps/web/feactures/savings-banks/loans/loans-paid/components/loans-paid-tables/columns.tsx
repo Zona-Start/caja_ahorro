@@ -6,6 +6,7 @@ import { LoanPaymentApi } from '../../schemas/loans-paid-api-response';
 import {
   LOAN_PAYMENT_TYPES,
   PAYMENT_METHOD,
+  PAYMENT_STATUS,
 } from '../../schemas/loans-paid-options';
 import { CellAction } from './cell-action';
 
@@ -47,6 +48,15 @@ export const columns: ColumnDef<LoanPaymentApi>[] = [
   {
     accessorKey: 'associateFullname',
     header: 'Nombre y apellido asociado',
+  },
+  {
+    accessorKey: 'paymentStatus',
+    header: 'Estatus Pago',
+    cell: ({ row }) => {
+      const paymentStatusKey = row.original
+        .paymentStatus as keyof typeof PAYMENT_STATUS;
+      return PAYMENT_STATUS[paymentStatusKey] || '';
+    },
   },
   {
     id: 'actions',

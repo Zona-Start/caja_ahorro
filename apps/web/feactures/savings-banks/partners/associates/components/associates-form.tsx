@@ -27,6 +27,7 @@ import {
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
 import { useAssociateMutation } from '../hooks/use-associate-mutation';
+import { ESTATUS_TYPES, EstatusType } from '../schemas/associates-options';
 import {
   AssociateMutationSchema,
   AssociatesMutate,
@@ -38,6 +39,15 @@ interface AccountPlanFormProps {
   defaultValues?: Partial<AssociatesMutate>;
   readOnly?: boolean;
 }
+
+const getStatusOptions = (keys: EstatusType[] = []) =>
+  Object.entries(ESTATUS_TYPES)
+    .filter(([key]) => keys.length === 0 || keys.includes(key as EstatusType))
+    .map(([key, label]) => (
+      <SelectItem key={key} value={key}>
+        {label}
+      </SelectItem>
+    ));
 
 export function AssociatesForm({
   onSuccess,
@@ -101,6 +111,17 @@ export function AssociatesForm({
       },
     });
   };
+
+  // Edición: solo algunos estados
+  const statusEdit = getStatusOptions(['ACTIVE', 'INACTIVE', 'SUSPENDED']);
+
+  // Creación: solo ACTIVE
+  const statusCreate = getStatusOptions(['ACTIVE']);
+
+  // Lectura: solo el valor actual
+  const statusView = defaultValues?.status
+    ? getStatusOptions([defaultValues.status])
+    : null;
 
   return (
     <Form {...form}>
@@ -403,8 +424,11 @@ export function AssociatesForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px]">
-                      <SelectItem value="ACTIVE">Activo</SelectItem>
-                      <SelectItem value="INACTIVE">Inactivo</SelectItem>
+                      {readOnly
+                        ? statusView // Solo el valor actual
+                        : defaultValues
+                          ? statusEdit // Varias opciones para editar
+                          : statusCreate}
                     </SelectContent>
                   </Select>
                   <FormMessage />

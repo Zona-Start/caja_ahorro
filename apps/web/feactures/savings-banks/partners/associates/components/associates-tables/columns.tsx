@@ -1,6 +1,7 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
+import { ESTATUS_TYPES } from '../../schemas/associates-options';
 import { AssociatesMutate } from '../../schemas/associates.schema';
 import { CellAction } from './cell-action';
 
@@ -21,11 +22,10 @@ export const columns: ColumnDef<AssociatesMutate>[] = [
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      if (row.original.status === 'ACTIVE') {
-        return <span className="text-green-500">Activo</span>;
-      } else {
-        return <span className="text-red-500">Inactivo</span>;
-      }
+      const label = ESTATUS_TYPES[row.original.status] || row.original.status;
+      const colorClass =
+        row.original.status === 'ACTIVE' ? 'text-green-500' : 'text-red-500';
+      return <span className={colorClass}>{label}</span>;
     },
   },
   {

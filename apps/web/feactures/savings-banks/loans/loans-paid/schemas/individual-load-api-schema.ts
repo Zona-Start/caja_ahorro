@@ -22,6 +22,7 @@ export const loanAssociate = z.object({
   loanType: z.string().nullable(),
   loanTotalAmount: z.string().nullable(),
   loanModality: z.string().nullable(),
+  loanStatus: z.string().nullable(), // <-- AÑADIR ESTA LÍNEA
   loanAmortization: z
     .array(loanQuotasAssociate)
     .nullable()
