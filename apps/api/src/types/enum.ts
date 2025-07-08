@@ -185,6 +185,8 @@ export enum ReconciliationItemStatusEnum {
   MANUAL_MATCH = 'MANUAL_MATCH',
   ADJUSTMENT = 'ADJUSTMENT',
   EXCLUDED = 'EXCLUDED',
+  NON_EXISTENT_IN_BANK = 'NON_EXISTENT_IN_BANK',
+  VOIDED = 'VOIDED',
 }
 
 // Enum Acción Auditoría
@@ -240,4 +242,25 @@ export enum creditModalityTypeEnum {
 export enum creditPaymetTypeEnum {
   CANCELLATION = 'CANCELLATION',
   PAYING = 'PAYING',
+}
+
+export enum internalLinkStatusEnum {
+  LINKED = 'LINKED',
+  UNLINKED = 'UNLINKED',
+  PARTIALLY_LINKED = 'PARTIALLY_LINKED',
+  NOT_APPLICABLE = 'NOT_APPLICABLE',
+}
+
+export enum bankTransactionCategory {
+  MEMBER_DUES = 'MEMBER_DUES', // Ejemplo: Cuotas de Ahorro, Aportes, etc.
+  LOAN_DISABURSEMENT = 'LOAN_DISABURSEMENT', // Ejemplo: Dinero enviado por un préstamo
+  LOAN_PAYMENT = 'LOAN_PAYMENT', // Ejemplo: Pagos recibidos de préstamos
+  MEMBER_WITHDRAWAL = 'MEMBER_WITHDRAWAL', // Ejemplo: Retiro de haberes de un socio
+  ADMINISTRATIVE_EXPENSES = 'ADMINISTRATIVE_EXPENSES', // Ejemplo: Alquiler, servicios, sueldos
+  BANK_FEES = 'BANK_FEES', // Ejemplo: Comisiones cobradas por el banco
+  INTEREST_EARNED = 'INTEREST_EARNED', // Ejemplo: Intereses generados por la cuenta
+  TAXES = 'TAXES', // Ejemplo: Pagos de impuestos
+  OTHER_INCOME = 'OTHER_INCOME',
+  OTHER_EXPENSES = 'OTHER_EXPENSES',
+  INTERNAL_TRANSFER = 'INTERNAL_TRANSFER', // Entre cuentas de la caja
 }

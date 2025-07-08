@@ -1,3 +1,4 @@
+-- Custom SQL migration file, put your code below! --
 -- Custom SQL migration file, put your code below! ---- Custom SQL migration file, put your code below! --
 CREATE OR REPLACE FUNCTION savings_banks.calculate_associate_liquidation(p_identification_number character varying)
  RETURNS TABLE(associate_id integer, fullname character varying, cedula character varying, admission_date date, phone character varying, email character varying, is_payroll_credit boolean, associate_account_id integer, account_number character varying, currency_code currency_code_enum, total_savings_balance numeric, haberes_contribution numeric, haberes_voluntary numeric, haberes_employer numeric, surpluses numeric, total_withdrawals numeric, total_withdrawal_fees numeric, total_outstanding_loans numeric, total_outstanding_credits numeric, net_liquidation_amount numeric)

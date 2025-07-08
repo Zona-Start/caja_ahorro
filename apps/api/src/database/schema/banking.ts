@@ -19,7 +19,9 @@ import {
 import { users } from './auth';
 import { company } from './core';
 import {
+  bankTransactionCategory,
   currencyCodeEnum,
+  internalLinkStatusEnum,
   reconciliationItemStatusEnum,
   reconciliationStatusEnum,
 } from './enum';
@@ -96,6 +98,7 @@ export const bankTransactions = bankingSchema.table(
     transactionDate: date('transaction_date').notNull(), // Fecha del movimiento según extracto
     valueDate: date('value_date'), // Fecha valor
     description: text('description').notNull(),
+    category: bankTransactionCategory('bank_transaction_category'), //Campo para la Categoría del Movimiento
     bankReference: varchar('bank_reference', { length: 100 }), // Referencia única del banco para este movimiento
     debitAmount: numeric('debit_amount', { precision: 20, scale: 6 }).default(
       '0.00',
@@ -114,6 +117,10 @@ export const bankTransactions = bankingSchema.table(
     uploadBatchId: text('upload_batch_id'), // Para identificar el lote de carga
     uploadedAt: timestamp('uploaded_at').defaultNow(),
     // accounting_entry_id: integer('accounting_entry_id').references(() => accountingEntries.id, { onDelete: 'set null' }), // Enlace si se generó un asiento directo desde aquí
+    internalLinkStatus: internalLinkStatusEnum('internal_link_status')
+      .notNull()
+      .default('UNLINKED'), // O 'NO_APLICA' si algunas transacciones bancarias nunca se vincularán (ej., comisiones bancarias),
+    note: text('note'),
     ...timestamps,
   },
   (table) => ({
@@ -129,6 +136,39 @@ export const bankTransactions = bankingSchema.table(
       table.reconciliationStatus,
     ),
     reconIdIdx: index('bank_trans_recon_id_idx').on(table.bankReconciliationId),
+  }),
+);
+
+export const internalTransactionBankLinks = bankingSchema.table(
+  'internal_transaction_bank_links',
+  {
+    id: serial('id').primaryKey(),
+    bankTransactionId: integer('bank_transaction_id')
+      .notNull()
+      .references(() => bankTransactions.id, { onDelete: 'cascade' })
+      .unique(), // One internal link per bank transaction
+
+    // Polymorphic Relationship for Internal Records
+    internalRecordType: varchar('internal_record_type', {
+      length: 50,
+    }).notNull(), // e.g., 'LOAN_PAYMENT', 'LOAN_DISBURSEMENT', 'MEMBER_WITHDRAWAL', 'MEMBER_DEPOSIT', 'GENERAL_EXPENSE', 'GENERAL_INCOME'
+    internalRecordId: integer('internal_record_id').notNull(), // El ID del registro específico en su tabla respectiva
+
+    linkedAt: timestamp('linked_at').defaultNow(),
+    linkedBy: integer('linked_by').references(() => users.id, {
+      onDelete: 'set null',
+    }), // Who linked this (useful for audit)
+    // Add other relevant audit fields if needed
+    ...timestamps,
+  },
+  (table) => ({
+    bankTransIdIdx: index('int_trans_links_bank_trans_id_idx').on(
+      table.bankTransactionId,
+    ),
+    internalRecordIdx: index('int_trans_links_internal_record_idx').on(
+      table.internalRecordType,
+      table.internalRecordId,
+    ),
   }),
 );
 

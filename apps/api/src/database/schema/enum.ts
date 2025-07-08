@@ -174,7 +174,15 @@ export const reconciliationStatusEnum = pgEnum('reconciliation_status_enum', [
 ]);
 export const reconciliationItemStatusEnum = pgEnum(
   'reconciliation_item_status_enum',
-  ['PENDING', 'RECONCILED', 'MANUAL_MATCH', 'ADJUSTMENT', 'EXCLUDED'],
+  [
+    'PENDING',
+    'RECONCILED',
+    'MANUAL_MATCH',
+    'ADJUSTMENT',
+    'EXCLUDED',
+    'NON_EXISTENT_IN_BANK',
+    'VOIDED',
+  ],
 );
 
 // Enum Acción Auditoría
@@ -262,3 +270,35 @@ export const liquidationsStatusEnum = pgEnum('liquidations_status_enum', [
   'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
   'ADJUSTED', // Nuevo: Indica que el retiro ha sido afectado por un ajuste contable
 ]);
+
+export const internalLinkStatusEnum = pgEnum('internal_link_status', [
+  'LINKED',
+  'UNLINKED',
+  'PARTIALLY_LINKED',
+  'NOT_APPLICABLE',
+]);
+
+export const bankTransactionCategory = pgEnum('bank_transaction_category', [
+  'MEMBER_DUES', // Ejemplo: Cuotas de Ahorro, Aportes, etc.
+  'LOAN_DISABURSEMENT', // Ejemplo: Dinero enviado por un préstamo
+  'LOAN_PAYMENT', // Ejemplo: Pagos recibidos de préstamos
+  'MEMBER_WITHDRAWAL', // Ejemplo: Retiro de haberes de un socio
+  'ADMINISTRATIVE_EXPENSES', // Ejemplo: Alquiler, servicios, sueldos
+  'BANK_FEES', // Ejemplo: Comisiones cobradas por el banco
+  'INTEREST_EARNED', // Ejemplo: Intereses generados por la cuenta
+  'TAXES', // Ejemplo: Pagos de impuestos
+  'OTHER_INCOME',
+  'OTHER_EXPENSES',
+  'INTERNAL_TRANSFER', // Entre cuentas de la caja
+  // ... y así sucesivamente
+]);
+
+export const fixedAssetsInventoryStatus = pgEnum(
+  'fixed_assets_inventory_status',
+  [
+    'ACTIVE', // En uso y operativo
+    'UNDER_MAINTENANCE', // Actualmente en reparación
+    'INACTIVE', // No en uso, pero aún propiedad de la caja
+    'DEREGISTERED', // Ya no es propiedad de la caja
+  ],
+);

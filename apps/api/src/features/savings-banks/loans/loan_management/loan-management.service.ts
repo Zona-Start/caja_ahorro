@@ -785,7 +785,7 @@ export class LoanManagementService {
         associateIsPayrollCredit: associates.isPayrollCredit,
         associateAccountId: associateAccounts.id,
         associateAccountNumber: associateAccounts.accountNumber,
-        associateBalance: associateAccounts.balance,
+        associateBalance: associateHaberesBalance.haberesBalance,
         loanTypeId: loans.loanTypeId,
         loanModality: loans.loanModality,
         loanTypeName: loanTypes.name,
@@ -819,6 +819,10 @@ export class LoanManagementService {
       .leftJoin(
         associateAccounts,
         eq(loans.associateId, associateAccounts.associateId),
+      )
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       )
       .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id));
 

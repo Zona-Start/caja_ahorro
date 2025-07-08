@@ -92,7 +92,9 @@ export function LoanForm({
             interestRate: initialData?.interestRate,
             installmentsCount: initialData?.termMonths,
             expensesAmount: initialData?.expensesAmount,
-            overdraftAmount: initialData?.overdraftAmount,
+            overdraftAmount: String(
+              parseInt(initialData?.overdraftAmount).toFixed(2),
+            ),
             notes: initialData?.notes,
           }
         : {
@@ -139,7 +141,9 @@ export function LoanForm({
         interestRate: initialData?.interestRate,
         installmentsCount: initialData?.termMonths,
         expensesAmount: initialData?.expensesAmount,
-        overdraftAmount: initialData?.overdraftAmount,
+        overdraftAmount: String(
+          parseInt(initialData?.overdraftAmount).toFixed(2),
+        ),
         notes: initialData?.notes,
       });
     }

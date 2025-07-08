@@ -40,6 +40,7 @@ import {
   statusEnum,
   withdrawalStatusEnum,
 } from './enum';
+import { salesProducts } from './inventory';
 import { savingsBanksSchema } from './schemas';
 
 // Tabla de los asociados. Almacena la información de los asociados de la caja de ahorro.
@@ -864,5 +865,38 @@ export const liquidationsAssociates = savingsBanksSchema.table(
     associateLiquidationIdx: uniqueIndex(
       'liquidations_associate_liquidation_uidx',
     ).on(table.associateId, table.liquidationDate),
+  }),
+);
+
+// ¡La tabla de vinculación CLAVE! Venta de productos a través de un crédito.
+export const creditProductSales = savingsBanksSchema.table(
+  // Usa tu esquema principal de banca/créditos
+  'credit_product_sales',
+  {
+    id: serial('id').primaryKey(),
+    creditId: integer('credit_id')
+      .notNull()
+      .references(() => credits.id, { onDelete: 'cascade' }), // Asumo 'credits' es tu tabla de créditos
+
+    productId: integer('product_id') // Qué tipo de producto de venta se asoció
+      .notNull()
+      .references(() => salesProducts.id, { onDelete: 'restrict' }),
+
+    quantity: integer('quantity').notNull().default(1),
+    agreedSellingPrice: numeric('agreed_selling_price', {
+      precision: 20,
+      scale: 6,
+    }).notNull(), // Precio final al asociado
+
+    saleDate: date('sale_date').notNull().defaultNow(),
+    deliveryStatus: varchar('delivery_status', { length: 50 })
+      .notNull()
+      .default('ENTREGADO'), // 'PENDIENTE', 'ENTREGADO'
+
+    ...timestamps,
+  },
+  (table) => ({
+    creditIdIdx: index('credit_prod_sale_credit_id_idx').on(table.creditId),
+    productIdIdx: index('credit_prod_sale_prod_id_idx').on(table.productId),
   }),
 );

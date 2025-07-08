@@ -137,31 +137,33 @@ export class WithdrawalAssociateService {
       .limit(1);
     console.log(resultWithdrawal);
 
-    if (
-      resultWithdrawal.status === 'DISBURSED' ||
-      resultWithdrawal.status === 'ADJUSTED'
-    ) {
-      //Verificamos si tiene el tiempo permitido para retiro
-      const monthsAllowed = this._hasElapsedMonths(
-        withdrawalDate,
-        Number(setting?.value),
-        resultWithdrawal?.createdAt ?? null,
-      );
+    if (resultWithdrawal) {
+      if (
+        resultWithdrawal.status === 'DISBURSED' ||
+        resultWithdrawal.status === 'ADJUSTED'
+      ) {
+        //Verificamos si tiene el tiempo permitido para retiro
+        const monthsAllowed = this._hasElapsedMonths(
+          withdrawalDate,
+          Number(setting?.value),
+          resultWithdrawal?.createdAt ?? null,
+        );
 
-      if (!monthsAllowed) {
+        if (!monthsAllowed) {
+          throw new NotFoundException(
+            `Associate does not comply with the time allowed to make a withdrawal`,
+          );
+        }
+      }
+
+      if (
+        resultWithdrawal.status === 'APPROVED' ||
+        resultWithdrawal.status === 'REQUESTED'
+      ) {
         throw new NotFoundException(
-          `Associate does not comply with the time allowed to make a withdrawal`,
+          `A withdrawal cannot be made. You must disburse the last approved withdrawal.`,
         );
       }
-    }
-
-    if (
-      resultWithdrawal.status === 'APPROVED' ||
-      resultWithdrawal.status === 'REQUESTED'
-    ) {
-      throw new NotFoundException(
-        `A withdrawal cannot be made. You must disburse the last approved withdrawal.`,
-      );
     }
 
     const withdrawalType = await this.db.query.withdrawalTypes.findFirst({

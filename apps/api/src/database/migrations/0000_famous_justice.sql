@@ -8,29 +8,37 @@ CREATE SCHEMA "banking";
 --> statement-breakpoint
 CREATE SCHEMA "core";
 --> statement-breakpoint
+CREATE SCHEMA "inventory";
+--> statement-breakpoint
 CREATE SCHEMA "savings_banks";
 --> statement-breakpoint
 CREATE TYPE "public"."account_nature_enum" AS ENUM('DEBIT', 'CREDIT');--> statement-breakpoint
 CREATE TYPE "public"."account_type_enum" AS ENUM('ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'MEMORANDUM');--> statement-breakpoint
-CREATE TYPE "public"."audit_action_enum" AS ENUM('INSERT', 'UPDATE', 'DELETE', 'PROCESS_EXECUTION', 'DATA_IMPORT', 'CONFIGURATION_CHANGE', 'ADJUSTMENT', 'VIEW_REPORT');--> statement-breakpoint
+CREATE TYPE "public"."audit_action_enum" AS ENUM('INSERT', 'UPDATE', 'DELETE', 'REVERSED', 'CANCELED', 'PROCESS_EXECUTION', 'DATA_IMPORT', 'CONFIGURATION_CHANGE', 'ADJUSTMENT', 'VIEW_REPORT');--> statement-breakpoint
 CREATE TYPE "public"."audit_auth_action_enum" AS ENUM('LOGIN', 'LOGOUT');--> statement-breakpoint
 CREATE TYPE "public"."associate_account_type_enum" AS ENUM('SAVINGS', 'EMPLOYER_CONTRIBUTION', 'MANDATORY_SAVINGS');--> statement-breakpoint
 CREATE TYPE "public"."associate_movement_type_enum" AS ENUM('SAVING_CONTRIBUTION', 'EMPLOYER_CONTRIBUTION', 'VOLUNTARY_SAVINGS', 'SAVING_WITHDRAWAL', 'LOAN_DISBURSEMENT_CREDIT', 'SPECIAL_LOAN_DISBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT', 'SPECIAL_CREDIT_DISBURSEMENT_CREDIT', 'LOAN_REFINANCING_DEBIT', 'LOAN_REFINANCING_CREDIT', 'LOAN_PAYMENT_DEBIT', 'COMMERCIAL_CREDIT_PAYMENT_DEBIT', 'LOAN_REIMBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT', 'LOAN_OVERPAYMENT_CREDIT', 'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT', 'LOAN_PARTIAL_DISBURSEMENT_CREDIT', 'WITHDRAWAL_FEE_DEBIT', 'LOAN_INTEREST_DEBIT', 'LOAN_FEE_DEBIT', 'LOAN_ADMIN_FEE_DEBIT', 'LATE_PAYMENT_FEE_DEBIT', 'PAYMENT_REVERSAL_DEBIT', 'CREDIT_ADMIN_FEE_DEBIT', 'DIVIDEND_CREDIT', 'FEE_REIMBURSEMENT_CREDIT', 'ADJUSTMENT_CREDIT', 'ADJUSTMENT_DEBIT', 'FEE_CORRECTION_DEBIT', 'ADMIN_FEE_DEBIT', 'OTHER_DEBIT', 'FEE_DEBIT', 'OTHER_CREDIT', 'LIQUIDATION_BALANCE', 'LOAN_DISBURSEMENT_REVERSAL_DEBIT', 'SPECIAL_LOAN_DISBURSEMENT_REVERSAL_DEBIT', 'COMMERCIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', 'SPECIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', 'LOAN_PAYMENT_REVERSAL_CREDIT', 'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT', 'SAVING_WITHDRAWAL_REVERSAL_CREDIT', 'LIQUIDATION_BALANCE_REVERSAL_CREDIT', 'ACCOUNTING_ADJUSTMENT_DEBIT', 'ACCOUNTING_ADJUSTMENT_CREDIT');--> statement-breakpoint
+CREATE TYPE "public"."bank_transaction_category" AS ENUM('MEMBER_DUES', 'LOAN_DISABURSEMENT', 'LOAN_PAYMENT', 'MEMBER_WITHDRAWAL', 'ADMINISTRATIVE_EXPENSES', 'BANK_FEES', 'INTEREST_EARNED', 'TAXES', 'OTHER_INCOME', 'OTHER_EXPENSES', 'INTERNAL_TRANSFER');--> statement-breakpoint
 CREATE TYPE "public"."credit_modality_type_enum" AS ENUM('ORDINARY', 'SPECIAL_QUOTAS');--> statement-breakpoint
 CREATE TYPE "public"."credit_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION');--> statement-breakpoint
 CREATE TYPE "public"."credit_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'IN_PAYMENT', 'PAID');--> statement-breakpoint
 CREATE TYPE "public"."currency_code_enum" AS ENUM('VES', 'USD', 'EUR');--> statement-breakpoint
 CREATE TYPE "public"."cycle_status_enum" AS ENUM('OPEN', 'CLOSED', 'CLOSING');--> statement-breakpoint
+CREATE TYPE "public"."fixed_assets_inventory_status" AS ENUM('ACTIVE', 'UNDER_MAINTENANCE', 'INACTIVE', 'DEREGISTERED');--> statement-breakpoint
 CREATE TYPE "auth"."gender" AS ENUM('FEMENINO', 'MASCULINO', 'OTRO');--> statement-breakpoint
+CREATE TYPE "public"."internal_link_status" AS ENUM('LINKED', 'UNLINKED', 'PARTIALLY_LINKED', 'NOT_APPLICABLE');--> statement-breakpoint
+CREATE TYPE "public"."liquidations_status_enum" AS ENUM('REQUESTED', 'PROCESSED', 'REJECTED', 'REVERSED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'ADJUSTED');--> statement-breakpoint
 CREATE TYPE "public"."loan_modality_type_enum" AS ENUM('ORDINARY', 'SPECIAL_QUOTAS');--> statement-breakpoint
 CREATE TYPE "public"."loan_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION');--> statement-breakpoint
 CREATE TYPE "public"."loan_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'IN_PAYMENT', 'PAID', 'OVERDUE', 'ADJUSTED');--> statement-breakpoint
 CREATE TYPE "public"."nationality" AS ENUM('VENEZOLANO', 'EXTRANJERO');--> statement-breakpoint
 CREATE TYPE "public"."payment_method_enum" AS ENUM('CASH', 'BANK_TRANSFER', 'CHECK', 'DEPOSIT', 'OTHER', 'MOBILE_PAYMENT');--> statement-breakpoint
-CREATE TYPE "public"."payment_status_enum" AS ENUM('PENDING', 'PAID', 'OVERDUE', 'PARTIAL');--> statement-breakpoint
-CREATE TYPE "public"."reconciliation_item_status_enum" AS ENUM('PENDING', 'RECONCILED', 'MANUAL_MATCH', 'ADJUSTMENT', 'EXCLUDED');--> statement-breakpoint
+CREATE TYPE "public"."payment_status" AS ENUM('DONE', 'CANCELED');--> statement-breakpoint
+CREATE TYPE "public"."payment_status_enum" AS ENUM('PENDING', 'PAID', 'OVERDUE', 'PARTIAL', 'CANCELED');--> statement-breakpoint
+CREATE TYPE "public"."reconciliation_item_status_enum" AS ENUM('PENDING', 'RECONCILED', 'MANUAL_MATCH', 'ADJUSTMENT', 'EXCLUDED', 'NON_EXISTENT_IN_BANK', 'VOIDED');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_status_enum" AS ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'REVIEWED');--> statement-breakpoint
 CREATE TYPE "public"."status_enum" AS ENUM('ACTIVE', 'INACTIVE', 'PENDING', 'SUSPENDED', 'LOCKED', 'RETIRED', 'ARCHIVED');--> statement-breakpoint
+CREATE TYPE "public"."withdrawal_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'REVERSED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'ADJUSTED');--> statement-breakpoint
 CREATE TABLE "accounting"."account_plan" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"company_id" integer,
@@ -283,6 +291,7 @@ CREATE TABLE "banking"."bank_transactions" (
 	"transaction_date" date NOT NULL,
 	"value_date" date,
 	"description" text NOT NULL,
+	"bank_transaction_category" "bank_transaction_category",
 	"bank_reference" varchar(100),
 	"debit_amount" numeric(20, 6) DEFAULT '0.00',
 	"credit_amount" numeric(20, 6) DEFAULT '0.00',
@@ -291,10 +300,26 @@ CREATE TABLE "banking"."bank_transactions" (
 	"bank_reconciliation_id" integer,
 	"upload_batch_id" text,
 	"uploaded_at" timestamp DEFAULT now(),
+	"internal_link_status" "internal_link_status" DEFAULT 'UNLINKED' NOT NULL,
+	"note" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
 	"updated_by_id" integer
+);
+--> statement-breakpoint
+CREATE TABLE "banking"."internal_transaction_bank_links" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"bank_transaction_id" integer NOT NULL,
+	"internal_record_type" varchar(50) NOT NULL,
+	"internal_record_id" integer NOT NULL,
+	"linked_at" timestamp DEFAULT now(),
+	"linked_by" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer,
+	CONSTRAINT "internal_transaction_bank_links_bank_transaction_id_unique" UNIQUE("bank_transaction_id")
 );
 --> statement-breakpoint
 CREATE TABLE "core"."category_types" (
@@ -426,6 +451,106 @@ CREATE TABLE "core"."type_payrolls" (
 	"updated_by_id" integer
 );
 --> statement-breakpoint
+CREATE TABLE "inventory"."fixed_asset_categories" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"name" varchar(100) NOT NULL,
+	"description" text,
+	"default_useful_life_years" integer,
+	"default_depreciation_method" varchar(50),
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer,
+	CONSTRAINT "fixed_asset_categories_name_unique" UNIQUE("name")
+);
+--> statement-breakpoint
+CREATE TABLE "inventory"."fixed_asset_maintenances" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"asset_id" integer NOT NULL,
+	"maintenance_date" date NOT NULL,
+	"maintenance_type" varchar(100),
+	"description" text NOT NULL,
+	"cost" numeric(20, 6) DEFAULT '0.00',
+	"performed_by" varchar(255),
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
+);
+--> statement-breakpoint
+CREATE TABLE "inventory"."fixed_assets" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"category_id" integer NOT NULL,
+	"asset_code" varchar(50) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"description" text,
+	"serial_number" varchar(100),
+	"model" varchar(100),
+	"brand" varchar(100),
+	"acquisition_date" date NOT NULL,
+	"purchase_price" numeric(20, 6) NOT NULL,
+	"asset_status" "fixed_assets_inventory_status" DEFAULT 'ACTIVE' NOT NULL,
+	"useful_life_years" integer,
+	"depreciation_method" varchar(50),
+	"accumulated_depreciation" numeric(20, 6) DEFAULT '0.00',
+	"last_depreciation_date" date,
+	"disposal_date" date,
+	"disposal_reason" text,
+	"disposal_value" numeric(20, 6),
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer,
+	CONSTRAINT "fixed_assets_asset_code_unique" UNIQUE("asset_code")
+);
+--> statement-breakpoint
+CREATE TABLE "inventory"."sales_product_categories" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"name" varchar(100) NOT NULL,
+	"description" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer,
+	CONSTRAINT "sales_product_categories_name_unique" UNIQUE("name")
+);
+--> statement-breakpoint
+CREATE TABLE "inventory"."sales_product_purchases" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"product_id" integer NOT NULL,
+	"purchase_date" date NOT NULL,
+	"quantity" integer NOT NULL,
+	"unit_cost" numeric(20, 6) NOT NULL,
+	"total_cost" numeric(20, 6) NOT NULL,
+	"supplier_name" varchar(255),
+	"invoice_reference" varchar(100),
+	"bank_transaction_id" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
+);
+--> statement-breakpoint
+CREATE TABLE "inventory"."sales_products" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"category_id" integer NOT NULL,
+	"product_code" varchar(50) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"description" text,
+	"brand" varchar(100),
+	"model" varchar(100),
+	"default_purchase_cost" numeric(20, 6) NOT NULL,
+	"default_selling_price" numeric(20, 6) NOT NULL,
+	"current_stock" integer DEFAULT 0 NOT NULL,
+	"minimum_stock_alert" integer DEFAULT 0,
+	"status" varchar(50) DEFAULT 'ACTIVO' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer,
+	CONSTRAINT "sales_products_product_code_unique" UNIQUE("product_code")
+);
+--> statement-breakpoint
 CREATE TABLE "savings_banks"."associate_account_balance_history" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"associate_account_id" integer NOT NULL,
@@ -548,6 +673,20 @@ CREATE TABLE "savings_banks"."credit_payment_details" (
 	"updated_by_id" integer
 );
 --> statement-breakpoint
+CREATE TABLE "savings_banks"."credit_product_sales" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"credit_id" integer NOT NULL,
+	"product_id" integer NOT NULL,
+	"quantity" integer DEFAULT 1 NOT NULL,
+	"agreed_selling_price" numeric(20, 6) NOT NULL,
+	"sale_date" date DEFAULT now() NOT NULL,
+	"delivery_status" varchar(50) DEFAULT 'ENTREGADO' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
+);
+--> statement-breakpoint
 CREATE TABLE "savings_banks"."credit_status_history" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"credit_id" integer NOT NULL,
@@ -629,7 +768,7 @@ CREATE TABLE "savings_banks"."liquidations_associates" (
 	"total_outstanding_loans_at_liquidation" numeric(18, 4) NOT NULL,
 	"total_outstanding_credits_at_liquidation" numeric(18, 4) NOT NULL,
 	"net_liquidation_amount" numeric(18, 4) NOT NULL,
-	"status" varchar(50) DEFAULT 'PROCESSED' NOT NULL,
+	"status" "liquidations_status_enum" DEFAULT 'REQUESTED' NOT NULL,
 	"payout_transaction_id" integer,
 	"custom_reference" varchar(50),
 	"beneficiary" jsonb,
@@ -668,6 +807,7 @@ CREATE TABLE "savings_banks"."loan_payments" (
 	"bank_id" integer,
 	"payment_method" "payment_method_enum" NOT NULL,
 	"transaction_reference" text,
+	"payment_status" "payment_status" DEFAULT 'DONE' NOT NULL,
 	"comment" text,
 	"custom_reference" varchar(50),
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -681,6 +821,7 @@ CREATE TABLE "savings_banks"."loan_payment_details" (
 	"loan_payment_id" integer NOT NULL,
 	"installment_id" integer,
 	"amount" numeric(20, 6) NOT NULL,
+	"payment_status" "payment_status" DEFAULT 'DONE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -789,6 +930,7 @@ CREATE TABLE "savings_banks"."withdrawals_associates" (
 	"disbursed_amount" numeric(20, 6),
 	"payment_method" "payment_method_enum",
 	"reference_code" varchar(100),
+	"status" "withdrawal_status_enum" DEFAULT 'REQUESTED' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -854,6 +996,10 @@ ALTER TABLE "banking"."bank_transactions" ADD CONSTRAINT "bank_transactions_bank
 ALTER TABLE "banking"."bank_transactions" ADD CONSTRAINT "bank_transactions_bank_reconciliation_id_bank_reconciliations_id_fk" FOREIGN KEY ("bank_reconciliation_id") REFERENCES "banking"."bank_reconciliations"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banking"."bank_transactions" ADD CONSTRAINT "bank_transactions_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banking"."bank_transactions" ADD CONSTRAINT "bank_transactions_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "banking"."internal_transaction_bank_links" ADD CONSTRAINT "internal_transaction_bank_links_bank_transaction_id_bank_transactions_id_fk" FOREIGN KEY ("bank_transaction_id") REFERENCES "banking"."bank_transactions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "banking"."internal_transaction_bank_links" ADD CONSTRAINT "internal_transaction_bank_links_linked_by_users_id_fk" FOREIGN KEY ("linked_by") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "banking"."internal_transaction_bank_links" ADD CONSTRAINT "internal_transaction_bank_links_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "banking"."internal_transaction_bank_links" ADD CONSTRAINT "internal_transaction_bank_links_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."category_types" ADD CONSTRAINT "category_types_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."category_types" ADD CONSTRAINT "category_types_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."currencies" ADD CONSTRAINT "currencies_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -880,6 +1026,23 @@ ALTER TABLE "core"."type_payrolls" ADD CONSTRAINT "type_payrolls_employer_accoun
 ALTER TABLE "core"."type_payrolls" ADD CONSTRAINT "type_payrolls_loan_account_account_plan_id_fk" FOREIGN KEY ("loan_account") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."type_payrolls" ADD CONSTRAINT "type_payrolls_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."type_payrolls" ADD CONSTRAINT "type_payrolls_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_asset_categories" ADD CONSTRAINT "fixed_asset_categories_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_asset_categories" ADD CONSTRAINT "fixed_asset_categories_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_asset_maintenances" ADD CONSTRAINT "fixed_asset_maintenances_asset_id_fixed_assets_id_fk" FOREIGN KEY ("asset_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_asset_maintenances" ADD CONSTRAINT "fixed_asset_maintenances_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_asset_maintenances" ADD CONSTRAINT "fixed_asset_maintenances_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_category_id_fixed_asset_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."fixed_asset_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_product_categories" ADD CONSTRAINT "sales_product_categories_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_product_categories" ADD CONSTRAINT "sales_product_categories_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_product_purchases" ADD CONSTRAINT "sales_product_purchases_product_id_sales_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."sales_products"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_product_purchases" ADD CONSTRAINT "sales_product_purchases_bank_transaction_id_bank_transactions_id_fk" FOREIGN KEY ("bank_transaction_id") REFERENCES "banking"."bank_transactions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_product_purchases" ADD CONSTRAINT "sales_product_purchases_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_product_purchases" ADD CONSTRAINT "sales_product_purchases_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_products" ADD CONSTRAINT "sales_products_category_id_sales_product_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."sales_product_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_products" ADD CONSTRAINT "sales_products_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."sales_products" ADD CONSTRAINT "sales_products_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."associate_account_balance_history" ADD CONSTRAINT "associate_account_balance_history_associate_account_id_associate_accounts_id_fk" FOREIGN KEY ("associate_account_id") REFERENCES "savings_banks"."associate_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."associate_account_balance_history" ADD CONSTRAINT "associate_account_balance_history_movement_id_associate_account_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "savings_banks"."associate_account_movements"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."associate_account_balance_history" ADD CONSTRAINT "associate_account_balance_history_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -909,6 +1072,10 @@ ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_paym
 ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_payment_details_installment_id_credit_amortization_schedule_id_fk" FOREIGN KEY ("installment_id") REFERENCES "savings_banks"."credit_amortization_schedule"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_payment_details_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_payment_details_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_credit_id_credits_id_fk" FOREIGN KEY ("credit_id") REFERENCES "savings_banks"."credits"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_product_id_sales_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."sales_products"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_status_history" ADD CONSTRAINT "credit_status_history_credit_id_credits_id_fk" FOREIGN KEY ("credit_id") REFERENCES "savings_banks"."credits"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_status_history" ADD CONSTRAINT "credit_status_history_changed_by_user_id_users_id_fk" FOREIGN KEY ("changed_by_user_id") REFERENCES "auth"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credits" ADD CONSTRAINT "credits_associate_id_associates_id_fk" FOREIGN KEY ("associate_id") REFERENCES "savings_banks"."associates"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -1007,6 +1174,8 @@ CREATE INDEX "bank_trans_account_date_idx" ON "banking"."bank_transactions" USIN
 CREATE INDEX "bank_trans_bank_ref_idx" ON "banking"."bank_transactions" USING btree ("bank_account_id","bank_reference");--> statement-breakpoint
 CREATE INDEX "bank_trans_recon_status_idx" ON "banking"."bank_transactions" USING btree ("reconciliation_status");--> statement-breakpoint
 CREATE INDEX "bank_trans_recon_id_idx" ON "banking"."bank_transactions" USING btree ("bank_reconciliation_id");--> statement-breakpoint
+CREATE INDEX "int_trans_links_bank_trans_id_idx" ON "banking"."internal_transaction_bank_links" USING btree ("bank_transaction_id");--> statement-breakpoint
+CREATE INDEX "int_trans_links_internal_record_idx" ON "banking"."internal_transaction_bank_links" USING btree ("internal_record_type","internal_record_id");--> statement-breakpoint
 CREATE INDEX "category_types_group_desc_idx" ON "core"."category_types" USING btree ("group","description");--> statement-breakpoint
 CREATE INDEX "company_name_idx" ON "core"."company" USING btree ("name");--> statement-breakpoint
 CREATE UNIQUE INDEX "company_rif_uidx" ON "core"."company" USING btree ("rif");--> statement-breakpoint
@@ -1018,6 +1187,15 @@ CREATE INDEX "localities_index_idx02" ON "core"."localities" USING btree ("paris
 CREATE INDEX "municipalities_index_idx" ON "core"."municipalities" USING btree ("id","name","state_id");--> statement-breakpoint
 CREATE INDEX "parishes_index_idx" ON "core"."parishes" USING btree ("id","name","municipality_id");--> statement-breakpoint
 CREATE INDEX "states_name_idx" ON "core"."states" USING btree ("id","name");--> statement-breakpoint
+CREATE INDEX "fixed_asset_cat_name_idx" ON "inventory"."fixed_asset_categories" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "fixed_asset_maint_asset_id_idx" ON "inventory"."fixed_asset_maintenances" USING btree ("asset_id");--> statement-breakpoint
+CREATE INDEX "fixed_asset_code_idx" ON "inventory"."fixed_assets" USING btree ("asset_code");--> statement-breakpoint
+CREATE INDEX "fixed_asset_cat_id_idx" ON "inventory"."fixed_assets" USING btree ("category_id");--> statement-breakpoint
+CREATE INDEX "fixed_asset_status_idx" ON "inventory"."fixed_assets" USING btree ("asset_status");--> statement-breakpoint
+CREATE INDEX "sales_prod_cat_name_idx" ON "inventory"."sales_product_categories" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "sales_prod_purchase_prod_id_idx" ON "inventory"."sales_product_purchases" USING btree ("product_id");--> statement-breakpoint
+CREATE INDEX "sales_prod_code_idx" ON "inventory"."sales_products" USING btree ("product_code");--> statement-breakpoint
+CREATE INDEX "sales_prod_cat_id_idx" ON "inventory"."sales_products" USING btree ("category_id");--> statement-breakpoint
 CREATE INDEX "assoc_acct_bal_hist_account_date_idx" ON "savings_banks"."associate_account_balance_history" USING btree ("associate_account_id","balance_date");--> statement-breakpoint
 CREATE INDEX "assoc_acct_bal_hist_movement_idx" ON "savings_banks"."associate_account_balance_history" USING btree ("movement_id");--> statement-breakpoint
 CREATE INDEX "assoc_acct_mov_account_date_idx" ON "savings_banks"."associate_account_movements" USING btree ("associate_account_id","transaction_date");--> statement-breakpoint
@@ -1046,6 +1224,8 @@ CREATE INDEX "credit_payments_date_idx" ON "savings_banks"."credit_payments" USI
 CREATE INDEX "credit_payments_reference_idx" ON "savings_banks"."credit_payments" USING btree ("custom_reference");--> statement-breakpoint
 CREATE INDEX "credit_payments_transaction_reference_idx" ON "savings_banks"."credit_payments" USING btree ("transaction_reference");--> statement-breakpoint
 CREATE INDEX "credit_payments_details_installment_idx" ON "savings_banks"."credit_payment_details" USING btree ("installment_id");--> statement-breakpoint
+CREATE INDEX "credit_prod_sale_credit_id_idx" ON "savings_banks"."credit_product_sales" USING btree ("credit_id");--> statement-breakpoint
+CREATE INDEX "credit_prod_sale_prod_id_idx" ON "savings_banks"."credit_product_sales" USING btree ("product_id");--> statement-breakpoint
 CREATE INDEX "credit_status_history_idx" ON "savings_banks"."credit_status_history" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "credit_associate_idx" ON "savings_banks"."credits" USING btree ("associate_id");--> statement-breakpoint
 CREATE INDEX "credit_status_date_idx" ON "savings_banks"."credits" USING btree ("status","request_date");--> statement-breakpoint
@@ -1150,14 +1330,24 @@ CREATE VIEW "savings_banks"."associate_haberes_balance" AS (
                   'DIVIDEND_CREDIT'::public.associate_movement_type_enum,
                   'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,
                   'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,
-                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum
+                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,
+                  'SAVING_WITHDRAWAL_REVERSAL_CREDIT'::associate_movement_type_enum,
+                  'LIQUIDATION_BALANCE_REVERSAL_CREDIT'::associate_movement_type_enum,
+                  'ACCOUNTING_ADJUSTMENT_CREDIT'::associate_movement_type_enum,
+                  'OTHER_CREDIT'::associate_movement_type_enum
               ]) THEN "savings_banks"."associate_account_movements"."amount"
               -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)
               WHEN "savings_banks"."associate_account_movements"."movement_type" = ANY (ARRAY[
                   'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,
                   'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,
                   'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,
-                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum
+                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,
+                  'PAYMENT_REVERSAL_DEBIT'::associate_movement_type_enum, -- Aunque es "PAYMENT", podría ser una reversión de pago de algo no crediticio
+                  'ADMIN_FEE_DEBIT'::associate_movement_type_enum,
+                  'OTHER_DEBIT'::associate_movement_type_enum,
+                  'FEE_DEBIT'::associate_movement_type_enum,
+                  'LIQUIDATION_BALANCE'::associate_movement_type_enum,
+                  'ACCOUNTING_ADJUSTMENT_DEBIT'::associate_movement_type_enum
               ]) THEN -"savings_banks"."associate_account_movements"."amount"
               ELSE 0
           END
@@ -1245,7 +1435,7 @@ CREATE VIEW "savings_banks"."loan_outstanding_balance" AS (
   JOIN
       "savings_banks"."loan_amortization_schedule" las ON l.id = las.loan_id
   WHERE
-      l.status IN ('APPROVED'::loan_status_enum, 'DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)
+      l.status IN ('DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)
   GROUP BY
       l.id,
       l.associate_id,

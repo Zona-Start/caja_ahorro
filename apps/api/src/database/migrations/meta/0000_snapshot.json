@@ -1,5 +1,5 @@
 {
-  "id": "db21c3a6-275f-4e63-ad1c-67d296fd9b1a",
+  "id": "7eb956b7-e39a-471b-b7d6-2370b192cbad",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2834,6 +2834,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "bank_transaction_category": {
+          "name": "bank_transaction_category",
+          "type": "bank_transaction_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
         "bank_reference": {
           "name": "bank_reference",
           "type": "varchar(100)",
@@ -2886,6 +2893,20 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "internal_link_status": {
+          "name": "internal_link_status",
+          "type": "internal_link_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'UNLINKED'"
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -3047,6 +3068,183 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "banking.internal_transaction_bank_links": {
+      "name": "internal_transaction_bank_links",
+      "schema": "banking",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "bank_transaction_id": {
+          "name": "bank_transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "internal_record_type": {
+          "name": "internal_record_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "internal_record_id": {
+          "name": "internal_record_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linked_at": {
+          "name": "linked_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "linked_by": {
+          "name": "linked_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "int_trans_links_bank_trans_id_idx": {
+          "name": "int_trans_links_bank_trans_id_idx",
+          "columns": [
+            {
+              "expression": "bank_transaction_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "int_trans_links_internal_record_idx": {
+          "name": "int_trans_links_internal_record_idx",
+          "columns": [
+            {
+              "expression": "internal_record_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "internal_record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "internal_transaction_bank_links_bank_transaction_id_bank_transactions_id_fk": {
+          "name": "internal_transaction_bank_links_bank_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "internal_transaction_bank_links",
+          "tableTo": "bank_transactions",
+          "schemaTo": "banking",
+          "columnsFrom": [
+            "bank_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "internal_transaction_bank_links_linked_by_users_id_fk": {
+          "name": "internal_transaction_bank_links_linked_by_users_id_fk",
+          "tableFrom": "internal_transaction_bank_links",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "linked_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "internal_transaction_bank_links_created_by_id_users_id_fk": {
+          "name": "internal_transaction_bank_links_created_by_id_users_id_fk",
+          "tableFrom": "internal_transaction_bank_links",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "internal_transaction_bank_links_updated_by_id_users_id_fk": {
+          "name": "internal_transaction_bank_links_updated_by_id_users_id_fk",
+          "tableFrom": "internal_transaction_bank_links",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "internal_transaction_bank_links_bank_transaction_id_unique": {
+          "name": "internal_transaction_bank_links_bank_transaction_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "bank_transaction_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -4401,6 +4599,982 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.fixed_asset_categories": {
+      "name": "fixed_asset_categories",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_useful_life_years": {
+          "name": "default_useful_life_years",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_depreciation_method": {
+          "name": "default_depreciation_method",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "fixed_asset_cat_name_idx": {
+          "name": "fixed_asset_cat_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fixed_asset_categories_created_by_id_users_id_fk": {
+          "name": "fixed_asset_categories_created_by_id_users_id_fk",
+          "tableFrom": "fixed_asset_categories",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fixed_asset_categories_updated_by_id_users_id_fk": {
+          "name": "fixed_asset_categories_updated_by_id_users_id_fk",
+          "tableFrom": "fixed_asset_categories",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fixed_asset_categories_name_unique": {
+          "name": "fixed_asset_categories_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.fixed_asset_maintenances": {
+      "name": "fixed_asset_maintenances",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "asset_id": {
+          "name": "asset_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maintenance_date": {
+          "name": "maintenance_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "maintenance_type": {
+          "name": "maintenance_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cost": {
+          "name": "cost",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "performed_by": {
+          "name": "performed_by",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "fixed_asset_maint_asset_id_idx": {
+          "name": "fixed_asset_maint_asset_id_idx",
+          "columns": [
+            {
+              "expression": "asset_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fixed_asset_maintenances_asset_id_fixed_assets_id_fk": {
+          "name": "fixed_asset_maintenances_asset_id_fixed_assets_id_fk",
+          "tableFrom": "fixed_asset_maintenances",
+          "tableTo": "fixed_assets",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "fixed_asset_maintenances_created_by_id_users_id_fk": {
+          "name": "fixed_asset_maintenances_created_by_id_users_id_fk",
+          "tableFrom": "fixed_asset_maintenances",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fixed_asset_maintenances_updated_by_id_users_id_fk": {
+          "name": "fixed_asset_maintenances_updated_by_id_users_id_fk",
+          "tableFrom": "fixed_asset_maintenances",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.fixed_assets": {
+      "name": "fixed_assets",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asset_code": {
+          "name": "asset_code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "serial_number": {
+          "name": "serial_number",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "brand": {
+          "name": "brand",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acquisition_date": {
+          "name": "acquisition_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_price": {
+          "name": "purchase_price",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asset_status": {
+          "name": "asset_status",
+          "type": "fixed_assets_inventory_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "useful_life_years": {
+          "name": "useful_life_years",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_method": {
+          "name": "depreciation_method",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accumulated_depreciation": {
+          "name": "accumulated_depreciation",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "last_depreciation_date": {
+          "name": "last_depreciation_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disposal_date": {
+          "name": "disposal_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disposal_reason": {
+          "name": "disposal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disposal_value": {
+          "name": "disposal_value",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "fixed_asset_code_idx": {
+          "name": "fixed_asset_code_idx",
+          "columns": [
+            {
+              "expression": "asset_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fixed_asset_cat_id_idx": {
+          "name": "fixed_asset_cat_id_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "fixed_asset_status_idx": {
+          "name": "fixed_asset_status_idx",
+          "columns": [
+            {
+              "expression": "asset_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "fixed_assets_category_id_fixed_asset_categories_id_fk": {
+          "name": "fixed_assets_category_id_fixed_asset_categories_id_fk",
+          "tableFrom": "fixed_assets",
+          "tableTo": "fixed_asset_categories",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "fixed_assets_created_by_id_users_id_fk": {
+          "name": "fixed_assets_created_by_id_users_id_fk",
+          "tableFrom": "fixed_assets",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "fixed_assets_updated_by_id_users_id_fk": {
+          "name": "fixed_assets_updated_by_id_users_id_fk",
+          "tableFrom": "fixed_assets",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fixed_assets_asset_code_unique": {
+          "name": "fixed_assets_asset_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "asset_code"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.sales_product_categories": {
+      "name": "sales_product_categories",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "sales_prod_cat_name_idx": {
+          "name": "sales_prod_cat_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sales_product_categories_created_by_id_users_id_fk": {
+          "name": "sales_product_categories_created_by_id_users_id_fk",
+          "tableFrom": "sales_product_categories",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "sales_product_categories_updated_by_id_users_id_fk": {
+          "name": "sales_product_categories_updated_by_id_users_id_fk",
+          "tableFrom": "sales_product_categories",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sales_product_categories_name_unique": {
+          "name": "sales_product_categories_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "name"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.sales_product_purchases": {
+      "name": "sales_product_purchases",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_date": {
+          "name": "purchase_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_cost": {
+          "name": "unit_cost",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_cost": {
+          "name": "total_cost",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_name": {
+          "name": "supplier_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoice_reference": {
+          "name": "invoice_reference",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_transaction_id": {
+          "name": "bank_transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "sales_prod_purchase_prod_id_idx": {
+          "name": "sales_prod_purchase_prod_id_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sales_product_purchases_product_id_sales_products_id_fk": {
+          "name": "sales_product_purchases_product_id_sales_products_id_fk",
+          "tableFrom": "sales_product_purchases",
+          "tableTo": "sales_products",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "sales_product_purchases_bank_transaction_id_bank_transactions_id_fk": {
+          "name": "sales_product_purchases_bank_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "sales_product_purchases",
+          "tableTo": "bank_transactions",
+          "schemaTo": "banking",
+          "columnsFrom": [
+            "bank_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "sales_product_purchases_created_by_id_users_id_fk": {
+          "name": "sales_product_purchases_created_by_id_users_id_fk",
+          "tableFrom": "sales_product_purchases",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "sales_product_purchases_updated_by_id_users_id_fk": {
+          "name": "sales_product_purchases_updated_by_id_users_id_fk",
+          "tableFrom": "sales_product_purchases",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.sales_products": {
+      "name": "sales_products",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_code": {
+          "name": "product_code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "brand": {
+          "name": "brand",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_purchase_cost": {
+          "name": "default_purchase_cost",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_selling_price": {
+          "name": "default_selling_price",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_stock": {
+          "name": "current_stock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "minimum_stock_alert": {
+          "name": "minimum_stock_alert",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVO'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "sales_prod_code_idx": {
+          "name": "sales_prod_code_idx",
+          "columns": [
+            {
+              "expression": "product_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "sales_prod_cat_id_idx": {
+          "name": "sales_prod_cat_id_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "sales_products_category_id_sales_product_categories_id_fk": {
+          "name": "sales_products_category_id_sales_product_categories_id_fk",
+          "tableFrom": "sales_products",
+          "tableTo": "sales_product_categories",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "sales_products_created_by_id_users_id_fk": {
+          "name": "sales_products_created_by_id_users_id_fk",
+          "tableFrom": "sales_products",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "sales_products_updated_by_id_users_id_fk": {
+          "name": "sales_products_updated_by_id_users_id_fk",
+          "tableFrom": "sales_products",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sales_products_product_code_unique": {
+          "name": "sales_products_product_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "product_code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -6009,6 +7183,177 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "savings_banks.credit_product_sales": {
+      "name": "credit_product_sales",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "credit_id": {
+          "name": "credit_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "agreed_selling_price": {
+          "name": "agreed_selling_price",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sale_date": {
+          "name": "sale_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "delivery_status": {
+          "name": "delivery_status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ENTREGADO'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "credit_prod_sale_credit_id_idx": {
+          "name": "credit_prod_sale_credit_id_idx",
+          "columns": [
+            {
+              "expression": "credit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "credit_prod_sale_prod_id_idx": {
+          "name": "credit_prod_sale_prod_id_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "credit_product_sales_credit_id_credits_id_fk": {
+          "name": "credit_product_sales_credit_id_credits_id_fk",
+          "tableFrom": "credit_product_sales",
+          "tableTo": "credits",
+          "schemaTo": "savings_banks",
+          "columnsFrom": [
+            "credit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "credit_product_sales_product_id_sales_products_id_fk": {
+          "name": "credit_product_sales_product_id_sales_products_id_fk",
+          "tableFrom": "credit_product_sales",
+          "tableTo": "sales_products",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "credit_product_sales_created_by_id_users_id_fk": {
+          "name": "credit_product_sales_created_by_id_users_id_fk",
+          "tableFrom": "credit_product_sales",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "credit_product_sales_updated_by_id_users_id_fk": {
+          "name": "credit_product_sales_updated_by_id_users_id_fk",
+          "tableFrom": "credit_product_sales",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "savings_banks.credit_status_history": {
       "name": "credit_status_history",
       "schema": "savings_banks",
@@ -6884,10 +8229,11 @@
         },
         "status": {
           "name": "status",
-          "type": "varchar(50)",
+          "type": "liquidations_status_enum",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'PROCESSED'"
+          "default": "'REQUESTED'"
         },
         "payout_transaction_id": {
           "name": "payout_transaction_id",
@@ -7266,6 +8612,14 @@
           "primaryKey": false,
           "notNull": false
         },
+        "payment_status": {
+          "name": "payment_status",
+          "type": "payment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DONE'"
+        },
         "comment": {
           "name": "comment",
           "type": "text",
@@ -7457,6 +8811,14 @@
           "type": "numeric(20, 6)",
           "primaryKey": false,
           "notNull": true
+        },
+        "payment_status": {
+          "name": "payment_status",
+          "type": "payment_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DONE'"
         },
         "created_at": {
           "name": "created_at",
@@ -8725,6 +10087,14 @@
           "primaryKey": false,
           "notNull": false
         },
+        "status": {
+          "name": "status",
+          "type": "withdrawal_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'REQUESTED'"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -8914,6 +10284,8 @@
         "INSERT",
         "UPDATE",
         "DELETE",
+        "REVERSED",
+        "CANCELED",
         "PROCESS_EXECUTION",
         "DATA_IMPORT",
         "CONFIGURATION_CHANGE",
@@ -8988,6 +10360,23 @@
         "ACCOUNTING_ADJUSTMENT_CREDIT"
       ]
     },
+    "public.bank_transaction_category": {
+      "name": "bank_transaction_category",
+      "schema": "public",
+      "values": [
+        "MEMBER_DUES",
+        "LOAN_DISABURSEMENT",
+        "LOAN_PAYMENT",
+        "MEMBER_WITHDRAWAL",
+        "ADMINISTRATIVE_EXPENSES",
+        "BANK_FEES",
+        "INTEREST_EARNED",
+        "TAXES",
+        "OTHER_INCOME",
+        "OTHER_EXPENSES",
+        "INTERNAL_TRANSFER"
+      ]
+    },
     "public.credit_modality_type_enum": {
       "name": "credit_modality_type_enum",
       "schema": "public",
@@ -9032,6 +10421,16 @@
         "CLOSING"
       ]
     },
+    "public.fixed_assets_inventory_status": {
+      "name": "fixed_assets_inventory_status",
+      "schema": "public",
+      "values": [
+        "ACTIVE",
+        "UNDER_MAINTENANCE",
+        "INACTIVE",
+        "DEREGISTERED"
+      ]
+    },
     "auth.gender": {
       "name": "gender",
       "schema": "auth",
@@ -9039,6 +10438,32 @@
         "FEMENINO",
         "MASCULINO",
         "OTRO"
+      ]
+    },
+    "public.internal_link_status": {
+      "name": "internal_link_status",
+      "schema": "public",
+      "values": [
+        "LINKED",
+        "UNLINKED",
+        "PARTIALLY_LINKED",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "public.liquidations_status_enum": {
+      "name": "liquidations_status_enum",
+      "schema": "public",
+      "values": [
+        "REQUESTED",
+        "PROCESSED",
+        "REJECTED",
+        "REVERSED",
+        "CANCELLED",
+        "PENDING_DISBURSEMENT_BANK_BATCH",
+        "DISBURSED",
+        "DISBURSEMENT_FAILED",
+        "DISBURSED_REVERSED",
+        "ADJUSTED"
       ]
     },
     "public.loan_modality_type_enum": {
@@ -9095,6 +10520,14 @@
         "MOBILE_PAYMENT"
       ]
     },
+    "public.payment_status": {
+      "name": "payment_status",
+      "schema": "public",
+      "values": [
+        "DONE",
+        "CANCELED"
+      ]
+    },
     "public.payment_status_enum": {
       "name": "payment_status_enum",
       "schema": "public",
@@ -9102,7 +10535,8 @@
         "PENDING",
         "PAID",
         "OVERDUE",
-        "PARTIAL"
+        "PARTIAL",
+        "CANCELED"
       ]
     },
     "public.reconciliation_item_status_enum": {
@@ -9113,7 +10547,9 @@
         "RECONCILED",
         "MANUAL_MATCH",
         "ADJUSTMENT",
-        "EXCLUDED"
+        "EXCLUDED",
+        "NON_EXISTENT_IN_BANK",
+        "VOIDED"
       ]
     },
     "public.reconciliation_status_enum": {
@@ -9138,6 +10574,22 @@
         "RETIRED",
         "ARCHIVED"
       ]
+    },
+    "public.withdrawal_status_enum": {
+      "name": "withdrawal_status_enum",
+      "schema": "public",
+      "values": [
+        "REQUESTED",
+        "APPROVED",
+        "REJECTED",
+        "REVERSED",
+        "CANCELLED",
+        "PENDING_DISBURSEMENT_BANK_BATCH",
+        "DISBURSED",
+        "DISBURSEMENT_FAILED",
+        "DISBURSED_REVERSED",
+        "ADJUSTED"
+      ]
     }
   },
   "schemas": {
@@ -9146,6 +10598,7 @@
     "auth": "auth",
     "banking": "banking",
     "core": "core",
+    "inventory": "inventory",
     "savings_banks": "savings_banks"
   },
   "sequences": {},
@@ -9248,7 +10701,7 @@
           "notNull": true
         }
       },
-      "definition": "\n  SELECT\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\",\n      -- Saldo total de haberes (la suma y resta de todos los movimientos que componen el haber)\n      SUM(\n          CASE\n              -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,\n                  'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n                  'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n                  'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n                  'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum\n              ]) THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n                  'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum\n              ]) THEN -\"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ) AS haberes_balance,\n      MAX(\"savings_banks\".\"associate_account_movements\".\"transaction_date\") AS last_movement_date,\n\n      -- --- Columnas de desglose ---\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_contribution,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_voluntary,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_employer,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'DIVIDEND_CREDIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS surpluses,\n      -- Nueva columna para la suma de todos los retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_WITHDRAWAL'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawals,\n      -- Nueva columna para la suma de todos los gastos administrativos por retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawal_fees\n  FROM\n      \"savings_banks\".\"associate_account_movements\"\n  GROUP BY\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\"\n",
+      "definition": "\n  SELECT\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\",\n      -- Saldo total de haberes (la suma y resta de todos los movimientos que componen el haber)\n      SUM(\n          CASE\n              -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,\n                  'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n                  'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n                  'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n                  'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'SAVING_WITHDRAWAL_REVERSAL_CREDIT'::associate_movement_type_enum,\n                  'LIQUIDATION_BALANCE_REVERSAL_CREDIT'::associate_movement_type_enum,\n                  'ACCOUNTING_ADJUSTMENT_CREDIT'::associate_movement_type_enum,\n                  'OTHER_CREDIT'::associate_movement_type_enum\n              ]) THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n                  'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,\n                  'PAYMENT_REVERSAL_DEBIT'::associate_movement_type_enum, -- Aunque es \"PAYMENT\", podría ser una reversión de pago de algo no crediticio\n                  'ADMIN_FEE_DEBIT'::associate_movement_type_enum,\n                  'OTHER_DEBIT'::associate_movement_type_enum,\n                  'FEE_DEBIT'::associate_movement_type_enum,\n                  'LIQUIDATION_BALANCE'::associate_movement_type_enum,\n                  'ACCOUNTING_ADJUSTMENT_DEBIT'::associate_movement_type_enum\n              ]) THEN -\"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ) AS haberes_balance,\n      MAX(\"savings_banks\".\"associate_account_movements\".\"transaction_date\") AS last_movement_date,\n\n      -- --- Columnas de desglose ---\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_contribution,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_voluntary,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_employer,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'DIVIDEND_CREDIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS surpluses,\n      -- Nueva columna para la suma de todos los retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_WITHDRAWAL'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawals,\n      -- Nueva columna para la suma de todos los gastos administrativos por retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawal_fees\n  FROM\n      \"savings_banks\".\"associate_account_movements\"\n  GROUP BY\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\"\n",
       "name": "associate_haberes_balance",
       "schema": "savings_banks",
       "isExisting": false,
@@ -9350,7 +10803,7 @@
           "notNull": true
         }
       },
-      "definition": "\n  SELECT\n      l.id AS loan_id,\n      l.associate_id,\n      l.currency_code,\n      l.status AS loan_status,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"loans\" l\n  JOIN\n      \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n      l.status IN ('APPROVED'::loan_status_enum, 'DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)\n  GROUP BY\n      l.id,\n      l.associate_id,\n      l.currency_code,\n      l.status\n",
+      "definition": "\n  SELECT\n      l.id AS loan_id,\n      l.associate_id,\n      l.currency_code,\n      l.status AS loan_status,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"loans\" l\n  JOIN\n      \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n      l.status IN ('DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)\n  GROUP BY\n      l.id,\n      l.associate_id,\n      l.currency_code,\n      l.status\n",
       "name": "loan_outstanding_balance",
       "schema": "savings_banks",
       "isExisting": false,

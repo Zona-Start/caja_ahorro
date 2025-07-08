@@ -1,1 +1,0 @@
-ALTER TYPE "public"."audit_action_enum" ADD VALUE 'REVERSED' BEFORE 'CANCELED';
