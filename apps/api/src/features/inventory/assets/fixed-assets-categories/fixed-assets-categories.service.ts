@@ -33,7 +33,9 @@ export class FixedAssetCategoriesService {
       .insert(fixedAssetCategories)
       .values({ ...data, createdById: userId });
 
-    return 'Fixed asset category created successfully';
+    return {
+      message: 'Fixed asset category created successfully',
+    };
   }
 
   async findAll(paginationDto: any) {
@@ -72,8 +74,8 @@ export class FixedAssetCategoriesService {
     const totalPages = Math.ceil(totalCount / limit);
 
     const meta = {
-      page,
-      limit,
+      page: Number(page),
+      limit: Number(limit),
       totalCount,
       totalPages,
       hasNextPage: page < totalPages,
@@ -83,6 +85,15 @@ export class FixedAssetCategoriesService {
     };
 
     return { data, meta };
+  }
+
+  async findAllCategories() {
+    return await this.drizzle
+      .select({
+        id: schema.fixedAssetCategories.id,
+        name: schema.fixedAssetCategories.name,
+      })
+      .from(schema.fixedAssetCategories);
   }
 
   async findOne(id: number) {
@@ -111,7 +122,9 @@ export class FixedAssetCategoriesService {
       .set({ ...data, updatedById: userId })
       .where(eq(fixedAssetCategories.id, id));
 
-    return 'Fixed asset category updated successfully';
+    return {
+      message: 'Fixed asset category updated successfully',
+    };
   }
 
   async remove(id: number) {
@@ -127,6 +140,8 @@ export class FixedAssetCategoriesService {
       .delete(fixedAssetCategories)
       .where(eq(fixedAssetCategories.id, id));
 
-    return 'Fixed asset category removed successfully';
+    return {
+      message: 'Fixed asset category removed successfully',
+    };
   }
 }

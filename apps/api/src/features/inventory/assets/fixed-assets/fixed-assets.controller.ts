@@ -17,7 +17,7 @@ import { FilterFixedAssetDto } from './dto/filter-fixed-asset.dto';
 import { UpdateFixedAssetDto } from './dto/update-fixed-asset.dto';
 import { FixedAssetsService } from './fixed-assets.service';
 
-@Controller('fixed-assets')
+@Controller('inventory/assets/fixed-assets')
 export class FixedAssetsController {
   constructor(private readonly fixedAssetsService: FixedAssetsService) {}
 

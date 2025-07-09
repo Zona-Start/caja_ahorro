@@ -16,8 +16,8 @@ import { CreateFixedAssetCategoryDto } from './dto/create-fixed-assets-category.
 import { UpdateFixedAssetsCategoryDto } from './dto/update-fixed-assets-category.dto';
 import { FixedAssetCategoriesService } from './fixed-assets-categories.service';
 
-@ApiTags('inventory/fixed-asset-categories')
-@Controller('inventory/fixed-asset-categories')
+@ApiTags('inventory/assets/fixed-asset-categories')
+@Controller('inventory/assets/fixed-asset-categories')
 export class FixedAssetCategoriesController {
   constructor(
     private readonly fixedAssetCategoriesService: FixedAssetCategoriesService,
@@ -43,7 +43,7 @@ export class FixedAssetCategoriesController {
     return { message: 'Fixed asset category created successfully', data };
   }
 
-  @Get()
+  @Get('/paginated')
   @Roles('admin')
   @RequirePermissions('read:fixed-asset-categories')
   @ApiOperation({ summary: 'Get all fixed asset categories' })
@@ -60,6 +60,17 @@ export class FixedAssetCategoriesController {
       data: result.data,
       meta: result.meta,
     };
+  }
+
+  @Get('/all')
+  @RequirePermissions('read:fixed-asset-categories')
+  @ApiOperation({ summary: 'Get all fixed asset Categories' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all fixed asset Categories.',
+  })
+  findAllCategories() {
+    return this.fixedAssetCategoriesService.findAllCategories();
   }
 
   @Get(':id')
