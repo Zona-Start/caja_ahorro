@@ -37,6 +37,7 @@ CREATE TYPE "public"."payment_status" AS ENUM('DONE', 'CANCELED');--> statement-
 CREATE TYPE "public"."payment_status_enum" AS ENUM('PENDING', 'PAID', 'OVERDUE', 'PARTIAL', 'CANCELED');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_item_status_enum" AS ENUM('PENDING', 'RECONCILED', 'MANUAL_MATCH', 'ADJUSTMENT', 'EXCLUDED', 'NON_EXISTENT_IN_BANK', 'VOIDED');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_status_enum" AS ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'REVIEWED');--> statement-breakpoint
+CREATE TYPE "public"."sale-product-status" AS ENUM('AVAILABLE', 'DISABLED', 'OUT OF STOCK', 'COMMING SOON', 'ON SALE');--> statement-breakpoint
 CREATE TYPE "public"."status_enum" AS ENUM('ACTIVE', 'INACTIVE', 'PENDING', 'SUSPENDED', 'LOCKED', 'RETIRED', 'ARCHIVED');--> statement-breakpoint
 CREATE TYPE "public"."withdrawal_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'REVERSED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'ADJUSTED');--> statement-breakpoint
 CREATE TABLE "accounting"."account_plan" (
@@ -543,7 +544,7 @@ CREATE TABLE "inventory"."sales_products" (
 	"default_selling_price" numeric(20, 6) NOT NULL,
 	"current_stock" integer DEFAULT 0 NOT NULL,
 	"minimum_stock_alert" integer DEFAULT 0,
-	"status" varchar(50) DEFAULT 'ACTIVO' NOT NULL,
+	"status" "sale-product-status" DEFAULT 'AVAILABLE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,

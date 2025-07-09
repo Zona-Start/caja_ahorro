@@ -1,4 +1,5 @@
 import {
+  Album,
   AlertTriangle,
   ArrowRight,
   BetweenHorizonalStart,
@@ -33,9 +34,11 @@ import {
   Settings,
   SlidersHorizontal,
   SquarePercent,
+  Store,
   SunMedium,
   SwatchBook,
   TableProperties,
+  TicketPlus,
   Trash,
   TrendingUp,
   Twitter,
@@ -46,8 +49,6 @@ import {
   UserX2Icon,
   Wallet,
   X,
-  Album,
-  TicketPlus,
 } from 'lucide-react';
 
 export type Icon = LucideIcon;
@@ -99,6 +100,7 @@ export const Icons = {
   handPlatter: HandPlatter,
   album: Album,
   ticketPlus: TicketPlus,
+  store: Store,
   gitHub: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

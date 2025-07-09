@@ -264,3 +264,18 @@ export enum bankTransactionCategory {
   OTHER_EXPENSES = 'OTHER_EXPENSES',
   INTERNAL_TRANSFER = 'INTERNAL_TRANSFER', // Entre cuentas de la caja
 }
+
+export enum fixedAssetsInventoryStatus {
+  ACTIVE = 'ACTIVE', // En uso y operativo
+  UNDER_MAINTENANCE = 'UNDER_MAINTENANCE', // Actualmente en reparación
+  INACTIVE = 'INACTIVE', // No en uso, pero aún propiedad de la caja
+  DEREGISTERED = 'DEREGISTERED', // Ya no es propiedad de la caja
+}
+
+export enum saleProductStatus {
+  AVAILABLE = 'AVAILABLE', // EEl producto está disponible para la venta
+  DISABLED = 'DISABLED', // El producto no está disponible para la venta ni es visible públicamente en el catálogo
+  OUT_OF_STOCK = 'OUT OF STOCK', // El producto no tiene unidades disponibles para la venta en este momento
+  COMMING_SOON = 'COMMING SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
+  ON_SALE = 'ON SALE', // en oferta
+}

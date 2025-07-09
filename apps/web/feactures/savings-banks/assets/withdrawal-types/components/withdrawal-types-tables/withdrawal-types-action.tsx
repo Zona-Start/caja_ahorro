@@ -1,4 +1,5 @@
 'use client';
+
 import { Button } from '@repo/shadcn/button';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';

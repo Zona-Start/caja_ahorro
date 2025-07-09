@@ -1,0 +1,1 @@
+export * from './sales-product-purchase.entity';

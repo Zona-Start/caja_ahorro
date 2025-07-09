@@ -132,6 +132,45 @@ export const savingBankItems: NavItem[] = [
       },
     ], // No child items
   },
+  {
+    title: 'Inventarios',
+    url: '#',
+    icon: 'store',
+    shortcut: ['s', 's'],
+    isActive: false,
+    items: [
+      {
+        title: 'Categorias Productos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/inventarios/productos/categorias',
+      },
+      {
+        title: 'Productos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/inventarios/productos',
+      },
+      {
+        title: 'Adquisición Productos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/inventarios/productos/compras',
+      },
+      {
+        title: 'Categorias Bienes',
+        shortcut: ['l', 'l'],
+        url: '#',
+      },
+      {
+        title: 'Bienes',
+        shortcut: ['l', 'l'],
+        url: '#',
+      },
+      {
+        title: 'Adquisición Bienes',
+        shortcut: ['l', 'l'],
+        url: '#',
+      },
+    ], // No child items
+  },
 ];
 
 export const AccountingItems: NavItem[] = [

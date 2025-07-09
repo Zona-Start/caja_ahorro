@@ -9,7 +9,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
 import { bankTransactions } from './banking';
-import { fixedAssetsInventoryStatus } from './enum';
+import { fixedAssetsInventoryStatus, saleProductStatus } from './enum';
 import { inventorySchema } from './schemas';
 
 // Tabla para las categorías de los productos que se venden
@@ -53,7 +53,7 @@ export const salesProducts = inventorySchema.table(
     currentStock: integer('current_stock').notNull().default(0), // Cantidad de unidades disponibles para venta
     minimumStockAlert: integer('minimum_stock_alert').default(0), // Umbral de alerta por bajo stock
 
-    status: varchar('status', { length: 50 }).notNull().default('ACTIVO'), // 'ACTIVO', 'DESCONTINUADO'
+    status: saleProductStatus('status').notNull().default('AVAILABLE'), // 'ACTIVO', 'DESCONTINUADO'
 
     ...timestamps,
   },

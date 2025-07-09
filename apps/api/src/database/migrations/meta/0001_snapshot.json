@@ -1,6 +1,6 @@
 {
-  "id": "780963c4-11c9-47f9-a404-3e8bd243cf89",
-  "prevId": "7eb956b7-e39a-471b-b7d6-2370b192cbad",
+  "id": "25a0d64a-a0a8-4529-b911-89bef0547841",
+  "prevId": "7fd83e7e-3418-430b-a413-d808bb127f7d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -5458,10 +5458,11 @@
         },
         "status": {
           "name": "status",
-          "type": "varchar(50)",
+          "type": "sale-product-status",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'ACTIVO'"
+          "default": "'AVAILABLE'"
         },
         "created_at": {
           "name": "created_at",
@@ -10560,6 +10561,17 @@
         "IN_PROGRESS",
         "COMPLETED",
         "REVIEWED"
+      ]
+    },
+    "public.sale-product-status": {
+      "name": "sale-product-status",
+      "schema": "public",
+      "values": [
+        "AVAILABLE",
+        "DISABLED",
+        "OUT OF STOCK",
+        "COMMING SOON",
+        "ON SALE"
       ]
     },
     "public.status_enum": {

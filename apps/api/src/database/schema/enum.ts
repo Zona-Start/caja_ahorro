@@ -302,3 +302,11 @@ export const fixedAssetsInventoryStatus = pgEnum(
     'DEREGISTERED', // Ya no es propiedad de la caja
   ],
 );
+
+export const saleProductStatus = pgEnum('sale-product-status', [
+  'AVAILABLE', // EEl producto está disponible para la venta
+  'DISABLED', // El producto no está disponible para la venta ni es visible públicamente en el catálogo
+  'OUT OF STOCK', // El producto no tiene unidades disponibles para la venta en este momento
+  'COMMING SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
+  'ON SALE', // en oferta
+]);
