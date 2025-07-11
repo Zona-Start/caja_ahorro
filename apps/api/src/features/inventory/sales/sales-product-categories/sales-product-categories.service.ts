@@ -1,7 +1,12 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, eq, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateSalesProductCategoryDto } from './dto/create-sales-product-category.dto';
@@ -165,7 +170,21 @@ export class SalesProductCategoriesService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
+    const exist = await this.findOne(id);
+
+    if (!exist) {
+      throw new NotFoundException(`Category not found`);
+    }
+
+    const isProductCategory = await this.drizzle.query.salesProducts.findFirst({
+      where: eq(schema.salesProducts.categoryId, id),
+    });
+
+    if (isProductCategory) {
+      throw new BadRequestException(
+        'Cannot be deleted, Product Category is in use',
+      );
+    }
 
     const deletedCategory = await this.drizzle
       .delete(schema.salesProductCategories)
@@ -173,7 +192,7 @@ export class SalesProductCategoriesService {
       .returning();
 
     if (!deletedCategory.length) {
-      throw new NotFoundException(`Category with id ${id} not delete`);
+      throw new NotFoundException(`Category not delete`);
     }
 
     return {

@@ -6,8 +6,8 @@ import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<FixedAsset>[] = [
   {
-    accessorKey: 'productCode',
-    header: 'Código',
+    accessorKey: 'assetCode',
+    header: 'Código del Activo',
   },
   {
     accessorKey: 'name',
@@ -15,7 +15,7 @@ export const columns: ColumnDef<FixedAsset>[] = [
   },
   {
     accessorKey: 'categoryName',
-    header: 'Categoria',
+    header: 'Categoría',
   },
   {
     accessorKey: 'brand',
@@ -26,20 +26,16 @@ export const columns: ColumnDef<FixedAsset>[] = [
     header: 'Modelo',
   },
   {
-    accessorKey: 'defaultSellingPrice',
-    header: 'Precio Venta',
-    cell: ({ row }) => `$${row.original.defaultSellingPrice}`,
+    accessorKey: 'purchasePrice',
+    header: 'Precio de Compra',
+    cell: ({ row }) => `${row.original.purchasePrice}`,
   },
   {
-    accessorKey: 'currentStock',
-    header: 'Stock',
-  },
-  {
-    accessorKey: 'status',
+    accessorKey: 'assetStatus',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original.status as keyof typeof ESTATUS_TYPES;
-      return ESTATUS_TYPES[statusKey] || row.original.status;
+      const statusKey = row.original.assetStatus as keyof typeof ESTATUS_TYPES;
+      return ESTATUS_TYPES[statusKey] || row.original.assetStatus;
     },
   },
   {

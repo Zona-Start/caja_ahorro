@@ -4,16 +4,17 @@ export const fixedAssetApiSchema = z.object({
   id: z.number().optional(),
   categoryId: z.number(),
   categoryName: z.string(),
-  productCode: z.string(),
+  assetCode: z.string(),
   name: z.string(),
   description: z.string().optional().nullable(),
+  serialNumber: z.string(),
   brand: z.string(),
   model: z.string(),
-  defaultPurchaseCost: z.string(),
-  defaultSellingPrice: z.string(),
-  currentStock: z.number(),
-  minimumStockAlert: z.number(),
-  status: z.string(),
+  purchasePrice: z.number(),
+  acquisitionDate: z.string(),
+  assetStatus: z.string(),
+  usefulLifeYears: z.number(),
+  depreciationMethod: z.string(),
 });
 
 export type FixedAssetSchemaAPI = z.infer<typeof fixedAssetApiSchema>;

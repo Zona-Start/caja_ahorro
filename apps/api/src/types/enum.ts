@@ -279,3 +279,34 @@ export enum saleProductStatus {
   COMMING_SOON = 'COMMING SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
   ON_SALE = 'ON SALE', // en oferta
 }
+
+export enum categorySuppliers {
+  ASSETS = 'ASSETS',
+  SERVICE = 'SERVICE',
+  PRODUCTS = 'PRODUCTS',
+  MATERIALS = 'MATERIALS',
+  FURNITURE = 'FURNITURE',
+  OTHERS = 'OTHERS',
+}
+
+export enum statusSuppliers {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  SUSPENDED = 'SUSPENDED',
+}
+
+export enum purchaseItemTypeEnum {
+  SALES_INVENTORY = 'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
+  FIXED_ASSET = 'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
+  EXPENSE = 'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
+}
+
+// Enum para el estado de una factura (Cuentas por Pagar)
+export enum invoiceSuppliersStatusEnum {
+  DRAFT = 'DRAFT', // Borrador, no ha generado obligación contable
+  PENDING = 'PENDING', // Pendiente de pago
+  PARTIALLY_PAID = 'PARTIALLY_PAID', // Pagada parcialmente
+  PAID = 'PAID', // Pagada completamente
+  CANCELLED = 'CANCELLED', // Factura anulada/cancelada
+  OVERDUE = 'OVERDUE', // Vencida
+}

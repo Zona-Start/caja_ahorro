@@ -1,5 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
+import { CustomCalendar } from '@repo/shadcn/components/ui/custom-calendar';
+import { Textarea } from '@repo/shadcn/components/ui/textarea';
 import {
   Form,
   FormControl,
@@ -44,11 +46,8 @@ export default function FixedAssetForm({
     resolver: zodResolver(fixedAssetSchema),
     defaultValues: {
       ...defaultValues,
-      defaultPurchaseCost: defaultValues?.defaultPurchaseCost ?? 0,
-      defaultSellingPrice: defaultValues?.defaultSellingPrice ?? 0,
-      currentStock: defaultValues?.currentStock ?? 0,
-      minimumStockAlert: defaultValues?.minimumStockAlert ?? 0,
-      categoryId: defaultValues?.categoryId ?? undefined, // Usa undefined para números opcionales en select
+      categoryId: defaultValues?.categoryId ?? undefined,
+      purchasePrice: defaultValues?.purchasePrice ?? 0,
     },
     mode: 'onChange',
   });
@@ -62,7 +61,7 @@ export default function FixedAssetForm({
       onError: () => {
         form.setError('root', {
           type: 'manual',
-          message: 'Error al guardar el producto de venta',
+          message: 'Error al guardar el activo fijo',
         });
       },
     });
@@ -90,7 +89,7 @@ export default function FixedAssetForm({
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona un frecuencia" />
+                      <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
@@ -112,10 +111,10 @@ export default function FixedAssetForm({
 
           <FormField
             control={form.control}
-            name="productCode"
+            name="assetCode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Código</FormLabel>
+                <FormLabel>Código del Activo</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
@@ -148,10 +147,10 @@ export default function FixedAssetForm({
           />
           <FormField
             control={form.control}
-            name="description"
+            name="serialNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Descripción</FormLabel>
+                <FormLabel>Número de Serie</FormLabel>
                 <FormControl>
                   <Input
                     {...field}
@@ -164,6 +163,28 @@ export default function FixedAssetForm({
               </FormItem>
             )}
           />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Descripción</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    value={field.value ?? ''}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="brand"
@@ -200,12 +221,34 @@ export default function FixedAssetForm({
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
-            name="defaultPurchaseCost"
+            name="acquisitionDate"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Fecha Compra</FormLabel>
+                <FormControl>
+                  <CustomCalendar
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    placeholder="Seleccione la fecha"
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="purchasePrice"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Costo de compra</FormLabel>
+                <FormLabel>Precio de Compra</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -222,10 +265,10 @@ export default function FixedAssetForm({
           />
           <FormField
             control={form.control}
-            name="defaultSellingPrice"
+            name="usefulLifeYears"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Precio de venta</FormLabel>
+                <FormLabel>Años de Vida Útil</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -242,40 +285,47 @@ export default function FixedAssetForm({
           />
           <FormField
             control={form.control}
-            name="currentStock"
+            name="depreciationMethod"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Stock actual</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                    value={field.value ?? ''}
-                    disabled={readOnly}
-                    className={readOnly ? 'bg-muted' : ''}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="minimumStockAlert"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Stock mínimo alerta</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                    value={field.value ?? ''}
-                    disabled={readOnly}
-                    className={readOnly ? 'bg-muted' : ''}
-                  />
-                </FormControl>
+              <FormItem className="w-full">
+                <FormLabel>Metódo Depreciación</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={String(field.value)}
+                  disabled={readOnly}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona un frecuencia" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
+                    <SelectItem
+                      value="Línea recta"
+                      className={readOnly ? 'bg-muted' : ''}
+                    >
+                      Línea recta
+                    </SelectItem>
+                    <SelectItem
+                      value="Suma de los dígitos de los años"
+                      className={readOnly ? 'bg-muted' : ''}
+                    >
+                      Suma de los dígitos de los años
+                    </SelectItem>
+                    <SelectItem
+                      value="Reducción de saldos"
+                      className={readOnly ? 'bg-muted' : ''}
+                    >
+                      Reducción de saldos
+                    </SelectItem>
+                    <SelectItem
+                      value="Unidades de producción"
+                      className={readOnly ? 'bg-muted' : ''}
+                    >
+                      Unidades de producción
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -283,7 +333,7 @@ export default function FixedAssetForm({
           {defaultValues?.id && (
             <FormField
               control={form.control}
-              name="status"
+              name="assetStatus"
               render={({ field }) => (
                 <FormItem className="w-full">
                   <FormLabel>Estatus</FormLabel>

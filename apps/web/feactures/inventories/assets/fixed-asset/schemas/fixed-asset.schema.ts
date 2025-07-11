@@ -1,48 +1,59 @@
 import { z } from 'zod';
 
+const emptyStringToUndefined = z.preprocess(
+  (val) => (val === '' || val === null ? undefined : val),
+  z.any(),
+);
+
 export const fixedAssetSchema = z.object({
   id: z.number().nullable().optional(),
   categoryId: z.number({ required_error: 'La categoría es requerida' }),
-  productCode: z.string({ required_error: 'El código es requerido' }).min(1),
-  name: z.string({ required_error: 'El nombre es requerido' }).min(1),
+  assetCode: z
+    .string({ required_error: 'El código del activo es requerido' })
+    .min(1, 'El código del activo no puede estar vacío'),
+  name: z
+    .string({ required_error: 'El nombre es requerido' })
+    .min(1, 'El nombre no puede estar vacío'),
   description: z.string().optional().nullable(),
-  brand: z.string({ required_error: 'La marca es requerido' }).min(1),
-  model: z.string({ required_error: 'El modelo es requerido' }).min(1),
-  defaultPurchaseCost: z.coerce
-    .number({
-      required_error: 'El costo de compra es requerido',
+  serialNumber: z.string().optional().nullable(),
+  model: z.string().optional().nullable(),
+  brand: z.string().optional().nullable(),
+  acquisitionDate: z.date({
+    required_error: 'La fecha de adquisición es requerida',
+  }),
+  purchasePrice: emptyStringToUndefined.pipe(
+    z.coerce
+      .number({ required_error: 'El precio de compra es requerido' })
+      .min(0, 'El precio debe ser un número positivo'),
+  ),
+  assetStatus: z
+    .string({
+      required_error: 'El estado del activo es requerido',
     })
-    .min(0, 'El costo de compra debe ser un número positivo')
-    .refine((val) => !isNaN(val), {
-      message: 'El costo de compra debe ser un número válido',
-    }),
-  defaultSellingPrice: z.coerce
-    .number({
-      required_error: 'El precio de venta es requerido',
-    })
-    .min(0, 'El precio de venta debe ser un número positivo')
-    .refine((val) => !isNaN(val), {
-      message: 'El precio de venta debe ser un número válido',
-    }),
-  currentStock: z.coerce
-    .number({
-      required_error: 'El stock actual es requerido',
-    })
-    .int('El stock actual debe ser un número entero')
-    .min(0, 'El stock actual no puede ser negativo')
-    .refine((val) => !isNaN(val), {
-      message: 'El stock actual debe ser un número válido',
-    }),
-  minimumStockAlert: z.coerce
-    .number({
-      required_error: 'El stock mínimo es requerido',
-    })
-    .int('El stock mínimo debe ser un número entero')
-    .min(0, 'El stock mínimo no puede ser negativo')
-    .refine((val) => !isNaN(val), {
-      message: 'El stock mínimo debe ser un número válido',
-    }),
-  status: z.string().optional(),
+    .optional(),
+  usefulLifeYears: emptyStringToUndefined.pipe(
+    z.coerce
+      .number({ invalid_type_error: 'La vida útil debe ser un número' })
+      .int('Debe ser un número entero')
+      .optional()
+      .nullable(),
+  ),
+  depreciationMethod: z.string().optional().nullable(),
+  accumulatedDepreciation: emptyStringToUndefined.pipe(
+    z.coerce
+      .number({ invalid_type_error: 'Debe ser un número' })
+      .optional()
+      .nullable(),
+  ),
+  lastDepreciationDate: z.date().optional().nullable(),
+  disposalDate: z.date().optional().nullable(),
+  disposalReason: z.string().optional().nullable(),
+  disposalValue: emptyStringToUndefined.pipe(
+    z.coerce
+      .number({ invalid_type_error: 'Debe ser un número' })
+      .optional()
+      .nullable(),
+  ),
 });
 
 export type FixedAsset = z.infer<typeof fixedAssetSchema>;

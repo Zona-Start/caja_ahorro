@@ -41,7 +41,7 @@ export class FixedAssetsController {
     return { message: 'Fixed assets created successfully', data };
   }
 
-  @Get()
+  @Get('/paginated')
   @Roles('admin')
   @RequirePermissions('read:fixed-assets')
   @ApiOperation({ summary: 'Get all fixed assets with pagination and filters' })

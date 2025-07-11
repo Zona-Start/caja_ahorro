@@ -1,14 +1,14 @@
 'use client';
-import * as React from 'react';
-import Image from "next/image";
 import {
   NavMain as AccountingMain,
+  NavMain as AccountPayableMain,
   NavMain as BankMain,
   NavMain as ConfigMain,
   NavMain,
 } from '@/components/nav-main';
 import {
   AccountingItems,
+  AccountsPayableItems,
   BankItems,
   ConfigItems,
   savingBankItems,
@@ -20,7 +20,8 @@ import {
   SidebarRail,
 } from '@repo/shadcn/sidebar';
 import { GalleryVerticalEnd } from 'lucide-react';
-
+import Image from 'next/image';
+import * as React from 'react';
 
 export const company = {
   name: 'Caprebicentenario',
@@ -34,7 +35,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <div className="flex gap-2 py-2 text-sidebar-accent-foreground">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg  text-sidebar-primary-foreground">
             <Image src="/logo.png" alt="logo" width={40} height={40} priority />
-
           </div>
           <div className="grid flex-1 text-left text-md leading-tight">
             <span className="truncate font-semibold mt-2">{company.name}</span>
@@ -43,6 +43,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain titleGroup={'Gestión Caja Ahorro'} items={savingBankItems} />
+        <AccountPayableMain
+          titleGroup={'Gestión Cuentas x Pagar'}
+          items={AccountsPayableItems}
+        />
         <AccountingMain
           titleGroup={'Gestión Contable'}
           items={AccountingItems}

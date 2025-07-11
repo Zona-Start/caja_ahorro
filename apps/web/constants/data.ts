@@ -162,7 +162,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Bienes',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/inventarios/bienes',
       },
       {
         title: 'Adquisición Bienes',
@@ -171,6 +171,41 @@ export const savingBankItems: NavItem[] = [
       },
     ], // No child items
   },
+];
+
+export const AccountsPayableItems: NavItem[] = [
+  {
+    title: 'Gestión Proveedores',
+    url: '/dashboard/cuentas_x_pagar/proveedores',
+    icon: 'container',
+    colorIcons: 'indigo',
+    isActive: false,
+    items: [],
+  },
+  {
+    title: 'Cuentas por pagar',
+    url: '/dashboard/cuentas_x_pagar',
+    icon: 'usersRound',
+    colorIcons: 'red',
+    isActive: false,
+    items: [],
+  },
+  {
+    title: 'Propiedades del Sistema',
+    url: '/dashboard/utilidades/propiedades-sistema',
+    icon: 'tableProperties',
+    colorIcons: 'blue',
+    isActive: true,
+    items: [],
+  },
+  // {
+  //   title: 'Respaldos Bade de Datos',
+  //   url: '#',
+  //   icon: 'databaseBackup',
+  //   colorIcons: 'amber',
+  //   isActive: true,
+  //   items: [],
+  // },
 ];
 
 export const AccountingItems: NavItem[] = [

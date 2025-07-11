@@ -1,4 +1,5 @@
 export * from './schema/accounting';
+export * from './schema/accounts-payable';
 export * from './schema/activity_logs';
 export * from './schema/auth';
 export * from './schema/banking';

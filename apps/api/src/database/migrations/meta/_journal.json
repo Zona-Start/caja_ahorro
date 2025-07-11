@@ -15,6 +15,20 @@
       "when": 1752018800142,
       "tag": "0001_function-calculate-associate-liquidation",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1752172524815,
+      "tag": "0002_jazzy_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1752201988641,
+      "tag": "0003_eager_the_leader",
+      "breakpoints": true
     }
   ]
 }

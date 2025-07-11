@@ -310,3 +310,49 @@ export const saleProductStatus = pgEnum('sale-product-status', [
   'COMMING SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
   'ON SALE', // en oferta
 ]);
+
+export const categorySuppliers = pgEnum('category-suppliers', [
+  'ASSETS',
+  'SERVICE',
+  'PRODUCTS',
+  'MATERIALS',
+  'FURNITURE',
+  'OTHERS',
+]);
+
+export const statusSuppliers = pgEnum('status-suppliers', [
+  'ACTIVE',
+  'INACTIVE',
+  'SUSPENDED',
+]);
+
+// Enum para el estado de una factura (Cuentas por Pagar)
+export const invoiceSuppliersStatusEnum = pgEnum(
+  'invoice_suppliers_status_enum',
+  [
+    'DRAFT', // Borrador, no ha generado obligación contable
+    'PENDING', // Pendiente de pago
+    'PARTIALLY_PAID', // Pagada parcialmente
+    'PAID', // Pagada completamente
+    'CANCELLED', // Factura anulada/cancelada
+    'OVERDUE', // Vencida
+  ],
+);
+
+// Enum para el estado de un pago a proveedor
+export const paymentSuppliersStatusEnum = pgEnum(
+  'payment_suppliers_status_enum',
+  [
+    'REQUESTED', // Pago solicitado
+    'PENDING_BANK_BATCH', // Incluido en lote de pago bancario
+    'PROCESSED', // Procesado exitosamente (equivalente a DESEMBOLSADO)
+    'FAILED', // Falló el procesamiento
+    'REVERSED', // Reversado (por error o devolución)
+  ],
+);
+
+export const purchaseItemTypeEnum = pgEnum('purchase_item_type_enum', [
+  'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
+  'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
+  'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
+]);

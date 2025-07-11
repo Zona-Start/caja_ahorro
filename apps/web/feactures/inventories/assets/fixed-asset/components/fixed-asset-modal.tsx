@@ -41,11 +41,11 @@ export default function FixedAssetModal({
       <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg bg-background/80">
         <DialogHeader>
           <DialogTitle>
-            {defaultValues ? 'Editar producto' : 'Nuevo producto'}
+            {defaultValues ? 'Editar Bien o Activo' : 'Nuevo Bien o Activo'}
           </DialogTitle>
           <DialogDescription>
             Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} el producto
+            {defaultValues?.id ? 'actualizar' : 'crear'} el bien o activo
           </DialogDescription>
         </DialogHeader>
         <FixedAssetForm

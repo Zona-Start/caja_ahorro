@@ -57,7 +57,7 @@ export default function SalesProductTableActions() {
         />
       </div>
       <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
+        <Plus className="mr-2 h-4 w-4" /> Nuevo Bien
       </Button>
       <SalesProductModal open={open} onOpenChange={setOpen} />
     </div>

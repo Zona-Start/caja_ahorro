@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import { accountsPayable } from './accounts-payable';
 import {
   associateAccountMovements,
   associateAccounts,
@@ -15,7 +16,7 @@ import {
   loanAmortizationSchedule,
   loans,
 } from './savings-banks';
-import { savingsBanksSchema } from './schemas';
+import { accountsPayableSchema, savingsBanksSchema } from './schemas';
 
 export const associateAccountBalances = savingsBanksSchema
   .view('associate_account_balances', {
@@ -292,4 +293,26 @@ export const associateHaberesBalance = savingsBanksSchema.view(
       ${associateAccountMovements}
   GROUP BY
       ${associateAccountMovements.associateAccountId}
+`);
+
+export const accountsPayableSummaryView = accountsPayableSchema.view(
+  'accounts_payable_summary',
+  {
+    totalAmount: numeric('total_amount', { precision: 18, scale: 2 }),
+    pendingAmount: numeric('pending_amount', { precision: 18, scale: 2 }),
+    paidAmount: numeric('paid_amount', { precision: 18, scale: 2 }),
+    overdueAmount: numeric('overdue_amount', { precision: 18, scale: 2 }),
+  },
+).as(sql`
+  SELECT
+    SUM(${accountsPayable.totalAmount}) AS total_amount,
+    SUM(CASE WHEN ${accountsPayable.status} = 'PENDING' THEN ${accountsPayable.remainingAmount} ELSE 0 END) AS pending_amount,
+    SUM(CASE WHEN ${accountsPayable.status} = 'PAID' THEN ${accountsPayable.paidAmount} ELSE 0 END) AS paid_amount,
+    SUM(
+      CASE
+        WHEN ${accountsPayable.status} = 'PENDING' AND ${accountsPayable.dueDate} < CURRENT_DATE THEN ${accountsPayable.remainingAmount}
+        ELSE 0
+      END
+    ) AS overdue_amount
+  FROM ${accountsPayable}
 `);

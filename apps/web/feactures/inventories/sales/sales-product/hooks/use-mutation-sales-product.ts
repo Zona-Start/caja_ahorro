@@ -10,8 +10,7 @@ export function useSalesProductMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: SalesProduct) =>
-      saveSalesProductAction(data),
+    mutationFn: (data: SalesProduct) => saveSalesProductAction(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-products'] });
       toast.success('Producto de venta guardado exitosamente');
@@ -34,8 +33,17 @@ export function useDeleteSalesProduct() {
       toast.success('Producto de venta eliminado exitosamente');
     },
     onError: (error) => {
-      toast.error('Error al eliminar el producto de venta');
-      console.error('Error:', error);
+      if (error instanceof Error) {
+        if (error.message === 'Sales product not found') {
+          toast.error('Error, Producto de venta no encontrado');
+        } else if (
+          error.message === 'Cannot be deleted, there are sales of that product'
+        ) {
+          toast.error('No se puede eliminar, hay ventas de ese producto.');
+        } else {
+          toast.error('Error al eliminar el producto');
+        }
+      }
     },
   });
 }

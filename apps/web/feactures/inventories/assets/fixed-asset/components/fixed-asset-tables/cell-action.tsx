@@ -52,7 +52,18 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <SalesProductModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
-        defaultValues={data}
+        defaultValues={{
+          ...data,
+          acquisitionDate: data.acquisitionDate
+            ? new Date(data.acquisitionDate)
+            : undefined,
+          lastDepreciationDate: data.lastDepreciationDate
+            ? new Date(data.lastDepreciationDate)
+            : undefined,
+          disposalDate: data.disposalDate
+            ? new Date(data.disposalDate)
+            : undefined,
+        }}
         readOnly={mode}
       />
 

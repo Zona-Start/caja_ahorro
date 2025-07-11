@@ -136,6 +136,17 @@ export class FixedAssetCategoriesService {
       throw new NotFoundException('Fixed asset category not found');
     }
 
+    const isAssetCategory =
+      await this.drizzle.query.fixedAssetCategories.findFirst({
+        where: eq(schema.fixedAssets.categoryId, id),
+      });
+
+    if (isAssetCategory) {
+      throw new BadRequestException(
+        'Cannot be deleted, the asset category is in use',
+      );
+    }
+
     await this.drizzle
       .delete(fixedAssetCategories)
       .where(eq(fixedAssetCategories.id, id));

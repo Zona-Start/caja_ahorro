@@ -149,6 +149,8 @@ export default function SalesProductForm({
               </FormItem>
             )}
           />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
           <FormField
             control={form.control}
             name="description"
@@ -167,6 +169,8 @@ export default function SalesProductForm({
               </FormItem>
             )}
           />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="brand"

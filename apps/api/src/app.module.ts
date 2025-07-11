@@ -12,6 +12,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { DrizzleModule } from './database/drizzle.module';
 import { AccountingModule } from './features/accounting/accounting.module';
+import { AccountsPayableModule } from './features/accounts-payable/accounts-payable.module';
 import { AuditModule } from './features/audit/audit.module';
 import { AuthModule } from './features/auth/auth.module';
 import { BankingsModule } from './features/bankings/bankings.module';
@@ -68,6 +69,7 @@ import { UserRolesModule } from './features/user-roles/user-roles.module';
     AccountingModule,
     BankingsModule,
     InventoryFeatureModule,
+    AccountsPayableModule,
   ],
 })
 export class AppModule {}

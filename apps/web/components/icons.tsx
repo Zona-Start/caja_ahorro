@@ -49,6 +49,7 @@ import {
   UserX2Icon,
   Wallet,
   X,
+  Container
 } from 'lucide-react';
 
 export type Icon = LucideIcon;
@@ -101,6 +102,7 @@ export const Icons = {
   album: Album,
   ticketPlus: TicketPlus,
   store: Store,
+  container: Container,
   gitHub: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

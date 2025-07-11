@@ -3,7 +3,6 @@ import { FixedAssetsCategoriesModule } from './assets/fixed-assets-categories/fi
 import { FixedAssetsMaintenancesModule } from './assets/fixed-assets-maintenances/fixed-assets-maintenances.module';
 import { FixedAssetsModule } from './assets/fixed-assets/fixed-assets.module';
 import { SalesProductCategoriesModule } from './sales/sales-product-categories/sales-product-categories.module';
-import { SalesProductPurchasesModule } from './sales/sales-product-purchases/sales-product-purchases.module';
 import { SalesProductsModule } from './sales/sales-products/sales-products.module';
 
 @Module({
@@ -13,7 +12,6 @@ import { SalesProductsModule } from './sales/sales-products/sales-products.modul
     FixedAssetsModule,
     SalesProductCategoriesModule,
     SalesProductsModule,
-    SalesProductPurchasesModule,
   ],
 })
 export class InventoryFeatureModule {}

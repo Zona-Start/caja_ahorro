@@ -27,7 +27,7 @@ export async function getFixedAsset(params: {
 
   const [error, response] = await safeFetchApi(
     fixedAssetAllResponseSchema,
-    `/inventory/sales/sales-products/paginated?${searchParams}`,
+    `/inventory/assets/fixed-assets/paginated?${searchParams}`,
     'GET',
   );
 
@@ -36,16 +36,16 @@ export async function getFixedAsset(params: {
     throw new Error(error.message || 'Ocurrió un error desconocido');
   }
 
-  const tansForm = response?.data.map((item) => {
-    return {
-      ...item,
-      defaultPurchaseCost: Number(item.defaultPurchaseCost).toFixed(2),
-      defaultSellingPrice: Number(item.defaultSellingPrice).toFixed(2),
-    };
-  });
+  // const tansForm = response?.data.map((item) => {
+  //   return {
+  //     ...item,
+  //     defaultPurchaseCost: Number(item.defaultPurchaseCost).toFixed(2),
+  //     defaultSellingPrice: Number(item.defaultSellingPrice).toFixed(2),
+  //   };
+  // });
 
   return {
-    data: tansForm || [],
+    data: response?.data || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,
@@ -63,7 +63,7 @@ export async function createFixedAsset(payload: FixedAsset): Promise<any> {
   const { id, ...payloadWithoutId } = payload;
   const [error, data] = await safeFetchApi(
     fixedAssetMutationResponseSchema,
-    '/inventory/sales/sales-products',
+    '/inventory/assets/fixed-assets',
     'POST',
     payloadWithoutId,
   );
@@ -80,7 +80,7 @@ export async function updateFixedAsset(payload: FixedAsset): Promise<any> {
 
   const [error, data] = await safeFetchApi(
     fixedAssetMutationResponseSchema,
-    `/inventory/sales/sales-products/${id}`,
+    `/inventory/assets/fixed-assets/${id}`,
     'PATCH',
     payloadWithoutId,
   );
@@ -96,7 +96,7 @@ export async function updateFixedAsset(payload: FixedAsset): Promise<any> {
 export async function deleteFixedAsset(id: number): Promise<any> {
   const [error, data] = await safeFetchApi(
     fixedAssetMutationResponseSchema,
-    `/inventory/sales/sales-products/${id}`,
+    `/inventory/assets/fixed-assets/${id}`,
     'DELETE',
   );
 

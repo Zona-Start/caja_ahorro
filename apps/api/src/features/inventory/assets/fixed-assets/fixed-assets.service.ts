@@ -49,8 +49,7 @@ export class FixedAssetsService {
       // Preparar datos para inserción
       const assetData = {
         ...createFixedAssetDto,
-        assetStatus:
-          createFixedAssetDto.assetStatus as fixedAssetsInventoryStatus,
+        assetStatus: 'ACTIVE' as fixedAssetsInventoryStatus,
         acquisitionDate: createFixedAssetDto.acquisitionDate.toISOString(),
         purchasePrice: createFixedAssetDto.purchasePrice.toString(),
         accumulatedDepreciation: createFixedAssetDto.accumulatedDepreciation
@@ -98,8 +97,8 @@ export class FixedAssetsService {
         search = '',
         sortBy = 'id',
         sortOrder = 'asc',
-        categoryId,
-        assetStatus,
+        typeCategory,
+        status,
         startDate,
         endDate,
         brand,
@@ -120,16 +119,13 @@ export class FixedAssetsService {
         );
       }
 
-      if (categoryId) {
-        searchConditions.push(eq(fixedAssets.categoryId, categoryId));
+      if (typeCategory) {
+        searchConditions.push(eq(fixedAssets.categoryId, typeCategory));
       }
 
-      if (assetStatus) {
+      if (status) {
         searchConditions.push(
-          eq(
-            fixedAssets.assetStatus,
-            assetStatus as fixedAssetsInventoryStatus,
-          ),
+          eq(fixedAssets.assetStatus, status as fixedAssetsInventoryStatus),
         );
       }
 
@@ -191,13 +187,6 @@ export class FixedAssetsService {
           assetStatus: fixedAssets.assetStatus,
           usefulLifeYears: fixedAssets.usefulLifeYears,
           depreciationMethod: fixedAssets.depreciationMethod,
-          accumulatedDepreciation: fixedAssets.accumulatedDepreciation,
-          lastDepreciationDate: fixedAssets.lastDepreciationDate,
-          disposalDate: fixedAssets.disposalDate,
-          disposalReason: fixedAssets.disposalReason,
-          disposalValue: fixedAssets.disposalValue,
-          createdAt: fixedAssets.createdAt,
-          updatedAt: fixedAssets.updatedAt,
         })
         .from(fixedAssets)
         .leftJoin(
@@ -213,17 +202,9 @@ export class FixedAssetsService {
       const formattedData = data.map((asset) => ({
         ...asset,
         purchasePrice: Number(asset.purchasePrice),
-        accumulatedDepreciation: asset.accumulatedDepreciation
-          ? Number(asset.accumulatedDepreciation)
-          : 0,
-        disposalValue: asset.disposalValue ? Number(asset.disposalValue) : null,
         acquisitionDate: asset.acquisitionDate
           ? new Date(asset.acquisitionDate)
           : null,
-        lastDepreciationDate: asset.lastDepreciationDate
-          ? new Date(asset.lastDepreciationDate)
-          : null,
-        disposalDate: asset.disposalDate ? new Date(asset.disposalDate) : null,
       }));
 
       // Construir metadata de paginación

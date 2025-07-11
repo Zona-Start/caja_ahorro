@@ -1,3 +1,4 @@
+import { fixedAssetsInventoryStatus } from '@/types/enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -61,12 +62,12 @@ export class CreateFixedAssetDto {
 
   @ApiPropertyOptional({
     description: 'Asset status',
-    enum: ['ACTIVE', 'MAINTENANCE', 'DISPOSED', 'LOST'],
+    enum: fixedAssetsInventoryStatus,
     default: 'ACTIVE',
   })
   @IsOptional()
-  @IsEnum(['ACTIVE', 'MAINTENANCE', 'DISPOSED', 'LOST'])
-  assetStatus?: 'ACTIVE' | 'MAINTENANCE' | 'DISPOSED' | 'LOST';
+  @IsEnum(fixedAssetsInventoryStatus)
+  assetStatus?: fixedAssetsInventoryStatus;
 
   @ApiPropertyOptional({ description: 'Useful life in years' })
   @IsOptional()

@@ -40,8 +40,17 @@ export function useDeleteFixedAssetCategories() {
       toast.success('Categoria eliminada exitosamente');
     },
     onError: (error) => {
-      toast.error('Error al eliminar la Categoria');
-      console.error('Error:', error);
+      if (error instanceof Error) {
+        if (error.message === 'Fixed asset category not found') {
+          toast.error('Error, Categoria no encontrada');
+        } else if (
+          error.message === 'Cannot be deleted, the asset category is in use'
+        ) {
+          toast.error('Error, Categoria en uso no se puede eliminar');
+        } else {
+          toast.error('Error al eliminar la Categoria');
+        }
+      }
     },
   });
 }

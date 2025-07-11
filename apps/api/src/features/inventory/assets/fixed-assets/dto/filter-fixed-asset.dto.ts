@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDate, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsDate, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class FilterFixedAssetDto extends PaginationDto {
@@ -8,12 +8,12 @@ export class FilterFixedAssetDto extends PaginationDto {
   @IsOptional()
   @IsInt()
   @Type(() => Number)
-  categoryId?: number;
+  typeCategory?: number;
 
   @ApiPropertyOptional({ description: 'Asset status' })
   @IsOptional()
   @IsString()
-  assetStatus?: string;
+  status?: string;
 
   @ApiPropertyOptional({ description: 'Start acquisition date' })
   @IsOptional()

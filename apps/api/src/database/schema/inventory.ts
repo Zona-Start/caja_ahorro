@@ -8,7 +8,6 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
-import { bankTransactions } from './banking';
 import { fixedAssetsInventoryStatus, saleProductStatus } from './enum';
 import { inventorySchema } from './schemas';
 
@@ -60,36 +59,6 @@ export const salesProducts = inventorySchema.table(
   (table) => ({
     productCodeIdx: index('sales_prod_code_idx').on(table.productCode),
     categoryIdIdx: index('sales_prod_cat_id_idx').on(table.categoryId),
-  }),
-);
-
-// Tabla para registrar las compras de productos para venta (entradas al inventario)
-export const salesProductPurchases = inventorySchema.table(
-  'sales_product_purchases',
-  {
-    id: serial('id').primaryKey(),
-    productId: integer('product_id')
-      .notNull()
-      .references(() => salesProducts.id, { onDelete: 'restrict' }), // Qué producto se compró
-
-    purchaseDate: date('purchase_date').notNull(),
-    quantity: integer('quantity').notNull(),
-    unitCost: numeric('unit_cost', { precision: 20, scale: 6 }).notNull(), // Costo unitario en esta compra específica
-    totalCost: numeric('total_cost', { precision: 20, scale: 6 }).notNull(), // quantity * unitCost
-
-    supplierName: varchar('supplier_name', { length: 255 }),
-    invoiceReference: varchar('invoice_reference', { length: 100 }),
-
-    // Opcional: bankTransactionId si esta compra está ligada a una salida de dinero en los movimientos bancarios
-    bankTransactionId: integer('bank_transaction_id').references(
-      () => bankTransactions.id,
-      { onDelete: 'set null' },
-    ),
-
-    ...timestamps,
-  },
-  (table) => ({
-    productIdIdx: index('sales_prod_purchase_prod_id_idx').on(table.productId),
   }),
 );
 
