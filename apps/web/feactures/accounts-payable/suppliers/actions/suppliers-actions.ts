@@ -157,7 +157,6 @@ export const getSupplierAllAction = async () => {
     console.error('Error:', error);
     throw new Error(error.message || 'Error fetching supplier');
   }
-  console.log(data);
 
   return data?.data;
 };

@@ -101,6 +101,7 @@ export const fixedAssets = inventorySchema.table(
       precision: 20,
       scale: 6,
     }).notNull(), // Costo de adquisición original
+    currentStock: integer('current_stock').notNull().default(0), //cantidad de unidades
 
     // Aquí se omite `currentLocation` y `assignedToUserId` ya que la caja es el único responsable y ubicación
 

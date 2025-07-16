@@ -38,3 +38,13 @@ export const salesProductAllResponseSchema = z.object({
     })
     .optional(),
 });
+
+export const salesProductAllApiSchema = z.object({
+  id: z.number().optional(),
+  name: z.string(),
+});
+
+export const salesProductResponseSchema = z.object({
+  message: z.string().optional(),
+  data: z.array(salesProductAllApiSchema),
+});

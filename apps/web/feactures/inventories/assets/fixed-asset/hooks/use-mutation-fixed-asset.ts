@@ -13,6 +13,7 @@ export function useFixedAssetMutation() {
     mutationFn: (data: FixedAsset) => saveFixedAssetAction(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixed-asset'] });
+      queryClient.invalidateQueries({ queryKey: ['fixed-asset-all'] });
       toast.success('Bien guardado exitosamente');
     },
     onError: (error) => {
@@ -30,6 +31,7 @@ export function useDeleteFixedAsset() {
     mutationFn: (id: number) => deleteFixedAsset(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fixed-asset'] });
+      queryClient.invalidateQueries({ queryKey: ['fixed-asset-all'] });
       toast.success('Bien  eliminado exitosamente');
     },
     onError: (error) => {

@@ -356,3 +356,8 @@ export const purchaseItemTypeEnum = pgEnum('purchase_item_type_enum', [
   'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
   'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
 ]);
+
+export const purchaseTypeEnum = pgEnum('purchase_type_enum', [
+  'CASH', // de contado
+  'CREDIT', // credito
+]);

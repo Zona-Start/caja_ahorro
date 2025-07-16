@@ -1,5 +1,5 @@
+import { purchaseItemTypeEnum } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
-import { PurchaseItemTypeEnum } from '@/types/enum';
 
 export class PurchaseItem {
   @ApiProperty({ required: false })
@@ -8,8 +8,8 @@ export class PurchaseItem {
   @ApiProperty()
   purchaseOrderId: number;
 
-  @ApiProperty({ enum: PurchaseItemTypeEnum, enumName: 'PurchaseItemTypeEnum' })
-  itemType: PurchaseItemTypeEnum;
+  @ApiProperty({ enum: purchaseItemTypeEnum, enumName: 'PurchaseItemTypeEnum' })
+  itemType: purchaseItemTypeEnum;
 
   @ApiProperty()
   itemName: string;

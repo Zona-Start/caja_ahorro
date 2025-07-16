@@ -200,6 +200,27 @@ export class InvoicesService {
     };
   }
 
+  async findBySupplierByStatus(supplierId: number) {
+    const data = await this.drizzle
+      .select({
+        id: accountsPayable.id,
+        invoiceNumber: accountsPayable.invoiceNumber,
+        concept: accountsPayable.concept,
+        totalAmount: accountsPayable.totalAmount,
+      })
+      .from(accountsPayable)
+      .where(
+        and(
+          eq(accountsPayable.supplierId, supplierId),
+          eq(accountsPayable.status, 'PENDING'),
+        ),
+      );
+
+    return {
+      data,
+    };
+  }
+
   async findOne(id: number): Promise<Invoice> {
     const invoice = await this.drizzle.query.accountsPayable.findFirst({
       where: eq(accountsPayable.id, id),

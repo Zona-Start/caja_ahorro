@@ -3,8 +3,24 @@ import { safeFetchApi } from '@/lib/fetch.api';
 import {
   salesProductAllResponseSchema,
   salesProductMutationResponseSchema,
+  salesProductResponseSchema,
 } from '../schemas/sales-product-api.schema';
 import { SalesProduct } from '../schemas/sales-product.schema';
+
+export async function getSalesProductAll() {
+  const [error, response] = await safeFetchApi(
+    salesProductResponseSchema,
+    '/inventory/sales/sales-products/all',
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Ocurrió un error desconocido');
+  }
+
+  return response?.data || [];
+}
 
 export async function getSalesProducts(params: {
   page?: number;

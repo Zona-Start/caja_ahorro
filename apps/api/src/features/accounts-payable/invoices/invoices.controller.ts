@@ -113,6 +113,18 @@ export class InvoicesController {
     return await this.invoicesService.getInvoicePayableStatus();
   }
 
+  @Get('/by-suppliers/:supplierId')
+  @RequirePermissions('read:invoices')
+  @ApiOperation({ summary: 'Get summary invoice' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return the invoice.',
+  })
+  @ApiResponse({ status: 404, description: 'Invoice not found.' })
+  async findBySuppliers(@Param('supplierId') supplierId: string) {
+    return await this.invoicesService.findBySupplierByStatus(+supplierId);
+  }
+
   @Get(':id')
   @Roles('admin')
   @RequirePermissions('read:invoice')

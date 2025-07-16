@@ -42,6 +42,18 @@ export class SalesProductsController {
     return { message: 'Sales product created successfully', data };
   }
 
+  @Get('/all')
+  @RequirePermissions('read:sales-products')
+  @ApiOperation({ summary: 'Get all sales products' })
+  @ApiResponse({ status: 200, description: 'Return all sales products.' })
+  async findAllFixet() {
+    const result = await this.salesProductsService.findAllProduct();
+    return {
+      message: 'Sales products fetched successfully',
+      data: result,
+    };
+  }
+
   @Get('/paginated')
   @Roles('admin')
   @RequirePermissions('read:sales-products')

@@ -1,6 +1,7 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
+  accountPayableBySupplierSchema,
   invoicesPayableDeleteResponseSchema,
   invoicesPayableResponseAllSchema,
   invoicesPayableResponseCountSchema,
@@ -157,6 +158,20 @@ export const getInvoicesPayableCountAction = async () => {
     throw new Error(error.message || 'Error fetching invoices payable');
   }
   return data?.data;
+};
+
+export const getAccountPayableBySupplierAction = async (supplierId: number) => {
+  const [error, data] = await safeFetchApi(
+    accountPayableBySupplierSchema,
+    `/accounts-payable/invoices/by-suppliers/${supplierId}`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching invoices payable');
+  }
+  return data;
 };
 
 export const saveInvoicesPayableAction = async (payload: InvoicesPayable) => {

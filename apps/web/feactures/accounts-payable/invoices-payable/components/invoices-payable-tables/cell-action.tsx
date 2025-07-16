@@ -2,6 +2,7 @@
 
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/button';
+import { toast } from '@repo/shadcn/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +40,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
 
   const handleEdit = () => {
     setShowEditModal(true);
+  };
+
+  const onDeleteMessage = async () => {
+    toast({
+      variant: 'destructive',
+      title: 'No se puede eliminar la cuenta',
+      description: `Solo se puede eliminar si su estatus es pendiente`,
+    });
   };
 
   return (
@@ -109,7 +118,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                  if (data.status === 'PENDING' || data.status === 'DRAFT') {
+                    setOpen(true);
+                  } else {
+                    onDeleteMessage();
+                  }
+                }}
               >
                 <Trash className="h-4 w-4" />
               </Button>

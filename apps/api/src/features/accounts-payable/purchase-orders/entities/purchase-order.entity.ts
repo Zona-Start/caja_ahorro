@@ -1,5 +1,5 @@
+import { CurrencyCodeEnum, invoiceSuppliersStatusEnum } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
-import { CurrencyCodeEnum, InvoiceSuppliersStatusEnum } from '@/types/enum';
 
 export class PurchaseOrder {
   @ApiProperty({ required: false })
@@ -18,13 +18,16 @@ export class PurchaseOrder {
   totalAmount: number;
 
   @ApiProperty({ enum: CurrencyCodeEnum, enumName: 'CurrencyCodeEnum' })
-  currencyCode: CurrencyCodeEnum;
+  currencyCode?: CurrencyCodeEnum;
 
   @ApiProperty({ required: false })
   payableId?: number;
 
-  @ApiProperty({ enum: InvoiceSuppliersStatusEnum, enumName: 'InvoiceSuppliersStatusEnum' })
-  status: InvoiceSuppliersStatusEnum;
+  @ApiProperty({
+    enum: invoiceSuppliersStatusEnum,
+    enumName: 'InvoiceSuppliersStatusEnum',
+  })
+  status: invoiceSuppliersStatusEnum;
 
   @ApiProperty({ required: false })
   description?: string;

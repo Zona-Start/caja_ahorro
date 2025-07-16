@@ -55,6 +55,18 @@ export class FixedAssetsController {
     };
   }
 
+  @Get('/all')
+  @RequirePermissions('read:fixed-assets')
+  @ApiOperation({ summary: 'Get all fixed assets' })
+  @ApiResponse({ status: 200, description: 'Return all fixed assets.' })
+  async findAllFixet() {
+    const result = await this.fixedAssetsService.findAllFixet();
+    return {
+      message: 'Fixed assets fetched successfully',
+      data: result,
+    };
+  }
+
   @Get(':id')
   @Roles('admin')
   @RequirePermissions('read:fixed-assets')

@@ -224,6 +224,27 @@ export default function FixedAssetForm({
 
           <FormField
             control={form.control}
+            name="currentStock"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cantidad</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    {...field}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
+                    value={field.value ?? ''}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="acquisitionDate"
             render={({ field }) => (
               <FormItem className="w-full">
@@ -283,6 +304,10 @@ export default function FixedAssetForm({
               </FormItem>
             )}
           />
+        </div>
+        <div
+          className={`grid grid-cols-1 ${defaultValues?.id ? 'md:grid-cols-2' : 'md:grid-cols-1'}  gap-4`}
+        >
           <FormField
             control={form.control}
             name="depreciationMethod"

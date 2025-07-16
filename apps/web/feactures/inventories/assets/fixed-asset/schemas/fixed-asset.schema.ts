@@ -54,6 +54,9 @@ export const fixedAssetSchema = z.object({
       .optional()
       .nullable(),
   ),
+  currentStock: z.coerce
+    .number({ required_error: 'La Cantidad es requerida' })
+    .min(0, 'La Cantidad debe ser un número positivo'),
 });
 
 export type FixedAsset = z.infer<typeof fixedAssetSchema>;

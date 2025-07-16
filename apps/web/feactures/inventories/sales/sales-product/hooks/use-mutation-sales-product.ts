@@ -13,6 +13,7 @@ export function useSalesProductMutation() {
     mutationFn: (data: SalesProduct) => saveSalesProductAction(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-products'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-products-all'] });
       toast.success('Producto de venta guardado exitosamente');
     },
     onError: (error) => {
@@ -30,6 +31,7 @@ export function useDeleteSalesProduct() {
     mutationFn: (id: number) => deleteSalesProduct(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales-products'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-products-all'] });
       toast.success('Producto de venta eliminado exitosamente');
     },
     onError: (error) => {

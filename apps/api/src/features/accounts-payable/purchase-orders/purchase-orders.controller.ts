@@ -144,7 +144,9 @@ export class PurchaseOrdersController {
     description: 'Purchase order deleted successfully.',
   })
   @ApiResponse({ status: 404, description: 'Purchase order not found.' })
-  async remove(@Param('id') id: string) {
-    return await this.purchaseOrdersService.remove(+id);
+  async remove(@Req() req: Request, @Param('id') id: string) {
+    const userId = req['user'].id;
+    const data = await this.purchaseOrdersService.remove(userId, +id);
+    return { message: 'Purchase order delete successfully', data };
   }
 }

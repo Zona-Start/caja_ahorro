@@ -64,6 +64,7 @@ export class FixedAssetsService {
         disposalValue: createFixedAssetDto.disposalValue
           ? createFixedAssetDto.disposalValue.toString()
           : null,
+        currentStock: createFixedAssetDto.currentStock ?? 0,
         createdById: userId,
       };
 
@@ -87,6 +88,15 @@ export class FixedAssetsService {
       console.error('Error creating fixed asset:', error);
       throw new InternalServerErrorException('Failed to create fixed asset');
     }
+  }
+
+  async findAllFixet() {
+    return this.drizzle
+      .select({
+        id: fixedAssets.id,
+        name: fixedAssets.name,
+      })
+      .from(fixedAssets);
   }
 
   async findAll(filterDto: FilterFixedAssetDto) {
@@ -180,6 +190,7 @@ export class FixedAssetsService {
           name: fixedAssets.name,
           description: fixedAssets.description,
           serialNumber: fixedAssets.serialNumber,
+          currentStock: fixedAssets.currentStock,
           model: fixedAssets.model,
           brand: fixedAssets.brand,
           acquisitionDate: fixedAssets.acquisitionDate,
@@ -252,8 +263,7 @@ export class FixedAssetsService {
           disposalDate: fixedAssets.disposalDate,
           disposalReason: fixedAssets.disposalReason,
           disposalValue: fixedAssets.disposalValue,
-          createdAt: fixedAssets.createdAt,
-          updatedAt: fixedAssets.updatedAt,
+          currentStock: fixedAssets.currentStock,
         })
         .from(fixedAssets)
         .leftJoin(

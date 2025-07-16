@@ -3,8 +3,24 @@ import { safeFetchApi } from '@/lib/fetch.api';
 import {
   fixedAssetAllResponseSchema,
   fixedAssetMutationResponseSchema,
+  fixedAssetResponseAllSchema,
 } from '../schemas/fixed-asset-api.schema';
 import { FixedAsset } from '../schemas/fixed-asset.schema';
+
+export async function getFixedAssetAll() {
+  const [error, response] = await safeFetchApi(
+    fixedAssetResponseAllSchema,
+    '/inventory/assets/fixed-assets/all',
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Ocurrió un error desconocido');
+  }
+
+  return response?.data || [];
+}
 
 export async function getFixedAsset(params: {
   page?: number;

@@ -310,3 +310,8 @@ export enum invoiceSuppliersStatusEnum {
   CANCELLED = 'CANCELLED', // Factura anulada/cancelada
   OVERDUE = 'OVERDUE', // Vencida
 }
+
+export enum purchaseTypeEnum {
+  CASH = 'CASH',
+  CREDIT = 'CREDIT',
+}

@@ -108,4 +108,9 @@ export class CreateFixedAssetDto {
   @IsNumber({ maxDecimalPlaces: 6 })
   @Min(0)
   disposalValue?: number;
+
+  @ApiPropertyOptional({ description: 'stock' })
+  @IsInt()
+  @Min(0)
+  currentStock: number;
 }

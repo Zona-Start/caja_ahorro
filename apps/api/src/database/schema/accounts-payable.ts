@@ -18,6 +18,7 @@ import {
   paymentMethodEnum,
   paymentSuppliersStatusEnum,
   purchaseItemTypeEnum,
+  purchaseTypeEnum,
   statusSuppliers,
 } from './enum';
 import { fixedAssets, salesProducts } from './inventory';
@@ -131,6 +132,7 @@ export const purchaseOrders = accountsPayableSchema.table(
     purchaseDate: date('purchase_date').notNull(),
     totalAmount: numeric('total_amount', { precision: 18, scale: 2 }).notNull(),
     currencyCode: currencyCodeEnum('currency_code').notNull(), // Usando tu enum existente
+    purchaseType: purchaseTypeEnum('purchaseType').notNull(),
 
     // Si la compra es a crédito, se relaciona con Cuentas por Pagar.
     // Si es una compra al contado, esto podría ser nulo.

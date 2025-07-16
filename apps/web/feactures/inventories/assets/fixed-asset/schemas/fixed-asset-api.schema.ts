@@ -15,6 +15,7 @@ export const fixedAssetApiSchema = z.object({
   assetStatus: z.string(),
   usefulLifeYears: z.number(),
   depreciationMethod: z.string(),
+  currentStock: z.number(),
 });
 
 export type FixedAssetSchemaAPI = z.infer<typeof fixedAssetApiSchema>;
@@ -38,4 +39,14 @@ export const fixedAssetAllResponseSchema = z.object({
       previousPage: z.number().nullable(),
     })
     .optional(),
+});
+
+export const fixedAssetAllApiSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+});
+
+export const fixedAssetResponseAllSchema = z.object({
+  message: z.string().optional(),
+  data: z.array(fixedAssetAllApiSchema),
 });

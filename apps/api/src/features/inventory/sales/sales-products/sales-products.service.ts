@@ -44,6 +44,15 @@ export class SalesProductsService {
     };
   }
 
+  async findAllProduct() {
+    return this.drizzle
+      .select({
+        id: salesProducts.id,
+        name: salesProducts.name,
+      })
+      .from(salesProducts);
+  }
+
   async findAll(paginationDto: FilterSalesProductDto) {
     const {
       page = 1,

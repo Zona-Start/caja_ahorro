@@ -171,9 +171,6 @@ export const savingBankItems: NavItem[] = [
       },
     ], // No child items
   },
-];
-
-export const AccountsPayableItems: NavItem[] = [
   {
     title: 'Gestión Proveedores',
     url: '/dashboard/cuentas_x_pagar/proveedores',
@@ -191,21 +188,13 @@ export const AccountsPayableItems: NavItem[] = [
     items: [],
   },
   {
-    title: 'Propiedades del Sistema',
-    url: '/dashboard/utilidades/propiedades-sistema',
+    title: 'Compras',
+    url: '/dashboard/cuentas_x_pagar/compras',
     icon: 'tableProperties',
     colorIcons: 'blue',
     isActive: true,
     items: [],
   },
-  // {
-  //   title: 'Respaldos Bade de Datos',
-  //   url: '#',
-  //   icon: 'databaseBackup',
-  //   colorIcons: 'amber',
-  //   isActive: true,
-  //   items: [],
-  // },
 ];
 
 export const AccountingItems: NavItem[] = [

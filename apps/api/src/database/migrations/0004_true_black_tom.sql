@@ -1,0 +1,1 @@
+ALTER TABLE "inventory"."fixed_assets" ADD COLUMN "current_stock" integer DEFAULT 0 NOT NULL;

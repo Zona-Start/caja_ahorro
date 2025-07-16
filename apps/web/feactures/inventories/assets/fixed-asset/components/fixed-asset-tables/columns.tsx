@@ -26,6 +26,10 @@ export const columns: ColumnDef<FixedAsset>[] = [
     header: 'Modelo',
   },
   {
+    accessorKey: 'currentStock',
+    header: 'Existencia',
+  },
+  {
     accessorKey: 'purchasePrice',
     header: 'Precio de Compra',
     cell: ({ row }) => `${row.original.purchasePrice}`,

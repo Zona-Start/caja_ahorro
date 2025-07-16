@@ -55,3 +55,14 @@ export const invoicesPayableResponseCountSchema = z.object({
   message: z.string(),
   data: invoicesPayableApiCountSchema,
 });
+
+export const accountPayableApiSchema = z.object({
+  id: z.number(),
+  invoiceNumber: z.string(),
+  concept: z.string(),
+  totalAmount: z.string(),
+});
+
+export const accountPayableBySupplierSchema = z.object({
+  data: z.array(accountPayableApiSchema),
+});

@@ -1,14 +1,12 @@
 'use client';
 import {
   NavMain as AccountingMain,
-  NavMain as AccountPayableMain,
   NavMain as BankMain,
   NavMain as ConfigMain,
   NavMain,
 } from '@/components/nav-main';
 import {
   AccountingItems,
-  AccountsPayableItems,
   BankItems,
   ConfigItems,
   savingBankItems,
@@ -43,10 +41,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain titleGroup={'Gestión Caja Ahorro'} items={savingBankItems} />
-        <AccountPayableMain
-          titleGroup={'Gestión Cuentas x Pagar'}
-          items={AccountsPayableItems}
-        />
         <AccountingMain
           titleGroup={'Gestión Contable'}
           items={AccountingItems}
