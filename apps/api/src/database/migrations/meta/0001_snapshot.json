@@ -1,6 +1,6 @@
 {
-  "id": "25a0d64a-a0a8-4529-b911-89bef0547841",
-  "prevId": "7fd83e7e-3418-430b-a413-d808bb127f7d",
+  "id": "4b9b86f6-6982-450e-a58d-c2c9790c5888",
+  "prevId": "9a9e9b37-f969-4b05-89bd-50b6dbedf87c",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1237,6 +1237,2427 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "accounts_payable.accounts_payable": {
+      "name": "accounts_payable",
+      "schema": "accounts_payable",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "supplier_invoice_id": {
+          "name": "supplier_invoice_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "original_amount": {
+          "name": "original_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "paid_amount": {
+          "name": "paid_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.00'"
+        },
+        "remaining_amount": {
+          "name": "remaining_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "payment_accounts_payable_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "observations": {
+          "name": "observations",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "payable_invoice_uidx": {
+          "name": "payable_invoice_uidx",
+          "columns": [
+            {
+              "expression": "supplier_invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "ap_status_idx": {
+          "name": "ap_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "accounts_payable_supplier_invoice_id_supplier_invoices_id_fk": {
+          "name": "accounts_payable_supplier_invoice_id_supplier_invoices_id_fk",
+          "tableFrom": "accounts_payable",
+          "columnsFrom": [
+            "supplier_invoice_id"
+          ],
+          "tableTo": "supplier_invoices",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "accounts_payable_created_by_id_users_id_fk": {
+          "name": "accounts_payable_created_by_id_users_id_fk",
+          "tableFrom": "accounts_payable",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "accounts_payable_updated_by_id_users_id_fk": {
+          "name": "accounts_payable_updated_by_id_users_id_fk",
+          "tableFrom": "accounts_payable",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "accounts_payable_supplier_invoice_id_unique": {
+          "name": "accounts_payable_supplier_invoice_id_unique",
+          "columns": [
+            "supplier_invoice_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.fixed_assets": {
+      "name": "fixed_assets",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asset_code": {
+          "name": "asset_code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "serial_number": {
+          "name": "serial_number",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "brand": {
+          "name": "brand",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acquisition_date": {
+          "name": "acquisition_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_price": {
+          "name": "purchase_price",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_stock": {
+          "name": "current_stock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "asset_status": {
+          "name": "asset_status",
+          "type": "fixed_assets_inventory_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "useful_life_years": {
+          "name": "useful_life_years",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "depreciation_method": {
+          "name": "depreciation_method",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accumulated_depreciation": {
+          "name": "accumulated_depreciation",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "last_depreciation_date": {
+          "name": "last_depreciation_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disposal_date": {
+          "name": "disposal_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disposal_reason": {
+          "name": "disposal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disposal_value": {
+          "name": "disposal_value",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "fixed_asset_code_idx": {
+          "name": "fixed_asset_code_idx",
+          "columns": [
+            {
+              "expression": "asset_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "fixed_asset_cat_id_idx": {
+          "name": "fixed_asset_cat_id_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "fixed_asset_status_idx": {
+          "name": "fixed_asset_status_idx",
+          "columns": [
+            {
+              "expression": "asset_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "fixed_assets_category_id_inventories_categories_id_fk": {
+          "name": "fixed_assets_category_id_inventories_categories_id_fk",
+          "tableFrom": "fixed_assets",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "tableTo": "inventories_categories",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "fixed_assets_created_by_id_users_id_fk": {
+          "name": "fixed_assets_created_by_id_users_id_fk",
+          "tableFrom": "fixed_assets",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "fixed_assets_updated_by_id_users_id_fk": {
+          "name": "fixed_assets_updated_by_id_users_id_fk",
+          "tableFrom": "fixed_assets",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "fixed_assets_asset_code_unique": {
+          "name": "fixed_assets_asset_code_unique",
+          "columns": [
+            "asset_code"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.inventories_categories": {
+      "name": "inventories_categories",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "group": {
+          "name": "group",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "inventory_categories_name_idx": {
+          "name": "inventory_categories_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "inventory_categories_group_idx": {
+          "name": "inventory_categories_group_idx",
+          "columns": [
+            {
+              "expression": "group",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "inventories_categories_created_by_id_users_id_fk": {
+          "name": "inventories_categories_created_by_id_users_id_fk",
+          "tableFrom": "inventories_categories",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "inventories_categories_updated_by_id_users_id_fk": {
+          "name": "inventories_categories_updated_by_id_users_id_fk",
+          "tableFrom": "inventories_categories",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "inventories_categories_name_unique": {
+          "name": "inventories_categories_name_unique",
+          "columns": [
+            "name"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.inventory_movements": {
+      "name": "inventory_movements",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "movement_type": {
+          "name": "movement_type",
+          "type": "movement_type_inventory",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_cost": {
+          "name": "unit_cost",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "document_number": {
+          "name": "document_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "inventory_movements_product_id_products_id_fk": {
+          "name": "inventory_movements_product_id_products_id_fk",
+          "tableFrom": "inventory_movements",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "tableTo": "products",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "inventory_movements_created_by_id_users_id_fk": {
+          "name": "inventory_movements_created_by_id_users_id_fk",
+          "tableFrom": "inventory_movements",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "inventory_movements_updated_by_id_users_id_fk": {
+          "name": "inventory_movements_updated_by_id_users_id_fk",
+          "tableFrom": "inventory_movements",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.product_prices": {
+      "name": "product_prices",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_type": {
+          "name": "price_type",
+          "type": "price_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "product_prices_product_id_products_id_fk": {
+          "name": "product_prices_product_id_products_id_fk",
+          "tableFrom": "product_prices",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "tableTo": "products",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "product_prices_supplier_id_suppliers_id_fk": {
+          "name": "product_prices_supplier_id_suppliers_id_fk",
+          "tableFrom": "product_prices",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "tableTo": "suppliers",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "product_prices_created_by_id_users_id_fk": {
+          "name": "product_prices_created_by_id_users_id_fk",
+          "tableFrom": "product_prices",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "product_prices_updated_by_id_users_id_fk": {
+          "name": "product_prices_updated_by_id_users_id_fk",
+          "tableFrom": "product_prices",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.product_service_suppliers": {
+      "name": "product_service_suppliers",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "service_id": {
+          "name": "service_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lead_time_days": {
+          "name": "lead_time_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "preferred": {
+          "name": "preferred",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        }
+      },
+      "indexes": {
+        "product_idx": {
+          "name": "product_idx",
+          "columns": [
+            {
+              "expression": "product_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "service_idx": {
+          "name": "service_idx",
+          "columns": [
+            {
+              "expression": "service_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "supplier_idx": {
+          "name": "supplier_idx",
+          "columns": [
+            {
+              "expression": "supplier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "product_service_suppliers_product_id_products_id_fk": {
+          "name": "product_service_suppliers_product_id_products_id_fk",
+          "tableFrom": "product_service_suppliers",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "tableTo": "products",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "product_service_suppliers_service_id_services_id_fk": {
+          "name": "product_service_suppliers_service_id_services_id_fk",
+          "tableFrom": "product_service_suppliers",
+          "columnsFrom": [
+            "service_id"
+          ],
+          "tableTo": "services",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "product_service_suppliers_supplier_id_suppliers_id_fk": {
+          "name": "product_service_suppliers_supplier_id_suppliers_id_fk",
+          "tableFrom": "product_service_suppliers",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "tableTo": "suppliers",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.products": {
+      "name": "products",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sku": {
+          "name": "sku",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "brand": {
+          "name": "brand",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model": {
+          "name": "model",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "stock_min": {
+          "name": "stock_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "stock_max": {
+          "name": "stock_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "reorder_point": {
+          "name": "reorder_point",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "stock_on_hand": {
+          "name": "stock_on_hand",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "stock_committed": {
+          "name": "stock_committed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "stock_on_order": {
+          "name": "stock_on_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "status": {
+          "name": "status",
+          "type": "product-status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'AVAILABLE'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "sales_prod_sku_idx": {
+          "name": "sales_prod_sku_idx",
+          "columns": [
+            {
+              "expression": "sku",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "sales_prod_name_idx": {
+          "name": "sales_prod_name_idx",
+          "columns": [
+            {
+              "expression": "sku",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "sales_prod_cat_id_idx": {
+          "name": "sales_prod_cat_id_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "products_category_id_inventories_categories_id_fk": {
+          "name": "products_category_id_inventories_categories_id_fk",
+          "tableFrom": "products",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "tableTo": "inventories_categories",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "products_created_by_id_users_id_fk": {
+          "name": "products_created_by_id_users_id_fk",
+          "tableFrom": "products",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "products_updated_by_id_users_id_fk": {
+          "name": "products_updated_by_id_users_id_fk",
+          "tableFrom": "products",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "products_sku_unique": {
+          "name": "products_sku_unique",
+          "columns": [
+            "sku"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "accounts_payable.purchase_order_items": {
+      "name": "purchase_order_items",
+      "schema": "accounts_payable",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "purchase_order_id": {
+          "name": "purchase_order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_type": {
+          "name": "line_type",
+          "type": "purchase_order_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fixed_asset_id": {
+          "name": "fixed_asset_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expense_account_id": {
+          "name": "expense_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_name": {
+          "name": "item_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_cost": {
+          "name": "unit_cost",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_cost": {
+          "name": "total_cost",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "purchase_order_items_purchase_order_id_purchase_orders_id_fk": {
+          "name": "purchase_order_items_purchase_order_id_purchase_orders_id_fk",
+          "tableFrom": "purchase_order_items",
+          "columnsFrom": [
+            "purchase_order_id"
+          ],
+          "tableTo": "purchase_orders",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "purchase_order_items_product_id_products_id_fk": {
+          "name": "purchase_order_items_product_id_products_id_fk",
+          "tableFrom": "purchase_order_items",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "tableTo": "products",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "purchase_order_items_fixed_asset_id_fixed_assets_id_fk": {
+          "name": "purchase_order_items_fixed_asset_id_fixed_assets_id_fk",
+          "tableFrom": "purchase_order_items",
+          "columnsFrom": [
+            "fixed_asset_id"
+          ],
+          "tableTo": "fixed_assets",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "purchase_order_items_expense_account_id_account_plan_id_fk": {
+          "name": "purchase_order_items_expense_account_id_account_plan_id_fk",
+          "tableFrom": "purchase_order_items",
+          "columnsFrom": [
+            "expense_account_id"
+          ],
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "purchase_order_items_created_by_id_users_id_fk": {
+          "name": "purchase_order_items_created_by_id_users_id_fk",
+          "tableFrom": "purchase_order_items",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "purchase_order_items_updated_by_id_users_id_fk": {
+          "name": "purchase_order_items_updated_by_id_users_id_fk",
+          "tableFrom": "purchase_order_items",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "accounts_payable.purchase_orders": {
+      "name": "purchase_orders",
+      "schema": "accounts_payable",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_number": {
+          "name": "order_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "order_type": {
+          "name": "order_type",
+          "type": "purchase_order_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "purchase_order_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "order_date": {
+          "name": "order_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expected_delivery_date": {
+          "name": "expected_delivery_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subtotal": {
+          "name": "subtotal",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_amount": {
+          "name": "tax_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "observations": {
+          "name": "observations",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "po_order_number_idx": {
+          "name": "po_order_number_idx",
+          "columns": [
+            {
+              "expression": "order_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "purchase_orders_supplier_id_suppliers_id_fk": {
+          "name": "purchase_orders_supplier_id_suppliers_id_fk",
+          "tableFrom": "purchase_orders",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "tableTo": "suppliers",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "purchase_orders_created_by_id_users_id_fk": {
+          "name": "purchase_orders_created_by_id_users_id_fk",
+          "tableFrom": "purchase_orders",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "purchase_orders_updated_by_id_users_id_fk": {
+          "name": "purchase_orders_updated_by_id_users_id_fk",
+          "tableFrom": "purchase_orders",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "purchase_orders_order_number_unique": {
+          "name": "purchase_orders_order_number_unique",
+          "columns": [
+            "order_number"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "inventory.services": {
+      "name": "services",
+      "schema": "inventory",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_cost": {
+          "name": "default_cost",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "status-suppliers",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "services_supplier_id_suppliers_id_fk": {
+          "name": "services_supplier_id_suppliers_id_fk",
+          "tableFrom": "services",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "tableTo": "suppliers",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "services_created_by_id_users_id_fk": {
+          "name": "services_created_by_id_users_id_fk",
+          "tableFrom": "services",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "services_updated_by_id_users_id_fk": {
+          "name": "services_updated_by_id_users_id_fk",
+          "tableFrom": "services",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "accounts_payable.supplier_invoice_items": {
+      "name": "supplier_invoice_items",
+      "schema": "accounts_payable",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_type": {
+          "name": "line_type",
+          "type": "purchase_order_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fixed_asset_id": {
+          "name": "fixed_asset_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expense_account_id": {
+          "name": "expense_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unit_cost": {
+          "name": "unit_cost",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_line": {
+          "name": "total_line",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_invoice_items_invoice_id_supplier_invoices_id_fk": {
+          "name": "supplier_invoice_items_invoice_id_supplier_invoices_id_fk",
+          "tableFrom": "supplier_invoice_items",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "tableTo": "supplier_invoices",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "supplier_invoice_items_product_id_products_id_fk": {
+          "name": "supplier_invoice_items_product_id_products_id_fk",
+          "tableFrom": "supplier_invoice_items",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "tableTo": "products",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "supplier_invoice_items_fixed_asset_id_fixed_assets_id_fk": {
+          "name": "supplier_invoice_items_fixed_asset_id_fixed_assets_id_fk",
+          "tableFrom": "supplier_invoice_items",
+          "columnsFrom": [
+            "fixed_asset_id"
+          ],
+          "tableTo": "fixed_assets",
+          "schemaTo": "inventory",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "supplier_invoice_items_created_by_id_users_id_fk": {
+          "name": "supplier_invoice_items_created_by_id_users_id_fk",
+          "tableFrom": "supplier_invoice_items",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "supplier_invoice_items_updated_by_id_users_id_fk": {
+          "name": "supplier_invoice_items_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_invoice_items",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "accounts_payable.supplier_invoices": {
+      "name": "supplier_invoices",
+      "schema": "accounts_payable",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_order_id": {
+          "name": "purchase_order_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoice_number": {
+          "name": "invoice_number",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "control_number": {
+          "name": "control_number",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invoice_date": {
+          "name": "invoice_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subtotal": {
+          "name": "subtotal",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_amount": {
+          "name": "tax_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_type": {
+          "name": "payment_type",
+          "type": "supplier_invoices_payment_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'CREDIT'"
+        },
+        "status": {
+          "name": "status",
+          "type": "invoice_supplier_status_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'OPEN'"
+        },
+        "observations": {
+          "name": "observations",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "si_invoice_unique_idx": {
+          "name": "si_invoice_unique_idx",
+          "columns": [
+            {
+              "expression": "supplier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "invoice_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "supplier_invoices_supplier_id_suppliers_id_fk": {
+          "name": "supplier_invoices_supplier_id_suppliers_id_fk",
+          "tableFrom": "supplier_invoices",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "tableTo": "suppliers",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "supplier_invoices_purchase_order_id_purchase_orders_id_fk": {
+          "name": "supplier_invoices_purchase_order_id_purchase_orders_id_fk",
+          "tableFrom": "supplier_invoices",
+          "columnsFrom": [
+            "purchase_order_id"
+          ],
+          "tableTo": "purchase_orders",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "supplier_invoices_created_by_id_users_id_fk": {
+          "name": "supplier_invoices_created_by_id_users_id_fk",
+          "tableFrom": "supplier_invoices",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "supplier_invoices_updated_by_id_users_id_fk": {
+          "name": "supplier_invoices_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_invoices",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "accounts_payable.supplier_transactions": {
+      "name": "supplier_transactions",
+      "schema": "accounts_payable",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "accounts_payable_id": {
+          "name": "accounts_payable_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_type": {
+          "name": "transaction_type",
+          "type": "supplier_transactions_type_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_date": {
+          "name": "transaction_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference": {
+          "name": "reference",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_transactions_accounts_payable_id_accounts_payable_id_fk": {
+          "name": "supplier_transactions_accounts_payable_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_transactions",
+          "columnsFrom": [
+            "accounts_payable_id"
+          ],
+          "tableTo": "accounts_payable",
+          "schemaTo": "accounts_payable",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "supplier_transactions_created_by_id_users_id_fk": {
+          "name": "supplier_transactions_created_by_id_users_id_fk",
+          "tableFrom": "supplier_transactions",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "supplier_transactions_updated_by_id_users_id_fk": {
+          "name": "supplier_transactions_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_transactions",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "accounts_payable.suppliers": {
+      "name": "suppliers",
+      "schema": "accounts_payable",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category": {
+          "name": "category",
+          "type": "category-suppliers",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "status-suppliers",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "supplier_name_idx": {
+          "name": "supplier_name_idx",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "supplier_tax_idx": {
+          "name": "supplier_tax_idx",
+          "columns": [
+            {
+              "expression": "tax_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "suppliers_company_id_company_id_fk": {
+          "name": "suppliers_company_id_company_id_fk",
+          "tableFrom": "suppliers",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "tableTo": "company",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "suppliers_state_states_id_fk": {
+          "name": "suppliers_state_states_id_fk",
+          "tableFrom": "suppliers",
+          "columnsFrom": [
+            "state"
+          ],
+          "tableTo": "states",
+          "schemaTo": "core",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "suppliers_created_by_id_users_id_fk": {
+          "name": "suppliers_created_by_id_users_id_fk",
+          "tableFrom": "suppliers",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "suppliers_updated_by_id_users_id_fk": {
+          "name": "suppliers_updated_by_id_users_id_fk",
+          "tableFrom": "suppliers",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "suppliers_code_unique": {
+          "name": "suppliers_code_unique",
+          "columns": [
+            "code"
+          ],
+          "nullsNotDistinct": false
+        },
+        "suppliers_tax_id_unique": {
+          "name": "suppliers_tax_id_unique",
+          "columns": [
+            "tax_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -4603,983 +7024,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "inventory.fixed_asset_categories": {
-      "name": "fixed_asset_categories",
-      "schema": "inventory",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "default_useful_life_years": {
-          "name": "default_useful_life_years",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "default_depreciation_method": {
-          "name": "default_depreciation_method",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "fixed_asset_cat_name_idx": {
-          "name": "fixed_asset_cat_name_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "fixed_asset_categories_created_by_id_users_id_fk": {
-          "name": "fixed_asset_categories_created_by_id_users_id_fk",
-          "tableFrom": "fixed_asset_categories",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "fixed_asset_categories_updated_by_id_users_id_fk": {
-          "name": "fixed_asset_categories_updated_by_id_users_id_fk",
-          "tableFrom": "fixed_asset_categories",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "fixed_asset_categories_name_unique": {
-          "name": "fixed_asset_categories_name_unique",
-          "columns": [
-            "name"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "inventory.fixed_asset_maintenances": {
-      "name": "fixed_asset_maintenances",
-      "schema": "inventory",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "asset_id": {
-          "name": "asset_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "maintenance_date": {
-          "name": "maintenance_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "maintenance_type": {
-          "name": "maintenance_type",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cost": {
-          "name": "cost",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'0.00'"
-        },
-        "performed_by": {
-          "name": "performed_by",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "fixed_asset_maint_asset_id_idx": {
-          "name": "fixed_asset_maint_asset_id_idx",
-          "columns": [
-            {
-              "expression": "asset_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "fixed_asset_maintenances_asset_id_fixed_assets_id_fk": {
-          "name": "fixed_asset_maintenances_asset_id_fixed_assets_id_fk",
-          "tableFrom": "fixed_asset_maintenances",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "tableTo": "fixed_assets",
-          "schemaTo": "inventory",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
-        },
-        "fixed_asset_maintenances_created_by_id_users_id_fk": {
-          "name": "fixed_asset_maintenances_created_by_id_users_id_fk",
-          "tableFrom": "fixed_asset_maintenances",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "fixed_asset_maintenances_updated_by_id_users_id_fk": {
-          "name": "fixed_asset_maintenances_updated_by_id_users_id_fk",
-          "tableFrom": "fixed_asset_maintenances",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "inventory.fixed_assets": {
-      "name": "fixed_assets",
-      "schema": "inventory",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "asset_code": {
-          "name": "asset_code",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "serial_number": {
-          "name": "serial_number",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "model": {
-          "name": "model",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "brand": {
-          "name": "brand",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "acquisition_date": {
-          "name": "acquisition_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "purchase_price": {
-          "name": "purchase_price",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "asset_status": {
-          "name": "asset_status",
-          "type": "fixed_assets_inventory_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'ACTIVE'"
-        },
-        "useful_life_years": {
-          "name": "useful_life_years",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "depreciation_method": {
-          "name": "depreciation_method",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accumulated_depreciation": {
-          "name": "accumulated_depreciation",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'0.00'"
-        },
-        "last_depreciation_date": {
-          "name": "last_depreciation_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disposal_date": {
-          "name": "disposal_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disposal_reason": {
-          "name": "disposal_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "disposal_value": {
-          "name": "disposal_value",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "fixed_asset_code_idx": {
-          "name": "fixed_asset_code_idx",
-          "columns": [
-            {
-              "expression": "asset_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "fixed_asset_cat_id_idx": {
-          "name": "fixed_asset_cat_id_idx",
-          "columns": [
-            {
-              "expression": "category_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "fixed_asset_status_idx": {
-          "name": "fixed_asset_status_idx",
-          "columns": [
-            {
-              "expression": "asset_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "fixed_assets_category_id_fixed_asset_categories_id_fk": {
-          "name": "fixed_assets_category_id_fixed_asset_categories_id_fk",
-          "tableFrom": "fixed_assets",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "tableTo": "fixed_asset_categories",
-          "schemaTo": "inventory",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
-        },
-        "fixed_assets_created_by_id_users_id_fk": {
-          "name": "fixed_assets_created_by_id_users_id_fk",
-          "tableFrom": "fixed_assets",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "fixed_assets_updated_by_id_users_id_fk": {
-          "name": "fixed_assets_updated_by_id_users_id_fk",
-          "tableFrom": "fixed_assets",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "fixed_assets_asset_code_unique": {
-          "name": "fixed_assets_asset_code_unique",
-          "columns": [
-            "asset_code"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "inventory.sales_product_categories": {
-      "name": "sales_product_categories",
-      "schema": "inventory",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "sales_prod_cat_name_idx": {
-          "name": "sales_prod_cat_name_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "sales_product_categories_created_by_id_users_id_fk": {
-          "name": "sales_product_categories_created_by_id_users_id_fk",
-          "tableFrom": "sales_product_categories",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "sales_product_categories_updated_by_id_users_id_fk": {
-          "name": "sales_product_categories_updated_by_id_users_id_fk",
-          "tableFrom": "sales_product_categories",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sales_product_categories_name_unique": {
-          "name": "sales_product_categories_name_unique",
-          "columns": [
-            "name"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "inventory.sales_product_purchases": {
-      "name": "sales_product_purchases",
-      "schema": "inventory",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "purchase_date": {
-          "name": "purchase_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "unit_cost": {
-          "name": "unit_cost",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total_cost": {
-          "name": "total_cost",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_name": {
-          "name": "supplier_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "invoice_reference": {
-          "name": "invoice_reference",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_transaction_id": {
-          "name": "bank_transaction_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "sales_prod_purchase_prod_id_idx": {
-          "name": "sales_prod_purchase_prod_id_idx",
-          "columns": [
-            {
-              "expression": "product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "sales_product_purchases_product_id_sales_products_id_fk": {
-          "name": "sales_product_purchases_product_id_sales_products_id_fk",
-          "tableFrom": "sales_product_purchases",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "tableTo": "sales_products",
-          "schemaTo": "inventory",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
-        },
-        "sales_product_purchases_bank_transaction_id_bank_transactions_id_fk": {
-          "name": "sales_product_purchases_bank_transaction_id_bank_transactions_id_fk",
-          "tableFrom": "sales_product_purchases",
-          "columnsFrom": [
-            "bank_transaction_id"
-          ],
-          "tableTo": "bank_transactions",
-          "schemaTo": "banking",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "sales_product_purchases_created_by_id_users_id_fk": {
-          "name": "sales_product_purchases_created_by_id_users_id_fk",
-          "tableFrom": "sales_product_purchases",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "sales_product_purchases_updated_by_id_users_id_fk": {
-          "name": "sales_product_purchases_updated_by_id_users_id_fk",
-          "tableFrom": "sales_product_purchases",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "inventory.sales_products": {
-      "name": "sales_products",
-      "schema": "inventory",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "product_code": {
-          "name": "product_code",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "brand": {
-          "name": "brand",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "model": {
-          "name": "model",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "default_purchase_cost": {
-          "name": "default_purchase_cost",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "default_selling_price": {
-          "name": "default_selling_price",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "current_stock": {
-          "name": "current_stock",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "minimum_stock_alert": {
-          "name": "minimum_stock_alert",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 0
-        },
-        "status": {
-          "name": "status",
-          "type": "sale-product-status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'AVAILABLE'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp (3)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_by_id": {
-          "name": "updated_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "sales_prod_code_idx": {
-          "name": "sales_prod_code_idx",
-          "columns": [
-            {
-              "expression": "product_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        },
-        "sales_prod_cat_id_idx": {
-          "name": "sales_prod_cat_id_idx",
-          "columns": [
-            {
-              "expression": "category_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {
-        "sales_products_category_id_sales_product_categories_id_fk": {
-          "name": "sales_products_category_id_sales_product_categories_id_fk",
-          "tableFrom": "sales_products",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "tableTo": "sales_product_categories",
-          "schemaTo": "inventory",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "restrict"
-        },
-        "sales_products_created_by_id_users_id_fk": {
-          "name": "sales_products_created_by_id_users_id_fk",
-          "tableFrom": "sales_products",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        },
-        "sales_products_updated_by_id_users_id_fk": {
-          "name": "sales_products_updated_by_id_users_id_fk",
-          "tableFrom": "sales_products",
-          "columnsFrom": [
-            "updated_by_id"
-          ],
-          "tableTo": "users",
-          "schemaTo": "auth",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sales_products_product_code_unique": {
-          "name": "sales_products_product_code_unique",
-          "columns": [
-            "product_code"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "savings_banks.associate_account_balance_history": {
       "name": "associate_account_balance_history",
       "schema": "savings_banks",
@@ -7306,13 +8750,13 @@
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
-        "credit_product_sales_product_id_sales_products_id_fk": {
-          "name": "credit_product_sales_product_id_sales_products_id_fk",
+        "credit_product_sales_product_id_products_id_fk": {
+          "name": "credit_product_sales_product_id_products_id_fk",
           "tableFrom": "credit_product_sales",
           "columnsFrom": [
             "product_id"
           ],
-          "tableTo": "sales_products",
+          "tableTo": "products",
           "schemaTo": "inventory",
           "columnsTo": [
             "id"
@@ -10378,6 +11822,18 @@
         "INTERNAL_TRANSFER"
       ]
     },
+    "public.category-suppliers": {
+      "name": "category-suppliers",
+      "schema": "public",
+      "values": [
+        "ASSETS",
+        "SERVICE",
+        "PRODUCTS",
+        "MATERIALS",
+        "FURNITURE",
+        "OTHERS"
+      ]
+    },
     "public.credit_modality_type_enum": {
       "name": "credit_modality_type_enum",
       "schema": "public",
@@ -10451,6 +11907,15 @@
         "NOT_APPLICABLE"
       ]
     },
+    "public.invoice_supplier_status_enum": {
+      "name": "invoice_supplier_status_enum",
+      "schema": "public",
+      "values": [
+        "OPEN",
+        "PAID",
+        "CANCELLED"
+      ]
+    },
     "public.liquidations_status_enum": {
       "name": "liquidations_status_enum",
       "schema": "public",
@@ -10501,12 +11966,37 @@
         "ADJUSTED"
       ]
     },
+    "public.movement_type_inventory": {
+      "name": "movement_type_inventory",
+      "schema": "public",
+      "values": [
+        "IN",
+        "OUT",
+        "ADJUST_IN",
+        "ADJUST_OUT",
+        "TRANSFER",
+        "COMMIT",
+        "UN_COMMIT",
+        "ORDERED",
+        "RECEIVED"
+      ]
+    },
     "public.nationality": {
       "name": "nationality",
       "schema": "public",
       "values": [
         "VENEZOLANO",
         "EXTRANJERO"
+      ]
+    },
+    "public.payment_accounts_payable_enum": {
+      "name": "payment_accounts_payable_enum",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "PENDING_BANK_BATCH",
+        "PAID",
+        "CANCELLED"
       ]
     },
     "public.payment_method_enum": {
@@ -10540,6 +12030,44 @@
         "CANCELED"
       ]
     },
+    "public.price_type_enum": {
+      "name": "price_type_enum",
+      "schema": "public",
+      "values": [
+        "COST",
+        "SELLING",
+        "OFFER"
+      ]
+    },
+    "public.product-status": {
+      "name": "product-status",
+      "schema": "public",
+      "values": [
+        "AVAILABLE",
+        "DISABLED",
+        "OUT OF STOCK",
+        "COMMING SOON",
+        "ON SALE"
+      ]
+    },
+    "public.purchase_order_status_enum": {
+      "name": "purchase_order_status_enum",
+      "schema": "public",
+      "values": [
+        "PENDING",
+        "RECEIVED",
+        "CANCELLED"
+      ]
+    },
+    "public.purchase_order_type_enum": {
+      "name": "purchase_order_type_enum",
+      "schema": "public",
+      "values": [
+        "SALES_INVENTORY",
+        "FIXED_ASSET",
+        "EXPENSE"
+      ]
+    },
     "public.reconciliation_item_status_enum": {
       "name": "reconciliation_item_status_enum",
       "schema": "public",
@@ -10563,17 +12091,6 @@
         "REVIEWED"
       ]
     },
-    "public.sale-product-status": {
-      "name": "sale-product-status",
-      "schema": "public",
-      "values": [
-        "AVAILABLE",
-        "DISABLED",
-        "OUT OF STOCK",
-        "COMMING SOON",
-        "ON SALE"
-      ]
-    },
     "public.status_enum": {
       "name": "status_enum",
       "schema": "public",
@@ -10585,6 +12102,33 @@
         "LOCKED",
         "RETIRED",
         "ARCHIVED"
+      ]
+    },
+    "public.status-suppliers": {
+      "name": "status-suppliers",
+      "schema": "public",
+      "values": [
+        "ACTIVE",
+        "INACTIVE",
+        "SUSPENDED"
+      ]
+    },
+    "public.supplier_invoices_payment_enum": {
+      "name": "supplier_invoices_payment_enum",
+      "schema": "public",
+      "values": [
+        "CASH",
+        "CREDIT"
+      ]
+    },
+    "public.supplier_transactions_type_enum": {
+      "name": "supplier_transactions_type_enum",
+      "schema": "public",
+      "values": [
+        "PAYMENT",
+        "CREDIT_NOTE",
+        "DEBIT_NOTE",
+        "ADVANCE"
       ]
     },
     "public.withdrawal_status_enum": {
@@ -10606,6 +12150,7 @@
   },
   "schemas": {
     "accounting": "accounting",
+    "accounts_payable": "accounts_payable",
     "audit": "audit",
     "auth": "auth",
     "banking": "banking",

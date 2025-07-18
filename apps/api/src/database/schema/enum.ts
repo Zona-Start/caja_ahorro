@@ -227,16 +227,16 @@ export const loanModalityTypeEnum = pgEnum('loan_modality_type_enum', [
   'SPECIAL_QUOTAS',
 ]);
 
-// Enum Modalidad de creditos
-export const creditModalityTypeEnum = pgEnum('credit_modality_type_enum', [
-  'ORDINARY',
-  'SPECIAL_QUOTAS',
-]);
-
 // Enum Modalidad de pago de prestamo
 export const loanPaymentTypeEnum = pgEnum('loan_payment_type_enum', [
   'PAYING',
   'CANCELLATION',
+]);
+
+// Enum Modalidad de creditos
+export const creditModalityTypeEnum = pgEnum('credit_modality_type_enum', [
+  'ORDINARY',
+  'SPECIAL_QUOTAS',
 ]);
 
 // Enum Modalidad de pago de prestamo
@@ -303,7 +303,7 @@ export const fixedAssetsInventoryStatus = pgEnum(
   ],
 );
 
-export const saleProductStatus = pgEnum('sale-product-status', [
+export const productStatus = pgEnum('product-status', [
   'AVAILABLE', // EEl producto está disponible para la venta
   'DISABLED', // El producto no está disponible para la venta ni es visible públicamente en el catálogo
   'OUT OF STOCK', // El producto no tiene unidades disponibles para la venta en este momento
@@ -326,38 +326,66 @@ export const statusSuppliers = pgEnum('status-suppliers', [
   'SUSPENDED',
 ]);
 
-// Enum para el estado de una factura (Cuentas por Pagar)
-export const invoiceSuppliersStatusEnum = pgEnum(
-  'invoice_suppliers_status_enum',
-  [
-    'DRAFT', // Borrador, no ha generado obligación contable
-    'PENDING', // Pendiente de pago
-    'PARTIALLY_PAID', // Pagada parcialmente
-    'PAID', // Pagada completamente
-    'CANCELLED', // Factura anulada/cancelada
-    'OVERDUE', // Vencida
-  ],
-);
-
-// Enum para el estado de un pago a proveedor
-export const paymentSuppliersStatusEnum = pgEnum(
-  'payment_suppliers_status_enum',
-  [
-    'REQUESTED', // Pago solicitado
-    'PENDING_BANK_BATCH', // Incluido en lote de pago bancario
-    'PROCESSED', // Procesado exitosamente (equivalente a DESEMBOLSADO)
-    'FAILED', // Falló el procesamiento
-    'REVERSED', // Reversado (por error o devolución)
-  ],
-);
-
-export const purchaseItemTypeEnum = pgEnum('purchase_item_type_enum', [
+export const purchaseOrderTypeEnum = pgEnum('purchase_order_type_enum', [
   'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
   'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
   'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
 ]);
 
-export const purchaseTypeEnum = pgEnum('purchase_type_enum', [
-  'CASH', // de contado
-  'CREDIT', // credito
+export const purchaseOrderStatusEnum = pgEnum('purchase_order_status_enum', [
+  'PENDING', // Producto para reventa (se relaciona con salesProducts)
+  'RECEIVED', // Bien o activo fijo (se relaciona con fixedAssets)
+  'CANCELLED', // Gasto directo o suministro de oficina (no se inventaría)
+]);
+
+export const supplierInvoicesPaymentEnum = pgEnum(
+  'supplier_invoices_payment_enum',
+  [
+    'CASH', // de contado
+    'CREDIT', // credito
+  ],
+);
+
+// Enum para el estado de una factura (Cuentas por Pagar)
+export const invoiceSuppliersStatusEnum = pgEnum(
+  'invoice_supplier_status_enum',
+  [
+    'OPEN', // Abierta para cuentas por pagar
+    'PAID', // Pagada
+    'CANCELLED', // Cancelada
+  ],
+);
+
+export const priceTypeEnum = pgEnum('price_type_enum', [
+  'COST',
+  'SELLING',
+  'OFFER',
+]);
+
+// Enum para el estado de un pago a proveedor
+export const paymentAccountsPayableEnum = pgEnum(
+  'payment_accounts_payable_enum',
+  [
+    'PENDING', // Pago solicitado
+    'PENDING_BANK_BATCH', // Incluido en lote de pago bancario
+    'PAID', // Procesado exitosamente (equivalente a DESEMBOLSADO)
+    'CANCELLED',
+  ],
+);
+
+export const supplierTransactionsTypeEnum = pgEnum(
+  'supplier_transactions_type_enum',
+  ['PAYMENT', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ADVANCE'],
+);
+
+export const movementTypeInventory = pgEnum('movement_type_inventory', [
+  'IN',
+  'OUT',
+  'ADJUST_IN',
+  'ADJUST_OUT',
+  'TRANSFER',
+  'COMMIT',
+  'UN_COMMIT',
+  'ORDERED',
+  'RECEIVED',
 ]);

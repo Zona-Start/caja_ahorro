@@ -12,12 +12,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { DrizzleModule } from './database/drizzle.module';
 import { AccountingModule } from './features/accounting/accounting.module';
-import { AccountsPayableModule } from './features/accounts-payable/accounts-payable.module';
+import { AdministrationFeaturesModule } from './features/administration/administration.module';
 import { AuditModule } from './features/audit/audit.module';
 import { AuthModule } from './features/auth/auth.module';
 import { BankingsModule } from './features/bankings/bankings.module';
 import { CoreModule } from './features/core/core.module';
-import { InventoryFeatureModule } from './features/inventory/inventory-module';
 import { MailModule } from './features/mail/mail.module';
 import { PermissionsModule } from './features/permissions/permissions.module';
 import { RolePermissionsModule } from './features/role-permissions/role-permissions.module';
@@ -68,8 +67,7 @@ import { UserRolesModule } from './features/user-roles/user-roles.module';
     SavingsBanksFeatureModule,
     AccountingModule,
     BankingsModule,
-    InventoryFeatureModule,
-    AccountsPayableModule,
+    AdministrationFeaturesModule,
   ],
 })
 export class AppModule {}

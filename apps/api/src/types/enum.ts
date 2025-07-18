@@ -224,6 +224,11 @@ export enum paymentMethodEnum {
   MOBILE_PAYMENT = 'MOBILE_PAYMENT',
 }
 
+export enum paymentStatus {
+  DONE = 'DONE',
+  CANCELED = 'CANCELED',
+}
+
 export enum loanModalityTypeEnum {
   ORDINARY = 'ORDINARY',
   SPECIAL_QUOTAS = 'SPECIAL_QUOTAS',
@@ -242,6 +247,32 @@ export enum creditModalityTypeEnum {
 export enum creditPaymetTypeEnum {
   CANCELLATION = 'CANCELLATION',
   PAYING = 'PAYING',
+}
+
+export enum withdrawalStatusEnum {
+  REQUESTED = 'REQUESTED', // Solicitado por el asociado
+  APPROVED = 'APPROVED', // Aprobado, listo para desembolsar (o incluido en TXT)
+  REJECTED = 'REJECTED', // Rechazado (nunca se desembolsa)
+  REVERSED = 'REVERSED',
+  CANCELLED = 'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
+  PENDING_DISBURSEMENT_BANK_BATCH = 'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
+  DISBURSED = 'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)
+  DISBURSEMENT_FAILED = 'DISBURSEMENT_FAILED', // Nuevo: Desembolso falló en el banco (revisar y reintentar o anular)
+  DISBURSED_REVERSED = 'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
+  ADJUSTED = 'ADJUSTED', // Nuevo: Indica que el retiro ha sido afectado por un ajuste contable
+}
+
+export enum liquidationsStatusEnum {
+  REQUESTED = 'REQUESTED', // Solicitado por el asociado
+  PROCESSED = 'PROCESSED', // Aprobado, listo para desembolsar (o incluido en TXT)
+  REJECTED = 'REJECTED', // Rechazado (nunca se desembolsa),
+  REVERSED = 'REVERSED',
+  CANCELLED = 'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
+  PENDING_DISBURSEMENT_BANK_BATCH = 'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
+  DISBURSED = 'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)
+  DISBURSEMENT_FAILED = 'DISBURSEMENT_FAILED', // Nuevo: Desembolso falló en el banco (revisar y reintentar o anular)
+  DISBURSED_REVERSED = 'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
+  ADJUSTED = 'ADJUSTED', // Nuevo: Indica que el retiro ha sido afectado por un ajuste contable
 }
 
 export enum internalLinkStatusEnum {
@@ -272,7 +303,7 @@ export enum fixedAssetsInventoryStatus {
   DEREGISTERED = 'DEREGISTERED', // Ya no es propiedad de la caja
 }
 
-export enum saleProductStatus {
+export enum productStatus {
   AVAILABLE = 'AVAILABLE', // EEl producto está disponible para la venta
   DISABLED = 'DISABLED', // El producto no está disponible para la venta ni es visible públicamente en el catálogo
   OUT_OF_STOCK = 'OUT OF STOCK', // El producto no tiene unidades disponibles para la venta en este momento
@@ -295,23 +326,59 @@ export enum statusSuppliers {
   SUSPENDED = 'SUSPENDED',
 }
 
-export enum purchaseItemTypeEnum {
+export enum purchaseOrderTypeEnum {
   SALES_INVENTORY = 'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
   FIXED_ASSET = 'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
   EXPENSE = 'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
 }
 
-// Enum para el estado de una factura (Cuentas por Pagar)
-export enum invoiceSuppliersStatusEnum {
-  DRAFT = 'DRAFT', // Borrador, no ha generado obligación contable
-  PENDING = 'PENDING', // Pendiente de pago
-  PARTIALLY_PAID = 'PARTIALLY_PAID', // Pagada parcialmente
-  PAID = 'PAID', // Pagada completamente
-  CANCELLED = 'CANCELLED', // Factura anulada/cancelada
-  OVERDUE = 'OVERDUE', // Vencida
+export enum purchaseOrderStatusEnum {
+  PENDING = 'PENDING',
+  RECEIVED = 'RECEIVED',
+  CANCELLED = 'CANCELLED',
 }
 
-export enum purchaseTypeEnum {
+export enum supplierInvoicesPaymentEnum {
   CASH = 'CASH',
   CREDIT = 'CREDIT',
+}
+
+// Enum para el estado de una factura (Cuentas por Pagar)
+export enum invoiceSuppliersStatusEnum {
+  OPEN = 'OPEN', // Abierta para cuentas por pagar
+  PAID = 'PAID', // Pagada
+  CANCELLED = 'CANCELLED', // Factura anulada/cancelada
+}
+
+export enum priceTypeEnum {
+  COST = 'COST',
+  SELLING = 'SELLING',
+  OFFER = 'OFFER',
+}
+
+// Enum para el estado de un pago a proveedor
+export enum paymentAccountsPayableEnum {
+  PENDING = 'PENDING',
+  PENDING_BANK_BATCH = 'PENDING_BANK_BATCH',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED',
+}
+
+export enum supplierTransactionsTypeEnum {
+  PAYMENT = 'PAYMENT',
+  CREDIT_NOTE = 'CREDIT_NOTE',
+  DEBIT_NOTE = 'DEBIT_NOTE',
+  ADVANCE = 'ADVANCE',
+}
+
+export enum movementTypeInventory {
+  IN = 'IN',
+  OUT = 'OUT',
+  ADJUST_IN = 'ADJUST_IN',
+  ADJUST_OUT = 'ADJUST_OUT',
+  TRANSFER = 'TRANSFER',
+  COMMIT = 'COMMIT',
+  UN_COMMIT = 'UN_COMMIT',
+  ORDERED = 'ORDERED',
+  RECEIVED = 'RECEIVED',
 }

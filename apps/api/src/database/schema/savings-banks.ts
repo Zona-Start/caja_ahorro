@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
 import { accountPlan } from './accounting';
+import { products } from './administration';
 import { users } from './auth';
 import { bankDirectory } from './banking';
 import {
@@ -40,7 +41,6 @@ import {
   statusEnum,
   withdrawalStatusEnum,
 } from './enum';
-import { salesProducts } from './inventory';
 import { savingsBanksSchema } from './schemas';
 
 // Tabla de los asociados. Almacena la información de los asociados de la caja de ahorro.
@@ -880,7 +880,7 @@ export const creditProductSales = savingsBanksSchema.table(
 
     productId: integer('product_id') // Qué tipo de producto de venta se asoció
       .notNull()
-      .references(() => salesProducts.id, { onDelete: 'restrict' }),
+      .references(() => products.id, { onDelete: 'restrict' }),
 
     quantity: integer('quantity').notNull().default(1),
     agreedSellingPrice: numeric('agreed_selling_price', {
