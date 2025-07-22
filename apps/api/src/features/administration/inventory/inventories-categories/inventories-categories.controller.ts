@@ -45,7 +45,7 @@ export class InventoriesCategoriesController {
   @RequirePermissions('read:inventories-categories')
   @ApiOperation({ summary: 'Get all  Categories' })
   @ApiResponse({ status: 200, description: 'Return all  Categories.' })
-  findAllCategories(@Param('group', ParseIntPipe) group: string) {
+  findAllCategories(@Param('group') group: string) {
     return this.services.findAllCategories(group);
   }
 

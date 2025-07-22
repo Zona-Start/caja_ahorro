@@ -1,4 +1,4 @@
-import { fixedAssetCategories, fixedAssets } from '@/database/schema/inventory';
+import { fixedAssets } from '@/database/schema/administration';
 import { fixedAssetsInventoryStatus } from '@/types/enum';
 import {
   BadRequestException,
@@ -11,6 +11,7 @@ import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { inventoriesCategories } from 'src/database/index';
 import { CreateFixedAssetDto } from './dto/create-fixed-asset.dto';
 import { FilterFixedAssetDto } from './dto/filter-fixed-asset.dto';
 import { UpdateFixedAssetDto } from './dto/update-fixed-asset.dto';
@@ -25,11 +26,13 @@ export class FixedAssetsService {
   async create(userId: number, createFixedAssetDto: CreateFixedAssetDto) {
     try {
       // Verificar que la categoría existe
-      const category = await this.drizzle.query.fixedAssetCategories.findFirst({
-        where: eq(fixedAssetCategories.id, createFixedAssetDto.categoryId),
-      });
 
-      if (!category) {
+      const category = await this.drizzle
+        .select()
+        .from(inventoriesCategories)
+        .where(eq(inventoriesCategories.id, createFixedAssetDto.categoryId));
+
+      if (category.length === 0) {
         throw new NotFoundException(
           `Category with ID ${createFixedAssetDto.categoryId} not found`,
         );
@@ -74,10 +77,7 @@ export class FixedAssetsService {
         .values(assetData)
         .returning();
 
-      return {
-        message: 'Fixed asset created successfully',
-        data: result[0],
-      };
+      return result[0];
     } catch (error) {
       if (
         error instanceof NotFoundException ||
@@ -185,7 +185,7 @@ export class FixedAssetsService {
         .select({
           id: fixedAssets.id,
           categoryId: fixedAssets.categoryId,
-          categoryName: fixedAssetCategories.name,
+          categoryName: inventoriesCategories.name,
           assetCode: fixedAssets.assetCode,
           name: fixedAssets.name,
           description: fixedAssets.description,
@@ -201,8 +201,8 @@ export class FixedAssetsService {
         })
         .from(fixedAssets)
         .leftJoin(
-          fixedAssetCategories,
-          eq(fixedAssets.categoryId, fixedAssetCategories.id),
+          inventoriesCategories,
+          eq(fixedAssets.categoryId, inventoriesCategories.id),
         )
         .where(searchCondition)
         .orderBy(orderBy)
@@ -246,7 +246,7 @@ export class FixedAssetsService {
         .select({
           id: fixedAssets.id,
           categoryId: fixedAssets.categoryId,
-          categoryName: fixedAssetCategories.name,
+          categoryName: inventoriesCategories.name,
           assetCode: fixedAssets.assetCode,
           name: fixedAssets.name,
           description: fixedAssets.description,
@@ -267,8 +267,8 @@ export class FixedAssetsService {
         })
         .from(fixedAssets)
         .leftJoin(
-          fixedAssetCategories,
-          eq(fixedAssets.categoryId, fixedAssetCategories.id),
+          inventoriesCategories,
+          eq(fixedAssets.categoryId, inventoriesCategories.id),
         )
         .where(eq(fixedAssets.id, id));
 
@@ -323,12 +323,12 @@ export class FixedAssetsService {
 
       // Si se está actualizando la categoría, verificar que existe
       if (updateFixedAssetDto.categoryId) {
-        const category =
-          await this.drizzle.query.fixedAssetCategories.findFirst({
-            where: eq(fixedAssetCategories.id, updateFixedAssetDto.categoryId),
-          });
+        const category = await this.drizzle
+          .select()
+          .from(inventoriesCategories)
+          .where(eq(inventoriesCategories.id, updateFixedAssetDto.categoryId));
 
-        if (!category) {
+        if (category.length === 0) {
           throw new NotFoundException(
             `Category with ID ${updateFixedAssetDto.categoryId} not found`,
           );

@@ -1,0 +1,96 @@
+import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
+import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
+import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
+import { AccountsPayableService } from './accounts-payable.service';
+
+@ApiTags('administration/accounts-payable')
+@Controller('administration/accounts-payable')
+export class AccountsPayableController {
+  constructor(private readonly services: AccountsPayableService) {}
+
+  @Post()
+  @Roles('admin')
+  @RequirePermissions('create:account-payable')
+  @ApiOperation({ summary: 'Create a new account payable' })
+  @ApiResponse({
+    status: 201,
+    description: 'Account payable created successfully.',
+  })
+  async create(@Req() req: Request, @Body() dto: CreateAccountPayableDto) {
+    const userId = req['user'].id;
+    const data = await this.services.create(userId, dto);
+    return { message: 'Account payable created successfully', data };
+  }
+
+  @Get('/paginated')
+  @Roles('admin')
+  @RequirePermissions('read:accounts-payable')
+  @ApiOperation({ summary: 'Get all accounts payable' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Return all accounts payable.' })
+  async findAll(@Query() paginationDto: FilterAccountPayableDto) {
+    const result = await this.services.findAll(paginationDto);
+    return {
+      message: 'Accounts payable fetched successfully',
+      data: result.data,
+      meta: result.meta,
+    };
+  }
+
+  @Get(':id')
+  @Roles('admin')
+  @RequirePermissions('read:account-payable')
+  @ApiOperation({ summary: 'Get an account payable by ID' })
+  @ApiResponse({ status: 200, description: 'Return the account payable.' })
+  @ApiResponse({ status: 404, description: 'Account payable not found.' })
+  async findOne(@Param('id') id: string) {
+    const data = await this.services.findOne(+id);
+    return { message: 'Account payable fetched successfully', data };
+  }
+
+  @Patch(':id')
+  @Roles('admin')
+  @RequirePermissions('update:account-payable')
+  @ApiOperation({ summary: 'Update an account payable' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account payable updated successfully.',
+  })
+  @ApiResponse({ status: 404, description: 'Account payable not found.' })
+  async update(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: UpdateAccountPayableDto,
+  ) {
+    const userId = req['user'].id;
+    const data = await this.services.update(userId, +id, dto);
+    return { message: 'Account payable updated successfully', data };
+  }
+
+  @Delete(':id')
+  @Roles('admin')
+  @RequirePermissions('delete:account-payable')
+  @ApiOperation({ summary: 'Delete an account payable' })
+  @ApiResponse({
+    status: 200,
+    description: 'Account payable deleted successfully.',
+  })
+  @ApiResponse({ status: 404, description: 'Account payable not found.' })
+  async remove(@Param('id') id: string) {
+    return await this.services.remove(+id);
+  }
+}

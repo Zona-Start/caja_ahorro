@@ -81,6 +81,17 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         updatedById: 1,
       })
       .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'correlativo_producto',
+        value: '00001',
+        description: 'CORRELATIVO PRODUCTOS',
+        group: 'DOCUMENTS',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
     console.log('System Setting seeded successfully');
   } catch (error) {
     console.error('Error creating System Setting:', error);

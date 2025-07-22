@@ -1,4 +1,4 @@
-import { fixedAssets } from '@/database/schema/inventory';
+import { fixedAssets } from '@/database/schema/administration';
 import { InferInsertModel } from 'drizzle-orm';
 
 export type FixedAsset = InferInsertModel<typeof fixedAssets>;

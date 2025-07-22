@@ -1,0 +1,17 @@
+export const ACCOUNT_PAYABLE_STATUS_TYPES = {
+  PENDING: 'PENDIENTE',
+  PAID: 'PAGADA',
+  PARTIALLY_PAID: 'PARCIALMENTE PAGADA',
+  OVERDUE: 'VENCIDA',
+  CANCELLED: 'CANCELADA',
+} as const;
+
+export type AccountPayableStatusType = keyof typeof ACCOUNT_PAYABLE_STATUS_TYPES;
+
+export enum AccountPayableStatusEnum {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  PARTIALLY_PAID = 'PARTIALLY_PAID',
+  OVERDUE = 'OVERDUE',
+  CANCELLED = 'CANCELLED',
+}

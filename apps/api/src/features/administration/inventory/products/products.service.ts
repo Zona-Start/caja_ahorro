@@ -40,16 +40,23 @@ export class ProductsService {
       'PROD',
     );
 
-    await this.drizzle.insert(products).values({
-      ...data,
-      sku: code,
-      createdById: userId,
-      status: 'AVAILABLE',
-    });
+    const result = await this.drizzle
+      .insert(products)
+      .values({
+        ...data,
+        sku: code,
+        createdById: userId,
+        status: 'AVAILABLE',
+      })
+      .returning({
+        id: products.id,
+        sku: products.sku,
+        name: products.name,
+        description: products.description,
+        status: products.status,
+      });
 
-    return {
-      message: 'Product created successfully',
-    };
+    return result[0];
   }
 
   async findAllProduct() {
@@ -108,6 +115,7 @@ export class ProductsService {
         model: schema.products.model,
         stockMin: schema.products.stockMin,
         stockMax: schema.products.stockMax,
+        reorderPoint: schema.products.reorderPoint,
         status: schema.products.status,
       })
       .from(schema.products)
@@ -145,6 +153,19 @@ export class ProductsService {
   async findOne(id: number) {
     const data = await this.drizzle.query.products.findFirst({
       where: eq(products.id, id),
+      columns: {
+        id: true,
+        categoryId: true,
+        sku: true,
+        name: true,
+        description: true,
+        brand: true,
+        model: true,
+        stockMin: true,
+        stockMax: true,
+        reorderPoint: true,
+        status: true,
+      },
     });
 
     if (!data) {
@@ -163,18 +184,23 @@ export class ProductsService {
       throw new NotFoundException('Sales product not found');
     }
 
-    await this.drizzle
+    const result = await this.drizzle
       .update(products)
       .set({
         ...data,
         updatedById: userId,
         status: data.status as productStatus,
       })
-      .where(eq(products.id, id));
+      .where(eq(products.id, id))
+      .returning({
+        id: products.id,
+        sku: products.sku,
+        name: products.name,
+        description: products.description,
+        status: products.status,
+      });
 
-    return {
-      message: 'Product updated successfully',
-    };
+    return result[0];
   }
 
   async remove(id: number) {
@@ -197,10 +223,21 @@ export class ProductsService {
       );
     }
 
+    const existPurchase = await this.drizzle
+      .select()
+      .from(schema.productPrices)
+      .where(eq(schema.productPrices.productId, id));
+
+    if (existPurchase.length !== 0) {
+      throw new BadRequestException(
+        'Cannot be deleted, there are purschase of that product',
+      );
+    }
+
     await this.drizzle.delete(products).where(eq(products.id, id));
 
     return {
-      message: 'P roduct removed successfully',
+      message: 'Product removed successfully',
     };
   }
 }

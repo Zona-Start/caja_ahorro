@@ -1,5 +1,12 @@
+import { productStatus } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateProductDto {
   @ApiProperty({ example: 1 })
@@ -45,9 +52,8 @@ export class CreateProductDto {
   @IsOptional()
   reorderPoint?: number;
 
-  @ApiProperty({ example: 'DISPONIBLE' })
-  @IsString()
-  @MaxLength(50)
+  @ApiProperty({ example: 'AVAILABLE' })
+  @IsEnum(productStatus)
   @IsOptional()
-  status?: string;
+  status?: productStatus;
 }
