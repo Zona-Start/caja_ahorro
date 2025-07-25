@@ -130,6 +130,11 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/haberes/retiros/tipo-retiros',
       },
+      {
+        title: 'Inventario',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/categorias/inventario',
+      },
     ], // No child items
   },
   {
@@ -140,32 +145,17 @@ export const savingBankItems: NavItem[] = [
     isActive: false,
     items: [
       {
-        title: 'Categorias Productos',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/inventarios/productos/categorias',
-      },
-      {
         title: 'Productos',
         shortcut: ['l', 'l'],
         url: '/dashboard/inventarios/productos',
       },
       {
-        title: 'Adquisición Productos',
+        title: 'Servicios',
         shortcut: ['l', 'l'],
-        url: '/dashboard/inventarios/productos/compras',
+        url: '#',
       },
       {
-        title: 'Categorias Bienes',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/inventarios/bienes/categorias',
-      },
-      {
-        title: 'Bienes',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/inventarios/bienes',
-      },
-      {
-        title: 'Adquisición Bienes',
+        title: 'Bienes o Activos',
         shortcut: ['l', 'l'],
         url: '#',
       },

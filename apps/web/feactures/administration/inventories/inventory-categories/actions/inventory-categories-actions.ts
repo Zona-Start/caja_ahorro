@@ -2,15 +2,16 @@
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
   inventoryCategoryAllResponseSchema,
+  inventoryCategoryApiSchema,
   inventoryCategoryMutationResponseSchema,
   inventoryCategoryResponse,
   InventoryCategorySchemaAPI,
 } from '../schemas/inventory-category-api.schema';
 import { InventoryCategory } from '../schemas/inventory-category.schema';
 
-export async function getAllInventoryCategories(group: string): Promise<
-  InventoryCategorySchemaAPI[]
-> {
+export async function getAllInventoryCategories(
+  group: string,
+): Promise<{ id: number; name: string }[]> {
   const [error, response] = await safeFetchApi(
     inventoryCategoryResponse,
     `/administration/inventory/categories/all/${group}`,
@@ -146,8 +147,6 @@ export const saveInventoryCategoryAction = async (
       return await updateInventoryCategory(payload);
     }
   } catch (error: any) {
-    throw new Error(
-      error.message || 'Error saving inventory category',
-    );
+    throw new Error(error.message || 'Error saving inventory category');
   }
 };

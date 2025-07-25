@@ -1,9 +1,8 @@
 import PageContainer from '@/components/layout/page-container';
-import SalesProductHeader from '@/feactures/inventories/sales/sales-product/components/sales-product-header';
-import SalesProductList from '@/feactures/inventories/sales/sales-product/components/sales-product-list';
-import SalesProductTableActions from '@/feactures/inventories/sales/sales-product/components/sales-product-tables/table-actions';
-import { searchParamsCache } from '@/feactures/inventories/sales/sales-product/utils/searchparams';
-
+import ProductHeader from '@/feactures/administration/inventories/products/components/product-header';
+import ProductList from '@/feactures/administration/inventories/products/components/product-list';
+import ProductTableActions from '@/feactures/administration/inventories/products/components/product-tables/table-actions';
+import { searchParamsCache } from '@/feactures/administration/inventories/products/utils';
 import { SearchParams } from 'nuqs/server';
 
 export const metadata = {
@@ -27,9 +26,9 @@ export default async function Page(props: pageProps) {
   return (
     <PageContainer scrollable={false}>
       <div className="flex flex-1 flex-col space-y-4">
-        <SalesProductHeader />
-        <SalesProductTableActions />
-        <SalesProductList
+        <ProductHeader />
+        <ProductTableActions />
+        <ProductList
           initialPage={page}
           initialSearch={search}
           initialLimit={pageLimit}

@@ -52,7 +52,7 @@ export class CreateProductDto {
   @IsOptional()
   reorderPoint?: number;
 
-  @ApiProperty({ example: 'AVAILABLE' })
+  @ApiProperty({ enum: productStatus, enumName: 'ProductStatus' })
   @IsEnum(productStatus)
   @IsOptional()
   status?: productStatus;

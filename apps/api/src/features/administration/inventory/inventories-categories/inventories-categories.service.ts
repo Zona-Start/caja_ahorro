@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateInventoryCategoryDto } from './dto/create-inventories-category.dto';
 import { FilterInventoryCategoryDto } from './dto/filter-onventories-category.dto';
@@ -69,13 +69,14 @@ export class InventoriesCategoriesService {
 
     // Build search condition
     let searchConditions: SQL<unknown>[] = [];
-
     if (search) {
-      searchConditions.push(eq(schema.inventoriesCategories.name, search));
+      searchConditions.push(
+        ilike(schema.inventoriesCategories.name, `%${search}%`),
+      );
     }
 
     if (group) {
-      searchConditions.push(eq(schema.inventoriesCategories.group, group));
+      searchConditions.push(ilike(schema.inventoriesCategories.group, group));
     }
 
     const searchCondition = searchConditions.length
@@ -101,6 +102,7 @@ export class InventoriesCategoriesService {
       .select({
         id: schema.inventoriesCategories.id,
         name: schema.inventoriesCategories.name,
+        group: schema.inventoriesCategories.group,
         description: schema.inventoriesCategories.description,
       })
       .from(schema.inventoriesCategories)
@@ -108,7 +110,6 @@ export class InventoriesCategoriesService {
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
-
     // Build pagination metadata
     const meta = {
       page,
@@ -152,9 +153,9 @@ export class InventoriesCategoriesService {
   }
 
   async update(id: number, dto: UpdateInventoryCategoryDto, userId: number) {
-    const product = await this.findOne(id);
+    const category = await this.findOne(id);
 
-    if (!product) {
+    if (!category) {
       throw new NotFoundException(`Category with id ${id} not found`);
     }
 
@@ -174,16 +175,16 @@ export class InventoriesCategoriesService {
 
   async remove(id: number) {
     const exist = await this.findOne(id);
-
     if (!exist) {
       throw new NotFoundException(`Category not found`);
     }
 
-    const isProductCategory = await this.drizzle.query.products.findFirst({
-      where: eq(schema.products.categoryId, id),
-    });
+    const isProductCategory = await this.drizzle
+      .select()
+      .from(schema.products)
+      .where(eq(schema.products.categoryId, id));
 
-    if (isProductCategory) {
+    if (isProductCategory.length !== 0) {
       throw new BadRequestException(
         'Cannot be deleted, Product Category is in use',
       );
@@ -199,7 +200,8 @@ export class InventoriesCategoriesService {
     }
 
     return {
-      message: `Category with name ${deletedCategory[0].name} delete success`,
+      message: `Category with name delete success`,
+      // message: `Category with name ${deletedCategory[0].name} delete success`,
     };
   }
 }

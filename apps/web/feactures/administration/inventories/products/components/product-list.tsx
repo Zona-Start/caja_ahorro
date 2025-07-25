@@ -9,7 +9,7 @@ interface ProductListProps {
   initialPage: number;
   initialSearch?: string | null;
   initialLimit: number;
-  initialTypeCategory?: number | null;
+  initialTypeCategory?: string | null;
   initialStatus?: string | null;
 }
 

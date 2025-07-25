@@ -17,8 +17,8 @@ import { FilterProductDto } from './dto/filter-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
 
-@ApiTags('inventory/sales/products')
-@Controller('inventory/sales/products')
+@ApiTags('administration/inventory/products')
+@Controller('administration/inventory/products')
 export class ProductsController {
   constructor(private readonly services: ProductsService) {}
 

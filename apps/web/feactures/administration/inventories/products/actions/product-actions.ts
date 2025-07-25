@@ -2,6 +2,7 @@
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
   productAllResponseSchema,
+  productMutationDeleteResponseSchema,
   productMutationResponseSchema,
   productResponseSchema,
 } from '../schemas/product-api.schema';
@@ -10,7 +11,7 @@ import { Product } from '../schemas/product.schema';
 export async function getProductAll() {
   const [error, response] = await safeFetchApi(
     productResponseSchema,
-    '/inventory/sales/products/all',
+    '/administration/inventory/products/all',
     'GET',
   );
 
@@ -36,14 +37,16 @@ export async function getProducts(params: {
     limit: (params.limit || 10).toString(),
     ...(params.search && { search: params.search }),
     ...(params.sortBy && { sortBy: params.sortBy }),
-    ...(params.typeCategory && { typeCategory: params.typeCategory.toString() }),
+    ...(params.typeCategory && {
+      typeCategory: params.typeCategory.toString(),
+    }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
     ...(params.status && { status: params.status }),
   });
 
   const [error, response] = await safeFetchApi(
     productAllResponseSchema,
-    `/inventory/sales/products/paginated?${searchParams}`,
+    `/administration/inventory/products/paginated?${searchParams}`,
     'GET',
   );
 
@@ -71,7 +74,7 @@ export async function createProduct(payload: Product): Promise<any> {
   const { id, ...payloadWithoutId } = payload;
   const [error, data] = await safeFetchApi(
     productMutationResponseSchema,
-    '/inventory/sales/products',
+    '/administration/inventory/products',
     'POST',
     payloadWithoutId,
   );
@@ -88,7 +91,7 @@ export async function updateProduct(payload: Product): Promise<any> {
 
   const [error, data] = await safeFetchApi(
     productMutationResponseSchema,
-    `/inventory/sales/products/${id}`,
+    `/administration/inventory/products/${id}`,
     'PATCH',
     payloadWithoutId,
   );
@@ -103,8 +106,8 @@ export async function updateProduct(payload: Product): Promise<any> {
 
 export async function deleteProduct(id: number): Promise<any> {
   const [error, data] = await safeFetchApi(
-    productMutationResponseSchema,
-    `/inventory/sales/products/${id}`,
+    productMutationDeleteResponseSchema,
+    `/administration/inventory/products/${id}`,
     'DELETE',
   );
 

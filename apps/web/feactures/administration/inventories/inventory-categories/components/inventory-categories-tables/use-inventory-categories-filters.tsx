@@ -10,7 +10,7 @@ export function useInventoryCategoriesFilters() {
     searchParams.q
       .withOptions({
         shallow: false,
-        throttleMs: 1000,
+        throttleMs: 1500,
       })
       .withDefault(''),
   );
@@ -20,14 +20,20 @@ export function useInventoryCategoriesFilters() {
     searchParams.page.withDefault(1),
   );
 
+  const [groupFilter, setGroupFilter] = useQueryState(
+    'group',
+    searchParams.q.withOptions({ shallow: false }).withDefault(''),
+  );
+
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
+    setGroupFilter(null);
     setPage(1);
-  }, [setSearchQuery, setPage]);
+  }, [setSearchQuery, setPage, setGroupFilter]);
 
   const isAnyFilterActive = useMemo(() => {
-    return !!searchQuery;
-  }, [searchQuery]);
+    return !!searchQuery || !!groupFilter;
+  }, [searchQuery, groupFilter]);
 
   return {
     searchQuery,
@@ -36,5 +42,7 @@ export function useInventoryCategoriesFilters() {
     setPage,
     resetFilters,
     isAnyFilterActive,
+    groupFilter,
+    setGroupFilter,
   };
 }

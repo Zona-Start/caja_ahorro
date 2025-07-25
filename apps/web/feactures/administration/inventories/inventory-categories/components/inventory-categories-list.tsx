@@ -9,20 +9,20 @@ interface InventoryCategoriesListProps {
   initialPage: number;
   initialSearch?: string | null;
   initialLimit: number;
-  group?: string;
+  initialGroup?: string | null;
 }
 
 export default function InventoryCategoriesList({
   initialPage,
   initialSearch,
   initialLimit,
-  group,
+  initialGroup,
 }: InventoryCategoriesListProps) {
   const filters = {
     page: initialPage,
     limit: initialLimit,
     ...(initialSearch && { search: initialSearch }),
-    ...(group && { group: group }),
+    ...(initialGroup && { group: initialGroup }),
   };
 
   const { data, isLoading } = useInventoryCategories(filters);

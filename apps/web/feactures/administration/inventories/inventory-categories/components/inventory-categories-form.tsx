@@ -1,5 +1,13 @@
+'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/shadcn/components/ui/select';
 import {
   Form,
   FormControl,
@@ -11,6 +19,7 @@ import {
 import { Input } from '@repo/shadcn/input';
 import { useForm } from 'react-hook-form';
 import { useInventoryCategoryMutation } from '../hooks/use-mutation-inventory-categories';
+import { GROUP_TYPES } from '../schemas/inventory-category-options';
 import {
   InventoryCategory,
   inventoryCategorySchema,
@@ -29,7 +38,8 @@ export default function InventoryCategoriesForm({
   defaultValues,
   readOnly = false,
 }: Props) {
-  const { mutate: saveInventoryCategory, isPending: isSaving } = useInventoryCategoryMutation();
+  const { mutate: saveInventoryCategory, isPending: isSaving } =
+    useInventoryCategoryMutation();
 
   const form = useForm<InventoryCategory>({
     resolver: zodResolver(inventoryCategorySchema),
@@ -90,14 +100,23 @@ export default function InventoryCategoriesForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Grupo</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ''}
-                    disabled={readOnly}
-                    className={readOnly ? 'bg-muted' : ''}
-                  />
-                </FormControl>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccione el tipo" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {Object.entries(GROUP_TYPES).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

@@ -5,7 +5,7 @@ import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 
-import { useInventoryCategoriesAll } from '../../inventory-categories/hooks/use-query-inventory-categories';
+import { useInventoryCategoriesAll } from '../../../inventory-categories/hooks/use-query-inventory-categories';
 import ProductModal from '../product-modal';
 import {
   PRODUCT_STATUS_OPTIONS,

@@ -7,6 +7,11 @@ export const inventoryCategoryApiSchema = z.object({
   description: z.string().optional().nullable(),
 });
 
+export const inventoryCategoryAllSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+});
+
 export type InventoryCategorySchemaAPI = z.infer<
   typeof inventoryCategoryApiSchema
 >;
@@ -31,6 +36,4 @@ export const inventoryCategoryAllResponseSchema = z.object({
     .optional(),
 });
 
-export const inventoryCategoryResponse = z.array(
-  inventoryCategoryApiSchema,
-);
+export const inventoryCategoryResponse = z.array(inventoryCategoryAllSchema);

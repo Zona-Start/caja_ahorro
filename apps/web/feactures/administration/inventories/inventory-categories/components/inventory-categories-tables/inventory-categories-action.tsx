@@ -1,14 +1,17 @@
 'use client';
 
 import { Button } from '@repo/shadcn/button';
+import { DataTableFilterBox } from '@repo/shadcn/components/ui/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
+import { GROUP_TYPE_OPTIONS } from '../../schemas/inventory-category-options';
 import InventoryCategoriesModal from '../inventory-categories-modal';
 import { useInventoryCategoriesFilters } from './use-inventory-categories-filters';
 
 export function InventoryCategoriesTableAction() {
-  const { searchQuery, setPage, setSearchQuery } = useInventoryCategoriesFilters();
+  const { searchQuery, setPage, setSearchQuery, groupFilter, setGroupFilter } =
+    useInventoryCategoriesFilters();
   const [open, setOpen] = useState(false);
 
   return (
@@ -20,6 +23,13 @@ export function InventoryCategoriesTableAction() {
           searchQuery={searchQuery || ''}
           setSearchQuery={setSearchQuery}
           setPage={setPage}
+        />
+        <DataTableFilterBox
+          filterKey="group"
+          title="Grupo"
+          options={GROUP_TYPE_OPTIONS}
+          setFilterValue={setGroupFilter}
+          filterValue={groupFilter}
         />
       </div>
       <Button onClick={() => setOpen(true)} size="sm">
