@@ -25,7 +25,7 @@ export class ProductPricesService {
       where: and(
         eq(productPrices.productId, data.productId),
         eq(productPrices.priceType, data.priceType),
-        eq(productPrices.price, data.price),
+        eq(productPrices.price, String(data.price)),
       ),
     });
 
@@ -37,7 +37,10 @@ export class ProductPricesService {
 
     await this.drizzle.insert(productPrices).values({
       ...data,
-      createdById: userId,
+      price: String(data.price),
+      createdById: userId, // Remove this line if 'createdById' is not a column in your schema
+      startDate: data.startDate ? data.startDate.toISOString() : undefined,
+      endDate: data.endDate ? data.endDate.toISOString() : undefined,
     });
 
     return {
@@ -144,41 +147,61 @@ export class ProductPricesService {
     return data;
   }
 
-  async update(userId: number, id: number, data: UpdateProductPriceDto) {
-    const exist = await this.drizzle.query.productPrices.findFirst({
-      where: eq(productPrices.id, id),
+  async findLastActivePriceByProductId(productId: number) {
+    return await this.drizzle.query.productPrices.findFirst({
+      where: and(
+        eq(productPrices.productId, productId),
+        eq(productPrices.isActive, true),
+      ),
+      orderBy: (productPrices, { desc }) => [desc(productPrices.createdAt)],
     });
+  }
 
-    if (!exist) {
-      throw new NotFoundException('Product price not found');
-    }
-
+  async deactivatePrice(priceId: number) {
     await this.drizzle
       .update(productPrices)
-      .set({
-        ...data,
-        updatedById: userId,
-      })
-      .where(eq(productPrices.id, id));
-
-    return {
-      message: 'Product price updated successfully',
-    };
+      .set({ isActive: false })
+      .where(eq(productPrices.id, priceId));
   }
 
-  async remove(id: number) {
-    const exist = await this.drizzle.query.productPrices.findFirst({
-      where: eq(productPrices.id, id),
-    });
+  // async update(userId: number, id: number, data: UpdateProductPriceDto) {
+  //   const exist = await this.drizzle.query.productPrices.findFirst({
+  //     where: eq(productPrices.id, id),
+  //   });
 
-    if (!exist) {
-      throw new NotFoundException('Product price not found');
-    }
+  //   if (!exist) {
+  //     throw new NotFoundException('Product price not found');
+  //   }
 
-    await this.drizzle.delete(productPrices).where(eq(productPrices.id, id));
+  //   await this.drizzle
+  //     .update(productPrices)
+  //     .set({
+  //       ...data,
+  //       price: data.price !== undefined ? String(data.price) : undefined,
+  //       startDate: data.startDate ? data.startDate.toISOString() : undefined,
+  //       endDate: data.endDate ? data.endDate.toISOString() : undefined,
+  //       updatedById: userId,
+  //     })
+  //     .where(eq(productPrices.id, id));
 
-    return {
-      message: 'Product price removed successfully',
-    };
-  }
+  //   return {
+  //     message: 'Product price updated successfully',
+  //   };
+  // }
+
+  // async remove(id: number) {
+  //   const exist = await this.drizzle.query.productPrices.findFirst({
+  //     where: eq(productPrices.id, id),
+  //   });
+
+  //   if (!exist) {
+  //     throw new NotFoundException('Product price not found');
+  //   }
+
+  //   await this.drizzle.delete(productPrices).where(eq(productPrices.id, id));
+
+  //   return {
+  //     message: 'Product price removed successfully',
+  //   };
+  // }
 }

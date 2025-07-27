@@ -1,8 +1,11 @@
+import { priceTypeEnum } from '@/database/schema/enum';
 import { productStatus } from '@/types/enum';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
   IsInt,
+  IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -56,4 +59,17 @@ export class CreateProductDto {
   @IsEnum(productStatus)
   @IsOptional()
   status?: productStatus;
+
+  @ApiProperty({ description: 'Price' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  price: number;
+
+  @ApiPropertyOptional({
+    description: 'Price type',
+    enum: priceTypeEnum.enumValues,
+  })
+  @IsEnum(priceTypeEnum.enumValues)
+  @IsOptional()
+  priceType?: (typeof priceTypeEnum.enumValues)[number];
 }

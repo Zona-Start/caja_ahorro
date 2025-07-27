@@ -50,7 +50,7 @@ export class AuditLogsService {
       .values({
         tableName: createAuditLogsDto.tableName,
         recordId: createAuditLogsDto.recordId,
-        action: createAuditLogsDto.action as ActionEnumAudit,
+        action: createAuditLogsDto.action as any,
         userId: createAuditLogsDto.userId,
         area: createAuditLogsDto.area,
         description: createAuditLogsDto.description,
@@ -76,7 +76,7 @@ export class AuditLogsService {
       .set({
         tableName: updateAuditLogsDto.tableName,
         recordId: updateAuditLogsDto.recordId,
-        action: updateAuditLogsDto.action as ActionEnumAudit,
+        action: updateAuditLogsDto.action as any,
         userId: updateAuditLogsDto.userId,
         area: updateAuditLogsDto.area,
         description: updateAuditLogsDto.description,

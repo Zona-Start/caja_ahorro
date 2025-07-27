@@ -1,5 +1,6 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { products } from '@/database/schema/administration';
+import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import { productStatus } from '@/types/enum';
 import {
   BadRequestException,
@@ -11,6 +12,7 @@ import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { ProductPricesService } from '../product-prices/product-prices.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { FilterProductDto } from './dto/filter-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -20,7 +22,37 @@ export class ProductsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCode: GenerateCodeService,
+    private readonly productPricesService: ProductPricesService,
+    private readonly settingsSystemService: SettingsSystemService,
   ) {}
+
+  async calculateFinalPrice(data: { price: number }) {
+    // Fetch rates from settings in parallel for efficiency
+    const [taxRate, profitMarginRate, expenseRate] = await Promise.all([
+      this.settingsSystemService.findKey('iva'),
+      this.settingsSystemService.findKey('utilidad_producto'),
+      this.settingsSystemService.findKey('gasto_producto'),
+    ]);
+
+    // Validate that rates exist and convert to numbers, defaulting to 0
+    const tax = Number(taxRate?.value ?? 0);
+    const profitMargin = Number(profitMarginRate?.value ?? 0);
+    const expense = Number(expenseRate?.value ?? 0);
+
+    // Calculate profit margin amount on base price
+    const profitAmount = (data.price * profitMargin) / 100;
+    const priceWithProfit = data.price + profitAmount;
+
+    // Calculate tax amount on price with profit
+    const taxAmount = (priceWithProfit * tax) / 100;
+    const priceWithTax = priceWithProfit + taxAmount;
+
+    // Calculate expenses/commissions on price with tax
+    const expenseAmount = (priceWithTax * expense) / 100;
+    const finalPrice = priceWithTax + expenseAmount;
+
+    return finalPrice;
+  }
 
   async create(userId: number, data: CreateProductDto) {
     const exist = await this.drizzle.query.products.findFirst({
@@ -55,6 +87,32 @@ export class ProductsService {
         description: products.description,
         status: products.status,
       });
+
+    if (data.priceType === 'COST') {
+      // Calculate final price based on settings
+      const finalPrice = await this.calculateFinalPrice(data);
+
+      await this.productPricesService.create(userId, {
+        productId: result[0].id,
+        price: data.price,
+        priceType: 'COST',
+        isActive: true,
+      });
+
+      await this.productPricesService.create(userId, {
+        productId: result[0].id,
+        price: finalPrice,
+        priceType: 'SELLING',
+        isActive: true,
+      });
+    } else {
+      await this.productPricesService.create(userId, {
+        productId: result[0].id,
+        price: data.price,
+        priceType: data.priceType ?? 'COST',
+        isActive: true,
+      });
+    }
 
     return result[0];
   }
@@ -182,6 +240,41 @@ export class ProductsService {
 
     if (!exist) {
       throw new NotFoundException('Sales product not found');
+    }
+
+    if (data.price) {
+      const lastPrice =
+        await this.productPricesService.findLastActivePriceByProductId(id);
+      if (lastPrice) {
+        await this.productPricesService.deactivatePrice(lastPrice.id);
+      }
+
+      if (data.priceType === 'COST') {
+        const finalPrice = await this.calculateFinalPrice({
+          price: data.price!,
+        });
+
+        await this.productPricesService.create(userId, {
+          productId: id,
+          price: data.price,
+          priceType: 'COST',
+          isActive: true,
+        });
+
+        await this.productPricesService.create(userId, {
+          productId: id,
+          price: finalPrice,
+          priceType: 'SELLING',
+          isActive: true,
+        });
+      } else {
+        await this.productPricesService.create(userId, {
+          productId: id,
+          price: data.price,
+          priceType: data.priceType ?? 'COST',
+          isActive: true,
+        });
+      }
     }
 
     const result = await this.drizzle

@@ -1,20 +1,9 @@
 import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateProductPriceDto } from './dto/create-product-price.dto';
 import { FilterProductPriceDto } from './dto/filter-product-price.dto';
-import { UpdateProductPriceDto } from './dto/update-product-price.dto';
 import { ProductPricesService } from './product-prices.service';
 
 @ApiTags('inventory/product-prices')
@@ -62,35 +51,35 @@ export class ProductPricesController {
     return { message: 'Product price fetched successfully', data };
   }
 
-  @Patch(':id')
-  @Roles('admin')
-  @RequirePermissions('update:product-price')
-  @ApiOperation({ summary: 'Update a product price' })
-  @ApiResponse({
-    status: 200,
-    description: 'Product price updated successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Product price not found.' })
-  async update(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateProductPriceDto,
-  ) {
-    const userId = req['user'].id;
-    const data = await this.services.update(userId, +id, dto);
-    return { message: 'Product price updated successfully', data };
-  }
+  // @Patch(':id')
+  // @Roles('admin')
+  // @RequirePermissions('update:product-price')
+  // @ApiOperation({ summary: 'Update a product price' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Product price updated successfully.',
+  // })
+  // @ApiResponse({ status: 404, description: 'Product price not found.' })
+  // async update(
+  //   @Req() req: Request,
+  //   @Param('id') id: string,
+  //   @Body() dto: UpdateProductPriceDto,
+  // ) {
+  //   const userId = req['user'].id;
+  //   const data = await this.services.update(userId, +id, dto);
+  //   return { message: 'Product price updated successfully', data };
+  // }
 
-  @Delete(':id')
-  @Roles('admin')
-  @RequirePermissions('delete:product-price')
-  @ApiOperation({ summary: 'Delete a product price' })
-  @ApiResponse({
-    status: 200,
-    description: 'Product price deleted successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Product price not found.' })
-  async remove(@Param('id') id: string) {
-    return await this.services.remove(+id);
-  }
+  // @Delete(':id')
+  // @Roles('admin')
+  // @RequirePermissions('delete:product-price')
+  // @ApiOperation({ summary: 'Delete a product price' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Product price deleted successfully.',
+  // })
+  // @ApiResponse({ status: 404, description: 'Product price not found.' })
+  // async remove(@Param('id') id: string) {
+  //   return await this.services.remove(+id);
+  // }
 }
