@@ -382,3 +382,12 @@ export enum movementTypeInventory {
   ORDERED = 'ORDERED',
   RECEIVED = 'RECEIVED',
 }
+
+export enum unitOfMeasureEnum {
+  UNIT = 'UNIT',
+  KILOGRAM = 'KILOGRAM',
+  LITER = 'LITER',
+  METER = 'METER',
+  BOX = 'BOX',
+  PACK = 'PACK',
+}

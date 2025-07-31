@@ -3,24 +3,23 @@ import { safeFetchApi } from '@/lib/fetch.api';
 import {
   serviceAllResponseSchema,
   serviceMutationResponseSchema,
-  serviceResponseSchema,
 } from '../schemas/service-api.schema';
 import { Service } from '../schemas/service.schema';
 
-export async function getServiceAll() {
-  const [error, response] = await safeFetchApi(
-    serviceResponseSchema,
-    '/inventory/services/all',
-    'GET',
-  );
+// export async function getServiceAll() {
+//   const [error, response] = await safeFetchApi(
+//     serviceResponseSchema,
+//     '/administration/inventory/services/all',
+//     'GET',
+//   );
 
-  if (error) {
-    console.error('Error:', error);
-    throw new Error(error.message || 'Ocurrió un error desconocido');
-  }
+//   if (error) {
+//     console.error('Error:', error);
+//     throw new Error(error.message || 'Ocurrió un error desconocido');
+//   }
 
-  return response?.data || [];
-}
+//   return response?.data || [];
+// }
 
 export async function getServices(params: {
   page?: number;
@@ -45,7 +44,7 @@ export async function getServices(params: {
 
   const [error, response] = await safeFetchApi(
     serviceAllResponseSchema,
-    `/inventory/services/paginated?${searchParams}`,
+    `/administration/inventory/services/paginated?${searchParams}`,
     'GET',
   );
 
@@ -73,7 +72,7 @@ export async function createService(payload: Service): Promise<any> {
   const { id, ...payloadWithoutId } = payload;
   const [error, data] = await safeFetchApi(
     serviceMutationResponseSchema,
-    '/inventory/services',
+    '/administration/inventory/services',
     'POST',
     payloadWithoutId,
   );
@@ -90,7 +89,7 @@ export async function updateService(payload: Service): Promise<any> {
 
   const [error, data] = await safeFetchApi(
     serviceMutationResponseSchema,
-    `/inventory/services/${id}`,
+    `/administration/inventory/services/${id}`,
     'PATCH',
     payloadWithoutId,
   );
@@ -106,7 +105,7 @@ export async function updateService(payload: Service): Promise<any> {
 export async function deleteService(id: number): Promise<any> {
   const [error, data] = await safeFetchApi(
     serviceMutationResponseSchema,
-    `/inventory/services/${id}`,
+    `/administration/inventory/services/${id}`,
     'DELETE',
   );
 

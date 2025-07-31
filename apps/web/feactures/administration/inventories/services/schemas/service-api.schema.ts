@@ -5,7 +5,8 @@ export const serviceApiSchema = z.object({
   name: z.string(),
   description: z.string().optional().nullable(),
   suppliersId: z.number(),
-  defaultCost: z.number(),
+  suppliersName: z.string().optional(),
+  defaultCost: z.string(),
   status: z.string(),
 });
 
@@ -13,6 +14,7 @@ export type ServiceSchemaAPI = z.infer<typeof serviceApiSchema>;
 
 export const serviceMutationResponseSchema = z.object({
   message: z.string(),
+  data: serviceApiSchema.optional(),
 });
 
 export const serviceAllResponseSchema = z.object({

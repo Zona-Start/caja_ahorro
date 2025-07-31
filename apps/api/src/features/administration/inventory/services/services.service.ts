@@ -1,5 +1,4 @@
 import { services } from '@/database/schema/administration';
-import { StatusEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -21,11 +20,17 @@ export class ServicesService {
   ) {}
 
   async create(userId: number, data: CreateServiceDto) {
-    const exist = await this.drizzle.query.services.findFirst({
-      where: and(eq(services.name, data.name), eq(services.suppliersId, data.suppliersId)),
-    });
+    const exitService = await this.drizzle
+      .select()
+      .from(services)
+      .where(
+        and(
+          eq(services.name, data.name),
+          eq(services.suppliersId, data.suppliersId),
+        ),
+      );
 
-    if (exist) {
+    if (exitService.length !== 0) {
       throw new BadRequestException(
         'Service with this name and supplier already exists',
       );
@@ -35,9 +40,18 @@ export class ServicesService {
       .insert(services)
       .values({
         ...data,
+        defaultCost: String(data.defaultCost),
         createdById: userId,
+        status: 'ACTIVE',
       })
-      .returning();
+      .returning({
+        id: services.id,
+        name: services.name,
+        description: services.description,
+        suppliersId: services.suppliersId,
+        defaultCost: services.defaultCost,
+        status: services.status,
+      });
 
     return newService[0];
   }
@@ -63,10 +77,13 @@ export class ServicesService {
       searchConditions.push(ilike(services.name, `%${name}%`));
     }
     if (suppliersId) {
-      searchConditions.push(eq(services.suppliersId, suppliersId));
+      searchConditions.push(eq(services.suppliersId, Number(suppliersId)));
     }
-    if (status) {
-      searchConditions.push(eq(services.status, status as StatusEnum));
+    if (
+      status &&
+      (status === 'ACTIVE' || status === 'INACTIVE' || status === 'SUSPENDED')
+    ) {
+      searchConditions.push(eq(services.status, status));
     }
 
     const searchCondition = searchConditions.length
@@ -78,15 +95,31 @@ export class ServicesService {
         ? sql`${services[sortBy as keyof typeof services]} asc`
         : sql`${services[sortBy as keyof typeof services]} desc`;
 
-    const data = await this.drizzle.query.services.findMany({
-      where: searchCondition,
-      limit: limit,
-      offset: offset,
-      orderBy: orderBy,
-      with: {
-        supplier: true,
-      },
-    });
+    const data = await this.drizzle
+      .select({
+        id: services.id,
+        name: services.name,
+        description: services.description,
+        suppliersId: services.suppliersId,
+        suppliersName: schema.suppliers.name,
+        defaultCost: services.defaultCost,
+        status: services.status,
+      })
+      .from(services)
+      .where(searchCondition)
+      .leftJoin(schema.suppliers, eq(services.suppliersId, schema.suppliers.id))
+      .offset(offset)
+      .orderBy(orderBy)
+      .limit(limit);
+    // const data = await this.drizzle.query.services.findMany({
+    //   where: searchCondition,
+    //   limit: limit,
+    //   offset: offset,
+    //   orderBy: orderBy,
+    //   with: {
+    //     supplier: true,
+    //   },
+    // });
 
     const totalCountResult = await this.drizzle
       .select({ count: sql<number>`count(*)` })
@@ -138,6 +171,13 @@ export class ServicesService {
       .update(services)
       .set({
         ...data,
+        defaultCost: String(data.defaultCost),
+        status:
+          data.status === 'ACTIVE' ||
+          data.status === 'INACTIVE' ||
+          data.status === 'SUSPENDED'
+            ? data.status
+            : undefined,
         updatedById: userId,
       })
       .where(eq(services.id, id))

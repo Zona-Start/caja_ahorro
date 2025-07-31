@@ -42,7 +42,7 @@ CREATE TYPE "public"."payment_method_enum" AS ENUM('CASH', 'BANK_TRANSFER', 'CHE
 CREATE TYPE "public"."payment_status" AS ENUM('DONE', 'CANCELED');--> statement-breakpoint
 CREATE TYPE "public"."payment_status_enum" AS ENUM('PENDING', 'PAID', 'OVERDUE', 'PARTIAL', 'CANCELED');--> statement-breakpoint
 CREATE TYPE "public"."price_type_enum" AS ENUM('COST', 'SELLING', 'OFFER');--> statement-breakpoint
-CREATE TYPE "public"."product-status" AS ENUM('AVAILABLE', 'DISABLED', 'OUT OF STOCK', 'COMMING SOON', 'ON SALE');--> statement-breakpoint
+CREATE TYPE "public"."product-status" AS ENUM('AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE');--> statement-breakpoint
 CREATE TYPE "public"."purchase_order_status_enum" AS ENUM('PENDING', 'RECEIVED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "public"."purchase_order_type_enum" AS ENUM('SALES_INVENTORY', 'FIXED_ASSET', 'EXPENSE');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_item_status_enum" AS ENUM('PENDING', 'RECONCILED', 'MANUAL_MATCH', 'ADJUSTMENT', 'EXCLUDED', 'NON_EXISTENT_IN_BANK', 'VOIDED');--> statement-breakpoint
@@ -51,6 +51,7 @@ CREATE TYPE "public"."status_enum" AS ENUM('ACTIVE', 'INACTIVE', 'PENDING', 'SUS
 CREATE TYPE "public"."status-suppliers" AS ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED');--> statement-breakpoint
 CREATE TYPE "public"."supplier_invoices_payment_enum" AS ENUM('CASH', 'CREDIT');--> statement-breakpoint
 CREATE TYPE "public"."supplier_transactions_type_enum" AS ENUM('PAYMENT', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ADVANCE');--> statement-breakpoint
+CREATE TYPE "public"."unit_of_measure" AS ENUM('UNIT', 'KILOGRAM', 'LITER', 'METER', 'BOX', 'PACK');--> statement-breakpoint
 CREATE TYPE "public"."withdrawal_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'REVERSED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'ADJUSTED');--> statement-breakpoint
 CREATE TABLE "accounting"."account_plan" (
 	"id" serial PRIMARY KEY NOT NULL,
@@ -231,7 +232,14 @@ CREATE TABLE "inventory"."product_prices" (
 	"product_id" integer NOT NULL,
 	"supplier_id" integer,
 	"price_type" "price_type_enum" NOT NULL,
-	"price" numeric(18, 2) NOT NULL,
+	"base_cost" numeric(18, 6),
+	"other_costs" numeric(18, 6) DEFAULT '0.00',
+	"purchase_tax" numeric(18, 6) DEFAULT '0.00',
+	"total_cost" numeric(18, 6),
+	"expense_percent" numeric(5, 2) DEFAULT '0.00',
+	"profit_percent" numeric(5, 2) DEFAULT '0.00',
+	"sales_tax_percent" numeric(5, 2) DEFAULT '0.00',
+	"final_price" numeric(18, 6),
 	"start_date" date DEFAULT now(),
 	"end_date" date,
 	"is_active" boolean DEFAULT true,
@@ -264,7 +272,8 @@ CREATE TABLE "inventory"."products" (
 	"stock_on_hand" integer DEFAULT 0 NOT NULL,
 	"stock_committed" integer DEFAULT 0 NOT NULL,
 	"stock_on_order" integer DEFAULT 0 NOT NULL,
-	"status" "product-status" DEFAULT 'AVAILABLE' NOT NULL,
+	"status" "product-status" DEFAULT 'DISABLED' NOT NULL,
+	"unit_of_measure" "unit_of_measure",
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,

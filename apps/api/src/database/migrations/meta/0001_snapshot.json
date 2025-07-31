@@ -1,6 +1,6 @@
 {
-  "id": "4b9b86f6-6982-450e-a58d-c2c9790c5888",
-  "prevId": "9a9e9b37-f969-4b05-89bd-50b6dbedf87c",
+  "id": "a3e3413a-a95c-484a-afa5-93b52ca62d60",
+  "prevId": "689dc974-7955-4e04-9282-3ff586d275bd",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1955,11 +1955,58 @@
           "primaryKey": false,
           "notNull": true
         },
-        "price": {
-          "name": "price",
-          "type": "numeric(18, 2)",
+        "base_cost": {
+          "name": "base_cost",
+          "type": "numeric(18, 6)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "other_costs": {
+          "name": "other_costs",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "purchase_tax": {
+          "name": "purchase_tax",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "total_cost": {
+          "name": "total_cost",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expense_percent": {
+          "name": "expense_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "profit_percent": {
+          "name": "profit_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "sales_tax_percent": {
+          "name": "sales_tax_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "final_price": {
+          "name": "final_price",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false
         },
         "start_date": {
           "name": "start_date",
@@ -2306,7 +2353,14 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'AVAILABLE'"
+          "default": "'DISABLED'"
+        },
+        "unit_of_measure": {
+          "name": "unit_of_measure",
+          "type": "unit_of_measure",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -12045,9 +12099,9 @@
       "values": [
         "AVAILABLE",
         "DISABLED",
-        "OUT OF STOCK",
-        "COMMING SOON",
-        "ON SALE"
+        "OUT_OF_STOCK",
+        "COMMING_SOON",
+        "ON_SALE"
       ]
     },
     "public.purchase_order_status_enum": {
@@ -12129,6 +12183,18 @@
         "CREDIT_NOTE",
         "DEBIT_NOTE",
         "ADVANCE"
+      ]
+    },
+    "public.unit_of_measure": {
+      "name": "unit_of_measure",
+      "schema": "public",
+      "values": [
+        "UNIT",
+        "KILOGRAM",
+        "LITER",
+        "METER",
+        "BOX",
+        "PACK"
       ]
     },
     "public.withdrawal_status_enum": {

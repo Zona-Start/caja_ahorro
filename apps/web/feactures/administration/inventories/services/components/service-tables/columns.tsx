@@ -14,8 +14,8 @@ export const columns: ColumnDef<Service>[] = [
     header: 'Descripción',
   },
   {
-    accessorKey: 'suppliersId',
-    header: 'ID Proveedor',
+    accessorKey: 'suppliersName',
+    header: 'Proveedor',
   },
   {
     accessorKey: 'defaultCost',
@@ -25,7 +25,8 @@ export const columns: ColumnDef<Service>[] = [
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original.status as keyof typeof SERVICE_STATUS_TYPES;
+      const statusKey = row.original
+        .status as keyof typeof SERVICE_STATUS_TYPES;
       return SERVICE_STATUS_TYPES[statusKey] || row.original.status;
     },
   },

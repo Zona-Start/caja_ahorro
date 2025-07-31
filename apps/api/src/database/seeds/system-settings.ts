@@ -92,6 +92,28 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         updatedById: 1,
       })
       .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'utilidad_producto',
+        value: '25',
+        description: 'UTILIDAD PRODUCTO',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'gasto_producto',
+        value: '6',
+        description: 'GASTO ADMINISTRATIVOS PRODUCTO',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
     console.log('System Setting seeded successfully');
   } catch (error) {
     console.error('Error creating System Setting:', error);

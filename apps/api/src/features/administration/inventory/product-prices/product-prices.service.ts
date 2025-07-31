@@ -12,7 +12,6 @@ import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { CreateProductPriceDto } from './dto/create-product-price.dto';
 import { FilterProductPriceDto } from './dto/filter-product-price.dto';
-import { UpdateProductPriceDto } from './dto/update-product-price.dto';
 
 @Injectable()
 export class ProductPricesService {
@@ -25,7 +24,7 @@ export class ProductPricesService {
       where: and(
         eq(productPrices.productId, data.productId),
         eq(productPrices.priceType, data.priceType),
-        eq(productPrices.price, String(data.price)),
+        eq(productPrices.baseCost, String(data.baseCost)),
       ),
     });
 
@@ -36,8 +35,17 @@ export class ProductPricesService {
     }
 
     await this.drizzle.insert(productPrices).values({
-      ...data,
-      price: String(data.price),
+      productId: data.productId,
+      suppliersId: data.suppliersId,
+      priceType: data.priceType,
+      baseCost: String(data.baseCost),
+      otherCosts: String(data.otherCosts),
+      purchaseTax: String(data.purchaseTax),
+      totalCost: String(data.totalCost),
+      expensePercent: String(data.expensePercent),
+      profitPercent: String(data.profitPercent),
+      salesTaxPercent: String(data.salesTaxPercent),
+      finalPrice: String(data.finalPrice),
       createdById: userId, // Remove this line if 'createdById' is not a column in your schema
       startDate: data.startDate ? data.startDate.toISOString() : undefined,
       endDate: data.endDate ? data.endDate.toISOString() : undefined,
@@ -67,7 +75,12 @@ export class ProductPricesService {
     }
 
     if (priceType) {
-      searchConditions.push(eq(productPrices.priceType, priceType as (typeof priceTypeEnum.enumValues)[number]));
+      searchConditions.push(
+        eq(
+          productPrices.priceType,
+          priceType as (typeof priceTypeEnum.enumValues)[number],
+        ),
+      );
     }
 
     if (productId !== 0) {
@@ -94,7 +107,7 @@ export class ProductPricesService {
         suppliersId: schema.productPrices.suppliersId,
         supplierName: schema.suppliers.name,
         priceType: schema.productPrices.priceType,
-        price: schema.productPrices.price,
+        baseCost: schema.productPrices.baseCost,
         startDate: schema.productPrices.startDate,
         endDate: schema.productPrices.endDate,
         isActive: schema.productPrices.isActive,

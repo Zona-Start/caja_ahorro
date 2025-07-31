@@ -48,10 +48,15 @@ export const productResponseSchema = z.object({
   data: z.array(productAllApiSchema),
 });
 
-export const productMutationResponseSchema = z.object({
+export const productMutationResponseObjetSchema = z.object({
   id: z.number(),
   sku: z.string(),
   name: z.string(),
   description: z.string(),
   status: z.string(),
+});
+
+export const productMutationResponseSchema = z.object({
+  message: z.string().optional(),
+  data: productMutationResponseObjetSchema,
 });

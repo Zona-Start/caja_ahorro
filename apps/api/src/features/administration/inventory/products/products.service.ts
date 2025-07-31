@@ -1,7 +1,7 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { products } from '@/database/schema/administration';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
-import { productStatus } from '@/types/enum';
+import { priceTypeEnum, productStatus, unitOfMeasureEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -26,7 +26,13 @@ export class ProductsService {
     private readonly settingsSystemService: SettingsSystemService,
   ) {}
 
-  async calculateFinalPrice(data: { price: number }) {
+  async calculateFinalPrice(
+    supplierCost: number, // price cost
+    otherCosts: number, // other costs
+    util: number, //utilidad en porcentaje
+    purchaseTax: number, //impuesto en porcentaje compra
+    saleTax: number, //impuesto venta en porcentaje
+  ) {
     // Fetch rates from settings in parallel for efficiency
     const [taxRate, profitMarginRate, expenseRate] = await Promise.all([
       this.settingsSystemService.findKey('iva'),
@@ -34,35 +40,38 @@ export class ProductsService {
       this.settingsSystemService.findKey('gasto_producto'),
     ]);
 
-    // Validate that rates exist and convert to numbers, defaulting to 0
-    const tax = Number(taxRate?.value ?? 0);
-    const profitMargin = Number(profitMarginRate?.value ?? 0);
-    const expense = Number(expenseRate?.value ?? 0);
+    // Calculate the cost including supplier cost and other costs
+    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
+    const calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
 
-    // Calculate profit margin amount on base price
-    const profitAmount = (data.price * profitMargin) / 100;
-    const priceWithProfit = data.price + profitAmount;
+    const price = calculatedCostTixed; //precio base sin utilidad ni impuestos
+    const benefit = (price * util) / 100; //utilidad en dinero
+    const expensePrice = (price * Number(expenseRate.value)) / 100; //gastos administrativos
+    const priceProfit = price + benefit + expensePrice; //precio con utilidad  y gastos administrativos
 
-    // Calculate tax amount on price with profit
-    const taxAmount = (priceWithProfit * tax) / 100;
-    const priceWithTax = priceWithProfit + taxAmount;
+    const impost = (priceProfit * (saleTax ?? 0)) / 100; //I.V.A. venta
+    const maxPrice = priceProfit + impost; //precio con impuesto
 
-    // Calculate expenses/commissions on price with tax
-    const expenseAmount = (priceWithTax * expense) / 100;
-    const finalPrice = priceWithTax + expenseAmount;
-
-    return finalPrice;
+    return {
+      maxPrice,
+      priceProfit,
+      calculatedCostTixed,
+      expenseRate: Number(expenseRate.value),
+    };
   }
 
   async create(userId: number, data: CreateProductDto) {
-    const exist = await this.drizzle.query.products.findFirst({
-      where: and(
-        eq(products.categoryId, data.categoryId),
-        eq(products.name, data.name),
-      ),
-    });
+    const existProduct = await this.drizzle
+      .select()
+      .from(products)
+      .where(
+        and(
+          eq(products.categoryId, data.categoryId),
+          eq(products.name, data.name),
+        ),
+      );
 
-    if (exist) {
+    if (existProduct.length !== 0) {
       throw new BadRequestException(
         'Product with this category and name already exists',
       );
@@ -75,10 +84,18 @@ export class ProductsService {
     const result = await this.drizzle
       .insert(products)
       .values({
-        ...data,
+        categoryId: data.categoryId,
         sku: code,
-        createdById: userId,
+        name: data.name,
+        description: data.description,
+        brand: data.brand,
+        model: data.model,
+        stockMin: data.stockMin,
+        stockMax: data.stockMax,
+        reorderPoint: data.reorderPoint,
         status: 'AVAILABLE',
+        unitOfMeasure: data.unitType as unitOfMeasureEnum,
+        createdById: userId,
       })
       .returning({
         id: products.id,
@@ -88,32 +105,55 @@ export class ProductsService {
         status: products.status,
       });
 
-    if (data.priceType === 'COST') {
+    if (data.supplierCost !== 0) {
       // Calculate final price based on settings
-      const finalPrice = await this.calculateFinalPrice(data);
+      const resultSalePrice = await this.calculateFinalPrice(
+        data.supplierCost,
+        data.otherCosts,
+        data.profitSale ?? 0,
+        data.purchaseTax ?? 0,
+        data.saleTax ?? 0,
+      );
 
       await this.productPricesService.create(userId, {
         productId: result[0].id,
-        price: data.price,
-        priceType: 'COST',
+        priceType: 'SELLING' as priceTypeEnum,
+        baseCost: data.supplierCost,
+        otherCosts: data.otherCosts,
+        purchaseTax: Number(data.purchaseTax ?? 0),
+        totalCost: resultSalePrice.calculatedCostTixed,
+        expensePercent: resultSalePrice.expenseRate,
+        profitPercent: data.profitSale ?? 0,
+        salesTaxPercent: data.saleTax ?? 0,
+        finalPrice: resultSalePrice.maxPrice,
         isActive: true,
       });
 
-      await this.productPricesService.create(userId, {
-        productId: result[0].id,
-        price: finalPrice,
-        priceType: 'SELLING',
-        isActive: true,
-      });
-    } else {
-      await this.productPricesService.create(userId, {
-        productId: result[0].id,
-        price: data.price,
-        priceType: data.priceType ?? 'COST',
-        isActive: true,
-      });
+      if (data.profitSupply !== 0) {
+        // Calculate final price based on settings
+        const resultSupplyPrice = await this.calculateFinalPrice(
+          data.supplierCost,
+          data.otherCosts,
+          data.profitSupply ?? 0,
+          data.purchaseTax ?? 0,
+          data.saleTax ?? 0,
+        );
+
+        await this.productPricesService.create(userId, {
+          productId: result[0].id,
+          priceType: 'OFFER' as priceTypeEnum,
+          baseCost: data.supplierCost,
+          otherCosts: data.otherCosts,
+          purchaseTax: Number(data.purchaseTax ?? 0),
+          totalCost: resultSupplyPrice.calculatedCostTixed,
+          expensePercent: resultSupplyPrice.expenseRate,
+          profitPercent: data.profitSale ?? 0,
+          salesTaxPercent: data.saleTax ?? 0,
+          finalPrice: resultSupplyPrice.maxPrice,
+          isActive: true,
+        });
+      }
     }
-
     return result[0];
   }
 
@@ -144,7 +184,9 @@ export class ProductsService {
     }
 
     if (status) {
-      searchConditions.push(eq(products.status, status as productStatus));
+      searchConditions.push(
+        eq(products.status, status as keyof typeof productStatus),
+      );
     }
 
     if (typeCategory !== 0) {
@@ -234,55 +276,98 @@ export class ProductsService {
   }
 
   async update(userId: number, id: number, data: UpdateProductDto) {
-    const exist = await this.drizzle.query.products.findFirst({
-      where: eq(products.id, id),
-    });
+    const existProducto = await this.drizzle
+      .select({
+        id: products.id,
+        baseCost: schema.productPrices.baseCost,
+      })
+      .from(products)
+      .leftJoin(
+        schema.productPrices,
+        eq(schema.productPrices.productId, products.id),
+      )
+      .where(eq(products.id, id));
 
-    if (!exist) {
+    if (existProducto.length === 0) {
       throw new NotFoundException('Sales product not found');
     }
 
-    if (data.price) {
+    if (
+      typeof data.supplierCost === 'number' &&
+      Number(existProducto[0].baseCost ?? 0) !== data.supplierCost
+    ) {
       const lastPrice =
         await this.productPricesService.findLastActivePriceByProductId(id);
       if (lastPrice) {
         await this.productPricesService.deactivatePrice(lastPrice.id);
       }
 
-      if (data.priceType === 'COST') {
-        const finalPrice = await this.calculateFinalPrice({
-          price: data.price!,
-        });
+      if (data.supplierCost !== 0) {
+        // Calculate final price based on settings
+        const resultSalePrice = await this.calculateFinalPrice(
+          data.supplierCost,
+          data.otherCosts ?? 0,
+          data.profitSale ?? 0,
+          data.purchaseTax ?? 0,
+          data.saleTax ?? 0,
+        );
 
         await this.productPricesService.create(userId, {
           productId: id,
-          price: data.price,
-          priceType: 'COST',
+          priceType: 'SELLING' as priceTypeEnum,
+          baseCost: data.supplierCost,
+          otherCosts: data.otherCosts ?? 0,
+          purchaseTax: Number(data.purchaseTax ?? 0),
+          totalCost: resultSalePrice.calculatedCostTixed,
+          expensePercent: resultSalePrice.expenseRate,
+          profitPercent: data.profitSale ?? 0,
+          salesTaxPercent: data.saleTax ?? 0,
+          finalPrice: resultSalePrice.maxPrice,
           isActive: true,
         });
 
-        await this.productPricesService.create(userId, {
-          productId: id,
-          price: finalPrice,
-          priceType: 'SELLING',
-          isActive: true,
-        });
-      } else {
-        await this.productPricesService.create(userId, {
-          productId: id,
-          price: data.price,
-          priceType: data.priceType ?? 'COST',
-          isActive: true,
-        });
+        if (data.profitSupply !== 0) {
+          // Calculate final price based on settings
+          const resultSupplyPrice = await this.calculateFinalPrice(
+            data.supplierCost,
+            data.otherCosts ?? 0,
+            data.profitSupply ?? 0,
+            data.purchaseTax ?? 0,
+            data.saleTax ?? 0,
+          );
+
+          await this.productPricesService.create(userId, {
+            productId: id,
+            priceType: 'OFFER' as priceTypeEnum,
+            baseCost: data.supplierCost,
+            otherCosts: data.otherCosts ?? 0,
+            purchaseTax: Number(data.purchaseTax ?? 0),
+            totalCost: resultSupplyPrice.calculatedCostTixed,
+            expensePercent: resultSupplyPrice.expenseRate,
+            profitPercent: data.profitSale ?? 0,
+            salesTaxPercent: data.saleTax ?? 0,
+            finalPrice: resultSupplyPrice.maxPrice,
+            isActive: true,
+          });
+        }
       }
     }
 
     const result = await this.drizzle
       .update(products)
       .set({
-        ...data,
+        categoryId: data.categoryId,
+        name: data.name,
+        description: data.description,
+        brand: data.brand,
+        model: data.model,
+        stockMin: data.stockMin,
+        stockMax: data.stockMax,
+        reorderPoint: data.reorderPoint,
+        unitOfMeasure: data.unitType as unitOfMeasureEnum,
+        createdById: userId,
         updatedById: userId,
-        status: data.status as productStatus,
+        status: data.status as (typeof products.$inferInsert)['status'],
       })
       .where(eq(products.id, id))
       .returning({
@@ -297,11 +382,12 @@ export class ProductsService {
   }
 
   async remove(id: number) {
-    const exist = await this.drizzle.query.products.findFirst({
-      where: eq(products.id, id),
-    });
+    const exitsProduct = await this.drizzle
+      .select()
+      .from(products)
+      .where(eq(products.id, id));
 
-    if (!exist) {
+    if (exitsProduct.length === 0) {
       throw new NotFoundException('Product not found');
     }
 
@@ -318,8 +404,8 @@ export class ProductsService {
 
     const existPurchase = await this.drizzle
       .select()
-      .from(schema.productPrices)
-      .where(eq(schema.productPrices.productId, id));
+      .from(schema.purchaseOrderItems)
+      .where(eq(schema.purchaseOrderItems.productId, id));
 
     if (existPurchase.length !== 0) {
       throw new BadRequestException(

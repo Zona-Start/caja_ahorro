@@ -70,8 +70,9 @@ export async function getProducts(params: {
   };
 }
 
-export async function createProduct(payload: Product): Promise<any> {
+export async function createProduct(payload: any): Promise<any> {
   const { id, ...payloadWithoutId } = payload;
+
   const [error, data] = await safeFetchApi(
     productMutationResponseSchema,
     '/administration/inventory/products',
@@ -86,8 +87,8 @@ export async function createProduct(payload: Product): Promise<any> {
   return data;
 }
 
-export async function updateProduct(payload: Product): Promise<any> {
-  const { id, ...payloadWithoutId } = payload;
+export async function updateProduct(payload: any): Promise<any> {
+  const { id, sku, ...payloadWithoutId } = payload;
 
   const [error, data] = await safeFetchApi(
     productMutationResponseSchema,
@@ -118,6 +119,24 @@ export async function deleteProduct(id: number): Promise<any> {
 
   return data;
 }
+
+const calculatePrice = (
+  cost: number,
+  util: number,
+  expense: number,
+  tax: number,
+) => {
+  const price = cost;
+  const benefit = (price * util) / 100;
+  const expensePrice = (price * expense) / 100;
+  const priceProfit = price + benefit + expensePrice;
+  const impost = (priceProfit * (tax ?? 0)) / 100;
+  const maxPrice = priceProfit + impost;
+  return {
+    priceProfit,
+    maxPrice,
+  };
+};
 
 export const saveProductAction = async (payload: Product) => {
   try {

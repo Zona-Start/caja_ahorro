@@ -27,10 +27,45 @@ export class CreateProductPriceDto {
   @IsNotEmpty()
   priceType: (typeof priceTypeEnum.enumValues)[number];
 
-  @ApiProperty({ description: 'Price' })
+  @ApiProperty({ description: 'Base Cost' })
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()
-  price: number;
+  baseCost: number;
+
+  @ApiProperty({ description: 'Other Costs' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  otherCosts: number;
+
+  @ApiProperty({ description: 'Purchase Tax' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  purchaseTax: number;
+
+  @ApiProperty({ description: 'Total Cost' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  totalCost: number;
+
+  @ApiProperty({ description: 'Total Cost' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  expensePercent: number;
+
+  @ApiProperty({ description: 'Total Cost' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  profitPercent: number;
+
+  @ApiProperty({ description: 'Total Cost' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  salesTaxPercent: number;
+
+  @ApiProperty({ description: 'Total Cost' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  finalPrice: number;
 
   @ApiPropertyOptional({ description: 'Start date' })
   @IsDate()

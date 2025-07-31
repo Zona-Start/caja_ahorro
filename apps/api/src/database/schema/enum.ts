@@ -306,9 +306,9 @@ export const fixedAssetsInventoryStatus = pgEnum(
 export const productStatus = pgEnum('product-status', [
   'AVAILABLE', // EEl producto está disponible para la venta
   'DISABLED', // El producto no está disponible para la venta ni es visible públicamente en el catálogo
-  'OUT OF STOCK', // El producto no tiene unidades disponibles para la venta en este momento
-  'COMMING SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
-  'ON SALE', // en oferta
+  'OUT_OF_STOCK', // El producto no tiene unidades disponibles para la venta en este momento
+  'COMMING_SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
+  'ON_SALE', // en oferta
 ]);
 
 export const categorySuppliers = pgEnum('category-suppliers', [
@@ -388,4 +388,13 @@ export const movementTypeInventory = pgEnum('movement_type_inventory', [
   'UN_COMMIT',
   'ORDERED',
   'RECEIVED',
+]);
+
+export const unitOfMeasureEnum = pgEnum('unit_of_measure', [
+  'UNIT',
+  'KILOGRAM',
+  'LITER',
+  'METER',
+  'BOX',
+  'PACK',
 ]);

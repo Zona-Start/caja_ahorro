@@ -27,6 +27,7 @@ import {
   statusSuppliers,
   supplierInvoicesPaymentEnum,
   supplierTransactionsTypeEnum,
+  unitOfMeasureEnum,
 } from './enum';
 
 import { relations } from 'drizzle-orm';
@@ -308,7 +309,7 @@ export const products = inventorySchema.table(
     /* stockDisponible = stockOnHand - stockCommitted + stockOnOrder */
 
     status: productStatus('status').notNull().default('DISABLED'), // 'ACTIVO', 'DESCONTINUADO'
-
+    unitOfMeasure: unitOfMeasureEnum('unit_of_measure'),
     ...timestamps,
   },
   (table) => ({
@@ -326,7 +327,27 @@ export const productPrices = inventorySchema.table('product_prices', {
     .references(() => products.id, { onDelete: 'cascade' }),
   suppliersId: integer('supplier_id').references(() => suppliers.id), // opcional
   priceType: priceTypeEnum('price_type').notNull(),
-  price: numeric('price', { precision: 18, scale: 2 }).notNull(),
+
+  /* =========  COSTO  ========= */
+  baseCost: numeric('base_cost', { precision: 18, scale: 6 }), // costo neto factura
+  otherCosts: numeric('other_costs', { precision: 18, scale: 6 }) // flete, seguro, etc.
+    .default('0.00'),
+  purchaseTax: numeric('purchase_tax', { precision: 18, scale: 6 }) // impuesto interno
+    .default('0.00'),
+  /* Costo total = baseCost + otherCosts + purchaseTax */
+  totalCost: numeric('total_cost', { precision: 18, scale: 6 }), // calculado o guardado
+
+  /* =========  VENTA / OFERTA  ========= */
+  /* Campos usados cuando priceType = 'SELLING' o 'OFFER' */
+  expensePercent: numeric('expense_percent', { precision: 5, scale: 2 }) // % gastos
+    .default('0.00'),
+  profitPercent: numeric('profit_percent', { precision: 5, scale: 2 }) // % utilidad
+    .default('0.00'),
+  salesTaxPercent: numeric('sales_tax_percent', { precision: 5, scale: 2 }) // % IVA o similar
+    .default('0.00'),
+  /* Precio final calculado */
+  finalPrice: numeric('final_price', { precision: 18, scale: 6 }), // precio de lista
+
   startDate: date('start_date').defaultNow(),
   endDate: date('end_date'),
   isActive: boolean('is_active').default(true),

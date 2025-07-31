@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
+import { Textarea } from '@repo/shadcn/components/ui/textarea';
 import {
   Form,
   FormControl,
@@ -17,13 +18,10 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
-import { useSuppliersAll } from '../../../../suppliers/hooks/use-query-suppliers';
+import { useSupplierAll } from '../../../suppliers/hooks/use-query-suppliers';
 import { useServiceMutation } from '../hooks/use-mutation-service';
 import { SERVICE_STATUS_TYPES } from '../schemas/service-options';
-import {
-  Service,
-  serviceSchema,
-} from '../schemas/service.schema';
+import { Service, serviceSchema } from '../schemas/service.schema';
 
 interface Props {
   onSuccess?: () => void;
@@ -40,7 +38,7 @@ export default function ServiceForm({
 }: Props) {
   const { mutate: saveService, isPending: isSaving } = useServiceMutation();
 
-  const { data: dataSuppliers } = useSuppliersAll();
+  const { data: dataSuppliers } = useSupplierAll();
 
   const form = useForm<Service>({
     resolver: zodResolver(serviceSchema),
@@ -78,24 +76,6 @@ export default function ServiceForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nombre</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ''}
-                    disabled={readOnly}
-                    className={readOnly ? 'bg-muted' : ''}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="suppliersId"
             render={({ field }) => (
               <FormItem className="w-full">
@@ -126,6 +106,46 @@ export default function ServiceForm({
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nombre</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value ?? ''}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Descripción</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    value={field.value ?? ''}
+                    disabled={readOnly}
+                    className={readOnly ? 'bg-muted' : ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="defaultCost"
@@ -164,11 +184,13 @@ export default function ServiceForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px]">
-                      {Object.entries(SERVICE_STATUS_TYPES).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
+                      {Object.entries(SERVICE_STATUS_TYPES).map(
+                        ([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -177,26 +199,7 @@ export default function ServiceForm({
             />
           )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Descripción</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ''}
-                    disabled={readOnly}
-                    className={readOnly ? 'bg-muted' : ''}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+
         <div className="sticky bottom-0 w-full bg-background  py-2 px-6 mt-auto">
           <div className="flex justify-end gap-4">
             <Button variant="outline" type="button" onClick={onCancel}>

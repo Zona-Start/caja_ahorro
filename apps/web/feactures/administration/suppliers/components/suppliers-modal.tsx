@@ -1,3 +1,5 @@
+'use client';
+
 import {
   Dialog,
   DialogContent,
@@ -5,22 +7,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { Product } from '../schemas/product.schema';
-import ProductForm from './product-form';
+import { Supplier } from '../schemas/suppliers.schema';
+import { SupplierForm } from './suppliers-form';
 
-interface Props {
+interface ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultValues?: Partial<Product>;
+  defaultValues?: Partial<Supplier>;
   readOnly?: boolean;
 }
 
-export default function ProductModal({
+export function SupplierModal({
   open,
   onOpenChange,
   defaultValues,
   readOnly = false,
-}: Props) {
+}: ModalProps) {
   const handleSuccess = () => {
     onOpenChange(false);
   };
@@ -38,17 +40,22 @@ export default function ProductModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[800px] z-50 backdrop-blur-lg ">
+      <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg">
         <DialogHeader>
           <DialogTitle>
-            {defaultValues ? 'Editar producto' : 'Nuevo producto'}
+            {readOnly
+              ? 'Ver Cuenta'
+              : defaultValues?.id
+                ? 'Actualizar Proveedor'
+                : 'Crear Proveedor'}
           </DialogTitle>
           <DialogDescription>
-            Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} el producto
+            {readOnly
+              ? 'Información de la Proveedor'
+              : `Complete los campos para ${defaultValues?.id ? 'actualizar' : 'crear'} la proveedor`}
           </DialogDescription>
         </DialogHeader>
-        <ProductForm
+        <SupplierForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={defaultValues}

@@ -152,7 +152,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Servicios',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/inventarios/servicios',
       },
       {
         title: 'Bienes o Activos',
@@ -163,7 +163,7 @@ export const savingBankItems: NavItem[] = [
   },
   {
     title: 'Gestión Proveedores',
-    url: '/dashboard/cuentas_x_pagar/proveedores',
+    url: '/dashboard/administracion/proveedores',
     icon: 'container',
     colorIcons: 'indigo',
     isActive: false,

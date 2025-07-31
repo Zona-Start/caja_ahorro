@@ -17,8 +17,8 @@ import { FilterServiceDto } from './dto/filter-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 import { ServicesService } from './services.service';
 
-@ApiTags('inventory/services')
-@Controller('inventory/services')
+@ApiTags('administration/inventory/services')
+@Controller('administration/inventory/services')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 

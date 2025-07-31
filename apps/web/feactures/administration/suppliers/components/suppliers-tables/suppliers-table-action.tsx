@@ -1,36 +1,29 @@
 'use client';
+
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-
-import { useSupplierAll } from '../../../../suppliers/hooks/use-query-suppliers';
-import ServiceModal from '../service-modal';
+import { SupplierModal } from '../suppliers-modal';
 import {
-  SERVICE_STATUS_OPTIONS,
-  useServiceFilters,
-} from './use-service-filters';
+  ESTATUS_OPTIONS,
+  SUPPLIER_CATEGORY_OPTIONS,
+  useSupplierFilters,
+} from './use-suppliers-filters';
 
-export default function ServiceTableActions() {
+export default function SupplierTableAction() {
   const {
+    statusFilter,
+    setStatusFilter,
     searchQuery,
     setPage,
     setSearchQuery,
-    setSuppliersIdFilter,
-    suppliersIdFilter,
-    setStatusFilter,
-    statusFilter,
-  } = useServiceFilters();
+    categoryFilter,
+    setCategoryFilter,
+  } = useSupplierFilters();
 
   const [open, setOpen] = useState(false);
-
-  const { data: dataSuppliers } = useSupplierAll();
-  const SUPPLIERS_OPTIONS =
-    dataSuppliers?.map((supplier) => ({
-      value: supplier?.id?.toString() ?? '',
-      label: supplier?.name ?? '',
-    })) ?? [];
 
   return (
     <div className="flex items-center justify-between mt-4 ">
@@ -43,24 +36,25 @@ export default function ServiceTableActions() {
           setPage={setPage}
         />
         <DataTableFilterBox
-          filterKey="suppliersId"
-          title="Proveedor"
-          options={SUPPLIERS_OPTIONS}
-          setFilterValue={setSuppliersIdFilter}
-          filterValue={suppliersIdFilter}
+          filterKey="category"
+          title="Categoría"
+          options={SUPPLIER_CATEGORY_OPTIONS}
+          setFilterValue={setCategoryFilter}
+          filterValue={categoryFilter}
         />
         <DataTableFilterBox
           filterKey="status"
           title="Estatus"
-          options={SERVICE_STATUS_OPTIONS}
+          options={ESTATUS_OPTIONS}
           setFilterValue={setStatusFilter}
           filterValue={statusFilter}
         />
       </div>
       <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Nuevo Servicio
+        <Plus className="h-4 w-4" /> Nuevo Proveedor
       </Button>
-      <ServiceModal open={open} onOpenChange={setOpen} />
+
+      <SupplierModal open={open} onOpenChange={setOpen} />
     </div>
   );
 }
