@@ -113,6 +113,10 @@ export const purchaseOrderItems = accountsPayableSchema.table(
       onDelete: 'set null',
     }),
 
+    serviceId: integer('service_id').references(() => services.id, {
+      onDelete: 'set null',
+    }),
+
     // Si itemType = 'EXPENSE', se podría relacionar con una cuenta contable específica para gastos (ej., 'Suministros de Oficina').
     expenseAccountId: integer('expense_account_id').references(
       () => accountPlan.id,
@@ -188,6 +192,7 @@ export const supplierInvoiceItems = accountsPayableSchema.table(
 
     productId: integer('product_id').references(() => products.id),
     fixedAssetId: integer('fixed_asset_id').references(() => fixedAssets.id),
+    serviceId: integer('service_id').references(() => services.id),
     expenseAccountId: integer('expense_account_id'),
 
     description: varchar('description', { length: 255 }).notNull(),
@@ -357,12 +362,34 @@ export const productPrices = inventorySchema.table('product_prices', {
 export const services = inventorySchema.table('services', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
-  description: text('description'),
-  suppliersId: integer('supplier_id')
+  categoryId: integer('category_id')
     .notNull()
-    .references(() => suppliers.id, { onDelete: 'set null' }),
-  defaultCost: numeric('default_cost', { precision: 18, scale: 2 }).notNull(),
+    .references(() => inventoriesCategories.id, { onDelete: 'restrict' }),
+  description: text('description'),
   status: statusSuppliers('status').notNull().default('ACTIVE'),
+  ...timestamps,
+});
+
+/* ----------   Servicio (histórico / vigente) ---------- */
+export const servicePrices = inventorySchema.table('service_prices', {
+  id: serial('id').primaryKey(),
+  serviceId: integer('service_id')
+    .notNull()
+    .references(() => services.id, { onDelete: 'cascade' }),
+  suppliersId: integer('supplier_id').references(() => suppliers.id), // opcional
+
+  /* =========  COSTO  ========= */
+  baseCost: numeric('base_cost', { precision: 18, scale: 6 }), // costo neto factura
+  otherCosts: numeric('other_costs', { precision: 18, scale: 6 }) // flete, seguro, etc.
+    .default('0.00'),
+  purchaseTax: numeric('purchase_tax', { precision: 18, scale: 6 }) // impuesto interno
+    .default('0.00'),
+  /* Costo total = baseCost + otherCosts + purchaseTax */
+  totalCost: numeric('total_cost', { precision: 18, scale: 6 }), // calculado o guardado
+
+  startDate: date('start_date').defaultNow(),
+  endDate: date('end_date'),
+  isActive: boolean('is_active').default(true),
   ...timestamps,
 });
 
@@ -374,6 +401,9 @@ export const productServiceSuppliers = inventorySchema.table(
       onDelete: 'cascade',
     }),
     serviceId: integer('service_id').references(() => services.id, {
+      onDelete: 'cascade',
+    }),
+    fixedAssetsId: integer('fixed_Assets_id').references(() => fixedAssets.id, {
       onDelete: 'cascade',
     }),
     suppliersId: integer('supplier_id')
@@ -404,13 +434,7 @@ export const fixedAssets = inventorySchema.table(
     serialNumber: varchar('serial_number', { length: 100 }), // Número de serie del fabricante (si aplica)
     model: varchar('model', { length: 100 }),
     brand: varchar('brand', { length: 100 }),
-
     acquisitionDate: date('acquisition_date').notNull(),
-    purchasePrice: numeric('purchase_price', {
-      precision: 20,
-      scale: 6,
-    }).notNull(), // Costo de adquisición original
-    currentStock: integer('current_stock').notNull().default(0), //cantidad de unidades
 
     // Aquí se omite `currentLocation` y `assignedToUserId` ya que la caja es el único responsable y ubicación
 
@@ -441,12 +465,36 @@ export const fixedAssets = inventorySchema.table(
   }),
 );
 
+/* ----------   Activo fijo (histórico / vigente) ---------- */
+export const fixedAssetsPrices = inventorySchema.table('fixed_assets_prices', {
+  id: serial('id').primaryKey(),
+  fixedAssetsId: integer('fixed_assets_id')
+    .notNull()
+    .references(() => fixedAssets.id, { onDelete: 'cascade' }),
+  suppliersId: integer('supplier_id').references(() => suppliers.id), // opcional
+
+  /* =========  COSTO  ========= */
+  baseCost: numeric('base_cost', { precision: 18, scale: 6 }), // costo neto factura
+  otherCosts: numeric('other_costs', { precision: 18, scale: 6 }) // flete, seguro, etc.
+    .default('0.00'),
+  purchaseTax: numeric('purchase_tax', { precision: 18, scale: 6 }) // impuesto interno
+    .default('0.00'),
+  /* Costo total = baseCost + otherCosts + purchaseTax */
+  totalCost: numeric('total_cost', { precision: 18, scale: 6 }), // calculado o guardado
+
+  startDate: date('start_date').defaultNow(),
+  endDate: date('end_date'),
+  isActive: boolean('is_active').default(true),
+  ...timestamps,
+});
+
 /* ---------- 7.  MOVIMIENTOS DE INVENTARIO ---------- */
 export const inventoryMovements = inventorySchema.table('inventory_movements', {
   id: serial('id').primaryKey(),
-  productId: integer('product_id')
-    .notNull()
-    .references(() => products.id, { onDelete: 'restrict' }),
+  itemId: integer('item_id').notNull(),
+  itemType: varchar('item_type', {
+    enum: ['PRODUCT', 'FIXED_ASSET'],
+  }).notNull(),
   movementType: movementTypeInventory('movement_type').notNull(),
   quantity: integer('quantity').notNull(),
   unitCost: numeric('unit_cost', { precision: 18, scale: 2 }),
@@ -456,18 +504,132 @@ export const inventoryMovements = inventorySchema.table('inventory_movements', {
   ...timestamps,
 });
 
-/* ---------- 8.  RELACIONES ---------- */
+/* ---------- 1.  RELACIONES DE CATEGORÍAS ---------- */
+export const inventoriesCategoriesRelations = relations(
+  inventoriesCategories,
+  ({ many }) => ({
+    products: many(products),
+    fixedAssets: many(fixedAssets),
+    services: many(services),
+  }),
+);
+
+/* ---------- 2.  RELACIONES DE PRODUCTOS ---------- */
 export const productsRelations = relations(products, ({ one, many }) => ({
-  inventoriesCategories: one(inventoriesCategories, {
+  category: one(inventoriesCategories, {
     fields: [products.categoryId],
     references: [inventoriesCategories.id],
   }),
-  productServiceSuppliers: many(productServiceSuppliers),
   prices: many(productPrices),
+  suppliers: many(productServiceSuppliers),
   movements: many(inventoryMovements),
 }));
 
-export const suppliersRelations = relations(suppliers, ({ many }) => ({
-  productSupplier: many(productServiceSuppliers),
-  services: many(services),
+/* ---------- 3.  RELACIONES DE PRECIOS (productos) ---------- */
+export const productPricesRelations = relations(productPrices, ({ one }) => ({
+  product: one(products, {
+    fields: [productPrices.productId],
+    references: [products.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [productPrices.suppliersId],
+    references: [suppliers.id],
+  }),
 }));
+
+/* ---------- 4.  RELACIONES DE SERVICIOS ---------- */
+export const servicesRelations = relations(services, ({ one, many }) => ({
+  category: one(inventoriesCategories, {
+    fields: [services.categoryId],
+    references: [inventoriesCategories.id],
+  }),
+  prices: many(servicePrices),
+  suppliers: many(productServiceSuppliers),
+}));
+
+/* ---------- 5.  RELACIONES DE PRECIOS (servicios) ---------- */
+export const servicePricesRelations = relations(servicePrices, ({ one }) => ({
+  service: one(services, {
+    fields: [servicePrices.serviceId],
+    references: [services.id],
+  }),
+  supplier: one(suppliers, {
+    fields: [servicePrices.suppliersId],
+    references: [suppliers.id],
+  }),
+}));
+
+/* ---------- 6.  RELACIONES DE ACTIVOS FIJOS ---------- */
+export const fixedAssetsRelations = relations(fixedAssets, ({ one, many }) => ({
+  category: one(inventoriesCategories, {
+    fields: [fixedAssets.categoryId],
+    references: [inventoriesCategories.id],
+  }),
+  prices: many(fixedAssetsPrices),
+  suppliers: many(productServiceSuppliers),
+  movements: many(inventoryMovements),
+}));
+
+/* ---------- 7.  RELACIONES DE PRECIOS (activos fijos) ---------- */
+export const fixedAssetsPricesRelations = relations(
+  fixedAssetsPrices,
+  ({ one }) => ({
+    fixedAsset: one(fixedAssets, {
+      fields: [fixedAssetsPrices.fixedAssetsId],
+      references: [fixedAssets.id],
+    }),
+    supplier: one(suppliers, {
+      fields: [fixedAssetsPrices.suppliersId],
+      references: [suppliers.id],
+    }),
+  }),
+);
+
+/* ---------- 8.  RELACIONES DEL PUENTE product_service_suppliers ---------- */
+export const productServiceSuppliersRelations = relations(
+  productServiceSuppliers,
+  ({ one }) => ({
+    product: one(products, {
+      fields: [productServiceSuppliers.productId],
+      references: [products.id],
+    }),
+    service: one(services, {
+      fields: [productServiceSuppliers.serviceId],
+      references: [services.id],
+    }),
+    fixedAsset: one(fixedAssets, {
+      fields: [productServiceSuppliers.fixedAssetsId],
+      references: [fixedAssets.id],
+    }),
+    supplier: one(suppliers, {
+      fields: [productServiceSuppliers.suppliersId],
+      references: [suppliers.id],
+    }),
+  }),
+);
+
+/* ---------- 9.  RELACIONES DE PROVEEDORES ---------- */
+export const suppliersRelations = relations(suppliers, ({ many }) => ({
+  productLinks: many(productServiceSuppliers),
+  productPrices: many(productPrices),
+  servicePrices: many(servicePrices),
+  fixedAssetsPrices: many(fixedAssetsPrices),
+}));
+
+/* ---------- 10.  RELACIONES DE MOVIMIENTOS DE INVENTARIO (polimórficas) ---------- */
+export const inventoryMovementsRelations = relations(
+  inventoryMovements,
+  ({ one }) => ({
+    /* Relación condicional según itemType */
+    product: one(products, {
+      fields: [inventoryMovements.itemId],
+      references: [products.id],
+      relationName: 'productMovements',
+    }),
+    fixedAsset: one(fixedAssets, {
+      fields: [inventoryMovements.itemId],
+      references: [fixedAssets.id],
+      relationName: 'fixedAssetMovements',
+    }),
+  }),
+);

@@ -183,8 +183,6 @@ CREATE TABLE "inventory"."fixed_assets" (
 	"model" varchar(100),
 	"brand" varchar(100),
 	"acquisition_date" date NOT NULL,
-	"purchase_price" numeric(20, 6) NOT NULL,
-	"current_stock" integer DEFAULT 0 NOT NULL,
 	"asset_status" "fixed_assets_inventory_status" DEFAULT 'ACTIVE' NOT NULL,
 	"useful_life_years" integer,
 	"depreciation_method" varchar(50),
@@ -198,6 +196,23 @@ CREATE TABLE "inventory"."fixed_assets" (
 	"created_by_id" integer,
 	"updated_by_id" integer,
 	CONSTRAINT "fixed_assets_asset_code_unique" UNIQUE("asset_code")
+);
+--> statement-breakpoint
+CREATE TABLE "inventory"."fixed_assets_prices" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"fixed_assets_id" integer NOT NULL,
+	"supplier_id" integer,
+	"base_cost" numeric(18, 6),
+	"other_costs" numeric(18, 6) DEFAULT '0.00',
+	"purchase_tax" numeric(18, 6) DEFAULT '0.00',
+	"total_cost" numeric(18, 6),
+	"start_date" date DEFAULT now(),
+	"end_date" date,
+	"is_active" boolean DEFAULT true,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."inventories_categories" (
@@ -214,7 +229,8 @@ CREATE TABLE "inventory"."inventories_categories" (
 --> statement-breakpoint
 CREATE TABLE "inventory"."inventory_movements" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"product_id" integer NOT NULL,
+	"item_id" integer NOT NULL,
+	"item_type" varchar NOT NULL,
 	"movement_type" "movement_type_inventory" NOT NULL,
 	"quantity" integer NOT NULL,
 	"unit_cost" numeric(18, 2),
@@ -253,6 +269,7 @@ CREATE TABLE "inventory"."product_service_suppliers" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"product_id" integer,
 	"service_id" integer,
+	"fixed_Assets_id" integer,
 	"supplier_id" integer NOT NULL,
 	"lead_time_days" integer DEFAULT 0,
 	"preferred" boolean DEFAULT false
@@ -319,12 +336,28 @@ CREATE TABLE "accounts_payable"."purchase_orders" (
 	CONSTRAINT "purchase_orders_order_number_unique" UNIQUE("order_number")
 );
 --> statement-breakpoint
+CREATE TABLE "inventory"."service_prices" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"service_id" integer NOT NULL,
+	"supplier_id" integer,
+	"base_cost" numeric(18, 6),
+	"other_costs" numeric(18, 6) DEFAULT '0.00',
+	"purchase_tax" numeric(18, 6) DEFAULT '0.00',
+	"total_cost" numeric(18, 6),
+	"start_date" date DEFAULT now(),
+	"end_date" date,
+	"is_active" boolean DEFAULT true,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
+);
+--> statement-breakpoint
 CREATE TABLE "inventory"."services" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(255) NOT NULL,
+	"category_id" integer NOT NULL,
 	"description" text,
-	"supplier_id" integer NOT NULL,
-	"default_cost" numeric(18, 2) NOT NULL,
 	"status" "status-suppliers" DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
@@ -1131,9 +1164,12 @@ ALTER TABLE "accounts_payable"."accounts_payable" ADD CONSTRAINT "accounts_payab
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_category_id_inventories_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."inventories_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_fixed_assets_id_fixed_assets_id_fk" FOREIGN KEY ("fixed_assets_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventories_categories" ADD CONSTRAINT "inventories_categories_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventories_categories" ADD CONSTRAINT "inventories_categories_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1142,6 +1178,7 @@ ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_created_
 ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "inventory"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_fixed_Assets_id_fixed_assets_id_fk" FOREIGN KEY ("fixed_Assets_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."products" ADD CONSTRAINT "products_category_id_inventories_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."inventories_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."products" ADD CONSTRAINT "products_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1155,7 +1192,11 @@ ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_o
 ALTER TABLE "accounts_payable"."purchase_orders" ADD CONSTRAINT "purchase_orders_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounts_payable"."purchase_orders" ADD CONSTRAINT "purchase_orders_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounts_payable"."purchase_orders" ADD CONSTRAINT "purchase_orders_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "inventory"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_category_id_inventories_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."inventories_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_invoice_id_supplier_invoices_id_fk" FOREIGN KEY ("invoice_id") REFERENCES "accounts_payable"."supplier_invoices"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint

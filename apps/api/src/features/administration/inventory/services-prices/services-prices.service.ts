@@ -1,0 +1,163 @@
+import { servicePrices } from '@/database/schema/administration';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
+import * as schema from 'src/database/index';
+import { CreateServicePriceDto } from './dto/create-services-price.dto';
+import { FilterServicePriceDto } from './dto/filter-services-price.dto';
+
+@Injectable()
+export class ServicePricesService {
+  constructor(
+    @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+  ) {}
+
+  async create(userId: number, data: CreateServicePriceDto) {
+    const exist = await this.drizzle.query.productPrices.findFirst({
+      where: and(
+        eq(servicePrices.serviceId, data.serviceId),
+        eq(servicePrices.baseCost, String(data.baseCost)),
+      ),
+    });
+
+    if (exist) {
+      throw new BadRequestException(
+        'Price with this service and type already exists',
+      );
+    }
+
+    await this.drizzle.insert(servicePrices).values([
+      {
+        serviceId: data.serviceId,
+        suppliersId: data.suppliersId,
+        baseCost: String(data.baseCost),
+        otherCosts: String(data.otherCosts),
+        purchaseTax: String(data.purchaseTax),
+        totalCost: String(data.totalCost),
+        createdById: userId, // Remove this line if 'createdById' is not a column in your schema
+        startDate: data.startDate ? data.startDate.toISOString() : undefined,
+        endDate: data.endDate ? data.endDate.toISOString() : undefined,
+      },
+    ]);
+
+    return {
+      message: 'Service price created successfully',
+    };
+  }
+
+  async findAll(paginationDto: FilterServicePriceDto) {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+      serviceId = 0,
+      suppliersId = 0,
+    } = paginationDto;
+    const offset = (page - 1) * limit;
+
+    let searchConditions: SQL<unknown>[] = [];
+    if (search) {
+      searchConditions.push(ilike(schema.products.name, `%${search}%`));
+    }
+
+    if (serviceId !== 0) {
+      searchConditions.push(eq(servicePrices.serviceId, serviceId));
+    }
+    if (suppliersId !== 0) {
+      searchConditions.push(eq(servicePrices.suppliersId, suppliersId));
+    }
+
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${servicePrices[sortBy as keyof typeof servicePrices]} asc`
+        : sql`${servicePrices[sortBy as keyof typeof servicePrices]} desc`;
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    const data = await this.drizzle
+      .select({
+        id: schema.servicePrices.id,
+        serviceId: schema.servicePrices.serviceId,
+        serviceName: schema.services.name,
+        suppliersId: schema.servicePrices.suppliersId,
+        supplierName: schema.suppliers.name,
+        baseCost: schema.servicePrices.baseCost,
+        startDate: schema.servicePrices.startDate,
+        endDate: schema.servicePrices.endDate,
+        isActive: schema.servicePrices.isActive,
+      })
+      .from(schema.servicePrices)
+      .leftJoin(
+        schema.services,
+        eq(schema.services.id, schema.servicePrices.serviceId),
+      )
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.suppliers.id, schema.servicePrices.suppliersId),
+      )
+      .where(searchCondition)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(orderBy);
+
+    const totalCountResult = await this.drizzle
+      .select({ count: sql<number>`count(*)` })
+      .from(servicePrices)
+      .where(searchCondition);
+
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const meta = {
+      page: Number(page),
+      limit: Number(limit),
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return { data, meta };
+  }
+
+  async findOne(id: number) {
+    const data = await this.drizzle.query.servicePrices.findFirst({
+      where: eq(servicePrices.id, id),
+    });
+
+    if (!data) {
+      throw new NotFoundException('Service price not found');
+    }
+
+    return data;
+  }
+
+  async findLastActivePriceByServiceId(serviceId: number) {
+    return await this.drizzle.query.servicePrices.findFirst({
+      where: and(
+        eq(servicePrices.serviceId, serviceId),
+        eq(servicePrices.isActive, true),
+      ),
+      orderBy: (servicePrices, { desc }) => [desc(servicePrices.createdAt)],
+    });
+  }
+
+  async deactivatePrice(priceId: number) {
+    await this.drizzle
+      .update(servicePrices)
+      .set({ isActive: false })
+      .where(eq(servicePrices.id, priceId));
+  }
+}

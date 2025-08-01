@@ -1,6 +1,6 @@
 {
-  "id": "ab652b85-41d6-4e83-ba32-bd69afcd265b",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "cf36c7a6-4518-4854-b528-f059a201d3c4",
+  "prevId": "d0d22e56-b599-456f-949a-68ed91772ccc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2686,6 +2686,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "service_id": {
+          "name": "service_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "expense_account_id": {
           "name": "expense_account_id",
           "type": "integer",
@@ -2785,6 +2791,20 @@
           "schemaTo": "inventory",
           "columnsFrom": [
             "fixed_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "purchase_order_items_service_id_services_id_fk": {
+          "name": "purchase_order_items_service_id_services_id_fk",
+          "tableFrom": "purchase_order_items",
+          "tableTo": "services",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "service_id"
           ],
           "columnsTo": [
             "id"
@@ -3330,6 +3350,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "service_id": {
+          "name": "service_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "expense_account_id": {
           "name": "expense_account_id",
           "type": "integer",
@@ -3423,6 +3449,20 @@
           "schemaTo": "inventory",
           "columnsFrom": [
             "fixed_asset_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "supplier_invoice_items_service_id_services_id_fk": {
+          "name": "supplier_invoice_items_service_id_services_id_fk",
+          "tableFrom": "supplier_invoice_items",
+          "tableTo": "services",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "service_id"
           ],
           "columnsTo": [
             "id"
