@@ -4,9 +4,8 @@ export const serviceApiSchema = z.object({
   id: z.number().optional(),
   name: z.string(),
   description: z.string().optional().nullable(),
-  suppliersId: z.number(),
-  suppliersName: z.string().optional(),
-  defaultCost: z.string(),
+  categoryId: z.number(),
+  categoryName: z.string().optional(),
   status: z.string(),
 });
 

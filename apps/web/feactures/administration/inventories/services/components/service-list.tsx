@@ -10,7 +10,7 @@ interface ServiceListProps {
   initialSearch?: string | null;
   initialLimit: number;
   initialStatus?: string | null;
-  initialSuppliersId?: number | null;
+  initialCategoryId?: number | null;
 }
 
 export default function ServiceList({
@@ -18,14 +18,14 @@ export default function ServiceList({
   initialSearch,
   initialLimit,
   initialStatus,
-  initialSuppliersId,
+  initialCategoryId,
 }: ServiceListProps) {
   const filters = {
     page: initialPage,
     limit: initialLimit,
     ...(initialSearch && { search: initialSearch }),
     ...(initialStatus && { status: initialStatus }),
-    ...(initialSuppliersId && { suppliersId: initialSuppliersId }),
+    ...(initialCategoryId && { categoryId: initialCategoryId }),
   };
 
   const { data, isLoading } = useServices(filters);

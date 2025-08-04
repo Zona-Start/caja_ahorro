@@ -9,4 +9,4 @@ import { ServicePricesService } from './services-prices.service';
   providers: [ServicePricesService],
   exports: [ServicePricesService],
 })
-export class ProductPricesModule {}
+export class ServicePricesModule {}

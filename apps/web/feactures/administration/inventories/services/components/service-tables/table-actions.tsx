@@ -5,7 +5,7 @@ import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 
-import { useSupplierAll } from '../../../../suppliers/hooks/use-query-suppliers';
+import { useInventoryCategoriesAll } from '../../../inventory-categories/hooks';
 import ServiceModal from '../service-modal';
 import {
   SERVICE_STATUS_OPTIONS,
@@ -17,17 +17,18 @@ export default function ServiceTableActions() {
     searchQuery,
     setPage,
     setSearchQuery,
-    setSuppliersIdFilter,
-    suppliersIdFilter,
+    setCategoryIdFilter,
+    categoryIdFilter,
     setStatusFilter,
     statusFilter,
   } = useServiceFilters();
 
   const [open, setOpen] = useState(false);
 
-  const { data: dataSuppliers } = useSupplierAll();
-  const SUPPLIERS_OPTIONS =
-    dataSuppliers?.map((supplier) => ({
+  const { data: dataCategory } = useInventoryCategoriesAll('SERVICE');
+
+  const CATEGORY_OPTIONS =
+    dataCategory?.map((supplier) => ({
       value: supplier?.id?.toString() ?? '',
       label: supplier?.name ?? '',
     })) ?? [];
@@ -43,11 +44,11 @@ export default function ServiceTableActions() {
           setPage={setPage}
         />
         <DataTableFilterBox
-          filterKey="suppliersId"
-          title="Proveedor"
-          options={SUPPLIERS_OPTIONS}
-          setFilterValue={setSuppliersIdFilter}
-          filterValue={suppliersIdFilter}
+          filterKey="categoryId"
+          title="Categoria"
+          options={CATEGORY_OPTIONS}
+          setFilterValue={setCategoryIdFilter}
+          filterValue={categoryIdFilter}
         />
         <DataTableFilterBox
           filterKey="status"

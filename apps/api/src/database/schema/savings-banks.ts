@@ -13,7 +13,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
 import { accountPlan } from './accounting';
-import { products } from './administration';
 import { users } from './auth';
 import { bankDirectory } from './banking';
 import {
@@ -868,35 +867,32 @@ export const liquidationsAssociates = savingsBanksSchema.table(
   }),
 );
 
-// ¡La tabla de vinculación CLAVE! Venta de productos a través de un crédito.
-export const creditProductSales = savingsBanksSchema.table(
-  // Usa tu esquema principal de banca/créditos
-  'credit_product_sales',
+export const creditItemSales = savingsBanksSchema.table(
+  'credit_item_sales',
   {
     id: serial('id').primaryKey(),
     creditId: integer('credit_id')
       .notNull()
-      .references(() => credits.id, { onDelete: 'cascade' }), // Asumo 'credits' es tu tabla de créditos
+      .references(() => credits.id, { onDelete: 'cascade' }),
 
-    productId: integer('product_id') // Qué tipo de producto de venta se asoció
-      .notNull()
-      .references(() => products.id, { onDelete: 'restrict' }),
+    /* Polimorfismo */
+    itemType: varchar('item_type', { enum: ['PRODUCT', 'SERVICE'] }).notNull(),
+    itemId: integer('item_id').notNull(), // id en products o services
 
     quantity: integer('quantity').notNull().default(1),
     agreedSellingPrice: numeric('agreed_selling_price', {
       precision: 20,
       scale: 6,
-    }).notNull(), // Precio final al asociado
-
+    }).notNull(),
     saleDate: date('sale_date').notNull().defaultNow(),
     deliveryStatus: varchar('delivery_status', { length: 50 })
       .notNull()
-      .default('ENTREGADO'), // 'PENDIENTE', 'ENTREGADO'
+      .default('ENTREGADO'),
 
     ...timestamps,
   },
   (table) => ({
-    creditIdIdx: index('credit_prod_sale_credit_id_idx').on(table.creditId),
-    productIdIdx: index('credit_prod_sale_prod_id_idx').on(table.productId),
+    creditIdIdx: index('credit_item_sale_credit_id_idx').on(table.creditId),
+    itemTypeIdx: index('credit_item_sale_type_idx').on(table.itemType),
   }),
 );

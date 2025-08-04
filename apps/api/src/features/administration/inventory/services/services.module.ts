@@ -1,10 +1,12 @@
+import { DrizzleModule } from '@/database/drizzle.module';
+import { SettingsSystemModule } from '@/features/core/settings-system/settings-system.module';
 import { Module } from '@nestjs/common';
+import { ServicePricesModule } from '../services-prices/services-prices.module';
 import { ServicesController } from './services.controller';
 import { ServicesService } from './services.service';
-import { DrizzleModule } from '@/database/drizzle.module';
 
 @Module({
-  imports: [DrizzleModule],
+  imports: [DrizzleModule, ServicePricesModule, SettingsSystemModule],
   controllers: [ServicesController],
   providers: [ServicesService],
 })

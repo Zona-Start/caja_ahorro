@@ -28,7 +28,7 @@ export async function getServices(params: {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   name?: string;
-  suppliersId?: number;
+  categoryId?: number;
   status?: string;
 }): Promise<{ data: any; meta?: any }> {
   const searchParams = new URLSearchParams({
@@ -37,7 +37,7 @@ export async function getServices(params: {
     ...(params.search && { search: params.search }),
     ...(params.sortBy && { sortBy: params.sortBy }),
     ...(params.name && { name: params.name }),
-    ...(params.suppliersId && { suppliersId: params.suppliersId.toString() }),
+    ...(params.categoryId && { categoryId: params.categoryId.toString() }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
     ...(params.status && { status: params.status }),
   });

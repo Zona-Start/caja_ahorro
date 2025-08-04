@@ -23,8 +23,8 @@ export function useServiceFilters() {
       .withDefault(''),
   );
 
-  const [suppliersIdFilter, setSuppliersIdFilter] = useQueryState(
-    'suppliersId',
+  const [categoryIdFilter, setCategoryIdFilter] = useQueryState(
+    'categoryId',
     searchParams.q.withOptions({ shallow: false }).withDefault(''),
   );
 
@@ -41,13 +41,13 @@ export function useServiceFilters() {
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
     setPage(1);
-    setSuppliersIdFilter(null);
+    setCategoryIdFilter(null);
     setStatusFilter(null);
-  }, [setSearchQuery, setPage, setSuppliersIdFilter, setStatusFilter]);
+  }, [setSearchQuery, setPage, setCategoryIdFilter, setStatusFilter]);
 
   const isAnyFilterActive = useMemo(() => {
-    return !!searchQuery || !!suppliersIdFilter || !!statusFilter;
-  }, [searchQuery, suppliersIdFilter, statusFilter]);
+    return !!searchQuery || !!categoryIdFilter || !!statusFilter;
+  }, [searchQuery, categoryIdFilter, statusFilter]);
 
   return {
     searchQuery,
@@ -56,8 +56,8 @@ export function useServiceFilters() {
     setPage,
     resetFilters,
     isAnyFilterActive,
-    suppliersIdFilter,
-    setSuppliersIdFilter,
+    categoryIdFilter,
+    setCategoryIdFilter,
     statusFilter,
     setStatusFilter,
   };

@@ -1,3 +1,4 @@
+import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import { Textarea } from '@repo/shadcn/components/ui/textarea';
@@ -18,7 +19,7 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
-import { useSupplierAll } from '../../../suppliers/hooks/use-query-suppliers';
+import { useInventoryCategoriesAll } from '../../inventory-categories/hooks';
 import { useServiceMutation } from '../hooks/use-mutation-service';
 import { SERVICE_STATUS_TYPES } from '../schemas/service-options';
 import { Service, serviceSchema } from '../schemas/service.schema';
@@ -37,15 +38,21 @@ export default function ServiceForm({
   readOnly = false,
 }: Props) {
   const { mutate: saveService, isPending: isSaving } = useServiceMutation();
-
-  const { data: dataSuppliers } = useSupplierAll();
+  const { data: dataCategory } = useInventoryCategoriesAll('SERVICE');
+  const { generalConfig } = useSystemConfigStore();
+  const configPurchaseTax = generalConfig.filter(
+    (item) => item.key === 'iva_compra',
+  );
 
   const form = useForm<Service>({
     resolver: zodResolver(serviceSchema),
     defaultValues: {
       ...defaultValues,
-      defaultCost: defaultValues?.defaultCost ?? 0,
-      suppliersId: defaultValues?.suppliersId ?? undefined,
+      supplierCost: defaultValues?.supplierCost ?? 0,
+      otherCosts: defaultValues?.otherCosts ?? 0,
+      purchaseTax:
+        defaultValues?.purchaseTax ?? Number(configPurchaseTax[0]?.value),
+      categoryId: defaultValues?.categoryId ?? undefined,
     },
     mode: 'onChange',
   });
@@ -65,6 +72,13 @@ export default function ServiceForm({
     });
   };
 
+  // Calcular costo calculado automáticamente
+  const supplierCost = form.watch('supplierCost');
+  const otherCosts = form.watch('otherCosts');
+  const purchaseTax = form.watch('purchaseTax');
+  const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
+  const calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100); // Ejemplo de cálculo
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -76,10 +90,10 @@ export default function ServiceForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="suppliersId"
+            name="categoryId"
             render={({ field }) => (
               <FormItem className="w-full">
-                <FormLabel>Proveedor</FormLabel>
+                <FormLabel>Categoria</FormLabel>
                 <Select
                   onValueChange={(value) => field.onChange(Number(value))}
                   defaultValue={String(field.value)}
@@ -91,7 +105,7 @@ export default function ServiceForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                    {dataSuppliers?.map((item: any) => (
+                    {dataCategory?.map((item: any) => (
                       <SelectItem
                         key={item.id}
                         value={item.id!.toString()}
@@ -145,27 +159,90 @@ export default function ServiceForm({
             )}
           />
         </div>
+
+        {/* Costos */}
+        <div className="border rounded-lg p-4 space-y-4">
+          <h3 className="font-medium text-lg">Costos</h3>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <FormField
+              control={form.control}
+              name="supplierCost"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Costo Proveedor</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(Number.parseFloat(e.target.value) || 0)
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="otherCosts"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Otros Costos</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(Number.parseFloat(e.target.value) || 0)
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="purchaseTax"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>I.V.A</FormLabel>
+                  <FormControl>
+                    <div className="flex">
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(Number.parseFloat(e.target.value) || 0)
+                        }
+                        className="rounded-r-none"
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div>
+              <label className="text-sm font-medium">Costo sin Impuesto</label>
+              <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
+                {calculatedCost.toFixed(2) ?? 0}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Costo con impuesto</label>
+              <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
+                {calculatedCostTixed.toFixed(2) ?? 0}
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="defaultCost"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Costo por Defecto</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                    value={field.value ?? ''}
-                    disabled={readOnly}
-                    className={readOnly ? 'bg-muted' : ''}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           {defaultValues?.id && (
             <FormField
               control={form.control}

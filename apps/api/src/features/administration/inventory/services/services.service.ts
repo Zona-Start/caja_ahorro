@@ -34,7 +34,7 @@ export class ServicesService {
   ) {
     let calculatedCostTixed = 0;
     const [taxRate] = await Promise.all([
-      this.settingsSystemService.findKey('iva_factura'),
+      this.settingsSystemService.findKey('iva_compra'),
     ]);
     const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
     if (Number(taxRate.value) !== purchaseTax) {

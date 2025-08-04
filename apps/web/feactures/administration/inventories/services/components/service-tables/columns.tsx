@@ -14,12 +14,8 @@ export const columns: ColumnDef<Service>[] = [
     header: 'Descripción',
   },
   {
-    accessorKey: 'suppliersName',
-    header: 'Proveedor',
-  },
-  {
-    accessorKey: 'defaultCost',
-    header: 'Costo por Defecto',
+    accessorKey: 'categoryName',
+    header: 'Categoria',
   },
   {
     accessorKey: 'status',
