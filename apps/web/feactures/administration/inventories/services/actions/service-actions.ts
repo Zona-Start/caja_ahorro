@@ -5,6 +5,7 @@ import {
   serviceMutationResponseSchema,
 } from '../schemas/service-api.schema';
 import { Service } from '../schemas/service.schema';
+import { mapServiceApiToForm } from '../utils';
 
 // export async function getServiceAll() {
 //   const [error, response] = await safeFetchApi(
@@ -52,9 +53,10 @@ export async function getServices(params: {
     console.error('Error:', error);
     throw new Error(error.message || 'Ocurrió un error desconocido');
   }
+  const data = mapServiceApiToForm(response?.data);
 
   return {
-    data: response?.data || [],
+    data: data || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,

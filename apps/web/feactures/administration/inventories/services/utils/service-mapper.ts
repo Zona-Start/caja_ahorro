@@ -1,12 +1,18 @@
-import { Service } from '../schemas/service.schema';
-
-export function mapServiceApiToForm(data: any): Service {
-  return {
-    id: data.id,
-    name: data.name,
-    description: data.description,
-    suppliersId: data.suppliersId,
-    defaultCost: data.defaultCost,
-    status: data.status,
-  };
+export function mapServiceApiToForm(data: any) {
+  if (data.length === 0) {
+    return [];
+  }
+  return data.map((item: any) => {
+    return {
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      categoryId: item.categoryId,
+      categoryName: item.categoryName,
+      status: item.status,
+      supplierCost: item.supplierCost ? Number(item.supplierCost) : 0,
+      otherCosts: item.otherCosts ? Number(item.otherCosts) : 0,
+      purchaseTax: item.purchaseTax ? Number(item.purchaseTax) : 0,
+    };
+  });
 }

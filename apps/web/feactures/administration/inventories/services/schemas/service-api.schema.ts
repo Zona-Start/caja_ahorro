@@ -7,6 +7,9 @@ export const serviceApiSchema = z.object({
   categoryId: z.number(),
   categoryName: z.string().optional(),
   status: z.string(),
+  supplierCost: z.string().optional(),
+  otherCosts: z.string().optional(),
+  purchaseTax: z.string().optional(),
 });
 
 export type ServiceSchemaAPI = z.infer<typeof serviceApiSchema>;

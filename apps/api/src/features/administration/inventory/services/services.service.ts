@@ -37,7 +37,9 @@ export class ServicesService {
       this.settingsSystemService.findKey('iva_compra'),
     ]);
     const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
-    if (Number(taxRate.value) !== purchaseTax) {
+    if (purchaseTax === 0) {
+      calculatedCostTixed = calculatedCost;
+    } else if (Number(taxRate.value) !== purchaseTax) {
       // Calculate the cost including supplier cost and other costs
       calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
     } else {
@@ -89,20 +91,23 @@ export class ServicesService {
         // Calculate final price based on settings
 
         const { calculatedCostTixed } = await this.calculateFinalCost(
-          data.supplierCost,
+          data.supplierCost ?? 0,
           data.otherCosts,
           data.purchaseTax ?? 0,
         );
-
-        await this.servicePricesService.create(userId, {
-          serviceId: result[0].id,
-          baseCost: data.supplierCost,
-          otherCosts: data.otherCosts,
-          purchaseTax: Number(data.purchaseTax ?? 0),
-          totalCost: calculatedCostTixed,
-          startDate: new Date(),
-          isActive: true,
-        });
+        await this.servicePricesService.create(
+          userId,
+          {
+            serviceId: result[0].id,
+            baseCost: data.supplierCost,
+            otherCosts: data.otherCosts,
+            purchaseTax: Number(data.purchaseTax ?? 0),
+            totalCost: calculatedCostTixed,
+            startDate: new Date(),
+            isActive: true,
+          },
+          tx,
+        );
       }
       return result;
     });
@@ -157,12 +162,22 @@ export class ServicesService {
         categoryId: services.categoryId,
         categoryName: schema.inventoriesCategories.name,
         status: services.status,
+        supplierCost: schema.servicePrices.baseCost,
+        otherCosts: schema.servicePrices.otherCosts,
+        purchaseTax: schema.servicePrices.purchaseTax,
       })
       .from(services)
       .where(searchCondition)
       .leftJoin(
         schema.inventoriesCategories,
         eq(services.categoryId, schema.inventoriesCategories.id),
+      )
+      .leftJoin(
+        schema.servicePrices,
+        and(
+          eq(schema.servicePrices.serviceId, services.id),
+          eq(schema.servicePrices.isActive, true),
+        ),
       )
       .offset(offset)
       .orderBy(orderBy)
@@ -210,6 +225,8 @@ export class ServicesService {
       .select({
         id: services.id,
         baseCost: schema.servicePrices.baseCost,
+        otherCosts: schema.servicePrices.otherCosts,
+        purchaseTax: schema.servicePrices.purchaseTax,
       })
       .from(services)
       .leftJoin(
@@ -245,32 +262,43 @@ export class ServicesService {
         });
 
       if (
-        typeof data.supplierCost === 'number' &&
-        Number(existService[0].baseCost ?? 0) !== data.supplierCost
+        (typeof data.supplierCost === 'number' &&
+          Number(existService[0].baseCost ?? 0) !== data.supplierCost) ||
+        (typeof data.otherCosts === 'number' &&
+          Number(existService[0].otherCosts ?? 0) !== data.otherCosts) ||
+        (typeof data.purchaseTax === 'number' &&
+          Number(existService[0].purchaseTax ?? 0) !== data.purchaseTax)
       ) {
         const lastPrice =
-          await this.servicePricesService.findLastActivePriceByServiceId(id);
+          await this.servicePricesService.findLastActivePriceByServiceId(
+            id,
+            tx,
+          );
         if (lastPrice) {
-          await this.servicePricesService.deactivatePrice(lastPrice.id);
+          await this.servicePricesService.deactivatePrice(lastPrice.id, tx);
         }
 
         if (data.supplierCost !== 0) {
           // Calculate final price based on settings
           const { calculatedCostTixed } = await this.calculateFinalCost(
-            data.supplierCost,
+            data.supplierCost ?? 0,
             data.otherCosts ?? 0,
             data.purchaseTax ?? 0,
           );
 
-          await this.servicePricesService.create(userId, {
-            serviceId: id,
-            baseCost: data.supplierCost,
-            otherCosts: data.otherCosts ?? 0,
-            purchaseTax: Number(data.purchaseTax ?? 0),
-            totalCost: calculatedCostTixed,
-            startDate: new Date(),
-            isActive: true,
-          });
+          await this.servicePricesService.create(
+            userId,
+            {
+              serviceId: id,
+              baseCost: data.supplierCost ?? 0,
+              otherCosts: data.otherCosts ?? 0,
+              purchaseTax: Number(data.purchaseTax ?? 0),
+              totalCost: calculatedCostTixed,
+              startDate: new Date(),
+              isActive: true,
+            },
+            tx,
+          );
         }
       }
       return result;

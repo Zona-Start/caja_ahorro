@@ -18,11 +18,18 @@ export class ServicePricesService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
-  async create(userId: number, data: CreateServicePriceDto) {
-    const exist = await this.drizzle.query.productPrices.findFirst({
+  async create(
+    userId: number,
+    data: CreateServicePriceDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
+    const exist = await db.query.servicePrices.findFirst({
       where: and(
         eq(servicePrices.serviceId, data.serviceId),
         eq(servicePrices.baseCost, String(data.baseCost)),
+        eq(servicePrices.otherCosts, String(data.otherCosts)),
+        eq(servicePrices.purchaseTax, String(data.purchaseTax)),
       ),
     });
 
@@ -32,10 +39,10 @@ export class ServicePricesService {
       );
     }
 
-    await this.drizzle.insert(servicePrices).values([
+    await db.insert(servicePrices).values([
       {
         serviceId: data.serviceId,
-        suppliersId: data.suppliersId,
+        suppliersId: data.suppliersId ?? null,
         baseCost: String(data.baseCost),
         otherCosts: String(data.otherCosts),
         purchaseTax: String(data.purchaseTax),
@@ -144,8 +151,12 @@ export class ServicePricesService {
     return data;
   }
 
-  async findLastActivePriceByServiceId(serviceId: number) {
-    return await this.drizzle.query.servicePrices.findFirst({
+  async findLastActivePriceByServiceId(
+    serviceId: number,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
+    return await db.query.servicePrices.findFirst({
       where: and(
         eq(servicePrices.serviceId, serviceId),
         eq(servicePrices.isActive, true),
@@ -154,8 +165,9 @@ export class ServicePricesService {
     });
   }
 
-  async deactivatePrice(priceId: number) {
-    await this.drizzle
+  async deactivatePrice(priceId: number, tx?: NodePgDatabase<typeof schema>) {
+    const db = tx ?? this.drizzle;
+    await db
       .update(servicePrices)
       .set({ isActive: false })
       .where(eq(servicePrices.id, priceId));

@@ -28,9 +28,9 @@ export default function ServiceTableActions() {
   const { data: dataCategory } = useInventoryCategoriesAll('SERVICE');
 
   const CATEGORY_OPTIONS =
-    dataCategory?.map((supplier) => ({
-      value: supplier?.id?.toString() ?? '',
-      label: supplier?.name ?? '',
+    dataCategory?.map((category) => ({
+      value: category?.id?.toString() ?? '',
+      label: category?.name ?? '',
     })) ?? [];
 
   return (
