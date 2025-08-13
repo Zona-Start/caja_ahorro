@@ -43,7 +43,6 @@ export default function ServiceForm({
   const configPurchaseTax = generalConfig.filter(
     (item) => item.key === 'iva_compra',
   );
-  console.log(defaultValues);
 
   const form = useForm<Service>({
     resolver: zodResolver(serviceSchema),
@@ -53,12 +52,8 @@ export default function ServiceForm({
       otherCosts: defaultValues?.otherCosts ?? 0,
       purchaseTax:
         defaultValues === undefined
-          ? 0
-          : defaultValues?.purchaseTax === undefined
-            ? 0
-            : defaultValues?.purchaseTax === 0
-              ? Number(configPurchaseTax[0]?.value) || 0
-              : 0,
+          ? Number(configPurchaseTax[0]?.value) || 0
+          : defaultValues?.purchaseTax || 0,
       categoryId: defaultValues?.categoryId ?? undefined,
     },
     mode: 'onChange',
@@ -108,7 +103,7 @@ export default function ServiceForm({
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona un proveedor" />
+                      <SelectValue placeholder="Selecciona una categoria" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
@@ -185,6 +180,8 @@ export default function ServiceForm({
                       onChange={(e) =>
                         field.onChange(Number.parseFloat(e.target.value) || 0)
                       }
+                      className={readOnly ? 'bg-muted' : ''}
+                      readOnly={readOnly}
                     />
                   </FormControl>
                   <FormMessage />
@@ -206,6 +203,8 @@ export default function ServiceForm({
                       onChange={(e) =>
                         field.onChange(Number.parseFloat(e.target.value) || 0)
                       }
+                      className={readOnly ? 'bg-muted' : ''}
+                      readOnly={readOnly}
                     />
                   </FormControl>
                   <FormMessage />
@@ -226,7 +225,8 @@ export default function ServiceForm({
                         onChange={(e) =>
                           field.onChange(Number.parseFloat(e.target.value) || 0)
                         }
-                        className="rounded-r-none"
+                        className={readOnly ? 'bg-muted' : ''}
+                        readOnly={readOnly}
                       />
                     </div>
                   </FormControl>
@@ -289,9 +289,15 @@ export default function ServiceForm({
             <Button variant="outline" type="button" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Guardando...' : 'Guardar'}
-            </Button>
+            {!readOnly && (
+              <Button type="submit" disabled={isSaving}>
+                {isSaving
+                  ? 'Guardando...'
+                  : defaultValues?.id
+                    ? 'Actualizar'
+                    : 'Guardar'}
+              </Button>
+            )}
           </div>
         </div>
       </form>

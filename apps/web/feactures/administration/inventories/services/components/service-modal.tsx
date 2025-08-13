@@ -41,11 +41,16 @@ export default function ServiceModal({
       <DialogContent className="sm:max-w-[800px] z-50 backdrop-blur-lg bg-background/80">
         <DialogHeader>
           <DialogTitle>
-            {defaultValues ? 'Editar servicio' : 'Nuevo servicio'}
+            {readOnly
+              ? 'Información del servicio'
+              : defaultValues
+                ? 'Editar servicio'
+                : 'Nuevo servicio'}
           </DialogTitle>
           <DialogDescription>
-            Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} el servicio
+            {readOnly
+              ? 'Detalles del servicio'
+              : ` Complete los campos para  ${defaultValues?.id ? 'actualizar el' : 'crear un nuevo'} servicio.`}
           </DialogDescription>
         </DialogHeader>
         <ServiceForm
