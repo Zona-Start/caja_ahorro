@@ -10,12 +10,14 @@ export const fixedAssetApiSchema = z.object({
   serialNumber: z.string(),
   brand: z.string(),
   model: z.string(),
-  purchasePrice: z.number(),
+  baseCost: z.number(),
+  otherCosts: z.number(),
+  purchaseTax: z.number(),
+  totalCost: z.string(),
   acquisitionDate: z.string(),
   assetStatus: z.string(),
   usefulLifeYears: z.number(),
   depreciationMethod: z.string(),
-  currentStock: z.number(),
 });
 
 export type FixedAssetSchemaAPI = z.infer<typeof fixedAssetApiSchema>;

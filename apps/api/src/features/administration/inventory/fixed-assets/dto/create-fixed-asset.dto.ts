@@ -54,12 +54,6 @@ export class CreateFixedAssetDto {
   @IsNotEmpty()
   acquisitionDate: Date;
 
-  @ApiProperty({ description: 'Purchase price' })
-  @IsNumber({ maxDecimalPlaces: 6 })
-  @Min(0)
-  @IsNotEmpty()
-  purchasePrice: number;
-
   @ApiPropertyOptional({
     description: 'Asset status',
     enum: fixedAssetsInventoryStatus,
@@ -109,8 +103,18 @@ export class CreateFixedAssetDto {
   @Min(0)
   disposalValue?: number;
 
-  @ApiPropertyOptional({ description: 'stock' })
-  @IsInt()
-  @Min(0)
-  currentStock: number;
+  @ApiProperty({ description: 'Supplier Cost' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  baseCost: number;
+
+  @ApiProperty({ description: 'Other Cost' })
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNotEmpty()
+  otherCosts: number;
+
+  @ApiProperty({ description: 'Purchase Tax' })
+  @IsNumber()
+  @IsOptional()
+  purchaseTax?: number;
 }

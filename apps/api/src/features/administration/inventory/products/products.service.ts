@@ -393,8 +393,8 @@ export class ProductsService {
 
     const existSale = await this.drizzle
       .select()
-      .from(schema.creditProductSales)
-      .where(eq(schema.creditProductSales.productId, id));
+      .from(schema.creditItemSales)
+      .where(eq(schema.creditItemSales.itemId, id));
 
     if (existSale.length !== 0) {
       throw new BadRequestException(

@@ -4,7 +4,7 @@ import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { useFixedAssetCategoriesSchemaAPIAll } from '../../../fixed-asset-categories/hooks/use-query-fixed-asset-categories';
+import { useInventoryCategoriesAll } from '../../../inventory-categories/hooks';
 import SalesProductModal from '../fixed-asset-modal';
 import {
   ESTATUS_OPTIONS,
@@ -24,7 +24,7 @@ export default function SalesProductTableActions() {
 
   const [open, setOpen] = useState(false);
 
-  const { data: dataTypeCategory } = useFixedAssetCategoriesSchemaAPIAll();
+  const { data: dataTypeCategory } = useInventoryCategoriesAll('FIXED_ASSET');
   const TYPE_CATEGORY_OPTIONS =
     dataTypeCategory?.map((type) => ({
       value: type?.id?.toString() ?? '',

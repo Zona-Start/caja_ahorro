@@ -12,6 +12,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { FixedAssetPricesService } from '../fixed-asset-prices/fixed-asset-prices.service';
 import { CreateFixedAssetDto } from './dto/create-fixed-asset.dto';
 import { FilterFixedAssetDto } from './dto/filter-fixed-asset.dto';
 import { UpdateFixedAssetDto } from './dto/update-fixed-asset.dto';
@@ -19,7 +20,10 @@ import { FixedAssetsService } from './fixed-assets.service';
 
 @Controller('inventory/assets/fixed-assets')
 export class FixedAssetsController {
-  constructor(private readonly fixedAssetsService: FixedAssetsService) {}
+  constructor(
+    private readonly fixedAssetsService: FixedAssetsService,
+    private readonly fixedAssetPricesService: FixedAssetPricesService,
+  ) {}
 
   @Post()
   @Roles('admin')

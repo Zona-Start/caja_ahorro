@@ -21,11 +21,6 @@ export const fixedAssetSchema = z.object({
   acquisitionDate: z.date({
     required_error: 'La fecha de adquisición es requerida',
   }),
-  purchasePrice: emptyStringToUndefined.pipe(
-    z.coerce
-      .number({ required_error: 'El precio de compra es requerido' })
-      .min(0, 'El precio debe ser un número positivo'),
-  ),
   assetStatus: z
     .string({
       required_error: 'El estado del activo es requerido',
@@ -54,9 +49,25 @@ export const fixedAssetSchema = z.object({
       .optional()
       .nullable(),
   ),
-  currentStock: z.coerce
-    .number({ required_error: 'La Cantidad es requerida' })
-    .min(0, 'La Cantidad debe ser un número positivo'),
+  baseCost: z.coerce
+    .number({
+      required_error: 'El costo es requerido',
+    })
+    .min(0, 'El costo debe ser un número positivo')
+    .refine((val) => !isNaN(val), {
+      message: 'El costo debe ser un número válido',
+    }),
+  otherCosts: z.coerce.number().refine((val) => !isNaN(val), {
+    message: 'Otro costo debe ser un número válido',
+  }),
+  purchaseTax: z.coerce
+    .number({
+      required_error: 'El costo es requerido',
+    })
+    .min(0, 'El costo debe ser un número positivo')
+    .refine((val) => !isNaN(val), {
+      message: 'El costo debe ser un número válido',
+    }),
 });
 
 export type FixedAsset = z.infer<typeof fixedAssetSchema>;

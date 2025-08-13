@@ -157,7 +157,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Bienes o Activos',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/inventarios/bienes',
       },
     ], // No child items
   },

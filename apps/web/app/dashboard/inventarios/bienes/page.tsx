@@ -1,8 +1,8 @@
 import PageContainer from '@/components/layout/page-container';
-import FixedAssetHeader from '@/feactures/inventories/assets/fixed-asset/components/fixed-asset-header';
-import FixedAssetList from '@/feactures/inventories/assets/fixed-asset/components/fixed-asset-list';
-import TableActions from '@/feactures/inventories/assets/fixed-asset/components/fixed-asset-tables/table-actions';
-import { searchParamsCache } from '@/feactures/inventories/assets/fixed-asset/utils/searchparams';
+import FixedAssetHeader from '@/feactures/administration/inventories/fixed-asset/components/fixed-asset-header';
+import FixedAssetList from '@/feactures/administration/inventories/fixed-asset/components/fixed-asset-list';
+import TableActions from '@/feactures/administration/inventories/fixed-asset/components/fixed-asset-tables/table-actions';
+import { searchParamsCache } from '@/feactures/administration/inventories/fixed-asset/utils/searchparams';
 import { SearchParams } from 'nuqs/server';
 
 export const metadata = {
