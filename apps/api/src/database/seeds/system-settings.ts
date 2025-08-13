@@ -7,7 +7,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'iva',
+        key: 'iva_venta',
         value: '16',
         description: 'IVA',
         group: 'GENERAL',
@@ -109,6 +109,17 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'gasto_producto',
         value: '6',
         description: 'GASTO ADMINISTRATIVOS PRODUCTO',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'iva_compra',
+        value: '16',
+        description: 'IVA FACTURAS DE COMPRA',
         group: 'GENERAL',
         createdById: 1,
         updatedById: 1,

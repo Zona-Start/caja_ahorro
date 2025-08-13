@@ -12,6 +12,8 @@ export const resfreshTokenAction = async (refreshToken: RefreshTokenValue) => {
     'POST',
     refreshToken,
   );
+  console.log(data);
+
   if (error) {
     console.error('Error:', error);
   } else {

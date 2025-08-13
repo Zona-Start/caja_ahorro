@@ -43,6 +43,7 @@ export default function ServiceForm({
   const configPurchaseTax = generalConfig.filter(
     (item) => item.key === 'iva_compra',
   );
+  console.log(defaultValues);
 
   const form = useForm<Service>({
     resolver: zodResolver(serviceSchema),
@@ -51,8 +52,13 @@ export default function ServiceForm({
       supplierCost: defaultValues?.supplierCost ?? 0,
       otherCosts: defaultValues?.otherCosts ?? 0,
       purchaseTax:
-        defaultValues?.purchaseTax ??
-        (Number(configPurchaseTax[0]?.value) || 0),
+        defaultValues === undefined
+          ? 0
+          : defaultValues?.purchaseTax === undefined
+            ? 0
+            : defaultValues?.purchaseTax === 0
+              ? Number(configPurchaseTax[0]?.value) || 0
+              : 0,
       categoryId: defaultValues?.categoryId ?? undefined,
     },
     mode: 'onChange',
