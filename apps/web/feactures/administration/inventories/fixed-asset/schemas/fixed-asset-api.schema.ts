@@ -13,7 +13,7 @@ export const fixedAssetApiSchema = z.object({
   baseCost: z.number(),
   otherCosts: z.number(),
   purchaseTax: z.number(),
-  totalCost: z.string(),
+  totalCost: z.string().nullable(),
   acquisitionDate: z.string(),
   assetStatus: z.string(),
   usefulLifeYears: z.number(),

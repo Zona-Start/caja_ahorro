@@ -526,7 +526,7 @@ export default function ProductForm({
                   <div>
                     <label className="text-xs font-medium">Precio Oferta</label>
                     <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
-                      {calculatedCostTixed.toFixed(2)}
+                      {(utilOffer > 0 ? calculatedCostTixed : 0).toFixed(2)}
                     </div>
                   </div>
                   <div>
@@ -565,13 +565,13 @@ export default function ProductForm({
                   <div>
                     <label className="text-xs font-medium">Sin Impuesto</label>
                     <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
-                      {offerPrice.priceProfit.toFixed(2)}
+                      {(utilOffer > 0 ? offerPrice.priceProfit : 0).toFixed(2)}
                     </div>
                   </div>
                   <div>
                     <label className="text-xs font-medium">Con impuesto</label>
                     <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
-                      {offerPrice.maxPrice.toFixed(2)}
+                      {(utilOffer > 0 ? offerPrice.maxPrice : 0).toFixed(2)}
                     </div>
                   </div>
                 </div>

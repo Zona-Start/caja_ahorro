@@ -52,8 +52,10 @@ export default function ServiceForm({
       otherCosts: defaultValues?.otherCosts ?? 0,
       purchaseTax:
         defaultValues === undefined
-          ? Number(configPurchaseTax[0]?.value) || 0
-          : defaultValues?.purchaseTax || 0,
+          ? Number(configPurchaseTax[0]?.value)
+          : defaultValues?.purchaseTax === 0
+            ? Number(configPurchaseTax[0]?.value)
+            : defaultValues?.purchaseTax,
       categoryId: defaultValues?.categoryId ?? undefined,
     },
     mode: 'onChange',
