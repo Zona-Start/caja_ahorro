@@ -1,10 +1,10 @@
 'use client';
 import { ColumnDef } from '@tanstack/react-table';
+import { FixedAssetSchemaAPI } from '../../schemas/fixed-asset-api.schema';
 import { ESTATUS_TYPES } from '../../schemas/fixed-asset-options';
-import { FixedAsset } from '../../schemas/fixed-asset.schema';
 import { CellAction } from './cell-action';
 
-export const columns: ColumnDef<FixedAsset>[] = [
+export const columns: ColumnDef<FixedAssetSchemaAPI>[] = [
   {
     accessorKey: 'assetCode',
     header: 'Código del Activo',
@@ -28,6 +28,10 @@ export const columns: ColumnDef<FixedAsset>[] = [
   {
     accessorKey: 'totalCost',
     header: 'Precio de Compra',
+    cell: ({ row }) => {
+      const totalCost = Number(row.original.totalCost).toFixed(2);
+      return String(totalCost);
+    },
   },
   {
     accessorKey: 'assetStatus',
@@ -39,6 +43,12 @@ export const columns: ColumnDef<FixedAsset>[] = [
   },
   {
     id: 'actions',
-    cell: ({ row }) => <CellAction data={row.original} />,
+    cell: ({ row }) => {
+      const data = {
+        ...row.original,
+        acquisitionDate: new Date(row.original.acquisitionDate),
+      };
+      return <CellAction data={data} />;
+    },
   },
 ];

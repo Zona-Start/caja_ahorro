@@ -41,11 +41,16 @@ export default function FixedAssetModal({
       <DialogContent className="sm:max-w-[800px] z-50 backdrop-blur-lg bg-background/80">
         <DialogHeader>
           <DialogTitle>
-            {defaultValues ? 'Editar Bien o Activo' : 'Nuevo Bien o Activo'}
+            {readOnly
+              ? 'Información del Bien o Activo'
+              : defaultValues
+                ? 'Editar Bien o Activo'
+                : 'Nuevo Bien o Activo'}
           </DialogTitle>
           <DialogDescription>
-            Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} el bien o activo
+            {readOnly
+              ? 'Detalles del servicio'
+              : ` Complete los campos para  ${defaultValues?.id ? 'actualizar el' : 'crear un nuevo'} bien o activo.`}
           </DialogDescription>
         </DialogHeader>
         <FixedAssetForm

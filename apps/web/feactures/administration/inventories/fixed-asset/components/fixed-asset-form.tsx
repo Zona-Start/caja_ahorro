@@ -461,9 +461,15 @@ export default function FixedAssetForm({
               <Button variant="outline" type="button" onClick={onCancel}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Guardando...' : 'Guardar'}
-              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving
+                    ? 'Guardando...'
+                    : defaultValues?.id
+                      ? 'Actualizar'
+                      : 'Guardar'}
+                </Button>
+              )}
             </div>
           </div>
         </form>

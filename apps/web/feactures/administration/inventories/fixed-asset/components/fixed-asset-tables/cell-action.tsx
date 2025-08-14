@@ -8,11 +8,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Trash } from 'lucide-react';
+import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteFixedAsset } from '../../hooks/use-mutation-fixed-asset';
 import { FixedAsset } from '../../schemas/fixed-asset.schema';
-import SalesProductModal from '../fixed-asset-modal';
+import FixedAssetModal from '../fixed-asset-modal';
 
 interface CellActionProps {
   data: FixedAsset;
@@ -45,11 +45,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
         loading={loading}
-        title="¿Estás seguro que desea eliminar este producto?"
+        title="¿Estás seguro que desea eliminar este bien o activo?"
         description="Esta acción no se puede deshacer."
       />
 
-      <SalesProductModal
+      <FixedAssetModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
         defaultValues={{
@@ -68,6 +68,25 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       />
 
       <div className="flex gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  setMode(true);
+                  setShowEditModal(true);
+                }}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ver</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
