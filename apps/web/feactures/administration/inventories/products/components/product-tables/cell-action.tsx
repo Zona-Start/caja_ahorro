@@ -10,6 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Trash } from 'lucide-react';
 import { useState } from 'react';
+import { useProductById } from '../../hooks';
 import { useDeleteProduct } from '../../hooks/use-mutation-product';
 import { Product } from '../../schemas/product.schema';
 import ProductModal from '../product-modal';
@@ -23,6 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [mode, setMode] = useState(false);
+  const [productData, setProductData] = useState<Product | null>(null);
 
   const { mutate: deleteProduct } = useDeleteProduct();
 
@@ -36,6 +38,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onUpdate = async (id: number) => {
+    const { data: fetchedProductData } = useProductById(id);
+    setMode(false);
+    setShowEditModal(true);
+    setProductData(
+      fetchedProductData && Object.keys(fetchedProductData).length > 0
+        ? (fetchedProductData as Product)
+        : null,
+    );
   };
 
   return (
@@ -52,7 +65,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <ProductModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
-        defaultValues={data}
+        defaultValues={productData}
         readOnly={mode}
       />
 
@@ -63,10 +76,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  setMode(false);
-                  setShowEditModal(true);
-                }}
+                onClick={() => onUpdate(data.id!)}
               >
                 <Edit className="h-4 w-4" />
               </Button>

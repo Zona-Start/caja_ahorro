@@ -52,11 +52,38 @@ export const productMutationResponseObjetSchema = z.object({
   id: z.number(),
   sku: z.string(),
   name: z.string(),
-  description: z.string(),
+  description: z.string().nullable(),
   status: z.string(),
 });
 
 export const productMutationResponseSchema = z.object({
   message: z.string().optional(),
   data: productMutationResponseObjetSchema,
+});
+
+export const getProductsResponseApiSchema = z.object({
+  id: z.number().optional(),
+  categoryId: z.number(),
+  categoryName: z.string(),
+  sku: z.string(),
+  name: z.string(),
+  description: z.string().optional().nullable(),
+  brand: z.string(),
+  model: z.string(),
+  stockMin: z.number(),
+  stockMax: z.number(),
+  reorderPoint: z.number(),
+  status: z.string(),
+  baseCost: z.number(),
+  otherCosts: z.number(),
+  purchaseTax: z.number(),
+  totalCost: z.number(),
+  expensePercent: z.number(),
+  profitPercent: z.number(),
+  salesTaxPercent: z.number(),
+});
+
+export const getOneProductResponseApiSchem = z.object({
+  message: z.string().optional(),
+  data: getProductsResponseApiSchema,
 });

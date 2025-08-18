@@ -251,28 +251,47 @@ export class ProductsService {
   }
 
   async findOne(id: number) {
-    const data = await this.drizzle.query.products.findFirst({
-      where: eq(products.id, id),
-      columns: {
-        id: true,
-        categoryId: true,
-        sku: true,
-        name: true,
-        description: true,
-        brand: true,
-        model: true,
-        stockMin: true,
-        stockMax: true,
-        reorderPoint: true,
-        status: true,
-      },
-    });
+    const data = await this.drizzle
+      .select({
+        id: schema.products.id,
+        categoryId: schema.products.categoryId,
+        categoryName: schema.inventoriesCategories.name,
+        sku: schema.products.sku,
+        name: schema.products.name,
+        description: schema.products.description,
+        brand: schema.products.brand,
+        model: schema.products.model,
+        stockMin: schema.products.stockMin,
+        stockMax: schema.products.stockMax,
+        reorderPoint: schema.products.reorderPoint,
+        baseCost: schema.productPrices.baseCost,
+        otherCosts: schema.productPrices.otherCosts,
+        purchaseTax: schema.productPrices.purchaseTax,
+        totalCost: schema.productPrices.totalCost,
+        expensePercent: schema.productPrices.expensePercent,
+        profitPercent: schema.productPrices.profitPercent,
+        salesTaxPercent: schema.productPrices.salesTaxPercent,
+        status: schema.products.status,
+      })
+      .from(products)
+      .leftJoin(
+        schema.productPrices,
+        and(
+          eq(products.id, schema.productPrices.productId),
+          eq(schema.productPrices.isActive, true),
+        ),
+      )
+      .leftJoin(
+        schema.inventoriesCategories,
+        eq(products.categoryId, schema.inventoriesCategories.id),
+      )
+      .where(eq(products.id, id));
 
     if (!data) {
       throw new NotFoundException('Sales product not found');
     }
 
-    return data;
+    return data[0];
   }
 
   async update(userId: number, id: number, data: UpdateProductDto) {

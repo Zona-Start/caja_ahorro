@@ -1,6 +1,7 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
+  getOneProductResponseApiSchem,
   productAllResponseSchema,
   productMutationDeleteResponseSchema,
   productMutationResponseSchema,
@@ -21,6 +22,21 @@ export async function getProductAll() {
   }
 
   return response?.data || [];
+}
+
+export async function getProductById(id: number) {
+  const [error, response] = await safeFetchApi(
+    getOneProductResponseApiSchem,
+    `/administration/inventory/products/${id}`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Ocurrió un error desconocido');
+  }
+
+  return response?.data || {};
 }
 
 export async function getProducts(params: {
@@ -119,24 +135,6 @@ export async function deleteProduct(id: number): Promise<any> {
 
   return data;
 }
-
-const calculatePrice = (
-  cost: number,
-  util: number,
-  expense: number,
-  tax: number,
-) => {
-  const price = cost;
-  const benefit = (price * util) / 100;
-  const expensePrice = (price * expense) / 100;
-  const priceProfit = price + benefit + expensePrice;
-  const impost = (priceProfit * (tax ?? 0)) / 100;
-  const maxPrice = priceProfit + impost;
-  return {
-    priceProfit,
-    maxPrice,
-  };
-};
 
 export const saveProductAction = async (payload: Product) => {
   try {
