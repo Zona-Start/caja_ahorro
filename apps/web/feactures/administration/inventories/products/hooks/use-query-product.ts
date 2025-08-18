@@ -13,6 +13,9 @@ export function useProductsAll() {
   return useSafeQuery(['products-all'], () => getProductAll());
 }
 
-export function useProductById(id: number) {
-  return useSafeQuery(['product', id], () => getProductById(id));
+// Hook for a single LoanManagement by ID
+export function useProductById(id: number | null) {
+  return useSafeQuery(['product', id], () => getProductById(id!), {
+    enabled: !!id,
+  });
 }

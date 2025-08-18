@@ -12,7 +12,7 @@ export const productSchema = z.object({
   unitType: z.enum(['UNIT', 'KILOGRAM', 'LITER', 'METER', 'BOX', 'PACK']),
   purchaseTax: z.number().optional(),
   saleTax: z.number().optional(),
-  supplierCost: z.coerce
+  baseCost: z.coerce
     .number({
       required_error: 'El costo del proveedor es requerido',
     })
@@ -74,6 +74,10 @@ export const productSchema = z.object({
     .refine((val) => !isNaN(val), {
       message: 'La utilidad debe ser un número válido',
     }),
+  totalCost: z.string().optional().nullable(),
+  expensePercent: z.string().optional().nullable(),
+  profitPercent: z.string().optional().nullable(),
+  salesTaxPercent: z.string().optional().nullable(),
 });
 
 export type Product = z.infer<typeof productSchema>;

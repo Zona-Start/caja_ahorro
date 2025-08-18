@@ -43,7 +43,6 @@ export class GenerateCodeService {
 
         const nextNumber = currentNumber + 1;
         const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
-        console.log(nextValue);
         await this.updateValueSetting(key, nextValue); // Update the setting with the new value
         return nextValue; // Return the generated reference
       });

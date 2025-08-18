@@ -1,11 +1,6 @@
 import { productPrices } from '@/database/schema/administration';
 import { priceTypeEnum } from '@/database/schema/enum';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -20,19 +15,22 @@ export class ProductPricesService {
   ) {}
 
   async create(userId: number, data: CreateProductPriceDto) {
-    const exist = await this.drizzle.query.productPrices.findFirst({
-      where: and(
-        eq(productPrices.productId, data.productId),
-        eq(productPrices.priceType, data.priceType),
-        eq(productPrices.baseCost, String(data.baseCost)),
-      ),
-    });
+    // const exist = await this.drizzle.query.productPrices.findFirst({
+    //   where: and(
+    //     eq(productPrices.productId, data.productId),
+    //     eq(productPrices.priceType, data.priceType),
+    //     eq(productPrices.baseCost, String(data.baseCost)),
+    //     eq(productPrices.otherCosts, String(data.otherCosts)),
+    //     eq(productPrices.purchaseTax, String(data.purchaseTax)),
+    //   ),
+    // });
+    // console.log('exist', exist);
 
-    if (exist) {
-      throw new BadRequestException(
-        'Price with this product and type already exists',
-      );
-    }
+    // if (exist) {
+    //   throw new BadRequestException(
+    //     'Price with this product and type already exists',
+    //   );
+    // }
 
     await this.drizzle.insert(productPrices).values({
       productId: data.productId,
@@ -161,7 +159,7 @@ export class ProductPricesService {
   }
 
   async findLastActivePriceByProductId(productId: number) {
-    return await this.drizzle.query.productPrices.findFirst({
+    return await this.drizzle.query.productPrices.findMany({
       where: and(
         eq(productPrices.productId, productId),
         eq(productPrices.isActive, true),

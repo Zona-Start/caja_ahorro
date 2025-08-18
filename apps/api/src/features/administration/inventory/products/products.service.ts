@@ -35,7 +35,7 @@ export class ProductsService {
   ) {
     // Fetch rates from settings in parallel for efficiency
     const [taxRate, profitMarginRate, expenseRate] = await Promise.all([
-      this.settingsSystemService.findKey('iva'),
+      this.settingsSystemService.findKey('iva_venta'),
       this.settingsSystemService.findKey('utilidad_producto'),
       this.settingsSystemService.findKey('gasto_producto'),
     ]);
@@ -251,7 +251,7 @@ export class ProductsService {
   }
 
   async findOne(id: number) {
-    const data = await this.drizzle
+    const dataProduct = await this.drizzle
       .select({
         id: schema.products.id,
         categoryId: schema.products.categoryId,
@@ -264,6 +264,19 @@ export class ProductsService {
         stockMin: schema.products.stockMin,
         stockMax: schema.products.stockMax,
         reorderPoint: schema.products.reorderPoint,
+        status: schema.products.status,
+      })
+      .from(products)
+      .leftJoin(
+        schema.inventoriesCategories,
+        eq(products.categoryId, schema.inventoriesCategories.id),
+      )
+      .where(eq(products.id, id));
+
+    const dataProductPrices = await this.drizzle
+      .select({
+        productPriceId: schema.productPrices.id,
+        priceType: schema.productPrices.priceType,
         baseCost: schema.productPrices.baseCost,
         otherCosts: schema.productPrices.otherCosts,
         purchaseTax: schema.productPrices.purchaseTax,
@@ -271,27 +284,19 @@ export class ProductsService {
         expensePercent: schema.productPrices.expensePercent,
         profitPercent: schema.productPrices.profitPercent,
         salesTaxPercent: schema.productPrices.salesTaxPercent,
-        status: schema.products.status,
       })
-      .from(products)
-      .leftJoin(
-        schema.productPrices,
+      .from(schema.productPrices)
+      .where(
         and(
           eq(products.id, schema.productPrices.productId),
           eq(schema.productPrices.isActive, true),
         ),
-      )
-      .leftJoin(
-        schema.inventoriesCategories,
-        eq(products.categoryId, schema.inventoriesCategories.id),
-      )
-      .where(eq(products.id, id));
+      );
 
-    if (!data) {
-      throw new NotFoundException('Sales product not found');
-    }
-
-    return data[0];
+    return {
+      dataProduct: dataProduct[0],
+      dataProductPrices: dataProductPrices ?? null,
+    };
   }
 
   async update(userId: number, id: number, data: UpdateProductDto) {
@@ -299,6 +304,8 @@ export class ProductsService {
       .select({
         id: products.id,
         baseCost: schema.productPrices.baseCost,
+        otherCosts: schema.productPrices.otherCosts,
+        purchaseTax: schema.productPrices.purchaseTax,
       })
       .from(products)
       .leftJoin(
@@ -312,19 +319,25 @@ export class ProductsService {
     }
 
     if (
-      typeof data.supplierCost === 'number' &&
-      Number(existProducto[0].baseCost ?? 0) !== data.supplierCost
+      (typeof data.supplierCost === 'number' &&
+        Number(existProducto[0].baseCost ?? 0) !== data.supplierCost) ||
+      (typeof data.otherCosts === 'number' &&
+        Number(existProducto[0].otherCosts ?? 0) !== data.otherCosts) ||
+      (typeof data.purchaseTax === 'number' &&
+        Number(existProducto[0].purchaseTax ?? 0) !== data.purchaseTax)
     ) {
       const lastPrice =
         await this.productPricesService.findLastActivePriceByProductId(id);
-      if (lastPrice) {
-        await this.productPricesService.deactivatePrice(lastPrice.id);
+      if (lastPrice.length !== 0) {
+        lastPrice.forEach(async (price) => {
+          await this.productPricesService.deactivatePrice(price.id);
+        });
       }
 
       if (data.supplierCost !== 0) {
         // Calculate final price based on settings
         const resultSalePrice = await this.calculateFinalPrice(
-          data.supplierCost,
+          data.supplierCost ?? 0,
           data.otherCosts ?? 0,
           data.profitSale ?? 0,
           data.purchaseTax ?? 0,
@@ -334,7 +347,7 @@ export class ProductsService {
         await this.productPricesService.create(userId, {
           productId: id,
           priceType: 'SELLING' as priceTypeEnum,
-          baseCost: data.supplierCost,
+          baseCost: data.supplierCost ?? 0,
           otherCosts: data.otherCosts ?? 0,
           purchaseTax: Number(data.purchaseTax ?? 0),
           totalCost: resultSalePrice.calculatedCostTixed,
@@ -344,11 +357,10 @@ export class ProductsService {
           finalPrice: resultSalePrice.maxPrice,
           isActive: true,
         });
-
         if (data.profitSupply !== 0) {
           // Calculate final price based on settings
           const resultSupplyPrice = await this.calculateFinalPrice(
-            data.supplierCost,
+            data.supplierCost ?? 0,
             data.otherCosts ?? 0,
             data.profitSupply ?? 0,
             data.purchaseTax ?? 0,
@@ -358,12 +370,12 @@ export class ProductsService {
           await this.productPricesService.create(userId, {
             productId: id,
             priceType: 'OFFER' as priceTypeEnum,
-            baseCost: data.supplierCost,
+            baseCost: data.supplierCost ?? 0,
             otherCosts: data.otherCosts ?? 0,
             purchaseTax: Number(data.purchaseTax ?? 0),
             totalCost: resultSupplyPrice.calculatedCostTixed,
-            expensePercent: resultSupplyPrice.expenseRate,
-            profitPercent: data.profitSale ?? 0,
+            expensePercent: resultSalePrice.expenseRate ?? 0,
+            profitPercent: data.profitSupply ?? 0,
             salesTaxPercent: data.saleTax ?? 0,
             finalPrice: resultSupplyPrice.maxPrice,
             isActive: true,

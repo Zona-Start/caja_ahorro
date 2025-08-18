@@ -75,11 +75,16 @@ export default function ProductForm({
       ...defaultValues,
       id: defaultValues?.id ?? undefined,
       unitType: defaultValues?.unitType ?? 'UNIT',
-      purchaseTax: defaultValues?.purchaseTax ?? 12,
+      purchaseTax: defaultValues?.purchaseTax
+        ? Math.round(defaultValues.purchaseTax)
+        : 12,
       saleTax: defaultValues?.saleTax ?? 16,
-      supplierCost: defaultValues?.supplierCost ?? 0.0,
-      otherCosts: defaultValues?.otherCosts ?? 0.0,
-
+      baseCost: defaultValues?.baseCost
+        ? parseFloat(Number(defaultValues.baseCost).toFixed(2))
+        : 0.0,
+      otherCosts: defaultValues?.otherCosts
+        ? parseFloat(Number(defaultValues.otherCosts).toFixed(2))
+        : 0.0,
       stockMin: defaultValues?.stockMin ?? 0,
       stockMax: defaultValues?.stockMax ?? 0,
       reorderPoint: defaultValues?.reorderPoint ?? 0,
@@ -89,8 +94,8 @@ export default function ProductForm({
     },
     mode: 'onChange',
   });
-
-  console.log(form.formState.errors);
+  /* 
+  console.log(form.formState.errors); */
 
   const onSubmit = async (data: Product) => {
     saveProduct(data, {
@@ -108,11 +113,12 @@ export default function ProductForm({
   };
 
   // Calcular costo calculado automáticamente
-  const supplierCost = form.watch('supplierCost');
+  const baseCost = form.watch('baseCost');
   const otherCosts = form.watch('otherCosts');
   const purchaseTax = form.watch('purchaseTax');
-  const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
-  const calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100); // Ejemplo de cálculo
+  const calculatedCost = Number(baseCost) + Number(otherCosts); // Ejemplo de cálculo
+  const calculatedCostTixed =
+    calculatedCost * (1 + (Number(purchaseTax) ?? 0) / 100); // Ejemplo de cálculo
 
   //calcular precio de venta
   const utilSale = form.watch('profitSale'); //utilidad en porcentaje
@@ -349,7 +355,7 @@ export default function ProductForm({
                               {...field}
                               onChange={(e) =>
                                 field.onChange(
-                                  Number.parseFloat(e.target.value) || 0,
+                                  Number.parseInt(e.target.value, 10) || 0,
                                 )
                               }
                               className="rounded-r-none"
@@ -400,7 +406,7 @@ export default function ProductForm({
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <FormField
                     control={form.control}
-                    name="supplierCost"
+                    name="baseCost"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs">
@@ -411,11 +417,18 @@ export default function ProductForm({
                             type="number"
                             step="0.01"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(
-                                Number.parseFloat(e.target.value) || 0,
-                              )
-                            }
+                            value={field.value ?? ''}
+                            onBlur={(e) => {
+                              const value = parseFloat(String(field.value));
+                              if (!isNaN(value)) {
+                                form.setValue(
+                                  field.name,
+                                  parseFloat(value.toFixed(2)),
+                                );
+                              }
+                              field.onBlur();
+                            }}
+                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />
@@ -434,11 +447,18 @@ export default function ProductForm({
                             type="number"
                             step="0.01"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(
-                                Number.parseFloat(e.target.value) || 0,
-                              )
-                            }
+                            value={field.value ?? ''}
+                            onBlur={(e) => {
+                              const value = parseFloat(String(field.value));
+                              if (!isNaN(value)) {
+                                form.setValue(
+                                  field.name,
+                                  parseFloat(value.toFixed(2)),
+                                );
+                              }
+                              field.onBlur();
+                            }}
+                            onChange={(e) => field.onChange(e.target.value)}
                           />
                         </FormControl>
                         <FormMessage />

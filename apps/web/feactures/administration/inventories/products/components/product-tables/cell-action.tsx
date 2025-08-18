@@ -8,8 +8,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Trash } from 'lucide-react';
-import { useState } from 'react';
+
+import { Edit, Loader2, Trash } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useProductById } from '../../hooks';
 import { useDeleteProduct } from '../../hooks/use-mutation-product';
 import { Product } from '../../schemas/product.schema';
@@ -25,8 +26,22 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [mode, setMode] = useState(false);
   const [productData, setProductData] = useState<Product | null>(null);
+  const [productIdToFetch, setProductIdToFetch] = useState<number | null>(null);
 
   const { mutate: deleteProduct } = useDeleteProduct();
+
+  const { data: fetchedProductData, isFetching: isProductFetching } =
+    useProductById(productIdToFetch);
+
+  useEffect(() => {
+    if (fetchedProductData && !isProductFetching) {
+      console.log('fetchedProductData', fetchedProductData);
+
+      setProductData(fetchedProductData as Product);
+      setShowEditModal(true);
+      setProductIdToFetch(null);
+    }
+  }, [fetchedProductData, isProductFetching]);
 
   const onConfirm = async () => {
     try {
@@ -40,15 +55,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
-  const onUpdate = async (id: number) => {
-    const { data: fetchedProductData } = useProductById(id);
+  const handleUpdateClick = (id: number) => {
     setMode(false);
-    setShowEditModal(true);
-    setProductData(
-      fetchedProductData && Object.keys(fetchedProductData).length > 0
-        ? (fetchedProductData as Product)
-        : null,
-    );
+    setProductIdToFetch(id);
+  };
+
+  const handleModalOpenChange = (isOpen: boolean) => {
+    setShowEditModal(isOpen);
+    if (!isOpen) {
+      setProductData(null);
+      setProductIdToFetch(null);
+    }
   };
 
   return (
@@ -64,8 +81,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
 
       <ProductModal
         open={showEditModal}
-        onOpenChange={setShowEditModal}
-        defaultValues={productData}
+        onOpenChange={handleModalOpenChange}
+        defaultValues={productData ?? undefined}
         readOnly={mode}
       />
 
@@ -76,9 +93,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => onUpdate(data.id!)}
+                onClick={() => handleUpdateClick(data.id!)}
+                disabled={isProductFetching}
               >
-                <Edit className="h-4 w-4" />
+                {isProductFetching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Edit className="h-4 w-4" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -94,6 +116,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => setOpen(true)}
+                disabled={isProductFetching}
               >
                 <Trash className="h-4 w-4" />
               </Button>

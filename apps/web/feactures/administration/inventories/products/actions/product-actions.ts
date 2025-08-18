@@ -89,11 +89,29 @@ export async function getProducts(params: {
 export async function createProduct(payload: any): Promise<any> {
   const { id, ...payloadWithoutId } = payload;
 
+  const productData = {
+    categoryId: payloadWithoutId.categoryId,
+    name: payloadWithoutId.name,
+    description: payloadWithoutId.description,
+    brand: payloadWithoutId.brand,
+    model: payloadWithoutId.model,
+    stockMin: payloadWithoutId.stockMin,
+    stockMax: payloadWithoutId.stockMax,
+    reorderPoint: payloadWithoutId.reorderPoint,
+    supplierCost: payloadWithoutId.baseCost,
+    otherCosts: payloadWithoutId.otherCosts,
+    profitSale: payloadWithoutId.profitSale,
+    profitSupply: payloadWithoutId.profitSupply,
+    unitType: payloadWithoutId.unitType,
+    purchaseTax: payloadWithoutId.purchaseTax,
+    saleTax: payloadWithoutId.saleTax,
+  };
+
   const [error, data] = await safeFetchApi(
     productMutationResponseSchema,
     '/administration/inventory/products',
     'POST',
-    payloadWithoutId,
+    productData,
   );
   if (error) {
     console.error('Error:', error);
@@ -106,11 +124,30 @@ export async function createProduct(payload: any): Promise<any> {
 export async function updateProduct(payload: any): Promise<any> {
   const { id, sku, ...payloadWithoutId } = payload;
 
+  const productData = {
+    categoryId: payloadWithoutId.categoryId,
+    name: payloadWithoutId.name,
+    description: payloadWithoutId.description,
+    brand: payloadWithoutId.brand,
+    model: payloadWithoutId.model,
+    stockMin: payloadWithoutId.stockMin,
+    stockMax: payloadWithoutId.stockMax,
+    reorderPoint: payloadWithoutId.reorderPoint,
+    status: payloadWithoutId.status,
+    supplierCost: payloadWithoutId.baseCost,
+    otherCosts: payloadWithoutId.otherCosts,
+    profitSale: payloadWithoutId.profitSale,
+    profitSupply: payloadWithoutId.profitSupply,
+    unitType: payloadWithoutId.unitType,
+    purchaseTax: payloadWithoutId.purchaseTax,
+    saleTax: payloadWithoutId.saleTax,
+  };
+
   const [error, data] = await safeFetchApi(
     productMutationResponseSchema,
     `/administration/inventory/products/${id}`,
     'PATCH',
-    payloadWithoutId,
+    productData,
   );
 
   if (error) {

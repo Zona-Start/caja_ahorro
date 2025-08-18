@@ -74,13 +74,13 @@ export const getProductsResponseApiSchema = z.object({
   stockMax: z.number(),
   reorderPoint: z.number(),
   status: z.string(),
-  baseCost: z.number(),
-  otherCosts: z.number(),
-  purchaseTax: z.number(),
-  totalCost: z.number(),
-  expensePercent: z.number(),
-  profitPercent: z.number(),
-  salesTaxPercent: z.number(),
+  baseCost: z.string().nullable(),
+  otherCosts: z.string().nullable(),
+  purchaseTax: z.string().nullable(),
+  totalCost: z.string().nullable(),
+  expensePercent: z.string().nullable(),
+  profitPercent: z.string().nullable(),
+  salesTaxPercent: z.string().nullable(),
 });
 
 export const getOneProductResponseApiSchem = z.object({
