@@ -8,7 +8,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
@@ -147,7 +147,7 @@ export class ProductsService {
           purchaseTax: Number(data.purchaseTax ?? 0),
           totalCost: resultSupplyPrice.calculatedCostTixed,
           expensePercent: resultSupplyPrice.expenseRate,
-          profitPercent: data.profitSale ?? 0,
+          profitPercent: data.profitSupply ?? 0,
           salesTaxPercent: data.saleTax ?? 0,
           finalPrice: resultSupplyPrice.maxPrice,
           isActive: true,
@@ -288,11 +288,10 @@ export class ProductsService {
       .from(schema.productPrices)
       .where(
         and(
-          eq(products.id, schema.productPrices.productId),
+          eq(schema.productPrices.productId, id),
           eq(schema.productPrices.isActive, true),
         ),
       );
-
     return {
       dataProduct: dataProduct[0],
       dataProductPrices: dataProductPrices ?? null,
@@ -300,83 +299,127 @@ export class ProductsService {
   }
 
   async update(userId: number, id: number, data: UpdateProductDto) {
-    const existProducto = await this.drizzle
-      .select({
-        id: products.id,
-        baseCost: schema.productPrices.baseCost,
-        otherCosts: schema.productPrices.otherCosts,
-        purchaseTax: schema.productPrices.purchaseTax,
-      })
+    const product = await this.drizzle
+      .select()
       .from(products)
-      .leftJoin(
-        schema.productPrices,
-        eq(schema.productPrices.productId, products.id),
-      )
-      .where(eq(products.id, id));
+      .where(eq(schema.products.id, id));
 
-    if (existProducto.length === 0) {
-      throw new NotFoundException('Sales product not found');
+    if (product.length === 0) {
+      throw new NotFoundException('Product not found');
     }
 
-    if (
-      (typeof data.supplierCost === 'number' &&
-        Number(existProducto[0].baseCost ?? 0) !== data.supplierCost) ||
-      (typeof data.otherCosts === 'number' &&
-        Number(existProducto[0].otherCosts ?? 0) !== data.otherCosts) ||
-      (typeof data.purchaseTax === 'number' &&
-        Number(existProducto[0].purchaseTax ?? 0) !== data.purchaseTax)
-    ) {
-      const lastPrice =
-        await this.productPricesService.findLastActivePriceByProductId(id);
-      if (lastPrice.length !== 0) {
-        lastPrice.forEach(async (price) => {
-          await this.productPricesService.deactivatePrice(price.id);
-        });
-      }
+    const activePrices =
+      await this.productPricesService.findLastActivePriceByProductId(id);
 
-      if (data.supplierCost !== 0) {
-        // Calculate final price based on settings
+    if (data.supplierCost === 0) {
+      if (activePrices.length > 0) {
+        const priceIds = activePrices.map((p) => p.id);
+        await this.drizzle
+          .update(schema.productPrices)
+          .set({ isActive: false, updatedById: userId, updatedAt: new Date() })
+          .where(inArray(schema.productPrices.id, priceIds));
+      }
+    } else {
+      const sellingPrice = activePrices.find((p) => p.priceType === 'SELLING');
+      const offerPrice = activePrices.find((p) => p.priceType === 'OFFER');
+      const basePriceInfo = sellingPrice || offerPrice;
+
+      const supplierCostChanged =
+        data.supplierCost !== undefined &&
+        data.supplierCost !== Number(basePriceInfo?.baseCost ?? 0);
+      const otherCostsChanged =
+        data.otherCosts !== undefined &&
+        data.otherCosts !== Number(basePriceInfo?.otherCosts ?? 0);
+      const purchaseTaxChanged =
+        data.purchaseTax !== undefined &&
+        data.purchaseTax !== Number(basePriceInfo?.purchaseTax ?? 0);
+      const saleTaxChanged =
+        data.saleTax !== undefined &&
+        data.saleTax !== Number(basePriceInfo?.salesTaxPercent ?? 0);
+      const profitSaleChanged =
+        data.profitSale !== undefined &&
+        data.profitSale !== Number(sellingPrice?.profitPercent ?? 0);
+
+      const currentOfferProfit = offerPrice
+        ? Number(offerPrice.profitPercent)
+        : 0;
+      const newOfferProfit = data.profitSupply ?? 0;
+      const profitSupplyChanged = newOfferProfit !== currentOfferProfit;
+
+      const needsPriceUpdate =
+        supplierCostChanged ||
+        otherCostsChanged ||
+        purchaseTaxChanged ||
+        saleTaxChanged ||
+        profitSaleChanged ||
+        profitSupplyChanged;
+
+      if (needsPriceUpdate) {
+        if (activePrices.length > 0) {
+          const priceIds = activePrices.map((p) => p.id);
+          await this.drizzle
+            .update(schema.productPrices)
+            .set({
+              isActive: false,
+              updatedById: userId,
+              updatedAt: new Date(),
+            })
+            .where(inArray(schema.productPrices.id, priceIds));
+        }
+
+        const newBaseCost =
+          data.supplierCost ?? Number(basePriceInfo?.baseCost ?? 0);
+        const newOtherCosts =
+          data.otherCosts ?? Number(basePriceInfo?.otherCosts ?? 0);
+        const newPurchaseTax =
+          data.purchaseTax ?? Number(basePriceInfo?.purchaseTax ?? 0);
+        const newSaleTax =
+          data.saleTax ?? Number(basePriceInfo?.salesTaxPercent ?? 0);
+        const newProfitSale =
+          data.profitSale ?? Number(sellingPrice?.profitPercent ?? 0);
+        const newProfitSupply = data.profitSupply ?? 0;
+
         const resultSalePrice = await this.calculateFinalPrice(
-          data.supplierCost ?? 0,
-          data.otherCosts ?? 0,
-          data.profitSale ?? 0,
-          data.purchaseTax ?? 0,
-          data.saleTax ?? 0,
+          newBaseCost,
+          newOtherCosts,
+          newProfitSale,
+          newPurchaseTax,
+          newSaleTax,
         );
 
         await this.productPricesService.create(userId, {
           productId: id,
-          priceType: 'SELLING' as priceTypeEnum,
-          baseCost: data.supplierCost ?? 0,
-          otherCosts: data.otherCosts ?? 0,
-          purchaseTax: Number(data.purchaseTax ?? 0),
+          priceType: 'SELLING',
+          baseCost: newBaseCost,
+          otherCosts: newOtherCosts,
+          purchaseTax: newPurchaseTax,
           totalCost: resultSalePrice.calculatedCostTixed,
           expensePercent: resultSalePrice.expenseRate,
-          profitPercent: data.profitSale ?? 0,
-          salesTaxPercent: data.saleTax ?? 0,
+          profitPercent: newProfitSale,
+          salesTaxPercent: newSaleTax,
           finalPrice: resultSalePrice.maxPrice,
           isActive: true,
         });
-        if (data.profitSupply !== 0) {
-          // Calculate final price based on settings
+
+        if (newProfitSupply > 0) {
           const resultSupplyPrice = await this.calculateFinalPrice(
-            data.supplierCost ?? 0,
-            data.otherCosts ?? 0,
-            data.profitSupply ?? 0,
-            data.purchaseTax ?? 0,
-            data.saleTax ?? 0,
+            newBaseCost,
+            newOtherCosts,
+            newProfitSupply,
+            newPurchaseTax,
+            newSaleTax,
           );
 
           await this.productPricesService.create(userId, {
             productId: id,
-            priceType: 'OFFER' as priceTypeEnum,
-            baseCost: data.supplierCost ?? 0,
-            otherCosts: data.otherCosts ?? 0,
-            purchaseTax: Number(data.purchaseTax ?? 0),
+            priceType: 'OFFER',
+            baseCost: newBaseCost,
+            otherCosts: newOtherCosts,
+            purchaseTax: newPurchaseTax,
             totalCost: resultSupplyPrice.calculatedCostTixed,
-            expensePercent: resultSalePrice.expenseRate ?? 0,
-            profitPercent: data.profitSupply ?? 0,
-            salesTaxPercent: data.saleTax ?? 0,
+            expensePercent: resultSupplyPrice.expenseRate,
+            profitPercent: newProfitSupply,
+            salesTaxPercent: newSaleTax,
             finalPrice: resultSupplyPrice.maxPrice,
             isActive: true,
           });
@@ -396,9 +439,9 @@ export class ProductsService {
         stockMax: data.stockMax,
         reorderPoint: data.reorderPoint,
         unitOfMeasure: data.unitType as unitOfMeasureEnum,
-        createdById: userId,
         updatedById: userId,
         status: data.status as (typeof products.$inferInsert)['status'],
+        updatedAt: new Date(),
       })
       .where(eq(products.id, id))
       .returning({

@@ -41,11 +41,16 @@ export default function ProductModal({
       <DialogContent className="sm:max-w-[800px] z-50 backdrop-blur-lg ">
         <DialogHeader>
           <DialogTitle>
-            {defaultValues ? 'Editar producto' : 'Nuevo producto'}
+            {readOnly
+              ? 'Información del producto'
+              : defaultValues
+                ? 'Editar producto'
+                : 'Nuevo producto'}
           </DialogTitle>
           <DialogDescription>
-            Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} el producto
+            {readOnly
+              ? 'Detalles del producto'
+              : ` Complete los campos para  ${defaultValues?.id ? 'actualizar el' : 'crear un nuevo'} producto.`}
           </DialogDescription>
         </DialogHeader>
         <ProductForm

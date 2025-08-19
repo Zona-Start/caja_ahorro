@@ -162,28 +162,33 @@ export const savingBankItems: NavItem[] = [
     ], // No child items
   },
   {
-    title: 'Gestión Proveedores',
-    url: '/dashboard/administracion/proveedores',
-    icon: 'container',
-    colorIcons: 'indigo',
+    title: 'Administrativa',
+    url: '#',
+    icon: 'receiptText',
+    shortcut: ['s', 's'],
     isActive: false,
-    items: [],
-  },
-  {
-    title: 'Cuentas por pagar',
-    url: '/dashboard/cuentas_x_pagar',
-    icon: 'usersRound',
-    colorIcons: 'red',
-    isActive: false,
-    items: [],
-  },
-  {
-    title: 'Compras',
-    url: '/dashboard/cuentas_x_pagar/compras',
-    icon: 'tableProperties',
-    colorIcons: 'blue',
-    isActive: true,
-    items: [],
+    items: [
+      {
+        title: 'Proveedores',
+        shortcut: ['l', 'l'],
+        url: '#',
+      },
+      {
+        title: 'Ordenes de Compra',
+        shortcut: ['l', 'l'],
+        url: '#',
+      },
+      {
+        title: 'Recepción de Facturas',
+        shortcut: ['l', 'l'],
+        url: '#',
+      },
+      {
+        title: 'Cuentas por Pagar',
+        shortcut: ['l', 'l'],
+        url: '#',
+      },
+    ], // No child items
   },
 ];
 

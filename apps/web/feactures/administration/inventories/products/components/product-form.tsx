@@ -185,6 +185,7 @@ export default function ProductForm({
                             <SelectItem
                               key={item.id}
                               value={item.id!.toString()}
+                              disabled={readOnly}
                               className={readOnly ? 'bg-muted' : ''}
                             >
                               {item.name}
@@ -322,6 +323,7 @@ export default function ProductForm({
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
+                          disabled={readOnly}
                         >
                           <FormControl>
                             <SelectTrigger className="w-full">
@@ -358,7 +360,12 @@ export default function ProductForm({
                                   Number.parseInt(e.target.value, 10) || 0,
                                 )
                               }
-                              className="rounded-r-none"
+                              disabled={readOnly}
+                              className={
+                                readOnly
+                                  ? 'bg-muted rounded-r-none'
+                                  : 'rounded-r-none'
+                              }
                             />
                             <div className="bg-muted px-3 py-2 border border-l-0 rounded-r-md text-sm">
                               %
@@ -386,7 +393,12 @@ export default function ProductForm({
                                   Number.parseFloat(e.target.value) || 0,
                                 )
                               }
-                              className="rounded-r-none"
+                              disabled={readOnly}
+                              className={
+                                readOnly
+                                  ? 'bg-muted rounded-r-none'
+                                  : 'rounded-r-none'
+                              }
                             />
                             <div className="bg-muted px-3 py-2 border border-l-0 rounded-r-md text-sm">
                               %
@@ -429,6 +441,8 @@ export default function ProductForm({
                               field.onBlur();
                             }}
                             onChange={(e) => field.onChange(e.target.value)}
+                            disabled={readOnly}
+                            className={readOnly ? 'bg-muted ' : ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -459,6 +473,8 @@ export default function ProductForm({
                               field.onBlur();
                             }}
                             onChange={(e) => field.onChange(e.target.value)}
+                            disabled={readOnly}
+                            className={readOnly ? 'bg-muted ' : ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -513,6 +529,8 @@ export default function ProductForm({
                                     Number.parseFloat(e.target.value) || 0,
                                   )
                                 }
+                                disabled={readOnly}
+                                className={readOnly ? 'bg-muted ' : ''}
                               />
                             </div>
                           </FormControl>
@@ -566,6 +584,8 @@ export default function ProductForm({
                                     Number.parseFloat(e.target.value) || 0,
                                   )
                                 }
+                                disabled={readOnly}
+                                className={readOnly ? 'bg-muted ' : ''}
                               />
                             </div>
                           </FormControl>
@@ -773,9 +793,15 @@ export default function ProductForm({
               <Button variant="outline" type="button" onClick={onCancel}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Guardando...' : 'Guardar'}
-              </Button>
+              {!readOnly && (
+                <Button type="submit" disabled={isSaving}>
+                  {isSaving
+                    ? 'Guardando...'
+                    : defaultValues?.id
+                      ? 'Actualizar'
+                      : 'Guardar'}
+                </Button>
+              )}
             </div>
           </div>
         </form>

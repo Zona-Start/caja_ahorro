@@ -61,7 +61,7 @@ export const productMutationResponseSchema = z.object({
   data: productMutationResponseObjetSchema,
 });
 
-export const getProductsResponseApiSchema = z.object({
+export const getProductsResponseSchema = z.object({
   id: z.number().optional(),
   categoryId: z.number(),
   categoryName: z.string(),
@@ -74,6 +74,12 @@ export const getProductsResponseApiSchema = z.object({
   stockMax: z.number(),
   reorderPoint: z.number(),
   status: z.string(),
+  unitType: z.string().optional().nullable(),
+});
+
+export const getProductPriceSchema = z.object({
+  productPriceId: z.number().nullable(),
+  priceType: z.string().nullable(),
   baseCost: z.string().nullable(),
   otherCosts: z.string().nullable(),
   purchaseTax: z.string().nullable(),
@@ -83,7 +89,17 @@ export const getProductsResponseApiSchema = z.object({
   salesTaxPercent: z.string().nullable(),
 });
 
-export const getOneProductResponseApiSchem = z.object({
+export type GetProductPrice = z.infer<typeof getProductPriceSchema>;
+
+export const getProductPriceResponseArraySchema = z.array(
+  getProductPriceSchema,
+);
+
+export const getProductApiSchema = z.object({
+  dataProduct: getProductsResponseSchema,
+  dataProductPrices: getProductPriceResponseArraySchema,
+});
+export const getOneProductResponseApiSchema = z.object({
   message: z.string().optional(),
-  data: getProductsResponseApiSchema,
+  data: getProductApiSchema,
 });

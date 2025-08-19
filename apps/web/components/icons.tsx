@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircuitBoardIcon,
   Command,
+  Container,
   CreditCard,
   DatabaseBackup,
   File,
@@ -49,7 +50,6 @@ import {
   UserX2Icon,
   Wallet,
   X,
-  Container
 } from 'lucide-react';
 
 export type Icon = LucideIcon;

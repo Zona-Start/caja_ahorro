@@ -1,9 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import {
-  deleteProduct,
-  saveProductAction,
-} from '../actions/product-actions';
+import { deleteProduct, saveProductAction } from '../actions/product-actions';
 import { Product } from '../schemas/product.schema';
 
 export function useProductMutation() {
@@ -14,6 +11,7 @@ export function useProductMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['products-all'] });
+      queryClient.invalidateQueries({ queryKey: ['product'] });
       toast.success('Producto guardado exitosamente');
     },
     onError: (error) => {
@@ -32,6 +30,7 @@ export function useDeleteProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['products-all'] });
+      queryClient.invalidateQueries({ queryKey: ['product'] });
       toast.success('Producto eliminado exitosamente');
     },
     onError: (error) => {

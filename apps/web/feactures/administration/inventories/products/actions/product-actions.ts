@@ -1,7 +1,7 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
-  getOneProductResponseApiSchem,
+  getOneProductResponseApiSchema,
   productAllResponseSchema,
   productMutationDeleteResponseSchema,
   productMutationResponseSchema,
@@ -26,7 +26,7 @@ export async function getProductAll() {
 
 export async function getProductById(id: number) {
   const [error, response] = await safeFetchApi(
-    getOneProductResponseApiSchem,
+    getOneProductResponseApiSchema,
     `/administration/inventory/products/${id}`,
     'GET',
   );

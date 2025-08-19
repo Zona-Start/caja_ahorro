@@ -9,11 +9,12 @@ import {
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
 
-import { Edit, Loader2, Trash } from 'lucide-react';
+import { Edit, Eye, Loader2, Trash } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useProductById } from '../../hooks';
 import { useDeleteProduct } from '../../hooks/use-mutation-product';
 import { Product } from '../../schemas/product.schema';
+import { mapProductApiToForm } from '../../utils/product-mapper';
 import ProductModal from '../product-modal';
 
 interface CellActionProps {
@@ -25,7 +26,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [mode, setMode] = useState(false);
-  const [productData, setProductData] = useState<Product | null>(null);
+  const [productData, setProductData] = useState<Partial<Product> | null>(null);
   const [productIdToFetch, setProductIdToFetch] = useState<number | null>(null);
 
   const { mutate: deleteProduct } = useDeleteProduct();
@@ -35,9 +36,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
 
   useEffect(() => {
     if (fetchedProductData && !isProductFetching) {
-      console.log('fetchedProductData', fetchedProductData);
-
-      setProductData(fetchedProductData as Product);
+      const mappedData = mapProductApiToForm(fetchedProductData);
+      setProductData(mappedData);
       setShowEditModal(true);
       setProductIdToFetch(null);
     }
@@ -55,8 +55,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
-  const handleUpdateClick = (id: number) => {
-    setMode(false);
+  const handleUpdateClick = (id: number, mode: boolean = false) => {
+    setMode(mode);
     setProductIdToFetch(id);
   };
 
@@ -87,6 +87,27 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       />
 
       <div className="flex gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleUpdateClick(data.id!, true)}
+                disabled={isProductFetching}
+              >
+                {isProductFetching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ver</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
