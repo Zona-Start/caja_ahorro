@@ -1,0 +1,1 @@
+ALTER TABLE "accounts_payable"."purchase_order_items" ALTER COLUMN "description" DROP NOT NULL;

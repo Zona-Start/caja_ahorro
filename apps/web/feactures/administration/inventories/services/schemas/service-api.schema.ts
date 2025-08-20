@@ -36,7 +36,8 @@ export const serviceAllResponseSchema = z.object({
     .optional(),
 });
 
-export const serviceResponseSchema = z.object({
+export const getServiceResponseSchema = z.object({
   id: z.number().optional(),
   name: z.string(),
 });
+export const serviceResponseSchema = z.array(getServiceResponseSchema);

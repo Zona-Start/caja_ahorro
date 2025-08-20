@@ -1,14 +1,1 @@
-import { InventoryMovement } from '../schemas/inventory-movement.schema';
-
-export function mapInventoryMovementApiToForm(data: any): InventoryMovement {
-  return {
-    id: data.id,
-    productId: data.productId,
-    movementType: data.movementType,
-    quantity: data.quantity,
-    unitCost: data.unitCost,
-    documentType: data.documentType,
-    documentNumber: data.documentNumber,
-    notes: data.notes,
-  };
-}
+// This file is now empty as the mapper is no longer needed in the new flow.

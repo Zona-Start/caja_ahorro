@@ -27,7 +27,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showViewModal, setShowViewModal] = useState(false);
   const { mutate: deletePurchaseOrder } = useDeletePurchaseOrder();
 
-  const onConfirm = async () => {
+  const onConfirmDelete = async () => {
     try {
       setLoading(true);
       deletePurchaseOrder(data.id!);
@@ -39,24 +39,30 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
+  const showNotAllowedToast = (description: string) => {
+    toast({
+      variant: 'destructive',
+      title: 'Acción no permitida',
+      description: description,
+    });
+  };
+
   const handleEdit = () => {
-    if (data.status === 'PENDING' || data.status === 'DRAFT') {
+    if (data.status === 'PENDING') {
       setShowEditModal(true);
     } else {
-      toast({
-        variant: 'destructive',
-        title: 'No se puede editar',
-        description: `Solo se puede editar si su estatus es pendiente`,
-      });
+      const message = 'No se puede modificar la orden por su estatus actual.';
+      showNotAllowedToast(message);
     }
   };
 
-  const onDeleteMessage = async () => {
-    toast({
-      variant: 'destructive',
-      title: 'No se puede anular la orden',
-      description: `Solo se puede anular si su estatus es pendiente`,
-    });
+  const handleDelete = () => {
+    if (data.status === 'PENDING') {
+      setOpen(true);
+    } else {
+      const message = 'No se puede eliminar la orden por su estatus actual.';
+      showNotAllowedToast(message);
+    }
   };
 
   return (
@@ -64,7 +70,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <AlertModal
         isOpen={open}
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
+        onConfirm={onConfirmDelete}
         loading={loading}
         title="¿Estás seguro que desea anular esta orden?"
         description="Esta acción no se puede deshacer."
@@ -73,19 +79,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <PurchaseOrderModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
-        defaultValues={{
-          ...data,
-        }}
+        defaultValues={data}
       />
 
       <PurchaseOrderModal
         open={showViewModal}
-        onOpenChange={(open) => {
-          setShowViewModal(open);
-        }}
-        defaultValues={{
-          ...data,
-        }}
+        onOpenChange={setShowViewModal}
+        defaultValues={data}
         readOnly={true}
       />
 
@@ -124,17 +124,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  if (data.status === 'PENDING' || data.status === 'DRAFT') {
-                    setOpen(true);
-                  } else {
-                    onDeleteMessage();
-                  }
-                }}
-              >
+              <Button variant="outline" size="icon" onClick={handleDelete}>
                 <Trash className="h-4 w-4" />
               </Button>
             </TooltipTrigger>

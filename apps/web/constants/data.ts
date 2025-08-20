@@ -159,6 +159,11 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/inventarios/bienes',
       },
+      {
+        title: 'Movimientos de Inventario',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/inventarios/movimientos',
+      },
     ], // No child items
   },
   {
@@ -171,12 +176,12 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Proveedores',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/administracion/proveedores',
       },
       {
         title: 'Ordenes de Compra',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/administracion/ordenes-compra',
       },
       {
         title: 'Recepción de Facturas',

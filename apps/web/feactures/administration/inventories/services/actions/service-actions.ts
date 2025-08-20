@@ -3,24 +3,25 @@ import { safeFetchApi } from '@/lib/fetch.api';
 import {
   serviceAllResponseSchema,
   serviceMutationResponseSchema,
+  serviceResponseSchema,
 } from '../schemas/service-api.schema';
 import { Service } from '../schemas/service.schema';
 import { mapServiceApiToForm } from '../utils';
 
-// export async function getServiceAll() {
-//   const [error, response] = await safeFetchApi(
-//     serviceResponseSchema,
-//     '/administration/inventory/services/all',
-//     'GET',
-//   );
+export async function getServiceAll() {
+  const [error, response] = await safeFetchApi(
+    serviceResponseSchema,
+    '/administration/inventory/services/all',
+    'GET',
+  );
 
-//   if (error) {
-//     console.error('Error:', error);
-//     throw new Error(error.message || 'Ocurrió un error desconocido');
-//   }
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Ocurrió un error desconocido');
+  }
 
-//   return response?.data || [];
-// }
+  return response || [];
+}
 
 export async function getServices(params: {
   page?: number;

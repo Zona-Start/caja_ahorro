@@ -329,6 +329,8 @@ export const statusSuppliers = pgEnum('status-suppliers', [
 export const purchaseOrderTypeEnum = pgEnum('purchase_order_type_enum', [
   'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
   'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
+  'SERVICE', // Servicio (se relaciona con serviceProviders)
+  'MANUAL',
   'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
 ]);
 

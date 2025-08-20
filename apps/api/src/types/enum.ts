@@ -329,6 +329,8 @@ export enum statusSuppliers {
 export enum purchaseOrderTypeEnum {
   SALES_INVENTORY = 'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
   FIXED_ASSET = 'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
+  SERVICE = 'SERVICE', // Servicio (se relaciona con serviceProviders)
+  MANUAL = 'MANUAL', // Manual, no se relaciona con ningún otro módulo
   EXPENSE = 'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
 }
 

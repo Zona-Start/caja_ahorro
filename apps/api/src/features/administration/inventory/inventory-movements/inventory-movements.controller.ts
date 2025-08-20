@@ -14,7 +14,6 @@ import {
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateInventoryMovementDto } from './dto/create-inventory-movement.dto';
 import { FilterInventoryMovementDto } from './dto/filter-inventory-movement.dto';
-import { UpdateInventoryMovementDto } from './dto/update-inventory-movement.dto';
 import { InventoryMovementsService } from './inventory-movements.service';
 
 @ApiTags('inventory/inventory-movements')
@@ -51,6 +50,19 @@ export class InventoryMovementsController {
     };
   }
 
+  @Get('/stock/:itemType/:itemId')
+  @Roles('admin')
+  @RequirePermissions('read:inventory-movements')
+  @ApiOperation({ summary: 'Get stock for an item' })
+  @ApiResponse({ status: 200, description: 'Return item stock.' })
+  async getItemStock(
+    @Param('itemType') itemType: 'PRODUCT' | 'FIXED_ASSET',
+    @Param('itemId') itemId: string,
+  ) {
+    const data = await this.services.getItemStock(+itemId, itemType);
+    return { message: 'Item stock fetched successfully', data };
+  }
+
   @Get(':id')
   @Roles('admin')
   @RequirePermissions('read:inventory-movement')
@@ -60,25 +72,6 @@ export class InventoryMovementsController {
   async findOne(@Param('id') id: string) {
     const data = await this.services.findOne(+id);
     return { message: 'Inventory movement fetched successfully', data };
-  }
-
-  @Patch(':id')
-  @Roles('admin')
-  @RequirePermissions('update:inventory-movement')
-  @ApiOperation({ summary: 'Update an inventory movement' })
-  @ApiResponse({
-    status: 200,
-    description: 'Inventory movement updated successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Inventory movement not found.' })
-  async update(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateInventoryMovementDto,
-  ) {
-    const userId = req['user'].id;
-    const data = await this.services.update(userId, +id, dto);
-    return { message: 'Inventory movement updated successfully', data };
   }
 
   @Delete(':id')

@@ -3,14 +3,12 @@ import { z } from 'zod';
 export const purchaseOrderItemApiSchema = z.object({
   id: z.number().optional(),
   lineType: z.string(),
+  description: z.string().optional().nullable(),
+  itemId: z.number().optional().nullable(),
   itemName: z.string(),
-  description: z.string(),
-  quantity: z.number(),
-  unitCost: z.number(),
-  totalCost: z.number(),
-  productId: z.number().optional().nullable(),
-  fixedAssetId: z.number().optional().nullable(),
-  expenseAccountId: z.number().optional().nullable(),
+  quantity: z.coerce.number(),
+  unitCost: z.coerce.number(),
+  totalCost: z.coerce.number(),
 });
 
 export const purchaseOrderApiSchema = z.object({
@@ -22,10 +20,9 @@ export const purchaseOrderApiSchema = z.object({
   status: z.string().optional(),
   orderDate: z.string(),
   expectedDeliveryDate: z.string().nullable().optional(),
-  subtotal: z.number(),
-  taxAmount: z.number().optional().nullable(),
-  totalAmount: z.number(),
-  currencyCode: z.string(),
+  subtotal: z.coerce.number(),
+  taxAmount: z.coerce.number().optional().nullable(),
+  totalAmount: z.coerce.number(),
   observations: z.string().optional().nullable(),
   items: z.array(purchaseOrderItemApiSchema).optional().nullable(),
 });

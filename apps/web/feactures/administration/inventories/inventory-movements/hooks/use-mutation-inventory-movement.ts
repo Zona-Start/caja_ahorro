@@ -4,13 +4,13 @@ import {
   deleteInventoryMovement,
   saveInventoryMovementAction,
 } from '../actions/inventory-movement-actions';
-import { InventoryMovement } from '../schemas/inventory-movement.schema';
+import { CreateInventoryMovement } from '../schemas/inventory-movement.schema'; // Changed import
 
 export function useInventoryMovementMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: InventoryMovement) => saveInventoryMovementAction(data),
+    mutationFn: (data: CreateInventoryMovement) => saveInventoryMovementAction(data), // Changed data type
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
       toast.success('Movimiento de inventario guardado exitosamente');

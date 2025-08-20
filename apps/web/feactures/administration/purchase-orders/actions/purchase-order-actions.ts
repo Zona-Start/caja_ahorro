@@ -6,6 +6,7 @@ import {
   purchaseOrderResponseOneSchema,
 } from '../schemas/purchase-order-api.schema';
 import { PurchaseOrder } from '../schemas/purchase-order.schema';
+import { mapPurchaseOrderApiToForm } from '../utils';
 
 export const getPurchaseOrdersAction = async (params: {
   page?: number;
@@ -43,8 +44,10 @@ export const getPurchaseOrdersAction = async (params: {
     throw new Error(error.message || 'Error fetching purchase orders data');
   }
 
+  const mappers = mapPurchaseOrderApiToForm(response?.data || []);
+
   return {
-    data: response?.data || [],
+    data: mappers || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,
@@ -61,25 +64,11 @@ export const getPurchaseOrdersAction = async (params: {
 export const createPurchaseOrderAction = async (payload: PurchaseOrder) => {
   const { id, ...payloadWithoutId } = payload;
 
-  const transform = {
-    ...payloadWithoutId,
-    orderDate: payloadWithoutId.orderDate.toISOString(),
-    expectedDeliveryDate: payloadWithoutId.expectedDeliveryDate?.toISOString(),
-    subtotal: payloadWithoutId.subtotal.toFixed(2),
-    taxAmount: payloadWithoutId.taxAmount?.toFixed(2),
-    totalAmount: payloadWithoutId.totalAmount.toFixed(2),
-    items: payloadWithoutId.items.map(item => ({
-      ...item,
-      unitCost: item.unitCost.toFixed(6),
-      totalCost: item.totalCost.toFixed(2),
-    })),
-  };
-
   const [error, data] = await safeFetchApi(
     purchaseOrderMutationResponseSchema,
     '/administration/purchase-orders',
     'POST',
-    transform,
+    payloadWithoutId,
   );
 
   if (error) {
@@ -91,20 +80,14 @@ export const createPurchaseOrderAction = async (payload: PurchaseOrder) => {
 };
 
 export const updatePurchaseOrderAction = async (payload: PurchaseOrder) => {
-  const { id, ...payloadWithoutId } = payload;
+  const { id, subtotal, totalAmount, ...payloadWithoutId } = payload;
 
   const transform = {
     ...payloadWithoutId,
-    orderDate: payloadWithoutId.orderDate.toISOString(),
-    expectedDeliveryDate: payloadWithoutId.expectedDeliveryDate?.toISOString(),
-    subtotal: payloadWithoutId.subtotal.toFixed(2),
-    taxAmount: payloadWithoutId.taxAmount?.toFixed(2),
-    totalAmount: payloadWithoutId.totalAmount.toFixed(2),
-    items: payloadWithoutId.items.map(item => ({
-      ...item,
-      unitCost: item.unitCost.toFixed(6),
-      totalCost: item.totalCost.toFixed(2),
-    })),
+    items: payloadWithoutId.items.map((item) => {
+      const { totalCost, ...itemWithoutTotal } = item;
+      return itemWithoutTotal;
+    }),
   };
 
   const [error, data] = await safeFetchApi(

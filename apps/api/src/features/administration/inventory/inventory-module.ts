@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { FixedAssetsModule } from './fixed-assets/fixed-assets.module';
 import { InventoriesCategoriessModule } from './inventories-categories/inventories-categories.module';
+import { InventoryMovementsModule } from './inventory-movements/inventory-movements.module';
 import { ProductsModule } from './products/products.module';
 import { ServicesModule } from './services/services.module';
 
@@ -10,6 +11,7 @@ import { ServicesModule } from './services/services.module';
     ProductsModule,
     ServicesModule,
     FixedAssetsModule,
+    InventoryMovementsModule,
   ],
 })
 export class InventoryFeatureModule {}

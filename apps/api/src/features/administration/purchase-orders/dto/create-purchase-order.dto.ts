@@ -17,6 +17,11 @@ import {
 } from 'class-validator';
 
 class PurchaseOrderItemDto {
+  @ApiProperty({ description: 'Item ID' })
+  @IsInt()
+  @IsOptional()
+  id: number;
+
   @ApiProperty({ description: 'Line type' })
   @IsEnum(purchaseOrderTypeEnum.enumValues)
   @IsNotEmpty()
@@ -25,17 +30,7 @@ class PurchaseOrderItemDto {
   @ApiPropertyOptional({ description: 'Product ID' })
   @IsInt()
   @IsOptional()
-  productId?: number;
-
-  @ApiPropertyOptional({ description: 'Fixed Asset ID' })
-  @IsInt()
-  @IsOptional()
-  fixedAssetId?: number;
-
-  @ApiPropertyOptional({ description: 'Expense Account ID' })
-  @IsInt()
-  @IsOptional()
-  expenseAccountId?: number;
+  itemId?: number;
 
   @ApiProperty({ description: 'Item name' })
   @IsString()
@@ -44,7 +39,7 @@ class PurchaseOrderItemDto {
 
   @ApiProperty({ description: 'Description' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   description: string;
 
   @ApiProperty({ description: 'Quantity' })
@@ -58,8 +53,8 @@ class PurchaseOrderItemDto {
   unitCost: number;
 
   @ApiProperty({ description: 'Total cost' })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
+  @IsNumber({ maxDecimalPlaces: 6 })
+  @IsOptional()
   totalCost: number;
 }
 
@@ -69,17 +64,18 @@ export class CreatePurchaseOrderDto {
   @IsNotEmpty()
   supplierId: number;
 
-  @ApiProperty({ description: 'Order number' })
-  @IsString()
-  @IsNotEmpty()
-  orderNumber: string;
-
-  @ApiProperty({ description: 'Order type', enum: purchaseOrderTypeEnum.enumValues })
+  @ApiProperty({
+    description: 'Order type',
+    enum: purchaseOrderTypeEnum.enumValues,
+  })
   @IsEnum(purchaseOrderTypeEnum.enumValues)
   @IsNotEmpty()
   orderType: (typeof purchaseOrderTypeEnum.enumValues)[number];
 
-  @ApiPropertyOptional({ description: 'Status', enum: purchaseOrderStatusEnum.enumValues })
+  @ApiPropertyOptional({
+    description: 'Status',
+    enum: purchaseOrderStatusEnum.enumValues,
+  })
   @IsEnum(purchaseOrderStatusEnum.enumValues)
   @IsOptional()
   status?: (typeof purchaseOrderStatusEnum.enumValues)[number];
@@ -102,19 +98,14 @@ export class CreatePurchaseOrderDto {
   subtotal: number;
 
   @ApiPropertyOptional({ description: 'Tax amount' })
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNumber()
   @IsOptional()
   taxAmount?: number;
 
   @ApiProperty({ description: 'Total amount' })
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNumber()
   @IsNotEmpty()
   totalAmount: number;
-
-  @ApiProperty({ description: 'Currency code' })
-  @IsString()
-  @IsNotEmpty()
-  currencyCode: string;
 
   @ApiPropertyOptional({ description: 'Observations' })
   @IsString()

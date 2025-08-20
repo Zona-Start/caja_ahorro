@@ -6,3 +6,4 @@ export * from './inventory-movement-tables/cell-action';
 export * from './inventory-movement-tables/columns';
 export * from './inventory-movement-tables/table-actions';
 export * from './inventory-movement-tables/use-inventory-movement-filters';
+export * from './inventory-movement-view'; // New export

@@ -23,8 +23,13 @@ export function useInventoryMovementFilters() {
       .withDefault(''),
   );
 
-  const [productIdFilter, setProductIdFilter] = useQueryState(
-    'productId',
+  const [itemIdFilter, setItemIdFilter] = useQueryState( // Changed from productIdFilter
+    'itemId', // Changed from productId
+    searchParams.q.withOptions({ shallow: false }).withDefault(''),
+  );
+
+  const [itemTypeFilter, setItemTypeFilter] = useQueryState( // New filter
+    'itemType',
     searchParams.q.withOptions({ shallow: false }).withDefault(''),
   );
 
@@ -51,14 +56,16 @@ export function useInventoryMovementFilters() {
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
     setPage(1);
-    setProductIdFilter(null);
+    setItemIdFilter(null);
+    setItemTypeFilter(null); // Reset new filter
     setMovementTypeFilter(null);
     setDocumentTypeFilter(null);
     setDocumentNumberFilter(null);
   }, [
     setSearchQuery,
     setPage,
-    setProductIdFilter,
+    setItemIdFilter,
+    setItemTypeFilter, // Added to dependencies
     setMovementTypeFilter,
     setDocumentTypeFilter,
     setDocumentNumberFilter,
@@ -67,14 +74,16 @@ export function useInventoryMovementFilters() {
   const isAnyFilterActive = useMemo(() => {
     return (
       !!searchQuery ||
-      !!productIdFilter ||
+      !!itemIdFilter ||
+      !!itemTypeFilter || // Added to active check
       !!movementTypeFilter ||
       !!documentTypeFilter ||
       !!documentNumberFilter
     );
   }, [
     searchQuery,
-    productIdFilter,
+    itemIdFilter,
+    itemTypeFilter, // Added to dependencies
     movementTypeFilter,
     documentTypeFilter,
     documentNumberFilter,
@@ -87,8 +96,10 @@ export function useInventoryMovementFilters() {
     setPage,
     resetFilters,
     isAnyFilterActive,
-    productIdFilter,
-    setProductIdFilter,
+    itemIdFilter,
+    setItemIdFilter,
+    itemTypeFilter, // Return new filter
+    setItemTypeFilter, // Return new filter
     movementTypeFilter,
     setMovementTypeFilter,
     documentTypeFilter,

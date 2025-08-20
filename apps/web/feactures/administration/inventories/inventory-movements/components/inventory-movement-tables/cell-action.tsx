@@ -8,11 +8,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Trash } from 'lucide-react';
+import { Eye, Trash } from 'lucide-react'; // Added Eye icon
 import { useState } from 'react';
 import { useDeleteInventoryMovement } from '../../hooks/use-mutation-inventory-movement';
 import { InventoryMovement } from '../../schemas/inventory-movement.schema';
-import InventoryMovementModal from '../inventory-movement-modal';
+import InventoryMovementModal from '../inventory-movement-modal'; // Re-import InventoryMovementModal
 
 interface CellActionProps {
   data: InventoryMovement;
@@ -21,8 +21,8 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [mode, setMode] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false); // New state for view modal
+  const [selectedMovementData, setSelectedMovementData] = useState<InventoryMovement | null>(null); // State to hold data for view modal
 
   const { mutate: deleteInventoryMovement } = useDeleteInventoryMovement();
 
@@ -38,6 +38,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
+  const handleViewClick = () => {
+    setSelectedMovementData(data); // Set the data to be viewed
+    setShowViewModal(true); // Open the view modal
+  };
+
   return (
     <>
       <AlertModal
@@ -49,12 +54,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         description="Esta acción no se puede deshacer."
       />
 
-      <InventoryMovementModal
-        open={showEditModal}
-        onOpenChange={setShowEditModal}
-        defaultValues={data}
-        readOnly={mode}
-      />
+      {selectedMovementData && ( // Render modal only if data is set
+        <InventoryMovementModal
+          open={showViewModal}
+          onOpenChange={setShowViewModal}
+          defaultValues={selectedMovementData} // Pass data to modal
+          readOnly={true} // Set to read-only mode
+        />
+      )}
 
       <div className="flex gap-1">
         <TooltipProvider>
@@ -63,16 +70,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  setMode(false);
-                  setShowEditModal(true);
-                }}
+                onClick={handleViewClick} // Handle view click
               >
-                <Edit className="h-4 w-4" />
+                <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Editar</p>
+              <p>Ver</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

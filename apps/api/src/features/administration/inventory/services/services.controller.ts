@@ -42,13 +42,23 @@ export class ServicesController {
   @ApiOperation({ summary: 'Get all services' })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return all services.' })
-  async findAll(@Query() paginationDto: FilterServiceDto) {
-    const result = await this.servicesService.findAll(paginationDto);
+  async findAllPaginated(@Query() paginationDto: FilterServiceDto) {
+    const result = await this.servicesService.findAllPaginated(paginationDto);
     return {
       message: 'Services fetched successfully',
       data: result.data,
       meta: result.meta,
     };
+  }
+
+  @Get('/all')
+  @Roles('admin')
+  @RequirePermissions('read:services')
+  @ApiOperation({ summary: 'Get all services' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Return all services.' })
+  async findAll() {
+    return await this.servicesService.findAll();
   }
 
   @Get(':id')

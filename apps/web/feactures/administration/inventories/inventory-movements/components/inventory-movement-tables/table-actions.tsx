@@ -5,7 +5,8 @@ import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 
-import { useProductsAll } from '../../products/hooks/use-query-product';
+import { useFixedAssetAll } from '../../../fixed-asset/hooks/use-query-fixed-asset'; // New import
+import { useProductsAll } from '../../../products/hooks/use-query-product';
 import InventoryMovementModal from '../inventory-movement-modal';
 import {
   MOVEMENT_TYPE_OPTIONS,
@@ -17,41 +18,61 @@ export default function InventoryMovementTableActions() {
     searchQuery,
     setPage,
     setSearchQuery,
-    setProductIdFilter,
-    productIdFilter,
+    setItemIdFilter,
+    itemIdFilter,
+    setItemTypeFilter, // New
+    itemTypeFilter, // New
     setMovementTypeFilter,
     movementTypeFilter,
-    setDocumentTypeFilter,
-    documentTypeFilter,
-    setDocumentNumberFilter,
-    documentNumberFilter,
   } = useInventoryMovementFilters();
 
   const [open, setOpen] = useState(false);
 
   const { data: dataProducts } = useProductsAll();
-  const PRODUCT_OPTIONS =
-    dataProducts?.map((product) => ({
-      value: product?.id?.toString() ?? '',
-      label: product?.name ?? '',
-    })) ?? [];
+  const { data: dataFixedAssets } = useFixedAssetAll(); // New hook call
+
+  const ITEM_TYPE_FILTER_OPTIONS = [
+    // New options for itemType filter
+    { value: 'PRODUCT', label: 'Producto' },
+    { value: 'FIXED_ASSET', label: 'Activo Fijo' },
+  ];
+
+  const ITEM_OPTIONS =
+    itemTypeFilter === 'PRODUCT'
+      ? (dataProducts?.map((item) => ({
+          value: item?.id?.toString() ?? '',
+          label: item?.name ?? '',
+        })) ?? [])
+      : itemTypeFilter === 'FIXED_ASSET'
+        ? (dataFixedAssets?.map((item: any) => ({
+            value: item?.id?.toString() ?? '',
+            label: item?.name ?? '',
+          })) ?? [])
+        : [];
 
   return (
     <div className="flex items-center justify-between mt-4 ">
       <div className="flex items-center gap-4 flex-grow">
         <DataTableSearch
-          title="Buscar por notas"
+          title="Buscar por nombre item"
           searchKey={searchQuery}
           searchQuery={searchQuery || ''}
           setSearchQuery={setSearchQuery}
           setPage={setPage}
         />
         <DataTableFilterBox
-          filterKey="productId"
-          title="Producto"
-          options={PRODUCT_OPTIONS}
-          setFilterValue={setProductIdFilter}
-          filterValue={productIdFilter}
+          filterKey="itemType" // New filter box
+          title="Tipo de Item"
+          options={ITEM_TYPE_FILTER_OPTIONS}
+          setFilterValue={setItemTypeFilter}
+          filterValue={itemTypeFilter}
+        />
+        <DataTableFilterBox
+          filterKey="itemId"
+          title="Item"
+          options={ITEM_OPTIONS}
+          setFilterValue={setItemIdFilter}
+          filterValue={itemIdFilter}
         />
         <DataTableFilterBox
           filterKey="movementType"
@@ -59,20 +80,6 @@ export default function InventoryMovementTableActions() {
           options={MOVEMENT_TYPE_OPTIONS}
           setFilterValue={setMovementTypeFilter}
           filterValue={movementTypeFilter}
-        />
-        <DataTableFilterBox
-          filterKey="documentType"
-          title="Tipo de Documento"
-          options={[]}
-          setFilterValue={setDocumentTypeFilter}
-          filterValue={documentTypeFilter}
-        />
-        <DataTableFilterBox
-          filterKey="documentNumber"
-          title="Número de Documento"
-          options={[]}
-          setFilterValue={setDocumentNumberFilter}
-          filterValue={documentNumberFilter}
         />
       </div>
       <Button onClick={() => setOpen(true)} size="sm">

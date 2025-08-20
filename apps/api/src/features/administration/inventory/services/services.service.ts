@@ -115,7 +115,7 @@ export class ServicesService {
     return newService[0];
   }
 
-  async findAll(paginationDto: FilterServiceDto) {
+  async findAllPaginated(paginationDto: FilterServiceDto) {
     const {
       page = 1,
       limit = 10,
@@ -203,6 +203,15 @@ export class ServicesService {
     };
 
     return { data, meta };
+  }
+
+  async findAll() {
+    return await this.drizzle
+      .select({
+        id: services.id,
+        name: services.name,
+      })
+      .from(services);
   }
 
   async findOne(id: number) {

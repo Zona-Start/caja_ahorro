@@ -9,7 +9,8 @@ interface InventoryMovementListProps {
   initialPage: number;
   initialSearch?: string | null;
   initialLimit: number;
-  initialProductId?: number | null;
+  initialItemId?: number | null; // Changed from initialProductId
+  initialItemType?: string | null; // Changed from initialProductId
   initialMovementType?: string | null;
   initialDocumentType?: string | null;
   initialDocumentNumber?: string | null;
@@ -19,7 +20,8 @@ export default function InventoryMovementList({
   initialPage,
   initialSearch,
   initialLimit,
-  initialProductId,
+  initialItemId, // Changed from initialProductId
+  initialItemType, // Changed from initialProductId
   initialMovementType,
   initialDocumentType,
   initialDocumentNumber,
@@ -28,7 +30,8 @@ export default function InventoryMovementList({
     page: initialPage,
     limit: initialLimit,
     ...(initialSearch && { search: initialSearch }),
-    ...(initialProductId && { productId: initialProductId }),
+    ...(initialItemId && { itemId: initialItemId }), // Changed from productId
+    ...(initialItemType && { itemType: initialItemType }), // Changed from productId
     ...(initialMovementType && { movementType: initialMovementType }),
     ...(initialDocumentType && { documentType: initialDocumentType }),
     ...(initialDocumentNumber && { documentNumber: initialDocumentNumber }),

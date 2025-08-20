@@ -1,30 +1,48 @@
-import { PurchaseOrder } from '../schemas/purchase-order.schema';
+export function mapPurchaseOrderApiToForm(data: any) {
+  if (!data || data.length === 0) {
+    // Devuelve una promesa resuelta con un array vacío.
+    return Promise.resolve([]);
+  }
 
-export function mapPurchaseOrderApiToForm(data: any): PurchaseOrder {
-  return {
-    id: data.id,
-    supplierId: data.supplierId,
-    orderNumber: data.orderNumber,
-    orderType: data.orderType,
-    status: data.status,
-    orderDate: new Date(data.orderDate),
-    expectedDeliveryDate: data.expectedDeliveryDate ? new Date(data.expectedDeliveryDate) : undefined,
-    subtotal: data.subtotal,
-    taxAmount: data.taxAmount,
-    totalAmount: data.totalAmount,
-    currencyCode: data.currencyCode,
-    observations: data.observations,
-    items: data.items.map((item: any) => ({
+  const mappedPurchaseOrders = data.map((item: any) => {
+    // Agrega "T00:00:00" para forzar la interpretación de la fecha como local.
+    const orderDateLocal = item.orderDate
+      ? new Date(`${item.orderDate}T00:00:00`)
+      : undefined;
+    const expectedDeliveryDateLocal = item.expectedDeliveryDate
+      ? new Date(`${item.expectedDeliveryDate}T00:00:00`)
+      : undefined;
+    return {
       id: item.id,
-      lineType: item.lineType,
-      itemName: item.itemName,
-      description: item.description,
-      quantity: item.quantity,
-      unitCost: item.unitCost,
-      totalCost: item.totalCost,
-      productId: item.productId,
-      fixedAssetId: item.fixedAssetId,
-      expenseAccountId: item.expenseAccountId,
-    })),
-  };
+      supplierId: item.supplierId,
+      supplierName: item.supplierName,
+      orderNumber: item.orderNumber,
+      orderType: item.orderType,
+      status: item.status,
+      orderDate: orderDateLocal,
+      expectedDeliveryDate: expectedDeliveryDateLocal,
+      subtotal: item.subtotal,
+      taxAmount: item.taxAmount,
+      totalAmount: item.totalAmount,
+      currencyCode: item.currencyCode,
+      observations: item.observations,
+      items: item.items.map((payload: any) => ({
+        id: payload.id,
+        itemId: payload.itemId,
+        lineType: payload.lineType,
+        itemName: payload.itemName,
+        description: payload.description,
+        quantity: payload.quantity,
+        unitCost: payload.unitCost,
+        totalCost: payload.totalCost,
+        productId: payload.productId,
+        fixedAssetId: payload.fixedAssetId,
+        serviceId: payload.serviceId,
+        expenseAccountId: payload.expenseAccountId,
+      })),
+    };
+  });
+
+  // Devuelve una promesa resuelta con el array de órdenes de compra mapeadas.
+  return mappedPurchaseOrders;
 }

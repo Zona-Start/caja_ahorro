@@ -1,4 +1,10 @@
-import { purchaseOrderItems, purchaseOrders } from '@/database/schema/administration';
+import { generateUniqueReference } from '@/common/utils/reference';
+import {
+  purchaseOrderItems,
+  purchaseOrders,
+  suppliers,
+} from '@/database/schema/administration';
+import { CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -19,22 +25,104 @@ export class PurchaseOrdersService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
+  private validateOrderItems(
+    items?: {
+      lineType: string;
+      itemId?: number;
+      expenseAccountId?: number;
+      itemName: string;
+    }[],
+  ) {
+    if (!items) return;
+    for (const item of items) {
+      switch (item.lineType) {
+        case 'PRODUCT':
+          if (!item.itemId) {
+            throw new BadRequestException(
+              `For lineType 'PRODUCT', productId is required. Item: ${item.itemName}`,
+            );
+          }
+          break;
+        case 'FIXED_ASSET':
+          if (!item.itemId) {
+            throw new BadRequestException(
+              `For lineType 'FIXED_ASSET', fixedAssetId is required. Item: ${item.itemName}`,
+            );
+          }
+          break;
+        case 'SERVICE':
+          if (!item.itemId) {
+            throw new BadRequestException(
+              `For lineType 'SERVICE', serviceId is required. Item: ${item.itemName}`,
+            );
+          }
+          break;
+        case 'EXPENSE':
+          if (!item.itemName) {
+            throw new BadRequestException(
+              `For lineType 'EXPENSE', expenseAccountId is required. Item: ${item.itemName}`,
+            );
+          }
+          break;
+      }
+    }
+  }
+
   async create(userId: number, data: CreatePurchaseOrderDto) {
     const { items, ...orderData } = data;
+
+    this.validateOrderItems(items);
+
+    let calculatedSubtotal = 0;
+    const processedItems: typeof items = [];
+
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const totalCost = parseFloat(
+          (item.quantity * item.unitCost).toFixed(2),
+        );
+        calculatedSubtotal += totalCost;
+        processedItems.push({ ...item, totalCost });
+      }
+    }
+
+    calculatedSubtotal = parseFloat(calculatedSubtotal.toFixed(2));
+    const taxAmount = orderData.taxAmount || 0;
+    const calculatedTotalAmount = parseFloat(
+      (calculatedSubtotal + taxAmount).toFixed(2),
+    );
+
+    const finalOrderData = {
+      ...orderData,
+      subtotal: calculatedSubtotal.toString(),
+      taxAmount: taxAmount.toString(),
+      totalAmount: calculatedTotalAmount.toString(),
+      createdById: userId,
+      orderDate:
+        orderData.orderDate instanceof Date
+          ? orderData.orderDate.toISOString()
+          : orderData.orderDate,
+      expectedDeliveryDate:
+        orderData.expectedDeliveryDate instanceof Date
+          ? orderData.expectedDeliveryDate.toISOString()
+          : orderData.expectedDeliveryDate,
+      currencyCode: 'VES' as CurrencyCodeEnum, // Default to VES if not provided
+      orderNumber: generateUniqueReference(), // Ensure orderNumber is present
+    };
 
     return await this.drizzle.transaction(async (tx) => {
       const newOrder = await tx
         .insert(purchaseOrders)
-        .values({
-          ...orderData,
-          createdById: userId,
-        })
+        .values(finalOrderData)
         .returning();
 
-      if (items && items.length > 0) {
-        const orderItems = items.map((item) => ({
+      if (processedItems.length > 0) {
+        const orderItems = processedItems.map((item) => ({
           ...item,
           purchaseOrderId: newOrder[0].id,
+          quantity: Number(item.quantity),
+          unitCost: String(item.unitCost),
+          totalCost: String(item.totalCost),
           createdById: userId,
         }));
         await tx.insert(purchaseOrderItems).values(orderItems);
@@ -88,24 +176,77 @@ export class PurchaseOrdersService {
         ? sql`${purchaseOrders[sortBy as keyof typeof purchaseOrders]} asc`
         : sql`${purchaseOrders[sortBy as keyof typeof purchaseOrders]} desc`;
 
-    const data = await this.drizzle.query.purchaseOrders.findMany({
-      where: searchCondition,
-      limit: limit,
-      offset: offset,
-      orderBy: orderBy,
-      with: {
-        supplier: true,
-        items: true,
-      },
-    });
-
     const totalCountResult = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(purchaseOrders)
+      .leftJoin(
+        purchaseOrderItems,
+        eq(purchaseOrders.id, purchaseOrderItems.purchaseOrderId),
+      )
       .where(searchCondition);
 
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
+
+    const rawData = await this.drizzle
+      .select({
+        order: purchaseOrders,
+        item: purchaseOrderItems,
+        supplierName: suppliers.name,
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(
+        purchaseOrderItems,
+        eq(purchaseOrders.id, purchaseOrderItems.purchaseOrderId),
+      )
+      .limit(limit)
+      .offset(offset)
+      .where(searchCondition)
+      .orderBy(orderBy);
+
+    // 3. Agrupa los ítems por orden en el código
+    const groupedData = new Map<number, any>();
+
+    rawData.forEach((row) => {
+      if (!groupedData.has(row.order.id)) {
+        // Mapea la orden y convierte los strings a numbers según tu esquema Zod
+
+        const order = {
+          id: row.order.id,
+          orderNumber: row.order.orderNumber,
+          orderType: row.order.orderType,
+          supplierId: row.order.supplierId,
+          supplierName: row.supplierName,
+          status: row.order.status,
+          observations: row.order.observations,
+          orderDate: row.order.orderDate,
+          expectedDeliveryDate: row.order.expectedDeliveryDate,
+          subtotal: Number(row.order.subtotal),
+          taxAmount: Number(row.order.taxAmount),
+          totalAmount: Number(row.order.totalAmount),
+          items: [],
+        };
+        groupedData.set(row.order.id, order);
+      }
+
+      // Mapea y convierte el ítem si existe
+      if (row.item) {
+        const item = {
+          id: row.item.id,
+          lineType: row.item.lineType,
+          description: row.item.description,
+          itemId: row.item.itemId,
+          itemName: row.item.itemName,
+          quantity: Number(row.item.quantity),
+          unitCost: Number(row.item.unitCost),
+          totalCost: Number(row.item.totalCost),
+        };
+        groupedData.get(row.order.id).items.push(item);
+      }
+    });
+
+    const data = Array.from(groupedData.values());
 
     const meta = {
       page: Number(page),
@@ -140,33 +281,119 @@ export class PurchaseOrdersService {
   async update(userId: number, id: number, data: UpdatePurchaseOrderDto) {
     const { items, ...orderData } = data;
 
-    return await this.drizzle.transaction(async (tx) => {
-      const updatedOrder = await tx
-        .update(purchaseOrders)
-        .set({
-          ...orderData,
-          updatedById: userId,
-        })
-        .where(eq(purchaseOrders.id, id))
-        .returning();
+    const existingOrder = await this.drizzle.query.purchaseOrders.findFirst({
+      where: eq(purchaseOrders.id, id),
+    });
 
-      if (items) {
-        await tx.delete(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
-        const orderItems = items.map((item) => ({
-          ...item,
-          purchaseOrderId: id,
-          createdById: userId,
-        }));
-        await tx.insert(purchaseOrderItems).values(orderItems);
+    if (!existingOrder) {
+      throw new NotFoundException('Purchase order not found');
+    }
+
+    this.validateOrderItems(items);
+
+    const updatePayload: Partial<typeof purchaseOrders.$inferInsert> = {
+      ...orderData,
+      updatedById: userId,
+      // Convertir el subtotal a string si existe
+      subtotal:
+        typeof orderData.subtotal === 'number'
+          ? String(orderData.subtotal)
+          : orderData.subtotal,
+      // Convertir el totalAmount a string si existe
+      totalAmount:
+        typeof orderData.totalAmount === 'number'
+          ? String(orderData.totalAmount)
+          : orderData.totalAmount,
+      // Convertir el taxAmount a string si existe
+      taxAmount:
+        typeof orderData.taxAmount === 'number'
+          ? String(orderData.taxAmount)
+          : orderData.taxAmount,
+      currencyCode: 'VES' as CurrencyCodeEnum, // Default to VES if not provided
+      orderDate:
+        orderData.orderDate instanceof Date
+          ? orderData.orderDate.toISOString()
+          : orderData.orderDate,
+      expectedDeliveryDate:
+        orderData.expectedDeliveryDate instanceof Date
+          ? orderData.expectedDeliveryDate.toISOString()
+          : orderData.expectedDeliveryDate,
+    };
+
+    // If items are passed, we do a full recalculation
+    if (items) {
+      let calculatedSubtotal = 0;
+      const processedItems: typeof items = [];
+
+      if (items.length > 0) {
+        for (const item of items) {
+          const totalCost = parseFloat(
+            (item.quantity * item.unitCost).toFixed(2),
+          );
+          calculatedSubtotal += totalCost;
+          processedItems.push({ ...item, totalCost });
+        }
       }
 
-      return updatedOrder[0];
-    });
+      calculatedSubtotal = parseFloat(calculatedSubtotal.toFixed(2));
+      const taxAmount =
+        orderData.taxAmount ?? parseFloat(existingOrder.taxAmount ?? '0');
+      const calculatedTotalAmount = parseFloat(
+        (calculatedSubtotal + taxAmount).toFixed(2),
+      );
+
+      updatePayload.subtotal = calculatedSubtotal.toString();
+      updatePayload.taxAmount = taxAmount.toString();
+      updatePayload.totalAmount = calculatedTotalAmount.toString();
+
+      return await this.drizzle.transaction(async (tx) => {
+        const updatedOrder = await tx
+          .update(purchaseOrders)
+          .set(updatePayload)
+          .where(eq(purchaseOrders.id, id))
+          .returning();
+
+        await tx
+          .delete(purchaseOrderItems)
+          .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+        if (processedItems.length > 0) {
+          const orderItems = processedItems.map((item) => ({
+            ...item,
+            purchaseOrderId: id,
+            createdById: userId,
+            unitCost: String(item.unitCost),
+            totalCost: String(item.totalCost),
+            description: item.description ?? '',
+            itemName: item.itemName ?? '',
+            quantity: Number(item.quantity),
+          }));
+          await tx.insert(purchaseOrderItems).values(orderItems);
+        }
+        return updatedOrder[0];
+      });
+    } else if (orderData.taxAmount !== undefined) {
+      const subtotal = parseFloat(existingOrder.subtotal);
+      const taxAmount = orderData.taxAmount;
+      updatePayload.totalAmount = parseFloat(
+        (subtotal + taxAmount).toFixed(2),
+      ).toString();
+    }
+
+    const updatedOrder = await this.drizzle
+      .update(purchaseOrders)
+      .set(updatePayload)
+      .where(eq(purchaseOrders.id, id))
+      .returning();
+
+    return updatedOrder[0];
   }
 
   async remove(id: number) {
     return await this.drizzle.transaction(async (tx) => {
-      await tx.delete(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
+      await tx
+        .delete(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
       await tx.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
       return { message: 'Purchase order removed successfully' };
     });

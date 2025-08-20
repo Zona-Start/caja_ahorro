@@ -5,13 +5,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { InventoryMovement } from '../schemas/inventory-movement.schema';
+import { CreateInventoryMovement, InventoryMovement } from '../schemas/inventory-movement.schema'; // Changed import
 import InventoryMovementForm from './inventory-movement-form';
+import InventoryMovementView from './inventory-movement-view'; // New import
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultValues?: Partial<InventoryMovement>;
+  defaultValues?: Partial<CreateInventoryMovement> | InventoryMovement; // Changed type
   readOnly?: boolean;
 }
 
@@ -38,22 +39,27 @@ export default function InventoryMovementModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg bg-background/80">
+      <DialogContent className="sm:max-w-[800px] z-50 backdrop-blur-lg ">
         <DialogHeader>
           <DialogTitle>
-            {defaultValues ? 'Editar movimiento' : 'Nuevo movimiento'}
+            {readOnly ? 'Detalles del Movimiento' : 'Nuevo movimiento de inventario'}
           </DialogTitle>
           <DialogDescription>
-            Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} el movimiento de inventario
+            {readOnly
+              ? 'Información detallada del movimiento de inventario.'
+              : 'Complete los campos para crear un nuevo movimiento de inventario.'}
           </DialogDescription>
         </DialogHeader>
-        <InventoryMovementForm
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-          defaultValues={defaultValues}
-          readOnly={readOnly}
-        />
+        {readOnly ? (
+          <InventoryMovementView data={defaultValues as InventoryMovement} />
+        ) : (
+          <InventoryMovementForm
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+            defaultValues={defaultValues as Partial<CreateInventoryMovement>}
+            readOnly={readOnly}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

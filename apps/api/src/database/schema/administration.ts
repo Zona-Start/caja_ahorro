@@ -10,7 +10,6 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
-import { accountPlan } from './accounting';
 import { company, states } from './core';
 import {
   categorySuppliers,
@@ -102,29 +101,10 @@ export const purchaseOrderItems = accountsPayableSchema.table(
     purchaseOrderId: integer('purchase_order_id')
       .notNull()
       .references(() => purchaseOrders.id, { onDelete: 'cascade' }),
-
     lineType: purchaseOrderTypeEnum('line_type').notNull(),
-
-    /* relaciones condicionales */
-    productId: integer('product_id').references(() => products.id, {
-      onDelete: 'set null',
-    }),
-    fixedAssetId: integer('fixed_asset_id').references(() => fixedAssets.id, {
-      onDelete: 'set null',
-    }),
-
-    serviceId: integer('service_id').references(() => services.id, {
-      onDelete: 'set null',
-    }),
-
-    // Si itemType = 'EXPENSE', se podría relacionar con una cuenta contable específica para gastos (ej., 'Suministros de Oficina').
-    expenseAccountId: integer('expense_account_id').references(
-      () => accountPlan.id,
-      { onDelete: 'set null' },
-    ),
-
+    itemId: integer('itemId'),
     // Datos genéricos del ítem comprado
-    description: varchar('description', { length: 255 }).notNull(),
+    description: varchar('description', { length: 255 }),
     itemName: varchar('item_name', { length: 255 }).notNull(),
     quantity: integer('quantity').notNull(),
     unitCost: numeric('unit_cost', { precision: 18, scale: 6 }).notNull(),
@@ -491,10 +471,13 @@ export const fixedAssetsPrices = inventorySchema.table('fixed_assets_prices', {
 /* ---------- 7.  MOVIMIENTOS DE INVENTARIO ---------- */
 export const inventoryMovements = inventorySchema.table('inventory_movements', {
   id: serial('id').primaryKey(),
+  description: text('description'),
+  movementDate: date('movement_date').defaultNow(),
   itemId: integer('item_id').notNull(),
   itemType: varchar('item_type', {
     enum: ['PRODUCT', 'FIXED_ASSET'],
   }).notNull(),
+  movementNumber: varchar('movement_number', { length: 50 }).notNull(),
   movementType: movementTypeInventory('movement_type').notNull(),
   quantity: integer('quantity').notNull(),
   unitCost: numeric('unit_cost', { precision: 18, scale: 2 }),

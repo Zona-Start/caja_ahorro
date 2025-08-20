@@ -1,7 +1,7 @@
 'use client';
 
+import { DataTableSkeleton } from '@repo/shadcn/components/ui/table/data-table-skeleton';
 import { DataTable } from '@repo/shadcn/table/data-table';
-import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { usePurchaseOrders } from '../hooks/use-query-purchase-order';
 import { columns } from './purchase-order-tables/columns';
 
@@ -12,8 +12,8 @@ interface ListProps {
   initialStatus?: string | null;
   initialSupplierId?: number | null;
   initialOrderType?: string | null;
-  initialStartDate?: Date | null;
-  initialEndDate?: Date | null;
+  initialStartDate?: string | null;
+  initialEndDate?: string | null;
 }
 
 export default function PurchaseOrderList({
@@ -46,7 +46,7 @@ export default function PurchaseOrderList({
   return (
     <DataTable
       columns={columns}
-      data={data?.data || []}
+      data={Array.isArray(data?.data) ? data.data : []}
       totalItems={data?.meta.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />

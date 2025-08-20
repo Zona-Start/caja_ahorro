@@ -1,14 +1,23 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class FilterInventoryMovementDto extends PaginationDto {
-  @ApiPropertyOptional({ description: 'Product ID' })
+  @ApiPropertyOptional({ description: 'Item ID' })
   @IsOptional()
   @IsInt()
   @Type(() => Number)
-  productId?: number;
+  itemId?: number;
+
+  @ApiPropertyOptional({
+    description: 'Item type',
+    enum: ['PRODUCT', 'FIXED_ASSET'],
+  })
+  @IsOptional()
+  @IsIn(['PRODUCT', 'FIXED_ASSET'])
+  @IsString()
+  itemType?: 'PRODUCT' | 'FIXED_ASSET';
 
   @ApiPropertyOptional({ description: 'Movement type' })
   @IsOptional()
