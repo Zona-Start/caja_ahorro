@@ -1,5 +1,7 @@
 import {
+  currencyCodeEnum,
   invoiceSuppliersStatusEnum,
+  invoiceTypeEnum,
   purchaseOrderTypeEnum,
   supplierInvoicesPaymentEnum,
 } from '@/database/schema/enum';
@@ -23,20 +25,10 @@ class SupplierInvoiceItemDto {
   @IsNotEmpty()
   lineType: (typeof purchaseOrderTypeEnum.enumValues)[number];
 
-  @ApiPropertyOptional({ description: 'Product ID' })
+  @ApiProperty({ description: 'Item ID' })
   @IsInt()
-  @IsOptional()
-  productId?: number;
-
-  @ApiPropertyOptional({ description: 'Fixed Asset ID' })
-  @IsInt()
-  @IsOptional()
-  fixedAssetId?: number;
-
-  @ApiPropertyOptional({ description: 'Expense Account ID' })
-  @IsInt()
-  @IsOptional()
-  expenseAccountId?: number;
+  @IsNotEmpty()
+  itemId: number;
 
   @ApiProperty({ description: 'Description' })
   @IsString()
@@ -49,14 +41,21 @@ class SupplierInvoiceItemDto {
   quantity: number;
 
   @ApiProperty({ description: 'Unit cost' })
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 6 })
   @IsNotEmpty()
   unitCost: number;
 
   @ApiProperty({ description: 'Total line' })
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()
   totalLine: number;
+
+  @ApiProperty({ description: 'Expense Account' })
+  @IsInt()
+  @IsOptional()
+  expenseAccountId: number;
 }
 
 export class CreateSupplierInvoiceDto {
@@ -74,6 +73,14 @@ export class CreateSupplierInvoiceDto {
   @IsString()
   @IsNotEmpty()
   invoiceNumber: string;
+
+  @ApiProperty({
+    description: 'Invoice type',
+    enum: invoiceTypeEnum.enumValues,
+  })
+  @IsEnum(invoiceTypeEnum.enumValues)
+  @IsNotEmpty()
+  invoiceType: (typeof invoiceTypeEnum.enumValues)[number];
 
   @ApiPropertyOptional({ description: 'Control number' })
   @IsString()
@@ -93,24 +100,30 @@ export class CreateSupplierInvoiceDto {
   dueDate?: Date;
 
   @ApiProperty({ description: 'Subtotal' })
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()
   subtotal: number;
 
   @ApiPropertyOptional({ description: 'Tax amount' })
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsOptional()
   taxAmount?: number;
 
   @ApiProperty({ description: 'Total amount' })
+  @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()
   totalAmount: number;
 
-  @ApiProperty({ description: 'Currency code' })
-  @IsString()
-  @IsNotEmpty()
-  currencyCode: string;
+  @ApiProperty({
+    description: 'Currency code',
+    enum: currencyCodeEnum.enumValues,
+  })
+  @IsEnum(currencyCodeEnum.enumValues)
+  @IsOptional()
+  currencyCode: (typeof currencyCodeEnum.enumValues)[number];
 
   @ApiPropertyOptional({
     description: 'Payment type',
@@ -120,7 +133,10 @@ export class CreateSupplierInvoiceDto {
   @IsOptional()
   paymentType?: (typeof supplierInvoicesPaymentEnum.enumValues)[number];
 
-  @ApiPropertyOptional({ description: 'Status', enum: invoiceSuppliersStatusEnum.enumValues })
+  @ApiPropertyOptional({
+    description: 'Status',
+    enum: invoiceSuppliersStatusEnum.enumValues,
+  })
   @IsEnum(invoiceSuppliersStatusEnum.enumValues)
   @IsOptional()
   status?: (typeof invoiceSuppliersStatusEnum.enumValues)[number];

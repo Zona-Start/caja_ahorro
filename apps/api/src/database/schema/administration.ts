@@ -16,6 +16,7 @@ import {
   currencyCodeEnum,
   fixedAssetsInventoryStatus,
   invoiceSuppliersStatusEnum,
+  invoiceTypeEnum,
   movementTypeInventory,
   paymentAccountsPayableEnum,
   paymentMethodEnum,
@@ -30,6 +31,7 @@ import {
 } from './enum';
 
 import { relations } from 'drizzle-orm';
+import { accountPlan } from './accounting';
 import { accountsPayableSchema, inventorySchema } from './schemas';
 
 // tabla proveedores
@@ -129,6 +131,7 @@ export const supplierInvoices = accountsPayableSchema.table(
     ),
 
     invoiceNumber: varchar('invoice_number', { length: 100 }).notNull(),
+    invoiceType: invoiceTypeEnum('invoice_type').notNull().default('PURCHASE'), // 'EXPENSE' o 'PURCHASE'
     controlNumber: varchar('control_number', { length: 100 }), // Nº control fiscal
     invoiceDate: date('invoice_date').notNull(),
     dueDate: date('due_date'),
@@ -169,13 +172,12 @@ export const supplierInvoiceItems = accountsPayableSchema.table(
       .references(() => supplierInvoices.id, { onDelete: 'cascade' }),
 
     lineType: purchaseOrderTypeEnum('line_type').notNull(),
+    itemId: integer('item_id'), // Puede ser producto, servicio o activo fijo
+    expenseAccountId: integer('expense_account_id').references(
+      () => accountPlan.id,
+    ),
 
-    productId: integer('product_id').references(() => products.id),
-    fixedAssetId: integer('fixed_asset_id').references(() => fixedAssets.id),
-    serviceId: integer('service_id').references(() => services.id),
-    expenseAccountId: integer('expense_account_id'),
-
-    description: varchar('description', { length: 255 }).notNull(),
+    description: varchar('description', { length: 255 }),
     quantity: integer('quantity').notNull(),
     unitCost: numeric('unit_cost', { precision: 18, scale: 6 }).notNull(),
     totalLine: numeric('total_line', { precision: 18, scale: 2 }).notNull(),

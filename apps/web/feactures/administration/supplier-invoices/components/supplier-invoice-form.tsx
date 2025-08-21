@@ -14,6 +14,7 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
+import { ScrollArea } from '@repo/shadcn/scroll-area';
 import {
   Select,
   SelectContent,
@@ -21,23 +22,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { ScrollArea } from '@repo/shadcn/scroll-area';
 import { Plus, Trash2 } from 'lucide-react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
-import { useSuppliersAll } from '../../suppliers/hooks/use-query-suppliers';
+import { useSupplierAll } from '../../suppliers/hooks/use-query-suppliers';
 import { useSupplierInvoiceMutation } from '../hooks/use-mutation-supplier-invoice';
 import {
+  INVOICE_TYPES,
+  InvoiceTypeEnum,
   SUPPLIER_INVOICE_PAYMENT_TYPES,
-  SupplierInvoicePaymentTypeEnum,
   SUPPLIER_INVOICE_STATUS_TYPES,
+  SupplierInvoicePaymentTypeEnum,
   SupplierInvoiceStatusEnum,
   purchaseItemTypeEnum,
 } from '../schemas/supplier-invoice-options';
 
 import { useEffect } from 'react';
 
-import { useFixedAssetsAll } from '../../inventory/fixed-assets/hooks/use-query-fixed-asset';
-import { useProductsAll } from '../../inventory/products/hooks/use-query-product';
+import { useAccountingAccounts } from '../../../accounting/accounting-accounts/hooks/use-query-account-plan';
+import { useFixedAssetAll } from '../../inventories/fixed-asset/hooks/use-query-fixed-asset';
+import { useProductsAll } from '../../inventories/products/hooks/use-query-product';
 import { usePurchaseOrders } from '../../purchase-orders/hooks/use-query-purchase-order';
 
 interface FormProps {
@@ -47,7 +50,10 @@ interface FormProps {
   readOnly?: boolean;
 }
 
-import { SupplierInvoice, supplierInvoiceSchema } from '../schemas/supplier-invoice.schema';
+import {
+  SupplierInvoice,
+  supplierInvoiceSchema,
+} from '../schemas/supplier-invoice.schema';
 
 export function SupplierInvoiceForm({
   onSuccess,
@@ -55,10 +61,12 @@ export function SupplierInvoiceForm({
   defaultValues,
   readOnly = false,
 }: FormProps) {
-  const { mutate: saveSupplierInvoice, isPending: isSaving } = useSupplierInvoiceMutation();
-  const { data: suppliers } = useSuppliersAll();
+  const { mutate: saveSupplierInvoice, isPending: isSaving } =
+    useSupplierInvoiceMutation();
+  const { data: suppliers } = useSupplierAll();
   const { data: products } = useProductsAll();
-  const { data: fixedAssets } = useFixedAssetsAll();
+  const { data: fixedAssets } = useFixedAssetAll();
+  const { data: accountingAccounts } = useAccountingAccounts();
 
   const form = useForm<SupplierInvoice>({
     resolver: zodResolver(supplierInvoiceSchema),
@@ -77,16 +85,18 @@ export function SupplierInvoiceForm({
       subtotal: defaultValues?.subtotal || 0,
       taxAmount: defaultValues?.taxAmount || 0,
       totalAmount: defaultValues?.totalAmount || 0,
-      currencyCode: defaultValues?.currencyCode || 'USD',
-      paymentType: defaultValues?.paymentType || SupplierInvoicePaymentTypeEnum.CREDIT,
+      paymentType:
+        defaultValues?.paymentType || SupplierInvoicePaymentTypeEnum.CREDIT,
       status: defaultValues?.status || SupplierInvoiceStatusEnum.OPEN,
       observations: defaultValues?.observations || '',
+      invoiceType: defaultValues?.invoiceType || InvoiceTypeEnum.PURCHASE,
       items: defaultValues?.items || [],
     },
     mode: 'onChange',
   });
 
   const supplierId = form.watch('supplierId');
+  const invoiceType = form.watch('invoiceType');
 
   const { data: purchaseOrders } = usePurchaseOrders({
     supplierId: supplierId,
@@ -178,7 +188,7 @@ export function SupplierInvoiceForm({
                   <FormLabel>Orden de Compra</FormLabel>
                   <SelectSearchable
                     options={
-                      purchaseOrders?.data.map((item) => ({
+                      purchaseOrders?.data.map((item: any) => ({
                         value: item.id!.toString(),
                         label: `${item.orderNumber}`,
                       })) || []
@@ -188,6 +198,34 @@ export function SupplierInvoiceForm({
                     defaultValue={field.value?.toString()}
                     disabled={readOnly || !supplierId}
                   />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="invoiceType"
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>Tipo de Factura</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={String(field.value)}
+                    disabled={readOnly}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleccione un tipo de factura" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="w-full min-w-[200px]">
+                      {Object.entries(INVOICE_TYPES).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -212,7 +250,11 @@ export function SupplierInvoiceForm({
                 <FormItem>
                   <FormLabel>Número de Control</FormLabel>
                   <FormControl>
-                    <Input {...field} disabled={readOnly} />
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      disabled={readOnly}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -256,19 +298,7 @@ export function SupplierInvoiceForm({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="currencyCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código de Moneda</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={readOnly} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
             <FormField
               control={form.control}
               name="paymentType"
@@ -286,11 +316,13 @@ export function SupplierInvoiceForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px]">
-                      {Object.entries(SUPPLIER_INVOICE_PAYMENT_TYPES).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
+                      {Object.entries(SUPPLIER_INVOICE_PAYMENT_TYPES).map(
+                        ([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -314,11 +346,13 @@ export function SupplierInvoiceForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px]">
-                      {Object.entries(SUPPLIER_INVOICE_STATUS_TYPES).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
+                      {Object.entries(SUPPLIER_INVOICE_STATUS_TYPES).map(
+                        ([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -330,25 +364,8 @@ export function SupplierInvoiceForm({
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium">Items</h3>
-              {!readOnly && (
+              {!readOnly && invoiceType === InvoiceTypeEnum.PURCHASE && (
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      append({
-                        description: '',
-                        lineType: purchaseItemTypeEnum.EXPENSE,
-                        quantity: 1,
-                        unitCost: 0,
-                        totalLine: 0,
-                      })
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Anexar Gasto
-                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -360,6 +377,7 @@ export function SupplierInvoiceForm({
                         quantity: 1,
                         unitCost: 0,
                         totalLine: 0,
+                        itemId: 0,
                       })
                     }
                   >
@@ -377,11 +395,70 @@ export function SupplierInvoiceForm({
                         quantity: 1,
                         unitCost: 0,
                         totalLine: 0,
+                        itemId: 0,
                       })
                     }
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Anexar Activo Fijo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      append({
+                        description: '',
+                        lineType: purchaseItemTypeEnum.SERVICE,
+                        quantity: 1,
+                        unitCost: 0,
+                        totalLine: 0,
+                        itemId: 0,
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Anexar Servicio
+                  </Button>
+                </div>
+              )}
+              {!readOnly && invoiceType === InvoiceTypeEnum.EXPENSE && (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      append({
+                        description: '',
+                        lineType: purchaseItemTypeEnum.EXPENSE,
+                        quantity: 1,
+                        unitCost: 0,
+                        totalLine: 0,
+                        itemId: 0,
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Anexar Gasto
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      append({
+                        description: '',
+                        lineType: purchaseItemTypeEnum.SERVICE,
+                        quantity: 1,
+                        unitCost: 0,
+                        totalLine: 0,
+                        itemId: 0,
+                      })
+                    }
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Anexar Servicio
                   </Button>
                 </div>
               )}
@@ -401,7 +478,7 @@ export function SupplierInvoiceForm({
                   {itemType === purchaseItemTypeEnum.SALES_INVENTORY ? (
                     <FormField
                       control={form.control}
-                      name={`items.${index}.productId`}
+                      name={`items.${index}.itemId`}
                       render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormLabel>Producto</FormLabel>
@@ -418,7 +495,7 @@ export function SupplierInvoiceForm({
                               );
                               if (selectedProduct) {
                                 form.setValue(
-                                  `items.${index}.productId`,
+                                  `items.${index}.itemId`,
                                   selectedProduct.id,
                                 );
                                 form.setValue(
@@ -437,7 +514,7 @@ export function SupplierInvoiceForm({
                   ) : itemType === purchaseItemTypeEnum.FIXED_ASSET ? (
                     <FormField
                       control={form.control}
-                      name={`items.${index}.fixedAssetId`}
+                      name={`items.${index}.itemId`}
                       render={({ field }) => (
                         <FormItem className="flex-1">
                           <FormLabel>Activo Fijo</FormLabel>
@@ -454,7 +531,7 @@ export function SupplierInvoiceForm({
                               );
                               if (selectedAsset) {
                                 form.setValue(
-                                  `items.${index}.fixedAssetId`,
+                                  `items.${index}.itemId`,
                                   selectedAsset.id,
                                 );
                                 form.setValue(
@@ -484,6 +561,36 @@ export function SupplierInvoiceForm({
                       )}
                     />
                   )}
+
+                  {invoiceType === InvoiceTypeEnum.EXPENSE &&
+                    (itemType === purchaseItemTypeEnum.EXPENSE ||
+                      itemType === purchaseItemTypeEnum.SERVICE) && (
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.expenseAccountId`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel>Cuenta Contable</FormLabel>
+                            <SelectSearchable
+                              options={
+                                accountingAccounts?.data.map(
+                                  (account: any) => ({
+                                    value: account.id!.toString(),
+                                    label: `${account.code} - ${account.name}`,
+                                  }),
+                                ) || []
+                              }
+                              onValueChange={(value) =>
+                                field.onChange(Number(value))
+                              }
+                              defaultValue={field.value?.toString()}
+                              disabled={readOnly}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
                   <FormField
                     control={form.control}
@@ -539,7 +646,7 @@ export function SupplierInvoiceForm({
                 </div>
                 <div className="flex justify-between">
                   <span className="font-semibold">IVA (16%):</span>
-                  <span>{form.getValues('taxAmount').toFixed(2)}</span>
+                  <span>{(form.getValues('taxAmount') || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t">
                   <span className="font-semibold">Total:</span>
@@ -557,7 +664,12 @@ export function SupplierInvoiceForm({
                 <FormItem>
                   <FormLabel>Observaciones</FormLabel>
                   <FormControl>
-                    <Textarea {...field} disabled={readOnly} />
+                    <Textarea
+                      {...field}
+                      value={field.value || ''}
+                      disabled={readOnly}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

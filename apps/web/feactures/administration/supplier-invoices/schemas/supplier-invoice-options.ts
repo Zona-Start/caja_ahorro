@@ -32,12 +32,34 @@ export const PURCHASE_ITEM_TYPES = {
   SALES_INVENTORY: 'SALES_INVENTORY',
   FIXED_ASSET: 'FIXED_ASSET',
   EXPENSE: 'EXPENSE',
+  SERVICE: 'SERVICE',
 } as const;
 
 export enum purchaseItemTypeEnum {
   SALES_INVENTORY = 'SALES_INVENTORY',
   FIXED_ASSET = 'FIXED_ASSET',
   EXPENSE = 'EXPENSE',
+  SERVICE = 'SERVICE',
 }
 
 export type PurchaseItemType = keyof typeof PURCHASE_ITEM_TYPES;
+
+export const CURRENCY_CODES = {
+  USD: 'Dólar estadounidense',
+  EUR: 'Euro',
+  VES: 'Bolívar Soberano',
+} as const;
+
+export type CurrencyCode = keyof typeof CURRENCY_CODES;
+
+export const INVOICE_TYPES = {
+  EXPENSE: 'Gasto',
+  PURCHASE: 'Compra',
+} as const;
+
+export enum InvoiceTypeEnum {
+  EXPENSE = 'EXPENSE',
+  PURCHASE = 'PURCHASE',
+}
+
+export type InvoiceType = keyof typeof INVOICE_TYPES;

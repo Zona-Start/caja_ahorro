@@ -393,3 +393,8 @@ export enum unitOfMeasureEnum {
   BOX = 'BOX',
   PACK = 'PACK',
 }
+
+export enum invoiceTypeEnum {
+  EXPENSE = 'EXPENSE', // Factura de gasto
+  PURCHASE = 'PURCHASE', // Factura de compra
+}

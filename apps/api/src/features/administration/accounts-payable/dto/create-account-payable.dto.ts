@@ -1,4 +1,4 @@
-import { paymentAccountsPayableEnum } from '@/database/schema/enum';
+import { currencyCodeEnum, paymentAccountsPayableEnum } from '@/database/schema/enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
@@ -23,10 +23,10 @@ export class CreateAccountPayableDto {
   @IsNotEmpty()
   remainingAmount: number;
 
-  @ApiProperty({ description: 'Currency code' })
-  @IsString()
+  @ApiProperty({ description: 'Currency code', enum: currencyCodeEnum.enumValues })
+  @IsEnum(currencyCodeEnum.enumValues)
   @IsNotEmpty()
-  currencyCode: string;
+  currencyCode: (typeof currencyCodeEnum.enumValues)[number];
 
   @ApiPropertyOptional({ description: 'Status', enum: paymentAccountsPayableEnum.enumValues })
   @IsEnum(paymentAccountsPayableEnum.enumValues)

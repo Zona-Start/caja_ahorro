@@ -14,7 +14,12 @@ export class ProductPricesService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
-  async create(userId: number, data: CreateProductPriceDto) {
+  async create(
+    userId: number,
+    data: CreateProductPriceDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
     // const exist = await this.drizzle.query.productPrices.findFirst({
     //   where: and(
     //     eq(productPrices.productId, data.productId),
@@ -32,7 +37,7 @@ export class ProductPricesService {
     //   );
     // }
 
-    await this.drizzle.insert(productPrices).values({
+    await db.insert(productPrices).values({
       productId: data.productId,
       suppliersId: data.suppliersId,
       priceType: data.priceType,

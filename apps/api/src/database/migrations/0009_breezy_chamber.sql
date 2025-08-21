@@ -1,0 +1,4 @@
+CREATE TYPE "public"."invoice_type_enum" AS ENUM('EXPENSE', 'PURCHASE');--> statement-breakpoint
+ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD COLUMN "expense_account_id" integer;--> statement-breakpoint
+ALTER TABLE "accounts_payable"."supplier_invoices" ADD COLUMN "invoice_type" "invoice_type_enum" DEFAULT 'PURCHASE' NOT NULL;--> statement-breakpoint
+ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_expense_account_id_account_plan_id_fk" FOREIGN KEY ("expense_account_id") REFERENCES "accounting"."account_plan"("id") ON DELETE no action ON UPDATE no action;

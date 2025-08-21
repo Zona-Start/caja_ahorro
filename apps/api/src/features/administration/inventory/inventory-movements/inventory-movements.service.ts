@@ -20,7 +20,12 @@ export class InventoryMovementsService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
-  async create(userId: number, data: CreateInventoryMovementDto) {
+  async create(
+    userId: number,
+    data: CreateInventoryMovementDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
     const {
       items,
       description,
@@ -31,13 +36,12 @@ export class InventoryMovementsService {
     } = data;
 
     if (documentType && documentNumber) {
-      const existingMovement =
-        await this.drizzle.query.inventoryMovements.findFirst({
-          where: and(
-            eq(inventoryMovements.documentType, documentType),
-            eq(inventoryMovements.documentNumber, documentNumber),
-          ),
-        });
+      const existingMovement = await db.query.inventoryMovements.findFirst({
+        where: and(
+          eq(inventoryMovements.documentType, documentType),
+          eq(inventoryMovements.documentNumber, documentNumber),
+        ),
+      });
 
       if (existingMovement) {
         throw new ConflictException(
@@ -46,7 +50,7 @@ export class InventoryMovementsService {
       }
     }
 
-    const newMovements = await this.drizzle.transaction(async (tx) => {
+    const newMovements = await db.transaction(async (tx) => {
       type MovementReturnType = {
         id: number;
         itemId: number;

@@ -7,8 +7,7 @@ export const supplierInvoiceItemApiSchema = z.object({
   quantity: z.number(),
   unitCost: z.number(),
   totalLine: z.number(),
-  productId: z.number().optional().nullable(),
-  fixedAssetId: z.number().optional().nullable(),
+  itemId: z.number().optional().nullable(),
   expenseAccountId: z.number().optional().nullable(),
 });
 
@@ -24,10 +23,10 @@ export const supplierInvoiceApiSchema = z.object({
   subtotal: z.number(),
   taxAmount: z.number().optional().nullable(),
   totalAmount: z.number(),
-  currencyCode: z.string(),
   paymentType: z.string().optional(),
   status: z.string().optional(),
   observations: z.string().optional().nullable(),
+  invoiceType: z.string().optional(),
   items: z.array(supplierInvoiceItemApiSchema).optional().nullable(),
 });
 

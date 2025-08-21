@@ -186,7 +186,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Recepción de Facturas',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/administracion/recepcion-facturas',
       },
       {
         title: 'Cuentas por Pagar',

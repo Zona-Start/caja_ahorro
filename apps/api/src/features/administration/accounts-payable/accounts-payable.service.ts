@@ -19,8 +19,13 @@ export class AccountsPayableService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
-  async create(userId: number, data: CreateAccountPayableDto) {
-    const exist = await this.drizzle.query.accountsPayable.findFirst({
+  async create(
+    userId: number,
+    data: CreateAccountPayableDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
+    const exist = await db.query.accountsPayable.findFirst({
       where: eq(accountsPayable.supplierInvoiceId, data.supplierInvoiceId),
     });
 
@@ -30,10 +35,13 @@ export class AccountsPayableService {
       );
     }
 
-    const newAccountPayable = await this.drizzle
+    const newAccountPayable = await db
       .insert(accountsPayable)
       .values({
         ...data,
+        originalAmount: data.originalAmount.toString(),
+        paidAmount: data.paidAmount?.toString() || '0.00',
+        remainingAmount: data.remainingAmount.toString(),
         createdById: userId,
       })
       .returning();
@@ -58,7 +66,9 @@ export class AccountsPayableService {
       searchConditions.push(ilike(accountsPayable.observations, `%${search}%`));
     }
     if (supplierInvoiceId) {
-      searchConditions.push(eq(accountsPayable.supplierInvoiceId, supplierInvoiceId));
+      searchConditions.push(
+        eq(accountsPayable.supplierInvoiceId, supplierInvoiceId),
+      );
     }
     if (status) {
       searchConditions.push(eq(accountsPayable.status, status as any));
@@ -133,6 +143,9 @@ export class AccountsPayableService {
       .update(accountsPayable)
       .set({
         ...data,
+        originalAmount: data.originalAmount?.toString(),
+        paidAmount: data.paidAmount?.toString(),
+        remainingAmount: data.remainingAmount?.toString(),
         updatedById: userId,
       })
       .where(eq(accountsPayable.id, id))
@@ -150,7 +163,9 @@ export class AccountsPayableService {
       throw new NotFoundException('Account payable not found');
     }
 
-    await this.drizzle.delete(accountsPayable).where(eq(accountsPayable.id, id));
+    await this.drizzle
+      .delete(accountsPayable)
+      .where(eq(accountsPayable.id, id));
 
     return { message: 'Account payable removed successfully' };
   }

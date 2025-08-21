@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { purchaseItemTypeEnum, SupplierInvoicePaymentTypeEnum, SupplierInvoiceStatusEnum } from './supplier-invoice-options';
+import {
+  InvoiceTypeEnum,
+  purchaseItemTypeEnum,
+  SupplierInvoicePaymentTypeEnum,
+  SupplierInvoiceStatusEnum,
+} from './supplier-invoice-options';
 
 export const supplierInvoiceItemSchema = z.object({
   id: z.number().optional(),
@@ -7,9 +12,10 @@ export const supplierInvoiceItemSchema = z.object({
   description: z.string().min(1, 'La descripción es requerida'),
   quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
   unitCost: z.coerce.number().min(0, 'El costo unitario no puede ser negativo'),
-  totalLine: z.coerce.number().min(0, 'El total de línea no puede ser negativo'),
-  productId: z.number().optional().nullable(),
-  fixedAssetId: z.number().optional().nullable(),
+  totalLine: z.coerce
+    .number()
+    .min(0, 'El total de línea no puede ser negativo'),
+  itemId: z.number().optional().nullable(),
   expenseAccountId: z.number().optional().nullable(),
 });
 
@@ -24,11 +30,17 @@ export const supplierInvoiceSchema = z.object({
   subtotal: z.coerce.number().min(0, 'El subtotal no puede ser negativo'),
   taxAmount: z.coerce.number().optional().nullable(),
   totalAmount: z.coerce.number().min(0, 'El monto total no puede ser negativo'),
-  currencyCode: z.string().min(1, 'Código de moneda requerido'),
-  paymentType: z.nativeEnum(SupplierInvoicePaymentTypeEnum).default(SupplierInvoicePaymentTypeEnum.CREDIT),
-  status: z.nativeEnum(SupplierInvoiceStatusEnum).default(SupplierInvoiceStatusEnum.OPEN),
+  paymentType: z
+    .nativeEnum(SupplierInvoicePaymentTypeEnum)
+    .default(SupplierInvoicePaymentTypeEnum.CREDIT),
+  status: z
+    .nativeEnum(SupplierInvoiceStatusEnum)
+    .default(SupplierInvoiceStatusEnum.OPEN),
   observations: z.string().optional().nullable(),
-  items: z.array(supplierInvoiceItemSchema).min(1, 'Debe haber al menos un item'),
+  invoiceType: z.nativeEnum(InvoiceTypeEnum).default(InvoiceTypeEnum.PURCHASE),
+  items: z
+    .array(supplierInvoiceItemSchema)
+    .min(1, 'Debe haber al menos un item'),
 });
 
 export type SupplierInvoice = z.infer<typeof supplierInvoiceSchema>;

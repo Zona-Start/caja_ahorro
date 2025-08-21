@@ -16,6 +16,7 @@ export function mapSupplierInvoiceApiToForm(data: any): SupplierInvoice {
     paymentType: data.paymentType,
     status: data.status,
     observations: data.observations,
+    invoiceType: data.invoiceType,
     items: data.items.map((item: any) => ({
       id: item.id,
       lineType: item.lineType,
@@ -23,8 +24,7 @@ export function mapSupplierInvoiceApiToForm(data: any): SupplierInvoice {
       quantity: item.quantity,
       unitCost: item.unitCost,
       totalLine: item.totalLine,
-      productId: item.productId,
-      fixedAssetId: item.fixedAssetId,
+      itemId: item.itemId,
       expenseAccountId: item.expenseAccountId,
     })),
   };

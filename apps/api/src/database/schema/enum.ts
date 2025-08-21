@@ -400,3 +400,8 @@ export const unitOfMeasureEnum = pgEnum('unit_of_measure', [
   'BOX',
   'PACK',
 ]);
+
+export const invoiceTypeEnum = pgEnum('invoice_type_enum', [
+  'EXPENSE', // Factura de gasto
+  'PURCHASE', // Factura de compra
+]);

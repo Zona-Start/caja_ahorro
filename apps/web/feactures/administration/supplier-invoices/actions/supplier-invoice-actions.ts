@@ -63,13 +63,13 @@ export const createSupplierInvoiceAction = async (payload: SupplierInvoice) => {
     ...payloadWithoutId,
     invoiceDate: payloadWithoutId.invoiceDate.toISOString(),
     dueDate: payloadWithoutId.dueDate?.toISOString(),
-    subtotal: payloadWithoutId.subtotal.toFixed(2),
-    taxAmount: payloadWithoutId.taxAmount?.toFixed(2),
-    totalAmount: payloadWithoutId.totalAmount.toFixed(2),
-    items: payloadWithoutId.items.map(item => ({
+    subtotal: payloadWithoutId.subtotal,
+    taxAmount: payloadWithoutId.taxAmount,
+    totalAmount: payloadWithoutId.totalAmount,
+    items: payloadWithoutId.items.map((item) => ({
       ...item,
-      unitCost: item.unitCost.toFixed(6),
-      totalLine: item.totalLine.toFixed(2),
+      unitCost: item.unitCost,
+      totalLine: item.totalLine,
     })),
   };
 
@@ -95,13 +95,13 @@ export const updateSupplierInvoiceAction = async (payload: SupplierInvoice) => {
     ...payloadWithoutId,
     invoiceDate: payloadWithoutId.invoiceDate.toISOString(),
     dueDate: payloadWithoutId.dueDate?.toISOString(),
-    subtotal: payloadWithoutId.subtotal.toFixed(2),
-    taxAmount: payloadWithoutId.taxAmount?.toFixed(2),
-    totalAmount: payloadWithoutId.totalAmount.toFixed(2),
-    items: payloadWithoutId.items.map(item => ({
+    subtotal: payloadWithoutId.subtotal,
+    taxAmount: payloadWithoutId.taxAmount,
+    totalAmount: payloadWithoutId.totalAmount,
+    items: payloadWithoutId.items.map((item) => ({
       ...item,
-      unitCost: item.unitCost.toFixed(6),
-      totalLine: item.totalLine.toFixed(2),
+      unitCost: item.unitCost,
+      totalLine: item.totalLine,
     })),
   };
 
