@@ -19,20 +19,17 @@ export class BankAccountsService {
     return await this.drizzle
       .select({
         id: schema.bankAccounts.id,
-        companyId: schema.bankAccounts.companyId,
         bankDirectoryId: schema.bankAccounts.bankDirectoryId,
+        bankDirectoryName: schema.bankDirectory.name,
         accountNumber: schema.bankAccounts.accountNumber,
         accountName: schema.bankAccounts.accountName,
-        accountType: schema.bankAccounts.accountType,
-        currencyCode: schema.bankAccounts.currencyCode,
-        openingDate: schema.bankAccounts.openingDate,
-        currentBalance: schema.bankAccounts.currentBalance,
-        lastStatementBalance: schema.bankAccounts.lastStatementBalance,
-        lastStatementDate: schema.bankAccounts.lastStatementDate,
-        linkedChartAccountId: schema.bankAccounts.linkedChartAccountId,
-        isActive: schema.bankAccounts.isActive,
       })
-      .from(schema.bankAccounts);
+      .from(schema.bankAccounts)
+      .leftJoin(
+        schema.bankDirectory,
+        eq(schema.bankDirectory.id, schema.bankAccounts.bankDirectoryId),
+      )
+      .where(eq(schema.bankAccounts.isActive, true));
   }
 
   async findOne(id: number) {

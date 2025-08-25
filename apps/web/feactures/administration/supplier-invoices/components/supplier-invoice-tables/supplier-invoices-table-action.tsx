@@ -41,7 +41,7 @@ export default function SupplierInvoiceTableAction() {
         />
       </div>
       <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="h-4 w-4" /> Nueva Factura
+        <Plus className="h-4 w-4" /> Anexar Factura
       </Button>
 
       <SupplierInvoiceModal open={open} onOpenChange={setOpen} />

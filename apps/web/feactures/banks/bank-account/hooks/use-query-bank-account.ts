@@ -1,6 +1,7 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import {
   getBankAccountAction,
+  getBankAccountAllAction,
   getBankAccountByIdAction,
 } from '../actions/bank-account-actions';
 
@@ -23,4 +24,8 @@ export function useBankAccountById(
       ...options,
     },
   );
+}
+
+export function useBankAccountAll() {
+  return useSafeQuery(['bank-account-all'], () => getBankAccountAllAction());
 }

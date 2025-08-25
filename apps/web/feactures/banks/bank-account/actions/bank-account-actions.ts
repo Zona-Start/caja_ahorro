@@ -1,11 +1,27 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
+  bankAccountAllResponseSchema,
   bankAccountDeleteResponseSchema,
   bankAccountResponseAllSchema,
   bankAccountResponseOneSchema,
 } from '../schemas/bank-account-response-api';
 import { BankAccount } from '../schemas/bank-account.schema';
+
+export const getBankAccountAllAction = async () => {
+  const [error, response] = await safeFetchApi(
+    bankAccountAllResponseSchema,
+    '/bakings/bank-accounts',
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching bank account data');
+  }
+
+  return response;
+};
 
 export const getBankAccountAction = async (params: {
   page?: number;

@@ -1,19 +1,18 @@
 export const SUPPLIER_INVOICE_STATUS_TYPES = {
   OPEN: 'ABIERTA',
   PAID: 'PAGADA',
-  PARTIALLY_PAID: 'PARCIALMENTE PAGADA',
-  CANCELLED: 'CANCELADA',
-  OVERDUE: 'VENCIDA',
+  VOID: 'ANULADA',
+  PENDING_PAYMENT: 'PENDIENTE POR PAGAR',
 } as const;
 
-export type SupplierInvoiceStatusType = keyof typeof SUPPLIER_INVOICE_STATUS_TYPES;
+export type SupplierInvoiceStatusType =
+  keyof typeof SUPPLIER_INVOICE_STATUS_TYPES;
 
 export enum SupplierInvoiceStatusEnum {
   OPEN = 'OPEN',
   PAID = 'PAID',
-  PARTIALLY_PAID = 'PARTIALLY_PAID',
-  CANCELLED = 'CANCELLED',
-  OVERDUE = 'OVERDUE',
+  VOID = 'VOID',
+  PENDING_PAYMENT = 'PENDING_PAYMENT',
 }
 
 export const SUPPLIER_INVOICE_PAYMENT_TYPES = {
@@ -21,26 +20,29 @@ export const SUPPLIER_INVOICE_PAYMENT_TYPES = {
   CREDIT: 'CRÉDITO',
 } as const;
 
-export type SupplierInvoicePaymentType = keyof typeof SUPPLIER_INVOICE_PAYMENT_TYPES;
+export type SupplierInvoicePaymentType =
+  keyof typeof SUPPLIER_INVOICE_PAYMENT_TYPES;
 
 export enum SupplierInvoicePaymentTypeEnum {
   CASH = 'CASH',
   CREDIT = 'CREDIT',
 }
 
-export const PURCHASE_ITEM_TYPES = {
-  SALES_INVENTORY: 'SALES_INVENTORY',
-  FIXED_ASSET: 'FIXED_ASSET',
-  EXPENSE: 'EXPENSE',
-  SERVICE: 'SERVICE',
-} as const;
-
 export enum purchaseItemTypeEnum {
   SALES_INVENTORY = 'SALES_INVENTORY',
   FIXED_ASSET = 'FIXED_ASSET',
-  EXPENSE = 'EXPENSE',
   SERVICE = 'SERVICE',
+  EXPENSE = 'EXPENSE',
+  SERVICE_EXPENSE = 'SERVICE_EXPENSE',
 }
+
+export const PURCHASE_ITEM_TYPES = {
+  [purchaseItemTypeEnum.SALES_INVENTORY]: 'Inventario de Venta',
+  [purchaseItemTypeEnum.FIXED_ASSET]: 'Activo Fijo',
+  [purchaseItemTypeEnum.SERVICE]: 'Servicio',
+  [purchaseItemTypeEnum.EXPENSE]: 'Gasto',
+  [purchaseItemTypeEnum.SERVICE_EXPENSE]: 'Servicio/Gasto',
+};
 
 export type PurchaseItemType = keyof typeof PURCHASE_ITEM_TYPES;
 

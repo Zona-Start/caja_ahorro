@@ -47,7 +47,7 @@ export function SupplierInvoiceModal({
               ? 'Ver Factura de Proveedor'
               : defaultValues?.id
                 ? 'Actualizar Factura de Proveedor'
-                : 'Crear Factura de Proveedor'}
+                : 'Cargar Factura de Proveedor'}
           </DialogTitle>
           <DialogDescription>
             {readOnly

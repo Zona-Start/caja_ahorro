@@ -46,3 +46,16 @@ export const bankAccountResponseOneSchema = z.object({
 export const bankAccountDeleteResponseSchema = z.object({
   message: z.string(),
 });
+
+export const bankAccountAllApiSchema = z.object({
+  id: z.number(),
+  bankDirectoryId: z.number(),
+  bankDirectoryName: z.string().optional(),
+  accountNumber: z.string(),
+  accountName: z.string().optional().nullable(),
+});
+
+export const bankAccountAllResponseSchema = z.object({
+  message: z.string(),
+  data: z.array(bankAccountAllApiSchema),
+});
