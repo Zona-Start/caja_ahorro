@@ -21,6 +21,11 @@ export class CreateServiceDto {
   @IsOptional()
   description?: string;
 
+  @ApiPropertyOptional({ description: 'Service Code' })
+  @IsString()
+  @IsOptional()
+  serviceCode?: string;
+
   @ApiProperty({ description: 'Category ID' })
   @IsInt()
   @IsNotEmpty()

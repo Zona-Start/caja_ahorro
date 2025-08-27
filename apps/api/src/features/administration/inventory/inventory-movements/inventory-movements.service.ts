@@ -1,11 +1,6 @@
 import { generateUniqueReference } from '@/common/utils/reference';
 import { inventoryMovements } from '@/database/schema/administration';
-import {
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -35,20 +30,20 @@ export class InventoryMovementsService {
       notes,
     } = data;
 
-    if (documentType && documentNumber) {
-      const existingMovement = await db.query.inventoryMovements.findFirst({
-        where: and(
-          eq(inventoryMovements.documentType, documentType),
-          eq(inventoryMovements.documentNumber, documentNumber),
-        ),
-      });
+    // if (documentType && documentNumber) {
+    //   const existingMovement = await db.query.inventoryMovements.findFirst({
+    //     where: and(
+    //       eq(inventoryMovements.documentType, documentType),
+    //       eq(inventoryMovements.documentNumber, documentNumber),
+    //     ),
+    //   });
 
-      if (existingMovement) {
-        throw new ConflictException(
-          'An inventory movement with this document type and number already exists.',
-        );
-      }
-    }
+    //   if (existingMovement) {
+    //     throw new ConflictException(
+    //       'An inventory movement with this document type and number already exists.',
+    //     );
+    //   }
+    // }
 
     const newMovements = await db.transaction(async (tx) => {
       type MovementReturnType = {

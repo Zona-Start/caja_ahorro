@@ -6,6 +6,10 @@ import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<Service>[] = [
   {
+    accessorKey: 'serviceCode',
+    header: 'Código',
+  },
+  {
     accessorKey: 'name',
     header: 'Nombre',
   },

@@ -16,7 +16,6 @@ export const purchaseOrderApiSchema = z.object({
   supplierId: z.number(),
   supplierName: z.string().optional(),
   orderNumber: z.string(),
-  orderType: z.string(),
   status: z.string().optional(),
   orderDate: z.string(),
   expectedDeliveryDate: z.string().nullable().optional(),

@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
   purchaseOrderItems,
   purchaseOrders,
@@ -23,6 +23,7 @@ import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 export class PurchaseOrdersService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
 
   private validateOrderItems(
@@ -107,7 +108,7 @@ export class PurchaseOrdersService {
           ? orderData.expectedDeliveryDate.toISOString()
           : orderData.expectedDeliveryDate,
       currencyCode: 'VES' as CurrencyCodeEnum, // Default to VES if not provided
-      orderNumber: generateUniqueReference(), // Ensure orderNumber is present
+      orderNumber: await this.generateCodeService.generateNextReference('ORD'), // Ensure orderNumber is present
     };
 
     return await this.drizzle.transaction(async (tx) => {
@@ -153,9 +154,6 @@ export class PurchaseOrdersService {
     }
     if (supplierId) {
       searchConditions.push(eq(purchaseOrders.supplierId, supplierId));
-    }
-    if (orderType) {
-      searchConditions.push(eq(purchaseOrders.orderType, orderType as any));
     }
     if (status) {
       searchConditions.push(eq(purchaseOrders.status, status as any));
@@ -215,7 +213,6 @@ export class PurchaseOrdersService {
         const order = {
           id: row.order.id,
           orderNumber: row.order.orderNumber,
-          orderType: row.order.orderType,
           supplierId: row.order.supplierId,
           supplierName: row.supplierName,
           status: row.order.status,
@@ -286,7 +283,14 @@ export class PurchaseOrdersService {
     });
 
     if (!existingOrder) {
-      throw new NotFoundException('Purchase order not found');
+      throw new NotFoundException('Orden de compra no encontrada');
+    }
+
+    const editableStatuses = ['DRAFT', 'PENDING'];
+    if (!editableStatuses.includes(existingOrder.status)) {
+      throw new BadRequestException(
+        `La orden con estatus '${existingOrder.status}' no puede ser modificada.`,
+      );
     }
 
     this.validateOrderItems(items);
@@ -390,12 +394,27 @@ export class PurchaseOrdersService {
   }
 
   async remove(id: number) {
-    return await this.drizzle.transaction(async (tx) => {
-      await tx
-        .delete(purchaseOrderItems)
-        .where(eq(purchaseOrderItems.purchaseOrderId, id));
-      await tx.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
-      return { message: 'Purchase order removed successfully' };
+    const order = await this.drizzle.query.purchaseOrders.findFirst({
+      where: eq(purchaseOrders.id, id),
     });
+
+    if (!order) {
+      throw new NotFoundException('Orden de compra no encontrada');
+    }
+
+    const allowedStatus = ['DRAFT', 'PENDING', 'RECEIVED', 'INVOICED'];
+
+    if (!allowedStatus.includes(order.status)) {
+      throw new BadRequestException(
+        `La orden con estatus '${order.status}' no puede ser anulada.`,
+      );
+    }
+
+    await this.drizzle
+      .update(purchaseOrders)
+      .set({ status: 'CANCELLED' })
+      .where(eq(purchaseOrders.id, id));
+
+    return { message: 'Orden de compra anulada exitosamente' };
   }
 }

@@ -103,25 +103,6 @@ export function SupplierForm({
     form.setValue('taxId', value, { shouldValidate: true });
   };
 
-  const handleCodeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    let value = event.target.value.toUpperCase();
-    const prefix = 'PROV';
-
-    if (!value.startsWith(prefix)) {
-      value = prefix; // Ensure it always starts with PROV
-    }
-
-    // Allow only digits after the prefix
-    const numericPart = value.substring(prefix.length).replace(/\D/g, '');
-
-    // Limit to 4 digits
-    const formattedNumericPart = numericPart.substring(0, 4);
-
-    value = prefix + formattedNumericPart;
-
-    form.setValue('code', value, { shouldValidate: true });
-  };
-
   return (
     <Form {...form}>
       <ScrollArea className="h-[calc(100vh-200px)]">
@@ -134,28 +115,7 @@ export function SupplierForm({
               {form.formState.errors.root.message}
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value || 'PROV'} // Set default value for display
-                      onChange={handleCodeChange}
-                      maxLength={8} // PROV + 4 digits
-                      disabled={readOnly}
-                      className={readOnly ? 'bg-muted' : ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
             <FormField
               control={form.control}
               name="name"
@@ -173,6 +133,28 @@ export function SupplierForm({
                 </FormItem>
               )}
             />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {defaultValues?.id && (
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value || ''} // Set default value for display
+                        disabled
+                        className={readOnly ? 'bg-muted' : ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -248,14 +230,16 @@ export function SupplierForm({
                 </FormItem>
               )}
             />
-          </div>
-          {/* Assuming 'state' is a simple number input for now, adjust if it's a searchable select */}
-          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+
+            {/* Assuming 'state' is a simple number input for now, adjust if it's a searchable select */}
+
             <FormField
               control={form.control}
               name="state"
               render={({ field }) => (
-                <FormItem className="w-full">
+                <FormItem
+                  className={`"w-full ${defaultValues?.id ? 'col-span-1' : 'col-span-2'}`}
+                >
                   <FormLabel>Ubicación</FormLabel>
 
                   <SelectSearchable
@@ -274,7 +258,8 @@ export function SupplierForm({
                 </FormItem>
               )}
             />
-
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
             <FormField
               control={form.control}
               name="address"

@@ -42,6 +42,7 @@ export class AccountsPayableService {
         originalAmount: data.originalAmount.toString(),
         paidAmount: data.paidAmount?.toString() || '0.00',
         remainingAmount: data.remainingAmount.toString(),
+        dueDate: data.dueDate?.toISOString() || null,
         createdById: userId,
       })
       .returning();
@@ -146,6 +147,7 @@ export class AccountsPayableService {
         originalAmount: data.originalAmount?.toString(),
         paidAmount: data.paidAmount?.toString(),
         remainingAmount: data.remainingAmount?.toString(),
+        dueDate: data.dueDate?.toISOString() || null,
         updatedById: userId,
       })
       .where(eq(accountsPayable.id, id))

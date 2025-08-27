@@ -1,3 +1,4 @@
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
   purchaseOrderItems,
   services,
@@ -25,6 +26,7 @@ export class ServicesService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly servicePricesService: ServicePricesService,
     private readonly settingsSystemService: SettingsSystemService,
+    private readonly generateCode: GenerateCodeService,
   ) {}
 
   async calculateFinalCost(
@@ -75,6 +77,7 @@ export class ServicesService {
         .values([
           {
             ...data,
+            serviceCode: await this.generateCode.generateGlobalCode('SRV'),
             createdById: userId,
             status: 'ACTIVE',
           },
@@ -83,6 +86,7 @@ export class ServicesService {
           id: services.id,
           name: services.name,
           description: services.description,
+          serviceCode: services.serviceCode,
           categoryId: services.categoryId,
           status: services.status,
         });
@@ -159,6 +163,7 @@ export class ServicesService {
         id: services.id,
         name: services.name,
         description: services.description,
+        serviceCode: services.serviceCode,
         categoryId: services.categoryId,
         categoryName: schema.inventoriesCategories.name,
         status: services.status,
@@ -266,6 +271,7 @@ export class ServicesService {
           id: services.id,
           name: services.name,
           description: services.description,
+          serviceCode: services.serviceCode,
           categoryId: services.categoryId,
           status: services.status,
         });
@@ -329,7 +335,7 @@ export class ServicesService {
     const exitPurchaseOrder = await this.drizzle
       .select()
       .from(purchaseOrderItems)
-      .where(eq(purchaseOrderItems.serviceId, id));
+      .where(eq(purchaseOrderItems.itemId, id));
 
     if (exitPurchaseOrder.length !== 0) {
       throw new BadRequestException(
@@ -340,7 +346,7 @@ export class ServicesService {
     const exitSupplierInvoice = await this.drizzle
       .select()
       .from(supplierInvoiceItems)
-      .where(eq(supplierInvoiceItems.serviceId, id));
+      .where(eq(supplierInvoiceItems.itemId, id));
 
     if (exitSupplierInvoice.length !== 0) {
       throw new BadRequestException(

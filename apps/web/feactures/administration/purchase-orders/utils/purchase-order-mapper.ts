@@ -17,7 +17,6 @@ export function mapPurchaseOrderApiToForm(data: any) {
       supplierId: item.supplierId,
       supplierName: item.supplierName,
       orderNumber: item.orderNumber,
-      orderType: item.orderType,
       status: item.status,
       orderDate: orderDateLocal,
       expectedDeliveryDate: expectedDeliveryDateLocal,

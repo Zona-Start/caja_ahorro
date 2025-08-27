@@ -64,14 +64,6 @@ export class CreatePurchaseOrderDto {
   @IsNotEmpty()
   supplierId: number;
 
-  @ApiProperty({
-    description: 'Order type',
-    enum: purchaseOrderTypeEnum.enumValues,
-  })
-  @IsEnum(purchaseOrderTypeEnum.enumValues)
-  @IsNotEmpty()
-  orderType: (typeof purchaseOrderTypeEnum.enumValues)[number];
-
   @ApiPropertyOptional({
     description: 'Status',
     enum: purchaseOrderStatusEnum.enumValues,

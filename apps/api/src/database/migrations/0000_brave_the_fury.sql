@@ -1,6 +1,6 @@
 CREATE SCHEMA "accounting";
 --> statement-breakpoint
-CREATE SCHEMA "accounts_payable";
+CREATE SCHEMA "administration";
 --> statement-breakpoint
 CREATE SCHEMA "audit";
 --> statement-breakpoint
@@ -30,21 +30,23 @@ CREATE TYPE "public"."cycle_status_enum" AS ENUM('OPEN', 'CLOSED', 'CLOSING');--
 CREATE TYPE "public"."fixed_assets_inventory_status" AS ENUM('ACTIVE', 'UNDER_MAINTENANCE', 'INACTIVE', 'DEREGISTERED');--> statement-breakpoint
 CREATE TYPE "auth"."gender" AS ENUM('FEMENINO', 'MASCULINO', 'OTRO');--> statement-breakpoint
 CREATE TYPE "public"."internal_link_status" AS ENUM('LINKED', 'UNLINKED', 'PARTIALLY_LINKED', 'NOT_APPLICABLE');--> statement-breakpoint
-CREATE TYPE "public"."invoice_supplier_status_enum" AS ENUM('OPEN', 'PAID', 'CANCELLED');--> statement-breakpoint
+CREATE TYPE "public"."invoice_supplier_status_enum" AS ENUM('DRAFT', 'PENDING', 'ACCOUNTED_FOR', 'PAID', 'CANCELLED');--> statement-breakpoint
+CREATE TYPE "public"."invoice_type_enum" AS ENUM('EXPENSE', 'PURCHASE');--> statement-breakpoint
 CREATE TYPE "public"."liquidations_status_enum" AS ENUM('REQUESTED', 'PROCESSED', 'REJECTED', 'REVERSED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'ADJUSTED');--> statement-breakpoint
 CREATE TYPE "public"."loan_modality_type_enum" AS ENUM('ORDINARY', 'SPECIAL_QUOTAS');--> statement-breakpoint
 CREATE TYPE "public"."loan_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION');--> statement-breakpoint
 CREATE TYPE "public"."loan_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'IN_PAYMENT', 'PAID', 'OVERDUE', 'ADJUSTED');--> statement-breakpoint
 CREATE TYPE "public"."movement_type_inventory" AS ENUM('IN', 'OUT', 'ADJUST_IN', 'ADJUST_OUT', 'TRANSFER', 'COMMIT', 'UN_COMMIT', 'ORDERED', 'RECEIVED');--> statement-breakpoint
 CREATE TYPE "public"."nationality" AS ENUM('VENEZOLANO', 'EXTRANJERO');--> statement-breakpoint
-CREATE TYPE "public"."payment_accounts_payable_enum" AS ENUM('PENDING', 'PENDING_BANK_BATCH', 'PAID', 'CANCELLED');--> statement-breakpoint
+CREATE TYPE "public"."payment_accounts_payable_enum" AS ENUM('PENDING', 'IN_PROGRESS', 'PAID', 'CANCELLED', 'EXPIRED');--> statement-breakpoint
 CREATE TYPE "public"."payment_method_enum" AS ENUM('CASH', 'BANK_TRANSFER', 'CHECK', 'DEPOSIT', 'OTHER', 'MOBILE_PAYMENT');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('DONE', 'CANCELED');--> statement-breakpoint
 CREATE TYPE "public"."payment_status_enum" AS ENUM('PENDING', 'PAID', 'OVERDUE', 'PARTIAL', 'CANCELED');--> statement-breakpoint
+CREATE TYPE "public"."payment_supplier_status" AS ENUM('DRAFT', 'PENDING', 'SENT_TO_BANK', 'PROCESSED', 'REJECTED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "public"."price_type_enum" AS ENUM('COST', 'SELLING', 'OFFER');--> statement-breakpoint
 CREATE TYPE "public"."product-status" AS ENUM('AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE');--> statement-breakpoint
-CREATE TYPE "public"."purchase_order_status_enum" AS ENUM('PENDING', 'RECEIVED', 'CANCELLED');--> statement-breakpoint
-CREATE TYPE "public"."purchase_order_type_enum" AS ENUM('SALES_INVENTORY', 'FIXED_ASSET', 'EXPENSE');--> statement-breakpoint
+CREATE TYPE "public"."purchase_order_status_enum" AS ENUM('DRAFT', 'PENDING', 'RECEIVED', 'INVOICED', 'CLOSED', 'CANCELLED');--> statement-breakpoint
+CREATE TYPE "public"."purchase_order_type_enum" AS ENUM('SALES_INVENTORY', 'FIXED_ASSET', 'SERVICE', 'EXPENSE');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_item_status_enum" AS ENUM('PENDING', 'RECONCILED', 'MANUAL_MATCH', 'ADJUSTMENT', 'EXCLUDED', 'NON_EXISTENT_IN_BANK', 'VOIDED');--> statement-breakpoint
 CREATE TYPE "public"."reconciliation_status_enum" AS ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'REVIEWED');--> statement-breakpoint
 CREATE TYPE "public"."status_enum" AS ENUM('ACTIVE', 'INACTIVE', 'PENDING', 'SUSPENDED', 'LOCKED', 'RETIRED', 'ARCHIVED');--> statement-breakpoint
@@ -157,12 +159,14 @@ CREATE TABLE "audit"."audit_logs" (
 	"updated_at" timestamp (3)
 );
 --> statement-breakpoint
-CREATE TABLE "accounts_payable"."accounts_payable" (
+CREATE TABLE "administration"."accounts_payable" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"supplier_invoice_id" integer NOT NULL,
+	"ap_number" varchar(50) NOT NULL,
 	"original_amount" numeric(18, 2) NOT NULL,
 	"paid_amount" numeric(18, 2) DEFAULT '0.00' NOT NULL,
 	"remaining_amount" numeric(18, 2) NOT NULL,
+	"due_date" date,
 	"currency_code" "currency_code_enum" NOT NULL,
 	"status" "payment_accounts_payable_enum" DEFAULT 'PENDING' NOT NULL,
 	"observations" text,
@@ -170,7 +174,8 @@ CREATE TABLE "accounts_payable"."accounts_payable" (
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
 	"updated_by_id" integer,
-	CONSTRAINT "accounts_payable_supplier_invoice_id_unique" UNIQUE("supplier_invoice_id")
+	CONSTRAINT "accounts_payable_supplier_invoice_id_unique" UNIQUE("supplier_invoice_id"),
+	CONSTRAINT "accounts_payable_ap_number_unique" UNIQUE("ap_number")
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."fixed_assets" (
@@ -229,8 +234,11 @@ CREATE TABLE "inventory"."inventories_categories" (
 --> statement-breakpoint
 CREATE TABLE "inventory"."inventory_movements" (
 	"id" serial PRIMARY KEY NOT NULL,
+	"description" text,
+	"movement_date" date DEFAULT now(),
 	"item_id" integer NOT NULL,
 	"item_type" varchar NOT NULL,
+	"movement_number" varchar(50) NOT NULL,
 	"movement_type" "movement_type_inventory" NOT NULL,
 	"quantity" integer NOT NULL,
 	"unit_cost" numeric(18, 2),
@@ -298,14 +306,12 @@ CREATE TABLE "inventory"."products" (
 	CONSTRAINT "products_sku_unique" UNIQUE("sku")
 );
 --> statement-breakpoint
-CREATE TABLE "accounts_payable"."purchase_order_items" (
+CREATE TABLE "administration"."purchase_order_items" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"purchase_order_id" integer NOT NULL,
 	"line_type" "purchase_order_type_enum" NOT NULL,
-	"product_id" integer,
-	"fixed_asset_id" integer,
-	"expense_account_id" integer,
-	"description" varchar(255) NOT NULL,
+	"itemId" integer,
+	"description" varchar(255),
 	"item_name" varchar(255) NOT NULL,
 	"quantity" integer NOT NULL,
 	"unit_cost" numeric(18, 6) NOT NULL,
@@ -316,11 +322,10 @@ CREATE TABLE "accounts_payable"."purchase_order_items" (
 	"updated_by_id" integer
 );
 --> statement-breakpoint
-CREATE TABLE "accounts_payable"."purchase_orders" (
+CREATE TABLE "administration"."purchase_orders" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"supplier_id" integer NOT NULL,
 	"order_number" varchar(50) NOT NULL,
-	"order_type" "purchase_order_type_enum" NOT NULL,
 	"status" "purchase_order_status_enum" DEFAULT 'PENDING' NOT NULL,
 	"order_date" date NOT NULL,
 	"expected_delivery_date" date,
@@ -365,14 +370,13 @@ CREATE TABLE "inventory"."services" (
 	"updated_by_id" integer
 );
 --> statement-breakpoint
-CREATE TABLE "accounts_payable"."supplier_invoice_items" (
+CREATE TABLE "administration"."supplier_invoice_items" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"invoice_id" integer NOT NULL,
 	"line_type" "purchase_order_type_enum" NOT NULL,
-	"product_id" integer,
-	"fixed_asset_id" integer,
+	"item_id" integer,
 	"expense_account_id" integer,
-	"description" varchar(255) NOT NULL,
+	"description" varchar(255),
 	"quantity" integer NOT NULL,
 	"unit_cost" numeric(18, 6) NOT NULL,
 	"total_line" numeric(18, 2) NOT NULL,
@@ -382,10 +386,11 @@ CREATE TABLE "accounts_payable"."supplier_invoice_items" (
 	"updated_by_id" integer
 );
 --> statement-breakpoint
-CREATE TABLE "accounts_payable"."supplier_invoices" (
+CREATE TABLE "administration"."supplier_invoices" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"supplier_id" integer NOT NULL,
 	"purchase_order_id" integer,
+	"order_number" varchar(50) NOT NULL,
 	"invoice_number" varchar(100) NOT NULL,
 	"control_number" varchar(100),
 	"invoice_date" date NOT NULL,
@@ -395,31 +400,68 @@ CREATE TABLE "accounts_payable"."supplier_invoices" (
 	"total_amount" numeric(18, 2) NOT NULL,
 	"currency_code" "currency_code_enum" NOT NULL,
 	"payment_type" "supplier_invoices_payment_enum" DEFAULT 'CREDIT' NOT NULL,
-	"status" "invoice_supplier_status_enum" DEFAULT 'OPEN' NOT NULL,
+	"status" "invoice_supplier_status_enum" DEFAULT 'DRAFT' NOT NULL,
 	"observations" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer,
+	CONSTRAINT "supplier_invoices_order_number_unique" UNIQUE("order_number")
+);
+--> statement-breakpoint
+CREATE TABLE "administration"."supplier_payment_lines" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"supplier_payment_id" integer NOT NULL,
+	"accounts_payable_id" integer,
+	"amount" numeric(18, 2) NOT NULL,
+	"description" varchar(255),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
 	"updated_by_id" integer
 );
 --> statement-breakpoint
-CREATE TABLE "accounts_payable"."supplier_transactions" (
+CREATE TABLE "administration"."supplier_payments" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"accounts_payable_id" integer NOT NULL,
+	"payment_number" varchar(50) NOT NULL,
+	"supplier_id" integer NOT NULL,
+	"total_amount" numeric(18, 2) NOT NULL,
+	"currency_code" "currency_code_enum" NOT NULL,
+	"payment_method" "payment_method_enum" NOT NULL,
+	"bank_account_id" integer,
+	"status" "payment_supplier_status" DEFAULT 'DRAFT' NOT NULL,
+	"requested_at" date DEFAULT now() NOT NULL,
+	"processed_at" date,
+	"reversed_at" date,
+	"observations" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer,
+	CONSTRAINT "supplier_payments_payment_number_unique" UNIQUE("payment_number")
+);
+--> statement-breakpoint
+CREATE TABLE "administration"."supplier_transactions" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"accounts_payable_id" integer,
+	"transaction_number" varchar(50) NOT NULL,
 	"transaction_type" "supplier_transactions_type_enum" NOT NULL,
 	"transaction_date" date NOT NULL,
 	"amount" numeric(18, 2) NOT NULL,
+	"direction" varchar NOT NULL,
 	"currency_code" "currency_code_enum" NOT NULL,
 	"payment_method" "payment_method_enum",
+	"bank_movement_id" integer,
 	"reference" varchar(255),
 	"status" varchar DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
-	"updated_by_id" integer
+	"updated_by_id" integer,
+	CONSTRAINT "supplier_transactions_transaction_number_unique" UNIQUE("transaction_number")
 );
 --> statement-breakpoint
-CREATE TABLE "accounts_payable"."suppliers" (
+CREATE TABLE "administration"."suppliers" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"company_id" integer,
 	"code" varchar(50) NOT NULL,
@@ -841,6 +883,21 @@ CREATE TABLE "savings_banks"."credit_amortization_schedule" (
 	"updated_by_id" integer
 );
 --> statement-breakpoint
+CREATE TABLE "savings_banks"."credit_item_sales" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"credit_id" integer NOT NULL,
+	"item_type" varchar NOT NULL,
+	"item_id" integer NOT NULL,
+	"quantity" integer DEFAULT 1 NOT NULL,
+	"agreed_selling_price" numeric(20, 6) NOT NULL,
+	"sale_date" date DEFAULT now() NOT NULL,
+	"delivery_status" varchar(50) DEFAULT 'ENTREGADO' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
+);
+--> statement-breakpoint
 CREATE TABLE "savings_banks"."credit_payments" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"credit_id" integer NOT NULL,
@@ -864,20 +921,6 @@ CREATE TABLE "savings_banks"."credit_payment_details" (
 	"credit_payment_id" integer NOT NULL,
 	"installment_id" integer,
 	"amount" numeric(20, 6) NOT NULL,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp (3),
-	"created_by_id" integer,
-	"updated_by_id" integer
-);
---> statement-breakpoint
-CREATE TABLE "savings_banks"."credit_product_sales" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"credit_id" integer NOT NULL,
-	"product_id" integer NOT NULL,
-	"quantity" integer DEFAULT 1 NOT NULL,
-	"agreed_selling_price" numeric(20, 6) NOT NULL,
-	"sale_date" date DEFAULT now() NOT NULL,
-	"delivery_status" varchar(50) DEFAULT 'ENTREGADO' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" integer,
@@ -1158,14 +1201,14 @@ ALTER TABLE "accounting"."accounting_entry_details" ADD CONSTRAINT "accounting_e
 ALTER TABLE "accounting"."accounting_entry_details" ADD CONSTRAINT "accounting_entry_details_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."activity_logs" ADD CONSTRAINT "activity_logs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit"."audit_logs" ADD CONSTRAINT "audit_logs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."accounts_payable" ADD CONSTRAINT "accounts_payable_supplier_invoice_id_supplier_invoices_id_fk" FOREIGN KEY ("supplier_invoice_id") REFERENCES "accounts_payable"."supplier_invoices"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."accounts_payable" ADD CONSTRAINT "accounts_payable_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."accounts_payable" ADD CONSTRAINT "accounts_payable_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."accounts_payable" ADD CONSTRAINT "accounts_payable_supplier_invoice_id_supplier_invoices_id_fk" FOREIGN KEY ("supplier_invoice_id") REFERENCES "administration"."supplier_invoices"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."accounts_payable" ADD CONSTRAINT "accounts_payable_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."accounts_payable" ADD CONSTRAINT "accounts_payable_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_category_id_inventories_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."inventories_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_fixed_assets_id_fixed_assets_id_fk" FOREIGN KEY ("fixed_assets_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventories_categories" ADD CONSTRAINT "inventories_categories_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1173,48 +1216,53 @@ ALTER TABLE "inventory"."inventories_categories" ADD CONSTRAINT "inventories_cat
 ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_prices" ADD CONSTRAINT "product_prices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "inventory"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_fixed_Assets_id_fixed_assets_id_fk" FOREIGN KEY ("fixed_Assets_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."product_service_suppliers" ADD CONSTRAINT "product_service_suppliers_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."products" ADD CONSTRAINT "products_category_id_inventories_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."inventories_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."products" ADD CONSTRAINT "products_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."products" ADD CONSTRAINT "products_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_purchase_order_id_purchase_orders_id_fk" FOREIGN KEY ("purchase_order_id") REFERENCES "accounts_payable"."purchase_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_fixed_asset_id_fixed_assets_id_fk" FOREIGN KEY ("fixed_asset_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_expense_account_id_account_plan_id_fk" FOREIGN KEY ("expense_account_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_orders" ADD CONSTRAINT "purchase_orders_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_orders" ADD CONSTRAINT "purchase_orders_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_orders" ADD CONSTRAINT "purchase_orders_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_purchase_order_id_purchase_orders_id_fk" FOREIGN KEY ("purchase_order_id") REFERENCES "administration"."purchase_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."purchase_orders" ADD CONSTRAINT "purchase_orders_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."purchase_orders" ADD CONSTRAINT "purchase_orders_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."purchase_orders" ADD CONSTRAINT "purchase_orders_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "inventory"."services"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."service_prices" ADD CONSTRAINT "service_prices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_category_id_inventories_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."inventories_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_invoice_id_supplier_invoices_id_fk" FOREIGN KEY ("invoice_id") REFERENCES "accounts_payable"."supplier_invoices"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_fixed_asset_id_fixed_assets_id_fk" FOREIGN KEY ("fixed_asset_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "accounts_payable"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_purchase_order_id_purchase_orders_id_fk" FOREIGN KEY ("purchase_order_id") REFERENCES "accounts_payable"."purchase_orders"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_accounts_payable_id_accounts_payable_id_fk" FOREIGN KEY ("accounts_payable_id") REFERENCES "accounts_payable"."accounts_payable"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."suppliers" ADD CONSTRAINT "suppliers_company_id_company_id_fk" FOREIGN KEY ("company_id") REFERENCES "core"."company"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."suppliers" ADD CONSTRAINT "suppliers_state_states_id_fk" FOREIGN KEY ("state") REFERENCES "core"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."suppliers" ADD CONSTRAINT "suppliers_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."suppliers" ADD CONSTRAINT "suppliers_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_invoice_id_supplier_invoices_id_fk" FOREIGN KEY ("invoice_id") REFERENCES "administration"."supplier_invoices"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_expense_account_id_account_plan_id_fk" FOREIGN KEY ("expense_account_id") REFERENCES "accounting"."account_plan"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_purchase_order_id_purchase_orders_id_fk" FOREIGN KEY ("purchase_order_id") REFERENCES "administration"."purchase_orders"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_supplier_payment_id_supplier_payments_id_fk" FOREIGN KEY ("supplier_payment_id") REFERENCES "administration"."supplier_payments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_accounts_payable_id_accounts_payable_id_fk" FOREIGN KEY ("accounts_payable_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_payments_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_payments_bank_account_id_bank_accounts_id_fk" FOREIGN KEY ("bank_account_id") REFERENCES "banking"."bank_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_payments_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_payments_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_accounts_payable_id_accounts_payable_id_fk" FOREIGN KEY ("accounts_payable_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_bank_movement_id_bank_transactions_id_fk" FOREIGN KEY ("bank_movement_id") REFERENCES "banking"."bank_transactions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."suppliers" ADD CONSTRAINT "suppliers_company_id_company_id_fk" FOREIGN KEY ("company_id") REFERENCES "core"."company"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."suppliers" ADD CONSTRAINT "suppliers_state_states_id_fk" FOREIGN KEY ("state") REFERENCES "core"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."suppliers" ADD CONSTRAINT "suppliers_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."suppliers" ADD CONSTRAINT "suppliers_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."permissions" ADD CONSTRAINT "permissions_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."permissions" ADD CONSTRAINT "permissions_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."roles" ADD CONSTRAINT "roles_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1301,6 +1349,9 @@ ALTER TABLE "savings_banks"."associates" ADD CONSTRAINT "associates_updated_by_i
 ALTER TABLE "savings_banks"."credit_amortization_schedule" ADD CONSTRAINT "credit_amortization_schedule_credit_id_credits_id_fk" FOREIGN KEY ("credit_id") REFERENCES "savings_banks"."credits"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_amortization_schedule" ADD CONSTRAINT "credit_amortization_schedule_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_amortization_schedule" ADD CONSTRAINT "credit_amortization_schedule_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."credit_item_sales" ADD CONSTRAINT "credit_item_sales_credit_id_credits_id_fk" FOREIGN KEY ("credit_id") REFERENCES "savings_banks"."credits"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."credit_item_sales" ADD CONSTRAINT "credit_item_sales_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."credit_item_sales" ADD CONSTRAINT "credit_item_sales_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_payments" ADD CONSTRAINT "credit_payments_credit_id_credits_id_fk" FOREIGN KEY ("credit_id") REFERENCES "savings_banks"."credits"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_payments" ADD CONSTRAINT "credit_payments_bank_id_bank_directory_id_fk" FOREIGN KEY ("bank_id") REFERENCES "banking"."bank_directory"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_payments" ADD CONSTRAINT "credit_payments_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1309,10 +1360,6 @@ ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_paym
 ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_payment_details_installment_id_credit_amortization_schedule_id_fk" FOREIGN KEY ("installment_id") REFERENCES "savings_banks"."credit_amortization_schedule"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_payment_details_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_payment_details" ADD CONSTRAINT "credit_payment_details_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_credit_id_credits_id_fk" FOREIGN KEY ("credit_id") REFERENCES "savings_banks"."credits"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_product_id_products_id_fk" FOREIGN KEY ("product_id") REFERENCES "inventory"."products"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings_banks"."credit_product_sales" ADD CONSTRAINT "credit_product_sales_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_status_history" ADD CONSTRAINT "credit_status_history_credit_id_credits_id_fk" FOREIGN KEY ("credit_id") REFERENCES "savings_banks"."credits"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credit_status_history" ADD CONSTRAINT "credit_status_history_changed_by_user_id_users_id_fk" FOREIGN KEY ("changed_by_user_id") REFERENCES "auth"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."credits" ADD CONSTRAINT "credits_associate_id_associates_id_fk" FOREIGN KEY ("associate_id") REFERENCES "savings_banks"."associates"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
@@ -1389,8 +1436,8 @@ CREATE INDEX "auditLogs_table_name_idx" ON "audit"."audit_logs" USING btree ("ta
 CREATE INDEX "auditLogs_record_idx" ON "audit"."audit_logs" USING btree ("record_id");--> statement-breakpoint
 CREATE INDEX "auditLogs_action_idx" ON "audit"."audit_logs" USING btree ("action");--> statement-breakpoint
 CREATE INDEX "auditLogs_area_idx" ON "audit"."audit_logs" USING btree ("area");--> statement-breakpoint
-CREATE UNIQUE INDEX "payable_invoice_uidx" ON "accounts_payable"."accounts_payable" USING btree ("supplier_invoice_id");--> statement-breakpoint
-CREATE INDEX "ap_status_idx" ON "accounts_payable"."accounts_payable" USING btree ("status");--> statement-breakpoint
+CREATE UNIQUE INDEX "payable_invoice_uidx" ON "administration"."accounts_payable" USING btree ("supplier_invoice_id");--> statement-breakpoint
+CREATE INDEX "ap_status_idx" ON "administration"."accounts_payable" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "fixed_asset_code_idx" ON "inventory"."fixed_assets" USING btree ("asset_code");--> statement-breakpoint
 CREATE INDEX "fixed_asset_cat_id_idx" ON "inventory"."fixed_assets" USING btree ("category_id");--> statement-breakpoint
 CREATE INDEX "fixed_asset_status_idx" ON "inventory"."fixed_assets" USING btree ("asset_status");--> statement-breakpoint
@@ -1402,10 +1449,10 @@ CREATE INDEX "supplier_idx" ON "inventory"."product_service_suppliers" USING btr
 CREATE INDEX "sales_prod_sku_idx" ON "inventory"."products" USING btree ("sku");--> statement-breakpoint
 CREATE INDEX "sales_prod_name_idx" ON "inventory"."products" USING btree ("sku");--> statement-breakpoint
 CREATE INDEX "sales_prod_cat_id_idx" ON "inventory"."products" USING btree ("category_id");--> statement-breakpoint
-CREATE UNIQUE INDEX "po_order_number_idx" ON "accounts_payable"."purchase_orders" USING btree ("order_number");--> statement-breakpoint
-CREATE UNIQUE INDEX "si_invoice_unique_idx" ON "accounts_payable"."supplier_invoices" USING btree ("supplier_id","invoice_number");--> statement-breakpoint
-CREATE INDEX "supplier_name_idx" ON "accounts_payable"."suppliers" USING btree ("name");--> statement-breakpoint
-CREATE INDEX "supplier_tax_idx" ON "accounts_payable"."suppliers" USING btree ("tax_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "po_order_number_idx" ON "administration"."purchase_orders" USING btree ("order_number");--> statement-breakpoint
+CREATE UNIQUE INDEX "si_invoice_unique_idx" ON "administration"."supplier_invoices" USING btree ("supplier_id","invoice_number");--> statement-breakpoint
+CREATE INDEX "supplier_name_idx" ON "administration"."suppliers" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "supplier_tax_idx" ON "administration"."suppliers" USING btree ("tax_id");--> statement-breakpoint
 CREATE INDEX "permissions_idx" ON "auth"."permissions" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "roles_idx" ON "auth"."roles" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "roles_permission_idx01" ON "auth"."roles_permissions" USING btree ("role_id");--> statement-breakpoint
@@ -1464,13 +1511,13 @@ CREATE INDEX "associates_type_idx" ON "savings_banks"."associates" USING btree (
 CREATE INDEX "associates_locality_idx" ON "savings_banks"."associates" USING btree ("locality_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "credit_amort_credit_installment_uidx" ON "savings_banks"."credit_amortization_schedule" USING btree ("credit_id","installment_number");--> statement-breakpoint
 CREATE INDEX "credit_amort_due_date_status_idx" ON "savings_banks"."credit_amortization_schedule" USING btree ("due_date","payment_status");--> statement-breakpoint
+CREATE INDEX "credit_item_sale_credit_id_idx" ON "savings_banks"."credit_item_sales" USING btree ("credit_id");--> statement-breakpoint
+CREATE INDEX "credit_item_sale_type_idx" ON "savings_banks"."credit_item_sales" USING btree ("item_type");--> statement-breakpoint
 CREATE UNIQUE INDEX "credit_payments_uidx" ON "savings_banks"."credit_payments" USING btree ("custom_reference");--> statement-breakpoint
 CREATE INDEX "credit_payments_date_idx" ON "savings_banks"."credit_payments" USING btree ("payment_date");--> statement-breakpoint
 CREATE INDEX "credit_payments_reference_idx" ON "savings_banks"."credit_payments" USING btree ("custom_reference");--> statement-breakpoint
 CREATE INDEX "credit_payments_transaction_reference_idx" ON "savings_banks"."credit_payments" USING btree ("transaction_reference");--> statement-breakpoint
 CREATE INDEX "credit_payments_details_installment_idx" ON "savings_banks"."credit_payment_details" USING btree ("installment_id");--> statement-breakpoint
-CREATE INDEX "credit_prod_sale_credit_id_idx" ON "savings_banks"."credit_product_sales" USING btree ("credit_id");--> statement-breakpoint
-CREATE INDEX "credit_prod_sale_prod_id_idx" ON "savings_banks"."credit_product_sales" USING btree ("product_id");--> statement-breakpoint
 CREATE INDEX "credit_status_history_idx" ON "savings_banks"."credit_status_history" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "credit_associate_idx" ON "savings_banks"."credits" USING btree ("associate_id");--> statement-breakpoint
 CREATE INDEX "credit_status_date_idx" ON "savings_banks"."credits" USING btree ("status","request_date");--> statement-breakpoint

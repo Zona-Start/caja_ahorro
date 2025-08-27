@@ -26,7 +26,6 @@ export default async function Page(props: pageProps) {
   const pageLimit = Number(searchParamsCache.get('limit')) || 10;
   const status = searchParamsCache.get('status');
   const supplierId = searchParamsCache.get('supplierId');
-  const orderType = searchParamsCache.get('orderType');
   const startDate = searchParamsCache.get('startDate');
   const endDate = searchParamsCache.get('endDate');
 
@@ -41,7 +40,6 @@ export default async function Page(props: pageProps) {
           initialSearch={search}
           initialLimit={pageLimit}
           initialSupplierId={supplierId}
-          initialOrderType={orderType}
           initialStartDate={startDate}
           initialEndDate={endDate}
         />

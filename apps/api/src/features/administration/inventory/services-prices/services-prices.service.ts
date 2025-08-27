@@ -1,10 +1,5 @@
 import { servicePrices } from '@/database/schema/administration';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -24,20 +19,20 @@ export class ServicePricesService {
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.drizzle;
-    const exist = await db.query.servicePrices.findFirst({
-      where: and(
-        eq(servicePrices.serviceId, data.serviceId),
-        eq(servicePrices.baseCost, String(data.baseCost)),
-        eq(servicePrices.otherCosts, String(data.otherCosts)),
-        eq(servicePrices.purchaseTax, String(data.purchaseTax)),
-      ),
-    });
+    // const exist = await db.query.servicePrices.findFirst({
+    //   where: and(
+    //     eq(servicePrices.serviceId, data.serviceId),
+    //     eq(servicePrices.baseCost, String(data.baseCost)),
+    //     eq(servicePrices.otherCosts, String(data.otherCosts)),
+    //     eq(servicePrices.purchaseTax, String(data.purchaseTax)),
+    //   ),
+    // });
 
-    if (exist) {
-      throw new BadRequestException(
-        'Price with this service and type already exists',
-      );
-    }
+    // if (exist) {
+    //   throw new BadRequestException(
+    //     'Price with this service and type already exists',
+    //   );
+    // }
 
     await db.insert(servicePrices).values([
       {

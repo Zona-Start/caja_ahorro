@@ -1,6 +1,18 @@
-import { currencyCodeEnum, paymentAccountsPayableEnum } from '@/database/schema/enum';
+import {
+  currencyCodeEnum,
+  paymentAccountsPayableEnum,
+} from '@/database/schema/enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsDate,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateAccountPayableDto {
   @ApiProperty({ description: 'Supplier Invoice ID' })
@@ -23,12 +35,18 @@ export class CreateAccountPayableDto {
   @IsNotEmpty()
   remainingAmount: number;
 
-  @ApiProperty({ description: 'Currency code', enum: currencyCodeEnum.enumValues })
+  @ApiProperty({
+    description: 'Currency code',
+    enum: currencyCodeEnum.enumValues,
+  })
   @IsEnum(currencyCodeEnum.enumValues)
   @IsNotEmpty()
   currencyCode: (typeof currencyCodeEnum.enumValues)[number];
 
-  @ApiPropertyOptional({ description: 'Status', enum: paymentAccountsPayableEnum.enumValues })
+  @ApiPropertyOptional({
+    description: 'Status',
+    enum: paymentAccountsPayableEnum.enumValues,
+  })
   @IsEnum(paymentAccountsPayableEnum.enumValues)
   @IsOptional()
   status?: (typeof paymentAccountsPayableEnum.enumValues)[number];
@@ -37,4 +55,10 @@ export class CreateAccountPayableDto {
   @IsString()
   @IsOptional()
   observations?: string;
+
+  @ApiPropertyOptional({ description: 'Due date' })
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  dueDate?: Date;
 }

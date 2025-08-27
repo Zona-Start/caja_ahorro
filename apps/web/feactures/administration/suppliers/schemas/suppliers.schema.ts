@@ -3,11 +3,7 @@ import { z } from 'zod';
 export const supplierSchema = z.object({
   id: z.number().optional(),
   companyId: z.number().optional(),
-  code: z
-    .string()
-    .min(8, { message: 'El código debe tener 8 caracteres (PROVDDDD)' })
-    .max(8, { message: 'El código debe tener 8 caracteres (PROVDDDD)' })
-    .regex(/^PROV\d{4}$/, { message: 'Formato inválido. Debe ser PROVDDDD (ej: PROV0001)' }),
+  code: z.string().optional().nullable(),
   name: z
     .string()
     .min(1, { message: 'requerido' })
@@ -16,7 +12,9 @@ export const supplierSchema = z.object({
     .string()
     .min(1, { message: 'requerido' })
     .max(12, { message: 'El formato es L-DDDDDDDD-D' })
-    .regex(/^[JGCVjgcV]-\d{8}-\d{1}$/, { message: 'Formato inválido. Ej: J-12345678-9' }),
+    .regex(/^[JGCVjgcV]-\d{8}-\d{1}$/, {
+      message: 'Formato inválido. Ej: J-12345678-9',
+    }),
   contactName: z
     .string()
     .max(255, { message: 'máximo 255 caracteres' })

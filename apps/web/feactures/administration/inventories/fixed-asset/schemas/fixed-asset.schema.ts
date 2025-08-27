@@ -8,9 +8,7 @@ const emptyStringToUndefined = z.preprocess(
 export const fixedAssetSchema = z.object({
   id: z.number().nullable().optional(),
   categoryId: z.number({ required_error: 'La categoría es requerida' }),
-  assetCode: z
-    .string({ required_error: 'El código del activo es requerido' })
-    .min(1, 'El código del activo no puede estar vacío'),
+  assetCode: z.string().optional().nullable(),
   name: z
     .string({ required_error: 'El nombre es requerido' })
     .min(1, 'El nombre no puede estar vacío'),

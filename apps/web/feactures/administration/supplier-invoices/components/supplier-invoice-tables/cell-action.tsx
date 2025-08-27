@@ -12,7 +12,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteSupplierInvoice } from '../../hooks/use-mutation-supplier-invoice';
+import { useCancelSupplierInvoice } from '../../hooks/use-mutation-supplier-invoice';
 import { SupplierInvoice } from '../../schemas/supplier-invoice.schema';
 import { SupplierInvoiceModal } from '../supplier-invoice-modal';
 
@@ -25,12 +25,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const { mutate: deleteSupplierInvoice } = useDeleteSupplierInvoice();
+  const { mutate: cancelSupplierInvoice } = useCancelSupplierInvoice();
 
-  const onConfirm = async () => {
+  const onConfirmDelete = async () => {
     try {
       setLoading(true);
-      deleteSupplierInvoice(data.id!);
+      cancelSupplierInvoice(data.id!); 
       setOpen(false);
     } catch (error) {
       console.error('Error:', error);
@@ -39,24 +39,30 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
+  const showNotAllowedToast = (description: string) => {
+    toast({
+      variant: 'destructive',
+      title: 'Acción no permitida',
+      description: description,
+    });
+  };
+
   const handleEdit = () => {
-    if (data.status === 'OPEN') {
+    if (data.status === 'DRAFT') {
       setShowEditModal(true);
     } else {
-      toast({
-        variant: 'destructive',
-        title: 'No se puede editar',
-        description: `Solo se puede editar si su estatus es abierta`,
-      });
+      showNotAllowedToast('Solo se pueden editar facturas en estado BORRADOR.');
     }
   };
 
-  const onDeleteMessage = async () => {
-    toast({
-      variant: 'destructive',
-      title: 'No se puede anular la factura',
-      description: `Solo se puede anular si su estatus es abierta`,
-    });
+  const handleDelete = () => {
+    if (data.status === 'DRAFT' || data.status === 'PENDING') {
+      setOpen(true);
+    } else {
+      showNotAllowedToast(
+        'Solo se pueden anular facturas en estado BORRADOR o PENDIENTE.',
+      );
+    }
   };
 
   return (
@@ -64,7 +70,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <AlertModal
         isOpen={open}
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
+        onConfirm={onConfirmDelete}
         loading={loading}
         title="¿Estás seguro que desea anular esta factura?"
         description="Esta acción no se puede deshacer."
@@ -73,19 +79,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <SupplierInvoiceModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
-        defaultValues={{
-          ...data,
-        }}
+        defaultValues={data}
       />
 
       <SupplierInvoiceModal
         open={showViewModal}
-        onOpenChange={(open) => {
-          setShowViewModal(open);
-        }}
-        defaultValues={{
-          ...data,
-        }}
+        onOpenChange={setShowViewModal}
+        defaultValues={data}
         readOnly={true}
       />
 
@@ -124,17 +124,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  if (data.status === 'OPEN') {
-                    setOpen(true);
-                  } else {
-                    onDeleteMessage();
-                  }
-                }}
-              >
+              <Button variant="outline" size="icon" onClick={handleDelete}>
                 <Trash className="h-4 w-4" />
               </Button>
             </TooltipTrigger>

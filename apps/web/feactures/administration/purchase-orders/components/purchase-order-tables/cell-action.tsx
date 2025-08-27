@@ -48,7 +48,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleEdit = () => {
-    if (data.status === 'PENDING') {
+    if (data.status === 'DRAFT' || data.status === 'PENDING') {
       setShowEditModal(true);
     } else {
       const message = 'No se puede modificar la orden por su estatus actual.';
@@ -57,10 +57,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleDelete = () => {
-    if (data.status === 'PENDING') {
+    const allowedStatus = ['DRAFT', 'PENDING', 'RECEIVED', 'INVOICED'];
+    if (allowedStatus.includes(data.status!)) {
       setOpen(true);
     } else {
-      const message = 'No se puede eliminar la orden por su estatus actual.';
+      const message = 'No se puede anular la orden por su estatus actual.';
       showNotAllowedToast(message);
     }
   };

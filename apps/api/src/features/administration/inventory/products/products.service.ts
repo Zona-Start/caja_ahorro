@@ -76,16 +76,12 @@ export class ProductsService {
         'Product with this category and name already exists',
       );
     }
-    const code = await this.generateCode.generateCustomReference(
-      'correlativo_producto',
-      'PROD',
-    );
 
     const result = await this.drizzle
       .insert(products)
       .values({
         categoryId: data.categoryId,
-        sku: code,
+        sku: await this.generateCode.generateGlobalCode('PDR'),
         name: data.name,
         description: data.description,
         brand: data.brand,
@@ -479,7 +475,7 @@ export class ProductsService {
     const existPurchase = await this.drizzle
       .select()
       .from(schema.purchaseOrderItems)
-      .where(eq(schema.purchaseOrderItems.productId, id));
+      .where(eq(schema.purchaseOrderItems.itemId, id));
 
     if (existPurchase.length !== 0) {
       throw new BadRequestException(

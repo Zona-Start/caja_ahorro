@@ -11,7 +11,6 @@ export const searchParams = {
   q: parseAsString,
   status: parseAsString,
   supplierId: parseAsInteger,
-  orderType: parseAsString,
   startDate: parseAsString,
   endDate: parseAsString,
 };

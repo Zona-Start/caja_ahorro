@@ -16,10 +16,10 @@ import {
   currencyCodeEnum,
   fixedAssetsInventoryStatus,
   invoiceSuppliersStatusEnum,
-  invoiceTypeEnum,
   movementTypeInventory,
   paymentAccountsPayableEnum,
   paymentMethodEnum,
+  paymentSupplierStatusEnum,
   priceTypeEnum,
   productStatus,
   purchaseOrderStatusEnum,
@@ -32,10 +32,11 @@ import {
 
 import { relations } from 'drizzle-orm';
 import { accountPlan } from './accounting';
-import { accountsPayableSchema, inventorySchema } from './schemas';
+import { bankAccounts, bankTransactions } from './banking';
+import { administrationSchema, inventorySchema } from './schemas';
 
 // tabla proveedores
-export const suppliers = accountsPayableSchema.table(
+export const suppliers = administrationSchema.table(
   'suppliers',
   {
     id: serial('id').primaryKey(),
@@ -64,7 +65,7 @@ export const suppliers = accountsPayableSchema.table(
 );
 
 //Tabla purchase_orders (Pedidos/Facturas de Compra)
-export const purchaseOrders = accountsPayableSchema.table(
+export const purchaseOrders = administrationSchema.table(
   'purchase_orders',
   {
     id: serial('id').primaryKey(),
@@ -72,7 +73,6 @@ export const purchaseOrders = accountsPayableSchema.table(
       .notNull()
       .references(() => suppliers.id),
     orderNumber: varchar('order_number', { length: 50 }).notNull().unique(),
-    orderType: purchaseOrderTypeEnum('order_type').notNull(), // contra qué se compra
     status: purchaseOrderStatusEnum('status').notNull().default('PENDING'), // Utiliza el enum de cuentas por pagar: PENDING, PAID, CANCELLED, etc.
     orderDate: date('order_date').notNull(),
     expectedDeliveryDate: date('expected_delivery_date'),
@@ -96,7 +96,7 @@ export const purchaseOrders = accountsPayableSchema.table(
 );
 
 //Tabla purchase_items (Ítems Comprados)
-export const purchaseOrderItems = accountsPayableSchema.table(
+export const purchaseOrderItems = administrationSchema.table(
   'purchase_order_items',
   {
     id: serial('id').primaryKey(),
@@ -116,7 +116,7 @@ export const purchaseOrderItems = accountsPayableSchema.table(
 );
 
 // TABLA RECEPCIÓN DE FACTURAS
-export const supplierInvoices = accountsPayableSchema.table(
+export const supplierInvoices = administrationSchema.table(
   'supplier_invoices',
   {
     id: serial('id').primaryKey(),
@@ -129,9 +129,10 @@ export const supplierInvoices = accountsPayableSchema.table(
       () => purchaseOrders.id,
       { onDelete: 'set null' },
     ),
-
+    supplierInvoiceNumber: varchar('supplier_invoice_number', { length: 50 })
+      .notNull()
+      .unique(),
     invoiceNumber: varchar('invoice_number', { length: 100 }).notNull(),
-    invoiceType: invoiceTypeEnum('invoice_type').notNull().default('PURCHASE'), // 'EXPENSE' o 'PURCHASE'
     controlNumber: varchar('control_number', { length: 100 }), // Nº control fiscal
     invoiceDate: date('invoice_date').notNull(),
     dueDate: date('due_date'),
@@ -146,7 +147,7 @@ export const supplierInvoices = accountsPayableSchema.table(
       .notNull()
       .default('CREDIT'),
 
-    status: invoiceSuppliersStatusEnum('status').notNull().default('OPEN'),
+    status: invoiceSuppliersStatusEnum('status').notNull().default('DRAFT'),
     observations: text('observations'),
 
     /* FK opcional al asiento contable al recibir la factura */
@@ -163,7 +164,7 @@ export const supplierInvoices = accountsPayableSchema.table(
 );
 
 /* Líneas de la factura recibida */
-export const supplierInvoiceItems = accountsPayableSchema.table(
+export const supplierInvoiceItems = administrationSchema.table(
   'supplier_invoice_items',
   {
     id: serial('id').primaryKey(),
@@ -187,7 +188,7 @@ export const supplierInvoiceItems = accountsPayableSchema.table(
 );
 
 //Tabla accounts_payable (Cuentas por Pagar / Facturas)
-export const accountsPayable = accountsPayableSchema.table(
+export const accountsPayable = administrationSchema.table(
   'accounts_payable',
   {
     id: serial('id').primaryKey(),
@@ -195,6 +196,9 @@ export const accountsPayable = accountsPayableSchema.table(
       .notNull()
       .unique()
       .references(() => supplierInvoices.id, { onDelete: 'cascade' }),
+    accountsPayableNumber: varchar('ap_number', { length: 50 })
+      .notNull()
+      .unique(),
     /* saldos calculados o actualizados por triggers */
     originalAmount: numeric('original_amount', {
       precision: 18,
@@ -207,7 +211,7 @@ export const accountsPayable = accountsPayableSchema.table(
       precision: 18,
       scale: 2,
     }).notNull(),
-
+    dueDate: date('due_date'),
     currencyCode: currencyCodeEnum('currency_code').notNull(),
     status: paymentAccountsPayableEnum('status').notNull().default('PENDING'),
     observations: text('observations'),
@@ -224,29 +228,94 @@ export const accountsPayable = accountsPayableSchema.table(
   }),
 );
 
+export const supplierPayments = administrationSchema.table(
+  'supplier_payments',
+  {
+    id: serial('id').primaryKey(),
+    paymentNumber: varchar('payment_number', { length: 50 }).notNull().unique(), // PAG-P-2025-000123
+    supplierId: integer('supplier_id')
+      .notNull()
+      .references(() => suppliers.id, { onDelete: 'cascade' }),
+
+    totalAmount: numeric('total_amount', { precision: 18, scale: 2 }).notNull(),
+    currencyCode: currencyCodeEnum('currency_code').notNull(),
+
+    // datos del medio de pago
+    paymentMethod: paymentMethodEnum('payment_method').notNull(),
+    bankAccountId: integer('bank_account_id').references(
+      () => bankAccounts.id /* tu tabla bancos */,
+    ),
+    //batchFileId: integer('batch_file_id').references(() => /* tabla lote txt */),
+
+    status: paymentSupplierStatusEnum('status').notNull().default('DRAFT'),
+
+    requestedAt: date('requested_at').notNull().defaultNow(), // fecha solicitud
+    processedAt: date('processed_at'), // fecha respuesta banco
+    reversedAt: date('reversed_at'), // si se anula
+    observations: text('observations'),
+
+    ...timestamps,
+  },
+);
+
+export const supplierPaymentLines = administrationSchema.table(
+  'supplier_payment_lines',
+  {
+    id: serial('id').primaryKey(),
+    supplierPaymentId: integer('supplier_payment_id')
+      .notNull()
+      .references(() => supplierPayments.id, { onDelete: 'cascade' }),
+
+    // puede apuntar a una CxP o ser un anticipo:
+    accountsPayableId: integer('accounts_payable_id').references(
+      () => accountsPayable.id,
+      { onDelete: 'cascade' },
+    ),
+
+    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo
+    description: varchar('description', { length: 255 }),
+
+    ...timestamps,
+  },
+);
+
 // Tabla genérica que cubre pagos, NC, ND y anticipos contra cuentas por pagar
-export const supplierTransactions = accountsPayableSchema.table(
+export const supplierTransactions = administrationSchema.table(
   'supplier_transactions',
   {
     id: serial('id').primaryKey(),
-    accountsPayableId: integer('accounts_payable_id')
+
+    // 1) Obligatorio para NC/ND/Pagos, NULL para anticipos “sueltos”
+    accountsPayableId: integer('accounts_payable_id').references(
+      () => accountsPayable.id,
+      { onDelete: 'cascade' },
+    ),
+
+    // 2) Número único → generado con tu servicio PAG-P-2025-…
+    transactionNumber: varchar('transaction_number', { length: 50 })
       .notNull()
-      .references(() => accountsPayable.id, { onDelete: 'cascade' }),
+      .unique(),
 
-    transactionType: supplierTransactionsTypeEnum('transaction_type').notNull(),
+    // 3) Tipo
+    transactionType: supplierTransactionsTypeEnum('transaction_type').notNull(), // PAYMENT | CREDIT_NOTE | DEBIT_NOTE | ADVANCE
 
+    // 4) Fecha y valor absoluto
     transactionDate: date('transaction_date').notNull(),
-    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // positivo o negativo según tipo
+    amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo
+    direction: varchar('direction', { enum: ['DR', 'CR'] }).notNull(), // DR = carga al proveedor, CR = pago/abono
+
     currencyCode: currencyCodeEnum('currency_code').notNull(),
 
-    paymentMethod: paymentMethodEnum('payment_method'), // solo cuando es PAYMENT o ADVANCE
-    reference: varchar('reference', { length: 255 }), // nro-cheque, nro-NC, etc.
+    // 5) Sólo si es pago o anticipo
+    paymentMethod: paymentMethodEnum('payment_method'),
+    bankMovementId: integer('bank_movement_id').references(
+      () => bankTransactions.id,
+    ), // para conciliar
 
+    reference: varchar('reference', { length: 255 }), // cheque, transferencia, nro-NC, etc.
     status: varchar('status', { enum: ['ACTIVE', 'REVERSED'] })
       .notNull()
       .default('ACTIVE'),
-
-    // accountingEntryId: integer('accounting_entry_id').references(() => entradaContables.id),
 
     ...timestamps,
   },
@@ -344,6 +413,7 @@ export const productPrices = inventorySchema.table('product_prices', {
 export const services = inventorySchema.table('services', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
+  serviceCode: varchar('service_code', { length: 50 }).notNull().unique(), // Código interno de inventario del activo (Ej: OFI001, COMP002)
   categoryId: integer('category_id')
     .notNull()
     .references(() => inventoriesCategories.id, { onDelete: 'restrict' }),
@@ -615,6 +685,32 @@ export const inventoryMovementsRelations = relations(
       fields: [inventoryMovements.itemId],
       references: [fixedAssets.id],
       relationName: 'fixedAssetMovements',
+    }),
+  }),
+);
+
+export const supplierPaymentsRelations = relations(
+  supplierPayments,
+  ({ one, many }) => ({
+    supplier: one(suppliers, {
+      fields: [supplierPayments.supplierId],
+      references: [suppliers.id],
+    }),
+    lines: many(supplierPaymentLines),
+    //batchFile: one(/* tu tabla lote */),
+  }),
+);
+
+export const supplierPaymentLinesRelations = relations(
+  supplierPaymentLines,
+  ({ one }) => ({
+    payment: one(supplierPayments, {
+      fields: [supplierPaymentLines.supplierPaymentId],
+      references: [supplierPayments.id],
+    }),
+    accountsPayable: one(accountsPayable, {
+      fields: [supplierPaymentLines.accountsPayableId],
+      references: [accountsPayable.id],
     }),
   }),
 );

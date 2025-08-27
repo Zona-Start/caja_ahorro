@@ -4,6 +4,7 @@ export const serviceApiSchema = z.object({
   id: z.number().optional(),
   name: z.string(),
   description: z.string().optional().nullable(),
+  serviceCode: z.string(),
   categoryId: z.number(),
   categoryName: z.string().optional(),
   status: z.string(),

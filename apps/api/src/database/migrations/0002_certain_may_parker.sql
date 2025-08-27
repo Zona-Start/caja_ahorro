@@ -1,0 +1,2 @@
+ALTER TABLE "inventory"."services" ADD COLUMN "service_code" varchar(50) NOT NULL;--> statement-breakpoint
+ALTER TABLE "inventory"."services" ADD CONSTRAINT "services_service_code_unique" UNIQUE("service_code");

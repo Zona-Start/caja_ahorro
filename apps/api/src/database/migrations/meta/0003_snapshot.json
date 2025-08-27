@@ -1,6 +1,6 @@
 {
-  "id": "1e3294a5-04cc-475d-8e41-09a41cf5ea86",
-  "prevId": "cf36c7a6-4518-4854-b528-f059a201d3c4",
+  "id": "c9bbde6a-9d3a-4377-9be5-38142c764ac7",
+  "prevId": "f72b71ec-5c92-4ebd-a206-6437a3d7551a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1241,9 +1241,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "accounts_payable.accounts_payable": {
+    "administration.accounts_payable": {
       "name": "accounts_payable",
-      "schema": "accounts_payable",
+      "schema": "administration",
       "columns": {
         "id": {
           "name": "id",
@@ -1254,6 +1254,12 @@
         "supplier_invoice_id": {
           "name": "supplier_invoice_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_number": {
+          "name": "ap_number",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
@@ -1275,6 +1281,12 @@
           "type": "numeric(18, 2)",
           "primaryKey": false,
           "notNull": true
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
         },
         "currency_code": {
           "name": "currency_code",
@@ -1360,7 +1372,7 @@
           "name": "accounts_payable_supplier_invoice_id_supplier_invoices_id_fk",
           "tableFrom": "accounts_payable",
           "tableTo": "supplier_invoices",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "supplier_invoice_id"
           ],
@@ -1406,6 +1418,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "supplier_invoice_id"
+          ]
+        },
+        "accounts_payable_ap_number_unique": {
+          "name": "accounts_payable_ap_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "ap_number"
           ]
         }
       },
@@ -1767,7 +1786,7 @@
           "name": "fixed_assets_prices_supplier_id_suppliers_id_fk",
           "tableFrom": "fixed_assets_prices",
           "tableTo": "suppliers",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
           ],
@@ -1952,6 +1971,19 @@
           "primaryKey": true,
           "notNull": true
         },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "movement_date": {
+          "name": "movement_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
         "item_id": {
           "name": "item_id",
           "type": "integer",
@@ -1961,6 +1993,12 @@
         "item_type": {
           "name": "item_type",
           "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "movement_number": {
+          "name": "movement_number",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
@@ -2212,7 +2250,7 @@
           "name": "product_prices_supplier_id_suppliers_id_fk",
           "tableFrom": "product_prices",
           "tableTo": "suppliers",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
           ],
@@ -2400,7 +2438,7 @@
           "name": "product_service_suppliers_supplier_id_suppliers_id_fk",
           "tableFrom": "product_service_suppliers",
           "tableTo": "suppliers",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
           ],
@@ -2651,9 +2689,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "accounts_payable.purchase_order_items": {
+    "administration.purchase_order_items": {
       "name": "purchase_order_items",
-      "schema": "accounts_payable",
+      "schema": "administration",
       "columns": {
         "id": {
           "name": "id",
@@ -2674,26 +2712,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fixed_asset_id": {
-          "name": "fixed_asset_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expense_account_id": {
-          "name": "expense_account_id",
+        "itemId": {
+          "name": "itemId",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -2702,7 +2722,7 @@
           "name": "description",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "item_name": {
           "name": "item_name",
@@ -2760,7 +2780,7 @@
           "name": "purchase_order_items_purchase_order_id_purchase_orders_id_fk",
           "tableFrom": "purchase_order_items",
           "tableTo": "purchase_orders",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "purchase_order_id"
           ],
@@ -2768,62 +2788,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "purchase_order_items_product_id_products_id_fk": {
-          "name": "purchase_order_items_product_id_products_id_fk",
-          "tableFrom": "purchase_order_items",
-          "tableTo": "products",
-          "schemaTo": "inventory",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "purchase_order_items_fixed_asset_id_fixed_assets_id_fk": {
-          "name": "purchase_order_items_fixed_asset_id_fixed_assets_id_fk",
-          "tableFrom": "purchase_order_items",
-          "tableTo": "fixed_assets",
-          "schemaTo": "inventory",
-          "columnsFrom": [
-            "fixed_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "purchase_order_items_service_id_services_id_fk": {
-          "name": "purchase_order_items_service_id_services_id_fk",
-          "tableFrom": "purchase_order_items",
-          "tableTo": "services",
-          "schemaTo": "inventory",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "purchase_order_items_expense_account_id_account_plan_id_fk": {
-          "name": "purchase_order_items_expense_account_id_account_plan_id_fk",
-          "tableFrom": "purchase_order_items",
-          "tableTo": "account_plan",
-          "schemaTo": "accounting",
-          "columnsFrom": [
-            "expense_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "purchase_order_items_created_by_id_users_id_fk": {
@@ -2861,9 +2825,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "accounts_payable.purchase_orders": {
+    "administration.purchase_orders": {
       "name": "purchase_orders",
-      "schema": "accounts_payable",
+      "schema": "administration",
       "columns": {
         "id": {
           "name": "id",
@@ -2880,13 +2844,6 @@
         "order_number": {
           "name": "order_number",
           "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "order_type": {
-          "name": "order_type",
-          "type": "purchase_order_type_enum",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -2990,7 +2947,7 @@
           "name": "purchase_orders_supplier_id_suppliers_id_fk",
           "tableFrom": "purchase_orders",
           "tableTo": "suppliers",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
           ],
@@ -3157,7 +3114,7 @@
           "name": "service_prices_supplier_id_suppliers_id_fk",
           "tableFrom": "service_prices",
           "tableTo": "suppliers",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
           ],
@@ -3215,6 +3172,12 @@
         "name": {
           "name": "name",
           "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_code": {
+          "name": "service_code",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
@@ -3310,14 +3273,22 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "services_service_code_unique": {
+          "name": "services_service_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "service_code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "accounts_payable.supplier_invoice_items": {
+    "administration.supplier_invoice_items": {
       "name": "supplier_invoice_items",
-      "schema": "accounts_payable",
+      "schema": "administration",
       "columns": {
         "id": {
           "name": "id",
@@ -3338,20 +3309,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fixed_asset_id": {
-          "name": "fixed_asset_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "service_id": {
-          "name": "service_id",
+        "item_id": {
+          "name": "item_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -3366,7 +3325,7 @@
           "name": "description",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "quantity": {
           "name": "quantity",
@@ -3418,7 +3377,7 @@
           "name": "supplier_invoice_items_invoice_id_supplier_invoices_id_fk",
           "tableFrom": "supplier_invoice_items",
           "tableTo": "supplier_invoices",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "invoice_id"
           ],
@@ -3428,41 +3387,13 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "supplier_invoice_items_product_id_products_id_fk": {
-          "name": "supplier_invoice_items_product_id_products_id_fk",
+        "supplier_invoice_items_expense_account_id_account_plan_id_fk": {
+          "name": "supplier_invoice_items_expense_account_id_account_plan_id_fk",
           "tableFrom": "supplier_invoice_items",
-          "tableTo": "products",
-          "schemaTo": "inventory",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
           "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "supplier_invoice_items_fixed_asset_id_fixed_assets_id_fk": {
-          "name": "supplier_invoice_items_fixed_asset_id_fixed_assets_id_fk",
-          "tableFrom": "supplier_invoice_items",
-          "tableTo": "fixed_assets",
-          "schemaTo": "inventory",
-          "columnsFrom": [
-            "fixed_asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "supplier_invoice_items_service_id_services_id_fk": {
-          "name": "supplier_invoice_items_service_id_services_id_fk",
-          "tableFrom": "supplier_invoice_items",
-          "tableTo": "services",
-          "schemaTo": "inventory",
-          "columnsFrom": [
-            "service_id"
+            "expense_account_id"
           ],
           "columnsTo": [
             "id"
@@ -3505,9 +3436,9 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "accounts_payable.supplier_invoices": {
+    "administration.supplier_invoices": {
       "name": "supplier_invoices",
-      "schema": "accounts_payable",
+      "schema": "administration",
       "columns": {
         "id": {
           "name": "id",
@@ -3591,7 +3522,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'OPEN'"
+          "default": "'DRAFT'"
         },
         "observations": {
           "name": "observations",
@@ -3653,7 +3584,7 @@
           "name": "supplier_invoices_supplier_id_suppliers_id_fk",
           "tableFrom": "supplier_invoices",
           "tableTo": "suppliers",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
           ],
@@ -3667,7 +3598,7 @@
           "name": "supplier_invoices_purchase_order_id_purchase_orders_id_fk",
           "tableFrom": "supplier_invoices",
           "tableTo": "purchase_orders",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "purchase_order_id"
           ],
@@ -3712,9 +3643,314 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "accounts_payable.supplier_transactions": {
+    "administration.supplier_payment_lines": {
+      "name": "supplier_payment_lines",
+      "schema": "administration",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "supplier_payment_id": {
+          "name": "supplier_payment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accounts_payable_id": {
+          "name": "accounts_payable_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_payment_lines_supplier_payment_id_supplier_payments_id_fk": {
+          "name": "supplier_payment_lines_supplier_payment_id_supplier_payments_id_fk",
+          "tableFrom": "supplier_payment_lines",
+          "tableTo": "supplier_payments",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_payment_lines_accounts_payable_id_accounts_payable_id_fk": {
+          "name": "supplier_payment_lines_accounts_payable_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_payment_lines",
+          "tableTo": "accounts_payable",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "accounts_payable_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_payment_lines_created_by_id_users_id_fk": {
+          "name": "supplier_payment_lines_created_by_id_users_id_fk",
+          "tableFrom": "supplier_payment_lines",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_payment_lines_updated_by_id_users_id_fk": {
+          "name": "supplier_payment_lines_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_payment_lines",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "administration.supplier_payments": {
+      "name": "supplier_payments",
+      "schema": "administration",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "payment_number": {
+          "name": "payment_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_account_id": {
+          "name": "bank_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "payment_supplier_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reversed_at": {
+          "name": "reversed_at",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observations": {
+          "name": "observations",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_payments_supplier_id_suppliers_id_fk": {
+          "name": "supplier_payments_supplier_id_suppliers_id_fk",
+          "tableFrom": "supplier_payments",
+          "tableTo": "suppliers",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_payments_bank_account_id_bank_accounts_id_fk": {
+          "name": "supplier_payments_bank_account_id_bank_accounts_id_fk",
+          "tableFrom": "supplier_payments",
+          "tableTo": "bank_accounts",
+          "schemaTo": "banking",
+          "columnsFrom": [
+            "bank_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "supplier_payments_created_by_id_users_id_fk": {
+          "name": "supplier_payments_created_by_id_users_id_fk",
+          "tableFrom": "supplier_payments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_payments_updated_by_id_users_id_fk": {
+          "name": "supplier_payments_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_payments",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "supplier_payments_payment_number_unique": {
+          "name": "supplier_payments_payment_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "payment_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "administration.supplier_transactions": {
       "name": "supplier_transactions",
-      "schema": "accounts_payable",
+      "schema": "administration",
       "columns": {
         "id": {
           "name": "id",
@@ -3725,6 +3961,12 @@
         "accounts_payable_id": {
           "name": "accounts_payable_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transaction_number": {
+          "name": "transaction_number",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
@@ -3747,6 +3989,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "direction": {
+          "name": "direction",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
         "currency_code": {
           "name": "currency_code",
           "type": "currency_code_enum",
@@ -3758,6 +4006,12 @@
           "name": "payment_method",
           "type": "payment_method_enum",
           "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_movement_id": {
+          "name": "bank_movement_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -3806,7 +4060,7 @@
           "name": "supplier_transactions_accounts_payable_id_accounts_payable_id_fk",
           "tableFrom": "supplier_transactions",
           "tableTo": "accounts_payable",
-          "schemaTo": "accounts_payable",
+          "schemaTo": "administration",
           "columnsFrom": [
             "accounts_payable_id"
           ],
@@ -3814,6 +4068,20 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_transactions_bank_movement_id_bank_transactions_id_fk": {
+          "name": "supplier_transactions_bank_movement_id_bank_transactions_id_fk",
+          "tableFrom": "supplier_transactions",
+          "tableTo": "bank_transactions",
+          "schemaTo": "banking",
+          "columnsFrom": [
+            "bank_movement_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "supplier_transactions_created_by_id_users_id_fk": {
@@ -3846,14 +4114,22 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "supplier_transactions_transaction_number_unique": {
+          "name": "supplier_transactions_transaction_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "transaction_number"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "accounts_payable.suppliers": {
+    "administration.suppliers": {
       "name": "suppliers",
-      "schema": "accounts_payable",
+      "schema": "administration",
       "columns": {
         "id": {
           "name": "id",
@@ -12308,9 +12584,19 @@
       "name": "invoice_supplier_status_enum",
       "schema": "public",
       "values": [
-        "OPEN",
+        "DRAFT",
+        "PENDING",
+        "ACCOUNTED_FOR",
         "PAID",
         "CANCELLED"
+      ]
+    },
+    "public.invoice_type_enum": {
+      "name": "invoice_type_enum",
+      "schema": "public",
+      "values": [
+        "EXPENSE",
+        "PURCHASE"
       ]
     },
     "public.liquidations_status_enum": {
@@ -12391,9 +12677,10 @@
       "schema": "public",
       "values": [
         "PENDING",
-        "PENDING_BANK_BATCH",
+        "IN_PROGRESS",
         "PAID",
-        "CANCELLED"
+        "CANCELLED",
+        "EXPIRED"
       ]
     },
     "public.payment_method_enum": {
@@ -12427,6 +12714,18 @@
         "CANCELED"
       ]
     },
+    "public.payment_supplier_status": {
+      "name": "payment_supplier_status",
+      "schema": "public",
+      "values": [
+        "DRAFT",
+        "PENDING",
+        "SENT_TO_BANK",
+        "PROCESSED",
+        "REJECTED",
+        "CANCELLED"
+      ]
+    },
     "public.price_type_enum": {
       "name": "price_type_enum",
       "schema": "public",
@@ -12451,8 +12750,11 @@
       "name": "purchase_order_status_enum",
       "schema": "public",
       "values": [
+        "DRAFT",
         "PENDING",
         "RECEIVED",
+        "INVOICED",
+        "CLOSED",
         "CANCELLED"
       ]
     },
@@ -12462,6 +12764,7 @@
       "values": [
         "SALES_INVENTORY",
         "FIXED_ASSET",
+        "SERVICE",
         "EXPENSE"
       ]
     },
@@ -12559,7 +12862,7 @@
   },
   "schemas": {
     "accounting": "accounting",
-    "accounts_payable": "accounts_payable",
+    "administration": "administration",
     "audit": "audit",
     "auth": "auth",
     "banking": "banking",

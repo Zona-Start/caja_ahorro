@@ -11,7 +11,6 @@ interface ListProps {
   initialLimit: number;
   initialStatus?: string | null;
   initialSupplierId?: number | null;
-  initialOrderType?: string | null;
   initialStartDate?: string | null;
   initialEndDate?: string | null;
 }
@@ -22,7 +21,6 @@ export default function PurchaseOrderList({
   initialLimit,
   initialStatus,
   initialSupplierId,
-  initialOrderType,
   initialStartDate,
   initialEndDate,
 }: ListProps) {
@@ -32,7 +30,6 @@ export default function PurchaseOrderList({
     ...(initialSearch && { search: initialSearch }),
     ...(initialStatus && { status: initialStatus }),
     ...(initialSupplierId && { supplierId: initialSupplierId }),
-    ...(initialOrderType && { orderType: initialOrderType }),
     ...(initialStartDate && { startDate: initialStartDate }),
     ...(initialEndDate && { endDate: initialEndDate }),
   };

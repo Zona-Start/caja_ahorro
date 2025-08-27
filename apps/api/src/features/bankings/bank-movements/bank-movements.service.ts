@@ -25,7 +25,11 @@ export class BankMovementsService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
-  async create(createBankMovementDto: CreateBankMovementDto) {
+  async create(
+    createBankMovementDto: CreateBankMovementDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
     const dtoForInsert = {
       ...createBankMovementDto,
       debitAmount:
@@ -40,7 +44,7 @@ export class BankMovementsService {
           : null,
     };
 
-    const [createdMovement] = await this.drizzle
+    const [createdMovement] = await db
       .insert(bankTransactions)
       .values(dtoForInsert)
       .returning();

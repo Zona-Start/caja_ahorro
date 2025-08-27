@@ -22,6 +22,7 @@ import {
   bankTransactionCategory,
   currencyCodeEnum,
   internalLinkStatusEnum,
+  paymentMethodEnum,
   reconciliationItemStatusEnum,
   reconciliationStatusEnum,
 } from './enum';
@@ -95,6 +96,7 @@ export const bankTransactions = bankingSchema.table(
     bankAccountId: integer('bank_account_id')
       .notNull()
       .references(() => bankAccounts.id, { onDelete: 'cascade' }),
+    transactionType: paymentMethodEnum('transaction_type').notNull(),
     transactionDate: date('transaction_date').notNull(), // Fecha del movimiento según extracto
     valueDate: date('value_date'), // Fecha valor
     description: text('description').notNull(),

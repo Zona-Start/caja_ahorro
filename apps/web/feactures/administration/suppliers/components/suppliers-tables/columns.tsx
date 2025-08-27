@@ -1,7 +1,10 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
-import { ESTATUS_TYPES } from '../../schemas/suppliers-options';
+import {
+  ESTATUS_TYPES,
+  SUPPLIER_CATEGORY_TYPES,
+} from '../../schemas/suppliers-options';
 import { Supplier } from '../../schemas/suppliers.schema';
 import { CellAction } from './cell-action';
 
@@ -25,6 +28,11 @@ export const columns: ColumnDef<Supplier>[] = [
   {
     accessorKey: 'category',
     header: 'Categoria',
+    cell: ({ row }) => {
+      const categoryKey = row.original
+        .category as keyof typeof SUPPLIER_CATEGORY_TYPES;
+      return SUPPLIER_CATEGORY_TYPES[categoryKey] || row.original.category;
+    },
   },
   {
     accessorKey: 'status',

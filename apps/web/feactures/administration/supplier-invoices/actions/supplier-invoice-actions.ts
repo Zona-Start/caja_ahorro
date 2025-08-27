@@ -56,28 +56,16 @@ export const getSupplierInvoicesAction = async (params: {
   };
 };
 
-export const createSupplierInvoiceAction = async (payload: SupplierInvoice) => {
+export const createSupplierInvoiceAction = async (
+  payload: Partial<SupplierInvoice>,
+) => {
   const { id, ...payloadWithoutId } = payload;
-
-  const transform = {
-    ...payloadWithoutId,
-    invoiceDate: payloadWithoutId.invoiceDate.toISOString(),
-    dueDate: payloadWithoutId.dueDate?.toISOString(),
-    subtotal: payloadWithoutId.subtotal,
-    taxAmount: payloadWithoutId.taxAmount,
-    totalAmount: payloadWithoutId.totalAmount,
-    items: payloadWithoutId.items.map((item) => ({
-      ...item,
-      unitCost: item.unitCost,
-      totalLine: item.totalLine,
-    })),
-  };
 
   const [error, data] = await safeFetchApi(
     supplierInvoiceMutationResponseSchema,
     '/administration/supplier-invoices',
     'POST',
-    transform,
+    payloadWithoutId,
   );
 
   if (error) {
@@ -88,28 +76,15 @@ export const createSupplierInvoiceAction = async (payload: SupplierInvoice) => {
   return data;
 };
 
-export const updateSupplierInvoiceAction = async (payload: SupplierInvoice) => {
-  const { id, ...payloadWithoutId } = payload;
-
-  const transform = {
-    ...payloadWithoutId,
-    invoiceDate: payloadWithoutId.invoiceDate.toISOString(),
-    dueDate: payloadWithoutId.dueDate?.toISOString(),
-    subtotal: payloadWithoutId.subtotal,
-    taxAmount: payloadWithoutId.taxAmount,
-    totalAmount: payloadWithoutId.totalAmount,
-    items: payloadWithoutId.items.map((item) => ({
-      ...item,
-      unitCost: item.unitCost,
-      totalLine: item.totalLine,
-    })),
-  };
-
+export const updateSupplierInvoiceAction = async ({
+  id,
+  ...payload
+}: Partial<SupplierInvoice>) => {
   const [error, data] = await safeFetchApi(
     supplierInvoiceMutationResponseSchema,
     `/administration/supplier-invoices/${id}`,
     'PATCH',
-    transform,
+    payload,
   );
 
   if (error) {
@@ -149,14 +124,4 @@ export const getSupplierInvoiceByIdAction = async (id: number) => {
   return data;
 };
 
-export const saveSupplierInvoiceAction = async (payload: SupplierInvoice) => {
-  try {
-    if (payload.id) {
-      return await updateSupplierInvoiceAction(payload);
-    } else {
-      return await createSupplierInvoiceAction(payload);
-    }
-  } catch (error: any) {
-    throw new Error(error.message || 'Error saving supplier invoice');
-  }
-};
+

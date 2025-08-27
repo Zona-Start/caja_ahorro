@@ -32,8 +32,8 @@ export class SupplierInvoicesController {
   })
   async create(@Req() req: Request, @Body() dto: CreateSupplierInvoiceDto) {
     const userId = req['user'].id;
-    const data = await this.services.create(userId, dto);
-    return { message: 'Supplier invoice created successfully', data };
+    return await this.services.create(userId, dto);
+    //return { message: 'Supplier invoice created successfully', data };
   }
 
   @Get('/paginated')

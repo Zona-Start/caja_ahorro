@@ -43,12 +43,12 @@ export const supplierInvoiceSchema = z
     invoiceNumber: z.string().min(1, 'El número de factura es requerido'),
     controlNumber: z.string().optional().nullable(),
     invoiceDate: z.date(),
-    dueDate: z.date().optional().nullable(),
+    dueDate: z.date(),
     subtotal: z.number(),
     taxAmount: z.number(),
     totalAmount: z.number(),
     paymentType: z.nativeEnum(SupplierInvoicePaymentTypeEnum),
-    status: z.nativeEnum(SupplierInvoiceStatusEnum),
+    status: z.nativeEnum(SupplierInvoiceStatusEnum).optional(),
     observations: z.string().optional().nullable(),
     items: z
       .array(supplierInvoiceItemSchema)

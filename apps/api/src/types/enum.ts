@@ -330,14 +330,16 @@ export enum purchaseOrderTypeEnum {
   SALES_INVENTORY = 'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
   FIXED_ASSET = 'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
   SERVICE = 'SERVICE', // Servicio (se relaciona con serviceProviders)
-  MANUAL = 'MANUAL', // Manual, no se relaciona con ningún otro módulo
   EXPENSE = 'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
 }
 
 export enum purchaseOrderStatusEnum {
-  PENDING = 'PENDING',
-  RECEIVED = 'RECEIVED',
-  CANCELLED = 'CANCELLED',
+  DRAFT = 'DRAFT', // 	Se crea la OC, se puede editar.
+  PENDING = 'PENDING', // Se envía al proveedor.
+  RECEIVED = 'RECEIVED', // Llega una factura que cubre solo parte de la OC.
+  INVOICED = 'INVOICED', //Todas las líneas de la OC ya tienen factura.
+  CLOSED = 'CLOSED', // OC finalizada sin pendientes.
+  CANCELLED = 'CANCELLED', //Se cancela antes de recibir factura.
 }
 
 export enum supplierInvoicesPaymentEnum {
@@ -347,9 +349,11 @@ export enum supplierInvoicesPaymentEnum {
 
 // Enum para el estado de una factura (Cuentas por Pagar)
 export enum invoiceSuppliersStatusEnum {
-  OPEN = 'OPEN', // Abierta para cuentas por pagar
-  PAID = 'PAID', // Pagada
-  CANCELLED = 'CANCELLED', // Factura anulada/cancelada
+  DRAFT = 'DRAFT', // Captura inicial de la factura. se puede editar
+  PENDING = 'PENDING', // Validada y lista para contabilizar.
+  ACCOUNTED_FOR = 'ACCOUNTED_FOR', // Se contabiliza y genera CxP si es crédito o pago si es contado.
+  PAID = 'PAID', // Totalmente pagada (si fue de contado y se pagó al momento).
+  CANCELLED = 'CANCELLED', //Se cancela.
 }
 
 export enum priceTypeEnum {
@@ -361,9 +365,10 @@ export enum priceTypeEnum {
 // Enum para el estado de un pago a proveedor
 export enum paymentAccountsPayableEnum {
   PENDING = 'PENDING',
-  PENDING_BANK_BATCH = 'PENDING_BANK_BATCH',
+  IN_PROGRESS = 'IN_PROGRESS',
   PAID = 'PAID',
   CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
 }
 
 export enum supplierTransactionsTypeEnum {
@@ -397,4 +402,13 @@ export enum unitOfMeasureEnum {
 export enum invoiceTypeEnum {
   EXPENSE = 'EXPENSE', // Factura de gasto
   PURCHASE = 'PURCHASE', // Factura de compra
+}
+
+export enum paymentSupplierStatusEnum {
+  DRAFT = 'DRAFT', // Borrador
+  PENDING = 'PENDING', // Por aprobar
+  SENT_TO_BANK = 'SENT_TO_BANK', //  Enviado a banco
+  PROCESSED = 'PROCESSED', // Procesado
+  REJECTED = 'REJECTED', // Rechazado
+  CANCELLED = 'CANCELLED', // Anulado
 }

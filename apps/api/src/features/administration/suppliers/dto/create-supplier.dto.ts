@@ -17,7 +17,7 @@ export class CreateSupplierDto {
 
   @ApiProperty({ description: 'Código del proveedor', example: 'PROV001' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(50)
   code: string;
 

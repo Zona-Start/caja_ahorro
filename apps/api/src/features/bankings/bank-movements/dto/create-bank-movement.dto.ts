@@ -1,7 +1,8 @@
-
+import { paymentMethodEnum } from '@/database';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -25,6 +26,14 @@ export class CreateBankMovementDto {
   @IsDateString()
   @IsNotEmpty()
   transactionDate: string;
+
+  @ApiProperty({
+    description: 'Transaction Type',
+    enum: paymentMethodEnum.enumValues,
+  })
+  @IsEnum(paymentMethodEnum.enumValues)
+  @IsNotEmpty()
+  transactionType: (typeof paymentMethodEnum.enumValues)[number];
 
   @ApiProperty({
     description: 'The description of the transaction.',

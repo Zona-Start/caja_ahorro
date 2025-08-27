@@ -1,4 +1,0 @@
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD COLUMN "service_id" integer;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD COLUMN "service_id" integer;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."purchase_order_items" ADD CONSTRAINT "purchase_order_items_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "inventory"."services"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "accounts_payable"."supplier_invoice_items" ADD CONSTRAINT "supplier_invoice_items_service_id_services_id_fk" FOREIGN KEY ("service_id") REFERENCES "inventory"."services"("id") ON DELETE no action ON UPDATE no action;

@@ -12,11 +12,20 @@ export const resfreshTokenAction = async (refreshToken: RefreshTokenValue) => {
     'POST',
     refreshToken,
   );
-  console.log(data);
+  console.log('refres', data);
 
   if (error) {
     console.error('Error:', error);
-  } else {
-    return data;
+    // Devuelve un objeto con la propiedad 'type' para que el callback de NextAuth lo reconozca como un error
+    return {
+      type: 'API_ERROR',
+      message: error.message || 'Failed to refresh token',
+      // No se devuelven tokens en caso de error
+    };
   }
+  // En caso de éxito, devuelve el objeto que contiene los tokens
+  return {
+    type: 'SUCCESS',
+    tokens: data?.tokens,
+  };
 };

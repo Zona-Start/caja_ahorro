@@ -1,4 +1,6 @@
+import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.module';
 import { DrizzleModule } from '@/database/drizzle.module';
+import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
 import { Module } from '@nestjs/common';
 import { AccountsPayableModule } from '../accounts-payable/accounts-payable.module';
 import { FixedAssetPricesModule } from '../inventory/fixed-asset-prices/fixed-asset-prices.module';
@@ -18,6 +20,8 @@ import { SupplierInvoicesService } from './supplier-invoices.service';
     FixedAssetPricesModule,
     PurchaseOrdersModule,
     AccountsPayableModule,
+    BankMovementsModule,
+    GenerateCodeModule,
   ],
   controllers: [SupplierInvoicesController],
   providers: [SupplierInvoicesService],

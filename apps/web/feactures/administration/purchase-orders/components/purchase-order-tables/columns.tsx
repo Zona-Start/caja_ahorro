@@ -23,10 +23,6 @@ export const columns: ColumnDef<PurchaseOrder>[] = [
     },
   },
   {
-    accessorKey: 'orderType',
-    header: 'Tipo de Orden',
-  },
-  {
     accessorKey: 'totalAmount',
     header: 'Monto Total',
   },

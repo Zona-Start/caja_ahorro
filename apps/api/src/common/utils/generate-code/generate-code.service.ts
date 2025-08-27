@@ -83,4 +83,66 @@ export class GenerateCodeService {
       );
     }
   }
+
+  async generateNextReference(prefix: string): Promise<string> {
+    const year = new Date().getFullYear();
+    const key = `${prefix}-${year}`;
+
+    return this.db.transaction(async (tx) => {
+      // bloqueo explícito (FOR UPDATE)
+      const [setting] = await tx
+        .select()
+        .from(systemSettings)
+        .where(eq(systemSettings.key, key))
+        .for('update'); // Drizzle ≥ 0.30 → .for('update')
+
+      if (!setting) {
+        // primer uso del año: lo creamos
+        await tx.insert(systemSettings).values({
+          key,
+          value: '1',
+          description: `${prefix} sequence ${year}`,
+        });
+        return `${prefix}-${year}-000001`;
+      }
+
+      const next = parseInt(setting.value, 10) + 1;
+      const nextStr = next.toString().padStart(6, '0'); // 6 dígitos
+
+      await tx
+        .update(systemSettings)
+        .set({ value: next.toString() })
+        .where(eq(systemSettings.key, key));
+
+      return `${prefix}-${year}-${nextStr}`;
+    });
+  }
+
+  async generateGlobalCode(prefix: string): Promise<string> {
+    return this.db.transaction(async (tx) => {
+      const [setting] = await tx
+        .select()
+        .from(systemSettings)
+        .where(eq(systemSettings.key, prefix))
+        .for('update');
+
+      if (!setting) {
+        // primer uso: creamos la fila
+        await tx.insert(systemSettings).values({
+          key: prefix,
+          value: '1',
+          description: `Global sequence ${prefix}`,
+        });
+        return `${prefix}-${'1'.padStart(6, '0')}`;
+      }
+
+      const next = parseInt(setting.value, 10) + 1;
+      await tx
+        .update(systemSettings)
+        .set({ value: next.toString() })
+        .where(eq(systemSettings.key, prefix));
+
+      return `${prefix}-${next.toString().padStart(6, '0')}`;
+    });
+  }
 }

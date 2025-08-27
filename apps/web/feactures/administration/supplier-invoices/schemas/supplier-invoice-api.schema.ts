@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const supplierInvoiceItemApiSchema = z.object({
   id: z.number().optional(),
   lineType: z.string(),
-  description: z.string(),
+  description: z.string().nullable(),
   quantity: z.number(),
   unitCost: z.number(),
   totalLine: z.number(),
@@ -13,20 +13,20 @@ export const supplierInvoiceItemApiSchema = z.object({
 
 export const supplierInvoiceApiSchema = z.object({
   id: z.number(),
+  supplierInvoiceNumber: z.string(),
   supplierId: z.number(),
   supplierName: z.string().optional(),
   purchaseOrderId: z.number().optional().nullable(),
   invoiceNumber: z.string(),
   controlNumber: z.string().optional().nullable(),
   invoiceDate: z.string(),
-  dueDate: z.string().optional().nullable(),
+  dueDate: z.string(),
   subtotal: z.number(),
   taxAmount: z.number().optional().nullable(),
   totalAmount: z.number(),
   paymentType: z.string().optional(),
   status: z.string().optional(),
   observations: z.string().optional().nullable(),
-  invoiceType: z.string().optional(),
   items: z.array(supplierInvoiceItemApiSchema).optional().nullable(),
 });
 

@@ -1,0 +1,2 @@
+ALTER TABLE "administration"."supplier_invoices" ADD COLUMN "supplier_invoice_number" varchar(50) NOT NULL;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_supplier_invoice_number_unique" UNIQUE("supplier_invoice_number");

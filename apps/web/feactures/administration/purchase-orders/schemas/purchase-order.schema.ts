@@ -52,7 +52,6 @@ export const purchaseOrderItemSchema = z
 export const purchaseOrderSchema = z.object({
   id: z.number().optional(),
   supplierId: z.number({ required_error: 'Proveedor requerido' }),
-  orderType: z.nativeEnum(PurchaseTypeEnum), // Assuming PurchaseTypeEnum covers orderType
   status: z.string().optional(),
   orderDate: z.date({ required_error: 'Fecha de orden requerida' }),
   expectedDeliveryDate: z.date().optional().nullable(),

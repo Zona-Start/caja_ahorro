@@ -1,3 +1,4 @@
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
   fixedAssets,
   purchaseOrderItems,
@@ -29,6 +30,7 @@ export class FixedAssetsService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly fixedAssetPricesService: FixedAssetPricesService,
     private readonly settingsSystemService: SettingsSystemService,
+    private readonly generateCode: GenerateCodeService,
   ) {}
 
   async calculateFinalCost(
@@ -84,6 +86,7 @@ export class FixedAssetsService {
     const newFiexdAssets = await this.drizzle.transaction(async (tx) => {
       const assetData = {
         ...createFixedAssetDto,
+        assetCode: await this.generateCode.generateGlobalCode('ACT'),
         assetStatus: 'ACTIVE' as fixedAssetsInventoryStatus,
         acquisitionDate: createFixedAssetDto.acquisitionDate.toISOString(),
         accumulatedDepreciation: createFixedAssetDto.accumulatedDepreciation
@@ -547,7 +550,7 @@ export class FixedAssetsService {
     const exitPurchaseOrder = await this.drizzle
       .select()
       .from(purchaseOrderItems)
-      .where(eq(purchaseOrderItems.fixedAssetId, id));
+      .where(eq(purchaseOrderItems.itemId, id));
 
     if (exitPurchaseOrder.length !== 0) {
       throw new BadRequestException(
@@ -558,7 +561,7 @@ export class FixedAssetsService {
     const exitSupplierInvoice = await this.drizzle
       .select()
       .from(supplierInvoiceItems)
-      .where(eq(supplierInvoiceItems.fixedAssetId, id));
+      .where(eq(supplierInvoiceItems.itemId, id));
 
     if (exitSupplierInvoice.length !== 0) {
       throw new BadRequestException(

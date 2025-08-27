@@ -20,7 +20,7 @@ export class CreateFixedAssetDto {
 
   @ApiProperty({ description: 'Asset code' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   assetCode: string;
 
   @ApiProperty({ description: 'Asset name' })

@@ -4,6 +4,7 @@ export const serviceSchema = z.object({
   id: z.number().nullable().optional(),
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional().nullable(),
+  serviceCode: z.string().optional().nullable(),
   categoryId: z.number({ required_error: 'El proveedor es requerido' }),
   supplierCost: z.coerce
     .number({

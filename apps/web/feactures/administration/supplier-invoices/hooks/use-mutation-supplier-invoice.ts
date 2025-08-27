@@ -3,8 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  createSupplierInvoiceAction,
   deleteSupplierInvoiceAction,
-  saveSupplierInvoiceAction,
+  updateSupplierInvoiceAction,
 } from '../actions/supplier-invoice-actions';
 import { SupplierInvoice } from '../schemas/supplier-invoice.schema';
 
@@ -12,7 +13,12 @@ export function useSupplierInvoiceMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: SupplierInvoice) => saveSupplierInvoiceAction(data),
+    mutationFn: (data: Partial<SupplierInvoice>) => {
+      if (data.id) {
+        return updateSupplierInvoiceAction(data);
+      }
+      return createSupplierInvoiceAction(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices-by-id'] });
@@ -24,7 +30,8 @@ export function useSupplierInvoiceMutation() {
           toast.error('Error, La factura de proveedor con ese número ya existe');
         } else {
           toast.error(
-            'Error al crear la factura de proveedor, contacte al administrador',
+            error.message ||
+              'Error al guardar la factura de proveedor, contacte al administrador',
           );
         }
       }
@@ -34,7 +41,7 @@ export function useSupplierInvoiceMutation() {
   return mutation;
 }
 
-export function useDeleteSupplierInvoice() {
+export function useCancelSupplierInvoice() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -42,7 +49,7 @@ export function useDeleteSupplierInvoice() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices-by-id'] });
-      toast.success('Factura de proveedor eliminada exitosamente');
+      toast.success('Factura de proveedor anulada exitosamente');
     },
     onError: (error) => {
       if (error instanceof Error) {
@@ -50,7 +57,8 @@ export function useDeleteSupplierInvoice() {
           toast.error('Error, La factura de proveedor no existe');
         } else {
           toast.error(
-            'Error al eliminar la factura de proveedor, contacte al administrador',
+            error.message ||
+              'Error al anular la factura de proveedor, contacte al administrador',
           );
         }
       }

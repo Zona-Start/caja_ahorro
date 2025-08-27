@@ -96,7 +96,9 @@ export default function FixedAssetForm({
               {form.formState.errors.root.message}
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            className={`grid grid-cols-1 ${defaultValues?.id ? 'md:grid-cols-2' : 'md:grid-cols-3'}  gap-4`}
+          >
             <FormField
               control={form.control}
               name="categoryId"
@@ -129,25 +131,27 @@ export default function FixedAssetForm({
                 </FormItem>
               )}
             />
+            {defaultValues?.id && (
+              <FormField
+                control={form.control}
+                name="assetCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código del Activo</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        disabled
+                        className={readOnly ? 'bg-muted' : ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
-            <FormField
-              control={form.control}
-              name="assetCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código del Activo</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      disabled={readOnly}
-                      className={readOnly ? 'bg-muted' : ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             <FormField
               control={form.control}
               name="name"

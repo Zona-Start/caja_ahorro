@@ -124,11 +124,33 @@ export default function ServiceForm({
               </FormItem>
             )}
           />
+          {defaultValues?.id && (
+            <FormField
+              control={form.control}
+              name="serviceCode"
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>Nombre</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      value={field.value ?? ''}
+                      disabled
+                      className={readOnly ? 'bg-muted' : ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           <FormField
             control={form.control}
             name="name"
             render={({ field }) => (
-              <FormItem>
+              <FormItem
+                className={`${defaultValues?.id ? 'w-full col-span-2' : 'w-full '}`}
+              >
                 <FormLabel>Nombre</FormLabel>
                 <FormControl>
                   <Input
@@ -143,6 +165,7 @@ export default function ServiceForm({
             )}
           />
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
           <FormField
             control={form.control}

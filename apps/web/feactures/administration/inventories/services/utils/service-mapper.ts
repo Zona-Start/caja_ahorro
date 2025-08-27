@@ -7,6 +7,7 @@ export function mapServiceApiToForm(data: any) {
       id: item.id,
       name: item.name,
       description: item.description,
+      serviceCode: item.serviceCode,
       categoryId: item.categoryId,
       categoryName: item.categoryName,
       status: item.status,

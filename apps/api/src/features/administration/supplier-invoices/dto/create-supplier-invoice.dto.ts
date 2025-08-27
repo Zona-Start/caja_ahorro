@@ -1,7 +1,7 @@
 import {
   currencyCodeEnum,
   invoiceSuppliersStatusEnum,
-  invoiceTypeEnum,
+  paymentMethodEnum,
   purchaseOrderTypeEnum,
   supplierInvoicesPaymentEnum,
 } from '@/database/schema/enum';
@@ -9,6 +9,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsDate,
   IsEnum,
   IsInt,
@@ -27,12 +28,12 @@ class SupplierInvoiceItemDto {
 
   @ApiProperty({ description: 'Item ID' })
   @IsInt()
-  @IsNotEmpty()
+  @IsOptional()
   itemId: number;
 
   @ApiProperty({ description: 'Description' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   description: string;
 
   @ApiProperty({ description: 'Quantity' })
@@ -73,14 +74,6 @@ export class CreateSupplierInvoiceDto {
   @IsString()
   @IsNotEmpty()
   invoiceNumber: string;
-
-  @ApiProperty({
-    description: 'Invoice type',
-    enum: invoiceTypeEnum.enumValues,
-  })
-  @IsEnum(invoiceTypeEnum.enumValues)
-  @IsNotEmpty()
-  invoiceType: (typeof invoiceTypeEnum.enumValues)[number];
 
   @ApiPropertyOptional({ description: 'Control number' })
   @IsString()
@@ -151,4 +144,38 @@ export class CreateSupplierInvoiceDto {
   @ValidateNested({ each: true })
   @Type(() => SupplierInvoiceItemDto)
   items: SupplierInvoiceItemDto[];
+
+  @ApiPropertyOptional({ description: 'Bank account ID' })
+  @IsInt()
+  @IsOptional()
+  bankAccountId: number;
+
+  @ApiPropertyOptional({ description: 'Charge payment' })
+  @IsOptional()
+  @IsBoolean()
+  chargePayment: boolean;
+
+  @ApiPropertyOptional({ description: 'Payment bank reference' })
+  @IsString()
+  @IsOptional()
+  paymentBankReference: string;
+
+  @ApiPropertyOptional({ description: 'Payment description' })
+  @IsString()
+  @IsOptional()
+  paymentDescription: string;
+
+  @ApiPropertyOptional({ description: 'Transaction date' })
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  transactionDate: Date;
+
+  @ApiPropertyOptional({
+    description: 'Payment Method',
+    enum: paymentMethodEnum.enumValues,
+  })
+  @IsEnum(paymentMethodEnum.enumValues)
+  @IsOptional()
+  paymentMethod: (typeof paymentMethodEnum.enumValues)[number];
 }

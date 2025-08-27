@@ -16,17 +16,24 @@ import {
 import { Input } from '@repo/shadcn/input';
 import { ScrollArea } from '@repo/shadcn/scroll-area';
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 
 import { useSystemConfigStore } from '@/store/SystemConfigStore';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/shadcn/components/ui/select';
 import { useFixedAssetAll } from '../../inventories/fixed-asset/hooks/use-query-fixed-asset';
 import { useProductsAll } from '../../inventories/products/hooks/use-query-product';
 import { useServicesAll } from '../../inventories/services/hooks';
 import { useSupplierAll } from '../../suppliers/hooks/use-query-suppliers';
 import { usePurchaseOrderMutation } from '../hooks/use-mutation-purchase-order';
 import {
-  PURCHASE_ITEM_TYPE_OPTIONS,
+  ESTATUS_TYPES,
   PurchaseTypeEnum,
 } from '../schemas/purchase-order-options';
 import {
@@ -53,12 +60,7 @@ export function PurchaseOrderForm({
   const { data: products } = useProductsAll();
   const { data: fixedAssets } = useFixedAssetAll();
   const { data: services } = useServicesAll();
-
   const { generalConfig } = useSystemConfigStore();
-
-  const [itemTypeSelector, setItemTypeSelector] = useState(
-    PurchaseTypeEnum.MANUAL,
-  );
 
   const purchaseTaxRate = useMemo(() => {
     const ivaConfig = generalConfig.find((g: any) => g.key === 'iva_compra');
@@ -69,7 +71,6 @@ export function PurchaseOrderForm({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
       ...defaultValues,
-      orderType: defaultValues?.orderType || PurchaseTypeEnum.MANUAL,
       orderDate: defaultValues?.orderDate
         ? new Date(defaultValues.orderDate)
         : new Date(),
@@ -84,10 +85,6 @@ export function PurchaseOrderForm({
   });
 
   const watchedItems = useWatch({ control: form.control, name: 'items' });
-  const watchedOrderType = useWatch({
-    control: form.control,
-    name: 'orderType',
-  });
 
   useEffect(() => {
     const subtotal = watchedItems.reduce(
@@ -103,7 +100,7 @@ export function PurchaseOrderForm({
     form.setValue('totalAmount', total);
   }, [watchedItems, purchaseTaxRate, form]);
 
-  const onSubmit = async (data: PurchaseOrder) => {
+  const onSubmit = async (data: PurchaseOrder, status: 'DRAFT' | 'PENDING') => {
     const itemsWithoutTotalCost = data.items.map((item) => {
       const { totalCost, ...itemWithoutTotal } = item;
       return itemWithoutTotal;
@@ -111,6 +108,7 @@ export function PurchaseOrderForm({
 
     const payload = {
       ...data,
+      status,
       items: itemsWithoutTotalCost,
     };
 
@@ -133,7 +131,7 @@ export function PurchaseOrderForm({
   return (
     <Form {...form}>
       <ScrollArea className="h-[calc(100vh-200px)]">
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
+        <form className="space-y-4 p-4">
           {form.formState.errors.root && (
             <div className="text-destructive text-sm">
               {form.formState.errors.root.message}
@@ -157,29 +155,6 @@ export function PurchaseOrderForm({
                     onValueChange={(value) => field.onChange(Number(value))}
                     placeholder="Selecciona un proveedor"
                     defaultValue={field.value?.toString()}
-                    disabled={readOnly}
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="orderType"
-              render={({ field }) => (
-                <FormItem className="w-full">
-                  <FormLabel>Tipo de Orden</FormLabel>
-                  <SelectSearchable
-                    key={itemTypeSelector}
-                    options={PURCHASE_ITEM_TYPE_OPTIONS}
-                    onValueChange={(value) => {
-                      field.onChange(value); // Pasa el valor a react-hook-form
-                      setItemTypeSelector(
-                        (value as PurchaseTypeEnum) ?? PurchaseTypeEnum.MANUAL,
-                      ); // Llama a tu función con el nuevo valor
-                    }}
-                    placeholder="Selecciona el tipo de orden"
-                    defaultValue={field.value as PurchaseTypeEnum}
                     disabled={readOnly}
                   />
                   <FormMessage />
@@ -225,6 +200,38 @@ export function PurchaseOrderForm({
                 </FormItem>
               )}
             />
+            {defaultValues?.id && (
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormLabel>Estatus</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled
+                    >
+                      <FormControl>
+                        <SelectTrigger
+                          className={readOnly ? 'bg-muted w-full' : 'w-full'}
+                        >
+                          <SelectValue placeholder="Seleccione un estado" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="w-full min-w-[200px]">
+                        {Object.entries(ESTATUS_TYPES).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="observations"
@@ -253,10 +260,6 @@ export function PurchaseOrderForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={
-                      itemTypeSelector !== PurchaseTypeEnum.EXPENSE &&
-                      itemTypeSelector !== PurchaseTypeEnum.MANUAL
-                    }
                     onClick={() =>
                       append({
                         itemName: '',
@@ -275,10 +278,6 @@ export function PurchaseOrderForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={
-                      itemTypeSelector !== PurchaseTypeEnum.SALES_INVENTORY &&
-                      itemTypeSelector !== PurchaseTypeEnum.MANUAL
-                    }
                     onClick={() =>
                       append({
                         itemName: '',
@@ -296,10 +295,6 @@ export function PurchaseOrderForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={
-                      itemTypeSelector !== PurchaseTypeEnum.FIXED_ASSET &&
-                      itemTypeSelector !== PurchaseTypeEnum.MANUAL
-                    }
                     onClick={() =>
                       append({
                         itemName: '',
@@ -317,10 +312,6 @@ export function PurchaseOrderForm({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={
-                      itemTypeSelector !== PurchaseTypeEnum.SERVICE &&
-                      itemTypeSelector !== PurchaseTypeEnum.MANUAL
-                    }
                     onClick={() =>
                       append({
                         itemName: '',
@@ -591,9 +582,30 @@ export function PurchaseOrderForm({
               {readOnly ? 'Cerrar' : 'Cancelar'}
             </Button>
             {!readOnly && (
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Guardando...' : 'Guardar'}
-              </Button>
+              <>
+                {defaultValues?.status !== 'PENDING' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSaving}
+                    onClick={form.handleSubmit((data) =>
+                      onSubmit(data, 'DRAFT'),
+                    )}
+                  >
+                    {isSaving ? 'Guardando...' : 'Guardar Borrador'}
+                  </Button>
+                )}
+
+                <Button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={form.handleSubmit((data) =>
+                    onSubmit(data, 'PENDING'),
+                  )}
+                >
+                  {isSaving ? 'Procesando...' : 'Procesar Orden'}
+                </Button>
+              </>
             )}
           </div>
         </form>

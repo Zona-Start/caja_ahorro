@@ -16,7 +16,6 @@ export const getPurchaseOrdersAction = async (params: {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   supplierId?: number;
-  orderType?: string;
   startDate?: Date;
   endDate?: Date;
 }) => {
@@ -28,7 +27,6 @@ export const getPurchaseOrdersAction = async (params: {
     ...(params.sortBy && { sortBy: params.sortBy }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
     ...(params.supplierId && { supplierId: params.supplierId.toString() }),
-    ...(params.orderType && { orderType: params.orderType }),
     ...(params.startDate && { startDate: params.startDate.toISOString() }),
     ...(params.endDate && { endDate: params.endDate.toISOString() }),
   });

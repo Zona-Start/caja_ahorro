@@ -1,3 +1,4 @@
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { suppliers } from '@/database/schema/administration';
 import { statusSuppliers } from '@/types/enum';
 import {
@@ -19,23 +20,13 @@ import { Supplier } from './entities/supplier.entity';
 export class SuppliersService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
 
   async create(
     userId: number,
     createSupplierDto: CreateSupplierDto,
   ): Promise<{ message: string; data: Supplier }> {
-    const existingSupplierByCode = await this.drizzle
-      .select()
-      .from(suppliers)
-      .where(eq(suppliers.code, createSupplierDto.code));
-
-    if (existingSupplierByCode.length !== 0) {
-      throw new BadRequestException(
-        `Supplier with code '${createSupplierDto.code}' already exists.`,
-      );
-    }
-
     const existingSupplierByTaxId = await this.drizzle
       .select()
       .from(suppliers)
@@ -51,6 +42,7 @@ export class SuppliersService {
       .insert(suppliers)
       .values({
         ...createSupplierDto,
+        code: await this.generateCodeService.generateGlobalCode('PROV'),
         createdById: userId,
         status: 'ACTIVE' as statusSuppliers,
       })

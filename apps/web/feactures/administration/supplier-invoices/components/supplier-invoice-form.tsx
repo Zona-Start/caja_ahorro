@@ -33,7 +33,7 @@ import {
   purchaseItemTypeEnum,
 } from '../schemas/supplier-invoice-options';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Switch } from '@repo/shadcn/switch';
 import { useAccountingAccounts } from '../../../accounting/accounting-accounts/hooks/use-query-account-plan';
@@ -70,29 +70,25 @@ export function SupplierInvoiceForm({
   const { data: accountingAccounts } = useAccountingAccounts();
   const { data: bankAccounts } = useBankAccountAll();
 
+  const [currentStatus, setCurrentStatus] = useState(defaultValues?.status);
+
   const form = useForm<SupplierInvoice>({
     resolver: zodResolver(supplierInvoiceSchema),
     defaultValues: {
-      id: defaultValues?.id,
-      supplierId: defaultValues?.supplierId,
-      purchaseOrderId: defaultValues?.purchaseOrderId,
+      ...defaultValues,
       invoiceNumber: defaultValues?.invoiceNumber || '',
       controlNumber: defaultValues?.controlNumber || '',
+      observations: defaultValues?.observations || '',
+      paymentDescription: defaultValues?.paymentDescription || '',
+      paymentBankReference: defaultValues?.paymentBankReference || '',
       invoiceDate: defaultValues?.invoiceDate
         ? new Date(defaultValues.invoiceDate)
         : new Date(),
       dueDate: defaultValues?.dueDate
         ? new Date(defaultValues.dueDate)
-        : undefined,
-      subtotal: defaultValues?.subtotal || 0,
-      taxAmount: defaultValues?.taxAmount || 0,
-      totalAmount: defaultValues?.totalAmount || 0,
-      paymentType:
-        defaultValues?.paymentType || SupplierInvoicePaymentTypeEnum.CREDIT,
-      status: defaultValues?.status || SupplierInvoiceStatusEnum.OPEN,
-      observations: defaultValues?.observations || '',
+        : new Date(),
       items: defaultValues?.items || [],
-      chargePayment: defaultValues?.chargePayment || false,
+      status: defaultValues?.status || SupplierInvoiceStatusEnum.DRAFT,
     },
     mode: 'onSubmit',
   });
@@ -107,10 +103,10 @@ export function SupplierInvoiceForm({
     control: form.control,
     name: 'chargePayment',
   });
-  const totalAmount = useWatch({ control: form.control, name: 'totalAmount' });
 
   const { data: purchaseOrders } = usePurchaseOrders({
     supplierId: supplierId,
+    status: 'PENDING',
   });
 
   const { fields, append, remove, replace } = useFieldArray({
@@ -142,24 +138,8 @@ export function SupplierInvoiceForm({
   }, [watchedItems, form]);
 
   useEffect(() => {
-    if (paymentType === SupplierInvoicePaymentTypeEnum.CREDIT) {
-      form.setValue('status', SupplierInvoiceStatusEnum.OPEN);
-      form.setValue('dueDate', undefined);
-      form.setValue('chargePayment', false);
-    } else {
-      form.setValue('dueDate', new Date());
-      if (chargePayment) {
-        form.setValue('status', SupplierInvoiceStatusEnum.PAID);
-        form.setValue('transactionDate', new Date());
-      } else {
-        form.setValue('status', SupplierInvoiceStatusEnum.PENDING_PAYMENT);
-      }
-    }
-  }, [paymentType, chargePayment, form]);
-
-  useEffect(() => {
     if (purchaseOrderId && purchaseOrders?.data) {
-      const selectedOrder = purchaseOrders.data.find(
+      const selectedOrder = purchaseOrders?.data?.find(
         (order: any) => order.id === purchaseOrderId,
       );
 
@@ -181,7 +161,7 @@ export function SupplierInvoiceForm({
             const service = services?.find((s) => s.id === item.itemId);
             if (service) {
               description = undefined;
-              unitCost = 0;
+              unitCost = Number(item.unitCost || 0);
             }
           }
 
@@ -208,31 +188,47 @@ export function SupplierInvoiceForm({
     services,
     fixedAssets,
   ]);
-  //console.log(form.formState.errors);
-  const onSubmit = async (data: SupplierInvoice) => {
-    //console.log('Submitting data:', data);
 
-    saveSupplierInvoice(data, {
-      onSuccess: () => {
-        form.reset();
-        onSuccess?.();
-      },
-      onError: (error) => {
-        form.setError('root', {
-          type: 'manual',
-          message: error.message || 'Error al guardar la factura de proveedor',
-        });
-      },
-    });
+  const handleSave = (status: SupplierInvoiceStatusEnum) => {
+    form.setValue('status', status);
+    form.handleSubmit((data) => {
+      const payload = {
+        ...data,
+        status,
+        taxAmount: Number(data.taxAmount.toFixed(2)),
+      };
+      console.log(payload);
+
+      saveSupplierInvoice(payload, {
+        onSuccess: (result: any) => {
+          const updatedInvoice = result?.data as SupplierInvoice;
+          if (status === SupplierInvoiceStatusEnum.DRAFT) {
+            onSuccess?.(); // Close modal on draft save
+          } else if (status === SupplierInvoiceStatusEnum.PENDING) {
+            // When validating, stay on the form and update status
+            if (updatedInvoice) {
+              setCurrentStatus(updatedInvoice.status);
+              form.reset(updatedInvoice);
+            }
+          } else if (status === SupplierInvoiceStatusEnum.ACCOUNTED_FOR) {
+            onSuccess?.(); // Close modal after accounting
+          }
+        },
+        onError: (error) => {
+          form.setError('root', {
+            type: 'manual',
+            message:
+              error.message || 'Error al guardar la factura de proveedor',
+          });
+        },
+      });
+    })();
   };
 
   return (
     <Form {...form}>
       <ScrollArea className="h-[calc(100vh-200px)]">
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4 h-full p-4"
-        >
+        <form className="space-y-4 h-full p-4">
           {form.formState.errors.root && (
             <div className="text-destructive text-sm">
               {form.formState.errors.root.message}
@@ -273,7 +269,7 @@ export function SupplierInvoiceForm({
                   <FormLabel>Orden de Compra</FormLabel>
                   <SelectSearchable
                     options={
-                      purchaseOrders?.data.map((item: any) => ({
+                      purchaseOrders?.data?.map((item: any) => ({
                         value: item.id!.toString(),
                         label: `${item.orderNumber}`,
                       })) || []
@@ -904,15 +900,43 @@ export function SupplierInvoiceForm({
               )}
             </div>
           )}
-          <div className="sticky bottom-0 w-full bg-background py-2 px-6 mt-auto">
+          <div className="sticky bottom-0 w-full bg-background py-4 px-6 mt-auto border-t">
             <div className="flex justify-end gap-4">
               <Button variant="outline" type="button" onClick={onCancel}>
-                {readOnly ? 'Cerrar' : 'Cancelar'}
+                Cerrar
               </Button>
 
-              {!readOnly && (
-                <Button type="submit" disabled={isSaving || !supplierId}>
-                  {isSaving ? 'Guardando...' : 'Guardar'}
+              {!readOnly && (currentStatus === 'DRAFT' || !currentStatus) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSaving}
+                  onClick={() => handleSave(SupplierInvoiceStatusEnum.DRAFT)}
+                >
+                  {isSaving ? 'Guardando...' : 'Guardar Borrador'}
+                </Button>
+              )}
+
+              {!readOnly && currentStatus === 'DRAFT' && defaultValues?.id && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSaving}
+                  onClick={() => handleSave(SupplierInvoiceStatusEnum.PENDING)}
+                >
+                  {isSaving ? 'Validando...' : 'Validar'}
+                </Button>
+              )}
+
+              {!readOnly && currentStatus === 'PENDING' && (
+                <Button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() =>
+                    handleSave(SupplierInvoiceStatusEnum.ACCOUNTED_FOR)
+                  }
+                >
+                  {isSaving ? 'Contabilizando...' : 'Contabilizar'}
                 </Button>
               )}
             </div>

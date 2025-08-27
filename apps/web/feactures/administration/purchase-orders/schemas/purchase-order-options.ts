@@ -1,6 +1,9 @@
 export const ESTATUS_TYPES = {
+  DRAFT: 'BORRADOR',
   PENDING: 'PENDIENTE',
   RECEIVED: 'RECIBIDA',
+  INVOICED: 'FACTURADA',
+  CLOSED: 'CERRADA',
   CANCELLED: 'CANCELADA',
 } as const;
 
@@ -20,7 +23,6 @@ export const PURCHASE_ITEM_TYPES = {
   FIXED_ASSET: 'Activo Fijo',
   SERVICE: 'Servicio',
   EXPENSE: 'Gasto',
-  MANUAL: 'Manual',
 } as const;
 
 export const PURCHASE_ITEM_TYPE_OPTIONS = Object.entries(
@@ -35,7 +37,6 @@ export enum PurchaseTypeEnum {
   FIXED_ASSET = 'FIXED_ASSET',
   SERVICE = 'SERVICE',
   EXPENSE = 'EXPENSE',
-  MANUAL = 'MANUAL',
 }
 
 export type PurchaseType = keyof typeof PurchaseTypeEnum;

@@ -330,14 +330,16 @@ export const purchaseOrderTypeEnum = pgEnum('purchase_order_type_enum', [
   'SALES_INVENTORY', // Producto para reventa (se relaciona con salesProducts)
   'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
   'SERVICE', // Servicio (se relaciona con serviceProviders)
-  'MANUAL',
   'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
 ]);
 
 export const purchaseOrderStatusEnum = pgEnum('purchase_order_status_enum', [
-  'PENDING', // Producto para reventa (se relaciona con salesProducts)
-  'RECEIVED', // Bien o activo fijo (se relaciona con fixedAssets)
-  'CANCELLED', // Gasto directo o suministro de oficina (no se inventaría)
+  'DRAFT', // 	Se crea la OC, se puede editar.
+  'PENDING', // Se envía al proveedor.
+  'RECEIVED', // Llega una factura que cubre solo parte de la OC.
+  'INVOICED', //Todas las líneas de la OC ya tienen factura.
+  'CLOSED', // OC finalizada sin pendientes.
+  'CANCELLED', //Se cancela antes de recibir factura.
 ]);
 
 export const supplierInvoicesPaymentEnum = pgEnum(
@@ -352,9 +354,11 @@ export const supplierInvoicesPaymentEnum = pgEnum(
 export const invoiceSuppliersStatusEnum = pgEnum(
   'invoice_supplier_status_enum',
   [
-    'OPEN', // Abierta para cuentas por pagar
-    'PAID', // Pagada
-    'CANCELLED', // Cancelada
+    'DRAFT', // Captura inicial de la factura. se puede editar
+    'PENDING', // Validada y lista para contabilizar.
+    'ACCOUNTED_FOR', // Se contabiliza y genera CxP si es crédito o pago si es contado.
+    'PAID', // Totalmente pagada (si fue de contado y se pagó al momento).
+    'CANCELLED', //Se cancela.
   ],
 );
 
@@ -368,10 +372,11 @@ export const priceTypeEnum = pgEnum('price_type_enum', [
 export const paymentAccountsPayableEnum = pgEnum(
   'payment_accounts_payable_enum',
   [
-    'PENDING', // Pago solicitado
-    'PENDING_BANK_BATCH', // Incluido en lote de pago bancario
-    'PAID', // Procesado exitosamente (equivalente a DESEMBOLSADO)
-    'CANCELLED',
+    'PENDING', // 	Se crea CxP con fecha de vencimiento.
+    'IN_PROGRESS', //Se genera un pago parcial o está en lote bancario.
+    'PAID', // Totalmente saldada.
+    'CANCELLED', //Se cancela por nota de crédito o error.
+    'EXPIRED', // La fecha de vencimiento es menor aL dia .
   ],
 );
 
@@ -404,4 +409,13 @@ export const unitOfMeasureEnum = pgEnum('unit_of_measure', [
 export const invoiceTypeEnum = pgEnum('invoice_type_enum', [
   'EXPENSE', // Factura de gasto
   'PURCHASE', // Factura de compra
+]);
+
+export const paymentSupplierStatusEnum = pgEnum('payment_supplier_status', [
+  'DRAFT', // Borrador
+  'PENDING', // Por aprobar
+  'SENT_TO_BANK', //  Enviado a banco
+  'PROCESSED', // Procesado
+  'REJECTED', // Rechazado
+  'CANCELLED', // Anulado
 ]);

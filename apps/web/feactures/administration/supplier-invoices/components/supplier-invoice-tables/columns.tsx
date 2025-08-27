@@ -7,12 +7,21 @@ import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<SupplierInvoice>[] = [
   {
-    accessorKey: 'invoiceNumber',
-    header: 'Número de Factura',
+    accessorKey: 'supplierInvoiceNumber',
+    header: 'Referencia',
   },
+
   {
     accessorKey: 'supplierName',
     header: 'Proveedor',
+  },
+  {
+    accessorKey: 'invoiceNumber',
+    header: 'Factura',
+  },
+  {
+    accessorKey: 'controlNumber',
+    header: 'Nro Control',
   },
   {
     accessorKey: 'invoiceDate',
@@ -23,6 +32,15 @@ export const columns: ColumnDef<SupplierInvoice>[] = [
     },
   },
   {
+    accessorKey: 'dueDate',
+    header: 'Fecha de Vencimiento',
+    cell: ({ row }) => {
+      const date = new Date(row.original.dueDate);
+      return date.toLocaleDateString();
+    },
+  },
+
+  {
     accessorKey: 'totalAmount',
     header: 'Monto Total',
   },
@@ -30,7 +48,8 @@ export const columns: ColumnDef<SupplierInvoice>[] = [
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original.status as keyof typeof SUPPLIER_INVOICE_STATUS_TYPES;
+      const statusKey = row.original
+        .status as keyof typeof SUPPLIER_INVOICE_STATUS_TYPES;
       return SUPPLIER_INVOICE_STATUS_TYPES[statusKey] || row.original.status;
     },
   },
