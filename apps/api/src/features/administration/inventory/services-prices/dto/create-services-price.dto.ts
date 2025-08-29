@@ -35,11 +35,6 @@ export class CreateServicePriceDto {
   @IsNotEmpty()
   purchaseTax: number;
 
-  @ApiProperty({ description: 'Total Cost' })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  totalCost: number;
-
   @ApiPropertyOptional({ description: 'Start date' })
   @IsDate()
   @Type(() => Date)

@@ -1,4 +1,5 @@
 import { fixedAssetsPrices } from '@/database/schema/administration';
+import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import {
   BadRequestException,
   Inject,
@@ -17,7 +18,37 @@ import { UpdateFixedAssetPriceDto } from './dto/update-fixed-asset-price.dto';
 export class FixedAssetPricesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly settingsSystemService: SettingsSystemService,
   ) {}
+
+  async calculateFinalCost(
+    supplierCost: number, // price cost
+    otherCosts: number, // other costs
+    purchaseTax?: number, //impuesto en porcentaje factura
+  ) {
+    let calculatedCostTixed = 0;
+    let costFinal = 0;
+    const [taxRate] = await Promise.all([
+      this.settingsSystemService.findKey('IVA-COMPRA'),
+    ]);
+    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
+    if (purchaseTax === 0) {
+      costFinal = calculatedCost;
+    } else if (Number(taxRate.value) !== purchaseTax) {
+      // Calculate the cost including supplier cost and other costs
+      calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
+      costFinal = calculatedCostTixed + calculatedCost;
+    } else {
+      calculatedCostTixed =
+        calculatedCost * (1 + (Number(taxRate.value) ?? 0) / 100);
+      costFinal = calculatedCostTixed + calculatedCost;
+    }
+
+    return {
+      costFinal,
+      taxRate: Number(taxRate.value),
+    };
+  }
 
   async create(
     userId: number,
@@ -44,13 +75,19 @@ export class FixedAssetPricesService {
       );
     }
 
-    await db.insert(fixedAssetsPrices).values({
+    const { costFinal, taxRate } = await this.calculateFinalCost(
+      data.baseCost ?? 0,
+      data.otherCosts,
+      data.purchaseTax ?? 0,
+    );
+
+    const result = await db.insert(fixedAssetsPrices).values({
       fixedAssetsId: data.fixedAssetsId,
       suppliersId: data.suppliersId,
       baseCost: String(data.baseCost),
       otherCosts: String(data.otherCosts),
-      purchaseTax: String(data.purchaseTax),
-      totalCost: String(data.totalCost.toFixed(2)),
+      purchaseTax: String(data.purchaseTax) ?? String(taxRate),
+      totalCost: String(costFinal),
       createdById: userId,
       startDate: data.startDate
         ? data.startDate instanceof Date
@@ -62,6 +99,7 @@ export class FixedAssetPricesService {
 
     return {
       message: 'Fixed asset price created successfully',
+      data: result[0],
     };
   }
 
@@ -191,6 +229,12 @@ export class FixedAssetPricesService {
       throw new NotFoundException('Fixed asset price not found');
     }
 
+    const { costFinal, taxRate } = await this.calculateFinalCost(
+      data.baseCost ?? 0,
+      data.otherCosts ?? 0,
+      data.purchaseTax ?? 0,
+    );
+
     await this.drizzle
       .update(fixedAssetsPrices)
       .set({
@@ -200,9 +244,10 @@ export class FixedAssetPricesService {
         otherCosts:
           data.otherCosts !== undefined ? String(data.otherCosts) : undefined,
         purchaseTax:
-          data.purchaseTax !== undefined ? String(data.purchaseTax) : undefined,
-        totalCost:
-          data.totalCost !== undefined ? String(data.totalCost) : undefined,
+          data.purchaseTax !== undefined
+            ? String(data.purchaseTax)
+            : String(taxRate),
+        totalCost: String(costFinal),
         startDate: data.startDate ? data.startDate.toISOString() : undefined,
         endDate: data.endDate ? data.endDate.toISOString() : undefined,
         updatedById: userId,

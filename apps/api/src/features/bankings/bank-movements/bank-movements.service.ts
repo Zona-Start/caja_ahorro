@@ -27,6 +27,7 @@ export class BankMovementsService {
 
   async create(
     createBankMovementDto: CreateBankMovementDto,
+    userId?: number,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.drizzle;
@@ -42,6 +43,7 @@ export class BankMovementsService {
         createBankMovementDto.creditAmount !== null
           ? String(createBankMovementDto.creditAmount)
           : null,
+      createdById: userId ?? createBankMovementDto.createdById,
     };
 
     const [createdMovement] = await db

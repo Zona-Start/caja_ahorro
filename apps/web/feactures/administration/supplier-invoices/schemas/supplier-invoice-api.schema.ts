@@ -27,6 +27,12 @@ export const supplierInvoiceApiSchema = z.object({
   paymentType: z.string().optional(),
   status: z.string().optional(),
   observations: z.string().optional().nullable(),
+  bankAccountId: z.number().optional().nullable(),
+  chargePayment: z.boolean().optional().nullable(),
+  paymentDescription: z.string().optional().nullable(),
+  paymentBankReference: z.string().optional().nullable(),
+  paymentMethod: z.string().optional().nullable(),
+  transactionDate: z.string().optional().nullable(),
   items: z.array(supplierInvoiceItemApiSchema).optional().nullable(),
 });
 
@@ -34,6 +40,12 @@ export type SupplierInvoiceSchemaAPI = z.infer<typeof supplierInvoiceApiSchema>;
 
 export const supplierInvoiceMutationResponseSchema = z.object({
   message: z.string(),
+  data: z
+    .object({
+      id: z.number(),
+      status: z.string(),
+    })
+    .optional(),
 });
 
 export const supplierInvoiceAllResponseSchema = z.object({
@@ -56,4 +68,9 @@ export const supplierInvoiceAllResponseSchema = z.object({
 export const supplierInvoiceResponseOneSchema = z.object({
   message: z.string(),
   data: supplierInvoiceApiSchema,
+});
+
+export const supplierInvoiceDraftPendingResponseSchema = z.object({
+  message: z.string(),
+  data: z.array(supplierInvoiceApiSchema),
 });

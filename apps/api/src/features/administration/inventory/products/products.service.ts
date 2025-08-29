@@ -1,6 +1,5 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { products } from '@/database/schema/administration';
-import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import { priceTypeEnum, productStatus, unitOfMeasureEnum } from '@/types/enum';
 import {
   BadRequestException,
@@ -23,42 +22,7 @@ export class ProductsService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCode: GenerateCodeService,
     private readonly productPricesService: ProductPricesService,
-    private readonly settingsSystemService: SettingsSystemService,
   ) {}
-
-  async calculateFinalPrice(
-    supplierCost: number, // price cost
-    otherCosts: number, // other costs
-    util: number, //utilidad en porcentaje
-    purchaseTax: number, //impuesto en porcentaje compra
-    saleTax: number, //impuesto venta en porcentaje
-  ) {
-    // Fetch rates from settings in parallel for efficiency
-    const [taxRate, profitMarginRate, expenseRate] = await Promise.all([
-      this.settingsSystemService.findKey('iva_venta'),
-      this.settingsSystemService.findKey('utilidad_producto'),
-      this.settingsSystemService.findKey('gasto_producto'),
-    ]);
-
-    // Calculate the cost including supplier cost and other costs
-    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
-    const calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
-
-    const price = calculatedCostTixed; //precio base sin utilidad ni impuestos
-    const benefit = (price * util) / 100; //utilidad en dinero
-    const expensePrice = (price * Number(expenseRate.value)) / 100; //gastos administrativos
-    const priceProfit = price + benefit + expensePrice; //precio con utilidad  y gastos administrativos
-
-    const impost = (priceProfit * (saleTax ?? 0)) / 100; //I.V.A. venta
-    const maxPrice = priceProfit + impost; //precio con impuesto
-
-    return {
-      maxPrice,
-      priceProfit,
-      calculatedCostTixed,
-      expenseRate: Number(expenseRate.value),
-    };
-  }
 
   async create(userId: number, data: CreateProductDto) {
     const existProduct = await this.drizzle
@@ -81,7 +45,7 @@ export class ProductsService {
       .insert(products)
       .values({
         categoryId: data.categoryId,
-        sku: await this.generateCode.generateGlobalCode('PDR'),
+        sku: await this.generateCode.generateGlobalCode('PRD'),
         name: data.name,
         description: data.description,
         brand: data.brand,
@@ -102,52 +66,35 @@ export class ProductsService {
       });
 
     if (data.supplierCost !== 0) {
-      // Calculate final price based on settings
-      const resultSalePrice = await this.calculateFinalPrice(
-        data.supplierCost,
-        data.otherCosts,
-        data.profitSale ?? 0,
-        data.purchaseTax ?? 0,
-        data.saleTax ?? 0,
+      await this.productPricesService.create(
+        {
+          productId: result[0].id,
+          priceType: 'SELLING' as priceTypeEnum,
+          baseCost: data.supplierCost,
+          otherCosts: data.otherCosts,
+          purchaseTax: Number(data.purchaseTax ?? undefined),
+          saleTax: Number(data.saleTax ?? undefined),
+          profitPercent: Number(data.profitSale ?? undefined),
+          isActive: true,
+        },
+        userId,
       );
-
-      await this.productPricesService.create(userId, {
-        productId: result[0].id,
-        priceType: 'SELLING' as priceTypeEnum,
-        baseCost: data.supplierCost,
-        otherCosts: data.otherCosts,
-        purchaseTax: Number(data.purchaseTax ?? 0),
-        totalCost: resultSalePrice.calculatedCostTixed,
-        expensePercent: resultSalePrice.expenseRate,
-        profitPercent: data.profitSale ?? 0,
-        salesTaxPercent: data.saleTax ?? 0,
-        finalPrice: resultSalePrice.maxPrice,
-        isActive: true,
-      });
 
       if (data.profitSupply !== 0) {
         // Calculate final price based on settings
-        const resultSupplyPrice = await this.calculateFinalPrice(
-          data.supplierCost,
-          data.otherCosts,
-          data.profitSupply ?? 0,
-          data.purchaseTax ?? 0,
-          data.saleTax ?? 0,
+        await this.productPricesService.create(
+          {
+            productId: result[0].id,
+            priceType: 'OFFER' as priceTypeEnum,
+            baseCost: data.supplierCost,
+            otherCosts: data.otherCosts,
+            purchaseTax: Number(data.purchaseTax ?? undefined),
+            saleTax: Number(data.saleTax ?? undefined),
+            profitPercent: data.profitSupply ?? 0,
+            isActive: true,
+          },
+          userId,
         );
-
-        await this.productPricesService.create(userId, {
-          productId: result[0].id,
-          priceType: 'OFFER' as priceTypeEnum,
-          baseCost: data.supplierCost,
-          otherCosts: data.otherCosts,
-          purchaseTax: Number(data.purchaseTax ?? 0),
-          totalCost: resultSupplyPrice.calculatedCostTixed,
-          expensePercent: resultSupplyPrice.expenseRate,
-          profitPercent: data.profitSupply ?? 0,
-          salesTaxPercent: data.saleTax ?? 0,
-          finalPrice: resultSupplyPrice.maxPrice,
-          isActive: true,
-        });
       }
     }
     return result[0];
@@ -368,57 +315,42 @@ export class ProductsService {
         const newOtherCosts =
           data.otherCosts ?? Number(basePriceInfo?.otherCosts ?? 0);
         const newPurchaseTax =
-          data.purchaseTax ?? Number(basePriceInfo?.purchaseTax ?? 0);
+          data.purchaseTax ?? Number(basePriceInfo?.purchaseTax);
         const newSaleTax =
-          data.saleTax ?? Number(basePriceInfo?.salesTaxPercent ?? 0);
+          data.saleTax ?? Number(basePriceInfo?.salesTaxPercent);
         const newProfitSale =
-          data.profitSale ?? Number(sellingPrice?.profitPercent ?? 0);
+          data.profitSale ?? Number(sellingPrice?.profitPercent);
         const newProfitSupply = data.profitSupply ?? 0;
 
-        const resultSalePrice = await this.calculateFinalPrice(
-          newBaseCost,
-          newOtherCosts,
-          newProfitSale,
-          newPurchaseTax,
-          newSaleTax,
-        );
-
-        await this.productPricesService.create(userId, {
-          productId: id,
-          priceType: 'SELLING',
-          baseCost: newBaseCost,
-          otherCosts: newOtherCosts,
-          purchaseTax: newPurchaseTax,
-          totalCost: resultSalePrice.calculatedCostTixed,
-          expensePercent: resultSalePrice.expenseRate,
-          profitPercent: newProfitSale,
-          salesTaxPercent: newSaleTax,
-          finalPrice: resultSalePrice.maxPrice,
-          isActive: true,
-        });
-
-        if (newProfitSupply > 0) {
-          const resultSupplyPrice = await this.calculateFinalPrice(
-            newBaseCost,
-            newOtherCosts,
-            newProfitSupply,
-            newPurchaseTax,
-            newSaleTax,
-          );
-
-          await this.productPricesService.create(userId, {
+        await this.productPricesService.create(
+          {
             productId: id,
-            priceType: 'OFFER',
+            priceType: 'SELLING',
             baseCost: newBaseCost,
             otherCosts: newOtherCosts,
-            purchaseTax: newPurchaseTax,
-            totalCost: resultSupplyPrice.calculatedCostTixed,
-            expensePercent: resultSupplyPrice.expenseRate,
-            profitPercent: newProfitSupply,
-            salesTaxPercent: newSaleTax,
-            finalPrice: resultSupplyPrice.maxPrice,
+            purchaseTax: newPurchaseTax ?? undefined,
+            saleTax: newSaleTax ?? undefined,
+            profitPercent: newProfitSale ?? undefined,
             isActive: true,
-          });
+          },
+          userId,
+        );
+
+        if (newProfitSupply > 0) {
+          await this.productPricesService.create(
+            {
+              productId: id,
+              priceType: 'OFFER',
+              baseCost: newBaseCost,
+              otherCosts: newOtherCosts,
+              purchaseTax: newPurchaseTax ?? undefined,
+              saleTax: newSaleTax ?? undefined,
+              profitPercent: newProfitSupply ?? undefined,
+              isActive: true,
+            },
+
+            userId,
+          );
         }
       }
     }

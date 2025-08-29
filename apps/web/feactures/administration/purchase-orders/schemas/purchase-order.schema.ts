@@ -6,7 +6,6 @@ export const purchaseOrderItemSchema = z
     id: z.number().optional(),
     lineType: z.nativeEnum(PurchaseTypeEnum),
     itemId: z.number().optional().nullable(), // This will be used for productId, fixedAssetId, serviceId, or expenseAccountId
-    itemName: z.string(), // Validated in superRefine
     description: z.string().optional().nullable(),
     quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
     totalCost: z.number().optional(), // This will be calculated
@@ -39,11 +38,11 @@ export const purchaseOrderItemSchema = z
     }
     if (
       data.lineType === PurchaseTypeEnum.EXPENSE &&
-      (!data.itemName || data.itemName.trim() === '')
+      (!data.description || data.description.trim() === '')
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'El nombre del item es requerido.',
+        message: 'La Descripción es requerido.',
         path: ['itemName'],
       });
     }

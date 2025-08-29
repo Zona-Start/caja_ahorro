@@ -7,9 +7,9 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'iva_venta',
+        key: 'IVA-VENTA',
         value: '16',
-        description: 'IVA',
+        description: 'IVA VENTAS',
         group: 'GENERAL',
         createdById: 1,
         updatedById: 1,
@@ -84,18 +84,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'correlativo_producto',
-        value: '00001',
-        description: 'CORRELATIVO PRODUCTOS',
-        group: 'DOCUMENTS',
-        createdById: 1,
-        updatedById: 1,
-      })
-      .onConflictDoNothing();
-    await db
-      .insert(systemSettings)
-      .values({
-        key: 'utilidad_producto',
+        key: 'UTILIDAD-PRODUCTO',
         value: '25',
         description: 'UTILIDAD PRODUCTO',
         group: 'GENERAL',
@@ -106,7 +95,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'gasto_producto',
+        key: 'GASTO-PRODUCTO',
         value: '6',
         description: 'GASTO ADMINISTRATIVOS PRODUCTO',
         group: 'GENERAL',
@@ -117,7 +106,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'iva_compra',
+        key: 'IVA-COMPRA',
         value: '16',
         description: 'IVA FACTURAS DE COMPRA',
         group: 'GENERAL',

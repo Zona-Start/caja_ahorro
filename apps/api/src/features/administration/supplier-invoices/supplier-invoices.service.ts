@@ -1,6 +1,7 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
   accountsPayable,
+  purchaseOrderItems,
   purchaseOrders,
   supplierInvoiceItems,
   supplierInvoices,
@@ -9,6 +10,7 @@ import {
   suppliers,
 } from '@/database/schema/administration';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { paymentMethodEnum, priceTypeEnum } from '@/types/enum';
 import {
   BadRequestException,
   ConflictException,
@@ -16,11 +18,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, ne, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
+import { FixedAssetPricesService } from '../inventory/fixed-asset-prices/fixed-asset-prices.service';
+import { InventoryMovementsService } from '../inventory/inventory-movements/inventory-movements.service';
+import { ProductPricesService } from '../inventory/product-prices/product-prices.service';
+import { ServicePricesService } from '../inventory/services-prices/services-prices.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { FilterSupplierInvoiceDto } from './dto/filter-supplier-invoice.dto';
 import { UpdateSupplierInvoiceDto } from './dto/update-supplier-invoice.dto';
@@ -32,6 +38,10 @@ export class SupplierInvoicesService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly accountsPayableService: AccountsPayableService,
     private readonly generateCodeService: GenerateCodeService,
+    private readonly productPricesService: ProductPricesService,
+    private readonly fixedAssetPricesService: FixedAssetPricesService,
+    private readonly servicePricesService: ServicePricesService,
+    private readonly inventoryMovementsService: InventoryMovementsService,
   ) {}
 
   async create(userId: number, dto: CreateSupplierInvoiceDto) {
@@ -54,12 +64,16 @@ export class SupplierInvoicesService {
           totalAmount: dto.totalAmount.toString(),
           dueDate: dto.dueDate?.toISOString(),
           invoiceDate: dto.invoiceDate.toISOString(),
+          transactionDate: dto.chargePayment ? new Date().toISOString() : null,
           currencyCode: 'VES',
           createdById: userId,
           supplierInvoiceNumber:
             await this.generateCodeService.generateNextReference('FAC-P'),
         })
-        .returning();
+        .returning({
+          status: supplierInvoices.status,
+          id: supplierInvoices.id,
+        });
 
       if (dto.items && dto.items.length > 0) {
         const itemsToInsert = dto.items.map((item) => ({
@@ -72,8 +86,8 @@ export class SupplierInvoicesService {
         await tx.insert(supplierInvoiceItems).values(itemsToInsert as any);
       }
 
-      //return newInvoice[0];
       return {
+        data: newInvoice[0],
         message: 'Supplier invoice created successfully',
       };
     });
@@ -81,16 +95,20 @@ export class SupplierInvoicesService {
 
   async update(userId: number, id: number, dto: UpdateSupplierInvoiceDto) {
     return this.drizzle.transaction(async (tx) => {
-      const existingInvoice = await tx.query.supplierInvoices.findFirst({
-        where: eq(supplierInvoices.id, id),
-        with: { items: true },
-      });
+      const existingInvoice = await tx
+        .select()
+        .from(supplierInvoices)
+        .where(eq(supplierInvoices.id, id))
+        .leftJoin(
+          supplierInvoiceItems,
+          eq(supplierInvoices.id, supplierInvoiceItems.invoiceId),
+        );
 
-      if (!existingInvoice) {
+      if (existingInvoice.length === 0) {
         throw new NotFoundException('Supplier invoice not found');
       }
 
-      const originalStatus = existingInvoice.status;
+      const originalStatus = existingInvoice[0].supplier_invoices.status;
       const newStatus = dto.status;
 
       // --- Logic for DRAFT invoices ---
@@ -112,6 +130,8 @@ export class SupplierInvoicesService {
       // --- Logic for PENDING invoices ---
       if (originalStatus === 'PENDING') {
         if (newStatus === 'ACCOUNTED_FOR') {
+          console.log('entre aqui a contabilizar');
+
           const fullDto = {
             ...existingInvoice,
             ...dto,
@@ -136,26 +156,32 @@ export class SupplierInvoicesService {
     tx: NodePgDatabase<typeof schema>,
   ) {
     // 1. Validations
-    const supplier = await tx.query.suppliers.findFirst({
-      where: and(
-        eq(suppliers.id, dto.supplierId),
-        eq(suppliers.status, 'ACTIVE'),
-      ),
-    });
-    if (!supplier) {
+
+    const supplier = await tx
+      .select()
+      .from(suppliers)
+      .where(
+        and(eq(suppliers.id, dto.supplierId), eq(suppliers.status, 'ACTIVE')),
+      );
+
+    if (supplier.length === 0) {
       throw new BadRequestException(
         'Supplier is not active or does not exist.',
       );
     }
 
-    const existingInvoice = await tx.query.supplierInvoices.findFirst({
-      where: and(
-        eq(supplierInvoices.invoiceNumber, dto.invoiceNumber),
-        eq(supplierInvoices.supplierId, dto.supplierId),
-        ne(supplierInvoices.id, invoiceId),
-      ),
-    });
-    if (existingInvoice) {
+    const existingInvoice = await tx
+      .select()
+      .from(supplierInvoices)
+      .where(
+        and(
+          eq(supplierInvoices.invoiceNumber, dto.invoiceNumber),
+          eq(supplierInvoices.supplierId, dto.supplierId),
+          ne(supplierInvoices.id, invoiceId),
+        ),
+      );
+
+    if (existingInvoice.length !== 0) {
       throw new ConflictException(
         'An invoice with this number and supplier already exists.',
       );
@@ -167,7 +193,9 @@ export class SupplierInvoicesService {
 
     // 2. Purchase Order Logic
     if (dto.purchaseOrderId) {
-      await this.updatePurchaseOrderStatus(dto.purchaseOrderId, tx);
+      console.log('entre actualizar status orden');
+
+      await this.updatePurchaseOrderStatus(dto.purchaseOrderId, invoiceId, tx);
     }
 
     // 3. Payment and Accounts Payable Logic
@@ -178,7 +206,101 @@ export class SupplierInvoicesService {
       await this.checkAndClosePurchaseOrder(dto.purchaseOrderId, tx);
     }
 
-    // 5. Finalize invoice status
+    // 5. Process Invoice Items for Inventory and Pricing
+    const invoiceItems = await tx
+      .select()
+      .from(supplierInvoiceItems)
+      .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
+
+    for (const item of invoiceItems) {
+      const quantity = Number(item.quantity);
+      const unitCost = Number(item.unitCost);
+
+      if (item.lineType === 'SALES_INVENTORY') {
+        // Update product price
+        const resultProduct = await this.productPricesService.create(
+          {
+            productId: item?.itemId ?? 0,
+            suppliersId: dto.supplierId,
+            priceType: 'SELLING' as priceTypeEnum,
+            baseCost: unitCost,
+            otherCosts: 0,
+            isActive: true,
+          },
+          userId,
+          tx,
+        );
+        // Generate inventory movement (income)
+        await this.inventoryMovementsService.create(
+          userId,
+          {
+            movementType: 'IN',
+            description: `INGRESO PRODUCTO POR FACTURA DE PROVEEDOR ${dto.invoiceNumber}`,
+            documentType: 'COMPRA',
+            documentNumber: dto.invoiceNumber,
+            items: [
+              {
+                itemId: item.itemId ?? 0,
+                itemType: 'PRODUCT',
+                quantity: quantity,
+                unitCost: Number(resultProduct.data.totalCost),
+              },
+            ],
+          },
+          tx,
+        );
+      } else if (item.lineType === 'FIXED_ASSET') {
+        // Update fixed asset price
+        const resultFixedAsset = await this.fixedAssetPricesService.create(
+          userId,
+          {
+            fixedAssetsId: item.itemId ?? 0,
+            baseCost: unitCost,
+            otherCosts: 0, // Assuming 0 for now, can be added to DTO later
+            purchaseTax: 0, // Assuming 0 for now, can be added to DTO later
+            startDate: dto.invoiceDate,
+            isActive: true,
+          },
+          tx,
+        );
+        // Generate inventory movement (income)
+        await this.inventoryMovementsService.create(
+          userId,
+          {
+            movementType: 'IN',
+            description: `INGRESO ACTIVO POR FACTURA PROVEEDOR ${dto.invoiceNumber}`,
+            documentType: 'COMPRA',
+            documentNumber: dto.invoiceNumber,
+            items: [
+              {
+                itemId: item.itemId ?? 0,
+                itemType: 'FIXED_ASSET',
+                quantity: quantity,
+                unitCost: resultFixedAsset.data.totalCost,
+              },
+            ],
+          },
+          tx,
+        );
+      } else if (item.lineType === 'SERVICE') {
+        // Update service price
+        await this.servicePricesService.create(
+          userId,
+          {
+            serviceId: item.itemId ?? 0,
+            baseCost: unitCost,
+            otherCosts: 0,
+            purchaseTax: 0,
+            startDate: dto.invoiceDate,
+            isActive: true,
+          },
+          tx,
+        );
+        // No inventory movement for services
+      }
+    }
+
+    // 6. Finalize invoice status
     const isPaidImmediately = dto.paymentType === 'CASH' && dto.chargePayment;
     const finalStatus = isPaidImmediately ? 'PAID' : 'ACCOUNTED_FOR';
 
@@ -194,45 +316,133 @@ export class SupplierInvoicesService {
 
   private async updatePurchaseOrderStatus(
     purchaseOrderId: number,
+    invoiceId: number,
     tx: NodePgDatabase<typeof schema>,
   ) {
-    const po = await tx.query.purchaseOrders.findFirst({
-      where: eq(purchaseOrders.id, purchaseOrderId),
-      with: { items: true },
-    });
-    if (!po) throw new NotFoundException('Purchase Order not found.');
+    // 1. Obtener los ítems de la Orden de Compra (PO)
+    const poItems = await tx
+      .select()
+      .from(purchaseOrderItems)
+      .where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
 
-    const relatedInvoices = await tx.query.supplierInvoices.findMany({
-      where: and(
-        eq(supplierInvoices.purchaseOrderId, purchaseOrderId),
-        ne(supplierInvoices.status, 'CANCELLED'),
-      ),
-      with: { items: true },
-    });
+    if (poItems.length === 0) {
+      throw new NotFoundException('Purchase Order not found or has no items.');
+    }
 
-    const totalInvoicedPerItem = new Map<number, number>();
-    for (const inv of relatedInvoices) {
-      for (const item of inv.items) {
-        if (item.itemId) {
-          const currentQty = totalInvoicedPerItem.get(item.itemId) || 0;
-          totalInvoicedPerItem.set(item.itemId, currentQty + item.quantity);
+    // 2. Obtener todos los ítems de las facturas relacionadas, excluyendo la actual
+    const invoicedItems = await tx
+      .select({
+        id: supplierInvoiceItems.id,
+        itemId: supplierInvoiceItems.itemId,
+        quantity: supplierInvoiceItems.quantity,
+        lineType: supplierInvoiceItems.lineType, // Incluir lineType en la selección
+        description: supplierInvoiceItems.description, // Incluir la descripción
+      })
+      .from(supplierInvoiceItems)
+      .leftJoin(
+        supplierInvoices,
+        eq(supplierInvoiceItems.invoiceId, supplierInvoices.id),
+      )
+      .where(
+        and(
+          eq(supplierInvoices.purchaseOrderId, purchaseOrderId),
+          ne(supplierInvoices.status, 'CANCELLED'),
+          ne(supplierInvoices.id, invoiceId),
+        ),
+      );
+
+    // 3. Obtener los ítems de la factura actual
+    const currentInvoiceItems = await tx
+      .select({
+        id: supplierInvoiceItems.id,
+        itemId: supplierInvoiceItems.itemId,
+        quantity: supplierInvoiceItems.quantity,
+        lineType: supplierInvoiceItems.lineType, // Incluir lineType
+        description: supplierInvoiceItems.description, // Incluir la descripción
+      })
+      .from(supplierInvoiceItems)
+      .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
+
+    // 4. Calcular la cantidad total facturada por ítem (usando clave compuesta)
+    const totalInvoicedPerItem = new Map<string, number>();
+
+    const getUniqueKey = (item: {
+      itemId: number | null;
+      lineType: string;
+      description: string | null;
+    }): string => {
+      if (item.lineType === 'EXPENSE') {
+        if (!item.description) {
+          throw new BadRequestException(
+            'Expense item is missing a description.',
+          );
         }
+        // Asegurarse de que la descripción se formatee de manera consistente
+        return `${item.description.trim()}-${item.lineType}`;
+      }
+      if (item.itemId === null) {
+        throw new BadRequestException('Item is missing itemId.');
+      }
+      return `${item.itemId}-${item.lineType}`;
+    };
+
+    // Sumar cantidades de facturas anteriores
+    for (const item of invoicedItems) {
+      try {
+        const key = getUniqueKey(item);
+        console.log('invoicedItems', key);
+        const currentQty = totalInvoicedPerItem.get(key) || 0;
+        totalInvoicedPerItem.set(key, currentQty + item.quantity);
+        console.log('invoicedItemscurrentQty', currentQty);
+      } catch (e) {
+        // Log o manejar el error si la clave no se pudo generar
+        console.error(e);
       }
     }
 
+    // Sumar cantidades de la factura actual
+    for (const item of currentInvoiceItems) {
+      try {
+        const key = getUniqueKey(item);
+        console.log('currentInvoiceItems', key);
+        const currentQty = totalInvoicedPerItem.get(key) || 0;
+        totalInvoicedPerItem.set(key, currentQty + item.quantity);
+        console.log('currentInvoiceItemscurrentQty', currentQty);
+      } catch (e) {
+        // Log o manejar el error
+        console.error(e);
+      }
+    }
+
+    // 5. Comparar las cantidades facturadas con las de la PO
     let isFullyInvoiced = true;
-    for (const poItem of po.items) {
-      const invoicedQty = totalInvoicedPerItem.get(poItem.itemId) || 0;
-      if (invoicedQty > poItem.quantity) {
+    for (const poItem of poItems) {
+      const lineType = poItem.lineType;
+
+      if (!lineType) {
         throw new BadRequestException(
-          `Item ${poItem.itemName} is being over-invoiced.`,
+          'Purchase order item lineType is missing.',
         );
       }
+
+      const key = getUniqueKey({
+        itemId: poItem.itemId,
+        lineType: poItem.lineType,
+        description: poItem.description,
+      });
+
+      const invoicedQty = totalInvoicedPerItem.get(key) || 0;
+
+      if (invoicedQty > poItem.quantity) {
+        throw new BadRequestException(`Item is being over-invoiced.`);
+      }
+
       if (invoicedQty < poItem.quantity) {
         isFullyInvoiced = false;
       }
     }
 
+    // 6. Actualizar el estado de la Orden de Compra
     const newStatus = isFullyInvoiced ? 'INVOICED' : 'RECEIVED';
     await tx
       .update(purchaseOrders)
@@ -289,13 +499,13 @@ export class SupplierInvoicesService {
         .values({
           supplierId: dto.supplierId,
           paymentNumber:
-            this.generateCodeService.generateNextReference('PAG-P'),
+            await this.generateCodeService.generateNextReference('PAG-P'),
           totalAmount: dto.totalAmount.toString(),
           currencyCode: 'VES',
           paymentMethod: dto.paymentMethod,
           bankAccountId: dto.bankAccountId,
           status: 'PROCESSED',
-          requestedAt: new Date(),
+          requestedAt: new Date().toISOString(),
           createdById: userId,
           observations: dto.paymentDescription,
         })
@@ -305,6 +515,7 @@ export class SupplierInvoicesService {
         supplierPaymentId: payment[0].id,
         accountsPayableId: ap.id,
         amount: dto.totalAmount.toString(),
+        createdById: userId,
       });
 
       await tx
@@ -318,15 +529,17 @@ export class SupplierInvoicesService {
 
       await this.bankMovementsService.create(
         {
-          bankAccountId: dto.bankAccountId,
-          transactionDate: (dto.transactionDate || new Date()).toISOString(),
+          bankAccountId: Number(dto.bankAccountId),
+          transactionDate:
+            dto.transactionDate.toISOString() || new Date().toISOString(),
           description:
-            dto.paymentDescription ||
-            `Payment for invoice ${dto.invoiceNumber}`,
-          debitAmount: dto.totalAmount,
+            dto.paymentDescription || `PAGO DE FACTURA ${dto.invoiceNumber}`,
+          debitAmount: Number(dto.totalAmount),
           bankReference: dto.paymentBankReference,
-          transactionType: dto.paymentMethod,
+          transactionType: dto.paymentMethod as paymentMethodEnum,
+          createdById: userId,
         },
+        undefined,
         tx,
       );
     }
@@ -377,6 +590,9 @@ export class SupplierInvoicesService {
         totalAmount: dto.totalAmount?.toString(),
         dueDate: dto.dueDate?.toISOString(),
         invoiceDate: dto.invoiceDate?.toISOString(),
+        transactionDate: dto.transactionDate
+          ? dto.transactionDate.toISOString()
+          : null,
         updatedById: userId,
       })
       .where(eq(supplierInvoices.id, invoiceId));
@@ -441,6 +657,7 @@ export class SupplierInvoicesService {
         ? sql`${supplierInvoices[sortBy as keyof typeof supplierInvoices]} asc`
         : sql`${supplierInvoices[sortBy as keyof typeof supplierInvoices]} desc`;
 
+    // Paso 1: Obtener el conteo total de facturas
     const totalCountResult = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(supplierInvoices)
@@ -449,68 +666,90 @@ export class SupplierInvoicesService {
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
 
-    const rawData = await this.drizzle
+    // Paso 2: Obtener solo las facturas (sin ítems) con paginación
+    const invoices = await this.drizzle
       .select({
         invoice: supplierInvoices,
         supplierName: suppliers.name,
-        items: supplierInvoiceItems,
       })
       .from(supplierInvoices)
       .leftJoin(suppliers, eq(supplierInvoices.supplierId, suppliers.id))
-      .leftJoin(
-        supplierInvoiceItems,
-        eq(supplierInvoices.id, supplierInvoiceItems.invoiceId),
-      )
       .limit(limit)
       .offset(offset)
       .where(searchCondition)
       .orderBy(orderBy);
 
-    // 3. Agrupa los ítems por orden en el código
-    const groupedData = new Map<number, any>();
+    const invoiceIds = invoices.map((row) => row.invoice.id);
 
-    rawData.forEach((row) => {
-      if (!groupedData.has(row.invoice.id)) {
-        // Mapea la orden y convierte los strings a numbers según tu esquema Zod
+    // Si no hay facturas, devolvemos un array vacío para los ítems
+    if (invoiceIds.length === 0) {
+      return {
+        data: [],
+        meta: {
+          page: Number(page),
+          limit: Number(limit),
+          totalCount,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+          nextPage: page < totalPages ? page + 1 : null,
+          previousPage: page > 1 ? page - 1 : null,
+        },
+      };
+    }
 
-        const invoice = {
-          id: row.invoice.id,
-          supplierInvoiceNumber: row.invoice.supplierInvoiceNumber,
-          supplierId: row.invoice.supplierId,
-          supplierName: row.supplierName,
-          purchaseOrderId: row.invoice.purchaseOrderId,
-          invoiceNumber: row.invoice.invoiceNumber,
-          controlNumber: row.invoice.controlNumber,
-          invoiceDate: row.invoice.invoiceDate,
-          dueDate: row.invoice.dueDate,
-          subtotal: Number(row.invoice.subtotal),
-          taxAmount: Number(row.invoice.taxAmount),
-          totalAmount: Number(row.invoice.totalAmount),
-          paymentType: row.invoice.paymentType,
-          status: row.invoice.status,
-          observations: row.invoice.observations,
-          items: [],
-        };
-        groupedData.set(row.invoice.id, invoice);
-      }
+    // Paso 3: Obtener todos los ítems de las facturas seleccionadas
+    const allItems = await this.drizzle
+      .select()
+      .from(supplierInvoiceItems)
+      .where(sql`${supplierInvoiceItems.invoiceId} IN ${invoiceIds}`);
 
-      // Mapea y convierte el ítem si existe
-      if (row.items) {
-        const item = {
-          id: row.items.id,
-          lineType: row.items.lineType,
-          description: row.items.description,
-          itemId: row.items.itemId,
-          quantity: Number(row.items.quantity),
-          unitCost: Number(row.items.unitCost),
-          totalLine: Number(row.items.totalLine),
-          expenseAccountId: row.items.expenseAccountId,
-        };
-        groupedData.get(row.invoice.id).items.push(item);
-      }
+    // Paso 4: Agrupar los ítems a cada factura en el código
+    const data = invoices.map((invoiceRow) => {
+      // Declaramos explícitamente el tipo de 'invoice' para evitar el error
+      const invoice = {
+        id: invoiceRow.invoice.id,
+        supplierInvoiceNumber: invoiceRow.invoice.supplierInvoiceNumber,
+        supplierId: invoiceRow.invoice.supplierId,
+        supplierName: invoiceRow.supplierName,
+        purchaseOrderId: invoiceRow.invoice.purchaseOrderId,
+        invoiceNumber: invoiceRow.invoice.invoiceNumber,
+        controlNumber: invoiceRow.invoice.controlNumber,
+        invoiceDate: invoiceRow.invoice.invoiceDate,
+        dueDate: invoiceRow.invoice.dueDate,
+        subtotal: Number(invoiceRow.invoice.subtotal),
+        taxAmount: Number(invoiceRow.invoice.taxAmount),
+        totalAmount: Number(invoiceRow.invoice.totalAmount),
+        paymentType: invoiceRow.invoice.paymentType,
+        status: invoiceRow.invoice.status,
+        observations: invoiceRow.invoice.observations,
+        bankAccountId: invoiceRow.invoice.bankAccountId,
+        chargePayment: invoiceRow.invoice.chargePayment,
+        paymentDescription: invoiceRow.invoice.paymentDescription,
+        paymentBankReference: invoiceRow.invoice.paymentBankReference,
+        paymentMethod: invoiceRow.invoice.paymentMethod,
+        transactionDate: invoiceRow.invoice.transactionDate,
+        items: [] as any[], // Inicializamos el array de ítems aquí
+      };
+
+      const invoiceItems = allItems.filter(
+        (item) => item.invoiceId === invoice.id,
+      );
+
+      // Mapea y convierte los ítems al formato correcto
+      invoice.items = invoiceItems.map((item) => ({
+        id: item.id,
+        lineType: item.lineType,
+        description: item.description,
+        itemId: item.itemId,
+        quantity: Number(item.quantity),
+        unitCost: Number(item.unitCost),
+        totalLine: Number(item.totalLine),
+        expenseAccountId: item.expenseAccountId,
+      }));
+
+      return invoice;
     });
-
-    const data = Array.from(groupedData.values());
 
     const meta = {
       page: Number(page),
@@ -559,5 +798,74 @@ export class SupplierInvoicesService {
       .set({ status: 'CANCELLED' })
       .where(eq(supplierInvoices.id, id));
     return { message: 'Supplier invoice cancelled successfully' };
+  }
+
+  async findDraftPendiend() {
+    const rawData = await this.drizzle
+      .select({
+        invoice: supplierInvoices,
+        supplierName: suppliers.name,
+        items: supplierInvoiceItems,
+      })
+      .from(supplierInvoices)
+      .leftJoin(suppliers, eq(supplierInvoices.supplierId, suppliers.id))
+      .leftJoin(
+        supplierInvoiceItems,
+        eq(supplierInvoices.id, supplierInvoiceItems.invoiceId),
+      )
+      .where(
+        or(
+          eq(supplierInvoices.status, 'DRAFT'),
+          eq(supplierInvoices.status, 'PENDING'),
+        ),
+      );
+
+    // 3. Agrupa los ítems por orden en el código
+    const groupedData = new Map<number, any>();
+
+    rawData.forEach((row) => {
+      if (!groupedData.has(row.invoice.id)) {
+        // Mapea la orden y convierte los strings a numbers según tu esquema Zod
+
+        const invoice = {
+          id: row.invoice.id,
+          supplierInvoiceNumber: row.invoice.supplierInvoiceNumber,
+          supplierId: row.invoice.supplierId,
+          supplierName: row.supplierName,
+          purchaseOrderId: row.invoice.purchaseOrderId,
+          invoiceNumber: row.invoice.invoiceNumber,
+          controlNumber: row.invoice.controlNumber,
+          invoiceDate: row.invoice.invoiceDate,
+          dueDate: row.invoice.dueDate,
+          subtotal: Number(row.invoice.subtotal),
+          taxAmount: Number(row.invoice.taxAmount),
+          totalAmount: Number(row.invoice.totalAmount),
+          paymentType: row.invoice.paymentType,
+          status: row.invoice.status,
+          observations: row.invoice.observations,
+          items: [],
+        };
+        groupedData.set(row.invoice.id, invoice);
+      }
+
+      // Mapea y convierte el ítem si existe
+      if (row.items) {
+        const item = {
+          id: row.items.id,
+          lineType: row.items.lineType,
+          description: row.items.description,
+          itemId: row.items.itemId,
+          quantity: Number(row.items.quantity),
+          unitCost: Number(row.items.unitCost),
+          totalLine: Number(row.items.totalLine),
+          expenseAccountId: row.items.expenseAccountId,
+        };
+        groupedData.get(row.invoice.id).items.push(item);
+      }
+    });
+
+    const data = Array.from(groupedData.values());
+
+    return data;
   }
 }

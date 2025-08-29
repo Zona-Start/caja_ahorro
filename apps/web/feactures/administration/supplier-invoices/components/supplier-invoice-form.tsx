@@ -27,13 +27,15 @@ import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useSupplierAll } from '../../suppliers/hooks/use-query-suppliers';
 import { useSupplierInvoiceMutation } from '../hooks/use-mutation-supplier-invoice';
 import {
+  PAYMENT_METHOD,
+  PaymentMethodEnum,
   SUPPLIER_INVOICE_PAYMENT_TYPES,
   SupplierInvoicePaymentTypeEnum,
   SupplierInvoiceStatusEnum,
   purchaseItemTypeEnum,
 } from '../schemas/supplier-invoice-options';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Switch } from '@repo/shadcn/switch';
 import { useAccountingAccounts } from '../../../accounting/accounting-accounts/hooks/use-query-account-plan';
@@ -42,6 +44,7 @@ import { useFixedAssetAll } from '../../inventories/fixed-asset/hooks/use-query-
 import { useProductsAll } from '../../inventories/products/hooks/use-query-product';
 import { useServicesAll } from '../../inventories/services/hooks/use-query-service';
 import { usePurchaseOrders } from '../../purchase-orders/hooks/use-query-purchase-order';
+import { useSupplierInvoicesDraftPending } from '../hooks/use-query-supplier-invoice';
 
 interface FormProps {
   onSuccess?: () => void;
@@ -50,6 +53,7 @@ interface FormProps {
   readOnly?: boolean;
 }
 
+import { useQueryClient } from '@tanstack/react-query';
 import {
   SupplierInvoice,
   supplierInvoiceSchema,
@@ -61,6 +65,10 @@ export function SupplierInvoiceForm({
   defaultValues,
   readOnly = false,
 }: FormProps) {
+  const [currentStatus, setCurrentStatus] = useState(
+    defaultValues?.status || SupplierInvoiceStatusEnum.DRAFT,
+  );
+  const [isSupplierInvoice, SetIsSupplierInvoice] = useState(false);
   const { mutate: saveSupplierInvoice, isPending: isSaving } =
     useSupplierInvoiceMutation();
   const { data: suppliers } = useSupplierAll();
@@ -69,8 +77,7 @@ export function SupplierInvoiceForm({
   const { data: fixedAssets } = useFixedAssetAll();
   const { data: accountingAccounts } = useAccountingAccounts();
   const { data: bankAccounts } = useBankAccountAll();
-
-  const [currentStatus, setCurrentStatus] = useState(defaultValues?.status);
+  const queryClient = useQueryClient();
 
   const form = useForm<SupplierInvoice>({
     resolver: zodResolver(supplierInvoiceSchema),
@@ -81,6 +88,11 @@ export function SupplierInvoiceForm({
       observations: defaultValues?.observations || '',
       paymentDescription: defaultValues?.paymentDescription || '',
       paymentBankReference: defaultValues?.paymentBankReference || '',
+      paymentMethod:
+        defaultValues?.paymentMethod || PaymentMethodEnum.BANK_TRANSFER,
+      transactionDate: defaultValues?.transactionDate
+        ? new Date(defaultValues.transactionDate)
+        : undefined,
       invoiceDate: defaultValues?.invoiceDate
         ? new Date(defaultValues.invoiceDate)
         : new Date(),
@@ -109,12 +121,44 @@ export function SupplierInvoiceForm({
     status: 'PENDING',
   });
 
+  const { data: supplierInvoices } =
+    useSupplierInvoicesDraftPending(isSupplierInvoice);
+
+  const purchaseOrderData = Array.isArray(purchaseOrders?.data)
+    ? purchaseOrders.data
+    : [];
+  const supplierInvoiceData = Array.isArray(supplierInvoices?.data)
+    ? supplierInvoices.data
+    : [];
+
+  const filteredPurchaseOrders = purchaseOrderData.filter((order: any) => {
+    // Tu lógica de filtro original (que es correcta)
+    const hasExistingInvoice =
+      Array.isArray(supplierInvoiceData) &&
+      supplierInvoiceData.some(
+        (invoice: any) =>
+          invoice.purchaseOrderId === order.id &&
+          invoice.id !== defaultValues?.id &&
+          (invoice.status === SupplierInvoiceStatusEnum.DRAFT ||
+            invoice.status === SupplierInvoiceStatusEnum.PENDING),
+      );
+    return !hasExistingInvoice;
+  });
+
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'items',
   });
 
   const watchedItems = useWatch({ control: form.control, name: 'items' });
+
+  useEffect(() => {
+    if (supplierId) {
+      SetIsSupplierInvoice(true);
+    } else {
+      SetIsSupplierInvoice(false);
+    }
+  }, [supplierId]);
 
   useEffect(() => {
     if (!watchedItems || watchedItems.length === 0) {
@@ -137,47 +181,64 @@ export function SupplierInvoiceForm({
     form.setValue('totalAmount', total);
   }, [watchedItems, form]);
 
+  const initialPurchaseOrderId = useRef(defaultValues?.purchaseOrderId);
+
   useEffect(() => {
     if (purchaseOrderId && purchaseOrders?.data) {
-      const selectedOrder = purchaseOrders?.data?.find(
-        (order: any) => order.id === purchaseOrderId,
-      );
+      if (
+        !defaultValues?.id ||
+        purchaseOrderId !== initialPurchaseOrderId.current
+      ) {
+        const selectedOrder = purchaseOrders.data.find(
+          (order: any) => order.id === purchaseOrderId,
+        );
 
-      if (selectedOrder && selectedOrder.items) {
-        const newItems = selectedOrder.items.map((item: any) => {
-          let description = item.description || '';
-          let unitCost = Number(item.unitCost || 0);
+        if (selectedOrder && selectedOrder.items) {
+          const newItems = selectedOrder.items.map((item: any) => {
+            let description = item.description || '';
+            let unitCost = Number(item.unitCost || 0);
+            let totalLine = Number(item.quantity || 0) * unitCost;
 
-          if (item.lineType === purchaseItemTypeEnum.SALES_INVENTORY) {
-            const product = products?.find((p) => p.id === item.itemId);
-            if (product) description = undefined;
-          } else if (item.lineType === purchaseItemTypeEnum.FIXED_ASSET) {
-            const asset = fixedAssets?.find((a) => a.id === item.itemId);
-            if (asset) description = undefined;
-          } else if (
-            item.lineType === purchaseItemTypeEnum.SERVICE ||
-            item.lineType === purchaseItemTypeEnum.SERVICE_EXPENSE
-          ) {
-            const service = services?.find((s) => s.id === item.itemId);
-            if (service) {
-              description = undefined;
-              unitCost = Number(item.unitCost || 0);
+            if (item.lineType === purchaseItemTypeEnum.SALES_INVENTORY) {
+              const product = products?.find((p) => p.id === item.itemId);
+              if (product) {
+                description = undefined;
+                unitCost = Number(item.unitCost || 0);
+                totalLine = Number(item.quantity || 0) * unitCost;
+              }
+            } else if (item.lineType === purchaseItemTypeEnum.FIXED_ASSET) {
+              const asset = fixedAssets?.find((a) => a.id === item.itemId);
+              if (asset) {
+                description = undefined;
+                unitCost = Number(item.unitCost || 0);
+                totalLine = Number(item.quantity || 0) * unitCost;
+              }
+            } else if (
+              item.lineType === purchaseItemTypeEnum.SERVICE ||
+              item.lineType === purchaseItemTypeEnum.SERVICE_EXPENSE
+            ) {
+              const service = services?.find((s) => s.id === item.itemId);
+              if (service) {
+                description = undefined;
+                unitCost = Number(item.unitCost || 0);
+                totalLine = Number(item.unitCost || 0);
+              }
             }
-          }
 
-          return {
-            description: description,
-            lineType: item.lineType,
-            quantity: Number(item.quantity || 0),
-            unitCost: unitCost,
-            totalLine: Number(item.quantity || 0) * unitCost,
-            itemId: item.itemId || null,
-            expenseAccountId: item.expenseAccountId || null,
-          };
-        });
-        replace(newItems);
+            return {
+              description: description,
+              lineType: item.lineType,
+              quantity: Number(item.quantity || 0),
+              unitCost: unitCost,
+              totalLine: totalLine,
+              itemId: item.itemId || null,
+              expenseAccountId: item.expenseAccountId || null,
+            };
+          });
+          replace(newItems);
+        }
       }
-    } else {
+    } else if (!purchaseOrderId && !defaultValues?.id) {
       replace([]);
     }
   }, [
@@ -187,31 +248,64 @@ export function SupplierInvoiceForm({
     products,
     services,
     fixedAssets,
+    defaultValues?.id,
+    initialPurchaseOrderId,
   ]);
 
   const handleSave = (status: SupplierInvoiceStatusEnum) => {
     form.setValue('status', status);
     form.handleSubmit((data) => {
+      const itemsWithoutIds = data.items.map((item) => {
+        const { id, ...rest } = item;
+        return rest;
+      });
+
       const payload = {
         ...data,
+        items: itemsWithoutIds,
         status,
+        paymentMethod: data.chargePayment ? data.paymentMethod : undefined,
+        paymentDescription: data.chargePayment
+          ? data.paymentDescription
+          : undefined,
+        paymentBankReference: data.chargePayment
+          ? data.paymentBankReference
+          : undefined,
+        subtotal: Number(data.subtotal.toFixed(2)),
         taxAmount: Number(data.taxAmount.toFixed(2)),
       };
-      console.log(payload);
-
       saveSupplierInvoice(payload, {
         onSuccess: (result: any) => {
-          const updatedInvoice = result?.data as SupplierInvoice;
+          const updatedInvoice = result?.data; //aqui regresa id y status del backend
           if (status === SupplierInvoiceStatusEnum.DRAFT) {
+            queryClient.invalidateQueries({
+              queryKey: [
+                'purchase-orders',
+                { status: 'PENDING', supplierId: updatedInvoice.id },
+              ],
+            });
             onSuccess?.(); // Close modal on draft save
           } else if (status === SupplierInvoiceStatusEnum.PENDING) {
             // When validating, stay on the form and update status
             if (updatedInvoice) {
               setCurrentStatus(updatedInvoice.status);
-              form.reset(updatedInvoice);
+              form.setValue('status', updatedInvoice.status);
+              form.setValue('id', updatedInvoice.id);
+              queryClient.invalidateQueries({
+                queryKey: [
+                  'purchase-orders',
+                  { status: 'PENDING', supplierId: updatedInvoice.id },
+                ],
+              });
             }
           } else if (status === SupplierInvoiceStatusEnum.ACCOUNTED_FOR) {
             onSuccess?.(); // Close modal after accounting
+            queryClient.invalidateQueries({
+              queryKey: [
+                'purchase-orders',
+                { status: 'PENDING', supplierId: updatedInvoice.id },
+              ],
+            });
           }
         },
         onError: (error) => {
@@ -269,7 +363,7 @@ export function SupplierInvoiceForm({
                   <FormLabel>Orden de Compra</FormLabel>
                   <SelectSearchable
                     options={
-                      purchaseOrders?.data?.map((item: any) => ({
+                      filteredPurchaseOrders?.map((item: any) => ({
                         value: item.id!.toString(),
                         label: `${item.orderNumber}`,
                       })) || []
@@ -494,129 +588,91 @@ export function SupplierInvoiceForm({
                 </div>
               )}
             </div>
+            <ScrollArea className="h-[250px] w-full rounded-md border p-4">
+              {fields.map((field, index) => {
+                const itemType = form.watch(`items.${index}.lineType`);
+                const quantity = form.watch(`items.${index}.quantity`);
+                const unitCost = form.watch(`items.${index}.unitCost`);
+                const totalLine = (quantity || 0) * (unitCost || 0);
 
-            {fields.map((field, index) => {
-              const itemType = form.watch(`items.${index}.lineType`);
-              const quantity = form.watch(`items.${index}.quantity`);
-              const unitCost = form.watch(`items.${index}.unitCost`);
-              const totalLine = (quantity || 0) * (unitCost || 0);
-
-              return (
-                <div
-                  key={field.id}
-                  className="flex items-end gap-2 p-2 border rounded-md"
-                >
-                  {itemType === purchaseItemTypeEnum.SALES_INVENTORY ? (
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.itemId`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Producto</FormLabel>
-                          <SelectSearchable
-                            options={
-                              products?.map((p) => ({
-                                value: p.id!.toString(),
-                                label: p.name,
-                              })) || []
-                            }
-                            onValueChange={(value) => {
-                              const selectedProduct = products?.find(
-                                (p) => p.id === Number(value),
-                              );
-                              if (selectedProduct) {
-                                form.setValue(
-                                  `items.${index}.itemId`,
-                                  selectedProduct.id,
-                                );
-                                form.setValue(
-                                  `items.${index}.description`,
-                                  selectedProduct.name,
-                                );
+                return (
+                  <div
+                    key={field.id}
+                    className="flex items-end gap-2 p-2 border rounded-md mb-2"
+                  >
+                    {itemType === purchaseItemTypeEnum.SALES_INVENTORY ? (
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.itemId`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel>Producto</FormLabel>
+                            <SelectSearchable
+                              options={
+                                products?.map((p) => ({
+                                  value: p.id!.toString(),
+                                  label: p.name,
+                                })) || []
                               }
-                            }}
-                            placeholder="Selecciona un producto"
-                            defaultValue={field.value?.toString()}
-                            disabled={readOnly}
-                          />
-                        </FormItem>
-                      )}
-                    />
-                  ) : itemType === purchaseItemTypeEnum.FIXED_ASSET ? (
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.itemId`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Activo Fijo</FormLabel>
-                          <SelectSearchable
-                            options={
-                              fixedAssets?.map((a) => ({
-                                value: a.id.toString(),
-                                label: a.name,
-                              })) || []
-                            }
-                            onValueChange={(value) => {
-                              const selectedAsset = fixedAssets?.find(
-                                (a) => a.id === Number(value),
-                              );
-                              if (selectedAsset) {
-                                form.setValue(
-                                  `items.${index}.itemId`,
-                                  selectedAsset.id,
+                              onValueChange={(value) => {
+                                const selectedProduct = products?.find(
+                                  (p) => p.id === Number(value),
                                 );
-                                form.setValue(
-                                  `items.${index}.description`,
-                                  selectedAsset.name,
-                                );
+                                if (selectedProduct) {
+                                  form.setValue(
+                                    `items.${index}.itemId`,
+                                    selectedProduct.id,
+                                  );
+                                  form.setValue(
+                                    `items.${index}.description`,
+                                    selectedProduct.name,
+                                  );
+                                }
+                              }}
+                              placeholder="Selecciona un producto"
+                              defaultValue={field.value?.toString()}
+                              disabled={readOnly}
+                            />
+                          </FormItem>
+                        )}
+                      />
+                    ) : itemType === purchaseItemTypeEnum.FIXED_ASSET ? (
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.itemId`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel>Activo Fijo</FormLabel>
+                            <SelectSearchable
+                              options={
+                                fixedAssets?.map((a) => ({
+                                  value: a.id.toString(),
+                                  label: a.name,
+                                })) || []
                               }
-                            }}
-                            placeholder="Selecciona un activo fijo"
-                            defaultValue={field.value?.toString()}
-                            disabled={readOnly}
-                          />
-                        </FormItem>
-                      )}
-                    />
-                  ) : itemType === purchaseItemTypeEnum.SERVICE ? (
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.itemId`}
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Servicio</FormLabel>
-                          <SelectSearchable
-                            options={
-                              services?.map((s) => ({
-                                value: s.id!.toString(),
-                                label: s.name,
-                              })) || []
-                            }
-                            onValueChange={(value) => {
-                              const selectedService = services?.find(
-                                (s) => s.id === Number(value),
-                              );
-                              if (selectedService) {
-                                form.setValue(
-                                  `items.${index}.itemId`,
-                                  selectedService.id,
+                              onValueChange={(value) => {
+                                const selectedAsset = fixedAssets?.find(
+                                  (a) => a.id === Number(value),
                                 );
-                                form.setValue(
-                                  `items.${index}.description`,
-                                  selectedService.name,
-                                );
-                                form.setValue(`items.${index}.unitCost`, 0);
-                              }
-                            }}
-                            placeholder="Selecciona un servicio"
-                            defaultValue={field.value?.toString()}
-                            disabled={readOnly}
-                          />
-                        </FormItem>
-                      )}
-                    />
-                  ) : itemType === purchaseItemTypeEnum.SERVICE_EXPENSE ? (
-                    <>
+                                if (selectedAsset) {
+                                  form.setValue(
+                                    `items.${index}.itemId`,
+                                    selectedAsset.id,
+                                  );
+                                  form.setValue(
+                                    `items.${index}.description`,
+                                    selectedAsset.name,
+                                  );
+                                }
+                              }}
+                              placeholder="Selecciona un activo fijo"
+                              defaultValue={field.value?.toString()}
+                              disabled={readOnly}
+                            />
+                          </FormItem>
+                        )}
+                      />
+                    ) : itemType === purchaseItemTypeEnum.SERVICE ? (
                       <FormField
                         control={form.control}
                         name={`items.${index}.itemId`}
@@ -653,6 +709,90 @@ export function SupplierInvoiceForm({
                           </FormItem>
                         )}
                       />
+                    ) : itemType === purchaseItemTypeEnum.SERVICE_EXPENSE ? (
+                      <>
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.itemId`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel>Servicio</FormLabel>
+                              <SelectSearchable
+                                options={
+                                  services?.map((s) => ({
+                                    value: s.id!.toString(),
+                                    label: s.name,
+                                  })) || []
+                                }
+                                onValueChange={(value) => {
+                                  const selectedService = services?.find(
+                                    (s) => s.id === Number(value),
+                                  );
+                                  if (selectedService) {
+                                    form.setValue(
+                                      `items.${index}.itemId`,
+                                      selectedService.id,
+                                    );
+                                    form.setValue(
+                                      `items.${index}.description`,
+                                      selectedService.name,
+                                    );
+                                    form.setValue(`items.${index}.unitCost`, 0);
+                                  }
+                                }}
+                                placeholder="Selecciona un servicio"
+                                defaultValue={field.value?.toString()}
+                                disabled={readOnly}
+                              />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.expenseAccountId`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel>Cuenta Contable</FormLabel>
+                              <SelectSearchable
+                                options={
+                                  accountingAccounts?.data.map(
+                                    (account: any) => ({
+                                      value: account.id!.toString(),
+                                      label: `${account.code} - ${account.name}`,
+                                    }),
+                                  ) || []
+                                }
+                                onValueChange={(value) =>
+                                  field.onChange(Number(value))
+                                }
+                                defaultValue={field.value?.toString()}
+                                disabled={readOnly}
+                              />
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </>
+                    ) : (
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.description`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel>Descripción</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                value={field.value ?? ''}
+                                disabled={readOnly}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {itemType === purchaseItemTypeEnum.EXPENSE && (
                       <FormField
                         control={form.control}
                         name={`items.${index}.expenseAccountId`}
@@ -678,91 +818,65 @@ export function SupplierInvoiceForm({
                           </FormItem>
                         )}
                       />
-                    </>
-                  ) : (
+                    )}
+
                     <FormField
                       control={form.control}
-                      name={`items.${index}.description`}
+                      name={`items.${index}.quantity`}
                       render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Descripción</FormLabel>
+                        <FormItem style={{ width: '100px' }}>
+                          <FormLabel>Cantidad</FormLabel>
                           <FormControl>
-                            <Input {...field} disabled={readOnly} />
+                            <Input
+                              type="number"
+                              {...field}
+                              disabled={readOnly}
+                            />
                           </FormControl>
                         </FormItem>
                       )}
                     />
-                  )}
-
-                  {itemType === purchaseItemTypeEnum.EXPENSE && (
                     <FormField
                       control={form.control}
-                      name={`items.${index}.expenseAccountId`}
+                      name={`items.${index}.unitCost`}
                       render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <FormLabel>Cuenta Contable</FormLabel>
-                          <SelectSearchable
-                            options={
-                              accountingAccounts?.data.map((account: any) => ({
-                                value: account.id!.toString(),
-                                label: `${account.code} - ${account.name}`,
-                              })) || []
-                            }
-                            onValueChange={(value) =>
-                              field.onChange(Number(value))
-                            }
-                            defaultValue={field.value?.toString()}
-                            disabled={readOnly}
-                          />
-                          <FormMessage />
+                        <FormItem style={{ width: '120px' }}>
+                          <FormLabel>Costo Unit.</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              {...field}
+                              disabled={readOnly}
+                            />
+                          </FormControl>
                         </FormItem>
                       )}
                     />
-                  )}
-
-                  <FormField
-                    control={form.control}
-                    name={`items.${index}.quantity`}
-                    render={({ field }) => (
-                      <FormItem style={{ width: '100px' }}>
-                        <FormLabel>Cantidad</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} disabled={readOnly} />
-                        </FormControl>
-                      </FormItem>
+                    <FormItem style={{ width: '120px' }}>
+                      <FormLabel>Total</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          value={totalLine}
+                          readOnly
+                          disabled
+                        />
+                      </FormControl>
+                    </FormItem>
+                    {!readOnly && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`items.${index}.unitCost`}
-                    render={({ field }) => (
-                      <FormItem style={{ width: '120px' }}>
-                        <FormLabel>Costo Unit.</FormLabel>
-                        <FormControl>
-                          <Input type="number" {...field} disabled={readOnly} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormItem style={{ width: '120px' }}>
-                    <FormLabel>Total</FormLabel>
-                    <FormControl>
-                      <Input type="text" value={totalLine} readOnly disabled />
-                    </FormControl>
-                  </FormItem>
-                  {!readOnly && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="icon"
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </ScrollArea>
           </div>
 
           {fields.length !== 0 && (
@@ -868,6 +982,36 @@ export function SupplierInvoiceForm({
                   />
                   <FormField
                     control={form.control}
+                    name="paymentMethod"
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Método de Pago</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={String(field.value)}
+                          disabled={readOnly}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Seleccione un método de pago" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="w-full min-w-[200px]">
+                            {Object.entries(PAYMENT_METHOD).map(
+                              ([key, label]) => (
+                                <SelectItem key={key} value={key}>
+                                  {label}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="paymentBankReference"
                     render={({ field }) => (
                       <FormItem>
@@ -883,6 +1027,26 @@ export function SupplierInvoiceForm({
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="transactionDate"
+                    render={({ field }) => (
+                      <FormItem className="w-full">
+                        <FormLabel>Fecha de Transacción</FormLabel>
+                        <FormControl>
+                          <CustomCalendar
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            placeholder="Seleccione la fecha"
+                            disabled={readOnly || !supplierId}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="totalAmount"
@@ -906,39 +1070,44 @@ export function SupplierInvoiceForm({
                 Cerrar
               </Button>
 
-              {!readOnly && (currentStatus === 'DRAFT' || !currentStatus) && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSaving}
-                  onClick={() => handleSave(SupplierInvoiceStatusEnum.DRAFT)}
-                >
-                  {isSaving ? 'Guardando...' : 'Guardar Borrador'}
-                </Button>
-              )}
+              {!readOnly &&
+                currentStatus === SupplierInvoiceStatusEnum.DRAFT && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSaving}
+                    onClick={() => handleSave(SupplierInvoiceStatusEnum.DRAFT)}
+                  >
+                    {isSaving ? 'Guardando...' : 'Guardar Borrador'}
+                  </Button>
+                )}
 
-              {!readOnly && currentStatus === 'DRAFT' && defaultValues?.id && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSaving}
-                  onClick={() => handleSave(SupplierInvoiceStatusEnum.PENDING)}
-                >
-                  {isSaving ? 'Validando...' : 'Validar'}
-                </Button>
-              )}
+              {!readOnly &&
+                currentStatus === SupplierInvoiceStatusEnum.DRAFT && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSaving}
+                    onClick={() =>
+                      handleSave(SupplierInvoiceStatusEnum.PENDING)
+                    }
+                  >
+                    {isSaving ? 'Validando...' : 'Validar'}
+                  </Button>
+                )}
 
-              {!readOnly && currentStatus === 'PENDING' && (
-                <Button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() =>
-                    handleSave(SupplierInvoiceStatusEnum.ACCOUNTED_FOR)
-                  }
-                >
-                  {isSaving ? 'Contabilizando...' : 'Contabilizar'}
-                </Button>
-              )}
+              {!readOnly &&
+                currentStatus === SupplierInvoiceStatusEnum.PENDING && (
+                  <Button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={() =>
+                      handleSave(SupplierInvoiceStatusEnum.ACCOUNTED_FOR)
+                    }
+                  >
+                    {isSaving ? 'Contabilizando...' : 'Contabilizar'}
+                  </Button>
+                )}
             </div>
           </div>
         </form>

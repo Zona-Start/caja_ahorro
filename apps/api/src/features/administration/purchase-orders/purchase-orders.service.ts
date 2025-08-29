@@ -31,7 +31,7 @@ export class PurchaseOrdersService {
       lineType: string;
       itemId?: number;
       expenseAccountId?: number;
-      itemName: string;
+      description: string;
     }[],
   ) {
     if (!items) return;
@@ -40,28 +40,28 @@ export class PurchaseOrdersService {
         case 'PRODUCT':
           if (!item.itemId) {
             throw new BadRequestException(
-              `For lineType 'PRODUCT', productId is required. Item: ${item.itemName}`,
+              `For lineType 'PRODUCT', productId is required.`,
             );
           }
           break;
         case 'FIXED_ASSET':
           if (!item.itemId) {
             throw new BadRequestException(
-              `For lineType 'FIXED_ASSET', fixedAssetId is required. Item: ${item.itemName}`,
+              `For lineType 'FIXED_ASSET', fixedAssetId is required.`,
             );
           }
           break;
         case 'SERVICE':
           if (!item.itemId) {
             throw new BadRequestException(
-              `For lineType 'SERVICE', serviceId is required. Item: ${item.itemName}`,
+              `For lineType 'SERVICE', serviceId is required.`,
             );
           }
           break;
         case 'EXPENSE':
-          if (!item.itemName) {
+          if (!item.description) {
             throw new BadRequestException(
-              `For lineType 'EXPENSE', expenseAccountId is required. Item: ${item.itemName}`,
+              `For lineType 'EXPENSE', expenseAccountId is required.`,
             );
           }
           break;
@@ -141,7 +141,6 @@ export class PurchaseOrdersService {
       sortBy = 'id',
       sortOrder = 'asc',
       supplierId,
-      orderType,
       status,
       startDate,
       endDate,
@@ -177,73 +176,88 @@ export class PurchaseOrdersService {
     const totalCountResult = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(purchaseOrders)
-      .leftJoin(
-        purchaseOrderItems,
-        eq(purchaseOrders.id, purchaseOrderItems.purchaseOrderId),
-      )
       .where(searchCondition);
 
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
 
-    const rawData = await this.drizzle
+    // Paso 2: Obtener solo las ordenes (sin ítems) con paginación
+    const orders = await this.drizzle
       .select({
         order: purchaseOrders,
-        item: purchaseOrderItems,
         supplierName: suppliers.name,
       })
       .from(purchaseOrders)
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
-      .leftJoin(
-        purchaseOrderItems,
-        eq(purchaseOrders.id, purchaseOrderItems.purchaseOrderId),
-      )
       .limit(limit)
       .offset(offset)
       .where(searchCondition)
       .orderBy(orderBy);
 
-    // 3. Agrupa los ítems por orden en el código
-    const groupedData = new Map<number, any>();
+    //    .leftJoin(
+    //   purchaseOrderItems,
+    //   eq(purchaseOrders.id, purchaseOrderItems.purchaseOrderId),
+    // )
 
-    rawData.forEach((row) => {
-      if (!groupedData.has(row.order.id)) {
-        // Mapea la orden y convierte los strings a numbers según tu esquema Zod
+    const ordersIds = orders.map((row) => row.order.id);
+    // Si no hay ordenes, devolvemos un array vacío para los ítems
+    if (ordersIds.length === 0) {
+      return {
+        data: [],
+        meta: {
+          page: Number(page),
+          limit: Number(limit),
+          totalCount,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+          nextPage: page < totalPages ? page + 1 : null,
+          previousPage: page > 1 ? page - 1 : null,
+        },
+      };
+    }
 
-        const order = {
-          id: row.order.id,
-          orderNumber: row.order.orderNumber,
-          supplierId: row.order.supplierId,
-          supplierName: row.supplierName,
-          status: row.order.status,
-          observations: row.order.observations,
-          orderDate: row.order.orderDate,
-          expectedDeliveryDate: row.order.expectedDeliveryDate,
-          subtotal: Number(row.order.subtotal),
-          taxAmount: Number(row.order.taxAmount),
-          totalAmount: Number(row.order.totalAmount),
-          items: [],
-        };
-        groupedData.set(row.order.id, order);
-      }
+    // Paso 3: Obtener todos los ítems de las ordenes seleccionadas
+    const allItems = await this.drizzle
+      .select()
+      .from(purchaseOrderItems)
+      .where(sql`${purchaseOrderItems.purchaseOrderId} IN ${ordersIds}`);
 
-      // Mapea y convierte el ítem si existe
-      if (row.item) {
-        const item = {
-          id: row.item.id,
-          lineType: row.item.lineType,
-          description: row.item.description,
-          itemId: row.item.itemId,
-          itemName: row.item.itemName,
-          quantity: Number(row.item.quantity),
-          unitCost: Number(row.item.unitCost),
-          totalCost: Number(row.item.totalCost),
-        };
-        groupedData.get(row.order.id).items.push(item);
-      }
+    // Paso 4: Agrupar los ítems a cada factura en el código
+    const data = orders.map((orderRow) => {
+      // Declaramos explícitamente el tipo de 'invoice' para evitar el error
+      const order = {
+        id: orderRow.order.id,
+        orderNumber: orderRow.order.orderNumber,
+        supplierId: orderRow.order.supplierId,
+        supplierName: orderRow.supplierName,
+        status: orderRow.order.status,
+        observations: orderRow.order.observations,
+        orderDate: orderRow.order.orderDate,
+        expectedDeliveryDate: orderRow.order.expectedDeliveryDate,
+        subtotal: Number(orderRow.order.subtotal),
+        taxAmount: Number(orderRow.order.taxAmount),
+        totalAmount: Number(orderRow.order.totalAmount),
+        items: [] as any[], // Inicializamos el array de ítems aquí
+      };
+
+      const orderItems = allItems.filter(
+        (item) => item.purchaseOrderId === order.id,
+      );
+
+      // Mapea y convierte los ítems al formato correcto
+      order.items = orderItems.map((item) => ({
+        id: item.id,
+        lineType: item.lineType,
+        description: item.description,
+        itemId: item.itemId,
+        quantity: Number(item.quantity),
+        unitCost: Number(item.unitCost),
+        totalCost: Number(item.totalCost),
+      }));
+
+      return order;
     });
-
-    const data = Array.from(groupedData.values());
 
     const meta = {
       page: Number(page),
@@ -369,7 +383,6 @@ export class PurchaseOrdersService {
             unitCost: String(item.unitCost),
             totalCost: String(item.totalCost),
             description: item.description ?? '',
-            itemName: item.itemName ?? '',
             quantity: Number(item.quantity),
           }));
           await tx.insert(purchaseOrderItems).values(orderItems);

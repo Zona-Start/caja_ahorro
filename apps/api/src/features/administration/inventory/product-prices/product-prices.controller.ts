@@ -21,7 +21,7 @@ export class ProductPricesController {
   })
   async create(@Req() req: Request, @Body() dto: CreateProductPriceDto) {
     const userId = req['user'].id;
-    const data = await this.services.create(userId, dto);
+    const data = await this.services.create(dto, userId);
     return { message: 'Product price created successfully', data };
   }
 

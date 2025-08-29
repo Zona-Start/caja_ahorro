@@ -56,14 +56,22 @@ export const CURRENCY_CODES = {
 
 export type CurrencyCode = keyof typeof CURRENCY_CODES;
 
-export const INVOICE_TYPES = {
-  EXPENSE: 'Gasto',
-  PURCHASE: 'Compra',
+export const PAYMENT_METHOD = {
+  CASH: 'EFECTIVO',
+  BANK_TRANSFER: 'TRANSFERENCIA BANCARIA',
+  CHECK: 'CHEQUE',
+  DEPOSIT: 'DEPÓSITO',
+  MOBILE_PAYMENT: 'PAGO_MÓVIL',
+  OTHER: 'OTRO',
 } as const;
 
-export enum InvoiceTypeEnum {
-  EXPENSE = 'EXPENSE',
-  PURCHASE = 'PURCHASE',
-}
+export type PaymentMethod = keyof typeof PAYMENT_METHOD;
 
-export type InvoiceType = keyof typeof INVOICE_TYPES;
+export enum PaymentMethodEnum {
+  CASH = 'CASH',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CHECK = 'CHECK',
+  DEPOSIT = 'DEPOSIT',
+  MOBILE_PAYMENT = 'MOBILE_PAYMENT',
+  OTHER = 'OTRO',
+}

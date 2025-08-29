@@ -32,11 +32,6 @@ class PurchaseOrderItemDto {
   @IsOptional()
   itemId?: number;
 
-  @ApiProperty({ description: 'Item name' })
-  @IsString()
-  @IsNotEmpty()
-  itemName: string;
-
   @ApiProperty({ description: 'Description' })
   @IsString()
   @IsOptional()

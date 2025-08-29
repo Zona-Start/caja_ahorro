@@ -1,3 +1,4 @@
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { accountsPayable } from '@/database/schema/administration';
 import {
   BadRequestException,
@@ -17,6 +18,7 @@ import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
 export class AccountsPayableService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
 
   async create(
@@ -39,6 +41,9 @@ export class AccountsPayableService {
       .insert(accountsPayable)
       .values({
         ...data,
+        currencyCode: data.currencyCode || 'VES',
+        accountsPayableNumber:
+          await this.generateCodeService.generateNextReference('CXP'),
         originalAmount: data.originalAmount.toString(),
         paidAmount: data.paidAmount?.toString() || '0.00',
         remainingAmount: data.remainingAmount.toString(),

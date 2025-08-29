@@ -4,7 +4,6 @@ import {
   services,
   supplierInvoiceItems,
 } from '@/database/schema/administration';
-import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import {
   BadRequestException,
   Inject,
@@ -25,34 +24,8 @@ export class ServicesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly servicePricesService: ServicePricesService,
-    private readonly settingsSystemService: SettingsSystemService,
     private readonly generateCode: GenerateCodeService,
   ) {}
-
-  async calculateFinalCost(
-    supplierCost: number, // price cost
-    otherCosts: number, // other costs
-    purchaseTax: number, //impuesto en porcentaje factura
-  ) {
-    let calculatedCostTixed = 0;
-    const [taxRate] = await Promise.all([
-      this.settingsSystemService.findKey('iva_compra'),
-    ]);
-    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
-    if (purchaseTax === 0) {
-      calculatedCostTixed = calculatedCost;
-    } else if (Number(taxRate.value) !== purchaseTax) {
-      // Calculate the cost including supplier cost and other costs
-      calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
-    } else {
-      calculatedCostTixed =
-        calculatedCost * (1 + (Number(taxRate.value) ?? 0) / 100);
-    }
-
-    return {
-      calculatedCostTixed,
-    };
-  }
 
   async create(userId: number, data: CreateServiceDto) {
     const exitService = await this.drizzle
@@ -94,11 +67,6 @@ export class ServicesService {
       if (data.supplierCost !== 0) {
         // Calculate final price based on settings
 
-        const { calculatedCostTixed } = await this.calculateFinalCost(
-          data.supplierCost ?? 0,
-          data.otherCosts,
-          data.purchaseTax ?? 0,
-        );
         await this.servicePricesService.create(
           userId,
           {
@@ -106,7 +74,6 @@ export class ServicesService {
             baseCost: data.supplierCost,
             otherCosts: data.otherCosts,
             purchaseTax: Number(data.purchaseTax ?? 0),
-            totalCost: calculatedCostTixed,
             startDate: new Date(),
             isActive: true,
           },
@@ -295,11 +262,6 @@ export class ServicesService {
 
         if (data.supplierCost !== 0) {
           // Calculate final price based on settings
-          const { calculatedCostTixed } = await this.calculateFinalCost(
-            data.supplierCost ?? 0,
-            data.otherCosts ?? 0,
-            data.purchaseTax ?? 0,
-          );
 
           await this.servicePricesService.create(
             userId,
@@ -308,7 +270,6 @@ export class ServicesService {
               baseCost: data.supplierCost ?? 0,
               otherCosts: data.otherCosts ?? 0,
               purchaseTax: Number(data.purchaseTax ?? 0),
-              totalCost: calculatedCostTixed,
               startDate: new Date(),
               isActive: true,
             },

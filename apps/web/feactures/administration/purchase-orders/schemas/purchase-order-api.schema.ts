@@ -5,7 +5,6 @@ export const purchaseOrderItemApiSchema = z.object({
   lineType: z.string(),
   description: z.string().optional().nullable(),
   itemId: z.number().optional().nullable(),
-  itemName: z.string(),
   quantity: z.coerce.number(),
   unitCost: z.coerce.number(),
   totalCost: z.coerce.number(),

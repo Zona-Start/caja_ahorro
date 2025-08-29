@@ -84,11 +84,15 @@ export class GenerateCodeService {
     }
   }
 
-  async generateNextReference(prefix: string): Promise<string> {
+  async generateNextReference(
+    prefix: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<string> {
+    const db = tx ?? this.db;
     const year = new Date().getFullYear();
     const key = `${prefix}-${year}`;
 
-    return this.db.transaction(async (tx) => {
+    return db.transaction(async (tx) => {
       // bloqueo explícito (FOR UPDATE)
       const [setting] = await tx
         .select()
@@ -118,8 +122,12 @@ export class GenerateCodeService {
     });
   }
 
-  async generateGlobalCode(prefix: string): Promise<string> {
-    return this.db.transaction(async (tx) => {
+  async generateGlobalCode(
+    prefix: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<string> {
+    const db = tx ?? this.db;
+    return db.transaction(async (tx) => {
       const [setting] = await tx
         .select()
         .from(systemSettings)

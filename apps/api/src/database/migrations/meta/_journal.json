@@ -36,6 +36,27 @@
       "when": 1756247941480,
       "tag": "0004_bent_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1756345291204,
+      "tag": "0005_same_proudstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1756390596088,
+      "tag": "0006_sudden_winter_soldier",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1756403489223,
+      "tag": "0007_rainy_dark_phoenix",
+      "breakpoints": true
     }
   ]
 }

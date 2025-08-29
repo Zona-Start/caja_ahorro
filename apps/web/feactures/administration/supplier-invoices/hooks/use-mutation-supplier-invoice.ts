@@ -27,7 +27,9 @@ export function useSupplierInvoiceMutation() {
     onError: (error) => {
       if (error instanceof Error) {
         if (error.message.includes('Invoice with number')) {
-          toast.error('Error, La factura de proveedor con ese número ya existe');
+          toast.error(
+            'Error, La factura de proveedor con ese número ya existe',
+          );
         } else {
           toast.error(
             error.message ||

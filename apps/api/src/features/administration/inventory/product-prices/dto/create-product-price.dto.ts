@@ -30,42 +30,27 @@ export class CreateProductPriceDto {
   @ApiProperty({ description: 'Base Cost' })
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()
-  baseCost: number;
+  baseCost: number; //costo base
 
   @ApiProperty({ description: 'Other Costs' })
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsNotEmpty()
-  otherCosts: number;
+  otherCosts: number; //otro costo si aplica
 
   @ApiProperty({ description: 'Purchase Tax' })
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  purchaseTax: number;
+  @IsOptional()
+  purchaseTax?: number; //impuesto compra en porcentaje
 
-  @ApiProperty({ description: 'Total Cost' })
+  @ApiProperty({ description: 'Purchase Tax' })
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  totalCost: number;
+  @IsOptional()
+  saleTax?: number; ////impuesto venta en porcentaje
 
-  @ApiProperty({ description: 'Total Cost' })
+  @ApiProperty({ description: 'Profit Percent' })
   @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  expensePercent: number;
-
-  @ApiProperty({ description: 'Total Cost' })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  profitPercent: number;
-
-  @ApiProperty({ description: 'Total Cost' })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  salesTaxPercent: number;
-
-  @ApiProperty({ description: 'Total Cost' })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsNotEmpty()
-  finalPrice: number;
+  @IsOptional()
+  profitPercent?: number; //utilidad en porcentaje
 
   @ApiPropertyOptional({ description: 'Start date' })
   @IsDate()

@@ -4,7 +4,6 @@ import {
   purchaseOrderItems,
   supplierInvoiceItems,
 } from '@/database/schema/administration';
-import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import { fixedAssetsInventoryStatus } from '@/types/enum';
 import {
   BadRequestException,
@@ -29,34 +28,8 @@ export class FixedAssetsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly fixedAssetPricesService: FixedAssetPricesService,
-    private readonly settingsSystemService: SettingsSystemService,
     private readonly generateCode: GenerateCodeService,
   ) {}
-
-  async calculateFinalCost(
-    supplierCost: number, // price cost
-    otherCosts: number, // other costs
-    purchaseTax: number, //impuesto en porcentaje factura
-  ) {
-    let calculatedCostTixed = 0;
-    const [taxRate] = await Promise.all([
-      this.settingsSystemService.findKey('iva_compra'),
-    ]);
-    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
-    if (purchaseTax === 0) {
-      calculatedCostTixed = calculatedCost;
-    } else if (Number(taxRate.value) !== purchaseTax) {
-      // Calculate the cost including supplier cost and other costs
-      calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
-    } else {
-      calculatedCostTixed =
-        calculatedCost * (1 + (Number(taxRate.value) ?? 0) / 100);
-    }
-
-    return {
-      calculatedCostTixed,
-    };
-  }
 
   async create(userId: number, createFixedAssetDto: CreateFixedAssetDto) {
     // Verificar que la categoría existe
@@ -115,11 +88,6 @@ export class FixedAssetsService {
 
       // Create initial fixed asset price entry
       if (createFixedAssetDto.baseCost !== 0) {
-        const { calculatedCostTixed } = await this.calculateFinalCost(
-          createFixedAssetDto.baseCost ?? 0,
-          createFixedAssetDto.otherCosts,
-          createFixedAssetDto.purchaseTax ?? 0,
-        );
         await this.fixedAssetPricesService.create(
           userId,
           {
@@ -127,7 +95,6 @@ export class FixedAssetsService {
             baseCost: createFixedAssetDto.baseCost,
             otherCosts: createFixedAssetDto.otherCosts, // Assuming 0 for now, can be added to DTO later
             purchaseTax: Number(createFixedAssetDto.purchaseTax ?? 0), // Assuming 0 for now, can be added to DTO later
-            totalCost: calculatedCostTixed, // Assuming totalCost is baseCost for now
             startDate: createFixedAssetDto.acquisitionDate,
             isActive: true,
           },
@@ -509,11 +476,6 @@ export class FixedAssetsService {
 
         if (updateFixedAssetDto.baseCost !== 0) {
           // Calculate final price based on settings
-          const { calculatedCostTixed } = await this.calculateFinalCost(
-            updateFixedAssetDto.baseCost ?? 0,
-            updateFixedAssetDto.otherCosts ?? 0,
-            updateFixedAssetDto.purchaseTax ?? 0,
-          );
 
           await this.fixedAssetPricesService.create(
             userId,
@@ -522,7 +484,6 @@ export class FixedAssetsService {
               baseCost: updateData.baseCost ?? 0,
               otherCosts: updateData.otherCosts ?? 0, // Assuming 0 for now, can be added to DTO later
               purchaseTax: Number(updateData.purchaseTax ?? 0), // Assuming 0 for now, can be added to DTO later
-              totalCost: calculatedCostTixed ?? 0, // Assuming totalCost is baseCost for now
               startDate: updateData.acquisitionDate ?? new Date(),
               isActive: true,
             },

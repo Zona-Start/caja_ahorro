@@ -43,6 +43,11 @@ export const columns: ColumnDef<SupplierInvoice>[] = [
   {
     accessorKey: 'totalAmount',
     header: 'Monto Total',
+    cell: ({ row }) => {
+      const data = row.original.totalAmount;
+
+      return `${data} Bs`;
+    },
   },
   {
     accessorKey: 'status',

@@ -48,10 +48,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleEdit = () => {
-    if (data.status === 'DRAFT') {
+    if (data.status === 'DRAFT' || data.status === 'PENDING') {
       setShowEditModal(true);
     } else {
-      showNotAllowedToast('Solo se pueden editar facturas en estado BORRADOR.');
+      showNotAllowedToast(
+        'Solo se pueden editar facturas en estado BORRADOR o PENDIENTE.',
+      );
     }
   };
 

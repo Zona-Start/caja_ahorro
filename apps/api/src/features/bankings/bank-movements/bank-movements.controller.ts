@@ -2,25 +2,25 @@ import { RequirePermissions } from '@/common/decorators/require-permissions.deco
 import {
   Body,
   Controller,
-  Post,
-  Get,
-  Param,
-  Patch,
   Delete,
-  Query,
-  ParseIntPipe,
+  Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+  Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { BankMovementsService } from './bank-movements.service';
 import {
   CreateBankMovementDto,
+  LinkToInternalRecordDto,
   QueryBankMovementDto,
   UpdateBankMovementDto,
-  LinkToInternalRecordDto,
 } from './dto';
-import { BankMovement } from './entities';
 
 @ApiTags('Banking')
 @Controller('bank-movements')
@@ -33,10 +33,13 @@ export class BankMovementsController {
   @ApiResponse({
     status: 201,
     description: 'Bank movement created successfully.',
-    type: BankMovement,
   })
-  create(@Body() createBankMovementDto: CreateBankMovementDto) {
-    return this.bankMovementsService.create(createBankMovementDto);
+  create(
+    @Req() req: Request,
+    @Body() createBankMovementDto: CreateBankMovementDto,
+  ) {
+    const userId = req['user'].id;
+    return this.bankMovementsService.create(createBankMovementDto, userId);
   }
 
   @Get()
@@ -53,7 +56,6 @@ export class BankMovementsController {
   @ApiResponse({
     status: 200,
     description: 'The found bank movement.',
-    type: BankMovement,
   })
   @ApiResponse({ status: 404, description: 'Bank movement not found.' })
   findOne(@Param('id', ParseIntPipe) id: number) {
@@ -66,7 +68,6 @@ export class BankMovementsController {
   @ApiResponse({
     status: 200,
     description: 'Bank movement updated successfully.',
-    type: BankMovement,
   })
   @ApiResponse({ status: 404, description: 'Bank movement not found.' })
   update(
@@ -80,7 +81,10 @@ export class BankMovementsController {
   @RequirePermissions('delete:bank-movements')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a bank movement' })
-  @ApiResponse({ status: 204, description: 'Bank movement deleted successfully.' })
+  @ApiResponse({
+    status: 204,
+    description: 'Bank movement deleted successfully.',
+  })
   @ApiResponse({ status: 404, description: 'Bank movement not found.' })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.bankMovementsService.remove(id);
@@ -104,7 +108,9 @@ export class BankMovementsController {
   @Delete(':id/unlink')
   @RequirePermissions('delete:bank-movement-links')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Unlink a bank transaction from an internal record' })
+  @ApiOperation({
+    summary: 'Unlink a bank transaction from an internal record',
+  })
   @ApiResponse({ status: 204, description: 'Link removed successfully.' })
   unlinkFromInternalRecord(@Param('id', ParseIntPipe) id: number) {
     return this.bankMovementsService.unlinkFromInternalRecord(id);
@@ -112,7 +118,9 @@ export class BankMovementsController {
 
   @Get(':id/link')
   @RequirePermissions('read:bank-movement-links')
-  @ApiOperation({ summary: 'Find the internal record linked to a bank transaction' })
+  @ApiOperation({
+    summary: 'Find the internal record linked to a bank transaction',
+  })
   @ApiResponse({ status: 200, description: 'Link details found.' })
   findInternalLink(@Param('id', ParseIntPipe) id: number) {
     return this.bankMovementsService.findInternalLink(id);

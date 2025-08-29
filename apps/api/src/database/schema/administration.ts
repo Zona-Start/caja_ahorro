@@ -107,7 +107,6 @@ export const purchaseOrderItems = administrationSchema.table(
     itemId: integer('itemId'),
     // Datos genéricos del ítem comprado
     description: varchar('description', { length: 255 }),
-    itemName: varchar('item_name', { length: 255 }).notNull(),
     quantity: integer('quantity').notNull(),
     unitCost: numeric('unit_cost', { precision: 18, scale: 6 }).notNull(),
     totalCost: numeric('total_cost', { precision: 18, scale: 2 }).notNull(),
@@ -149,6 +148,15 @@ export const supplierInvoices = administrationSchema.table(
 
     status: invoiceSuppliersStatusEnum('status').notNull().default('DRAFT'),
     observations: text('observations'),
+
+    //datos bancarios
+    //datos para guardar datos bancarios
+    chargePayment: boolean('charge_payment').default(false),
+    paymentBankReference: varchar('payment_bank_reference', { length: 50 }),
+    paymentDescription: varchar('payment_description', { length: 255 }),
+    transactionDate: date('transaction_date'),
+    paymentMethod: paymentMethodEnum('payment_method'),
+    bankAccountId: integer('bank_account_id').references(() => bankAccounts.id),
 
     /* FK opcional al asiento contable al recibir la factura */
     // accountingEntryId: integer('accounting_entry_id').references(() => entradaContables.id),

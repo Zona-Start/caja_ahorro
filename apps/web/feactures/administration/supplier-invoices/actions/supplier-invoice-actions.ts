@@ -2,10 +2,28 @@
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
   supplierInvoiceAllResponseSchema,
+  supplierInvoiceDraftPendingResponseSchema,
   supplierInvoiceMutationResponseSchema,
   supplierInvoiceResponseOneSchema,
 } from '../schemas/supplier-invoice-api.schema';
 import { SupplierInvoice } from '../schemas/supplier-invoice.schema';
+
+export const getInvoicesDraftPendingAction = async () => {
+  const [error, response] = await safeFetchApi(
+    supplierInvoiceDraftPendingResponseSchema,
+    `/administration/supplier-invoices/status/draft-pending`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching supplier invoices data');
+  }
+
+  return {
+    data: response?.data || [],
+  };
+};
 
 export const getSupplierInvoicesAction = async (params: {
   page?: number;
@@ -123,5 +141,3 @@ export const getSupplierInvoiceByIdAction = async (id: number) => {
   }
   return data;
 };
-
-

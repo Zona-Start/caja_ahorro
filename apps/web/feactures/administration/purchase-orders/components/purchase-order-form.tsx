@@ -111,9 +111,6 @@ export function PurchaseOrderForm({
       status,
       items: itemsWithoutTotalCost,
     };
-
-    console.log(form.formState.errors);
-    console.log(payload);
     savePurchaseOrder(payload, {
       onSuccess: () => {
         form.reset();
@@ -262,7 +259,6 @@ export function PurchaseOrderForm({
                     size="sm"
                     onClick={() =>
                       append({
-                        itemName: '',
                         description: '',
                         lineType: PurchaseTypeEnum.EXPENSE,
                         quantity: 1,
@@ -280,7 +276,6 @@ export function PurchaseOrderForm({
                     size="sm"
                     onClick={() =>
                       append({
-                        itemName: '',
                         lineType: PurchaseTypeEnum.SALES_INVENTORY,
                         quantity: 1,
                         unitCost: 0,
@@ -297,7 +292,6 @@ export function PurchaseOrderForm({
                     size="sm"
                     onClick={() =>
                       append({
-                        itemName: '',
                         lineType: PurchaseTypeEnum.FIXED_ASSET,
                         quantity: 1,
                         unitCost: 0,
@@ -314,7 +308,6 @@ export function PurchaseOrderForm({
                     size="sm"
                     onClick={() =>
                       append({
-                        itemName: '',
                         lineType: PurchaseTypeEnum.SERVICE,
                         quantity: 1,
                         unitCost: 0,
@@ -357,15 +350,6 @@ export function PurchaseOrderForm({
                               }
                               onValueChange={(value) => {
                                 field.onChange(Number(value));
-                                const selectedProduct = products?.find(
-                                  (p) => p.id === Number(value),
-                                );
-                                if (selectedProduct) {
-                                  form.setValue(
-                                    `items.${index}.itemName`,
-                                    selectedProduct.name,
-                                  );
-                                }
                               }}
                               placeholder="Selecciona un producto"
                               defaultValue={field.value?.toString()}
@@ -392,15 +376,6 @@ export function PurchaseOrderForm({
                               }
                               onValueChange={(value) => {
                                 field.onChange(Number(value));
-                                const selectedAsset = fixedAssets?.find(
-                                  (a) => a.id === Number(value),
-                                );
-                                if (selectedAsset) {
-                                  form.setValue(
-                                    `items.${index}.itemName`,
-                                    selectedAsset.name,
-                                  );
-                                }
                               }}
                               placeholder="Selecciona un activo fijo"
                               defaultValue={field.value?.toString()}
@@ -427,15 +402,6 @@ export function PurchaseOrderForm({
                               }
                               onValueChange={(value) => {
                                 field.onChange(Number(value));
-                                const selectedService = services?.find(
-                                  (s: any) => s.id === Number(value),
-                                );
-                                if (selectedService) {
-                                  form.setValue(
-                                    `items.${index}.itemName`,
-                                    selectedService.name,
-                                  );
-                                }
                               }}
                               placeholder="Selecciona un servicio"
                               defaultValue={field.value?.toString()}
@@ -446,43 +412,25 @@ export function PurchaseOrderForm({
                         )}
                       />
                     ) : (
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.itemName`}
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormLabel>Nombre del Item</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                value={field.value ?? ''}
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-
-                    {itemType === PurchaseTypeEnum.EXPENSE && (
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.description`}
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormLabel>Descripción</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                value={field.value ?? ''}
-                                disabled={readOnly}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      itemType === PurchaseTypeEnum.EXPENSE && (
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.description`}
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormLabel>Descripción</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      )
                     )}
 
                     <FormField

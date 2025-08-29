@@ -3,6 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDateString,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -71,4 +72,12 @@ export class CreateBankMovementDto {
   @IsString()
   @IsOptional()
   bankReference?: string;
+
+  @ApiProperty({
+    description: 'Create for user id.',
+    required: false,
+  })
+  @IsInt()
+  @IsOptional()
+  createdById?: number;
 }

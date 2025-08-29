@@ -33,7 +33,6 @@ export class SupplierInvoicesController {
   async create(@Req() req: Request, @Body() dto: CreateSupplierInvoiceDto) {
     const userId = req['user'].id;
     return await this.services.create(userId, dto);
-    //return { message: 'Supplier invoice created successfully', data };
   }
 
   @Get('/paginated')
@@ -48,6 +47,22 @@ export class SupplierInvoicesController {
       message: 'Supplier invoices fetched successfully',
       data: result.data,
       meta: result.meta,
+    };
+  }
+
+  @Get('/status/draft-pending')
+  @Roles('admin')
+  @RequirePermissions('read:supplier-invoices')
+  @ApiOperation({ summary: 'Get all supplier invoices by draft and pending' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all supplier invoices by draft and pending.',
+  })
+  async findDraftPending() {
+    const result = await this.services.findDraftPendiend();
+    return {
+      message: 'Supplier invoices fetched by draft and pending successfully',
+      data: result,
     };
   }
 

@@ -1,7 +1,8 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import {
-  getSupplierInvoicesAction,
+  getInvoicesDraftPendingAction,
   getSupplierInvoiceByIdAction,
+  getSupplierInvoicesAction,
 } from '../actions/supplier-invoice-actions';
 
 export function useSupplierInvoices(params = {}) {
@@ -34,6 +35,16 @@ export function useSupplierInvoicesBySupplier(
     {
       enabled: supplierId ? options?.enabled : false,
       ...options,
+    },
+  );
+}
+
+export function useSupplierInvoicesDraftPending(enabled?: boolean) {
+  return useSafeQuery(
+    ['supplier-invoices-draft-pending'],
+    () => getInvoicesDraftPendingAction(),
+    {
+      enabled: enabled ? true : false,
     },
   );
 }

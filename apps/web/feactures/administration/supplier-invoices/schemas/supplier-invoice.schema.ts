@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  PaymentMethodEnum,
   purchaseItemTypeEnum,
   SupplierInvoicePaymentTypeEnum,
   SupplierInvoiceStatusEnum,
@@ -9,11 +10,11 @@ export const supplierInvoiceItemSchema = z
   .object({
     id: z.number().optional(),
     lineType: z.nativeEnum(purchaseItemTypeEnum),
-    description: z.string().optional(), // Now optional
+    description: z.string().optional().nullable(), // Now optional
     quantity: z.coerce.number().min(1, 'La cantidad debe ser al menos 1'),
     unitCost: z.coerce
       .number()
-      .min(0, 'El costo unitario no puede ser negativo'),
+      .positive('El costo unitario debe ser mayor a 0'),
     totalLine: z.coerce
       .number()
       .min(0, 'El total de línea no puede ser negativo'),
@@ -58,6 +59,7 @@ export const supplierInvoiceSchema = z
     transactionDate: z.date().optional().nullable(),
     paymentDescription: z.string().optional().nullable(),
     paymentBankReference: z.string().optional().nullable(),
+    paymentMethod: z.nativeEnum(PaymentMethodEnum).optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (
@@ -84,6 +86,13 @@ export const supplierInvoiceSchema = z
           code: z.ZodIssueCode.custom,
           path: ['paymentDescription'],
           message: 'La descripción del pago es requerida',
+        });
+      }
+      if (!data.paymentMethod) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['paymentMethod'],
+          message: 'El método de pago es requerido',
         });
       }
     }

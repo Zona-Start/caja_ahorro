@@ -1,4 +1,5 @@
 import { servicePrices } from '@/database/schema/administration';
+import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -11,7 +12,37 @@ import { FilterServicePriceDto } from './dto/filter-services-price.dto';
 export class ServicePricesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly settingsSystemService: SettingsSystemService,
   ) {}
+
+  async calculateFinalCost(
+    supplierCost: number, // price cost
+    otherCosts: number, // other costs
+    purchaseTax: number, //impuesto en porcentaje factura
+  ) {
+    let calculatedCostTixed = 0;
+    let costFinal = 0;
+    const [taxRate] = await Promise.all([
+      this.settingsSystemService.findKey('iva_compra'),
+    ]);
+    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
+    if (purchaseTax === 0) {
+      costFinal = calculatedCost;
+    } else if (Number(taxRate.value) !== purchaseTax) {
+      // Calculate the cost including supplier cost and other costs
+      calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
+      costFinal = calculatedCostTixed + calculatedCost;
+    } else {
+      calculatedCostTixed =
+        calculatedCost * (1 + (Number(taxRate.value) ?? 0) / 100);
+      costFinal = calculatedCostTixed + calculatedCost;
+    }
+
+    return {
+      costFinal,
+      taxRate: Number(taxRate.value),
+    };
+  }
 
   async create(
     userId: number,
@@ -34,14 +65,20 @@ export class ServicePricesService {
     //   );
     // }
 
-    await db.insert(servicePrices).values([
+    const { costFinal, taxRate } = await this.calculateFinalCost(
+      data.baseCost ?? 0,
+      data.otherCosts,
+      data.purchaseTax ?? 0,
+    );
+
+    const result = await db.insert(servicePrices).values([
       {
         serviceId: data.serviceId,
         suppliersId: data.suppliersId ?? null,
         baseCost: String(data.baseCost),
         otherCosts: String(data.otherCosts),
-        purchaseTax: String(data.purchaseTax),
-        totalCost: String(data.totalCost),
+        purchaseTax: String(data.purchaseTax) ?? String(taxRate),
+        totalCost: String(costFinal),
         createdById: userId, // Remove this line if 'createdById' is not a column in your schema
         startDate: data.startDate ? data.startDate.toISOString() : undefined,
         endDate: data.endDate ? data.endDate.toISOString() : undefined,
@@ -50,6 +87,7 @@ export class ServicePricesService {
 
     return {
       message: 'Service price created successfully',
+      data: result[0],
     };
   }
 
