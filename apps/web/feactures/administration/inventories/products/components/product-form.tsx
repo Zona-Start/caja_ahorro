@@ -1,3 +1,4 @@
+import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import { Label } from '@repo/shadcn/components/ui/label';
@@ -34,21 +35,22 @@ import { Product, productSchema } from '../schemas/product.schema';
 
 const calculatePrice = (
   cost: number,
-  util: number,
-  expense: number,
-  tax: number,
+  utilityPercentage: number,
+  expensePercentage: number,
+  taxPercentage: number,
 ) => {
-  const price = cost; //precio base sin utilidad ni impuestos
-  const benefit = (price * util) / 100; //utilidad en dinero
-  const expensePrice = (price * expense) / 100; //gastos administrativos
-  const priceProfit = price + benefit + expensePrice; //precio con utilidad  y gastos administrativos
+  // Calculate the price with the desired utility percentage.
+  const priceWithUtility = cost * (1 + utilityPercentage / 100);
 
-  const impost = (priceProfit * (tax ?? 0)) / 100; //I.V.A. venta
-  const maxPrice = priceProfit + impost; //precio con impuesto
+  // Calculate the final price by adding the administrative expenses.
+  const priceWithExpenses = priceWithUtility * (1 + expensePercentage / 100);
+
+  // Add the sales tax to the final price.
+  const finalPrice = priceWithExpenses * (1 + taxPercentage / 100);
 
   return {
-    priceProfit,
-    maxPrice,
+    priceWithUtility,
+    finalPrice,
   };
 };
 
@@ -112,6 +114,13 @@ export default function ProductForm({
     });
   };
 
+  const { generalConfig } = useSystemConfigStore();
+  const configPurchaseTax = generalConfig.filter(
+    (item) => item.key === 'GASTO-PRODUCTO',
+  );
+
+  const taxFromConfig = Number(configPurchaseTax[0]?.value) || 0;
+
   // Calcular costo calculado automáticamente
   const baseCost = form.watch('baseCost');
   const otherCosts = form.watch('otherCosts');
@@ -123,19 +132,19 @@ export default function ProductForm({
   //calcular precio de venta
   const utilSale = form.watch('profitSale'); //utilidad en porcentaje
   const utilOffer = form.watch('profitSupply'); //utilidad oferta en porcentaje
-  const expense = 10; //gastos administrativos en porcentaje
+  const expense = taxFromConfig; //gastos administrativos en porcentaje
   const saleTax = form.watch('saleTax'); //I.V.A. venta en porcentaje
 
   const saleprice = calculatePrice(
     calculatedCostTixed,
     utilSale,
-    10,
+    expense,
     saleTax ?? 0,
   );
   const offerPrice = calculatePrice(
     calculatedCostTixed,
     utilOffer,
-    10,
+    expense,
     saleTax ?? 0,
   );
 
@@ -550,13 +559,13 @@ export default function ProductForm({
                   <div>
                     <label className="text-xs font-medium">Sin Impuesto</label>
                     <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
-                      {saleprice.priceProfit.toFixed(2)}
+                      {saleprice.priceWithUtility.toFixed(2)}
                     </div>
                   </div>
                   <div>
                     <label className="text-xs font-medium">Con impuesto</label>
                     <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
-                      {saleprice.maxPrice.toFixed(2)}
+                      {saleprice.finalPrice.toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -605,13 +614,16 @@ export default function ProductForm({
                   <div>
                     <label className="text-xs font-medium">Sin Impuesto</label>
                     <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
-                      {(utilOffer > 0 ? offerPrice.priceProfit : 0).toFixed(2)}
+                      {(utilOffer > 0
+                        ? offerPrice.priceWithUtility
+                        : 0
+                      ).toFixed(2)}
                     </div>
                   </div>
                   <div>
                     <label className="text-xs font-medium">Con impuesto</label>
                     <div className="h-9 px-3 py-2 bg-muted border rounded-md text-sm">
-                      {(utilOffer > 0 ? offerPrice.maxPrice : 0).toFixed(2)}
+                      {(utilOffer > 0 ? offerPrice.finalPrice : 0).toFixed(2)}
                     </div>
                   </div>
                 </div>

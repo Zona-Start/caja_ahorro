@@ -349,16 +349,9 @@ export class FixedAssetsService {
     const existingAsset = await this.drizzle
       .select({
         id: fixedAssets.id,
-        baseCost: schema.fixedAssetsPrices.baseCost,
-        otherCosts: schema.fixedAssetsPrices.otherCosts,
-        purchaseTax: schema.fixedAssetsPrices.purchaseTax,
         assetCode: fixedAssets.assetCode,
       })
       .from(fixedAssets)
-      .leftJoin(
-        schema.fixedAssetsPrices,
-        eq(schema.fixedAssetsPrices.fixedAssetsId, fixedAssets.id),
-      )
       .where(eq(fixedAssets.id, id));
 
     if (existingAsset.length === 0) {
@@ -454,42 +447,20 @@ export class FixedAssetsService {
           assetStatus: fixedAssets.assetStatus,
         });
 
-      if (
-        (typeof updateFixedAssetDto.baseCost === 'number' &&
-          Number(existingAsset[0].baseCost ?? 0) !==
-            updateFixedAssetDto.baseCost) ||
-        (typeof updateFixedAssetDto.otherCosts === 'number' &&
-          Number(existingAsset[0].otherCosts ?? 0) !==
-            updateFixedAssetDto.otherCosts) ||
-        (typeof updateFixedAssetDto.purchaseTax === 'number' &&
-          Number(existingAsset[0].purchaseTax ?? 0) !==
-            updateFixedAssetDto.purchaseTax)
-      ) {
-        const lastPrice =
-          await this.fixedAssetPricesService.findLastActivePriceByFixedAssetId(
-            id,
-            tx,
-          );
-        if (lastPrice) {
-          await this.fixedAssetPricesService.deactivatePrice(lastPrice.id, tx);
-        }
-
-        if (updateFixedAssetDto.baseCost !== 0) {
-          // Calculate final price based on settings
-
-          await this.fixedAssetPricesService.create(
-            userId,
-            {
-              fixedAssetsId: result[0].id,
-              baseCost: updateData.baseCost ?? 0,
-              otherCosts: updateData.otherCosts ?? 0, // Assuming 0 for now, can be added to DTO later
-              purchaseTax: Number(updateData.purchaseTax ?? 0), // Assuming 0 for now, can be added to DTO later
-              startDate: updateData.acquisitionDate ?? new Date(),
-              isActive: true,
-            },
-            tx,
-          );
-        }
+      if (updateFixedAssetDto.baseCost !== 0) {
+        // Calculate final price based on settings
+        await this.fixedAssetPricesService.create(
+          userId,
+          {
+            fixedAssetsId: result[0].id,
+            baseCost: updateData.baseCost ?? 0,
+            otherCosts: updateData.otherCosts ?? 0, // Assuming 0 for now, can be added to DTO later
+            purchaseTax: Number(updateData.purchaseTax ?? 0), // Assuming 0 for now, can be added to DTO later
+            startDate: updateData.acquisitionDate ?? new Date(),
+            isActive: true,
+          },
+          tx,
+        );
       }
       return result;
     });

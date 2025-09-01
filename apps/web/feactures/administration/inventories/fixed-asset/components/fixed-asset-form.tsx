@@ -45,8 +45,10 @@ export default function FixedAssetForm({
   const { data: dataCategory } = useInventoryCategoriesAll('FIXED_ASSET');
   const { generalConfig } = useSystemConfigStore();
   const configPurchaseTax = generalConfig.filter(
-    (item) => item.key === 'iva_compra',
+    (item) => item.key === 'IVA-COMPRA',
   );
+
+  const taxFromConfig = Number(configPurchaseTax[0]?.value) || 0;
 
   const form = useForm<FixedAsset>({
     resolver: zodResolver(fixedAssetSchema),
@@ -55,12 +57,9 @@ export default function FixedAssetForm({
       categoryId: defaultValues?.categoryId ?? undefined,
       baseCost: defaultValues?.baseCost ?? 0,
       otherCosts: defaultValues?.otherCosts ?? 0,
-      purchaseTax:
-        defaultValues === undefined
-          ? Number(configPurchaseTax[0]?.value)
-          : defaultValues?.purchaseTax === 0
-            ? Number(configPurchaseTax[0]?.value)
-            : defaultValues?.purchaseTax,
+      purchaseTax: defaultValues?.purchaseTax
+        ? defaultValues.purchaseTax
+        : taxFromConfig,
     },
     mode: 'onChange',
   });

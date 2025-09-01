@@ -15,32 +15,88 @@ export class ServicePricesService {
     private readonly settingsSystemService: SettingsSystemService,
   ) {}
 
-  async calculateFinalCost(
-    supplierCost: number, // price cost
+  // --- Funciones Auxiliares ---
+
+  private havePricesChanged(
+    current: typeof schema.servicePrices.$inferSelect,
+    newPrice: CreateServicePriceDto,
+  ): boolean {
+    // Convierte a Number para una comparación fiable
+    return (
+      Number(current.baseCost ?? 0) !== newPrice.baseCost ||
+      Number(current.otherCosts ?? 0) !== (newPrice.otherCosts ?? 0) ||
+      Number(current.purchaseTax ?? 0) !== (newPrice.purchaseTax ?? 0)
+    );
+  }
+
+  private formatDate(date: string | Date | undefined): string | undefined {
+    if (!date) return undefined;
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toISOString();
+  }
+
+  private async calculateFinalCost(
+    baseCost: number, // base cost
     otherCosts: number, // other costs
-    purchaseTax: number, //impuesto en porcentaje factura
+    purchaseTax?: number, //impuesto en porcentaje factura
   ) {
-    let calculatedCostTixed = 0;
-    let costFinal = 0;
     const [taxRate] = await Promise.all([
-      this.settingsSystemService.findKey('iva_compra'),
+      this.settingsSystemService.findKey('IVA-COMPRA'),
     ]);
-    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
-    if (purchaseTax === 0) {
-      costFinal = calculatedCost;
-    } else if (Number(taxRate.value) !== purchaseTax) {
-      // Calculate the cost including supplier cost and other costs
-      calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
-      costFinal = calculatedCostTixed + calculatedCost;
-    } else {
-      calculatedCostTixed =
-        calculatedCost * (1 + (Number(taxRate.value) ?? 0) / 100);
-      costFinal = calculatedCostTixed + calculatedCost;
-    }
+    const calculatedCost = baseCost + otherCosts; // Ejemplo de cálculo
+
+    const taxPercentage =
+      calculatedCost * ((purchaseTax ?? Number(taxRate.value)) / 100);
+    const finalCost = calculatedCost + taxPercentage;
 
     return {
-      costFinal,
+      finalCost,
       taxRate: Number(taxRate.value),
+    };
+  }
+
+  private async handlePriceChange(
+    current: typeof schema.servicePrices.$inferSelect,
+    userId: number,
+    data: CreateServicePriceDto,
+    db: NodePgDatabase<typeof schema>,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    // Desactiva el precio anterior
+    const lastPrice = await this.findLastActivePriceByServiceId(current.id, tx);
+    if (lastPrice) {
+      await this.deactivatePrice(lastPrice.id, tx);
+    }
+    // Crea el nuevo precio
+    return this.insertNewPrice(data, userId, db);
+  }
+
+  private async insertNewPrice(
+    data: CreateServicePriceDto,
+    userId: number,
+    db: NodePgDatabase<typeof schema>,
+  ) {
+    // Asumiendo que 'calculateFinalCost' es un método del servicio
+    const { finalCost, taxRate } = await this.calculateFinalCost(
+      data.baseCost ?? 0,
+      data.otherCosts,
+      data.purchaseTax ?? 0,
+    );
+
+    const result = await db.insert(schema.servicePrices).values({
+      ...data,
+      baseCost: String(data.baseCost ?? 0),
+      otherCosts: String(data.otherCosts ?? 0),
+      purchaseTax: String(data.purchaseTax ?? taxRate),
+      totalCost: String(finalCost),
+      createdById: userId,
+      startDate: this.formatDate(data.startDate),
+      endDate: this.formatDate(data.endDate),
+    });
+
+    return {
+      message: 'Service price created/updated successfully',
+      data: result[0],
     };
   }
 
@@ -50,45 +106,26 @@ export class ServicePricesService {
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.drizzle;
-    // const exist = await db.query.servicePrices.findFirst({
-    //   where: and(
-    //     eq(servicePrices.serviceId, data.serviceId),
-    //     eq(servicePrices.baseCost, String(data.baseCost)),
-    //     eq(servicePrices.otherCosts, String(data.otherCosts)),
-    //     eq(servicePrices.purchaseTax, String(data.purchaseTax)),
-    //   ),
-    // });
 
-    // if (exist) {
-    //   throw new BadRequestException(
-    //     'Price with this service and type already exists',
-    //   );
-    // }
+    const existingPrice = await db
+      .select()
+      .from(schema.servicePrices)
+      .where(eq(schema.servicePrices.serviceId, data.serviceId))
+      .limit(1);
 
-    const { costFinal, taxRate } = await this.calculateFinalCost(
-      data.baseCost ?? 0,
-      data.otherCosts,
-      data.purchaseTax ?? 0,
-    );
-
-    const result = await db.insert(servicePrices).values([
-      {
-        serviceId: data.serviceId,
-        suppliersId: data.suppliersId ?? null,
-        baseCost: String(data.baseCost),
-        otherCosts: String(data.otherCosts),
-        purchaseTax: String(data.purchaseTax) ?? String(taxRate),
-        totalCost: String(costFinal),
-        createdById: userId, // Remove this line if 'createdById' is not a column in your schema
-        startDate: data.startDate ? data.startDate.toISOString() : undefined,
-        endDate: data.endDate ? data.endDate.toISOString() : undefined,
-      },
-    ]);
-
-    return {
-      message: 'Service price created successfully',
-      data: result[0],
-    };
+    // Flujo principal: simple y directo
+    if (existingPrice.length > 0) {
+      if (this.havePricesChanged(existingPrice[0], data)) {
+        return this.handlePriceChange(existingPrice[0], userId, data, db, tx);
+      } else {
+        return {
+          message: 'No se detectaron cambios, precio del activo no actualizado',
+          data: existingPrice[0],
+        };
+      }
+    } else {
+      return this.insertNewPrice(data, userId, db);
+    }
   }
 
   async findAll(paginationDto: FilterServicePriceDto) {

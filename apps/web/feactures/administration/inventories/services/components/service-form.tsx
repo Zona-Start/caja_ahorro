@@ -41,8 +41,10 @@ export default function ServiceForm({
   const { data: dataCategory } = useInventoryCategoriesAll('SERVICE');
   const { generalConfig } = useSystemConfigStore();
   const configPurchaseTax = generalConfig.filter(
-    (item) => item.key === 'iva_compra',
+    (item) => item.key === 'IVA-COMPRA',
   );
+
+  const taxFromConfig = Number(configPurchaseTax[0]?.value) || 0;
 
   const form = useForm<Service>({
     resolver: zodResolver(serviceSchema),
@@ -50,13 +52,10 @@ export default function ServiceForm({
       ...defaultValues,
       supplierCost: defaultValues?.supplierCost ?? 0,
       otherCosts: defaultValues?.otherCosts ?? 0,
-      purchaseTax:
-        defaultValues === undefined
-          ? Number(configPurchaseTax[0]?.value)
-          : defaultValues?.purchaseTax === 0
-            ? Number(configPurchaseTax[0]?.value)
-            : defaultValues?.purchaseTax,
-      categoryId: defaultValues?.categoryId ?? undefined,
+      purchaseTax: defaultValues?.purchaseTax
+        ? defaultValues.purchaseTax
+        : taxFromConfig,
+      categoryId: defaultValues?.categoryId ?? 0,
     },
     mode: 'onChange',
   });
@@ -130,7 +129,7 @@ export default function ServiceForm({
               name="serviceCode"
               render={({ field }) => (
                 <FormItem className="w-full">
-                  <FormLabel>Nombre</FormLabel>
+                  <FormLabel>Referencia</FormLabel>
                   <FormControl>
                     <Input
                       {...field}

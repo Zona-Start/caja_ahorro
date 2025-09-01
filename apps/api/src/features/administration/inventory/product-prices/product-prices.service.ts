@@ -16,7 +16,66 @@ export class ProductPricesService {
     private readonly settingsSystemService: SettingsSystemService,
   ) {}
 
-  async calculateFinalPrice(
+  // Método auxiliar para la lógica de comparación de un único precio
+  private hasPriceChanged(
+    newPrice: CreateProductPriceDto,
+    currentPrice: typeof schema.productPrices.$inferSelect,
+  ): boolean {
+    return (
+      Number(currentPrice?.baseCost ?? 0) !== newPrice.baseCost ||
+      Number(currentPrice?.otherCosts ?? 0) !== newPrice.otherCosts ||
+      Number(currentPrice?.purchaseTax ?? 0) !== newPrice.purchaseTax ||
+      Number(currentPrice?.salesTaxPercent ?? 0) !== newPrice.saleTax ||
+      Number(currentPrice?.profitPercent ?? 0) !== (newPrice.profitPercent ?? 0)
+    );
+  }
+
+  /**
+   * Desactiva un precio existente por su ID.
+   */
+  private async _deactivatePrice(
+    db: NodePgDatabase<typeof schema>,
+    priceId: number,
+    userId: number,
+  ) {
+    await db
+      .update(schema.productPrices)
+      .set({ isActive: false, updatedById: userId, updatedAt: new Date() })
+      .where(eq(schema.productPrices.id, priceId));
+  }
+
+  /**
+   * Busca el precio activo para un producto y tipo específicos.
+   */
+  private async _findActivePrice(
+    db: NodePgDatabase<typeof schema>,
+    productId: number,
+    priceType: string,
+  ) {
+    const prices = await db
+      .select()
+      .from(schema.productPrices)
+      .where(
+        and(
+          eq(schema.productPrices.productId, productId),
+          eq(
+            schema.productPrices.priceType,
+            priceType as (typeof priceTypeEnum.enumValues)[number],
+          ),
+          eq(schema.productPrices.isActive, true),
+        ),
+      )
+      .limit(1);
+    return prices.length > 0 ? prices[0] : null;
+  }
+
+  private formatDate(date: string | Date | undefined): string | undefined {
+    if (!date) return undefined;
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toISOString();
+  }
+
+  private async calculateFinalPrice(
     baseCost: number, // price cost
     otherCosts: number, // other costs
     purchaseTax?: number, //impuesto en porcentaje compra
@@ -34,22 +93,25 @@ export class ProductPricesService {
 
     // Calculate the cost including supplier cost and other costs
     const calculatedCost = baseCost + otherCosts; // Ejemplo de cálculo
-    const calculatedCostTixed =
-      calculatedCost *
-      (1 + (purchaseTax ?? Number(purchaseTaxRate.value)) / 100);
+    const ip =
+      calculatedCost * ((purchaseTax ?? Number(purchaseTaxRate.value)) / 100);
 
-    const price = calculatedCostTixed; //precio base sin utilidad ni impuestos
-    const benefit = (price * (util ?? Number(profitMarginRate.value))) / 100; //utilidad en dinero
-    const expensePrice = (price * Number(expenseRate.value)) / 100; //gastos administrativos
-    const priceProfit = price + benefit + expensePrice; //precio con utilidad  y gastos administrativos
+    const calculatedCostTixed = calculatedCost + ip; //costo compra con inpuesto
+
+    const u =
+      (calculatedCostTixed * (util ?? Number(profitMarginRate.value))) / 100; //utilidad en dinero
+    const price = u + calculatedCostTixed; // precio con utilidad
+
+    const gt = (price * Number(expenseRate.value)) / 100; //gastos administrativos
+    const expensePrice = gt + price; //precio con gastos administrativo
 
     const impost =
-      (priceProfit * (saleTax ?? Number(salesTaxRate.value))) / 100; //I.V.A. venta
-    const maxPrice = priceProfit + impost; //precio con impuesto
+      (expensePrice * (saleTax ?? Number(salesTaxRate.value))) / 100; //I.V.A. venta
+    const maxPrice = expensePrice + impost; //precio con impuesto
 
     return {
       maxPrice, //precio venta final
-      priceProfit, //precio con utilidad  y gastos administrativos
+      priceProfit: price, //precio con utilidad  y gastos administrativos
       calculatedCostTixed, //precio compra con sus impuesto de compra
       expenseRate: Number(expenseRate.value), //gastos administrativos
       salesTaxRate: Number(salesTaxRate.value), //IVA venta
@@ -58,66 +120,149 @@ export class ProductPricesService {
     };
   }
 
+  /**
+   * Inserta una nueva entrada de precio en la base de datos.
+   */
+  private async _insertNewPrice(
+    db: NodePgDatabase<typeof schema>,
+    data: CreateProductPriceDto,
+    userId: number,
+  ) {
+    // Calcula el precio final antes de insertar
+    const calculatedPrices = await this.calculateFinalPrice(
+      data.baseCost,
+      data.otherCosts,
+      data.purchaseTax,
+      data.saleTax,
+      data.profitPercent,
+    );
+
+    // Crea el objeto de valores a insertar.
+    const valuesToInsert = {
+      productId: data.productId,
+      suppliersId: data.suppliersId,
+      priceType: data.priceType,
+      baseCost: String(data.baseCost),
+      otherCosts: String(data.otherCosts),
+      purchaseTax:
+        String(data.purchaseTax) ?? String(calculatedPrices.purchaseTaxRate),
+      totalCost: String(calculatedPrices.calculatedCostTixed),
+      expensePercent: String(calculatedPrices.expenseRate),
+      profitPercent:
+        String(data.profitPercent) ?? String(calculatedPrices.profitMarginRate),
+      salesTaxPercent:
+        String(data.saleTax) ?? String(calculatedPrices.salesTaxRate),
+      finalPrice: String(calculatedPrices.maxPrice),
+      createdById: userId,
+      isActive: true, // El nuevo precio siempre estará activo
+      startDate: this.formatDate(data.startDate),
+      endDate: this.formatDate(data.endDate),
+    };
+
+    return await db
+      .insert(schema.productPrices)
+      .values(valuesToInsert)
+      .returning();
+  }
+
+  // Este método ahora se enfoca en crear un único tipo de precio (SELLING o OFFER)
   async create(
     data: CreateProductPriceDto,
-    userId?: number,
+    userId: number,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.drizzle;
-    // const exist = await this.drizzle.query.productPrices.findFirst({
-    //   where: and(
-    //     eq(productPrices.productId, data.productId),
-    //     eq(productPrices.priceType, data.priceType),
-    //     eq(productPrices.baseCost, String(data.baseCost)),
-    //     eq(productPrices.otherCosts, String(data.otherCosts)),
-    //     eq(productPrices.purchaseTax, String(data.purchaseTax)),
-    //   ),
-    // });
-    // console.log('exist', exist);
 
-    // if (exist) {
-    //   throw new BadRequestException(
-    //     'Price with this product and type already exists',
-    //   );
-    // }
-
-    const resultSalePrice = await this.calculateFinalPrice(
-      data.baseCost,
-      data.otherCosts, // other costs
-      data.purchaseTax ?? undefined, //impuesto en porcentaje compra
-      data.saleTax ?? undefined, //impuesto venta en porcentaje
-      data.profitPercent ?? 0, //utilidad en porcentaje
+    // 1. Busca un precio activo para el producto y tipo de precio dados.
+    const activePrice = await this._findActivePrice(
+      db,
+      data.productId,
+      data.priceType,
     );
 
-    const price = await db
-      .insert(productPrices)
-      .values({
-        productId: data.productId,
-        suppliersId: data.suppliersId,
-        priceType: data.priceType,
-        baseCost: String(data.baseCost),
-        otherCosts: String(data.otherCosts),
-        purchaseTax:
-          String(data.purchaseTax) ?? String(resultSalePrice.purchaseTaxRate),
-        totalCost: String(resultSalePrice.calculatedCostTixed),
-        expensePercent: String(resultSalePrice.expenseRate),
-        profitPercent:
-          String(data.profitPercent) ??
-          String(resultSalePrice.profitMarginRate),
-        salesTaxPercent:
-          String(data.saleTax) ?? String(resultSalePrice.salesTaxRate),
-        finalPrice: String(resultSalePrice.maxPrice),
-        createdById: userId, // Remove this line if 'createdById' is not a column in your schema
-        startDate: data.startDate ? data.startDate.toISOString() : undefined,
-        endDate: data.endDate ? data.endDate.toISOString() : undefined,
-      })
-      .returning();
+    // 2. Si existe un precio activo y los datos de entrada son idénticos, no hacemos nada.
+    if (activePrice && !this.hasPriceChanged(data, activePrice)) {
+      return {
+        message:
+          'No se detectaron cambios en el precio del producto. No se realizó ninguna actualización.',
+        data: activePrice,
+      };
+    }
+
+    // 3. Si hay un precio activo que debe ser reemplazado, lo desactiva.
+    if (activePrice) {
+      await this._deactivatePrice(db, activePrice.id, userId);
+    }
+
+    // 4. Inserta el nuevo precio y devuelve el resultado.
+    const result = await this._insertNewPrice(db, data, userId);
 
     return {
-      message: 'Product price created successfully',
-      data: price[0],
+      message: 'Product price created/updated successfully',
+      data: result[0],
     };
   }
+
+  // async create(
+  //   data: CreateProductPriceDto,
+  //   userId?: number,
+  //   tx?: NodePgDatabase<typeof schema>,
+  // ) {
+  //   const db = tx ?? this.drizzle;
+  //   // const exist = await this.drizzle.query.productPrices.findFirst({
+  //   //   where: and(
+  //   //     eq(productPrices.productId, data.productId),
+  //   //     eq(productPrices.priceType, data.priceType),
+  //   //     eq(productPrices.baseCost, String(data.baseCost)),
+  //   //     eq(productPrices.otherCosts, String(data.otherCosts)),
+  //   //     eq(productPrices.purchaseTax, String(data.purchaseTax)),
+  //   //   ),
+  //   // });
+  //   // console.log('exist', exist);
+
+  //   // if (exist) {
+  //   //   throw new BadRequestException(
+  //   //     'Price with this product and type already exists',
+  //   //   );
+  //   // }
+
+  //   const resultSalePrice = await this.calculateFinalPrice(
+  //     data.baseCost,
+  //     data.otherCosts, // other costs
+  //     data.purchaseTax ?? undefined, //impuesto en porcentaje compra
+  //     data.saleTax ?? undefined, //impuesto venta en porcentaje
+  //     data.profitPercent ?? 0, //utilidad en porcentaje
+  //   );
+
+  //   const price = await db
+  //     .insert(productPrices)
+  //     .values({
+  //       productId: data.productId,
+  //       suppliersId: data.suppliersId,
+  //       priceType: data.priceType,
+  //       baseCost: String(data.baseCost),
+  //       otherCosts: String(data.otherCosts),
+  //       purchaseTax:
+  //         String(data.purchaseTax) ?? String(resultSalePrice.purchaseTaxRate),
+  //       totalCost: String(resultSalePrice.calculatedCostTixed),
+  //       expensePercent: String(resultSalePrice.expenseRate),
+  //       profitPercent:
+  //         String(data.profitPercent) ??
+  //         String(resultSalePrice.profitMarginRate),
+  //       salesTaxPercent:
+  //         String(data.saleTax) ?? String(resultSalePrice.salesTaxRate),
+  //       finalPrice: String(resultSalePrice.maxPrice),
+  //       createdById: userId, // Remove this line if 'createdById' is not a column in your schema
+  //       startDate: data.startDate ? data.startDate.toISOString() : undefined,
+  //       endDate: data.endDate ? data.endDate.toISOString() : undefined,
+  //     })
+  //     .returning();
+
+  //   return {
+  //     message: 'Product price created successfully',
+  //     data: price[0],
+  //   };
+  // }
 
   async findAll(paginationDto: FilterProductPriceDto) {
     const {
@@ -223,61 +368,20 @@ export class ProductPricesService {
     return data;
   }
 
-  async findLastActivePriceByProductId(productId: number) {
-    return await this.drizzle.query.productPrices.findMany({
-      where: and(
-        eq(productPrices.productId, productId),
-        eq(productPrices.isActive, true),
-      ),
-      orderBy: (productPrices, { desc }) => [desc(productPrices.createdAt)],
-    });
-  }
-
-  async deactivatePrice(priceId: number) {
-    await this.drizzle
-      .update(productPrices)
-      .set({ isActive: false })
-      .where(eq(productPrices.id, priceId));
-  }
-
-  // async update(userId: number, id: number, data: UpdateProductPriceDto) {
-  //   const exist = await this.drizzle.query.productPrices.findFirst({
-  //     where: eq(productPrices.id, id),
+  // async findLastActivePriceByProductId(productId: number) {
+  //   return await this.drizzle.query.productPrices.findMany({
+  //     where: and(
+  //       eq(productPrices.productId, productId),
+  //       eq(productPrices.isActive, true),
+  //     ),
+  //     orderBy: (productPrices, { desc }) => [desc(productPrices.createdAt)],
   //   });
-
-  //   if (!exist) {
-  //     throw new NotFoundException('Product price not found');
-  //   }
-
-  //   await this.drizzle
-  //     .update(productPrices)
-  //     .set({
-  //       ...data,
-  //       price: data.price !== undefined ? String(data.price) : undefined,
-  //       startDate: data.startDate ? data.startDate.toISOString() : undefined,
-  //       endDate: data.endDate ? data.endDate.toISOString() : undefined,
-  //       updatedById: userId,
-  //     })
-  //     .where(eq(productPrices.id, id));
-
-  //   return {
-  //     message: 'Product price updated successfully',
-  //   };
   // }
 
-  // async remove(id: number) {
-  //   const exist = await this.drizzle.query.productPrices.findFirst({
-  //     where: eq(productPrices.id, id),
-  //   });
-
-  //   if (!exist) {
-  //     throw new NotFoundException('Product price not found');
-  //   }
-
-  //   await this.drizzle.delete(productPrices).where(eq(productPrices.id, id));
-
-  //   return {
-  //     message: 'Product price removed successfully',
-  //   };
+  // async deactivatePrice(priceId: number) {
+  //   await this.drizzle
+  //     .update(productPrices)
+  //     .set({ isActive: false })
+  //     .where(eq(productPrices.id, priceId));
   // }
 }

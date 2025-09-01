@@ -7,7 +7,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
@@ -251,110 +251,6 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    const activePrices =
-      await this.productPricesService.findLastActivePriceByProductId(id);
-
-    if (data.supplierCost === 0) {
-      if (activePrices.length > 0) {
-        const priceIds = activePrices.map((p) => p.id);
-        await this.drizzle
-          .update(schema.productPrices)
-          .set({ isActive: false, updatedById: userId, updatedAt: new Date() })
-          .where(inArray(schema.productPrices.id, priceIds));
-      }
-    } else {
-      const sellingPrice = activePrices.find((p) => p.priceType === 'SELLING');
-      const offerPrice = activePrices.find((p) => p.priceType === 'OFFER');
-      const basePriceInfo = sellingPrice || offerPrice;
-
-      const supplierCostChanged =
-        data.supplierCost !== undefined &&
-        data.supplierCost !== Number(basePriceInfo?.baseCost ?? 0);
-      const otherCostsChanged =
-        data.otherCosts !== undefined &&
-        data.otherCosts !== Number(basePriceInfo?.otherCosts ?? 0);
-      const purchaseTaxChanged =
-        data.purchaseTax !== undefined &&
-        data.purchaseTax !== Number(basePriceInfo?.purchaseTax ?? 0);
-      const saleTaxChanged =
-        data.saleTax !== undefined &&
-        data.saleTax !== Number(basePriceInfo?.salesTaxPercent ?? 0);
-      const profitSaleChanged =
-        data.profitSale !== undefined &&
-        data.profitSale !== Number(sellingPrice?.profitPercent ?? 0);
-
-      const currentOfferProfit = offerPrice
-        ? Number(offerPrice.profitPercent)
-        : 0;
-      const newOfferProfit = data.profitSupply ?? 0;
-      const profitSupplyChanged = newOfferProfit !== currentOfferProfit;
-
-      const needsPriceUpdate =
-        supplierCostChanged ||
-        otherCostsChanged ||
-        purchaseTaxChanged ||
-        saleTaxChanged ||
-        profitSaleChanged ||
-        profitSupplyChanged;
-
-      if (needsPriceUpdate) {
-        if (activePrices.length > 0) {
-          const priceIds = activePrices.map((p) => p.id);
-          await this.drizzle
-            .update(schema.productPrices)
-            .set({
-              isActive: false,
-              updatedById: userId,
-              updatedAt: new Date(),
-            })
-            .where(inArray(schema.productPrices.id, priceIds));
-        }
-
-        const newBaseCost =
-          data.supplierCost ?? Number(basePriceInfo?.baseCost ?? 0);
-        const newOtherCosts =
-          data.otherCosts ?? Number(basePriceInfo?.otherCosts ?? 0);
-        const newPurchaseTax =
-          data.purchaseTax ?? Number(basePriceInfo?.purchaseTax);
-        const newSaleTax =
-          data.saleTax ?? Number(basePriceInfo?.salesTaxPercent);
-        const newProfitSale =
-          data.profitSale ?? Number(sellingPrice?.profitPercent);
-        const newProfitSupply = data.profitSupply ?? 0;
-
-        await this.productPricesService.create(
-          {
-            productId: id,
-            priceType: 'SELLING',
-            baseCost: newBaseCost,
-            otherCosts: newOtherCosts,
-            purchaseTax: newPurchaseTax ?? undefined,
-            saleTax: newSaleTax ?? undefined,
-            profitPercent: newProfitSale ?? undefined,
-            isActive: true,
-          },
-          userId,
-        );
-
-        if (newProfitSupply > 0) {
-          await this.productPricesService.create(
-            {
-              productId: id,
-              priceType: 'OFFER',
-              baseCost: newBaseCost,
-              otherCosts: newOtherCosts,
-              purchaseTax: newPurchaseTax ?? undefined,
-              saleTax: newSaleTax ?? undefined,
-              profitPercent: newProfitSupply ?? undefined,
-              isActive: true,
-            },
-
-            userId,
-          );
-        }
-      }
-    }
-
     const result = await this.drizzle
       .update(products)
       .set({
@@ -379,6 +275,39 @@ export class ProductsService {
         description: products.description,
         status: products.status,
       });
+
+    console.log(data);
+
+    await this.productPricesService.create(
+      {
+        productId: id,
+        priceType: 'SELLING',
+        baseCost: data.supplierCost ?? 0,
+        otherCosts: data.otherCosts ?? 0,
+        purchaseTax: data.purchaseTax ?? undefined,
+        saleTax: data.saleTax ?? undefined,
+        profitPercent: data.profitSale ?? undefined,
+        isActive: true,
+      },
+      userId,
+    );
+
+    if ((data.profitSupply ?? 0) > 0) {
+      await this.productPricesService.create(
+        {
+          productId: id,
+          priceType: 'OFFER',
+          baseCost: data.supplierCost ?? 0,
+          otherCosts: data.otherCosts ?? 0,
+          purchaseTax: data.purchaseTax ?? undefined,
+          saleTax: data.saleTax ?? undefined,
+          profitPercent: data.profitSupply ?? undefined,
+          isActive: true,
+        },
+
+        userId,
+      );
+    }
 
     return result[0];
   }

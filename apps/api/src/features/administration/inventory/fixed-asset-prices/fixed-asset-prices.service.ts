@@ -1,11 +1,6 @@
 import { fixedAssetsPrices } from '@/database/schema/administration';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -21,32 +16,91 @@ export class FixedAssetPricesService {
     private readonly settingsSystemService: SettingsSystemService,
   ) {}
 
-  async calculateFinalCost(
-    supplierCost: number, // price cost
+  // --- Funciones Auxiliares ---
+
+  private havePricesChanged(
+    current: typeof schema.fixedAssetsPrices.$inferSelect,
+    newPrice: CreateFixedAssetPriceDto,
+  ): boolean {
+    // Convierte a Number para una comparación fiable
+    return (
+      Number(current.baseCost ?? 0) !== newPrice.baseCost ||
+      Number(current.otherCosts ?? 0) !== (newPrice.otherCosts ?? 0) ||
+      Number(current.purchaseTax ?? 0) !== (newPrice.purchaseTax ?? 0)
+    );
+  }
+
+  private formatDate(date: string | Date | undefined): string | undefined {
+    if (!date) return undefined;
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toISOString();
+  }
+
+  private async calculateFinalCost(
+    baseCost: number, // base cost
     otherCosts: number, // other costs
     purchaseTax?: number, //impuesto en porcentaje factura
   ) {
-    let calculatedCostTixed = 0;
-    let costFinal = 0;
     const [taxRate] = await Promise.all([
       this.settingsSystemService.findKey('IVA-COMPRA'),
     ]);
-    const calculatedCost = supplierCost + otherCosts; // Ejemplo de cálculo
-    if (purchaseTax === 0) {
-      costFinal = calculatedCost;
-    } else if (Number(taxRate.value) !== purchaseTax) {
-      // Calculate the cost including supplier cost and other costs
-      calculatedCostTixed = calculatedCost * (1 + (purchaseTax ?? 0) / 100);
-      costFinal = calculatedCostTixed + calculatedCost;
-    } else {
-      calculatedCostTixed =
-        calculatedCost * (1 + (Number(taxRate.value) ?? 0) / 100);
-      costFinal = calculatedCostTixed + calculatedCost;
-    }
+    const calculatedCost = baseCost + otherCosts; // Ejemplo de cálculo
+
+    const taxPercentage =
+      calculatedCost * ((purchaseTax ?? Number(taxRate.value)) / 100);
+    const finalCost = calculatedCost + taxPercentage;
 
     return {
-      costFinal,
+      finalCost,
       taxRate: Number(taxRate.value),
+    };
+  }
+
+  private async handlePriceChange(
+    current: typeof schema.fixedAssetsPrices.$inferSelect,
+    userId: number,
+    data: CreateFixedAssetPriceDto,
+    db: NodePgDatabase<typeof schema>,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    // Desactiva el precio anterior
+    const lastPrice = await this.findLastActivePriceByFixedAssetId(
+      current.id,
+      tx,
+    );
+    if (lastPrice) {
+      await this.deactivatePrice(lastPrice.id, tx);
+    }
+    // Crea el nuevo precio
+    return this.insertNewPrice(data, userId, db);
+  }
+
+  private async insertNewPrice(
+    data: CreateFixedAssetPriceDto,
+    userId: number,
+    db: NodePgDatabase<typeof schema>,
+  ) {
+    // Asumiendo que 'calculateFinalCost' es un método del servicio
+    const { finalCost, taxRate } = await this.calculateFinalCost(
+      data.baseCost ?? 0,
+      data.otherCosts,
+      data.purchaseTax ?? 0,
+    );
+
+    const result = await db.insert(schema.fixedAssetsPrices).values({
+      ...data,
+      baseCost: String(data.baseCost ?? 0),
+      otherCosts: String(data.otherCosts ?? 0),
+      purchaseTax: String(data.purchaseTax ?? taxRate),
+      totalCost: String(finalCost),
+      createdById: userId,
+      startDate: this.formatDate(data.startDate),
+      endDate: this.formatDate(data.endDate),
+    });
+
+    return {
+      message: 'Fixed asset price created/updated successfully',
+      data: result[0],
     };
   }
 
@@ -57,50 +111,25 @@ export class FixedAssetPricesService {
   ) {
     const db = tx ?? this.drizzle;
 
-    const exist = await db
+    const existingPrice = await db
       .select()
-      .from(fixedAssetsPrices)
-      .where(
-        and(
-          eq(fixedAssetsPrices.fixedAssetsId, data.fixedAssetsId),
-          eq(fixedAssetsPrices.baseCost, String(data.baseCost)),
-          eq(fixedAssetsPrices.otherCosts, String(data.otherCosts)),
-          eq(fixedAssetsPrices.purchaseTax, String(data.purchaseTax)),
-        ),
-      );
+      .from(schema.fixedAssetsPrices)
+      .where(eq(schema.fixedAssetsPrices.fixedAssetsId, data.fixedAssetsId))
+      .limit(1);
 
-    if (exist.length !== 0) {
-      throw new BadRequestException(
-        'Price with this fixed asset and base cost already exists',
-      );
+    // Flujo principal: simple y directo
+    if (existingPrice.length > 0) {
+      if (this.havePricesChanged(existingPrice[0], data)) {
+        return this.handlePriceChange(existingPrice[0], userId, data, db, tx);
+      } else {
+        return {
+          message: 'No se detectaron cambios, precio del activo no actualizado',
+          data: existingPrice[0],
+        };
+      }
+    } else {
+      return this.insertNewPrice(data, userId, db);
     }
-
-    const { costFinal, taxRate } = await this.calculateFinalCost(
-      data.baseCost ?? 0,
-      data.otherCosts,
-      data.purchaseTax ?? 0,
-    );
-
-    const result = await db.insert(fixedAssetsPrices).values({
-      fixedAssetsId: data.fixedAssetsId,
-      suppliersId: data.suppliersId,
-      baseCost: String(data.baseCost),
-      otherCosts: String(data.otherCosts),
-      purchaseTax: String(data.purchaseTax) ?? String(taxRate),
-      totalCost: String(costFinal),
-      createdById: userId,
-      startDate: data.startDate
-        ? data.startDate instanceof Date
-          ? data.startDate.toISOString()
-          : new Date(data.startDate).toISOString()
-        : undefined,
-      endDate: data.endDate ? data.endDate.toISOString() : undefined,
-    });
-
-    return {
-      message: 'Fixed asset price created successfully',
-      data: result[0],
-    };
   }
 
   async findAll(paginationDto: FilterFixedAssetPriceDto) {
@@ -229,7 +258,7 @@ export class FixedAssetPricesService {
       throw new NotFoundException('Fixed asset price not found');
     }
 
-    const { costFinal, taxRate } = await this.calculateFinalCost(
+    const { finalCost, taxRate } = await this.calculateFinalCost(
       data.baseCost ?? 0,
       data.otherCosts ?? 0,
       data.purchaseTax ?? 0,
@@ -239,15 +268,10 @@ export class FixedAssetPricesService {
       .update(fixedAssetsPrices)
       .set({
         ...data,
-        baseCost:
-          data.baseCost !== undefined ? String(data.baseCost) : undefined,
-        otherCosts:
-          data.otherCosts !== undefined ? String(data.otherCosts) : undefined,
-        purchaseTax:
-          data.purchaseTax !== undefined
-            ? String(data.purchaseTax)
-            : String(taxRate),
-        totalCost: String(costFinal),
+        baseCost: String(data.baseCost ?? 0),
+        otherCosts: String(data.otherCosts ?? 0),
+        purchaseTax: String(data.purchaseTax) ?? String(taxRate),
+        totalCost: String(finalCost),
         startDate: data.startDate ? data.startDate.toISOString() : undefined,
         endDate: data.endDate ? data.endDate.toISOString() : undefined,
         updatedById: userId,

@@ -205,15 +205,8 @@ export class ServicesService {
     const existService = await this.drizzle
       .select({
         id: services.id,
-        baseCost: schema.servicePrices.baseCost,
-        otherCosts: schema.servicePrices.otherCosts,
-        purchaseTax: schema.servicePrices.purchaseTax,
       })
       .from(services)
-      .leftJoin(
-        schema.servicePrices,
-        eq(schema.servicePrices.serviceId, services.id),
-      )
       .where(eq(services.id, id));
 
     if (existService.length === 0) {
@@ -243,39 +236,21 @@ export class ServicesService {
           status: services.status,
         });
 
-      if (
-        (typeof data.supplierCost === 'number' &&
-          Number(existService[0].baseCost ?? 0) !== data.supplierCost) ||
-        (typeof data.otherCosts === 'number' &&
-          Number(existService[0].otherCosts ?? 0) !== data.otherCosts) ||
-        (typeof data.purchaseTax === 'number' &&
-          Number(existService[0].purchaseTax ?? 0) !== data.purchaseTax)
-      ) {
-        const lastPrice =
-          await this.servicePricesService.findLastActivePriceByServiceId(
-            id,
-            tx,
-          );
-        if (lastPrice) {
-          await this.servicePricesService.deactivatePrice(lastPrice.id, tx);
-        }
+      if (data.supplierCost !== 0) {
+        // Calculate final price based on settings
 
-        if (data.supplierCost !== 0) {
-          // Calculate final price based on settings
-
-          await this.servicePricesService.create(
-            userId,
-            {
-              serviceId: id,
-              baseCost: data.supplierCost ?? 0,
-              otherCosts: data.otherCosts ?? 0,
-              purchaseTax: Number(data.purchaseTax ?? 0),
-              startDate: new Date(),
-              isActive: true,
-            },
-            tx,
-          );
-        }
+        await this.servicePricesService.create(
+          userId,
+          {
+            serviceId: id,
+            baseCost: data.supplierCost ?? 0,
+            otherCosts: data.otherCosts ?? 0,
+            purchaseTax: Number(data.purchaseTax ?? 0),
+            startDate: new Date(),
+            isActive: true,
+          },
+          tx,
+        );
       }
       return result;
     });

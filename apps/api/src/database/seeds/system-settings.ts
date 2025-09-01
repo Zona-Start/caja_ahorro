@@ -18,40 +18,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'correlativo_prestamo',
-        value: '00001',
-        description: 'CORRELATIVO PRESTAMO',
-        group: 'DOCUMENTS',
-        createdById: 1,
-        updatedById: 1,
-      })
-      .onConflictDoNothing();
-    await db
-      .insert(systemSettings)
-      .values({
-        key: 'correlativo_credito',
-        value: '00001',
-        description: 'CORRELATIVO CREDITO',
-        group: 'DOCUMENTS',
-        createdById: 1,
-        updatedById: 1,
-      })
-      .onConflictDoNothing();
-    await db
-      .insert(systemSettings)
-      .values({
-        key: 'retiro_haberes',
-        value: '00001',
-        description: 'CORRELATIVO RETIRO HABERES',
-        group: 'DOCUMENTS',
-        createdById: 1,
-        updatedById: 1,
-      })
-      .onConflictDoNothing();
-    await db
-      .insert(systemSettings)
-      .values({
-        key: 'moneda',
+        key: 'MONEDA',
         value: '1',
         description: 'MONEDA SISTEMA',
         group: 'GENERAL',
@@ -121,7 +88,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'SOC',
         value: '0',
         description: 'Último consecutivo referencia Asociado 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -133,7 +100,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'PRD',
         value: '0',
         description: 'Último consecutivo SKU Producto 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -145,7 +112,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'SRV',
         value: '0',
         description: 'Último consecutivo código servicio 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -157,7 +124,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'ACT',
         value: '0',
         description: 'Último consecutivo código activo 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -169,7 +136,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'PROV',
         value: '0',
         description: 'Último consecutivo código proveedor 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -181,7 +148,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'RH-ABO-2025',
         value: '0',
         description: 'Último consecutivo Abono Movimiento Haberes 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -192,7 +159,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'RH-RET-2025',
         value: '0',
         description: 'Último consecutivo Retiro Movimiento Haberes 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -204,7 +171,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'RH-LIQ-2025',
         value: '0',
         description: 'Último consecutivo Liquidación Movimiento Haberes 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -216,7 +183,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'PRE-2025',
         value: '0',
         description: 'Último consecutivo Prestamo 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -228,7 +195,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'PRE-PAG-2025',
         value: '0',
         description: 'Último consecutivo Pago de Prestamo 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -240,7 +207,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'CRE-2025',
         value: '0',
         description: 'Último consecutivo Credito 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -252,7 +219,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'CRE-PAG-2025',
         value: '0',
         description: 'Último consecutivo Pago Credito 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -264,7 +231,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'INV-ENT-2025',
         value: '0',
         description: 'Último consecutivo Inventario Entrada 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -276,7 +243,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'INV-SAL-2025',
         value: '0',
         description: 'Último consecutivo Inventario Salida 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -288,7 +255,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'INV-AJU-2025',
         value: '0',
         description: 'Último consecutivo Inventario Ajuste 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -300,7 +267,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'ORD-2025',
         value: '0',
         description: 'Último consecutivo OC 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -312,7 +279,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'FAC-P-2025',
         value: '0',
         description: 'Último consecutivo Recepción Factura 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -323,7 +290,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'CXP-2025',
         value: '0',
         description: 'Último consecutivo Cuenta por Pagar 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -334,7 +301,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'PAG-P-2025',
         value: '0',
         description: 'Último consecutivo Pago a Proveedor 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })
@@ -345,7 +312,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'MB-2025',
         value: '0',
         description: 'Último consecutivo Movimiento Bancario 2025',
-        group: 'GENERAL',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })

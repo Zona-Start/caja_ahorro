@@ -32,8 +32,8 @@ export class CreateFixedAssetPriceDto {
 
   @ApiProperty({ description: 'Purchase Tax' })
   @IsNumber({ maxDecimalPlaces: 6 })
-  @IsNotEmpty()
-  purchaseTax: number;
+  @IsOptional()
+  purchaseTax?: number;
 
   @ApiPropertyOptional({ description: 'Start date' })
   @IsDate()
