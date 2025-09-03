@@ -9,6 +9,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
+import { CreateAdvancePaymentDto } from './dto/create-advance-payment.dto';
 import { UpdateSupplierPaymentDto } from './dto/update-supplier-payment.dto';
 import { SupplierPaymentsService } from './supplier-payments.service';
 
@@ -17,6 +18,18 @@ export class SupplierPaymentsController {
   constructor(
     private readonly supplierPaymentsService: SupplierPaymentsService,
   ) {}
+
+  @Post('advance')
+  createAdvancePayment(
+    @Req() req: Request,
+    @Body() createAdvancePaymentDto: CreateAdvancePaymentDto,
+  ) {
+    const userId = req['user'].id;
+    return this.supplierPaymentsService.createAdvancePayment(
+      createAdvancePaymentDto,
+      userId,
+    );
+  }
 
   @Post('pay')
   createAndExecutePayment(

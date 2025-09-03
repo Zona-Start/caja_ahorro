@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const accountPayableApiSchema = z.object({
   id: z.number(),
   accountsPayableNumber: z.string(),
-  supplierInvoiceId: z.number(),
+  supplierInvoiceId: z.number().nullable(),
   originalAmount: z.string(),
   paidAmount: z.string(),
   remainingAmount: z.string(),
@@ -11,8 +11,9 @@ export const accountPayableApiSchema = z.object({
   observations: z.string().optional().nullable(),
   supplierInvoice: z
     .object({
-      invoiceNumber: z.string(),
-      supplierName: z.string(),
+      invoiceNumber: z.string().nullable(),
+      supplierName: z.string().nullable(),
+      supplierId: z.number().nullable(),
     })
     .optional()
     .nullable(),

@@ -271,9 +271,9 @@ export class SupplierInvoicesService {
     await this.handlePaymentAndAccountsPayable(userId, invoiceId, dto, tx);
 
     // 4. Check if PO can be closed after payment
-    // if (dto.purchaseOrderId) {
-    //   await this.checkAndClosePurchaseOrder(dto.purchaseOrderId, tx);
-    // }
+    if (dto.purchaseOrderId) {
+      await this.checkAndClosePurchaseOrder(dto.purchaseOrderId, tx);
+    }
 
     // 5. Process Invoice Items for Inventory and Pricing
     const invoiceItems = await tx
@@ -666,6 +666,35 @@ export class SupplierInvoicesService {
   //   }
   // }
 
+  private async checkAndClosePurchaseOrder(
+    purchaseOrderId: number,
+    tx: NodePgDatabase<typeof schema>,
+  ) {
+    const po = await tx.query.purchaseOrders.findFirst({
+      where: eq(purchaseOrders.id, purchaseOrderId),
+    });
+
+    if (po?.status !== 'INVOICED') {
+      return;
+    }
+
+    const relatedInvoices = await tx
+      .select()
+      .from(supplierInvoices)
+      .where(eq(supplierInvoices.purchaseOrderId, purchaseOrderId));
+
+    const allPaid = relatedInvoices.every(
+      (invoice) => invoice.status === 'PAID',
+    );
+
+    if (allPaid) {
+      await tx
+        .update(purchaseOrders)
+        .set({ status: 'CLOSED' })
+        .where(eq(purchaseOrders.id, purchaseOrderId));
+    }
+  }
+
   private async updateInvoiceAndItems(
     invoiceId: number,
     userId: number,
@@ -961,8 +990,9 @@ export class SupplierInvoicesService {
     return data;
   }
 
-  async updateStatusToPaid(id: number) {
-    const supplierInvoice = await this.drizzle
+  async updateStatusToPaid(id: number, tx?: NodePgDatabase<typeof schema>) {
+    const db = tx ?? this.drizzle;
+    const supplierInvoice = await db
       .select()
       .from(supplierInvoices)
       .where(eq(schema.supplierInvoices.id, id));
@@ -978,14 +1008,15 @@ export class SupplierInvoicesService {
       );
     }
 
-    const [updatedSupplierinvoice] = await this.drizzle
+    const [updatedSupplierinvoice] = await db
       .update(schema.supplierInvoices)
       .set({ status: 'PAID' })
       .where(eq(schema.supplierInvoices.id, id))
       .returning();
     if (supplierInvoice[0].purchaseOrderId) {
-      await this.purchaseOrdersService.updateStatusToClosed(
+      await this.checkAndClosePurchaseOrder(
         supplierInvoice[0].purchaseOrderId,
+        db,
       );
     }
 

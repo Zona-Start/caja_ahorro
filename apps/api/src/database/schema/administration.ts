@@ -200,8 +200,10 @@ export const accountsPayable = administrationSchema.table(
   'accounts_payable',
   {
     id: serial('id').primaryKey(),
+    supplierId: integer('supplier_id').references(() => suppliers.id, {
+      onDelete: 'cascade',
+    }),
     supplierInvoiceId: integer('supplier_invoice_id')
-      .notNull()
       .unique()
       .references(() => supplierInvoices.id, { onDelete: 'cascade' }),
     accountsPayableNumber: varchar('ap_number', { length: 50 })

@@ -1,14 +1,14 @@
 'use client';
 
 import { SelectSearchable } from '@repo/shadcn/components/ui/select-searchable';
-import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
+import { DataTableFilterBox } from '@repo/shadcn/components/ui/table/data-table-filter-box';
+import { DataTableSearch } from '@repo/shadcn/components/ui/table/data-table-search';
 
 import { Button } from '@repo/shadcn/components/ui/button';
 import { CreditCard } from 'lucide-react';
 import { useState } from 'react';
 import { useSupplierAll } from '../../../suppliers/hooks/use-query-suppliers';
-import { AccountPayableModal } from '../account-payable-modal';
+import { AdvancePaymentModal } from '../advance-payment-modal';
 import {
   ACCOUNT_PAYABLE_STATUS_OPTIONS,
   useAccountPayableFilters,
@@ -25,7 +25,7 @@ export default function AccountPayableTableAction() {
     setSupplierIdFilter,
   } = useAccountPayableFilters();
 
-  const [open, setOpen] = useState(false);
+  const [openAdvanceModal, setOpenAdvanceModal] = useState(false);
   const { data: suppliers } = useSupplierAll();
 
   return (
@@ -63,12 +63,12 @@ export default function AccountPayableTableAction() {
         </div>
       </div>
       <div className="flex gap-2">
-        <Button onClick={() => setOpen(true)} size="sm">
+        <Button onClick={() => setOpenAdvanceModal(true)} size="sm">
           <CreditCard className="h-4 w-4" /> Anticipo
         </Button>
       </div>
 
-      <AccountPayableModal open={open} onOpenChange={setOpen} />
+      <AdvancePaymentModal open={openAdvanceModal} onOpenChange={setOpenAdvanceModal} />
     </div>
   );
 }

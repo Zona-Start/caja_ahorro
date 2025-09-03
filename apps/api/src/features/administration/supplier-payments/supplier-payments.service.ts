@@ -3,6 +3,7 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   CurrencyCodeEnum,
+  paymentAccountsPayableEnum,
   paymentMethodEnum,
   supplierTransactionsTypeEnum,
 } from '@/types/enum';
@@ -16,6 +17,8 @@ import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
+import { SupplierInvoicesService } from '../supplier-invoices/supplier-invoices.service';
+import { CreateAdvancePaymentDto } from './dto/create-advance-payment.dto';
 import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
 import { UpdateSupplierPaymentDto } from './dto/update-supplier-payment.dto';
 
@@ -26,6 +29,7 @@ export class SupplierPaymentsService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly accountsPayableService: AccountsPayableService,
     private readonly generateCodeService: GenerateCodeService,
+    private readonly supplierInvoicesService: SupplierInvoicesService,
   ) {}
 
   async createDraft(
@@ -247,17 +251,31 @@ export class SupplierPaymentsService {
       );
 
       // 2. Crear supplierTransactions (una por línea)
-      const transactions = payment.lines?.map((line) => ({
-        accountsPayableId: line.accountsPayableId,
-        transactionNumber: payment.paymentNumber,
-        transactionType: 'PAYMENT' as supplierTransactionsTypeEnum,
-        transactionDate: new Date().toISOString(),
-        amount: line.amount,
-        direction: 'CR' as 'CR' | 'DR', // CR = pago/abono
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        paymentMethod: payment.paymentMethod,
-        bankMovementId: movementBank.id,
-      }));
+      const transactions = await Promise.all(
+        payment.lines?.map(async (line) => {
+          const accountsPayable = await db.query.accountsPayable.findFirst({
+            where: eq(
+              schema.accountsPayable.id,
+              line.accountsPayableId as number,
+            ),
+          });
+
+          const transactionType =
+            accountsPayable?.status === 'ADVANCE' ? 'ADVANCE' : 'PAYMENT';
+
+          return {
+            accountsPayableId: line.accountsPayableId,
+            transactionNumber: payment.paymentNumber,
+            transactionType: transactionType as supplierTransactionsTypeEnum,
+            transactionDate: new Date().toISOString(),
+            amount: line.amount,
+            direction: 'CR' as 'CR' | 'DR', // CR = pago/abono
+            currencyCode: 'VES' as CurrencyCodeEnum,
+            paymentMethod: payment.paymentMethod,
+            bankMovementId: movementBank.id,
+          };
+        }),
+      );
 
       await tx.insert(schema.supplierTransactions).values(transactions);
 
@@ -269,9 +287,27 @@ export class SupplierPaymentsService {
       });
 
       // 3. Actualizar saldos de CxP (placeholder)
-      await this.accountsPayableService.updateBalances(dataPayment, userId, tx);
+      const updateAccountPayable =
+        await this.accountsPayableService.updateBalances(
+          dataPayment,
+          userId,
+          tx,
+        );
 
-      // Llama al servicio SOLO cuando el saldo restante es 0
+      // Verifica si updateAccountPayable existe y no es 'undefined' antes de usarlo.
+      if (updateAccountPayable) {
+        for (const [id, newValues] of updateAccountPayable) {
+          // Llama al servicio SOLO cuando el saldo restante es 0
+          if (newValues.status !== 'ADVANCE') {
+            if (newValues.newRemainingAmount === 0) {
+              this.supplierInvoicesService.updateStatusToPaid(
+                newValues.invoiceId,
+                tx,
+              );
+            }
+          }
+        }
+      }
 
       // 4. Pasa orden a PROCESSED
       const [processedPayment] = await tx
@@ -341,6 +377,72 @@ export class SupplierPaymentsService {
       const validatedPayment = await this.validate(newPayment.id, userId, tx);
 
       // 3. Ejecutar el pago
+      const executedPayment = await this.execute(
+        Number(validatedPayment[0].id),
+        userId,
+        tx,
+      );
+
+      return executedPayment;
+    });
+  }
+
+  async createAdvancePayment(dto: CreateAdvancePaymentDto, userId: number) {
+    return this.db.transaction(async (tx) => {
+      // 1. Crear la cuenta por pagar con saldo negativo y estado ADVANCE
+      const accountsPayableNumber =
+        await this.generateCodeService.generateNextReference('CXP', tx);
+      const [newAccountPayable] = await tx
+        .insert(schema.accountsPayable)
+        .values({
+          supplierId: dto.supplierId,
+          accountsPayableNumber: accountsPayableNumber,
+          originalAmount: (dto.amount * -1).toString(), // Saldo negativo
+          paidAmount: '0.00',
+          remainingAmount: (dto.amount * -1).toString(), // Saldo negativo
+          currencyCode: 'VES',
+          status: paymentAccountsPayableEnum.ADVANCE,
+          observations:
+            dto.observations ?? `ANTICIPO A PROVEEDOR ${accountsPayableNumber}`,
+          createdById: userId,
+          dueDate: new Date().toISOString(), // Fecha actual para anticipos
+        })
+        .returning();
+
+      // 2. Crear el pago asociado a este anticipo
+      const paymentNumber =
+        await this.generateCodeService.generateNextReference('PAG-P', tx);
+      const [newPayment] = await tx
+        .insert(schema.supplierPayments)
+        .values({
+          supplierId: dto.supplierId,
+          paymentNumber: paymentNumber,
+          totalAmount: dto.amount.toString(),
+          currencyCode: 'VES',
+          paymentMethod: dto.paymentMethod as paymentMethodEnum,
+          bankAccountId: dto.bankAccountId,
+          status: 'DRAFT',
+          requestedAt: new Date().toISOString(),
+          createdById: userId,
+          bankDescription: dto.bankDescription,
+          bankReference: dto.bankReference,
+          bankTransactionDate: dto.bankTransactionDate.toISOString(),
+          observations:
+            dto.observations ?? `ANTICIPO A PROVEEDOR ${paymentNumber}`,
+        })
+        .returning();
+
+      // 3. Crear la línea de pago vinculada a la cuenta por pagar de anticipo
+      await tx.insert(schema.supplierPaymentLines).values({
+        supplierPaymentId: newPayment.id,
+        accountsPayableId: newAccountPayable.id,
+        amount: dto.amount.toString(),
+        description: `ANTICIPO A PROVEEDOR ${newAccountPayable.accountsPayableNumber}`,
+        createdById: userId,
+      });
+
+      // 4. Validar y ejecutar el pago del anticipo
+      const validatedPayment = await this.validate(newPayment.id, userId, tx);
       const executedPayment = await this.execute(
         Number(validatedPayment[0].id),
         userId,

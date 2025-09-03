@@ -155,15 +155,15 @@ export const getAccountPayableReportAction = async (id: number) => {
 };
 
 import { supplierPaymentMutationResponseSchema } from '../../supplier-payments/schemas';
+import { AdvancePayment } from '../schemas/advance-payment.schema';
 import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
-
 import { preloadedPaymentResponseSchema } from '../schemas/preloaded-payment.schema';
 
 export const getPreloadedPaymentAction = async (id: number) => {
   const [error, response] = await safeFetchApi(
     preloadedPaymentResponseSchema,
     `/administration/accounts-payable/${id}/preloaded-payment`,
-    'GET'
+    'GET',
   );
 
   if (error) {
@@ -202,6 +202,32 @@ export const payAccountPayableAction = async (payload: PayAccountPayable) => {
   if (error) {
     console.error('Error:', error);
     throw new Error(error.message || 'Error processing payment');
+  }
+
+  return data;
+};
+
+export const createAdvancePaymentAction = async (payload: AdvancePayment) => {
+  const advancePaymentDto = {
+    supplierId: payload.supplierId,
+    amount: payload.amount,
+    paymentMethod: payload.paymentMethod,
+    bankAccountId: payload.bankAccountId,
+    bankReference: payload.bankReference,
+    bankDescription: payload.paymentDescription,
+    bankTransactionDate: payload.transactionDate,
+  };
+
+  const [error, data] = await safeFetchApi(
+    supplierPaymentMutationResponseSchema,
+    '/administration/supplier-payments/advance',
+    'POST',
+    advancePaymentDto,
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error creating advance payment');
   }
 
   return data;

@@ -3,10 +3,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  createAdvancePaymentAction,
   deleteAccountPayableAction,
+  payAccountPayableAction,
   saveAccountPayableAction,
 } from '../actions/account-payable-actions';
 import { AccountPayable } from '../schemas/account-payable.schema';
+import { AdvancePayment } from '../schemas/advance-payment.schema';
+import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
 
 export function useAccountPayableMutation() {
   const queryClient = useQueryClient();
@@ -34,9 +38,6 @@ export function useAccountPayableMutation() {
   return mutation;
 }
 
-import { payAccountPayableAction } from '../actions/account-payable-actions';
-import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
-
 export function usePayAccountPayableMutation() {
   const queryClient = useQueryClient();
 
@@ -48,6 +49,21 @@ export function usePayAccountPayableMutation() {
     },
     onError: (error) => {
       toast.error(error.message || 'Error al procesar el pago');
+    },
+  });
+}
+
+export function useAdvancePaymentMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: AdvancePayment) => createAdvancePaymentAction(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      toast.success('Anticipo registrado exitosamente');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Error al registrar el anticipo');
     },
   });
 }

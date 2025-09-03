@@ -1,0 +1,3 @@
+ALTER TABLE "administration"."accounts_payable" ALTER COLUMN "supplier_invoice_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "administration"."accounts_payable" ADD COLUMN "supplier_id" integer;--> statement-breakpoint
+ALTER TABLE "administration"."accounts_payable" ADD CONSTRAINT "accounts_payable_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE cascade ON UPDATE no action;

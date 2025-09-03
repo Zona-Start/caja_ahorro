@@ -10,7 +10,6 @@ import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { PurchaseOrdersService } from '../purchase-orders/purchase-orders.service';
 import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
 import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
@@ -20,7 +19,6 @@ export class AccountsPayableService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
-    private readonly purchaseOrdersService: PurchaseOrdersService,
   ) {}
 
   async create(
@@ -111,6 +109,7 @@ export class AccountsPayableService {
         createdAt: schema.accountsPayable.createdAt,
         supplierInvoice: {
           invoiceNumber: schema.supplierInvoices.invoiceNumber,
+          supplierId: schema.suppliers.id,
           supplierName: schema.suppliers.name,
         },
       })
@@ -307,6 +306,7 @@ export class AccountsPayableService {
         remainingAmount: accountsPayable.remainingAmount,
         paidAmount: accountsPayable.paidAmount,
         supplierInvoiceId: accountsPayable.supplierInvoiceId, // <-- Asegúrate de que este campo exista
+        status: accountsPayable.status,
       })
       .from(accountsPayable)
       .where(
@@ -323,18 +323,26 @@ export class AccountsPayableService {
     const accountsMap = new Map(accountsToUpdate.map((ap) => [ap.id, ap]));
     const updates = new Map<
       number,
-      { newPaidAmount: number; newRemainingAmount: number; invoiceId: number }
+      {
+        newPaidAmount: number;
+        newRemainingAmount: number;
+        invoiceId: number;
+        status: string;
+      }
     >();
 
     for (const item of data) {
       const account = accountsMap.get(item.accountsPayableId as number);
+      console.log('data', data);
+      console.log('account', account);
 
-      if (account) {
+      if (account && account.status !== 'ADVANCE') {
         const currentPaid = Number(account.paidAmount) || 0;
         const currentRemaining = Number(account.remainingAmount) || 0;
         const paymentAmount = Number(item.amount);
         const newPaidAmount = currentPaid + paymentAmount;
         const newRemainingAmount = currentRemaining - paymentAmount;
+        console.log('newRemainingAmount', newRemainingAmount);
 
         if (newRemainingAmount < 0) {
           throw new BadRequestException(
@@ -345,41 +353,26 @@ export class AccountsPayableService {
         updates.set(item.accountsPayableId as number, {
           newPaidAmount,
           newRemainingAmount,
-          invoiceId: account.supplierInvoiceId,
+          invoiceId: account.supplierInvoiceId as number,
+          status: account.status,
         });
       }
     }
 
     // 5. Actualizar la base de datos y el estado de la factura
     for (const [id, newValues] of updates) {
-      await db
-        .update(accountsPayable)
-        .set({
-          paidAmount: String(newValues.newPaidAmount),
-          remainingAmount: String(newValues.newRemainingAmount),
-          updatedById: userId,
-          status: newValues.newRemainingAmount === 0 ? 'PAID' : 'IN_PROGRESS',
-        })
-        .where(eq(accountsPayable.id, id));
-
-      // Llama al servicio SOLO cuando el saldo restante es 0
-      if (newValues.newRemainingAmount === 0) {
+      // Solo actualiza si no es un anticipo o si el anticipo está siendo aplicado
+      // (aunque la lógica de aplicación de anticipos a facturas se manejaría en otro lugar)
+      if (newValues.status !== 'ADVANCE') {
         await db
-          .update(schema.supplierInvoices)
-          .set({ status: 'PAID' })
-          .where(eq(schema.supplierInvoices.id, newValues.invoiceId));
-
-        const ordeId = await db
-          .select({
-            purchaseOrderId: schema.supplierInvoices.purchaseOrderId,
+          .update(accountsPayable)
+          .set({
+            paidAmount: String(newValues.newPaidAmount),
+            remainingAmount: String(newValues.newRemainingAmount),
+            updatedById: userId,
+            status: newValues.newRemainingAmount === 0 ? 'PAID' : 'IN_PROGRESS',
           })
-          .from(schema.supplierInvoices)
-          .where(eq(schema.supplierInvoices.id, newValues.invoiceId));
-        if (ordeId[0].purchaseOrderId) {
-          await this.purchaseOrdersService.updateStatusToClosed(
-            ordeId[0].purchaseOrderId,
-          );
-        }
+          .where(eq(accountsPayable.id, id));
       }
     }
     return updates;
