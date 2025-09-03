@@ -1,16 +1,16 @@
 'use client';
 
-import { searchParams } from '@repo/shadcn/lib/searchparams';
 import { useQueryState } from 'nuqs';
 import { useCallback, useMemo } from 'react';
 import { ACCOUNT_PAYABLE_STATUS_TYPES } from '../../schemas/account-payable-options';
+import { searchParams } from '../../utils';
 
-export const ACCOUNT_PAYABLE_STATUS_OPTIONS = Object.entries(ACCOUNT_PAYABLE_STATUS_TYPES).map(
-  ([value, label]) => ({
-    value,
-    label,
-  }),
-);
+export const ACCOUNT_PAYABLE_STATUS_OPTIONS = Object.entries(
+  ACCOUNT_PAYABLE_STATUS_TYPES,
+).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 export function useAccountPayableFilters() {
   const [searchQuery, setSearchQuery] = useQueryState(
@@ -25,7 +25,12 @@ export function useAccountPayableFilters() {
 
   const [statusFilter, setStatusFilter] = useQueryState(
     'status',
-    searchParams.q.withOptions({ shallow: false }).withDefault(''),
+    searchParams.status.withOptions({ shallow: false }).withDefault(''),
+  );
+
+  const [supplierIdFilter, setSupplierIdFilter] = useQueryState(
+    'supplierId',
+    searchParams.supplierId.withOptions({ shallow: false }),
   );
 
   const [page, setPage] = useQueryState(
@@ -36,13 +41,14 @@ export function useAccountPayableFilters() {
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
     setStatusFilter(null);
+    setSupplierIdFilter(null);
 
     setPage(1);
-  }, [setSearchQuery, setStatusFilter, setPage]);
+  }, [setSearchQuery, setStatusFilter, setSupplierIdFilter, setPage]);
 
   const isAnyFilterActive = useMemo(() => {
-    return !!searchQuery || !!statusFilter;
-  }, [searchQuery, statusFilter]);
+    return !!searchQuery || !!statusFilter || !!supplierIdFilter;
+  }, [searchQuery, statusFilter, supplierIdFilter]);
 
   return {
     searchQuery,
@@ -53,5 +59,7 @@ export function useAccountPayableFilters() {
     isAnyFilterActive,
     statusFilter,
     setStatusFilter,
+    supplierIdFilter,
+    setSupplierIdFilter,
   };
 }

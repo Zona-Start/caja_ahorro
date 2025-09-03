@@ -1,14 +1,21 @@
-import { AccountPayable } from '../schemas/account-payable.schema';
+export function mapAccountPayableApiToForm(data: any) {
+  if (!data) {
+    return [];
+  }
 
-export function mapAccountPayableApiToForm(data: any): AccountPayable {
-  return {
-    id: data.id,
-    supplierInvoiceId: data.supplierInvoiceId,
-    originalAmount: data.originalAmount,
-    paidAmount: data.paidAmount,
-    remainingAmount: data.remainingAmount,
-    currencyCode: data.currencyCode,
-    status: data.status,
-    observations: data.observations,
-  };
+  return data.map((item: any) => {
+    return {
+      id: item.id,
+      accountsPayableNumber: item.accountsPayableNumber,
+      supplierInvoiceId: item.supplierInvoiceId,
+      originalAmount: Number(item.originalAmount),
+      paidAmount: Number(item.paidAmount),
+      remainingAmount: Number(item.remainingAmount),
+      status: item.status,
+      observations: item.observations,
+      supplierInvoice: item.supplierInvoice,
+      createdAt: item.createdAt.split('T')[0],
+      dueDate: item.dueDate,
+    };
+  });
 }

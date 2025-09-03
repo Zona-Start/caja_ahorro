@@ -2,6 +2,7 @@
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
   purchaseOrderAllResponseSchema,
+  purchaseOrderForInvoiceResponseSchema,
   purchaseOrderMutationResponseSchema,
   purchaseOrderResponseOneSchema,
 } from '../schemas/purchase-order-api.schema';
@@ -56,6 +57,33 @@ export const getPurchaseOrdersAction = async (params: {
       nextPage: null,
       previousPage: null,
     },
+  };
+};
+
+export const getPurchaseOrdersForInvoiceAction = async (params: {
+  supplierId: number;
+  status?: string[];
+}) => {
+  const searchParams = new URLSearchParams({
+    supplierId: params.supplierId.toString(),
+    ...(params.status && { status: params.status.join(',') }),
+  });
+
+  const [error, response] = await safeFetchApi(
+    purchaseOrderForInvoiceResponseSchema,
+    `/administration/purchase-orders/for-invoice?${searchParams}`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching purchase orders data');
+  }
+
+  const mappers = mapPurchaseOrderApiToForm(response?.data || []);
+
+  return {
+    data: mappers || [],
   };
 };
 

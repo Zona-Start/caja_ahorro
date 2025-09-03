@@ -1,16 +1,12 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
-  accountsPayable,
   purchaseOrderItems,
   purchaseOrders,
   supplierInvoiceItems,
   supplierInvoices,
-  supplierPaymentLines,
-  supplierPayments,
   suppliers,
 } from '@/database/schema/administration';
-import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
-import { paymentMethodEnum, priceTypeEnum } from '@/types/enum';
+import { priceTypeEnum } from '@/types/enum';
 import {
   BadRequestException,
   ConflictException,
@@ -18,7 +14,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
@@ -27,6 +23,7 @@ import { FixedAssetPricesService } from '../inventory/fixed-asset-prices/fixed-a
 import { InventoryMovementsService } from '../inventory/inventory-movements/inventory-movements.service';
 import { ProductPricesService } from '../inventory/product-prices/product-prices.service';
 import { ServicePricesService } from '../inventory/services-prices/services-prices.service';
+import { PurchaseOrdersService } from '../purchase-orders/purchase-orders.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { FilterSupplierInvoiceDto } from './dto/filter-supplier-invoice.dto';
 import { UpdateSupplierInvoiceDto } from './dto/update-supplier-invoice.dto';
@@ -35,13 +32,13 @@ import { UpdateSupplierInvoiceDto } from './dto/update-supplier-invoice.dto';
 export class SupplierInvoicesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
-    private readonly bankMovementsService: BankMovementsService,
     private readonly accountsPayableService: AccountsPayableService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly productPricesService: ProductPricesService,
     private readonly fixedAssetPricesService: FixedAssetPricesService,
     private readonly servicePricesService: ServicePricesService,
     private readonly inventoryMovementsService: InventoryMovementsService,
+    private readonly purchaseOrdersService: PurchaseOrdersService,
   ) {}
 
   async create(userId: number, dto: CreateSupplierInvoiceDto) {
@@ -86,8 +83,47 @@ export class SupplierInvoicesService {
         await tx.insert(supplierInvoiceItems).values(itemsToInsert as any);
       }
 
+      const [completeInvoice] = await tx
+        .select({
+          id: supplierInvoices.id,
+          supplierId: supplierInvoices.supplierId,
+          purchaseOrderId: supplierInvoices.purchaseOrderId,
+          invoiceNumber: supplierInvoices.invoiceNumber,
+          controlNumber: supplierInvoices.controlNumber,
+          invoiceDate: supplierInvoices.invoiceDate,
+          dueDate: supplierInvoices.dueDate,
+          subtotal: supplierInvoices.subtotal,
+          taxAmount: supplierInvoices.taxAmount,
+          totalAmount: supplierInvoices.totalAmount,
+          paymentType: supplierInvoices.paymentType,
+          status: supplierInvoices.status,
+          observations: supplierInvoices.observations,
+          chargePayment: supplierInvoices.chargePayment,
+          bankAccountId: supplierInvoices.bankAccountId,
+          transactionDate: supplierInvoices.transactionDate,
+          paymentDescription: supplierInvoices.paymentDescription,
+          paymentBankReference: supplierInvoices.paymentBankReference,
+          paymentMethod: supplierInvoices.paymentMethod,
+        })
+        .from(supplierInvoices)
+        .where(eq(supplierInvoices.id, newInvoice[0].id));
+
+      const items = await tx
+        .select({
+          id: supplierInvoiceItems.id,
+          lineType: supplierInvoiceItems.lineType,
+          description: supplierInvoiceItems.description,
+          quantity: supplierInvoiceItems.quantity,
+          unitCost: supplierInvoiceItems.unitCost,
+          totalLine: supplierInvoiceItems.totalLine,
+          itemId: supplierInvoiceItems.itemId,
+          expenseAccountId: supplierInvoiceItems.expenseAccountId,
+        })
+        .from(supplierInvoiceItems)
+        .where(eq(supplierInvoiceItems.invoiceId, newInvoice[0].id));
+
       return {
-        data: newInvoice[0],
+        data: { ...completeInvoice, items },
         message: 'Supplier invoice created successfully',
       };
     });
@@ -122,16 +158,52 @@ export class SupplierInvoicesService {
             .set({ status: 'PENDING', updatedById: userId })
             .where(eq(supplierInvoices.id, id));
         }
-        return tx.query.supplierInvoices.findFirst({
-          where: eq(supplierInvoices.id, id),
-        });
+
+        const updatedInvoice = await tx
+          .select({
+            id: supplierInvoices.id,
+            supplierId: supplierInvoices.supplierId,
+            purchaseOrderId: supplierInvoices.purchaseOrderId,
+            invoiceNumber: supplierInvoices.invoiceNumber,
+            controlNumber: supplierInvoices.controlNumber,
+            invoiceDate: supplierInvoices.invoiceDate,
+            dueDate: supplierInvoices.dueDate,
+            subtotal: supplierInvoices.subtotal,
+            taxAmount: supplierInvoices.taxAmount,
+            totalAmount: supplierInvoices.totalAmount,
+            paymentType: supplierInvoices.paymentType,
+            status: supplierInvoices.status,
+            observations: supplierInvoices.observations,
+            chargePayment: supplierInvoices.chargePayment,
+            bankAccountId: supplierInvoices.bankAccountId,
+            transactionDate: supplierInvoices.transactionDate,
+            paymentDescription: supplierInvoices.paymentDescription,
+            paymentBankReference: supplierInvoices.paymentBankReference,
+            paymentMethod: supplierInvoices.paymentMethod,
+          })
+          .from(supplierInvoices)
+          .where(eq(supplierInvoices.id, id));
+
+        const items = await tx
+          .select({
+            id: supplierInvoiceItems.id,
+            lineType: supplierInvoiceItems.lineType,
+            description: supplierInvoiceItems.description,
+            quantity: supplierInvoiceItems.quantity,
+            unitCost: supplierInvoiceItems.unitCost,
+            totalLine: supplierInvoiceItems.totalLine,
+            itemId: supplierInvoiceItems.itemId,
+            expenseAccountId: supplierInvoiceItems.expenseAccountId,
+          })
+          .from(supplierInvoiceItems)
+          .where(eq(supplierInvoiceItems.invoiceId, id));
+
+        return { ...updatedInvoice[0], items };
       }
 
       // --- Logic for PENDING invoices ---
       if (originalStatus === 'PENDING') {
         if (newStatus === 'ACCOUNTED_FOR') {
-          console.log('entre aqui a contabilizar');
-
           const fullDto = {
             ...existingInvoice,
             ...dto,
@@ -193,18 +265,15 @@ export class SupplierInvoicesService {
 
     // 2. Purchase Order Logic
     if (dto.purchaseOrderId) {
-      console.log('entre actualizar status orden');
-
       await this.updatePurchaseOrderStatus(dto.purchaseOrderId, invoiceId, tx);
     }
-
     // 3. Payment and Accounts Payable Logic
     await this.handlePaymentAndAccountsPayable(userId, invoiceId, dto, tx);
 
     // 4. Check if PO can be closed after payment
-    if (dto.purchaseOrderId) {
-      await this.checkAndClosePurchaseOrder(dto.purchaseOrderId, tx);
-    }
+    // if (dto.purchaseOrderId) {
+    //   await this.checkAndClosePurchaseOrder(dto.purchaseOrderId, tx);
+    // }
 
     // 5. Process Invoice Items for Inventory and Pricing
     const invoiceItems = await tx
@@ -230,6 +299,7 @@ export class SupplierInvoicesService {
           userId,
           tx,
         );
+
         // Generate inventory movement (income)
         await this.inventoryMovementsService.create(
           userId,
@@ -263,6 +333,7 @@ export class SupplierInvoicesService {
           },
           tx,
         );
+
         // Generate inventory movement (income)
         await this.inventoryMovementsService.create(
           userId,
@@ -276,7 +347,7 @@ export class SupplierInvoicesService {
                 itemId: item.itemId ?? 0,
                 itemType: 'FIXED_ASSET',
                 quantity: quantity,
-                unitCost: resultFixedAsset.data.totalCost,
+                unitCost: Number(resultFixedAsset.data.totalCost),
               },
             ],
           },
@@ -301,17 +372,55 @@ export class SupplierInvoicesService {
     }
 
     // 6. Finalize invoice status
-    const isPaidImmediately = dto.paymentType === 'CASH' && dto.chargePayment;
-    const finalStatus = isPaidImmediately ? 'PAID' : 'ACCOUNTED_FOR';
+    //const isPaidImmediately = dto.paymentType === 'CASH' && dto.chargePayment;
+    //const finalStatus = isPaidImmediately ? 'PAID' : 'ACCOUNTED_FOR';
+    const finalStatus = 'ACCOUNTED_FOR';
 
     await tx
       .update(supplierInvoices)
       .set({ status: finalStatus, updatedById: userId })
       .where(eq(supplierInvoices.id, invoiceId));
 
-    return tx.query.supplierInvoices.findFirst({
-      where: eq(supplierInvoices.id, invoiceId),
-    });
+    const finalInvoice = await tx
+      .select({
+        id: supplierInvoices.id,
+        supplierId: supplierInvoices.supplierId,
+        purchaseOrderId: supplierInvoices.purchaseOrderId,
+        invoiceNumber: supplierInvoices.invoiceNumber,
+        controlNumber: supplierInvoices.controlNumber,
+        invoiceDate: supplierInvoices.invoiceDate,
+        dueDate: supplierInvoices.dueDate,
+        subtotal: supplierInvoices.subtotal,
+        taxAmount: supplierInvoices.taxAmount,
+        totalAmount: supplierInvoices.totalAmount,
+        paymentType: supplierInvoices.paymentType,
+        status: supplierInvoices.status,
+        observations: supplierInvoices.observations,
+        chargePayment: supplierInvoices.chargePayment,
+        bankAccountId: supplierInvoices.bankAccountId,
+        transactionDate: supplierInvoices.transactionDate,
+        paymentDescription: supplierInvoices.paymentDescription,
+        paymentBankReference: supplierInvoices.paymentBankReference,
+        paymentMethod: supplierInvoices.paymentMethod,
+      })
+      .from(supplierInvoices)
+      .where(eq(supplierInvoices.id, invoiceId));
+
+    const items = await tx
+      .select({
+        id: supplierInvoiceItems.id,
+        lineType: supplierInvoiceItems.lineType,
+        description: supplierInvoiceItems.description,
+        quantity: supplierInvoiceItems.quantity,
+        unitCost: supplierInvoiceItems.unitCost,
+        totalLine: supplierInvoiceItems.totalLine,
+        itemId: supplierInvoiceItems.itemId,
+        expenseAccountId: supplierInvoiceItems.expenseAccountId,
+      })
+      .from(supplierInvoiceItems)
+      .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
+
+    return { ...finalInvoice[0], items };
   }
 
   private async updatePurchaseOrderStatus(
@@ -321,7 +430,13 @@ export class SupplierInvoicesService {
   ) {
     // 1. Obtener los ítems de la Orden de Compra (PO)
     const poItems = await tx
-      .select()
+      .select({
+        id: purchaseOrderItems.id,
+        itemId: purchaseOrderItems.itemId,
+        quantity: purchaseOrderItems.quantity,
+        lineType: purchaseOrderItems.lineType,
+        description: purchaseOrderItems.description,
+      })
       .from(purchaseOrderItems)
       .where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
 
@@ -335,8 +450,8 @@ export class SupplierInvoicesService {
         id: supplierInvoiceItems.id,
         itemId: supplierInvoiceItems.itemId,
         quantity: supplierInvoiceItems.quantity,
-        lineType: supplierInvoiceItems.lineType, // Incluir lineType en la selección
-        description: supplierInvoiceItems.description, // Incluir la descripción
+        lineType: supplierInvoiceItems.lineType,
+        description: supplierInvoiceItems.description,
       })
       .from(supplierInvoiceItems)
       .leftJoin(
@@ -357,8 +472,8 @@ export class SupplierInvoicesService {
         id: supplierInvoiceItems.id,
         itemId: supplierInvoiceItems.itemId,
         quantity: supplierInvoiceItems.quantity,
-        lineType: supplierInvoiceItems.lineType, // Incluir lineType
-        description: supplierInvoiceItems.description, // Incluir la descripción
+        lineType: supplierInvoiceItems.lineType,
+        description: supplierInvoiceItems.description,
       })
       .from(supplierInvoiceItems)
       .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
@@ -366,6 +481,7 @@ export class SupplierInvoicesService {
     // 4. Calcular la cantidad total facturada por ítem (usando clave compuesta)
     const totalInvoicedPerItem = new Map<string, number>();
 
+    // **Función para generar la clave única, con la validación mejorada**
     const getUniqueKey = (item: {
       itemId: number | null;
       lineType: string;
@@ -377,54 +493,36 @@ export class SupplierInvoicesService {
             'Expense item is missing a description.',
           );
         }
-        // Asegurarse de que la descripción se formatee de manera consistente
-        return `${item.description.trim()}-${item.lineType}`;
+        return `${item.lineType}-${item.description.trim()}`;
       }
-      if (item.itemId === null) {
-        throw new BadRequestException('Item is missing itemId.');
+
+      // Validación para tipos que requieren itemId
+      if (item.itemId === null || item.itemId === undefined) {
+        throw new BadRequestException(
+          `Item with lineType '${item.lineType}' is missing a valid itemId.`,
+        );
       }
-      return `${item.itemId}-${item.lineType}`;
+
+      return `${item.lineType}-${item.itemId}`;
     };
 
     // Sumar cantidades de facturas anteriores
     for (const item of invoicedItems) {
-      try {
-        const key = getUniqueKey(item);
-        console.log('invoicedItems', key);
-        const currentQty = totalInvoicedPerItem.get(key) || 0;
-        totalInvoicedPerItem.set(key, currentQty + item.quantity);
-        console.log('invoicedItemscurrentQty', currentQty);
-      } catch (e) {
-        // Log o manejar el error si la clave no se pudo generar
-        console.error(e);
-      }
+      const key = getUniqueKey(item);
+      const currentQty = totalInvoicedPerItem.get(key) || 0;
+      totalInvoicedPerItem.set(key, currentQty + item.quantity);
     }
 
     // Sumar cantidades de la factura actual
     for (const item of currentInvoiceItems) {
-      try {
-        const key = getUniqueKey(item);
-        console.log('currentInvoiceItems', key);
-        const currentQty = totalInvoicedPerItem.get(key) || 0;
-        totalInvoicedPerItem.set(key, currentQty + item.quantity);
-        console.log('currentInvoiceItemscurrentQty', currentQty);
-      } catch (e) {
-        // Log o manejar el error
-        console.error(e);
-      }
+      const key = getUniqueKey(item);
+      const currentQty = totalInvoicedPerItem.get(key) || 0;
+      totalInvoicedPerItem.set(key, currentQty + item.quantity);
     }
 
     // 5. Comparar las cantidades facturadas con las de la PO
     let isFullyInvoiced = true;
     for (const poItem of poItems) {
-      const lineType = poItem.lineType;
-
-      if (!lineType) {
-        throw new BadRequestException(
-          'Purchase order item lineType is missing.',
-        );
-      }
-
       const key = getUniqueKey({
         itemId: poItem.itemId,
         lineType: poItem.lineType,
@@ -444,6 +542,7 @@ export class SupplierInvoicesService {
 
     // 6. Actualizar el estado de la Orden de Compra
     const newStatus = isFullyInvoiced ? 'INVOICED' : 'RECEIVED';
+
     await tx
       .update(purchaseOrders)
       .set({ status: newStatus })
@@ -456,123 +555,116 @@ export class SupplierInvoicesService {
     dto: CreateSupplierInvoiceDto,
     tx: NodePgDatabase<typeof schema>,
   ) {
-    const isCredit = dto.paymentType === 'CREDIT';
-    const isCashNoPay = dto.paymentType === 'CASH' && !dto.chargePayment;
+    // const isCredit = dto.paymentType === 'CREDIT';
+    // const isCashNoPay = dto.paymentType === 'CASH' && !dto.chargePayment;
 
-    if (isCredit || isCashNoPay) {
-      await this.accountsPayableService.create(
-        userId,
-        {
-          supplierInvoiceId: invoiceId,
-          originalAmount: dto.totalAmount,
-          paidAmount: 0,
-          remainingAmount: dto.totalAmount,
-          currencyCode: 'VES',
-          status: 'PENDING',
-          dueDate: dto.dueDate || new Date(),
-          observations: `ACCOUNT PAYABLE FOR INVOICE ${dto.invoiceNumber}`,
-        },
-        tx,
-      );
-    } else if (dto.paymentType === 'CASH' && dto.chargePayment) {
-      if (!dto.bankAccountId) {
-        throw new BadRequestException(
-          'Bank account is required for immediate payment.',
-        );
-      }
-      const ap = await this.accountsPayableService.create(
-        userId,
-        {
-          supplierInvoiceId: invoiceId,
-          originalAmount: dto.totalAmount,
-          paidAmount: 0,
-          remainingAmount: dto.totalAmount,
-          currencyCode: 'VES',
-          status: 'PENDING',
-          dueDate: new Date(),
-        },
-        tx,
-      );
+    await this.accountsPayableService.create(
+      userId,
+      {
+        supplierInvoiceId: invoiceId,
+        originalAmount: dto.totalAmount,
+        paidAmount: 0,
+        remainingAmount: dto.totalAmount,
+        currencyCode: 'VES',
+        status: 'PENDING',
+        dueDate: dto.dueDate || new Date(),
+        observations: `CUENTA POR PAGAR POR FACTURA ${dto.invoiceNumber}`,
+      },
+      tx,
+    );
 
-      const payment = await tx
-        .insert(supplierPayments)
-        .values({
-          supplierId: dto.supplierId,
-          paymentNumber:
-            await this.generateCodeService.generateNextReference('PAG-P'),
-          totalAmount: dto.totalAmount.toString(),
-          currencyCode: 'VES',
-          paymentMethod: dto.paymentMethod,
-          bankAccountId: dto.bankAccountId,
-          status: 'PROCESSED',
-          requestedAt: new Date().toISOString(),
-          createdById: userId,
-          observations: dto.paymentDescription,
-        })
-        .returning();
+    // if (isCredit || isCashNoPay) {
+    //   await this.accountsPayableService.create(
+    //     userId,
+    //     {
+    //       supplierInvoiceId: invoiceId,
+    //       originalAmount: dto.totalAmount,
+    //       paidAmount: 0,
+    //       remainingAmount: dto.totalAmount,
+    //       currencyCode: 'VES',
+    //       status: 'PENDING',
+    //       dueDate: dto.dueDate || new Date(),
+    //       observations: `CUENTA POR PAGAR POR FACTURA ${dto.invoiceNumber}`,
+    //     },
+    //     tx,
+    //   );
+    // } else if (dto.paymentType === 'CASH' && dto.chargePayment) {
+    //   if (!dto.bankAccountId) {
+    //     throw new BadRequestException(
+    //       'Bank account is required for immediate payment.',
+    //     );
+    //   }
+    //   const ap = await this.accountsPayableService.create(
+    //     userId,
+    //     {
+    //       supplierInvoiceId: invoiceId,
+    //       originalAmount: dto.totalAmount,
+    //       paidAmount: 0,
+    //       remainingAmount: dto.totalAmount,
+    //       currencyCode: 'VES',
+    //       status: 'PENDING',
+    //       dueDate: new Date(),
+    //       observations: `PAGO REALIZADO POR FACTURA ${dto.invoiceNumber}`,
+    //     },
+    //     tx,
+    //   );
 
-      await tx.insert(supplierPaymentLines).values({
-        supplierPaymentId: payment[0].id,
-        accountsPayableId: ap.id,
-        amount: dto.totalAmount.toString(),
-        createdById: userId,
-      });
-
-      await tx
-        .update(accountsPayable)
-        .set({
-          paidAmount: dto.totalAmount.toString(),
-          remainingAmount: '0',
-          status: 'PAID',
-        })
-        .where(eq(accountsPayable.id, ap.id));
-
-      await this.bankMovementsService.create(
-        {
-          bankAccountId: Number(dto.bankAccountId),
-          transactionDate:
-            dto.transactionDate.toISOString() || new Date().toISOString(),
-          description:
-            dto.paymentDescription || `PAGO DE FACTURA ${dto.invoiceNumber}`,
-          debitAmount: Number(dto.totalAmount),
-          bankReference: dto.paymentBankReference,
-          transactionType: dto.paymentMethod as paymentMethodEnum,
-          createdById: userId,
-        },
-        undefined,
-        tx,
-      );
-    }
+    //   await this.supplierPaymentsService.createDraft(
+    //     {
+    //       supplierId: dto.supplierId,
+    //       totalAmount: dto.totalAmount,
+    //       paymentMethod: dto.paymentMethod,
+    //       currencyCode: 'VES',
+    //       bankAccountId: dto.bankAccountId,
+    //       bankReference: dto.paymentBankReference,
+    //       bankDescription:
+    //         dto.paymentDescription || `PAGO DE FACTURA ${dto.invoiceNumber}`,
+    //       bankTransactionDate: dto.transactionDate || new Date(),
+    //       observations: dto.paymentDescription,
+    //       lines: [
+    //         {
+    //           accountsPayableId: ap.id,
+    //           amount: dto.totalAmount,
+    //           description:
+    //             dto.paymentDescription ||
+    //             `PAGO DE FACTURA ${dto.invoiceNumber}`,
+    //         },
+    //       ],
+    //     },
+    //     userId,
+    //     tx,
+    //   );
+    // }
   }
 
-  private async checkAndClosePurchaseOrder(
-    purchaseOrderId: number,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const po = await tx.query.purchaseOrders.findFirst({
-      where: eq(purchaseOrders.id, purchaseOrderId),
-    });
+  // private async checkAndClosePurchaseOrder(
+  //   purchaseOrderId: number,
+  //   tx: NodePgDatabase<typeof schema>,
+  // ) {
+  //   const po = await tx.query.purchaseOrders.findFirst({
+  //     where: eq(purchaseOrders.id, purchaseOrderId),
+  //   });
 
-    if (po?.status !== 'INVOICED') {
-      return;
-    }
+  //   if (po?.status !== 'INVOICED') {
+  //     return;
+  //   }
 
-    const relatedAPs = await tx.query.accountsPayable.findMany({
-      where: inArray(
-        accountsPayable.supplierInvoiceId,
-        sql`(SELECT id FROM ${supplierInvoices} WHERE purchase_order_id = ${purchaseOrderId})`,
-      ),
-    });
+  //   const relatedAPs = await tx.query.accountsPayable.findMany({
+  //     where: inArray(
+  //       accountsPayable.supplierInvoiceId,
+  //       sql`(SELECT id FROM ${supplierInvoices} WHERE purchase_order_id = ${purchaseOrderId})`,
+  //     ),
+  //   });
 
-    const allPaid = relatedAPs.every((ap) => ap.status === 'PAID');
+  //   const allPaid = relatedAPs.every((ap) => ap.status === 'PAID');
 
-    if (allPaid) {
-      await tx
-        .update(purchaseOrders)
-        .set({ status: 'CLOSED' })
-        .where(eq(purchaseOrders.id, purchaseOrderId));
-    }
-  }
+  //   if (allPaid) {
+  //     await tx
+  //       .update(purchaseOrders)
+  //       .set({ status: 'CLOSED' })
+  //       .where(eq(purchaseOrders.id, purchaseOrderId));
+  //   }
+  // }
 
   private async updateInvoiceAndItems(
     invoiceId: number,
@@ -630,7 +722,7 @@ export class SupplierInvoicesService {
     let searchConditions: SQL<unknown>[] = [];
     if (search) {
       searchConditions.push(
-        ilike(supplierInvoices.invoiceNumber, `%${search}%`),
+        ilike(supplierInvoices.supplierInvoiceNumber, `%${search}%`),
       );
     }
     if (supplierId) {
@@ -867,5 +959,36 @@ export class SupplierInvoicesService {
     const data = Array.from(groupedData.values());
 
     return data;
+  }
+
+  async updateStatusToPaid(id: number) {
+    const supplierInvoice = await this.drizzle
+      .select()
+      .from(supplierInvoices)
+      .where(eq(schema.supplierInvoices.id, id));
+
+    if (supplierInvoice.length === 0) {
+      throw new NotFoundException(`Supplier Invoice with ID ${id} not found`);
+    }
+
+    // Only allow closing if it's not already closed or cancelled
+    if (supplierInvoice[0].status !== 'ACCOUNTED_FOR') {
+      throw new BadRequestException(
+        `Supplier Invoice ${id} cannot be paid from its current status: ${supplierInvoice[0].status}`,
+      );
+    }
+
+    const [updatedSupplierinvoice] = await this.drizzle
+      .update(schema.supplierInvoices)
+      .set({ status: 'PAID' })
+      .where(eq(schema.supplierInvoices.id, id))
+      .returning();
+    if (supplierInvoice[0].purchaseOrderId) {
+      await this.purchaseOrdersService.updateStatusToClosed(
+        supplierInvoice[0].purchaseOrderId,
+      );
+    }
+
+    return updatedSupplierinvoice;
   }
 }

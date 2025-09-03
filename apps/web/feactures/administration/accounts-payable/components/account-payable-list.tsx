@@ -11,6 +11,7 @@ interface ListProps {
   initialLimit: number;
   initialStatus?: string | null;
   initialSupplierInvoiceId?: number | null;
+  initialSupplierId?: number | null;
 }
 
 export default function AccountPayableList({
@@ -19,13 +20,17 @@ export default function AccountPayableList({
   initialLimit,
   initialStatus,
   initialSupplierInvoiceId,
+  initialSupplierId,
 }: ListProps) {
   const filters = {
     page: initialPage,
     limit: initialLimit,
     ...(initialSearch && { search: initialSearch }),
     ...(initialStatus && { status: initialStatus }),
-    ...(initialSupplierInvoiceId && { supplierInvoiceId: initialSupplierInvoiceId }),
+    ...(initialSupplierInvoiceId && {
+      supplierInvoiceId: initialSupplierInvoiceId,
+    }),
+    ...(initialSupplierId && { supplierId: initialSupplierId }),
   };
 
   const { data, isLoading } = useAccountsPayable(filters);

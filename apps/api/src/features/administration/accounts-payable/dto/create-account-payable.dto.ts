@@ -40,7 +40,7 @@ export class CreateAccountPayableDto {
     enum: currencyCodeEnum.enumValues,
   })
   @IsEnum(currencyCodeEnum.enumValues)
-  @IsNotEmpty()
+  @IsOptional()
   currencyCode: (typeof currencyCodeEnum.enumValues)[number];
 
   @ApiPropertyOptional({

@@ -34,6 +34,24 @@ export function useAccountPayableMutation() {
   return mutation;
 }
 
+import { payAccountPayableAction } from '../actions/account-payable-actions';
+import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
+
+export function usePayAccountPayableMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: PayAccountPayable) => payAccountPayableAction(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      toast.success('Pago procesado exitosamente');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Error al procesar el pago');
+    },
+  });
+}
+
 export function useDeleteAccountPayable() {
   const queryClient = useQueryClient();
 

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."purchase_order_type_enum" ADD VALUE 'SERVICE_EXPENSE';

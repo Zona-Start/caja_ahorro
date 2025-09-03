@@ -14,6 +14,7 @@ import {
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { FilterPurchaseOrderDto } from './dto/filter-purchase-order.dto';
+import { FindAllForInvoiceDto } from './dto/find-all-for-invoice.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 import { PurchaseOrdersService } from './purchase-orders.service';
 
@@ -34,6 +35,19 @@ export class PurchaseOrdersController {
     const userId = req['user'].id;
     const data = await this.services.create(userId, dto);
     return { message: 'Purchase order created successfully', data };
+  }
+
+  @Get('/for-invoice')
+  @Roles('admin')
+  @RequirePermissions('read:purchase-orders')
+  @ApiOperation({ summary: 'Get all purchase orders for invoice form' })
+  @ApiResponse({ status: 200, description: 'Return all purchase orders.' })
+  async findAllForInvoice(@Query() params: FindAllForInvoiceDto) {
+    const result = await this.services.findAllForInvoice(params);
+    return {
+      message: 'Purchase orders fetched successfully',
+      data: result,
+    };
   }
 
   @Get('/paginated')
@@ -80,6 +94,18 @@ export class PurchaseOrdersController {
     const data = await this.services.update(userId, +id, dto);
     return { message: 'Purchase order updated successfully', data };
   }
+
+  // @Patch(':id/close')
+  // @Roles('admin')
+  // @RequirePermissions('update:purchase-order') // Assuming same permission for closing
+  // @ApiOperation({ summary: 'Close a purchase order' })
+  // @ApiResponse({ status: 200, description: 'Purchase order closed successfully.' })
+  // @ApiResponse({ status: 404, description: 'Purchase order not found.' })
+  // @ApiResponse({ status: 400, description: 'Cannot close purchase order from current status.' })
+  // async closePurchaseOrder(@Param('id') id: string) {
+  //   const data = await this.services.updateStatusToClosed(+id);
+  //   return { message: 'Purchase order closed successfully', data };
+  // }
 
   @Delete(':id')
   @Roles('admin')

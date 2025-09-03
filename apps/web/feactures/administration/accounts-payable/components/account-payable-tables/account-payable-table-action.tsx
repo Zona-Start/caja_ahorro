@@ -1,10 +1,13 @@
 'use client';
 
-import { Button } from '@repo/shadcn/button';
+import { SelectSearchable } from '@repo/shadcn/components/ui/select-searchable';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
-import { Plus } from 'lucide-react';
+
+import { Button } from '@repo/shadcn/components/ui/button';
+import { CreditCard } from 'lucide-react';
 import { useState } from 'react';
+import { useSupplierAll } from '../../../suppliers/hooks/use-query-suppliers';
 import { AccountPayableModal } from '../account-payable-modal';
 import {
   ACCOUNT_PAYABLE_STATUS_OPTIONS,
@@ -18,15 +21,18 @@ export default function AccountPayableTableAction() {
     searchQuery,
     setPage,
     setSearchQuery,
+    supplierIdFilter,
+    setSupplierIdFilter,
   } = useAccountPayableFilters();
 
   const [open, setOpen] = useState(false);
+  const { data: suppliers } = useSupplierAll();
 
   return (
     <div className="flex items-center justify-between mt-4 ">
       <div className="flex items-center gap-4 flex-grow">
         <DataTableSearch
-          title="Buscar por observaciones"
+          title="Buscar por referencia"
           searchKey={searchQuery}
           searchQuery={searchQuery || ''}
           setSearchQuery={setSearchQuery}
@@ -39,10 +45,28 @@ export default function AccountPayableTableAction() {
           setFilterValue={setStatusFilter}
           filterValue={statusFilter}
         />
+        <div className="w-[200px] p-0">
+          <SelectSearchable
+            placeholder="Filtrar por proveedor"
+            options={
+              suppliers?.map((supplier) => ({
+                value: supplier.id!.toString(),
+                label: supplier.name,
+              })) || []
+            }
+            onValueChange={(value) => {
+              setSupplierIdFilter(value ? Number(value) : null);
+            }}
+            defaultValue={supplierIdFilter?.toString()}
+            enableNoneOption
+          />
+        </div>
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="h-4 w-4" /> Nueva Cuenta por Pagar
-      </Button>
+      <div className="flex gap-2">
+        <Button onClick={() => setOpen(true)} size="sm">
+          <CreditCard className="h-4 w-4" /> Anticipo
+        </Button>
+      </div>
 
       <AccountPayableModal open={open} onOpenChange={setOpen} />
     </div>

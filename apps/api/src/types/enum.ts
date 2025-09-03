@@ -331,6 +331,7 @@ export enum purchaseOrderTypeEnum {
   FIXED_ASSET = 'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
   SERVICE = 'SERVICE', // Servicio (se relaciona con serviceProviders)
   EXPENSE = 'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
+  SERVICE_EXPENSE = 'SERVICE_EXPENSE', //Servicio como gasto interno
 }
 
 export enum purchaseOrderStatusEnum {
@@ -369,6 +370,7 @@ export enum paymentAccountsPayableEnum {
   PAID = 'PAID',
   CANCELLED = 'CANCELLED',
   EXPIRED = 'EXPIRED',
+  ADVANCE = 'ADVANCE',
 }
 
 export enum supplierTransactionsTypeEnum {

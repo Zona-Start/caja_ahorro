@@ -1,0 +1,42 @@
+
+export const SUPPLIER_PAYMENT_STATUS_TYPES = {
+  DRAFT: 'BORRADOR',
+  PENDING: 'PENDIENTE',
+  PEN_APR: 'PENDIENTE APROB.',
+  ENV: 'ENVIADO',
+  PROCESSED: 'PROCESADO',
+  ANULADO: 'ANULADO',
+  REJECTED: 'RECHAZADO',
+} as const;
+
+export type SupplierPaymentStatusType = keyof typeof SUPPLIER_PAYMENT_STATUS_TYPES;
+
+export enum SupplierPaymentStatusEnum {
+  DRAFT = 'DRAFT',
+  PENDING = 'PENDING',
+  PEN_APR = 'PEN_APR',
+  ENV = 'ENV',
+  PROCESSED = 'PROCESSED',
+  ANULADO = 'ANULADO',
+  REJECTED = 'REJECTED',
+}
+
+export const PAYMENT_METHOD_TYPES = {
+  CASH: 'EFECTIVO',
+  BANK_TRANSFER: 'TRANSFERENCIA BANCARIA',
+  CHECK: 'CHEQUE',
+  DEPOSIT: 'DEPÓSITO',
+  MOBILE_PAYMENT: 'PAGO MÓVIL',
+  OTHER: 'OTRO',
+} as const;
+
+export type PaymentMethodType = keyof typeof PAYMENT_METHOD_TYPES;
+
+export enum PaymentMethodEnum {
+  CASH = 'CASH',
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  CHECK = 'CHECK',
+  DEPOSIT = 'DEPOSIT',
+  MOBILE_PAYMENT = 'MOBILE_PAYMENT',
+  OTHER = 'OTHER',
+}

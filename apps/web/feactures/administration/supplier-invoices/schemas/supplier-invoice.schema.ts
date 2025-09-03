@@ -22,15 +22,38 @@ export const supplierInvoiceItemSchema = z
     expenseAccountId: z.number().optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    // Check if the lineType is EXPENSE
-    if (data.lineType === purchaseItemTypeEnum.EXPENSE) {
-      // If it is, check if the description is missing or empty
-      if (!data.description || data.description.trim() === '') {
-        // If the condition is met, add an issue to the context
+    const { lineType, itemId, description } = data;
+
+    if (
+      lineType === purchaseItemTypeEnum.SALES_INVENTORY ||
+      lineType === purchaseItemTypeEnum.FIXED_ASSET ||
+      lineType === purchaseItemTypeEnum.SERVICE
+    ) {
+      if (!itemId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Debe seleccionar un elemento.',
+          path: ['itemId'],
+        });
+      }
+    }
+
+    if (lineType === purchaseItemTypeEnum.EXPENSE) {
+      if (!description || description.trim() === '') {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: 'La descripción es requerida.',
           path: ['description'],
+        });
+      }
+    }
+
+    if (lineType === purchaseItemTypeEnum.SERVICE_EXPENSE) {
+      if (!itemId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Debe seleccionar un servicio.',
+          path: ['itemId'],
         });
       }
     }
@@ -44,7 +67,7 @@ export const supplierInvoiceSchema = z
     invoiceNumber: z.string().min(1, 'El número de factura es requerido'),
     controlNumber: z.string().optional().nullable(),
     invoiceDate: z.date(),
-    dueDate: z.date(),
+    dueDate: z.date().nullable(),
     subtotal: z.number(),
     taxAmount: z.number(),
     totalAmount: z.number(),

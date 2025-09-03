@@ -331,6 +331,7 @@ export const purchaseOrderTypeEnum = pgEnum('purchase_order_type_enum', [
   'FIXED_ASSET', // Bien o activo fijo (se relaciona con fixedAssets)
   'SERVICE', // Servicio (se relaciona con serviceProviders)
   'EXPENSE', // Gasto directo o suministro de oficina (no se inventaría)
+  'SERVICE_EXPENSE', //Servicio como gasto interno
 ]);
 
 export const purchaseOrderStatusEnum = pgEnum('purchase_order_status_enum', [
@@ -377,6 +378,7 @@ export const paymentAccountsPayableEnum = pgEnum(
     'PAID', // Totalmente saldada.
     'CANCELLED', //Se cancela por nota de crédito o error.
     'EXPIRED', // La fecha de vencimiento es menor aL dia .
+    'ADVANCE', // status para los anticipos
   ],
 );
 

@@ -35,7 +35,7 @@ import {
   purchaseItemTypeEnum,
 } from '../schemas/supplier-invoice-options';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Switch } from '@repo/shadcn/switch';
 import { useAccountingAccounts } from '../../../accounting/accounting-accounts/hooks/use-query-account-plan';
@@ -43,8 +43,11 @@ import { useBankAccountAll } from '../../../banks/bank-account/hooks/use-query-b
 import { useFixedAssetAll } from '../../inventories/fixed-asset/hooks/use-query-fixed-asset';
 import { useProductsAll } from '../../inventories/products/hooks/use-query-product';
 import { useServicesAll } from '../../inventories/services/hooks/use-query-service';
-import { usePurchaseOrders } from '../../purchase-orders/hooks/use-query-purchase-order';
-import { useSupplierInvoicesDraftPending } from '../hooks/use-query-supplier-invoice';
+import { usePurchaseOrdersForInvoice } from '../../purchase-orders/hooks/use-query-purchase-order';
+import {
+  useSupplierInvoices,
+  useSupplierInvoicesDraftPending,
+} from '../hooks/use-query-supplier-invoice';
 
 interface FormProps {
   onSuccess?: () => void;
@@ -92,13 +95,11 @@ export function SupplierInvoiceForm({
         defaultValues?.paymentMethod || PaymentMethodEnum.BANK_TRANSFER,
       transactionDate: defaultValues?.transactionDate
         ? new Date(defaultValues.transactionDate)
-        : undefined,
+        : null,
       invoiceDate: defaultValues?.invoiceDate
         ? new Date(defaultValues.invoiceDate)
         : new Date(),
-      dueDate: defaultValues?.dueDate
-        ? new Date(defaultValues.dueDate)
-        : new Date(),
+      dueDate: defaultValues?.dueDate ? new Date(defaultValues.dueDate) : null,
       items: defaultValues?.items || [],
       status: defaultValues?.status || SupplierInvoiceStatusEnum.DRAFT,
     },
@@ -116,23 +117,33 @@ export function SupplierInvoiceForm({
     name: 'chargePayment',
   });
 
-  const { data: purchaseOrders } = usePurchaseOrders({
+  useEffect(() => {
+    if (paymentType === SupplierInvoicePaymentTypeEnum.CASH) {
+      form.setValue('dueDate', new Date());
+    }
+  }, [paymentType, form]);
+
+  const { data: purchaseOrders } = usePurchaseOrdersForInvoice({
     supplierId: supplierId,
-    status: 'PENDING',
+    status: ['PENDING', 'RECEIVED'],
   });
 
-  const { data: supplierInvoices } =
+  const { data: supplierInvoicesForDraft } =
     useSupplierInvoicesDraftPending(isSupplierInvoice);
 
-  const purchaseOrderData = Array.isArray(purchaseOrders?.data)
-    ? purchaseOrders.data
-    : [];
-  const supplierInvoiceData = Array.isArray(supplierInvoices?.data)
-    ? supplierInvoices.data
+  const { data: allSupplierInvoices } = useSupplierInvoices({
+    supplierId: supplierId,
+  });
+
+  const purchaseOrderData = useMemo(() => {
+    return Array.isArray(purchaseOrders?.data) ? purchaseOrders.data : [];
+  }, [purchaseOrders]);
+
+  const supplierInvoiceData = Array.isArray(supplierInvoicesForDraft?.data)
+    ? supplierInvoicesForDraft.data
     : [];
 
   const filteredPurchaseOrders = purchaseOrderData.filter((order: any) => {
-    // Tu lógica de filtro original (que es correcta)
     const hasExistingInvoice =
       Array.isArray(supplierInvoiceData) &&
       supplierInvoiceData.some(
@@ -142,7 +153,36 @@ export function SupplierInvoiceForm({
           (invoice.status === SupplierInvoiceStatusEnum.DRAFT ||
             invoice.status === SupplierInvoiceStatusEnum.PENDING),
       );
-    return !hasExistingInvoice;
+
+    if (hasExistingInvoice) {
+      return false;
+    }
+
+    if (order.status === 'RECEIVED') {
+      const invoicedQuantities = (allSupplierInvoices?.data || [])
+        .filter(
+          (inv: any) =>
+            inv.purchaseOrderId === order.id &&
+            inv.status !== SupplierInvoiceStatusEnum.DRAFT,
+        )
+        .flatMap((inv: any) => inv.items)
+        .reduce((acc: any, item: any) => {
+          const key = item.itemId || item.description;
+          acc[key] = (acc[key] || 0) + Number(item.quantity);
+          return acc;
+        }, {});
+
+      const hasRemainingItems = order.items.some((item: any) => {
+        const key = item.itemId || item.description;
+        const invoicedQty = invoicedQuantities[key] || 0;
+        const remainingQty = Number(item.quantity || 0) - invoicedQty;
+        return remainingQty > 0;
+      });
+
+      return hasRemainingItems;
+    }
+
+    return true;
   });
 
   const { fields, append, remove, replace } = useFieldArray({
@@ -184,57 +224,67 @@ export function SupplierInvoiceForm({
   const initialPurchaseOrderId = useRef(defaultValues?.purchaseOrderId);
 
   useEffect(() => {
-    if (purchaseOrderId && purchaseOrders?.data) {
+    if (purchaseOrderId && purchaseOrderData) {
       if (
         !defaultValues?.id ||
         purchaseOrderId !== initialPurchaseOrderId.current
       ) {
-        const selectedOrder = purchaseOrders.data.find(
+        const selectedOrder = purchaseOrderData.find(
           (order: any) => order.id === purchaseOrderId,
         );
 
         if (selectedOrder && selectedOrder.items) {
-          const newItems = selectedOrder.items.map((item: any) => {
-            let description = item.description || '';
-            let unitCost = Number(item.unitCost || 0);
-            let totalLine = Number(item.quantity || 0) * unitCost;
+          const invoicedQuantities = (allSupplierInvoices?.data || [])
+            .filter(
+              (inv: any) =>
+                inv.purchaseOrderId === purchaseOrderId &&
+                inv.id !== defaultValues?.id &&
+                inv.status !== SupplierInvoiceStatusEnum.DRAFT,
+            )
+            .flatMap((inv: any) => inv.items)
+            .reduce((acc: any, item: any) => {
+              const key = item.itemId || item.description;
+              acc[key] = (acc[key] || 0) + Number(item.quantity);
+              return acc;
+            }, {});
 
-            if (item.lineType === purchaseItemTypeEnum.SALES_INVENTORY) {
-              const product = products?.find((p) => p.id === item.itemId);
-              if (product) {
-                description = undefined;
-                unitCost = Number(item.unitCost || 0);
-                totalLine = Number(item.quantity || 0) * unitCost;
-              }
-            } else if (item.lineType === purchaseItemTypeEnum.FIXED_ASSET) {
-              const asset = fixedAssets?.find((a) => a.id === item.itemId);
-              if (asset) {
-                description = undefined;
-                unitCost = Number(item.unitCost || 0);
-                totalLine = Number(item.quantity || 0) * unitCost;
-              }
-            } else if (
-              item.lineType === purchaseItemTypeEnum.SERVICE ||
-              item.lineType === purchaseItemTypeEnum.SERVICE_EXPENSE
-            ) {
-              const service = services?.find((s) => s.id === item.itemId);
-              if (service) {
-                description = undefined;
-                unitCost = Number(item.unitCost || 0);
-                totalLine = Number(item.unitCost || 0);
-              }
-            }
+          const newItems = selectedOrder.items
+            .map((item: any) => {
+              const key = item.itemId || item.description;
+              const invoicedQty = invoicedQuantities[key] || 0;
+              const remainingQty = Number(item.quantity || 0) - invoicedQty;
 
-            return {
-              description: description,
-              lineType: item.lineType,
-              quantity: Number(item.quantity || 0),
-              unitCost: unitCost,
-              totalLine: totalLine,
-              itemId: item.itemId || null,
-              expenseAccountId: item.expenseAccountId || null,
-            };
-          });
+              if (remainingQty <= 0) return null;
+
+              let description = item.description || '';
+              let unitCost = Number(item.unitCost || 0);
+
+              if (item.lineType === purchaseItemTypeEnum.SALES_INVENTORY) {
+                const product = products?.find((p) => p.id === item.itemId);
+                if (product) description = undefined;
+              } else if (item.lineType === purchaseItemTypeEnum.FIXED_ASSET) {
+                const asset = fixedAssets?.find((a) => a.id === item.itemId);
+                if (asset) description = undefined;
+              } else if (
+                item.lineType === purchaseItemTypeEnum.SERVICE ||
+                item.lineType === purchaseItemTypeEnum.SERVICE_EXPENSE
+              ) {
+                const service = services?.find((s) => s.id === item.itemId);
+                if (service) description = undefined;
+              }
+
+              return {
+                description: description,
+                lineType: item.lineType,
+                quantity: remainingQty,
+                unitCost: unitCost,
+                totalLine: remainingQty * unitCost,
+                itemId: item.itemId || null,
+                expenseAccountId: item.expenseAccountId || null,
+              };
+            })
+            .filter(Boolean); // Remove null items
+
           replace(newItems);
         }
       }
@@ -243,7 +293,8 @@ export function SupplierInvoiceForm({
     }
   }, [
     purchaseOrderId,
-    purchaseOrders,
+    purchaseOrderData,
+    allSupplierInvoices,
     replace,
     products,
     services,
@@ -255,7 +306,7 @@ export function SupplierInvoiceForm({
   const handleSave = (status: SupplierInvoiceStatusEnum) => {
     form.setValue('status', status);
     form.handleSubmit((data) => {
-      const itemsWithoutIds = data.items.map((item) => {
+      const itemsWithoutIds = data.items.map((item: any) => {
         const { id, ...rest } = item;
         return rest;
       });
@@ -276,37 +327,45 @@ export function SupplierInvoiceForm({
       };
       saveSupplierInvoice(payload, {
         onSuccess: (result: any) => {
-          const updatedInvoice = result?.data; //aqui regresa id y status del backend
+          const updatedInvoice = result?.data;
+          console.log(updatedInvoice);
+
+          if (!updatedInvoice) return;
+
+          // Function to safely convert dates and numbers
+          const parseInvoiceData = (invoice: any) => ({
+            ...invoice,
+            invoiceDate: new Date(invoice.invoiceDate),
+            dueDate: invoice.dueDate ? new Date(invoice.dueDate) : null,
+            transactionDate: invoice.transactionDate
+              ? new Date(invoice.transactionDate)
+              : null,
+            subtotal: Number(invoice.subtotal || 0),
+            taxAmount: Number(invoice.taxAmount || 0),
+            totalAmount: Number(invoice.totalAmount || 0),
+            items: (invoice.items || []).map((item: any) => ({
+              ...item,
+              quantity: Number(item.quantity || 0),
+              unitCost: Number(item.unitCost || 0),
+              totalLine: Number(item.totalLine || 0),
+            })),
+          });
+
           if (status === SupplierInvoiceStatusEnum.DRAFT) {
-            queryClient.invalidateQueries({
-              queryKey: [
-                'purchase-orders',
-                { status: 'PENDING', supplierId: updatedInvoice.id },
-              ],
-            });
-            onSuccess?.(); // Close modal on draft save
+            onSuccess?.();
           } else if (status === SupplierInvoiceStatusEnum.PENDING) {
-            // When validating, stay on the form and update status
-            if (updatedInvoice) {
-              setCurrentStatus(updatedInvoice.status);
-              form.setValue('status', updatedInvoice.status);
-              form.setValue('id', updatedInvoice.id);
-              queryClient.invalidateQueries({
-                queryKey: [
-                  'purchase-orders',
-                  { status: 'PENDING', supplierId: updatedInvoice.id },
-                ],
-              });
-            }
+            const parsedData = parseInvoiceData(updatedInvoice);
+            form.reset(parsedData);
+            setCurrentStatus(parsedData.status);
           } else if (status === SupplierInvoiceStatusEnum.ACCOUNTED_FOR) {
-            onSuccess?.(); // Close modal after accounting
-            queryClient.invalidateQueries({
-              queryKey: [
-                'purchase-orders',
-                { status: 'PENDING', supplierId: updatedInvoice.id },
-              ],
-            });
+            onSuccess?.();
           }
+
+          // Invalidate queries to refresh lists
+          queryClient.invalidateQueries({
+            queryKey: ['purchase-orders-for-invoice'],
+          });
+          queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] });
         },
         onError: (error) => {
           form.setError('root', {
@@ -588,12 +647,18 @@ export function SupplierInvoiceForm({
                 </div>
               )}
             </div>
+            {form.formState.errors.items && (
+              <p className="text-sm font-medium text-destructive">
+                {form.formState.errors.items.message}
+              </p>
+            )}
             <ScrollArea className="h-[250px] w-full rounded-md border p-4">
               {fields.map((field, index) => {
                 const itemType = form.watch(`items.${index}.lineType`);
                 const quantity = form.watch(`items.${index}.quantity`);
                 const unitCost = form.watch(`items.${index}.unitCost`);
                 const totalLine = (quantity || 0) * (unitCost || 0);
+                const itemError = form.formState.errors.items?.[index];
 
                 return (
                   <div
@@ -627,12 +692,17 @@ export function SupplierInvoiceForm({
                                     `items.${index}.description`,
                                     selectedProduct.name,
                                   );
+                                  form.trigger(`items.${index}.itemId`);
                                 }
                               }}
                               placeholder="Selecciona un producto"
                               defaultValue={field.value?.toString()}
                               disabled={readOnly}
+                              error={itemError?.itemId?.message}
                             />
+                            <FormMessage>
+                              {itemError?.itemId?.message}
+                            </FormMessage>
                           </FormItem>
                         )}
                       />
@@ -663,12 +733,17 @@ export function SupplierInvoiceForm({
                                     `items.${index}.description`,
                                     selectedAsset.name,
                                   );
+                                  form.trigger(`items.${index}.itemId`);
                                 }
                               }}
                               placeholder="Selecciona un activo fijo"
                               defaultValue={field.value?.toString()}
                               disabled={readOnly}
+                              error={itemError?.itemId?.message}
                             />
+                            <FormMessage>
+                              {itemError?.itemId?.message}
+                            </FormMessage>
                           </FormItem>
                         )}
                       />
@@ -700,12 +775,17 @@ export function SupplierInvoiceForm({
                                     selectedService.name,
                                   );
                                   form.setValue(`items.${index}.unitCost`, 0);
+                                  form.trigger(`items.${index}.itemId`);
                                 }
                               }}
                               placeholder="Selecciona un servicio"
                               defaultValue={field.value?.toString()}
                               disabled={readOnly}
+                              error={itemError?.itemId?.message}
                             />
+                            <FormMessage>
+                              {itemError?.itemId?.message}
+                            </FormMessage>
                           </FormItem>
                         )}
                       />
@@ -738,12 +818,17 @@ export function SupplierInvoiceForm({
                                       selectedService.name,
                                     );
                                     form.setValue(`items.${index}.unitCost`, 0);
+                                    form.trigger(`items.${index}.itemId`);
                                   }
                                 }}
                                 placeholder="Selecciona un servicio"
                                 defaultValue={field.value?.toString()}
                                 disabled={readOnly}
+                                error={itemError?.itemId?.message}
                               />
+                              <FormMessage>
+                                {itemError?.itemId?.message}
+                              </FormMessage>
                             </FormItem>
                           )}
                         />
@@ -884,15 +969,21 @@ export function SupplierInvoiceForm({
               <div className="w-1/3 space-y-2">
                 <div className="flex justify-between mt-4">
                   <span className="font-semibold">Subtotal:</span>
-                  <span>{form.getValues('subtotal').toFixed(2)}</span>
+                  <span>
+                    {Number(form.getValues('subtotal') || 0).toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="font-semibold">IVA (16%):</span>
-                  <span>{(form.getValues('taxAmount') || 0).toFixed(2)}</span>
+                  <span>
+                    {Number(form.getValues('taxAmount') || 0).toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex justify-between font-bold text-lg border-t">
                   <span className="font-semibold">Total:</span>
-                  <span>{form.getValues('totalAmount').toFixed(2)}</span>
+                  <span>
+                    {Number(form.getValues('totalAmount') || 0).toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -1075,7 +1166,7 @@ export function SupplierInvoiceForm({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={isSaving}
+                    disabled={isSaving || !supplierId}
                     onClick={() => handleSave(SupplierInvoiceStatusEnum.DRAFT)}
                   >
                     {isSaving ? 'Guardando...' : 'Guardar Borrador'}
@@ -1087,7 +1178,7 @@ export function SupplierInvoiceForm({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={isSaving}
+                    disabled={isSaving || !supplierId}
                     onClick={() =>
                       handleSave(SupplierInvoiceStatusEnum.PENDING)
                     }

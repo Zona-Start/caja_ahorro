@@ -4,6 +4,12 @@ import { IsInt, IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class FilterAccountPayableDto extends PaginationDto {
+  @ApiPropertyOptional({ description: 'Supplier ID' })
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  supplierId?: number;
+
   @ApiPropertyOptional({ description: 'Supplier Invoice ID' })
   @IsOptional()
   @IsInt()

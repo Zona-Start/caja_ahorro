@@ -1,35 +1,16 @@
 import { supplierTransactions } from '@/database/schema/administration';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterSupplierTransactionDto } from './dto/filter-supplier-transaction.dto';
-import { UpdateSupplierTransactionDto } from './dto/update-supplier-transaction.dto';
 
 @Injectable()
 export class SupplierTransactionsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
   ) {}
-
-  async create(userId: number, data: CreateSupplierTransactionDto) {
-    const newTransaction = await this.drizzle
-      .insert(supplierTransactions)
-      .values({
-        ...data,
-        createdById: userId,
-      })
-      .returning();
-
-    return newTransaction[0];
-  }
 
   async findAll(paginationDto: FilterSupplierTransactionDto) {
     const {
@@ -48,22 +29,32 @@ export class SupplierTransactionsService {
 
     let searchConditions: SQL<unknown>[] = [];
     if (search) {
-      searchConditions.push(ilike(supplierTransactions.reference, `%${search}%`));
+      searchConditions.push(
+        ilike(supplierTransactions.reference, `%${search}%`),
+      );
     }
     if (accountsPayableId) {
-      searchConditions.push(eq(supplierTransactions.accountsPayableId, accountsPayableId));
+      searchConditions.push(
+        eq(supplierTransactions.accountsPayableId, accountsPayableId),
+      );
     }
     if (transactionType) {
-      searchConditions.push(eq(supplierTransactions.transactionType, transactionType as any));
+      searchConditions.push(
+        eq(supplierTransactions.transactionType, transactionType as any),
+      );
     }
     if (status) {
       searchConditions.push(eq(supplierTransactions.status, status as any));
     }
     if (startDate) {
-      searchConditions.push(sql`${supplierTransactions.transactionDate} >= ${startDate}`);
+      searchConditions.push(
+        sql`${supplierTransactions.transactionDate} >= ${startDate}`,
+      );
     }
     if (endDate) {
-      searchConditions.push(sql`${supplierTransactions.transactionDate} <= ${endDate}`);
+      searchConditions.push(
+        sql`${supplierTransactions.transactionDate} <= ${endDate}`,
+      );
     }
 
     const searchCondition = searchConditions.length
@@ -120,40 +111,5 @@ export class SupplierTransactionsService {
     }
 
     return data;
-  }
-
-  async update(userId: number, id: number, data: UpdateSupplierTransactionDto) {
-    const exist = await this.drizzle.query.supplierTransactions.findFirst({
-      where: eq(supplierTransactions.id, id),
-    });
-
-    if (!exist) {
-      throw new NotFoundException('Supplier transaction not found');
-    }
-
-    const updatedTransaction = await this.drizzle
-      .update(supplierTransactions)
-      .set({
-        ...data,
-        updatedById: userId,
-      })
-      .where(eq(supplierTransactions.id, id))
-      .returning();
-
-    return updatedTransaction[0];
-  }
-
-  async remove(id: number) {
-    const exist = await this.drizzle.query.supplierTransactions.findFirst({
-      where: eq(supplierTransactions.id, id),
-    });
-
-    if (!exist) {
-      throw new NotFoundException('Supplier transaction not found');
-    }
-
-    await this.drizzle.delete(supplierTransactions).where(eq(supplierTransactions.id, id));
-
-    return { message: 'Supplier transaction removed successfully' };
   }
 }

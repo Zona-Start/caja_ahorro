@@ -12,7 +12,8 @@ function SelectSearchable({
   placeholder,
   defaultValue,
   disabled,
-  enableNoneOption = false, // New prop to enable or disable "Ninguno"
+  enableNoneOption = false,
+  error,
 }: {
   options: { value: string; label: string }[];
   onValueChange: (value: string | null) => void;
@@ -20,11 +21,13 @@ function SelectSearchable({
   defaultValue?: string;
   disabled?: boolean;
   enableNoneOption?: boolean;
+  error?: string;
 }) {
   const [searchTerm, setSearchTerm] = React.useState('');
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   const filteredOptions = [
-    ...(enableNoneOption ? [{ value: 'null', label: 'Ninguno' }] : []), // Conditionally add "Ninguno"
+    ...(enableNoneOption ? [{ value: 'null', label: 'Ninguno' }] : []),
     ...options,
   ].filter((option) =>
     option.label.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -35,11 +38,19 @@ function SelectSearchable({
       onValueChange={(value) => onValueChange(value === 'null' ? null : value)}
       defaultValue={defaultValue}
       disabled={disabled}
+      onOpenChange={(open) => {
+        if (open) {
+          setTimeout(() => {
+            searchInputRef.current?.focus();
+          }, 100);
+        }
+      }}
     >
       <SelectPrimitive.Trigger
         className={cn(
           'border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50',
           disabled && 'bg-muted',
+          error && 'border-destructive',
         )}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
@@ -55,6 +66,7 @@ function SelectSearchable({
       >
         <div className="p-2">
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Buscar..."
             value={searchTerm}

@@ -13,6 +13,7 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
+import { ScrollArea } from '@repo/shadcn/scroll-area';
 import {
   Select,
   SelectContent,
@@ -20,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { ScrollArea } from '@repo/shadcn/scroll-area';
 import { useForm } from 'react-hook-form';
 import { useSupplierInvoices } from '../../supplier-invoices/hooks/use-query-supplier-invoice';
 import { useAccountPayableMutation } from '../hooks/use-mutation-account-payable';
@@ -46,7 +46,8 @@ export function AccountPayableForm({
   defaultValues,
   readOnly = false,
 }: FormProps) {
-  const { mutate: saveAccountPayable, isPending: isSaving } = useAccountPayableMutation();
+  const { mutate: saveAccountPayable, isPending: isSaving } =
+    useAccountPayableMutation();
   const { data: supplierInvoices } = useSupplierInvoices();
 
   const form = useForm<AccountPayable>({
@@ -57,7 +58,6 @@ export function AccountPayableForm({
       originalAmount: defaultValues?.originalAmount || 0,
       paidAmount: defaultValues?.paidAmount || 0,
       remainingAmount: defaultValues?.remainingAmount || 0,
-      currencyCode: defaultValues?.currencyCode || 'USD',
       status: defaultValues?.status || AccountPayableStatusEnum.PENDING,
       observations: defaultValues?.observations || '',
     },
@@ -174,19 +174,7 @@ export function AccountPayableForm({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="currencyCode"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Código de Moneda</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={readOnly} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
             <FormField
               control={form.control}
               name="status"
@@ -204,11 +192,13 @@ export function AccountPayableForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px]">
-                      {Object.entries(ACCOUNT_PAYABLE_STATUS_TYPES).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
+                      {Object.entries(ACCOUNT_PAYABLE_STATUS_TYPES).map(
+                        ([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -225,7 +215,11 @@ export function AccountPayableForm({
                 <FormItem>
                   <FormLabel>Observaciones</FormLabel>
                   <FormControl>
-                    <Textarea {...field} disabled={readOnly} />
+                    <Textarea
+                      {...field}
+                      value={field.value ?? ''}
+                      disabled={readOnly}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -87,16 +87,19 @@ export class FixedAssetPricesService {
       data.purchaseTax ?? 0,
     );
 
-    const result = await db.insert(schema.fixedAssetsPrices).values({
-      ...data,
-      baseCost: String(data.baseCost ?? 0),
-      otherCosts: String(data.otherCosts ?? 0),
-      purchaseTax: String(data.purchaseTax ?? taxRate),
-      totalCost: String(finalCost),
-      createdById: userId,
-      startDate: this.formatDate(data.startDate),
-      endDate: this.formatDate(data.endDate),
-    });
+    const result = await db
+      .insert(schema.fixedAssetsPrices)
+      .values({
+        ...data,
+        baseCost: String(data.baseCost ?? 0),
+        otherCosts: String(data.otherCosts ?? 0),
+        purchaseTax: String(data.purchaseTax ?? taxRate),
+        totalCost: String(finalCost),
+        createdById: userId,
+        startDate: this.formatDate(data.startDate),
+        endDate: this.formatDate(data.endDate),
+      })
+      .returning();
 
     return {
       message: 'Fixed asset price created/updated successfully',

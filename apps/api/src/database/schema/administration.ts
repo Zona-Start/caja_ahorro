@@ -253,6 +253,9 @@ export const supplierPayments = administrationSchema.table(
     bankAccountId: integer('bank_account_id').references(
       () => bankAccounts.id /* tu tabla bancos */,
     ),
+    bankReference: varchar('bank_reference', { length: 50 }),
+    bankDescription: varchar('bank_description', { length: 255 }),
+    bankTransactionDate: date('bank_transaction_date'),
     //batchFileId: integer('batch_file_id').references(() => /* tabla lote txt */),
 
     status: paymentSupplierStatusEnum('status').notNull().default('DRAFT'),

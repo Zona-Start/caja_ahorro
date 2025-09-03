@@ -11,12 +11,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
 import { FilterPurchaseOrderDto } from './dto/filter-purchase-order.dto';
+import { FindAllForInvoiceDto } from './dto/find-all-for-invoice.dto';
 import { UpdatePurchaseOrderDto } from './dto/update-purchase-order.dto';
 
 @Injectable()
@@ -273,6 +274,79 @@ export class PurchaseOrdersService {
     return { data, meta };
   }
 
+  async findAllForInvoice(params: FindAllForInvoiceDto) {
+    const { supplierId, status } = params;
+
+    let searchConditions: SQL<unknown>[] = [];
+
+    if (supplierId) {
+      searchConditions.push(eq(purchaseOrders.supplierId, supplierId));
+    }
+
+    if (status && status.length > 0) {
+      searchConditions.push(inArray(purchaseOrders.status, status as any));
+    }
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    const orders = await this.drizzle
+      .select({
+        order: purchaseOrders,
+        supplierName: suppliers.name,
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .where(searchCondition)
+      .orderBy(sql`${purchaseOrders.id} desc`);
+
+    const ordersIds = orders.map((row) => row.order.id);
+    if (ordersIds.length === 0) {
+      return [];
+    }
+
+    const allItems = await this.drizzle
+      .select()
+      .from(purchaseOrderItems)
+      .where(sql`${purchaseOrderItems.purchaseOrderId} IN ${ordersIds}`);
+
+    const data = orders.map((orderRow) => {
+      const order = {
+        id: orderRow.order.id,
+        orderNumber: orderRow.order.orderNumber,
+        supplierId: orderRow.order.supplierId,
+        supplierName: orderRow.supplierName,
+        status: orderRow.order.status,
+        observations: orderRow.order.observations,
+        orderDate: orderRow.order.orderDate,
+        expectedDeliveryDate: orderRow.order.expectedDeliveryDate,
+        subtotal: Number(orderRow.order.subtotal),
+        taxAmount: Number(orderRow.order.taxAmount),
+        totalAmount: Number(orderRow.order.totalAmount),
+        items: [] as any[],
+      };
+
+      const relatedItems = allItems.filter(
+        (item) => item.purchaseOrderId === order.id,
+      );
+
+      order.items = relatedItems.map((item) => ({
+        id: item.id,
+        lineType: item.lineType,
+        description: item.description,
+        itemId: item.itemId,
+        quantity: Number(item.quantity),
+        unitCost: Number(item.unitCost),
+        totalCost: Number(item.totalCost),
+      }));
+
+      return order;
+    });
+
+    return data;
+  }
+
   async findOne(id: number) {
     const data = await this.drizzle.query.purchaseOrders.findFirst({
       where: eq(purchaseOrders.id, id),
@@ -429,5 +503,31 @@ export class PurchaseOrdersService {
       .where(eq(purchaseOrders.id, id));
 
     return { message: 'Orden de compra anulada exitosamente' };
+  }
+
+  async updateStatusToClosed(id: number) {
+    const order = await this.drizzle
+      .select()
+      .from(purchaseOrders)
+      .where(eq(schema.purchaseOrders.id, id));
+
+    if (order.length === 0) {
+      throw new NotFoundException(`Purchase Order with ID ${id} not found`);
+    }
+
+    // Only allow closing if it's not already closed or cancelled
+    if (order[0].status === 'CLOSED' || order[0].status === 'CANCELLED') {
+      throw new BadRequestException(
+        `Purchase Order ${id} cannot be closed from its current status: ${order[0].status}`,
+      );
+    }
+
+    const [updatedOrder] = await this.drizzle
+      .update(schema.purchaseOrders)
+      .set({ status: 'CLOSED' })
+      .where(eq(schema.purchaseOrders.id, id))
+      .returning();
+
+    return updatedOrder;
   }
 }

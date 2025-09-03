@@ -1,5 +1,4 @@
 'use client';
-
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import { Toaster } from '@repo/shadcn/components/ui/toaster';
@@ -10,84 +9,113 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Eye, Trash } from 'lucide-react';
+import { DollarSign, Eye, FileText, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteAccountPayable } from '../../hooks/use-mutation-account-payable';
+import { AccountPayableSchemaAPI } from '../../schemas';
 import { AccountPayable } from '../../schemas/account-payable.schema';
 import { AccountPayableModal } from '../account-payable-modal';
+import { AccountPayableViewModal } from '../account-payable-view-modal';
+
+import { PayAccountPayableModal } from '../pay-account-payable-modal';
 
 interface CellActionProps {
   data: AccountPayable;
+  dataApi: AccountPayableSchemaAPI;
 }
 
-export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+export const CellAction: React.FC<CellActionProps> = ({ data, dataApi }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
   const { mutate: deleteAccountPayable } = useDeleteAccountPayable();
 
-  const onConfirm = async () => {
+  // const { refetch: downloadReport } = useAccountPayableReport(data.id!, {
+  //   enabled: false, // Disable automatic fetching
+  // });
+
+  const canBeModified =
+    data.status === 'PENDING' || data.status === 'IN_PROGRESS';
+
+  const canBePaid = 
+    data.status === 'PENDING' || data.status === 'IN_PROGRESS';
+
+  const onConfirmDelete = async () => {
     try {
       setLoading(true);
-      deleteAccountPayable(data.id!);
+      deleteAccountPayable(data.id!); // Assuming id is always present
+
       setOpen(false);
     } catch (error) {
-      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = () => {
-    if (data.status === 'PENDING' || data.status === 'PARTIALLY_PAID') {
-      setShowEditModal(true);
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'No se puede editar',
-        description: `Solo se puede editar si su estatus es pendiente o parcialmente pagada`,
-      });
-    }
-  };
-
-  const onDeleteMessage = async () => {
+  const handleActionRestriction = (action: string) => {
     toast({
       variant: 'destructive',
-      title: 'No se puede eliminar la cuenta por pagar',
-      description: `Solo se puede eliminar si su estatus es pendiente o parcialmente pagada`,
+      title: `Acción no permitida`,
+      description: `No se puede ${action} una cuenta por pagar con estatus '${data.status}'.`,
     });
   };
+
+  // const handleDownloadPdf = async () => {
+  //   try {
+  //     const response = await downloadReport();
+  //     if (response.data) {
+  //       const blob = new Blob([response.data as BlobPart], {
+  //         type: 'application/pdf',
+  //       });
+  //       const url = window.URL.createObjectURL(blob);
+  //       const a = document.createElement('a');
+  //       a.href = url;
+  //       a.download = `reporte-cuenta-por-pagar-${dataApi.accountsPayableNumber}.pdf`;
+  //       document.body.appendChild(a);
+  //       a.click();
+  //       window.URL.revokeObjectURL(url);
+  //       a.remove();
+  //     } else {
+  //     }
+  //   } catch (error) {}
+  // };
 
   return (
     <>
       <AlertModal
         isOpen={open}
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
+        onConfirm={onConfirmDelete}
         loading={loading}
-        title="¿Estás seguro que desea eliminar esta cuenta por pagar?"
+        title="¿Estás seguro?"
         description="Esta acción no se puede deshacer."
       />
       <Toaster />
-      <AccountPayableModal
-        open={showEditModal}
-        onOpenChange={setShowEditModal}
-        defaultValues={{
-          ...data,
-        }}
-      />
+      {showEditModal && (
+        <AccountPayableModal
+          open={showEditModal}
+          onOpenChange={setShowEditModal}
+          defaultValues={data}
+        />
+      )}
 
-      <AccountPayableModal
-        open={showViewModal}
-        onOpenChange={(open) => {
-          setShowViewModal(open);
-        }}
-        defaultValues={{
-          ...data,
-        }}
-        readOnly={true}
-      />
+      {showViewModal && (
+        <AccountPayableViewModal
+          open={showViewModal}
+          onOpenChange={setShowViewModal}
+          data={dataApi}
+        />
+      )}
+
+      {showPayModal && (
+        <PayAccountPayableModal
+          open={showPayModal}
+          onOpenChange={setShowPayModal}
+          accountPayable={data}
+        />
+      )}
 
       <div className="flex gap-1">
         <TooltipProvider>
@@ -96,9 +124,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  setShowViewModal(true);
-                }}
+                onClick={() => setShowViewModal(true)}
               >
                 <Eye className="h-4 w-4" />
               </Button>
@@ -108,15 +134,40 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <TooltipProvider>
+
+        {/* <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleEdit}>
-                <Edit className="h-4 w-4" />
+              <Button variant="outline" size="icon" onClick={handleDownloadPdf}>
+                <FileDown className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Editar</p>
+              <p>Descargar PDF</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider> */}
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={!canBePaid}
+                onClick={() => {
+                  if (canBePaid) {
+                    setShowPayModal(true);
+                  } else {
+                    handleActionRestriction('pagar');
+                  }
+                }}
+              >
+                <DollarSign className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Pago</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -128,18 +179,36 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  if (data.status === 'PENDING' || data.status === 'PARTIALLY_PAID') {
-                    setOpen(true);
-                  } else {
-                    onDeleteMessage();
-                  }
+                  // TODO: Add payment logic
                 }}
+              >
+                <FileText className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Nota Crédito/Débito</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={!canBeModified}
+                onClick={() =>
+                  canBeModified
+                    ? setOpen(true)
+                    : handleActionRestriction('anular')
+                }
               >
                 <Trash className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Eliminar</p>
+              <p>Anular</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

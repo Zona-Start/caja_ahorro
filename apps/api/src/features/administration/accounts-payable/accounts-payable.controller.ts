@@ -12,10 +12,10 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AccountsPayableService } from './accounts-payable.service';
 import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
 import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
-import { AccountsPayableService } from './accounts-payable.service';
 
 @ApiTags('administration/accounts-payable')
 @Controller('administration/accounts-payable')
@@ -49,6 +49,30 @@ export class AccountsPayableController {
       data: result.data,
       meta: result.meta,
     };
+  }
+
+  // @Get('/report/:id')
+  // @Roles('admin')
+  // @RequirePermissions('read:account-payable')
+  // @ApiOperation({ summary: 'Generate PDF report for an account payable' })
+  // @ApiResponse({ status: 200, description: 'PDF report generated successfully.' })
+  // @Header('Content-Type', 'application/pdf')
+  // @Header('Content-Disposition', 'attachment; filename=account-payable-report.pdf')
+  // async generateReport(@Param('id') id: string) {
+  //   const pdfBuffer = await this.services.generateAccountPayableReport(+id);
+  //   return new StreamableFile(pdfBuffer);
+  // }
+
+  @Get(':id/preloaded-payment')
+  @Roles('admin')
+  @RequirePermissions('read:account-payable') // O el permiso que corresponda
+  @ApiOperation({
+    summary: 'Get preloaded payment data for an account payable',
+  })
+  @ApiResponse({ status: 200, description: 'Return preloaded payment data.' })
+  async getPreloadedPaymentData(@Param('id') id: string) {
+    const data = await this.services.getPreloadedPaymentData(+id);
+    return { message: 'Preloaded data fetched successfully', data };
   }
 
   @Get(':id')

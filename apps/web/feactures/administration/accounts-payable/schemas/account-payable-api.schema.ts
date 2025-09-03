@@ -2,17 +2,22 @@ import { z } from 'zod';
 
 export const accountPayableApiSchema = z.object({
   id: z.number(),
+  accountsPayableNumber: z.string(),
   supplierInvoiceId: z.number(),
-  originalAmount: z.number(),
-  paidAmount: z.number(),
-  remainingAmount: z.number(),
-  currencyCode: z.string(),
+  originalAmount: z.string(),
+  paidAmount: z.string(),
+  remainingAmount: z.string(),
   status: z.string(),
   observations: z.string().optional().nullable(),
-  supplierInvoice: z.object({
-    invoiceNumber: z.string(),
-    supplierName: z.string(),
-  }).optional(),
+  supplierInvoice: z
+    .object({
+      invoiceNumber: z.string(),
+      supplierName: z.string(),
+    })
+    .optional()
+    .nullable(),
+  createdAt: z.string(),
+  dueDate: z.string(),
 });
 
 export type AccountPayableSchemaAPI = z.infer<typeof accountPayableApiSchema>;

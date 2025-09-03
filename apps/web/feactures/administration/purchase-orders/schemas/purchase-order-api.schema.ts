@@ -48,6 +48,11 @@ export const purchaseOrderAllResponseSchema = z.object({
     .optional(),
 });
 
+export const purchaseOrderForInvoiceResponseSchema = z.object({
+  message: z.string().optional(),
+  data: z.array(purchaseOrderApiSchema),
+});
+
 export const purchaseOrderResponseOneSchema = z.object({
   message: z.string(),
   data: purchaseOrderApiSchema,

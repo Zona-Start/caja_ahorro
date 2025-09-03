@@ -45,5 +45,9 @@
   "packageManager": "pnpm@10.10.0",
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "@types/pdfmake": "^0.2.11",
+    "pdfmake": "^0.2.20"
   }
 }

@@ -191,7 +191,7 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Cuentas por Pagar',
         shortcut: ['l', 'l'],
-        url: '#',
+        url: '/dashboard/administracion/cuentas-x-pagar',
       },
     ], // No child items
   },

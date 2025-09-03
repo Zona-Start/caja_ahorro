@@ -86,6 +86,8 @@ export const createSupplierInvoiceAction = async (
     payloadWithoutId,
   );
 
+  console.log(data);
+
   if (error) {
     console.error('Error:', error);
     throw new Error(error.message || 'Error creating supplier invoice');

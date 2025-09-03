@@ -144,18 +144,21 @@ export class ProductPricesService {
       priceType: data.priceType,
       baseCost: String(data.baseCost),
       otherCosts: String(data.otherCosts),
-      purchaseTax:
-        String(data.purchaseTax) ?? String(calculatedPrices.purchaseTaxRate),
+      purchaseTax: data.purchaseTax
+        ? String(data.purchaseTax)
+        : String(calculatedPrices.purchaseTaxRate),
       totalCost: String(calculatedPrices.calculatedCostTixed),
       expensePercent: String(calculatedPrices.expenseRate),
-      profitPercent:
-        String(data.profitPercent) ?? String(calculatedPrices.profitMarginRate),
-      salesTaxPercent:
-        String(data.saleTax) ?? String(calculatedPrices.salesTaxRate),
+      profitPercent: data.profitPercent
+        ? String(data.profitPercent)
+        : String(calculatedPrices.profitMarginRate),
+      salesTaxPercent: data.saleTax
+        ? String(data.saleTax)
+        : String(calculatedPrices.salesTaxRate),
       finalPrice: String(calculatedPrices.maxPrice),
       createdById: userId,
       isActive: true, // El nuevo precio siempre estará activo
-      startDate: this.formatDate(data.startDate),
+      startDate: this.formatDate(data.startDate) ?? new Date().toISOString(),
       endDate: this.formatDate(data.endDate),
     };
 

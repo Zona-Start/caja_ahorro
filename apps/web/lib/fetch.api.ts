@@ -37,7 +37,7 @@ fetchApi.interceptors.request.use(async (config: any) => {
  * @returns [error, data] -> Devuelve el error como objeto estructurado si hay fallo, o los datos validados
  */
 export const safeFetchApi = async <T extends z.ZodSchema<any>>(
-  schema: T,
+  schema: T | null,
   url: string,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   body?: any,
@@ -51,13 +51,13 @@ export const safeFetchApi = async <T extends z.ZodSchema<any>>(
       data: body,
     });
 
-    const parsed = schema.safeParse(response.data);
+    const parsed = schema?.safeParse(response.data) ?? null;
 
-    if (!parsed.success) {
+    if (!parsed?.success) {
       console.error('Validation Error Details:', {
         errors: {
-          errors: parsed.error.errors,
-          path: parsed.error.errors[0]?.path,
+          errors: parsed?.error.errors,
+          path: parsed?.error.errors[0]?.path,
         },
         receivedData: response.data,
         data: response.data.data,
@@ -66,7 +66,7 @@ export const safeFetchApi = async <T extends z.ZodSchema<any>>(
         {
           type: 'VALIDATION_ERROR',
           message: 'Validation error',
-          details: parsed.error.errors,
+          details: parsed?.error.errors,
         },
         null,
       ];
