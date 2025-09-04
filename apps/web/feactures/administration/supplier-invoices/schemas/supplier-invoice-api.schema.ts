@@ -11,6 +11,11 @@ export const supplierInvoiceItemApiSchema = z.object({
   expenseAccountId: z.number().optional().nullable(),
 });
 
+export const appliedAdvanceApiSchema = z.object({
+  advanceId: z.number(),
+  amount: z.number(),
+});
+
 export const supplierInvoiceApiSchema = z.object({
   id: z.number(),
   supplierInvoiceNumber: z.string(),
@@ -33,6 +38,7 @@ export const supplierInvoiceApiSchema = z.object({
   paymentBankReference: z.string().optional().nullable(),
   paymentMethod: z.string().optional().nullable(),
   transactionDate: z.string().optional().nullable(),
+  draftAppliedAdvances: z.array(appliedAdvanceApiSchema).optional().nullable(),
   items: z.array(supplierInvoiceItemApiSchema).optional().nullable(),
 });
 

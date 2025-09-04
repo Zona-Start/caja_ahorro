@@ -6,6 +6,8 @@ export function mapAccountPayableApiToForm(data: any) {
   return data.map((item: any) => {
     return {
       id: item.id,
+      supplierId: item.supplierId,
+      supplierName: item.supplierName,
       accountsPayableNumber: item.accountsPayableNumber,
       supplierInvoiceId: item.supplierInvoiceId,
       originalAmount: Number(item.originalAmount),

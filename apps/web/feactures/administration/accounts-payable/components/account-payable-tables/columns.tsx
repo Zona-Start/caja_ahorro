@@ -12,7 +12,7 @@ export const columns: ColumnDef<AccountPayableSchemaAPI>[] = [
     header: 'Referencia',
   },
   {
-    accessorKey: 'supplierInvoice.supplierName',
+    accessorKey: 'supplierName',
     header: 'Proveedor',
   },
   {

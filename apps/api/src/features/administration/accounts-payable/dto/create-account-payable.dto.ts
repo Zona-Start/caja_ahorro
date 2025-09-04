@@ -15,6 +15,11 @@ import {
 } from 'class-validator';
 
 export class CreateAccountPayableDto {
+  @ApiProperty({ description: 'Supplier ID' })
+  @IsInt()
+  @IsNotEmpty()
+  supplierId?: number;
+
   @ApiProperty({ description: 'Supplier Invoice ID' })
   @IsInt()
   @IsNotEmpty()

@@ -10,9 +10,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Eye, Trash } from 'lucide-react';
+import { Edit, Eye, FileCheck, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useCancelSupplierInvoice } from '../../hooks/use-mutation-supplier-invoice';
+import {
+  useCancelSupplierInvoice,
+  useSupplierInvoiceMutation,
+} from '../../hooks/use-mutation-supplier-invoice';
+import { SupplierInvoiceStatusEnum } from '../../schemas/supplier-invoice-options';
 import { SupplierInvoice } from '../../schemas/supplier-invoice.schema';
 import { SupplierInvoiceModal } from '../supplier-invoice-modal';
 
@@ -21,22 +25,35 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const { mutate: cancelSupplierInvoice } = useCancelSupplierInvoice();
+  const [showAccountModal, setShowAccountModal] = useState(false);
 
-  const onConfirmDelete = async () => {
-    try {
-      setLoading(true);
-      cancelSupplierInvoice(data.id!); 
-      setOpen(false);
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
+  const { mutate: cancelSupplierInvoice, isPending: isCancelling } =
+    useCancelSupplierInvoice();
+  const { mutate: updateInvoice, isPending: isUpdating } =
+    useSupplierInvoiceMutation();
+
+  const onConfirmDelete = () => {
+    cancelSupplierInvoice(data.id!, {
+      onSuccess: () => {
+        setOpen(false);
+      },
+    });
+  };
+
+  const onConfirmAccount = () => {
+    const payload = {
+      ...data,
+      status: SupplierInvoiceStatusEnum.ACCOUNTED_FOR,
+    };
+
+    updateInvoice(payload, {
+      onSuccess: () => {
+        setShowAccountModal(false);
+      },
+    });
   };
 
   const showNotAllowedToast = (description: string) => {
@@ -73,8 +90,16 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         isOpen={open}
         onClose={() => setOpen(false)}
         onConfirm={onConfirmDelete}
-        loading={loading}
+        loading={isCancelling}
         title="¿Estás seguro que desea anular esta factura?"
+        description="Esta acción no se puede deshacer."
+      />
+      <AlertModal
+        isOpen={showAccountModal}
+        onClose={() => setShowAccountModal(false)}
+        onConfirm={onConfirmAccount}
+        loading={isUpdating}
+        title="¿Estás seguro que desea contabilizar esta factura?"
         description="Esta acción no se puede deshacer."
       />
       <Toaster />
@@ -119,6 +144,26 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </TooltipTrigger>
             <TooltipContent>
               <p>Editar</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  setShowAccountModal(true);
+                }}
+                disabled={data.status !== 'PENDING'}
+              >
+                <FileCheck className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Contabilizar</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

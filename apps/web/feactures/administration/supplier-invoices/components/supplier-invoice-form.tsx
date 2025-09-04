@@ -40,6 +40,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Switch } from '@repo/shadcn/switch';
 import { useAccountingAccounts } from '../../../accounting/accounting-accounts/hooks/use-query-account-plan';
 import { useBankAccountAll } from '../../../banks/bank-account/hooks/use-query-bank-account';
+import { useAccountsPayableAdvances } from '../../accounts-payable/hooks/use-query-account-payable';
 import { useFixedAssetAll } from '../../inventories/fixed-asset/hooks/use-query-fixed-asset';
 import { useProductsAll } from '../../inventories/products/hooks/use-query-product';
 import { useServicesAll } from '../../inventories/services/hooks/use-query-service';
@@ -71,6 +72,7 @@ export function SupplierInvoiceForm({
   const [currentStatus, setCurrentStatus] = useState(
     defaultValues?.status || SupplierInvoiceStatusEnum.DRAFT,
   );
+  const [chargeAdvances, setChargeAdvances] = useState(false);
   const [isSupplierInvoice, SetIsSupplierInvoice] = useState(false);
   const { mutate: saveSupplierInvoice, isPending: isSaving } =
     useSupplierInvoiceMutation();
@@ -101,6 +103,7 @@ export function SupplierInvoiceForm({
         : new Date(),
       dueDate: defaultValues?.dueDate ? new Date(defaultValues.dueDate) : null,
       items: defaultValues?.items || [],
+      draftAppliedAdvances: defaultValues?.draftAppliedAdvances || [],
       status: defaultValues?.status || SupplierInvoiceStatusEnum.DRAFT,
     },
     mode: 'onSubmit',
@@ -116,6 +119,24 @@ export function SupplierInvoiceForm({
     control: form.control,
     name: 'chargePayment',
   });
+  const totalAmount = useWatch({ control: form.control, name: 'totalAmount' });
+  const appliedAdvances = useWatch({
+    control: form.control,
+    name: 'draftAppliedAdvances',
+  });
+
+  const { data: advances } = useAccountsPayableAdvances(supplierId);
+
+  const totalAppliedAdvance = useMemo(() => {
+    return (
+      appliedAdvances?.reduce(
+        (acc, advance) => acc + (advance.amount || 0),
+        0,
+      ) || 0
+    );
+  }, [appliedAdvances]);
+
+  const isPaymentDisabled = totalAppliedAdvance >= totalAmount;
 
   useEffect(() => {
     if (paymentType === SupplierInvoicePaymentTypeEnum.CASH) {
@@ -188,6 +209,15 @@ export function SupplierInvoiceForm({
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'items',
+  });
+
+  const {
+    fields: advanceFields,
+    append: appendAdvance,
+    remove: removeAdvance,
+  } = useFieldArray({
+    control: form.control,
+    name: 'draftAppliedAdvances',
   });
 
   const watchedItems = useWatch({ control: form.control, name: 'items' });
@@ -315,6 +345,7 @@ export function SupplierInvoiceForm({
         ...data,
         items: itemsWithoutIds,
         status,
+        draftAppliedAdvances: chargeAdvances ? data.draftAppliedAdvances : [],
         paymentMethod: data.chargePayment ? data.paymentMethod : undefined,
         paymentDescription: data.chargePayment
           ? data.paymentDescription
@@ -332,32 +363,10 @@ export function SupplierInvoiceForm({
 
           if (!updatedInvoice) return;
 
-          // Function to safely convert dates and numbers
-          const parseInvoiceData = (invoice: any) => ({
-            ...invoice,
-            invoiceDate: new Date(invoice.invoiceDate),
-            dueDate: invoice.dueDate ? new Date(invoice.dueDate) : null,
-            transactionDate: invoice.transactionDate
-              ? new Date(invoice.transactionDate)
-              : null,
-            subtotal: Number(invoice.subtotal || 0),
-            taxAmount: Number(invoice.taxAmount || 0),
-            totalAmount: Number(invoice.totalAmount || 0),
-            items: (invoice.items || []).map((item: any) => ({
-              ...item,
-              quantity: Number(item.quantity || 0),
-              unitCost: Number(item.unitCost || 0),
-              totalLine: Number(item.totalLine || 0),
-            })),
-          });
-
-          if (status === SupplierInvoiceStatusEnum.DRAFT) {
-            onSuccess?.();
-          } else if (status === SupplierInvoiceStatusEnum.PENDING) {
-            const parsedData = parseInvoiceData(updatedInvoice);
-            form.reset(parsedData);
-            setCurrentStatus(parsedData.status);
-          } else if (status === SupplierInvoiceStatusEnum.ACCOUNTED_FOR) {
+          if (
+            status === SupplierInvoiceStatusEnum.DRAFT ||
+            status === SupplierInvoiceStatusEnum.PENDING
+          ) {
             onSuccess?.();
           }
 
@@ -1010,6 +1019,91 @@ export function SupplierInvoiceForm({
             />
           </div>
 
+          <div className="space-y-4 border p-4 rounded-md">
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+              <FormLabel>Cargar Anticipos</FormLabel>
+              <FormControl>
+                <Switch
+                  checked={chargeAdvances}
+                  onCheckedChange={(checked) => {
+                    setChargeAdvances(checked);
+                    if (!checked) {
+                      form.setValue('draftAppliedAdvances', []);
+                    }
+                  }}
+                  disabled={readOnly || !supplierId}
+                />
+              </FormControl>
+            </FormItem>
+            {chargeAdvances && (
+              <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                {advances?.data && advances.data.length > 0 ? (
+                  advances.data.map((advance: any) => {
+                    const advanceIndex = advanceFields.findIndex(
+                      (field) => field.advanceId === advance.id,
+                    );
+                    const isSelected = advanceIndex !== -1;
+
+                    return (
+                      <div
+                        key={advance.id}
+                        className="flex items-center justify-between p-2 mb-2 border rounded-md"
+                      >
+                        <div className="flex items-center gap-4">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                appendAdvance({
+                                  advanceId: advance.id,
+                                  amount: 0,
+                                });
+                              } else {
+                                removeAdvance(advanceIndex);
+                              }
+                            }}
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-semibold">
+                              {advance.accountsPayableNumber}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              Saldo: {Math.abs(advance.remainingAmount)} Bs.
+                            </span>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <FormField
+                            control={form.control}
+                            name={`draftAppliedAdvances.${advanceIndex}.amount`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Monto a aplicar</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    {...field}
+                                    max={Math.abs(advance.remainingAmount)}
+                                    min={0}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center text-muted-foreground">
+                    No hay anticipos disponibles para este proveedor.
+                  </div>
+                )}
+              </ScrollArea>
+            )}
+          </div>
+
           {paymentType === SupplierInvoicePaymentTypeEnum.CASH && (
             <div className="space-y-4 border p-4 rounded-md">
               <FormField
@@ -1022,7 +1116,7 @@ export function SupplierInvoiceForm({
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
-                        disabled={readOnly}
+                        disabled={readOnly || isPaymentDisabled}
                       />
                     </FormControl>
                   </FormItem>
@@ -1145,7 +1239,15 @@ export function SupplierInvoiceForm({
                       <FormItem>
                         <FormLabel>Monto</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={true} />
+                          <Input
+                            type="number"
+                            // Convert the string value to a number on change
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                            value={field.value}
+                            disabled={readOnly}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1183,7 +1285,7 @@ export function SupplierInvoiceForm({
                       handleSave(SupplierInvoiceStatusEnum.PENDING)
                     }
                   >
-                    {isSaving ? 'Validando...' : 'Validar'}
+                    {isSaving ? 'Validando...' : 'Guardar'}
                   </Button>
                 )}
 
@@ -1193,10 +1295,10 @@ export function SupplierInvoiceForm({
                     type="button"
                     disabled={isSaving}
                     onClick={() =>
-                      handleSave(SupplierInvoiceStatusEnum.ACCOUNTED_FOR)
+                      handleSave(SupplierInvoiceStatusEnum.PENDING)
                     }
                   >
-                    {isSaving ? 'Contabilizando...' : 'Contabilizar'}
+                    {isSaving ? 'Guardando...' : 'Guardar'}
                   </Button>
                 )}
             </div>

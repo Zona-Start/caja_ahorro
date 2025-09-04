@@ -66,3 +66,17 @@ export function useAccountPayableBySupplier(
     },
   );
 }
+
+export function useAccountsPayableAdvances(
+  supplierId: number | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useSafeQuery(
+    ['accounts-payable-advances', supplierId],
+    () => getAccountsPayableAction({ supplierId, status: 'ADVANCE' }),
+    {
+      enabled: !!supplierId && (options?.enabled ?? true),
+      ...options,
+    },
+  );
+}

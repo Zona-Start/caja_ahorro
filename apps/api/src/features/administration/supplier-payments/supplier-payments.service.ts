@@ -391,7 +391,7 @@ export class SupplierPaymentsService {
     return this.db.transaction(async (tx) => {
       // 1. Crear la cuenta por pagar con saldo negativo y estado ADVANCE
       const accountsPayableNumber =
-        await this.generateCodeService.generateNextReference('CXP', tx);
+        await this.generateCodeService.generateNextReference('ADV', tx);
       const [newAccountPayable] = await tx
         .insert(schema.accountsPayable)
         .values({
@@ -405,7 +405,7 @@ export class SupplierPaymentsService {
           observations:
             dto.observations ?? `ANTICIPO A PROVEEDOR ${accountsPayableNumber}`,
           createdById: userId,
-          dueDate: new Date().toISOString(), // Fecha actual para anticipos
+          dueDate: null, // Fecha actual para anticipos
         })
         .returning();
 

@@ -75,7 +75,7 @@ export class AccountsPayableService {
       );
     }
     if (supplierId) {
-      searchConditions.push(eq(schema.supplierInvoices.supplierId, supplierId));
+      searchConditions.push(eq(accountsPayable.supplierId, supplierId));
     }
     if (supplierInvoiceId) {
       searchConditions.push(
@@ -98,6 +98,8 @@ export class AccountsPayableService {
     const query = this.drizzle
       .select({
         id: schema.accountsPayable.id,
+        supplierId: schema.suppliers.id,
+        supplierName: schema.suppliers.name,
         accountsPayableNumber: schema.accountsPayable.accountsPayableNumber,
         supplierInvoiceId: schema.accountsPayable.supplierInvoiceId,
         originalAmount: schema.accountsPayable.originalAmount,
@@ -109,8 +111,6 @@ export class AccountsPayableService {
         createdAt: schema.accountsPayable.createdAt,
         supplierInvoice: {
           invoiceNumber: schema.supplierInvoices.invoiceNumber,
-          supplierId: schema.suppliers.id,
-          supplierName: schema.suppliers.name,
         },
       })
       .from(accountsPayable)
@@ -120,7 +120,7 @@ export class AccountsPayableService {
       )
       .leftJoin(
         schema.suppliers,
-        eq(schema.supplierInvoices.supplierId, schema.suppliers.id),
+        eq(accountsPayable.supplierId, schema.suppliers.id),
       )
       .where(searchCondition)
       .orderBy(orderBy);
@@ -376,5 +376,52 @@ export class AccountsPayableService {
       }
     }
     return updates;
+  }
+
+  async applyAdvance(
+    advanceId: number,
+    amountToApply: number,
+    userId: number,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx || this.drizzle;
+
+    const advance = await db.query.accountsPayable.findFirst({
+      where: eq(accountsPayable.id, advanceId),
+    });
+
+    if (!advance) {
+      throw new NotFoundException(`Advance with ID ${advanceId} not found`);
+    }
+
+    if (advance.status !== 'ADVANCE') {
+      throw new BadRequestException(`Account payable ${advanceId} is not an advance.`);
+    }
+
+    const remainingAmount = Number(advance.remainingAmount);
+    const paidAmount = Number(advance.paidAmount);
+
+    // Los anticipos tienen remainingAmount negativo. Aplicar un monto lo acerca a 0.
+    const newRemainingAmount = remainingAmount + amountToApply;
+    const newPaidAmount = paidAmount + amountToApply;
+
+    if (newRemainingAmount > 0) {
+      throw new BadRequestException(
+        `Amount to apply (${amountToApply}) exceeds the remaining advance amount (${-remainingAmount}).`,
+      );
+    }
+
+    const newStatus =
+      newRemainingAmount === 0 ? 'PAID' : 'ADVANCE';
+
+    await db
+      .update(accountsPayable)
+      .set({
+        remainingAmount: newRemainingAmount.toString(),
+        paidAmount: newPaidAmount.toString(),
+        status: newStatus,
+        updatedById: userId,
+      })
+      .where(eq(accountsPayable.id, advanceId));
   }
 }

@@ -3,6 +3,8 @@ import { z } from 'zod';
 export const accountPayableApiSchema = z.object({
   id: z.number(),
   accountsPayableNumber: z.string(),
+  supplierName: z.string().nullable(),
+  supplierId: z.number().nullable(),
   supplierInvoiceId: z.number().nullable(),
   originalAmount: z.string(),
   paidAmount: z.string(),
@@ -12,13 +14,11 @@ export const accountPayableApiSchema = z.object({
   supplierInvoice: z
     .object({
       invoiceNumber: z.string().nullable(),
-      supplierName: z.string().nullable(),
-      supplierId: z.number().nullable(),
     })
     .optional()
     .nullable(),
   createdAt: z.string(),
-  dueDate: z.string(),
+  dueDate: z.string().nullable(),
 });
 
 export type AccountPayableSchemaAPI = z.infer<typeof accountPayableApiSchema>;

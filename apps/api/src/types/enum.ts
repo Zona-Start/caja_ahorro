@@ -378,6 +378,7 @@ export enum supplierTransactionsTypeEnum {
   CREDIT_NOTE = 'CREDIT_NOTE',
   DEBIT_NOTE = 'DEBIT_NOTE',
   ADVANCE = 'ADVANCE',
+  ADVANCE_APPLIED = 'ADVANCE_APPLIED',
 }
 
 export enum movementTypeInventory {

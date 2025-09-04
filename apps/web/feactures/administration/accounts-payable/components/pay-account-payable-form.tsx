@@ -57,7 +57,7 @@ export function PayAccountPayableForm({
     resolver: zodResolver(payAccountPayableSchema),
     // Iniciar el formulario con valores base para evitar error de componente no controlado a controlado
     defaultValues: {
-      supplierId: accountPayable.supplierInvoice?.supplierId,
+      supplierId: accountPayable?.supplierId,
       accountsPayableId: accountPayable.id,
       amount: 0,
       paymentMethod: PaymentMethodEnum.BANK_TRANSFER,
@@ -91,7 +91,7 @@ export function PayAccountPayableForm({
     } else {
       // Prioridad 2: Usar los datos de la cuenta por pagar si no hay datos precargados
       initialValues = {
-        supplierId: accountPayable.supplierInvoice?.supplierId,
+        supplierId: accountPayable.supplierId,
         accountsPayableId: accountPayable.id,
         amount: Number(accountPayable.remainingAmount),
         paymentMethod: PaymentMethodEnum.BANK_TRANSFER,
@@ -132,7 +132,7 @@ export function PayAccountPayableForm({
       <div className="space-y-2 text-sm mb-4 p-2 bg-muted rounded-md">
         <div className="flex justify-between">
           <strong>Proveedor:</strong>
-          <span>{accountPayable.supplierInvoice?.supplierName}</span>
+          <span>{accountPayable?.supplierName}</span>
         </div>
         <div className="flex justify-between">
           <strong>Factura:</strong>

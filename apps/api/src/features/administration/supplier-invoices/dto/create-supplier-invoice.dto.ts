@@ -19,6 +19,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
+import { AppliedAdvanceDto } from './applied-advance.dto';
 
 class SupplierInvoiceItemDto {
   @ApiProperty({ description: 'Line type' })
@@ -178,4 +179,16 @@ export class CreateSupplierInvoiceDto {
   @IsEnum(paymentMethodEnum.enumValues)
   @IsOptional()
   paymentMethod: (typeof paymentMethodEnum.enumValues)[number];
+
+  @ApiPropertyOptional({ description: 'Payment amount for immediate payment' })
+  @IsNumber()
+  @IsOptional()
+  paymentAmount?: number;
+
+  @ApiPropertyOptional({ type: () => [AppliedAdvanceDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AppliedAdvanceDto)
+  @IsOptional()
+  draftAppliedAdvances?: AppliedAdvanceDto[];
 }

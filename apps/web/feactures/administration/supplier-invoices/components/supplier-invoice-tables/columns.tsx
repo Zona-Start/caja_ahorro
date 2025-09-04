@@ -35,7 +35,7 @@ export const columns: ColumnDef<SupplierInvoice>[] = [
     accessorKey: 'dueDate',
     header: 'Fecha de Vencimiento',
     cell: ({ row }) => {
-      const date = new Date(row.original.dueDate);
+      const date = new Date(row.original.dueDate ?? '');
       return date.toLocaleDateString();
     },
   },

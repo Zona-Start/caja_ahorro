@@ -3,6 +3,10 @@ import { AccountPayableStatusEnum } from './account-payable-options';
 
 export const accountPayableSchema = z.object({
   id: z.number().optional(),
+  supplierId: z.number({
+    required_error: 'ID de proveedor requerido',
+  }),
+  supplierName: z.string(),
   supplierInvoiceId: z.number({
     required_error: 'ID de factura de proveedor requerido',
   }),
@@ -23,9 +27,7 @@ export const accountPayableSchema = z.object({
   observations: z.string().optional().nullable(),
   supplierInvoice: z
     .object({
-      supplierId: z.number(),
       invoiceNumber: z.string(),
-      supplierName: z.string(),
     })
     .optional()
     .nullable(),

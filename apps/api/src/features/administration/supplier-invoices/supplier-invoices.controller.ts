@@ -92,7 +92,25 @@ export class SupplierInvoicesController {
     @Body() dto: UpdateSupplierInvoiceDto,
   ) {
     const userId = req['user'].id;
-    const data = await this.services.update(userId, +id, dto);
+    return await this.services.update(+id, userId, dto);
+  }
+
+  @Patch('/accountFor/:id')
+  @Roles('admin')
+  @RequirePermissions('update:supplier-invoice')
+  @ApiOperation({ summary: 'Update a supplier invoice' })
+  @ApiResponse({
+    status: 200,
+    description: 'Supplier invoice updated successfully.',
+  })
+  @ApiResponse({ status: 404, description: 'Supplier invoice not found.' })
+  async accountFor(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: UpdateSupplierInvoiceDto,
+  ) {
+    const userId = req['user'].id;
+    const data = await this.services.accountFor(userId, +id, dto);
     return { message: 'Supplier invoice updated successfully', data };
   }
 

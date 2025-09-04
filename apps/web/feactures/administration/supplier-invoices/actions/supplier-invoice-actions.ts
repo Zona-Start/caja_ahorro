@@ -86,8 +86,6 @@ export const createSupplierInvoiceAction = async (
     payloadWithoutId,
   );
 
-  console.log(data);
-
   if (error) {
     console.error('Error:', error);
     throw new Error(error.message || 'Error creating supplier invoice');
@@ -103,6 +101,25 @@ export const updateSupplierInvoiceAction = async ({
   const [error, data] = await safeFetchApi(
     supplierInvoiceMutationResponseSchema,
     `/administration/supplier-invoices/${id}`,
+    'PATCH',
+    payload,
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error updating supplier invoice');
+  }
+
+  return data;
+};
+
+export const accountForSupplierInvoiceAction = async ({
+  id,
+  ...payload
+}: Partial<SupplierInvoice>) => {
+  const [error, data] = await safeFetchApi(
+    supplierInvoiceMutationResponseSchema,
+    `/administration/supplier-invoices/accountFor/${id}`,
     'PATCH',
     payload,
   );

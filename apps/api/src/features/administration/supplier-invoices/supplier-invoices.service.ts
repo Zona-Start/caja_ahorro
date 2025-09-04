@@ -23,7 +23,7 @@ import { FixedAssetPricesService } from '../inventory/fixed-asset-prices/fixed-a
 import { InventoryMovementsService } from '../inventory/inventory-movements/inventory-movements.service';
 import { ProductPricesService } from '../inventory/product-prices/product-prices.service';
 import { ServicePricesService } from '../inventory/services-prices/services-prices.service';
-import { PurchaseOrdersService } from '../purchase-orders/purchase-orders.service';
+import { SupplierTransactionsService } from '../supplier-transactions/supplier-transactions.service';
 import { CreateSupplierInvoiceDto } from './dto/create-supplier-invoice.dto';
 import { FilterSupplierInvoiceDto } from './dto/filter-supplier-invoice.dto';
 import { UpdateSupplierInvoiceDto } from './dto/update-supplier-invoice.dto';
@@ -32,13 +32,14 @@ import { UpdateSupplierInvoiceDto } from './dto/update-supplier-invoice.dto';
 export class SupplierInvoicesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+
+    private readonly supplierTransactionsService: SupplierTransactionsService,
     private readonly accountsPayableService: AccountsPayableService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly productPricesService: ProductPricesService,
+    private readonly inventoryMovementsService: InventoryMovementsService,
     private readonly fixedAssetPricesService: FixedAssetPricesService,
     private readonly servicePricesService: ServicePricesService,
-    private readonly inventoryMovementsService: InventoryMovementsService,
-    private readonly purchaseOrdersService: PurchaseOrdersService,
   ) {}
 
   async create(userId: number, dto: CreateSupplierInvoiceDto) {
@@ -66,6 +67,7 @@ export class SupplierInvoicesService {
           createdById: userId,
           supplierInvoiceNumber:
             await this.generateCodeService.generateNextReference('FAC-P'),
+          draftAppliedAdvances: dto.draftAppliedAdvances,
         })
         .returning({
           status: supplierInvoices.status,
@@ -129,7 +131,110 @@ export class SupplierInvoicesService {
     });
   }
 
-  async update(userId: number, id: number, dto: UpdateSupplierInvoiceDto) {
+  async update(
+    invoiceId: number,
+    userId: number,
+    dto: UpdateSupplierInvoiceDto,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      // Step 1: Check the current status of the invoice to ensure it can be updated.
+      // This prevents modifications to invoices that are no longer in a draft state.
+      const [currentInvoice] = await tx
+        .select({ status: supplierInvoices.status })
+        .from(supplierInvoices)
+        .where(eq(supplierInvoices.id, invoiceId));
+
+      if (
+        !currentInvoice ||
+        (currentInvoice.status !== 'DRAFT' &&
+          currentInvoice.status !== 'PENDING')
+      ) {
+        throw new BadRequestException(
+          `Cannot update invoice. Current status is '${currentInvoice.status}', only 'DRAFT' and 'PENDING' can be modified.`,
+        );
+      }
+
+      // Step 2: Update the main invoice record.
+      await tx
+        .update(supplierInvoices)
+        .set({
+          ...dto,
+          status: dto.status,
+          subtotal: dto.subtotal?.toString(),
+          taxAmount: dto.taxAmount?.toString(),
+          totalAmount: dto.totalAmount?.toString(),
+          dueDate: dto.dueDate?.toISOString(),
+          invoiceDate: dto.invoiceDate?.toISOString(),
+          transactionDate: dto.chargePayment ? new Date().toISOString() : null,
+          updatedById: userId,
+        })
+        .where(eq(supplierInvoices.id, invoiceId));
+
+      // Step 3: Delete existing invoice items and re-insert the new ones.
+      // This is a common and safer approach than complex item-by-item diffing.
+      await tx
+        .delete(supplierInvoiceItems)
+        .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
+
+      if (dto.items && dto.items.length > 0) {
+        const itemsToInsert = dto.items.map((item) => ({
+          ...item,
+          invoiceId: invoiceId,
+          unitCost: item.unitCost?.toString(),
+          totalLine: item.totalLine?.toString(),
+          createdById: userId,
+        }));
+        await tx.insert(supplierInvoiceItems).values(itemsToInsert as any);
+      }
+
+      // Step 4: Fetch and return the complete updated invoice with its items.
+      const [completeInvoice] = await tx
+        .select({
+          id: supplierInvoices.id,
+          supplierId: supplierInvoices.supplierId,
+          purchaseOrderId: supplierInvoices.purchaseOrderId,
+          invoiceNumber: supplierInvoices.invoiceNumber,
+          controlNumber: supplierInvoices.controlNumber,
+          invoiceDate: supplierInvoices.invoiceDate,
+          dueDate: supplierInvoices.dueDate,
+          subtotal: supplierInvoices.subtotal,
+          taxAmount: supplierInvoices.taxAmount,
+          totalAmount: supplierInvoices.totalAmount,
+          paymentType: supplierInvoices.paymentType,
+          status: supplierInvoices.status,
+          observations: supplierInvoices.observations,
+          chargePayment: supplierInvoices.chargePayment,
+          bankAccountId: supplierInvoices.bankAccountId,
+          transactionDate: supplierInvoices.transactionDate,
+          paymentDescription: supplierInvoices.paymentDescription,
+          paymentBankReference: supplierInvoices.paymentBankReference,
+          paymentMethod: supplierInvoices.paymentMethod,
+        })
+        .from(supplierInvoices)
+        .where(eq(supplierInvoices.id, invoiceId));
+
+      const items = await tx
+        .select({
+          id: supplierInvoiceItems.id,
+          lineType: supplierInvoiceItems.lineType,
+          description: supplierInvoiceItems.description,
+          quantity: supplierInvoiceItems.quantity,
+          unitCost: supplierInvoiceItems.unitCost,
+          totalLine: supplierInvoiceItems.totalLine,
+          itemId: supplierInvoiceItems.itemId,
+          expenseAccountId: supplierInvoiceItems.expenseAccountId,
+        })
+        .from(supplierInvoiceItems)
+        .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
+
+      return {
+        data: { ...completeInvoice, items },
+        message: 'Supplier invoice updated successfully',
+      };
+    });
+  }
+
+  async accountFor(userId: number, id: number, dto: UpdateSupplierInvoiceDto) {
     return this.drizzle.transaction(async (tx) => {
       const existingInvoice = await tx
         .select()
@@ -148,58 +253,58 @@ export class SupplierInvoicesService {
       const newStatus = dto.status;
 
       // --- Logic for DRAFT invoices ---
-      if (originalStatus === 'DRAFT') {
-        const updatedFields = { ...dto, updatedById: userId };
-        await this.updateInvoiceAndItems(id, userId, updatedFields, tx);
+      // if (originalStatus === 'DRAFT') {
+      //   const updatedFields = { ...dto, updatedById: userId };
+      //   await this.updateInvoiceAndItems(id, userId, updatedFields, tx);
 
-        if (newStatus === 'PENDING') {
-          await tx
-            .update(supplierInvoices)
-            .set({ status: 'PENDING', updatedById: userId })
-            .where(eq(supplierInvoices.id, id));
-        }
+      //   if (newStatus === 'PENDING') {
+      //     await tx
+      //       .update(supplierInvoices)
+      //       .set({ status: 'PENDING', updatedById: userId })
+      //       .where(eq(supplierInvoices.id, id));
+      //   }
 
-        const updatedInvoice = await tx
-          .select({
-            id: supplierInvoices.id,
-            supplierId: supplierInvoices.supplierId,
-            purchaseOrderId: supplierInvoices.purchaseOrderId,
-            invoiceNumber: supplierInvoices.invoiceNumber,
-            controlNumber: supplierInvoices.controlNumber,
-            invoiceDate: supplierInvoices.invoiceDate,
-            dueDate: supplierInvoices.dueDate,
-            subtotal: supplierInvoices.subtotal,
-            taxAmount: supplierInvoices.taxAmount,
-            totalAmount: supplierInvoices.totalAmount,
-            paymentType: supplierInvoices.paymentType,
-            status: supplierInvoices.status,
-            observations: supplierInvoices.observations,
-            chargePayment: supplierInvoices.chargePayment,
-            bankAccountId: supplierInvoices.bankAccountId,
-            transactionDate: supplierInvoices.transactionDate,
-            paymentDescription: supplierInvoices.paymentDescription,
-            paymentBankReference: supplierInvoices.paymentBankReference,
-            paymentMethod: supplierInvoices.paymentMethod,
-          })
-          .from(supplierInvoices)
-          .where(eq(supplierInvoices.id, id));
+      //   const updatedInvoice = await tx
+      //     .select({
+      //       id: supplierInvoices.id,
+      //       supplierId: supplierInvoices.supplierId,
+      //       purchaseOrderId: supplierInvoices.purchaseOrderId,
+      //       invoiceNumber: supplierInvoices.invoiceNumber,
+      //       controlNumber: supplierInvoices.controlNumber,
+      //       invoiceDate: supplierInvoices.invoiceDate,
+      //       dueDate: supplierInvoices.dueDate,
+      //       subtotal: supplierInvoices.subtotal,
+      //       taxAmount: supplierInvoices.taxAmount,
+      //       totalAmount: supplierInvoices.totalAmount,
+      //       paymentType: supplierInvoices.paymentType,
+      //       status: supplierInvoices.status,
+      //       observations: supplierInvoices.observations,
+      //       chargePayment: supplierInvoices.chargePayment,
+      //       bankAccountId: supplierInvoices.bankAccountId,
+      //       transactionDate: supplierInvoices.transactionDate,
+      //       paymentDescription: supplierInvoices.paymentDescription,
+      //       paymentBankReference: supplierInvoices.paymentBankReference,
+      //       paymentMethod: supplierInvoices.paymentMethod,
+      //     })
+      //     .from(supplierInvoices)
+      //     .where(eq(supplierInvoices.id, id));
 
-        const items = await tx
-          .select({
-            id: supplierInvoiceItems.id,
-            lineType: supplierInvoiceItems.lineType,
-            description: supplierInvoiceItems.description,
-            quantity: supplierInvoiceItems.quantity,
-            unitCost: supplierInvoiceItems.unitCost,
-            totalLine: supplierInvoiceItems.totalLine,
-            itemId: supplierInvoiceItems.itemId,
-            expenseAccountId: supplierInvoiceItems.expenseAccountId,
-          })
-          .from(supplierInvoiceItems)
-          .where(eq(supplierInvoiceItems.invoiceId, id));
+      //   const items = await tx
+      //     .select({
+      //       id: supplierInvoiceItems.id,
+      //       lineType: supplierInvoiceItems.lineType,
+      //       description: supplierInvoiceItems.description,
+      //       quantity: supplierInvoiceItems.quantity,
+      //       unitCost: supplierInvoiceItems.unitCost,
+      //       totalLine: supplierInvoiceItems.totalLine,
+      //       itemId: supplierInvoiceItems.itemId,
+      //       expenseAccountId: supplierInvoiceItems.expenseAccountId,
+      //     })
+      //     .from(supplierInvoiceItems)
+      //     .where(eq(supplierInvoiceItems.invoiceId, id));
 
-        return { ...updatedInvoice[0], items };
-      }
+      //   return { ...updatedInvoice[0], items };
+      // }
 
       // --- Logic for PENDING invoices ---
       if (originalStatus === 'PENDING') {
@@ -555,86 +660,74 @@ export class SupplierInvoicesService {
     dto: CreateSupplierInvoiceDto,
     tx: NodePgDatabase<typeof schema>,
   ) {
-    // const isCredit = dto.paymentType === 'CREDIT';
-    // const isCashNoPay = dto.paymentType === 'CASH' && !dto.chargePayment;
+    let remainingAmount = dto.totalAmount;
+    let paidAmount = 0;
 
-    await this.accountsPayableService.create(
+    if (dto.draftAppliedAdvances && dto.draftAppliedAdvances.length > 0) {
+      const totalAdvanceApplied = dto.draftAppliedAdvances.reduce(
+        (sum, advance) => sum + advance.amount,
+        0,
+      );
+
+      if (totalAdvanceApplied > dto.totalAmount) {
+        throw new BadRequestException(
+          'Total applied from advances cannot exceed the invoice total amount.',
+        );
+      }
+
+      remainingAmount -= totalAdvanceApplied;
+      paidAmount += totalAdvanceApplied;
+
+      for (const advance of dto.draftAppliedAdvances) {
+        await this.accountsPayableService.applyAdvance(
+          advance.advanceId,
+          advance.amount,
+          userId,
+          tx,
+        );
+      }
+    }
+
+    const invoiceAP = await this.accountsPayableService.create(
       userId,
       {
+        supplierId: dto.supplierId,
         supplierInvoiceId: invoiceId,
         originalAmount: dto.totalAmount,
-        paidAmount: 0,
-        remainingAmount: dto.totalAmount,
+        paidAmount: paidAmount,
+        remainingAmount: remainingAmount,
         currencyCode: 'VES',
-        status: 'PENDING',
+        status: remainingAmount <= 0 ? 'PAID' : 'PENDING',
         dueDate: dto.dueDate || new Date(),
         observations: `CUENTA POR PAGAR POR FACTURA ${dto.invoiceNumber}`,
       },
       tx,
     );
 
-    // if (isCredit || isCashNoPay) {
-    //   await this.accountsPayableService.create(
-    //     userId,
-    //     {
-    //       supplierInvoiceId: invoiceId,
-    //       originalAmount: dto.totalAmount,
-    //       paidAmount: 0,
-    //       remainingAmount: dto.totalAmount,
-    //       currencyCode: 'VES',
-    //       status: 'PENDING',
-    //       dueDate: dto.dueDate || new Date(),
-    //       observations: `CUENTA POR PAGAR POR FACTURA ${dto.invoiceNumber}`,
-    //     },
-    //     tx,
-    //   );
-    // } else if (dto.paymentType === 'CASH' && dto.chargePayment) {
-    //   if (!dto.bankAccountId) {
-    //     throw new BadRequestException(
-    //       'Bank account is required for immediate payment.',
-    //     );
-    //   }
-    //   const ap = await this.accountsPayableService.create(
-    //     userId,
-    //     {
-    //       supplierInvoiceId: invoiceId,
-    //       originalAmount: dto.totalAmount,
-    //       paidAmount: 0,
-    //       remainingAmount: dto.totalAmount,
-    //       currencyCode: 'VES',
-    //       status: 'PENDING',
-    //       dueDate: new Date(),
-    //       observations: `PAGO REALIZADO POR FACTURA ${dto.invoiceNumber}`,
-    //     },
-    //     tx,
-    //   );
+    // Create transactions for applied advances
+    if (dto.draftAppliedAdvances && dto.draftAppliedAdvances.length > 0) {
+      const transactionCode =
+        await this.generateCodeService.generateNextReference('TRS-P', tx);
+      for (const advance of dto.draftAppliedAdvances) {
+        await this.supplierTransactionsService.create(
+          {
+            accountsPayableId: invoiceAP.id,
+            relatedAdvanceId: advance.advanceId,
+            transactionNumber: transactionCode,
+            transactionType: 'ADVANCE_APPLIED',
+            transactionDate: new Date(),
+            amount: advance.amount,
+            direction: 'CR',
+            currencyCode: 'VES',
+            reference: `APLICACION DE ANTICIPO A FACTURA ${dto.invoiceNumber}`,
+            createdById: userId,
+          },
+          tx,
+        );
+      }
+    }
 
-    //   await this.supplierPaymentsService.createDraft(
-    //     {
-    //       supplierId: dto.supplierId,
-    //       totalAmount: dto.totalAmount,
-    //       paymentMethod: dto.paymentMethod,
-    //       currencyCode: 'VES',
-    //       bankAccountId: dto.bankAccountId,
-    //       bankReference: dto.paymentBankReference,
-    //       bankDescription:
-    //         dto.paymentDescription || `PAGO DE FACTURA ${dto.invoiceNumber}`,
-    //       bankTransactionDate: dto.transactionDate || new Date(),
-    //       observations: dto.paymentDescription,
-    //       lines: [
-    //         {
-    //           accountsPayableId: ap.id,
-    //           amount: dto.totalAmount,
-    //           description:
-    //             dto.paymentDescription ||
-    //             `PAGO DE FACTURA ${dto.invoiceNumber}`,
-    //         },
-    //       ],
-    //     },
-    //     userId,
-    //     tx,
-    //   );
-    // }
+    return invoiceAP;
   }
 
   // private async checkAndClosePurchaseOrder(

@@ -4,6 +4,7 @@ import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterSupplierTransactionDto } from './dto/filter-supplier-transaction.dto';
 
 @Injectable()
@@ -111,5 +112,17 @@ export class SupplierTransactionsService {
     }
 
     return data;
+  }
+
+  async create(
+    dto: CreateSupplierTransactionDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx || this.drizzle;
+    const [newTransaction] = await db
+      .insert(supplierTransactions)
+      .values(dto as any)
+      .returning();
+    return newTransaction;
   }
 }

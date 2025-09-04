@@ -83,6 +83,14 @@ export const supplierInvoiceSchema = z
     paymentDescription: z.string().optional().nullable(),
     paymentBankReference: z.string().optional().nullable(),
     paymentMethod: z.nativeEnum(PaymentMethodEnum).optional().nullable(),
+    draftAppliedAdvances: z
+      .array(
+        z.object({
+          advanceId: z.number(),
+          amount: z.coerce.number(),
+        }),
+      )
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (

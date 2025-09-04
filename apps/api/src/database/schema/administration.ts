@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   numeric,
   serial,
   text,
@@ -158,6 +159,8 @@ export const supplierInvoices = administrationSchema.table(
     paymentMethod: paymentMethodEnum('payment_method'),
     bankAccountId: integer('bank_account_id').references(() => bankAccounts.id),
 
+    //manejo de datos anticipo
+    draftAppliedAdvances: jsonb('draft_applied_advances').default('[]'),
     /* FK opcional al asiento contable al recibir la factura */
     // accountingEntryId: integer('accounting_entry_id').references(() => entradaContables.id),
 
@@ -302,6 +305,10 @@ export const supplierTransactions = administrationSchema.table(
     accountsPayableId: integer('accounts_payable_id').references(
       () => accountsPayable.id,
       { onDelete: 'cascade' },
+    ),
+    relatedAdvanceId: integer('related_advance_id').references(
+      () => accountsPayable.id,
+      { onDelete: 'set null' },
     ),
 
     // 2) Número único → generado con tu servicio PAG-P-2025-…

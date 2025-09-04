@@ -20,6 +20,16 @@ export class CreateSupplierTransactionDto {
   @IsNotEmpty()
   accountsPayableId: number;
 
+  @ApiProperty({ description: 'Related AdvanceId ID' })
+  @IsInt()
+  @IsOptional()
+  relatedAdvanceId?: number;
+
+  @ApiProperty({ description: 'Transaction Number' })
+  @IsString()
+  @IsNotEmpty()
+  transactionNumber: string;
+
   @ApiProperty({
     description: 'Transaction type',
     enum: supplierTransactionsTypeEnum.enumValues,
@@ -39,15 +49,28 @@ export class CreateSupplierTransactionDto {
   @IsNotEmpty()
   amount: number;
 
-  @ApiProperty({ description: 'Currency code' })
+  @ApiProperty({ description: 'Direction' })
   @IsString()
   @IsNotEmpty()
-  currencyCode: string;
+  direction: string;
 
-  @ApiPropertyOptional({ description: 'Payment method', enum: paymentMethodEnum.enumValues })
+  @ApiProperty({ description: 'Currency code' })
+  @IsString()
+  @IsOptional()
+  currencyCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Payment method',
+    enum: paymentMethodEnum.enumValues,
+  })
   @IsEnum(paymentMethodEnum.enumValues)
   @IsOptional()
   paymentMethod?: (typeof paymentMethodEnum.enumValues)[number];
+
+  @ApiPropertyOptional({ description: 'Bank Movement ID' })
+  @IsInt()
+  @IsOptional()
+  bankMovementId?: number;
 
   @ApiPropertyOptional({ description: 'Reference' })
   @IsString()
@@ -58,4 +81,9 @@ export class CreateSupplierTransactionDto {
   @IsEnum(['ACTIVE', 'REVERSED'])
   @IsOptional()
   status?: 'ACTIVE' | 'REVERSED';
+
+  @ApiPropertyOptional({ description: 'Created by ID' })
+  @IsInt()
+  @IsOptional()
+  createdById?: number;
 }

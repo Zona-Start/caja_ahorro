@@ -7,6 +7,7 @@ import { InventoryMovementsModule } from '../inventory/inventory-movements/inven
 import { ProductPricesModule } from '../inventory/product-prices/product-prices.module';
 import { ServicePricesModule } from '../inventory/services-prices/services-prices.module';
 import { PurchaseOrdersModule } from '../purchase-orders/purchase-orders.module';
+import { SupplierTransactionsModule } from '../supplier-transactions/supplier-transactions.module';
 import { SupplierInvoicesController } from './supplier-invoices.controller';
 import { SupplierInvoicesService } from './supplier-invoices.service';
 
@@ -20,6 +21,7 @@ import { SupplierInvoicesService } from './supplier-invoices.service';
     PurchaseOrdersModule,
     AccountsPayableModule,
     GenerateCodeModule,
+    SupplierTransactionsModule,
   ],
   controllers: [SupplierInvoicesController],
   providers: [SupplierInvoicesService],

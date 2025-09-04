@@ -379,12 +379,13 @@ export const paymentAccountsPayableEnum = pgEnum(
     'CANCELLED', //Se cancela por nota de crédito o error.
     'EXPIRED', // La fecha de vencimiento es menor aL dia .
     'ADVANCE', // status para los anticipos
+    'ADVANCE_APPLIED', // status para los anticipos
   ],
 );
 
 export const supplierTransactionsTypeEnum = pgEnum(
   'supplier_transactions_type_enum',
-  ['PAYMENT', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ADVANCE'],
+  ['PAYMENT', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ADVANCE', 'ADVANCE_APPLIED'],
 );
 
 export const movementTypeInventory = pgEnum('movement_type_inventory', [

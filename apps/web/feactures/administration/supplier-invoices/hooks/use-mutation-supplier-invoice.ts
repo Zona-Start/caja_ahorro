@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  accountForSupplierInvoiceAction,
   createSupplierInvoiceAction,
   deleteSupplierInvoiceAction,
   updateSupplierInvoiceAction,
@@ -14,8 +15,10 @@ export function useSupplierInvoiceMutation() {
 
   const mutation = useMutation({
     mutationFn: (data: Partial<SupplierInvoice>) => {
-      if (data.id) {
+      if (data.id && data.status !== 'ACCOUNTED_FOR') {
         return updateSupplierInvoiceAction(data);
+      } else if (data.id && data.status === 'ACCOUNTED_FOR') {
+        return accountForSupplierInvoiceAction(data);
       }
       return createSupplierInvoiceAction(data);
     },
