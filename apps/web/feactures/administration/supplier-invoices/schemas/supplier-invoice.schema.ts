@@ -63,6 +63,7 @@ export const supplierInvoiceSchema = z
   .object({
     id: z.number().optional(),
     supplierId: z.number({ required_error: 'El proveedor es requerido' }),
+    supplierName: z.string().optional(),
     purchaseOrderId: z.number().optional().nullable(),
     invoiceNumber: z.string().min(1, 'El número de factura es requerido'),
     controlNumber: z.string().optional().nullable(),
@@ -82,6 +83,7 @@ export const supplierInvoiceSchema = z
     transactionDate: z.date().optional().nullable(),
     paymentDescription: z.string().optional().nullable(),
     paymentBankReference: z.string().optional().nullable(),
+    paymentAmount: z.coerce.number().optional().nullable(),
     paymentMethod: z.nativeEnum(PaymentMethodEnum).optional().nullable(),
     draftAppliedAdvances: z
       .array(

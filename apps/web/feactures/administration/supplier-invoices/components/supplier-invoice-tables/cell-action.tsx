@@ -44,8 +44,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const onConfirmAccount = () => {
+    const { supplierName, ...payloadWithoutId } = data;
+
     const payload = {
-      ...data,
+      ...payloadWithoutId,
       status: SupplierInvoiceStatusEnum.ACCOUNTED_FOR,
     };
 
@@ -138,7 +140,16 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleEdit}>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleEdit}
+                disabled={
+                  data.status === 'PAID' ||
+                  data.status === 'ACCOUNTED_FOR' ||
+                  data.status === 'CANCELLED'
+                }
+              >
                 <Edit className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -171,7 +182,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleDelete}>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleDelete}
+                disabled={data.status !== 'PENDING'}
+              >
                 <Trash className="h-4 w-4" />
               </Button>
             </TooltipTrigger>

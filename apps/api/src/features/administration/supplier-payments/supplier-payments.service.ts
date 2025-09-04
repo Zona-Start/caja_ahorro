@@ -296,9 +296,49 @@ export class SupplierPaymentsService {
 
       // Verifica si updateAccountPayable existe y no es 'undefined' antes de usarlo.
       if (updateAccountPayable) {
+        const invoiceLines = payment.lines.filter(
+          (line) => !updateAccountPayable.get(line.accountsPayableId as number),
+        );
+        const advanceLines = payment.lines.filter((line) =>
+          updateAccountPayable.get(line.accountsPayableId as number),
+        );
+
+        let invoicePayableNumber = 'N/A';
+        if (invoiceLines.length > 0) {
+          const [invoicePayable] = await tx
+            .select()
+            .from(schema.accountsPayable)
+            .where(
+              eq(
+                schema.accountsPayable.id,
+                invoiceLines[0].accountsPayableId as number,
+              ),
+            );
+          invoicePayableNumber = invoicePayable?.accountsPayableNumber ?? 'N/A';
+        }
+
         for (const [id, newValues] of updateAccountPayable) {
-          // Llama al servicio SOLO cuando el saldo restante es 0
-          if (newValues.status !== 'ADVANCE') {
+          if (newValues.status === 'ADVANCE') {
+            const newRemainingAmount = newValues.newRemainingAmount;
+            const newStatus =
+              newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE';
+
+            const [currentAdvance] = await tx
+              .select()
+              .from(schema.accountsPayable)
+              .where(eq(schema.accountsPayable.id, id));
+
+            await tx
+              .update(schema.accountsPayable)
+              .set({
+                paidAmount: '0.00',
+                remainingAmount: newRemainingAmount.toString(),
+                status: newStatus,
+                observations: `${currentAdvance.observations} | ANTICIPO APLICADO A ${invoicePayableNumber}`,
+              })
+              .where(eq(schema.accountsPayable.id, id));
+          } else {
+            // Llama al servicio SOLO cuando el saldo restante es 0
             if (newValues.newRemainingAmount === 0) {
               this.supplierInvoicesService.updateStatusToPaid(
                 newValues.invoiceId,
@@ -391,7 +431,7 @@ export class SupplierPaymentsService {
     return this.db.transaction(async (tx) => {
       // 1. Crear la cuenta por pagar con saldo negativo y estado ADVANCE
       const accountsPayableNumber =
-        await this.generateCodeService.generateNextReference('ADV', tx);
+        await this.generateCodeService.generateNextReference('ADV-P', tx);
       const [newAccountPayable] = await tx
         .insert(schema.accountsPayable)
         .values({

@@ -155,6 +155,10 @@ export const supplierInvoices = administrationSchema.table(
     chargePayment: boolean('charge_payment').default(false),
     paymentBankReference: varchar('payment_bank_reference', { length: 50 }),
     paymentDescription: varchar('payment_description', { length: 255 }),
+    paymentAmount: numeric('payment_amount', {
+      precision: 18,
+      scale: 2,
+    }),
     transactionDate: date('transaction_date'),
     paymentMethod: paymentMethodEnum('payment_method'),
     bankAccountId: integer('bank_account_id').references(() => bankAccounts.id),

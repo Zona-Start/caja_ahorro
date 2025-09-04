@@ -93,6 +93,7 @@ export function SupplierInvoiceForm({
       observations: defaultValues?.observations || '',
       paymentDescription: defaultValues?.paymentDescription || '',
       paymentBankReference: defaultValues?.paymentBankReference || '',
+      paymentAmount: defaultValues?.paymentAmount || 0,
       paymentMethod:
         defaultValues?.paymentMethod || PaymentMethodEnum.BANK_TRANSFER,
       transactionDate: defaultValues?.transactionDate
@@ -119,7 +120,11 @@ export function SupplierInvoiceForm({
     control: form.control,
     name: 'chargePayment',
   });
-  const totalAmount = useWatch({ control: form.control, name: 'totalAmount' });
+  const totalAmount = useWatch({
+    control: form.control,
+    name: 'totalAmount',
+  });
+
   const appliedAdvances = useWatch({
     control: form.control,
     name: 'draftAppliedAdvances',
@@ -137,6 +142,19 @@ export function SupplierInvoiceForm({
   }, [appliedAdvances]);
 
   const isPaymentDisabled = totalAppliedAdvance >= totalAmount;
+
+  useEffect(() => {
+    if (defaultValues?.draftAppliedAdvances?.length) {
+      setChargeAdvances(true);
+    }
+  }, [defaultValues]);
+
+  useEffect(() => {
+    if (chargePayment) {
+      const remainingAmount = (totalAmount || 0) - totalAppliedAdvance;
+      form.setValue('paymentAmount', remainingAmount > 0 ? remainingAmount : 0);
+    }
+  }, [chargePayment, totalAmount, totalAppliedAdvance, form]);
 
   useEffect(() => {
     if (paymentType === SupplierInvoicePaymentTypeEnum.CASH) {
@@ -332,7 +350,7 @@ export function SupplierInvoiceForm({
     defaultValues?.id,
     initialPurchaseOrderId,
   ]);
-
+  console.log(form.formState.errors);
   const handleSave = (status: SupplierInvoiceStatusEnum) => {
     form.setValue('status', status);
     form.handleSubmit((data) => {
@@ -341,8 +359,10 @@ export function SupplierInvoiceForm({
         return rest;
       });
 
+      const { supplierName, ...payloadWithoutId } = data;
+
       const payload = {
-        ...data,
+        ...payloadWithoutId,
         items: itemsWithoutIds,
         status,
         draftAppliedAdvances: chargeAdvances ? data.draftAppliedAdvances : [],
@@ -353,14 +373,14 @@ export function SupplierInvoiceForm({
         paymentBankReference: data.chargePayment
           ? data.paymentBankReference
           : undefined,
+        paymentAmount: data.paymentAmount ? data.paymentAmount : undefined,
         subtotal: Number(data.subtotal.toFixed(2)),
         taxAmount: Number(data.taxAmount.toFixed(2)),
       };
+
       saveSupplierInvoice(payload, {
         onSuccess: (result: any) => {
           const updatedInvoice = result?.data;
-          console.log(updatedInvoice);
-
           if (!updatedInvoice) return;
 
           if (
@@ -1234,7 +1254,7 @@ export function SupplierInvoiceForm({
 
                   <FormField
                     control={form.control}
-                    name="totalAmount"
+                    name="paymentAmount"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Monto</FormLabel>
@@ -1242,10 +1262,8 @@ export function SupplierInvoiceForm({
                           <Input
                             type="number"
                             // Convert the string value to a number on change
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
-                            value={field.value}
+                            onChange={field.onChange}
+                            value={field.value ?? 0} // Add this line
                             disabled={readOnly}
                           />
                         </FormControl>
@@ -1285,7 +1303,7 @@ export function SupplierInvoiceForm({
                       handleSave(SupplierInvoiceStatusEnum.PENDING)
                     }
                   >
-                    {isSaving ? 'Validando...' : 'Guardar'}
+                    {isSaving ? 'Validando...' : 'Validar'}
                   </Button>
                 )}
 
@@ -1298,7 +1316,7 @@ export function SupplierInvoiceForm({
                       handleSave(SupplierInvoiceStatusEnum.PENDING)
                     }
                   >
-                    {isSaving ? 'Guardando...' : 'Guardar'}
+                    {isSaving ? 'Actualizando...' : 'Actualizar'}
                   </Button>
                 )}
             </div>

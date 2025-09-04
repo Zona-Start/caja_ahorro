@@ -60,6 +60,7 @@ export class SupplierInvoicesService {
           subtotal: dto.subtotal.toString(),
           taxAmount: dto.taxAmount?.toString(),
           totalAmount: dto.totalAmount.toString(),
+          paymentAmount: dto.paymentAmount?.toString(),
           dueDate: dto.dueDate?.toISOString(),
           invoiceDate: dto.invoiceDate.toISOString(),
           transactionDate: dto.chargePayment ? new Date().toISOString() : null,
@@ -163,6 +164,7 @@ export class SupplierInvoicesService {
           subtotal: dto.subtotal?.toString(),
           taxAmount: dto.taxAmount?.toString(),
           totalAmount: dto.totalAmount?.toString(),
+          paymentAmount: dto.paymentAmount?.toString(),
           dueDate: dto.dueDate?.toISOString(),
           invoiceDate: dto.invoiceDate?.toISOString(),
           transactionDate: dto.chargePayment ? new Date().toISOString() : null,
@@ -791,7 +793,7 @@ export class SupplierInvoicesService {
   private async updateInvoiceAndItems(
     invoiceId: number,
     userId: number,
-    dto: UpdateSupplierInvoiceDto,
+    dto: CreateSupplierInvoiceDto,
     tx: NodePgDatabase<typeof schema>,
   ) {
     const { items, ...invoiceData } = dto;
@@ -801,6 +803,7 @@ export class SupplierInvoicesService {
         ...invoiceData,
         subtotal: dto.subtotal?.toString(),
         taxAmount: dto.taxAmount?.toString(),
+        paymentAmount: dto.paymentAmount?.toString(),
         totalAmount: dto.totalAmount?.toString(),
         dueDate: dto.dueDate?.toISOString(),
         invoiceDate: dto.invoiceDate?.toISOString(),
@@ -941,8 +944,10 @@ export class SupplierInvoicesService {
         chargePayment: invoiceRow.invoice.chargePayment,
         paymentDescription: invoiceRow.invoice.paymentDescription,
         paymentBankReference: invoiceRow.invoice.paymentBankReference,
+        paymentAmount: invoiceRow.invoice.paymentAmount,
         paymentMethod: invoiceRow.invoice.paymentMethod,
         transactionDate: invoiceRow.invoice.transactionDate,
+        draftAppliedAdvances: invoiceRow.invoice.draftAppliedAdvances,
         items: [] as any[], // Inicializamos el array de ítems aquí
       };
 

@@ -22,6 +22,11 @@ import {
 import { AppliedAdvanceDto } from './applied-advance.dto';
 
 class SupplierInvoiceItemDto {
+  @ApiProperty({ description: 'Item ID' })
+  @IsInt()
+  @IsOptional()
+  id: number;
+
   @ApiProperty({ description: 'Line type' })
   @IsEnum(purchaseOrderTypeEnum.enumValues)
   @IsNotEmpty()
@@ -191,4 +196,9 @@ export class CreateSupplierInvoiceDto {
   @Type(() => AppliedAdvanceDto)
   @IsOptional()
   draftAppliedAdvances?: AppliedAdvanceDto[];
+
+  @ApiProperty({ description: 'Supplier Invoice Number' })
+  @IsString()
+  @IsOptional()
+  supplierInvoiceNumber?: string;
 }
