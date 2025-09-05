@@ -104,7 +104,7 @@ export function SupplierInvoiceForm({
         : new Date(),
       dueDate: defaultValues?.dueDate ? new Date(defaultValues.dueDate) : null,
       items: defaultValues?.items || [],
-      draftAppliedAdvances: defaultValues?.draftAppliedAdvances || [],
+      draftAppliedCredits: defaultValues?.draftAppliedCredits || [],
       status: defaultValues?.status || SupplierInvoiceStatusEnum.DRAFT,
     },
     mode: 'onSubmit',
@@ -127,7 +127,7 @@ export function SupplierInvoiceForm({
 
   const appliedAdvances = useWatch({
     control: form.control,
-    name: 'draftAppliedAdvances',
+    name: 'draftAppliedCredits',
   });
 
   const { data: advances } = useAccountsPayableAdvances(supplierId);
@@ -144,7 +144,7 @@ export function SupplierInvoiceForm({
   const isPaymentDisabled = totalAppliedAdvance >= totalAmount;
 
   useEffect(() => {
-    if (defaultValues?.draftAppliedAdvances?.length) {
+    if (defaultValues?.draftAppliedCredits?.length) {
       setChargeAdvances(true);
     }
   }, [defaultValues]);
@@ -235,7 +235,7 @@ export function SupplierInvoiceForm({
     remove: removeAdvance,
   } = useFieldArray({
     control: form.control,
-    name: 'draftAppliedAdvances',
+    name: 'draftAppliedCredits',
   });
 
   const watchedItems = useWatch({ control: form.control, name: 'items' });
@@ -365,7 +365,7 @@ export function SupplierInvoiceForm({
         ...payloadWithoutId,
         items: itemsWithoutIds,
         status,
-        draftAppliedAdvances: chargeAdvances ? data.draftAppliedAdvances : [],
+        draftAppliedCredits: chargeAdvances ? data.draftAppliedCredits : [],
         paymentMethod: data.chargePayment ? data.paymentMethod : undefined,
         paymentDescription: data.chargePayment
           ? data.paymentDescription
@@ -1048,7 +1048,7 @@ export function SupplierInvoiceForm({
                   onCheckedChange={(checked) => {
                     setChargeAdvances(checked);
                     if (!checked) {
-                      form.setValue('draftAppliedAdvances', []);
+                      form.setValue('draftAppliedCredits', []);
                     }
                   }}
                   disabled={readOnly || !supplierId}
@@ -1096,7 +1096,7 @@ export function SupplierInvoiceForm({
                         {isSelected && (
                           <FormField
                             control={form.control}
-                            name={`draftAppliedAdvances.${advanceIndex}.amount`}
+                            name={`draftAppliedCredits.${advanceIndex}.amount`}
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Monto a aplicar</FormLabel>

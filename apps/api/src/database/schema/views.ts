@@ -2,11 +2,13 @@ import { sql } from 'drizzle-orm';
 import {
   decimal,
   integer,
+  jsonb,
   numeric,
   serial,
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import { accountsPayable, suppliers } from './administration';
 import {
   associateAccountMovements,
   associateAccounts,
@@ -15,7 +17,7 @@ import {
   loanAmortizationSchedule,
   loans,
 } from './savings-banks';
-import { savingsBanksSchema } from './schemas';
+import { administrationSchema, savingsBanksSchema } from './schemas';
 
 export const associateAccountBalances = savingsBanksSchema
   .view('associate_account_balances', {
@@ -292,6 +294,51 @@ export const associateHaberesBalance = savingsBanksSchema.view(
       ${associateAccountMovements}
   GROUP BY
       ${associateAccountMovements.associateAccountId}
+`);
+
+export const supplierAvailableCredits = administrationSchema.view(
+  'supplier_available_credits_view',
+  {
+    supplierId: integer('supplier_id').notNull(),
+    supplierName: text('supplier_name').notNull(),
+    taxId: text('tax_id').notNull(),
+    currencyCode: text('currency_code').notNull(),
+    availableCredit: decimal('available_credit', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    credits: jsonb('credits').notNull(),
+  },
+).as(sql`
+     SELECT
+    ap.supplier_id AS supplier_id,
+    s.name AS supplier_name,
+    s.tax_id AS tax_id,
+    ap.currency_code AS currency_code,
+    SUM(ABS(ap.remaining_amount)) AS available_credit,
+    JSONB_AGG(
+      JSONB_BUILD_OBJECT(
+        'cxpId', ap.id,
+        'cxpNumber', ap.ap_number,
+        'origin', CASE
+          WHEN ap.status = 'ADVANCE' THEN 'Anticipo'
+          ELSE 'Nota de credito'
+        END,
+        'amount', ABS(ap.remaining_amount)
+      ) ORDER BY ap.created_at
+    ) AS credits
+  FROM
+    ${accountsPayable} ap
+  JOIN
+      ${suppliers} s ON s.id = ap.supplier_id
+  WHERE
+    ap.remaining_amount < 0
+    AND ap.status <> 'CANCELLED'
+  GROUP BY
+    ap.supplier_id,
+    s.name,
+    s.tax_id,
+    ap.currency_code
 `);
 
 // export const accountsPayableSummaryView = accountsPayableSchema.view(

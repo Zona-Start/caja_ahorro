@@ -4,6 +4,7 @@ import { PaymentMethodEnum } from '../../supplier-payments/schemas/supplier-paym
 export const payAccountPayableSchema = z.object({
   // FKs and identifiers
   supplierId: z.number(),
+  supplierName: z.string().optional(),
   accountsPayableId: z.number(),
 
   // Form fields

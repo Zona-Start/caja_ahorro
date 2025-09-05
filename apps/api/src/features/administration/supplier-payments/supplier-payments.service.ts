@@ -273,6 +273,7 @@ export class SupplierPaymentsService {
             currencyCode: 'VES' as CurrencyCodeEnum,
             paymentMethod: payment.paymentMethod,
             bankMovementId: movementBank.id,
+            ///por definir la referencia
           };
         }),
       );

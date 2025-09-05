@@ -101,7 +101,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setShowAccountModal(false)}
         onConfirm={onConfirmAccount}
         loading={isUpdating}
-        title="¿Estás seguro que desea contabilizar esta factura?"
+        title="¿Estás seguro que desea Contabilizar esta factura?"
         description="Esta acción no se puede deshacer."
       />
       <Toaster />

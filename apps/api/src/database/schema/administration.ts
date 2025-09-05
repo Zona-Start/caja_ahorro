@@ -164,7 +164,7 @@ export const supplierInvoices = administrationSchema.table(
     bankAccountId: integer('bank_account_id').references(() => bankAccounts.id),
 
     //manejo de datos anticipo
-    draftAppliedAdvances: jsonb('draft_applied_advances').default('[]'),
+    draftAppliedCredits: jsonb('draft_applied_credits').default('[]'),
     /* FK opcional al asiento contable al recibir la factura */
     // accountingEntryId: integer('accounting_entry_id').references(() => entradaContables.id),
 

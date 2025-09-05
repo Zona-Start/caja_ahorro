@@ -195,11 +195,6 @@ export class PurchaseOrdersService {
       .where(searchCondition)
       .orderBy(orderBy);
 
-    //    .leftJoin(
-    //   purchaseOrderItems,
-    //   eq(purchaseOrders.id, purchaseOrderItems.purchaseOrderId),
-    // )
-
     const ordersIds = orders.map((row) => row.order.id);
     // Si no hay ordenes, devolvemos un array vacío para los ítems
     if (ordersIds.length === 0) {

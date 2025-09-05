@@ -100,18 +100,20 @@ export class SupplierTransactionsService {
   }
 
   async findOne(id: number) {
-    const data = await this.drizzle.query.supplierTransactions.findFirst({
-      where: eq(supplierTransactions.id, id),
-      with: {
-        accountsPayable: true,
-      },
-    });
+    const data = await this.drizzle
+      .select()
+      .from(supplierTransactions)
+      .leftJoin(
+        schema.accountsPayable,
+        eq(schema.accountsPayable.id, supplierTransactions.accountsPayableId),
+      )
+      .where(eq(supplierTransactions.id, id));
 
-    if (!data) {
+    if (data.length === 0) {
       throw new NotFoundException('Supplier transaction not found');
     }
 
-    return data;
+    return data[0];
   }
 
   async create(

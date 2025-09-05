@@ -14,6 +14,7 @@ import {
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountsPayableService } from './accounts-payable.service';
 import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
+import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
 import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
 
@@ -21,6 +22,23 @@ import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
 @Controller('administration/accounts-payable')
 export class AccountsPayableController {
   constructor(private readonly services: AccountsPayableService) {}
+
+  @Post('/transaction/credit-debit-note')
+  @Roles('admin')
+  @RequirePermissions('create:account-payable')
+  @ApiOperation({ summary: 'Create a new credit/debit note' })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction created successfully.',
+  })
+  async createCreditDebitNote(
+    @Req() req: Request,
+    @Body() dto: CreateSupplierTransactionDto,
+  ) {
+    const userId = req['user'].id;
+    const data = await this.services.createCreditDebitNote(userId, dto);
+    return { message: 'Transaction created successfully', data };
+  }
 
   @Post()
   @Roles('admin')

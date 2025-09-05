@@ -58,6 +58,7 @@ export function PayAccountPayableForm({
     // Iniciar el formulario con valores base para evitar error de componente no controlado a controlado
     defaultValues: {
       supplierId: accountPayable?.supplierId,
+      supplierName: accountPayable?.supplierName,
       accountsPayableId: accountPayable.id,
       amount: 0,
       paymentMethod: PaymentMethodEnum.BANK_TRANSFER,
@@ -115,8 +116,11 @@ export function PayAccountPayableForm({
     form.reset,
   ]);
 
+  console.log(form.formState.errors);
+
   const onSubmit = (data: PayAccountPayable) => {
-    pay(data, {
+    const { supplierName, ...rest } = data;
+    pay(rest, {
       onSuccess: () => {
         onSuccess?.();
       },

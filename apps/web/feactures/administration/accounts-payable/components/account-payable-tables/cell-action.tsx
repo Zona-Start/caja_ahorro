@@ -16,6 +16,7 @@ import { AccountPayableSchemaAPI } from '../../schemas';
 import { AccountPayable } from '../../schemas/account-payable.schema';
 import { AccountPayableModal } from '../account-payable-modal';
 import { AccountPayableViewModal } from '../account-payable-view-modal';
+import { CreditDebitNoteModal } from '../credit-debit-note-modal';
 
 import { PayAccountPayableModal } from '../pay-account-payable-modal';
 
@@ -30,17 +31,25 @@ export const CellAction: React.FC<CellActionProps> = ({ data, dataApi }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
+  const [showCreditDebitNoteModal, setShowCreditDebitNoteModal] = useState(false);
   const { mutate: deleteAccountPayable } = useDeleteAccountPayable();
 
   // const { refetch: downloadReport } = useAccountPayableReport(data.id!, {
   //   enabled: false, // Disable automatic fetching
   // });
 
+  const dataPay = {
+    ...data,
+    supplierName: String(dataApi.supplierName),
+    supplierId: Number(dataApi.supplierId),
+  };
+
   const canBeModified =
     data.status === 'PENDING' || data.status === 'IN_PROGRESS';
 
-  const canBePaid = 
-    data.status === 'PENDING' || data.status === 'IN_PROGRESS';
+  const canBePaid = (data.status === 'PENDING' || data.status === 'IN_PROGRESS') && data.remainingAmount > 0;
+
+  const canHaveCreditDebitNote = !['CANCELLED', 'ADVANCE', 'ADVANCE_APPLIED'].includes(data.status);
 
   const onConfirmDelete = async () => {
     try {
@@ -113,6 +122,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data, dataApi }) => {
         <PayAccountPayableModal
           open={showPayModal}
           onOpenChange={setShowPayModal}
+          accountPayable={dataPay}
+        />
+      )}
+
+      {showCreditDebitNoteModal && (
+        <CreditDebitNoteModal
+          open={showCreditDebitNoteModal}
+          onOpenChange={setShowCreditDebitNoteModal}
           accountPayable={data}
         />
       )}
@@ -178,8 +195,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data, dataApi }) => {
               <Button
                 variant="outline"
                 size="icon"
+                disabled={!canHaveCreditDebitNote}
                 onClick={() => {
-                  // TODO: Add payment logic
+                  if (canHaveCreditDebitNote) {
+                    setShowCreditDebitNoteModal(true);
+                  } else {
+                    handleActionRestriction('crear nota de crédito/débito para');
+                  }
                 }}
               >
                 <FileText className="h-4 w-4" />

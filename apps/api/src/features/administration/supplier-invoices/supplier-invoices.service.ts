@@ -6,7 +6,7 @@ import {
   supplierInvoices,
   suppliers,
 } from '@/database/schema/administration';
-import { priceTypeEnum } from '@/types/enum';
+import { paymentMethodEnum, priceTypeEnum } from '@/types/enum';
 import {
   BadRequestException,
   ConflictException,
@@ -42,6 +42,15 @@ export class SupplierInvoicesService {
     private readonly servicePricesService: ServicePricesService,
   ) {}
 
+  /***
+   *  Crear una nueva factura de proveedor
+   * → Validar el estado
+   * → Iniciar una transacción
+   * → Insertar la factura
+   * → Insertar los artículos
+   * → Devolver la factura completa con un mensaje de éxito.
+   */
+
   async create(userId: number, dto: CreateSupplierInvoiceDto) {
     const { status } = dto;
 
@@ -68,7 +77,7 @@ export class SupplierInvoicesService {
           createdById: userId,
           supplierInvoiceNumber:
             await this.generateCodeService.generateNextReference('FAC-P'),
-          draftAppliedAdvances: dto.draftAppliedAdvances,
+          draftAppliedCredits: dto.draftAppliedCredits,
         })
         .returning({
           status: supplierInvoices.status,
@@ -131,6 +140,15 @@ export class SupplierInvoicesService {
       };
     });
   }
+
+  /**
+   *   Modificar una factura de proveedor existente
+   * → Validar el estado
+   * → Iniciar una transacción
+   * → Actualizar la factura
+   * → Eliminar y reinsertar los artículos
+   * → Devolver la factura actualizada.
+   */
 
   async update(
     invoiceId: number,
@@ -236,6 +254,13 @@ export class SupplierInvoicesService {
     });
   }
 
+  /**
+   * Esta función está diseñada para cambiar el estado de una factura y realizar los procesos de contabilidad relacionados.
+   * @param userId
+   * @param id
+   * @param dto
+   * @returns
+   */
   async accountFor(userId: number, id: number, dto: UpdateSupplierInvoiceDto) {
     return this.drizzle.transaction(async (tx) => {
       const existingInvoice = await tx
@@ -253,60 +278,6 @@ export class SupplierInvoicesService {
 
       const originalStatus = existingInvoice[0].supplier_invoices.status;
       const newStatus = dto.status;
-
-      // --- Logic for DRAFT invoices ---
-      // if (originalStatus === 'DRAFT') {
-      //   const updatedFields = { ...dto, updatedById: userId };
-      //   await this.updateInvoiceAndItems(id, userId, updatedFields, tx);
-
-      //   if (newStatus === 'PENDING') {
-      //     await tx
-      //       .update(supplierInvoices)
-      //       .set({ status: 'PENDING', updatedById: userId })
-      //       .where(eq(supplierInvoices.id, id));
-      //   }
-
-      //   const updatedInvoice = await tx
-      //     .select({
-      //       id: supplierInvoices.id,
-      //       supplierId: supplierInvoices.supplierId,
-      //       purchaseOrderId: supplierInvoices.purchaseOrderId,
-      //       invoiceNumber: supplierInvoices.invoiceNumber,
-      //       controlNumber: supplierInvoices.controlNumber,
-      //       invoiceDate: supplierInvoices.invoiceDate,
-      //       dueDate: supplierInvoices.dueDate,
-      //       subtotal: supplierInvoices.subtotal,
-      //       taxAmount: supplierInvoices.taxAmount,
-      //       totalAmount: supplierInvoices.totalAmount,
-      //       paymentType: supplierInvoices.paymentType,
-      //       status: supplierInvoices.status,
-      //       observations: supplierInvoices.observations,
-      //       chargePayment: supplierInvoices.chargePayment,
-      //       bankAccountId: supplierInvoices.bankAccountId,
-      //       transactionDate: supplierInvoices.transactionDate,
-      //       paymentDescription: supplierInvoices.paymentDescription,
-      //       paymentBankReference: supplierInvoices.paymentBankReference,
-      //       paymentMethod: supplierInvoices.paymentMethod,
-      //     })
-      //     .from(supplierInvoices)
-      //     .where(eq(supplierInvoices.id, id));
-
-      //   const items = await tx
-      //     .select({
-      //       id: supplierInvoiceItems.id,
-      //       lineType: supplierInvoiceItems.lineType,
-      //       description: supplierInvoiceItems.description,
-      //       quantity: supplierInvoiceItems.quantity,
-      //       unitCost: supplierInvoiceItems.unitCost,
-      //       totalLine: supplierInvoiceItems.totalLine,
-      //       itemId: supplierInvoiceItems.itemId,
-      //       expenseAccountId: supplierInvoiceItems.expenseAccountId,
-      //     })
-      //     .from(supplierInvoiceItems)
-      //     .where(eq(supplierInvoiceItems.invoiceId, id));
-
-      //   return { ...updatedInvoice[0], items };
-      // }
 
       // --- Logic for PENDING invoices ---
       if (originalStatus === 'PENDING') {
@@ -479,8 +450,7 @@ export class SupplierInvoicesService {
     }
 
     // 6. Finalize invoice status
-    //const isPaidImmediately = dto.paymentType === 'CASH' && dto.chargePayment;
-    //const finalStatus = isPaidImmediately ? 'PAID' : 'ACCOUNTED_FOR';
+
     const finalStatus = 'ACCOUNTED_FOR';
 
     await tx
@@ -665,8 +635,8 @@ export class SupplierInvoicesService {
     let remainingAmount = dto.totalAmount;
     let paidAmount = 0;
 
-    if (dto.draftAppliedAdvances && dto.draftAppliedAdvances.length > 0) {
-      const totalAdvanceApplied = dto.draftAppliedAdvances.reduce(
+    if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
+      const totalAdvanceApplied = dto.draftAppliedCredits.reduce(
         (sum, advance) => sum + advance.amount,
         0,
       );
@@ -680,7 +650,7 @@ export class SupplierInvoicesService {
       remainingAmount -= totalAdvanceApplied;
       paidAmount += totalAdvanceApplied;
 
-      for (const advance of dto.draftAppliedAdvances) {
+      for (const advance of dto.draftAppliedCredits) {
         await this.accountsPayableService.applyAdvance(
           advance.advanceId,
           advance.amount,
@@ -701,16 +671,23 @@ export class SupplierInvoicesService {
         currencyCode: 'VES',
         status: remainingAmount <= 0 ? 'PAID' : 'PENDING',
         dueDate: dto.dueDate || new Date(),
-        observations: `CUENTA POR PAGAR POR FACTURA ${dto.invoiceNumber}`,
+        observations:
+          dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0
+            ? `CUENTA POR PAGAR POR FACTURA N° ${dto.invoiceNumber} CON ANTICIPOS CARGADOS`
+            : `CUENTA POR PAGAR POR FACTURA  N° ${dto.invoiceNumber}`,
       },
       tx,
     );
 
     // Create transactions for applied advances
-    if (dto.draftAppliedAdvances && dto.draftAppliedAdvances.length > 0) {
+    if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
       const transactionCode =
         await this.generateCodeService.generateNextReference('TRS-P', tx);
-      for (const advance of dto.draftAppliedAdvances) {
+      for (const advance of dto.draftAppliedCredits) {
+        const result = await this.supplierTransactionsService.findOne(
+          advance.advanceId,
+        );
+
         await this.supplierTransactionsService.create(
           {
             accountsPayableId: invoiceAP.id,
@@ -721,7 +698,11 @@ export class SupplierInvoicesService {
             amount: advance.amount,
             direction: 'CR',
             currencyCode: 'VES',
-            reference: `APLICACION DE ANTICIPO A FACTURA ${dto.invoiceNumber}`,
+            reference: `APLICACION DE ANTICIPO  A FACTURA N° ${dto.invoiceNumber}`,
+            paymentMethod: result.supplier_transactions
+              .paymentMethod as paymentMethodEnum,
+            bankMovementId: result.supplier_transactions
+              .bankMovementId as number,
             createdById: userId,
           },
           tx,
@@ -731,35 +712,6 @@ export class SupplierInvoicesService {
 
     return invoiceAP;
   }
-
-  // private async checkAndClosePurchaseOrder(
-  //   purchaseOrderId: number,
-  //   tx: NodePgDatabase<typeof schema>,
-  // ) {
-  //   const po = await tx.query.purchaseOrders.findFirst({
-  //     where: eq(purchaseOrders.id, purchaseOrderId),
-  //   });
-
-  //   if (po?.status !== 'INVOICED') {
-  //     return;
-  //   }
-
-  //   const relatedAPs = await tx.query.accountsPayable.findMany({
-  //     where: inArray(
-  //       accountsPayable.supplierInvoiceId,
-  //       sql`(SELECT id FROM ${supplierInvoices} WHERE purchase_order_id = ${purchaseOrderId})`,
-  //     ),
-  //   });
-
-  //   const allPaid = relatedAPs.every((ap) => ap.status === 'PAID');
-
-  //   if (allPaid) {
-  //     await tx
-  //       .update(purchaseOrders)
-  //       .set({ status: 'CLOSED' })
-  //       .where(eq(purchaseOrders.id, purchaseOrderId));
-  //   }
-  // }
 
   private async checkAndClosePurchaseOrder(
     purchaseOrderId: number,
@@ -787,46 +739,6 @@ export class SupplierInvoicesService {
         .update(purchaseOrders)
         .set({ status: 'CLOSED' })
         .where(eq(purchaseOrders.id, purchaseOrderId));
-    }
-  }
-
-  private async updateInvoiceAndItems(
-    invoiceId: number,
-    userId: number,
-    dto: CreateSupplierInvoiceDto,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const { items, ...invoiceData } = dto;
-    await tx
-      .update(supplierInvoices)
-      .set({
-        ...invoiceData,
-        subtotal: dto.subtotal?.toString(),
-        taxAmount: dto.taxAmount?.toString(),
-        paymentAmount: dto.paymentAmount?.toString(),
-        totalAmount: dto.totalAmount?.toString(),
-        dueDate: dto.dueDate?.toISOString(),
-        invoiceDate: dto.invoiceDate?.toISOString(),
-        transactionDate: dto.transactionDate
-          ? dto.transactionDate.toISOString()
-          : null,
-        updatedById: userId,
-      })
-      .where(eq(supplierInvoices.id, invoiceId));
-
-    if (items) {
-      await tx
-        .delete(supplierInvoiceItems)
-        .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
-
-      const itemsToInsert = items.map((item) => ({
-        ...item,
-        invoiceId: invoiceId,
-        unitCost: item.unitCost.toString(),
-        totalLine: item.totalLine.toString(),
-        createdById: userId,
-      }));
-      await tx.insert(supplierInvoiceItems).values(itemsToInsert as any);
     }
   }
 
@@ -947,7 +859,7 @@ export class SupplierInvoicesService {
         paymentAmount: invoiceRow.invoice.paymentAmount,
         paymentMethod: invoiceRow.invoice.paymentMethod,
         transactionDate: invoiceRow.invoice.transactionDate,
-        draftAppliedAdvances: invoiceRow.invoice.draftAppliedAdvances,
+        draftAppliedCredits: invoiceRow.invoice.draftAppliedCredits,
         items: [] as any[], // Inicializamos el array de ítems aquí
       };
 

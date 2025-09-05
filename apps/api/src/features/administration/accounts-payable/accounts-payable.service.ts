@@ -1,5 +1,8 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
-import { accountsPayable } from '@/database/schema/administration';
+import {
+  accountsPayable,
+  supplierTransactions,
+} from '@/database/schema/administration';
 import {
   BadRequestException,
   Inject,
@@ -11,6 +14,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
+import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
 import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
 
@@ -20,6 +24,70 @@ export class AccountsPayableService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
   ) {}
+
+  async createCreditDebitNote(
+    userId: number,
+    dto: CreateSupplierTransactionDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
+
+    const accountPayable = await db.query.accountsPayable.findFirst({
+      where: eq(accountsPayable.id, dto.accountsPayableId),
+    });
+
+    if (!accountPayable) {
+      throw new NotFoundException('Account payable not found');
+    }
+
+    const direction = dto.transactionType === 'CREDIT_NOTE' ? 'CR' : 'DR';
+    const amount =
+      dto.transactionType === 'CREDIT_NOTE'
+        ? -Math.abs(dto.amount)
+        : Math.abs(dto.amount);
+
+    const newTransaction = await db
+      .insert(supplierTransactions)
+      .values({
+        accountsPayableId: dto.accountsPayableId,
+        transactionNumber:
+          await this.generateCodeService.generateNextReference('TRS-P'),
+        transactionType: dto.transactionType,
+        transactionDate: dto.transactionDate.toISOString(),
+        amount: dto.amount.toString(),
+        direction: direction,
+        currencyCode: accountPayable.currencyCode ?? 'VES',
+        reference: dto.reference,
+        createdById: userId,
+      })
+      .returning();
+
+    const currentRemainingAmount = parseFloat(accountPayable.remainingAmount);
+    const newRemainingAmount = currentRemainingAmount + amount;
+
+    let status = accountPayable.status;
+
+    if (newRemainingAmount < 0) {
+      status = 'PENDING';
+    } else if (newRemainingAmount === 0) {
+      status = 'PAID';
+    } else {
+      if (status === 'PAID') {
+        status = 'IN_PROGRESS';
+      }
+    }
+
+    await db
+      .update(accountsPayable)
+      .set({
+        remainingAmount: newRemainingAmount.toString(),
+        status: status,
+        updatedById: userId,
+      })
+      .where(eq(accountsPayable.id, dto.accountsPayableId));
+
+    return newTransaction[0];
+  }
 
   async create(
     userId: number,
@@ -154,18 +222,23 @@ export class AccountsPayableService {
   }
 
   async findOne(id: number) {
-    const data = await this.drizzle.query.accountsPayable.findFirst({
-      where: eq(accountsPayable.id, id),
-      with: {
-        supplierInvoice: true,
-      },
-    });
+    const data = await this.drizzle
+      .select()
+      .from(accountsPayable)
+      .leftJoin(
+        schema.supplierInvoices,
+        eq(
+          schema.supplierInvoices.id,
+          schema.accountsPayable.supplierInvoiceId,
+        ),
+      )
+      .where(eq(accountsPayable.id, id));
 
-    if (!data) {
+    if (data.length === 0) {
       throw new NotFoundException('Account payable not found');
     }
 
-    return data;
+    return data[0];
   }
 
   async update(userId: number, id: number, data: UpdateAccountPayableDto) {
@@ -395,15 +468,14 @@ export class AccountsPayableService {
     }
 
     if (advance.status !== 'ADVANCE') {
-      throw new BadRequestException(`Account payable ${advanceId} is not an advance.`);
+      throw new BadRequestException(
+        `Account payable ${advanceId} is not an advance.`,
+      );
     }
 
     const remainingAmount = Number(advance.remainingAmount);
-    const paidAmount = Number(advance.paidAmount);
-
     // Los anticipos tienen remainingAmount negativo. Aplicar un monto lo acerca a 0.
     const newRemainingAmount = remainingAmount + amountToApply;
-    const newPaidAmount = paidAmount + amountToApply;
 
     if (newRemainingAmount > 0) {
       throw new BadRequestException(
@@ -411,14 +483,13 @@ export class AccountsPayableService {
       );
     }
 
-    const newStatus =
-      newRemainingAmount === 0 ? 'PAID' : 'ADVANCE';
+    const newStatus = newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE';
 
     await db
       .update(accountsPayable)
       .set({
         remainingAmount: newRemainingAmount.toString(),
-        paidAmount: newPaidAmount.toString(),
+        paidAmount: '0.00',
         status: newStatus,
         updatedById: userId,
       })

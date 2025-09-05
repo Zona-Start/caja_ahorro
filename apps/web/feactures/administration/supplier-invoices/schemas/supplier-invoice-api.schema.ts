@@ -39,7 +39,7 @@ export const supplierInvoiceApiSchema = z.object({
   paymentMethod: z.string().optional().nullable(),
   paymentAmount: z.string().optional().nullable(),
   transactionDate: z.string().optional().nullable(),
-  draftAppliedAdvances: z.array(appliedAdvanceApiSchema).optional().nullable(),
+  draftAppliedCredits: z.array(appliedAdvanceApiSchema).optional().nullable(),
   items: z.array(supplierInvoiceItemApiSchema).optional().nullable(),
 });
 

@@ -195,7 +195,7 @@ export class CreateSupplierInvoiceDto {
   @ValidateNested({ each: true })
   @Type(() => AppliedAdvanceDto)
   @IsOptional()
-  draftAppliedAdvances?: AppliedAdvanceDto[];
+  draftAppliedCredits?: AppliedAdvanceDto[];
 
   @ApiProperty({ description: 'Supplier Invoice Number' })
   @IsString()

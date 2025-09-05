@@ -85,7 +85,7 @@ export const supplierInvoiceSchema = z
     paymentBankReference: z.string().optional().nullable(),
     paymentAmount: z.coerce.number().optional().nullable(),
     paymentMethod: z.nativeEnum(PaymentMethodEnum).optional().nullable(),
-    draftAppliedAdvances: z
+    draftAppliedCredits: z
       .array(
         z.object({
           advanceId: z.number(),
