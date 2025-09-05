@@ -88,8 +88,10 @@ export const supplierInvoiceSchema = z
     draftAppliedCredits: z
       .array(
         z.object({
-          advanceId: z.number(),
+          cxpId: z.number(),
           amount: z.coerce.number(),
+          origin: z.string(),
+          cxpNumber: z.string(),
         }),
       )
       .optional(),

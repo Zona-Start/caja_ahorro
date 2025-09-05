@@ -120,6 +120,27 @@
       "when": 1757042442434,
       "tag": "0016_superb_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1757090474780,
+      "tag": "0017_nostalgic_lifeguard",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1757096512270,
+      "tag": "0018_bizarre_iron_fist",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1757096680514,
+      "tag": "0019_clean_guardsmen",
+      "breakpoints": true
     }
   ]
 }

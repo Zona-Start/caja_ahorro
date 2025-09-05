@@ -18,6 +18,7 @@ import { and, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { supplierAvailableCredits } from 'src/database/index';
 import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
 import { FixedAssetPricesService } from '../inventory/fixed-asset-prices/fixed-asset-prices.service';
 import { InventoryMovementsService } from '../inventory/inventory-movements/inventory-movements.service';
@@ -626,6 +627,53 @@ export class SupplierInvoicesService {
       .where(eq(purchaseOrders.id, purchaseOrderId));
   }
 
+  private async applyCreditNote(
+    cxpId: number,
+    amountToApply: number,
+    userId: number,
+    tx: NodePgDatabase<typeof schema>,
+  ) {
+    const [creditNoteCxp] = await tx
+      .select()
+      .from(schema.accountsPayable)
+      .where(eq(schema.accountsPayable.id, cxpId));
+
+    if (!creditNoteCxp) {
+      throw new NotFoundException(
+        `Credit note with CXP ID ${cxpId} not found.`,
+      );
+    }
+
+    if (Number(creditNoteCxp.remainingAmount) >= 0) {
+      throw new BadRequestException(
+        `CXP ID ${cxpId} is not a valid, open credit note.`,
+      );
+    }
+
+    const availableCredit = Math.abs(Number(creditNoteCxp.remainingAmount));
+
+    if (amountToApply > availableCredit) {
+      throw new BadRequestException(
+        `Amount to apply (${amountToApply}) exceeds the available credit (${availableCredit}) for CXP ID ${cxpId}.`,
+      );
+    }
+
+    const newRemainingAmount =
+      Number(creditNoteCxp.remainingAmount) + amountToApply;
+    const newPaidAmount = creditNoteCxp.paidAmount; // dejar tal cual
+    const newStatus = newRemainingAmount >= 0 ? 'PAID' : 'PENDING';
+
+    await tx
+      .update(schema.accountsPayable)
+      .set({
+        remainingAmount: newRemainingAmount.toString(),
+        paidAmount: newPaidAmount.toString(),
+        status: newStatus,
+        updatedById: userId,
+      })
+      .where(eq(schema.accountsPayable.id, cxpId));
+  }
+
   private async handlePaymentAndAccountsPayable(
     userId: number,
     invoiceId: number,
@@ -636,27 +684,42 @@ export class SupplierInvoicesService {
     let paidAmount = 0;
 
     if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
-      const totalAdvanceApplied = dto.draftAppliedCredits.reduce(
-        (sum, advance) => sum + advance.amount,
+      const totalApplied = dto.draftAppliedCredits.reduce(
+        (sum, credit) => sum + credit.amount,
         0,
       );
 
-      if (totalAdvanceApplied > dto.totalAmount) {
+      if (totalApplied > dto.totalAmount) {
         throw new BadRequestException(
-          'Total applied from advances cannot exceed the invoice total amount.',
+          'Total applied from credits cannot exceed the invoice total amount.',
         );
       }
 
-      remainingAmount -= totalAdvanceApplied;
-      paidAmount += totalAdvanceApplied;
+      remainingAmount -= totalApplied;
+      paidAmount += totalApplied;
 
-      for (const advance of dto.draftAppliedCredits) {
-        await this.accountsPayableService.applyAdvance(
-          advance.advanceId,
-          advance.amount,
-          userId,
-          tx,
-        );
+      for (const credit of dto.draftAppliedCredits) {
+        try {
+          if (credit.origin === 'ADVANCE') {
+            await this.accountsPayableService.applyAdvance(
+              credit.cxpId,
+              credit.amount,
+              userId,
+              tx,
+            );
+          } else if (credit.origin === 'CREDIT_NOTE') {
+            await this.applyCreditNote(credit.cxpId, credit.amount, userId, tx);
+          } else {
+            throw new BadRequestException(
+              `Invalid credit origin: "${credit.origin}"`,
+            );
+          }
+        } catch (error) {
+          console.error(
+            `Error processing credit with cxpId: ${credit.cxpId} and origin: ${credit.origin}`,
+            error,
+          );
+        }
       }
     }
 
@@ -673,32 +736,38 @@ export class SupplierInvoicesService {
         dueDate: dto.dueDate || new Date(),
         observations:
           dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0
-            ? `CUENTA POR PAGAR POR FACTURA N° ${dto.invoiceNumber} CON ANTICIPOS CARGADOS`
+            ? `CUENTA POR PAGAR POR FACTURA N° ${dto.invoiceNumber} CON CRÉDITOS CARGADOS`
             : `CUENTA POR PAGAR POR FACTURA  N° ${dto.invoiceNumber}`,
       },
       tx,
     );
 
-    // Create transactions for applied advances
+    // Create transactions for applied credits
     if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
-      const transactionCode =
-        await this.generateCodeService.generateNextReference('TRS-P', tx);
-      for (const advance of dto.draftAppliedCredits) {
+      for (const credit of dto.draftAppliedCredits) {
         const result = await this.supplierTransactionsService.findOne(
-          advance.advanceId,
+          credit.cxpId,
         );
+        const transactionCode =
+          await this.generateCodeService.generateNextReference('TRS-P', tx);
+
+        const isAdvance = credit.origin === 'ADVANCE';
 
         await this.supplierTransactionsService.create(
           {
             accountsPayableId: invoiceAP.id,
-            relatedAdvanceId: advance.advanceId,
+            relatedAdvanceId: credit.cxpId,
             transactionNumber: transactionCode,
-            transactionType: 'ADVANCE_APPLIED',
+            transactionType: isAdvance
+              ? 'ADVANCE_APPLIED'
+              : 'CREDIT_NOTE_APPLIED',
             transactionDate: new Date(),
-            amount: advance.amount,
+            amount: credit.amount,
             direction: 'CR',
             currencyCode: 'VES',
-            reference: `APLICACION DE ANTICIPO  A FACTURA N° ${dto.invoiceNumber}`,
+            reference: isAdvance
+              ? `APLICACION DE ANTICIPO A FACTURA N° ${dto.invoiceNumber}`
+              : `APLICACION DE NOTA DE CREDITO A FACTURA N° ${dto.invoiceNumber}`,
             paymentMethod: result.supplier_transactions
               .paymentMethod as paymentMethodEnum,
             bankMovementId: result.supplier_transactions
@@ -1031,5 +1100,13 @@ export class SupplierInvoicesService {
     }
 
     return updatedSupplierinvoice;
+  }
+
+  async getSupplierAvailableCredits(id: number) {
+    const result = await this.drizzle
+      .select()
+      .from(supplierAvailableCredits)
+      .where(eq(supplierAvailableCredits.supplierId, id));
+    return result;
   }
 }

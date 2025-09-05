@@ -40,12 +40,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Switch } from '@repo/shadcn/switch';
 import { useAccountingAccounts } from '../../../accounting/accounting-accounts/hooks/use-query-account-plan';
 import { useBankAccountAll } from '../../../banks/bank-account/hooks/use-query-bank-account';
-import { useAccountsPayableAdvances } from '../../accounts-payable/hooks/use-query-account-payable';
 import { useFixedAssetAll } from '../../inventories/fixed-asset/hooks/use-query-fixed-asset';
 import { useProductsAll } from '../../inventories/products/hooks/use-query-product';
 import { useServicesAll } from '../../inventories/services/hooks/use-query-service';
 import { usePurchaseOrdersForInvoice } from '../../purchase-orders/hooks/use-query-purchase-order';
 import {
+  useSupplierAvailableCredit,
   useSupplierInvoices,
   useSupplierInvoicesDraftPending,
 } from '../hooks/use-query-supplier-invoice';
@@ -130,7 +130,7 @@ export function SupplierInvoiceForm({
     name: 'draftAppliedCredits',
   });
 
-  const { data: advances } = useAccountsPayableAdvances(supplierId);
+  const { data: advances } = useSupplierAvailableCredit(supplierId);
 
   const totalAppliedAdvance = useMemo(() => {
     return (
@@ -1041,7 +1041,7 @@ export function SupplierInvoiceForm({
 
           <div className="space-y-4 border p-4 rounded-md">
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-              <FormLabel>Cargar Anticipos</FormLabel>
+              <FormLabel>Cargar Créditos Proveedor</FormLabel>
               <FormControl>
                 <Switch
                   checked={chargeAdvances}
@@ -1057,67 +1057,75 @@ export function SupplierInvoiceForm({
             </FormItem>
             {chargeAdvances && (
               <ScrollArea className="h-[200px] w-full rounded-md border p-4">
-                {advances?.data && advances.data.length > 0 ? (
-                  advances.data.map((advance: any) => {
-                    const advanceIndex = advanceFields.findIndex(
-                      (field) => field.advanceId === advance.id,
-                    );
-                    const isSelected = advanceIndex !== -1;
+                {advances?.data &&
+                advances.data.flatMap((sc) => sc.credits).length > 0 ? (
+                  advances.data
+                    .flatMap((supplierCredit) => supplierCredit.credits)
+                    .map((credit: any) => {
+                      const advanceIndex = advanceFields.findIndex(
+                        (field) => field.cxpId === credit.cxpId,
+                      );
+                      const isSelected = advanceIndex !== -1;
 
-                    return (
-                      <div
-                        key={advance.id}
-                        className="flex items-center justify-between p-2 mb-2 border rounded-md"
-                      >
-                        <div className="flex items-center gap-4">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                appendAdvance({
-                                  advanceId: advance.id,
-                                  amount: 0,
-                                });
-                              } else {
-                                removeAdvance(advanceIndex);
-                              }
-                            }}
-                          />
-                          <div className="flex flex-col">
-                            <span className="font-semibold">
-                              {advance.accountsPayableNumber}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                              Saldo: {Math.abs(advance.remainingAmount)} Bs.
-                            </span>
+                      return (
+                        <div
+                          key={credit.cxpId}
+                          className="flex items-center justify-between p-2 mb-2 border rounded-md"
+                        >
+                          <div className="flex items-center gap-4">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  appendAdvance({
+                                    cxpId: credit.cxpId,
+                                    amount: 0,
+                                    origin: credit.origin,
+                                    cxpNumber: credit.cxpNumber,
+                                  });
+                                } else {
+                                  removeAdvance(advanceIndex);
+                                }
+                              }}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-semibold">
+                                {credit.cxpNumber}
+                              </span>
+                              <span className="text-sm text-muted-foreground">
+                                {credit.origin === 'ADVANCE'
+                                  ? 'AVANCE'
+                                  : 'NOTA CREDITO'}{' '}
+                                - Saldo: {Number(credit.amount).toFixed(2)} Bs.
+                              </span>
+                            </div>
                           </div>
+                          {isSelected && (
+                            <FormField
+                              control={form.control}
+                              name={`draftAppliedCredits.${advanceIndex}.amount`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Monto a aplicar</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      {...field}
+                                      max={credit.amount}
+                                      min={0}
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          )}
                         </div>
-                        {isSelected && (
-                          <FormField
-                            control={form.control}
-                            name={`draftAppliedCredits.${advanceIndex}.amount`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Monto a aplicar</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    {...field}
-                                    max={Math.abs(advance.remainingAmount)}
-                                    min={0}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                        )}
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 ) : (
                   <div className="text-center text-muted-foreground">
-                    No hay anticipos disponibles para este proveedor.
+                    No hay anticipos o créditos disponibles para este proveedor.
                   </div>
                 )}
               </ScrollArea>

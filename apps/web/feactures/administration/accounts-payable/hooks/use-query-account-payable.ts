@@ -15,7 +15,7 @@ export function useGetPreloadedPayment(
     () => getPreloadedPaymentAction(id),
     {
       enabled: !!id && (options?.enabled ?? false),
-    }
+    },
   );
 }
 
@@ -62,20 +62,6 @@ export function useAccountPayableBySupplier(
     () => getAccountsPayableAction({ supplierInvoiceId, status: 'PENDING' }),
     {
       enabled: supplierInvoiceId ? options?.enabled : false,
-      ...options,
-    },
-  );
-}
-
-export function useAccountsPayableAdvances(
-  supplierId: number | undefined,
-  options?: { enabled?: boolean },
-) {
-  return useSafeQuery(
-    ['accounts-payable-advances', supplierId],
-    () => getAccountsPayableAction({ supplierId, status: 'ADVANCE' }),
-    {
-      enabled: !!supplierId && (options?.enabled ?? true),
       ...options,
     },
   );

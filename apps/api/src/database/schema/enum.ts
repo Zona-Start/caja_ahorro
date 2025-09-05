@@ -385,7 +385,15 @@ export const paymentAccountsPayableEnum = pgEnum(
 
 export const supplierTransactionsTypeEnum = pgEnum(
   'supplier_transactions_type_enum',
-  ['PAYMENT', 'CREDIT_NOTE', 'DEBIT_NOTE', 'ADVANCE', 'ADVANCE_APPLIED'],
+  [
+    'PAYMENT',
+    'CREDIT_NOTE',
+    'DEBIT_NOTE',
+    'ADVANCE',
+    'ADVANCE_APPLIED',
+    'CREDIT_NOTE_APPLIED',
+    'DEBIT_NOTE_APPLIED',
+  ],
 );
 
 export const movementTypeInventory = pgEnum('movement_type_inventory', [

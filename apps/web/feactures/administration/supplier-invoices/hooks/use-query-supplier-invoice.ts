@@ -3,6 +3,7 @@ import {
   getInvoicesDraftPendingAction,
   getSupplierInvoiceByIdAction,
   getSupplierInvoicesAction,
+  supplierAvailableCreditAction,
 } from '../actions/supplier-invoice-actions';
 
 export function useSupplierInvoices(params = {}) {
@@ -45,6 +46,20 @@ export function useSupplierInvoicesDraftPending(enabled?: boolean) {
     () => getInvoicesDraftPendingAction(),
     {
       enabled: enabled ? true : false,
+    },
+  );
+}
+
+export function useSupplierAvailableCredit(
+  supplierId: number | undefined,
+  options?: { enabled?: boolean },
+) {
+  return useSafeQuery(
+    ['accounts-payable-advances', supplierId],
+    () => supplierAvailableCreditAction(supplierId as number),
+    {
+      enabled: !!supplierId && (options?.enabled ?? true),
+      ...options,
     },
   );
 }

@@ -12,8 +12,10 @@ export const supplierInvoiceItemApiSchema = z.object({
 });
 
 export const appliedAdvanceApiSchema = z.object({
-  advanceId: z.number(),
-  amount: z.number(),
+  cxpId: z.number(),
+  amount: z.coerce.number(),
+  origin: z.string(),
+  cxpNumber: z.string(),
 });
 
 export const supplierInvoiceApiSchema = z.object({
@@ -109,4 +111,27 @@ export const supplierInvoiceMutationApiSchema = z.object({
 export const supplierInvoiceMutationResponseSchema = z.object({
   message: z.string(),
   data: supplierInvoiceMutationApiSchema.optional(),
+});
+
+export const jsonCredits = z.array(
+  z.object({
+    cxpId: z.number(),
+    amount: z.number(),
+    origin: z.string(),
+    cxpNumber: z.string(),
+  }),
+);
+
+export const supplierAdvancedCredit = z.object({
+  supplierId: z.number(),
+  supplierName: z.string(),
+  taxId: z.string(),
+  currencyCode: z.string(),
+  availableCredit: z.string(),
+  credits: jsonCredits,
+});
+
+export const supplierAdvancedCreditSchema = z.object({
+  message: z.string(),
+  data: z.array(supplierAdvancedCredit).optional().nullable(),
 });

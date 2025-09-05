@@ -321,8 +321,8 @@ export const supplierAvailableCredits = administrationSchema.view(
         'cxpId', ap.id,
         'cxpNumber', ap.ap_number,
         'origin', CASE
-          WHEN ap.status = 'ADVANCE' THEN 'Anticipo'
-          ELSE 'Nota de credito'
+          WHEN ap.status = 'ADVANCE' THEN 'ADVANCE'
+          ELSE 'CREDIT_NOTE'
         END,
         'amount', ABS(ap.remaining_amount)
       ) ORDER BY ap.created_at

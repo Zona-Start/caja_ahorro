@@ -1,12 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNumber } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class AppliedAdvanceDto {
-  @ApiProperty({ description: 'Advance ID (Accounts Payable ID)' })
+  @ApiProperty({
+    description: 'CXP ID (Accounts Payable ID for advance or credit note)',
+  })
   @IsInt()
-  advanceId: number;
+  cxpId: number;
 
-  @ApiProperty({ description: 'Amount to apply from the advance' })
+  @ApiProperty({ description: 'Amount to apply from the credit' })
   @IsNumber()
   amount: number;
+
+  @ApiProperty({
+    description: 'Origin of the credit (e.g., ANTICIPO, NOTA_DE_CREDITO)',
+  })
+  @IsString()
+  @IsNotEmpty()
+  origin: string;
+
+  @ApiProperty({ description: 'Number of the CXP document' })
+  @IsString()
+  @IsNotEmpty()
+  cxpNumber: string;
 }
