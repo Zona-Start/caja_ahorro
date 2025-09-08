@@ -13,13 +13,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
 import { SupplierInvoicesService } from '../supplier-invoices/supplier-invoices.service';
 import { CreateAdvancePaymentDto } from './dto/create-advance-payment.dto';
 import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
+import { FilterSupplierPaymentDto } from './dto/filter-supplier-payment.dto';
+import { ReversePaymentsDto } from './dto/reverse-payments.dto';
 import { UpdateSupplierPaymentDto } from './dto/update-supplier-payment.dto';
 
 @Injectable()
@@ -75,14 +77,132 @@ export class SupplierPaymentsService {
     });
   }
 
-  async findAll(query: any) {
-    // TODO: Implementar filtros por proveedor, estado, fecha
-    return this.db.query.supplierPayments.findMany({
-      with: {
-        supplier: true,
-        lines: true,
-      },
+  async findAll(paginationDto: FilterSupplierPaymentDto) {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+      supplierIds,
+      status,
+      startDate,
+      endDate,
+    } = paginationDto;
+    const offset = (page - 1) * limit;
+
+    let searchConditions: SQL<unknown>[] = [];
+    if (search) {
+      searchConditions.push(
+        ilike(schema.supplierPayments.paymentNumber, `%${search}%`),
+      );
+    }
+    if (supplierIds && supplierIds.length > 0) {
+      searchConditions.push(
+        inArray(schema.supplierPayments.supplierId, supplierIds),
+      );
+    }
+    if (status) {
+      searchConditions.push(eq(schema.supplierPayments.status, status as any));
+    }
+    if (startDate) {
+      searchConditions.push(
+        sql`${schema.supplierPayments.requestedAt} >= ${startDate.toISOString()}`,
+      );
+    }
+    if (endDate) {
+      searchConditions.push(
+        sql`${schema.supplierPayments.requestedAt} <= ${endDate.toISOString()}`,
+      );
+    }
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${schema.supplierPayments[sortBy as keyof typeof schema.supplierPayments]} asc`
+        : sql`${schema.supplierPayments[sortBy as keyof typeof schema.supplierPayments]} desc`;
+
+    // Step 1: Get total count of unique payments
+    const totalCountResult = await this.db
+      .select({
+        count: sql<number>`count(DISTINCT ${schema.supplierPayments.id})`,
+      }) // Count distinct payments
+      .from(schema.supplierPayments)
+      .leftJoin(
+        schema.supplierPaymentLines,
+        eq(
+          schema.supplierPayments.id,
+          schema.supplierPaymentLines.supplierPaymentId,
+        ),
+      ) // Join lines for filtering if needed
+      .where(searchCondition);
+
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Step 2: Get payments with pagination and joined lines
+    const rawPayments = await this.db
+      .select({
+        payment: schema.supplierPayments, // Select the whole payment object
+        supplier: schema.suppliers, // Select the whole supplier object
+        line: schema.supplierPaymentLines, // Select the whole line object
+      })
+      .from(schema.supplierPayments)
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierPayments.supplierId, schema.suppliers.id),
+      )
+      .leftJoin(
+        schema.supplierPaymentLines,
+        eq(
+          schema.supplierPayments.id,
+          schema.supplierPaymentLines.supplierPaymentId,
+        ),
+      ) // Join supplierPaymentLines
+      .limit(limit)
+      .offset(offset)
+      .where(searchCondition)
+      .orderBy(orderBy);
+
+    // Step 3: Group raw results into structured payment objects with nested lines
+    const groupedPayments = new Map<number, any>();
+
+    rawPayments.forEach((row) => {
+      const paymentId = row.payment.id;
+      if (!groupedPayments.has(paymentId)) {
+        groupedPayments.set(paymentId, {
+          ...row.payment,
+          totalAmount: Number(row.payment.totalAmount), // Convert to number
+          supplierName: row.supplier?.name, // Add supplier name
+          lines: [], // Initialize lines array
+        });
+      }
+      if (row.line) {
+        const payment = groupedPayments.get(paymentId);
+        payment.lines.push({
+          ...row.line,
+          amount: Number(row.line.amount), // Convert to number
+        });
+      }
     });
+
+    const data = Array.from(groupedPayments.values());
+
+    const meta = {
+      page: Number(page),
+      limit: Number(limit),
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return { data, meta };
   }
 
   async findOne(id: number, tx?: NodePgDatabase<typeof schema>) {
@@ -179,34 +299,17 @@ export class SupplierPaymentsService {
       });
   }
 
-  // async approve(id: number) {
+  // async generateBatch(id: number) {
   //   const payment = await this.findOne(id);
-  //   if (payment.status !== 'PENDING') {
-  //     throw new BadRequestException('Only PENDING payments can be approved.');
-  //   }
+  //   // TODO: Lógica para generar el archivo TXT del lote bancario
+  //   console.log('Generating batch file...');
 
-  //   // TODO: Lógica de segundo nivel de autorización si aplica
-  //   console.log('Approving payment...');
-
-  //   // El estado podría cambiar a PEN_APR si requiere más aprobaciones
   //   return this.db
   //     .update(schema.supplierPayments)
-  //     .set({ status: 'PENDING' }) // o 'PEN_APR'
+  //     .set({ status: 'SENT_TO_BANK' })
   //     .where(eq(schema.supplierPayments.id, id))
   //     .returning();
   // }
-
-  async generateBatch(id: number) {
-    const payment = await this.findOne(id);
-    // TODO: Lógica para generar el archivo TXT del lote bancario
-    console.log('Generating batch file...');
-
-    return this.db
-      .update(schema.supplierPayments)
-      .set({ status: 'SENT_TO_BANK' })
-      .where(eq(schema.supplierPayments.id, id))
-      .returning();
-  }
 
   // async processResponse(id: number, response: any) {
   //   const payment = await this.findOne(id);
@@ -244,6 +347,7 @@ export class SupplierPaymentsService {
           debitAmount: Number(payment.totalAmount),
           bankReference: payment.bankReference ?? 'null',
           transactionType: payment.paymentMethod as paymentMethodEnum,
+          category: 'INTERNAL_TRANSFER',
           createdById: userId,
         },
         userId,
@@ -265,14 +369,18 @@ export class SupplierPaymentsService {
 
           return {
             accountsPayableId: line.accountsPayableId,
-            transactionNumber: payment.paymentNumber,
+            transactionNumber:
+              await this.generateCodeService.generateNextReference('TRS-P', tx),
             transactionType: transactionType as supplierTransactionsTypeEnum,
             transactionDate: new Date().toISOString(),
             amount: line.amount,
             direction: 'CR' as 'CR' | 'DR', // CR = pago/abono
             currencyCode: 'VES' as CurrencyCodeEnum,
             paymentMethod: payment.paymentMethod,
+            paymentId: payment.id,
             bankMovementId: movementBank.id,
+            reference: payment.bankReference,
+            createdById: userId,
             ///por definir la referencia
           };
         }),
@@ -374,41 +482,6 @@ export class SupplierPaymentsService {
     });
   }
 
-  // async reverse(id: number) {
-  //   const payment = await this.findOne(id);
-  //   if (payment.status !== 'PROCESSED') {
-  //     throw new BadRequestException('Only PROCESSED payments can be reversed.');
-  //   }
-
-  //   return this.db.transaction(async (tx) => {
-  //     console.log('Reversing payment...');
-  //     // 1. Crear supplierTransactions reverso
-  //     const reverseTransactions = payment.lines.map((line) => ({
-  //       accountsPayableId: line.accountsPayableId,
-  //       transactionNumber: `REV-TR-PAY-${payment.paymentNumber}-${line.id}`,
-  //       transactionType: 'PAYMENT', // O un tipo específico 'PAYMENT_REVERSAL'
-  //       transactionDate: new Date(),
-  //       amount: line.amount,
-  //       direction: 'DR', // DR = se revierte el crédito
-  //       currencyCode: payment.currencyCode,
-  //       status: 'REVERSED',
-  //     }));
-  //     await tx.insert(schema.supplierTransactions).values(reverseTransactions);
-
-  //     // 2. Devolver dinero al banco (placeholder)
-  //     console.log('Creating reverse bank transaction...');
-
-  //     // 3. Actualizar estado a ANULADO
-  //     const [reversedPayment] = await tx
-  //       .update(schema.supplierPayments)
-  //       .set({ status: 'ANULADO', reversedAt: new Date() })
-  //       .where(eq(schema.supplierPayments.id, id))
-  //       .returning();
-
-  //     return reversedPayment;
-  //   });
-  // }
-
   async createAndExecutePayment(dto: CreateSupplierPaymentDto, userId: number) {
     return this.db.transaction(async (tx) => {
       // 1. Crear el pago en estado DRAFT
@@ -425,6 +498,41 @@ export class SupplierPaymentsService {
       );
 
       return executedPayment;
+    });
+  }
+
+  async createAndExecuteBulkPayments(
+    dtos: CreateSupplierPaymentDto[],
+    userId: number,
+  ) {
+    if (!dtos || dtos.length === 0) {
+      throw new BadRequestException('No payment data provided.');
+    }
+
+    const payload = dtos.map((dto) => ({
+      ...dto,
+      bankTransactionDate: new Date(dto.bankTransactionDate),
+    }));
+
+    // Usar una transacción maestra para asegurar que todo el proceso sea atómico
+    // Si una parte falla, todo se revierte.
+    return this.db.transaction(async (tx) => {
+      const results: any[] = [];
+      for (const dto of payload) {
+        // Lógica para procesar un solo pago dentro del bucle
+
+        const newPayment = await this.createDraft(dto, userId, tx);
+        const validatedPayment = await this.validate(newPayment.id, userId, tx);
+        const executedPayment = await this.execute(
+          Number(validatedPayment[0].id),
+          userId,
+          tx,
+        );
+        results.push(executedPayment);
+      }
+      return {
+        message: 'Payments processed successfully',
+      };
     });
   }
 
@@ -491,6 +599,182 @@ export class SupplierPaymentsService {
       );
 
       return executedPayment;
+    });
+  }
+
+  async reverse(reversePaymentsDto: ReversePaymentsDto, userId: number) {
+    const { paymentIds } = reversePaymentsDto;
+
+    if (!paymentIds || paymentIds.length === 0) {
+      throw new BadRequestException('No payment IDs provided for reversal.');
+    }
+
+    return this.db.transaction(async (tx) => {
+      const reversedPaymentsInfo: any[] = [];
+
+      for (const paymentId of paymentIds) {
+        const payment = await tx
+          .select()
+          .from(schema.supplierPayments)
+          .leftJoin(
+            schema.suppliers,
+            eq(schema.supplierPayments.supplierId, schema.suppliers.id),
+          )
+          .where(eq(schema.supplierPayments.id, paymentId));
+
+        const paymentLines = await tx
+          .select()
+          .from(schema.supplierPaymentLines)
+          .where(eq(schema.supplierPaymentLines.supplierPaymentId, paymentId));
+
+        if (payment.length === 0) {
+          throw new NotFoundException(
+            `Payment with ID ${paymentId} not found.`,
+          );
+        }
+
+        if (payment[0].supplier_payments.status !== 'PROCESSED') {
+          throw new BadRequestException(
+            `Payment with ID ${paymentId} is not in PROCESSED state and cannot be reversed.`,
+          );
+        }
+
+        // 1. Create the reversed payment header
+        const reversedPaymentNumber = `REV-${payment[0].supplier_payments.paymentNumber}`;
+        const [reversedPayment] = await tx
+          .insert(schema.supplierPayments)
+          .values({
+            ...payment[0].supplier_payments,
+            paymentNumber: reversedPaymentNumber,
+            totalAmount: (-parseFloat(
+              payment[0].supplier_payments.totalAmount,
+            )).toString(),
+            status: 'REVERSED',
+            observations: `REVERSA DE PAGO ${payment[0].supplier_payments.paymentNumber}`,
+            reversedAt: new Date().toISOString(),
+            createdById: userId,
+          })
+          .returning();
+
+        // 2. Create reversed payment lines
+        const reversedLines = paymentLines.map((line) => ({
+          supplierPaymentId: reversedPayment.id,
+          accountsPayableId: line.accountsPayableId,
+          amount: line.amount,
+          description: `LÍNEA DE REVERSIÓN PARA PAGO ${payment[0].supplier_payments.paymentNumber}`,
+          createdById: userId,
+        }));
+        await tx.insert(schema.supplierPaymentLines).values(reversedLines);
+
+        // 3. Create reversed supplier transactions and update related entities
+        for (const line of paymentLines) {
+          // a. Create reversed supplier transaction
+          await tx.insert(schema.supplierTransactions).values({
+            accountsPayableId: line.accountsPayableId,
+            transactionNumber: `REV-TR-${payment[0].supplier_payments.paymentNumber}-${line.id}`,
+            transactionType: 'REVERSED',
+            transactionDate: new Date().toISOString(),
+            amount: line.amount,
+            direction: 'DR', // Debit to reverse the original credit
+            currencyCode: 'VES',
+            status: 'REVERSED',
+            paymentId: reversedPayment.id, // Link to the new reversed payment
+            createdById: userId,
+          });
+
+          // b. Update accounts payable
+          const accountPayable = await tx
+            .select()
+            .from(schema.accountsPayable)
+            .leftJoin(
+              schema.supplierInvoices,
+              eq(
+                schema.accountsPayable.supplierInvoiceId,
+                schema.supplierInvoices.id,
+              ),
+            )
+            .where(
+              and(
+                eq(schema.accountsPayable.id, line.accountsPayableId as number),
+                or(
+                  ne(schema.accountsPayable.status, 'ADVANCE'),
+                  ne(schema.accountsPayable.status, 'ADVANCE_APPLIED'),
+                ),
+              ),
+            );
+
+          if (accountPayable) {
+            const originalPaidAmount = parseFloat(
+              accountPayable[0].accounts_payable.paidAmount,
+            );
+            const lineAmount = parseFloat(line.amount);
+
+            const newPaidAmount = originalPaidAmount - lineAmount;
+            const newRemainingAmount =
+              parseFloat(accountPayable[0].accounts_payable.remainingAmount) +
+              lineAmount;
+
+            await tx
+              .update(schema.accountsPayable)
+              .set({
+                paidAmount: newPaidAmount.toString(),
+                remainingAmount: newRemainingAmount.toString(),
+                status: 'PENDING', // Revert status to PENDING
+                updatedById: userId,
+              })
+              .where(
+                eq(
+                  schema.accountsPayable.id,
+                  accountPayable[0].accounts_payable.id,
+                ),
+              );
+
+            // c. Update supplier invoice status
+            if (accountPayable[0].accounts_payable.supplierInvoiceId) {
+              await tx
+                .update(schema.supplierInvoices)
+                .set({ status: 'ACCOUNTED_FOR', updatedById: userId })
+                .where(
+                  eq(
+                    schema.supplierInvoices.id,
+                    accountPayable[0].accounts_payable
+                      .supplierInvoiceId as number,
+                  ),
+                );
+
+              // d. Update purchase order status if it exists
+              if (accountPayable[0]?.supplier_invoices?.purchaseOrderId) {
+                await tx
+                  .update(schema.purchaseOrders)
+                  .set({ status: 'INVOICED', updatedById: userId })
+                  .where(
+                    eq(
+                      schema.purchaseOrders.id,
+                      accountPayable[0]?.supplier_invoices?.purchaseOrderId,
+                    ),
+                  );
+              }
+            }
+          }
+        }
+
+        // // 4. Update original payment status to REVERSED
+        // await tx
+        //   .update(schema.supplierPayments)
+        //   .set({
+        //     status: 'REVERSED',
+        //     reversedAt: new Date(),
+        //     updatedById: userId,
+        //   })
+        //   .where(eq(schema.supplierPayments.id, paymentId));
+
+        reversedPaymentsInfo.push({ id: paymentId, status: 'REVERSED' });
+      }
+
+      return {
+        message: 'Payments reversed successfully.',
+        reversedPayments: reversedPaymentsInfo,
+      };
     });
   }
 }

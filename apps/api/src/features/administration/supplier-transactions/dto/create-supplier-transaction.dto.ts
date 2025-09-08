@@ -67,6 +67,11 @@ export class CreateSupplierTransactionDto {
   @IsOptional()
   paymentMethod?: (typeof paymentMethodEnum.enumValues)[number];
 
+  @ApiPropertyOptional({ description: 'Payment ID' })
+  @IsInt()
+  @IsOptional()
+  paymentId?: number;
+
   @ApiPropertyOptional({ description: 'Bank Movement ID' })
   @IsInt()
   @IsOptional()

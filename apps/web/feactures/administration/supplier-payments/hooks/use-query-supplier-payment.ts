@@ -1,25 +1,23 @@
-
 import { useSafeQuery } from '@/hooks/use-safe-query';
-import {
-  getSupplierPaymentByIdAction,
-  getSupplierPaymentsAction,
-} from '../actions';
+import { getSupplierPaymentsAction } from '../actions/supplier-payment-actions';
 
-export function useSupplierPayments(params = {}) {
-  return useSafeQuery(['supplier-payments', params], () =>
-    getSupplierPaymentsAction(params)
-  );
-}
-
-export function useSupplierPaymentById(
-  id: number,
+export function useSupplierPayments(
+  params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    supplierIds?: number[];
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  } = {},
   options?: { enabled?: boolean }
 ) {
   return useSafeQuery(
-    ['supplier-payment', id],
-    () => getSupplierPaymentByIdAction(id),
+    ['supplier-payments', params],
+    () => getSupplierPaymentsAction(params),
     {
-      enabled: id ? options?.enabled : false,
+      enabled: (options?.enabled ?? true),
       ...options,
     }
   );

@@ -1,4 +1,4 @@
-import { paymentMethodEnum } from '@/database';
+import { bankTransactionCategory, paymentMethodEnum } from '@/database';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDateString,
@@ -80,4 +80,11 @@ export class CreateBankMovementDto {
   @IsInt()
   @IsOptional()
   createdById?: number;
+
+  @ApiProperty({
+    description: 'bank category',
+    enum: bankTransactionCategory.enumValues,
+  })
+  @IsEnum(bankTransactionCategory.enumValues)
+  category?: (typeof bankTransactionCategory.enumValues)[number];
 }

@@ -393,6 +393,7 @@ export const supplierTransactionsTypeEnum = pgEnum(
     'ADVANCE_APPLIED',
     'CREDIT_NOTE_APPLIED',
     'DEBIT_NOTE_APPLIED',
+    'REVERSED',
   ],
 );
 
@@ -429,4 +430,5 @@ export const paymentSupplierStatusEnum = pgEnum('payment_supplier_status', [
   'PROCESSED', // Procesado
   'REJECTED', // Rechazado
   'CANCELLED', // Anulado
+  'REVERSED', // Reversar pago
 ]);

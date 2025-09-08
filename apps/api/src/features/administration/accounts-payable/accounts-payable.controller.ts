@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseArrayPipe,
   Patch,
   Post,
   Query,
@@ -66,6 +67,27 @@ export class AccountsPayableController {
       message: 'Accounts payable fetched successfully',
       data: result.data,
       meta: result.meta,
+    };
+  }
+
+  @Get('/by-suppliers')
+  @Roles('admin')
+  @RequirePermissions('read:accounts-payable')
+  @ApiOperation({ summary: 'Get all accounts payable by suppliers' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all accounts payable by suppliers',
+  })
+  async findBySuppliers(
+    @Query('supplierIds', new ParseArrayPipe({ items: Number }))
+    supplierIds: number[],
+  ) {
+    const data =
+      await this.services.findAccountsPayableBySuppliers(supplierIds);
+
+    return {
+      message: 'Cuentas por pagar obtenidas exitosamente.',
+      data: data,
     };
   }
 

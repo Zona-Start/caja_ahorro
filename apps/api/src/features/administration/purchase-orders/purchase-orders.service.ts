@@ -484,7 +484,7 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Orden de compra no encontrada');
     }
 
-    const allowedStatus = ['DRAFT', 'PENDING', 'RECEIVED', 'INVOICED'];
+    const allowedStatus = ['DRAFT', 'PENDING'];
 
     if (!allowedStatus.includes(order.status)) {
       throw new BadRequestException(

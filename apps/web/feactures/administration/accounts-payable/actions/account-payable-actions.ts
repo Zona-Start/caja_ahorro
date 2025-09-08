@@ -159,6 +159,41 @@ import { AdvancePayment } from '../schemas/advance-payment.schema';
 import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
 import { preloadedPaymentResponseSchema } from '../schemas/preloaded-payment.schema';
 
+export const getAccountsPayableBySuppliersAction = async (params: {
+  supplierIds?: number[]; // <--- Modificar el tipo de dato a un array de números
+}) => {
+  let searchParams = '';
+
+  // Verificar si hay IDs de proveedores y construir la cadena de búsqueda
+  if (params.supplierIds && params.supplierIds.length > 0) {
+    searchParams = `supplierIds=${params.supplierIds.join(',')}`;
+  }
+
+  console.log(searchParams);
+
+  const [error, response] = await safeFetchApi(
+    accountPayableAllResponseSchema,
+    // Unir la URL base con los parámetros
+    `/administration/accounts-payable/by-suppliers?${searchParams}`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching accounts payable data');
+  }
+
+  const mappedData = mapAccountPayableApiToForm(response?.data || []);
+
+  return {
+    data: mappedData || [],
+  };
+
+  return {
+    data: [],
+  };
+};
+
 export const getPreloadedPaymentAction = async (id: number) => {
   const [error, response] = await safeFetchApi(
     preloadedPaymentResponseSchema,
@@ -172,6 +207,7 @@ export const getPreloadedPaymentAction = async (id: number) => {
 
   return response?.data;
 };
+('');
 
 export const payAccountPayableAction = async (payload: PayAccountPayable) => {
   // Transform the payload to match CreateSupplierPaymentDto

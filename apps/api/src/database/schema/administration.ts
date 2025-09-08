@@ -332,6 +332,9 @@ export const supplierTransactions = administrationSchema.table(
 
     // 5) Sólo si es pago o anticipo
     paymentMethod: paymentMethodEnum('payment_method'),
+    paymentId: integer('payment_id').references(() => supplierPayments.id, {
+      onDelete: 'set null',
+    }), // si es pago o anticipo
     bankMovementId: integer('bank_movement_id').references(
       () => bankTransactions.id,
     ), // para conciliar

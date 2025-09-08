@@ -5,10 +5,12 @@ import { DataTableFilterBox } from '@repo/shadcn/components/ui/table/data-table-
 import { DataTableSearch } from '@repo/shadcn/components/ui/table/data-table-search';
 
 import { Button } from '@repo/shadcn/components/ui/button';
-import { CreditCard } from 'lucide-react';
+import { CreditCard, DollarSign } from 'lucide-react';
 import { useState } from 'react';
 import { useSupplierAll } from '../../../suppliers/hooks/use-query-suppliers';
 import { AdvancePaymentModal } from '../advance-payment-modal';
+import { MassivePaymentModal } from '../massive-payment-modal';
+import { ReversePaymentModal } from '../reverse-payment-modal';
 import {
   ACCOUNT_PAYABLE_STATUS_OPTIONS,
   useAccountPayableFilters,
@@ -26,7 +28,9 @@ export default function AccountPayableTableAction() {
   } = useAccountPayableFilters();
 
   const [openAdvanceModal, setOpenAdvanceModal] = useState(false);
+  const [openMassivePaymentModal, setOpenMassivePaymentModal] = useState(false);
   const { data: suppliers } = useSupplierAll();
+  const [openReversePaymentModal, setOpenReversePaymentModal] = useState(false);
 
   return (
     <div className="flex items-center justify-between mt-4 ">
@@ -66,9 +70,26 @@ export default function AccountPayableTableAction() {
         <Button onClick={() => setOpenAdvanceModal(true)} size="sm">
           <CreditCard className="h-4 w-4" /> Anticipo
         </Button>
+        <Button onClick={() => setOpenMassivePaymentModal(true)} size="sm">
+          <DollarSign className="h-4 w-4" /> Pagos Masivos
+        </Button>
+        <Button onClick={() => setOpenReversePaymentModal(true)} size="sm">
+          <CreditCard className="h-4 w-4" /> Reversar Pagos
+        </Button>
       </div>
 
-      <AdvancePaymentModal open={openAdvanceModal} onOpenChange={setOpenAdvanceModal} />
+      <AdvancePaymentModal
+        open={openAdvanceModal}
+        onOpenChange={setOpenAdvanceModal}
+      />
+      <MassivePaymentModal
+        open={openMassivePaymentModal}
+        onOpenChange={setOpenMassivePaymentModal}
+      />
+      <ReversePaymentModal
+        open={openReversePaymentModal}
+        onOpenChange={setOpenReversePaymentModal}
+      />
     </div>
   );
 }

@@ -8,9 +8,11 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
 import { CreateAdvancePaymentDto } from './dto/create-advance-payment.dto';
+import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
+import { FilterSupplierPaymentDto } from './dto/filter-supplier-payment.dto'; // Import the new DTO
 import { UpdateSupplierPaymentDto } from './dto/update-supplier-payment.dto';
+import { ReversePaymentsDto } from './dto/reverse-payments.dto';
 import { SupplierPaymentsService } from './supplier-payments.service';
 
 @Controller('administration/supplier-payments')
@@ -43,6 +45,18 @@ export class SupplierPaymentsController {
     );
   }
 
+  @Post('massive-payment') // New endpoint
+  createMassivePayments(
+    @Req() req: Request,
+    @Body() createSupplierPaymentDtos: CreateSupplierPaymentDto[], // Expects an array
+  ) {
+    const userId = req['user'].id;
+    return this.supplierPaymentsService.createAndExecuteBulkPayments(
+      createSupplierPaymentDtos,
+      userId,
+    );
+  }
+
   @Post()
   createDraft(
     @Req() req: Request,
@@ -56,9 +70,9 @@ export class SupplierPaymentsController {
   }
 
   @Get()
-  findAll(@Query() query: any) {
-    // TODO: Crear un DTO para los query params
-    return this.supplierPaymentsService.findAll(query);
+  findAll(@Query() paginationDto: FilterSupplierPaymentDto) {
+    // Use the new DTO
+    return this.supplierPaymentsService.findAll(paginationDto);
   }
 
   @Patch(':id')
@@ -83,10 +97,10 @@ export class SupplierPaymentsController {
   //   return this.supplierPaymentsService.approve(+id);
   // }
 
-  @Post(':id/generate-batch')
-  generateBatch(@Param('id') id: string) {
-    return this.supplierPaymentsService.generateBatch(+id);
-  }
+  // @Post(':id/generate-batch')
+  // generateBatch(@Param('id') id: string) {
+  //   return this.supplierPaymentsService.generateBatch(+id);
+  // }
 
   // @Post(':id/process-response')
   // processResponse(@Param('id') id: string, @Body() response: any) { // TODO: Crear DTO para la respuesta del banco
@@ -99,8 +113,9 @@ export class SupplierPaymentsController {
     return this.supplierPaymentsService.execute(+id, userId);
   }
 
-  // @Post(':id/reverse')
-  // reverse(@Param('id') id: string) {
-  //   return this.supplierPaymentsService.reverse(+id);
-  // }
+  @Post('reverse')
+  reverse(@Req() req: Request, @Body() reversePaymentsDto: ReversePaymentsDto) {
+    const userId = req['user'].id;
+    return this.supplierPaymentsService.reverse(reversePaymentsDto, userId);
+  }
 }

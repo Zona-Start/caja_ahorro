@@ -1,55 +1,23 @@
-
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import {
-  createSupplierPaymentAction,
-  updateSupplierPaymentAction,
-  validateSupplierPaymentAction,
-  approveSupplierPaymentAction,
-  executeSupplierPaymentAction,
-  reverseSupplierPaymentAction,
-} from '../actions';
-import { SupplierPayment } from '../schemas';
+import { reversePaymentsAction } from '../actions/supplier-payment-actions';
 
-export function useSupplierPaymentMutation() {
+export function useReversePaymentMutation() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (data: Partial<SupplierPayment>) => {
-      if (data.id) {
-        return updateSupplierPaymentAction(data);
-      }
-      return createSupplierPaymentAction(data);
-    },
+  const mutation = useMutation({
+    mutationFn: (data: { paymentIds: number[] }) => reversePaymentsAction(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-payment'] });
-      toast.success('Pago a proveedor guardado exitosamente');
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      toast.success('Pagos reversados exitosamente');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al guardar el pago');
+      toast.error(error.message || 'Error al reversar los pagos');
     },
   });
-}
 
-function createStatusMutation(action: Function, successMessage: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => action(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supplier-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-payment'] });
-      toast.success(successMessage);
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Ocurrió un error');
-    },
-  });
+  return mutation;
 }
-
-export const useValidateSupplierPayment = () => createStatusMutation(validateSupplierPaymentAction, 'Pago validado exitosamente');
-export const useApproveSupplierPayment = () => createStatusMutation(approveSupplierPaymentAction, 'Pago aprobado exitosamente');
-export const useExecuteSupplierPayment = () => createStatusMutation(executeSupplierPaymentAction, 'Pago ejecutado exitosamente');
-export const useReverseSupplierPayment = () => createStatusMutation(reverseSupplierPaymentAction, 'Pago anulado exitosamente');

@@ -1,18 +1,22 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
   accountsPayable,
+  supplierInvoices,
+  suppliers,
   supplierTransactions,
 } from '@/database/schema/administration';
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { SupplierInvoicesService } from '../supplier-invoices/supplier-invoices.service';
 import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
 import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
@@ -23,6 +27,8 @@ export class AccountsPayableService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
+    @Inject(forwardRef(() => SupplierInvoicesService))
+    private supplierInvoicesService: SupplierInvoicesService,
   ) {}
 
   async createCreditDebitNote(
@@ -266,22 +272,6 @@ export class AccountsPayableService {
     return updatedAccountPayable[0];
   }
 
-  async remove(id: number) {
-    const exist = await this.drizzle.query.accountsPayable.findFirst({
-      where: eq(accountsPayable.id, id),
-    });
-
-    if (!exist) {
-      throw new NotFoundException('Account payable not found');
-    }
-
-    await this.drizzle
-      .delete(accountsPayable)
-      .where(eq(accountsPayable.id, id));
-
-    return { message: 'Account payable removed successfully' };
-  }
-
   // async generateAccountPayableReport(id: number): Promise<Buffer> {
   //   const accountPayable = await this.drizzle.query.accountsPayable.findFirst({
   //     where: eq(accountsPayable.id, id),
@@ -406,8 +396,6 @@ export class AccountsPayableService {
 
     for (const item of data) {
       const account = accountsMap.get(item.accountsPayableId as number);
-      console.log('data', data);
-      console.log('account', account);
 
       if (account && account.status !== 'ADVANCE') {
         const currentPaid = Number(account.paidAmount) || 0;
@@ -415,7 +403,6 @@ export class AccountsPayableService {
         const paymentAmount = Number(item.amount);
         const newPaidAmount = currentPaid + paymentAmount;
         const newRemainingAmount = currentRemaining - paymentAmount;
-        console.log('newRemainingAmount', newRemainingAmount);
 
         if (newRemainingAmount < 0) {
           throw new BadRequestException(
@@ -494,5 +481,118 @@ export class AccountsPayableService {
         updatedById: userId,
       })
       .where(eq(accountsPayable.id, advanceId));
+  }
+
+  async findAccountsPayableBySuppliers(supplierIds: number[]) {
+    // Manejar el caso de un arreglo vacío
+    if (supplierIds.length === 0) {
+      return [];
+    }
+
+    const data = await this.drizzle
+      .select({
+        id: schema.accountsPayable.id,
+        supplierId: schema.suppliers.id,
+        supplierName: schema.suppliers.name,
+        accountsPayableNumber: schema.accountsPayable.accountsPayableNumber,
+        supplierInvoiceId: schema.accountsPayable.supplierInvoiceId,
+        originalAmount: schema.accountsPayable.originalAmount,
+        paidAmount: schema.accountsPayable.paidAmount,
+        remainingAmount: schema.accountsPayable.remainingAmount,
+        status: schema.accountsPayable.status,
+        observations: schema.accountsPayable.observations,
+        dueDate: schema.accountsPayable.dueDate,
+        createdAt: schema.accountsPayable.createdAt,
+        supplierInvoice: {
+          invoiceNumber: schema.supplierInvoices.invoiceNumber,
+        },
+      })
+      .from(accountsPayable)
+      .leftJoin(
+        supplierInvoices,
+        eq(accountsPayable.supplierInvoiceId, supplierInvoices.id),
+      )
+      .leftJoin(suppliers, eq(accountsPayable.supplierId, suppliers.id))
+      .where(
+        and(
+          inArray(accountsPayable.supplierId, supplierIds),
+          or(
+            eq(accountsPayable.status, 'PENDING'),
+            eq(accountsPayable.status, 'IN_PROGRESS'),
+            eq(accountsPayable.status, 'EXPIRED'),
+          ),
+        ),
+      );
+
+    // La validación de "not found" no es necesaria aquí, ya que devolver un arreglo vacío es el comportamiento esperado si no se encuentran resultados.
+    // La lógica para lanzar un error debe manejarse en un nivel superior si es un caso de uso específico.
+
+    return data;
+  }
+
+  async remove(id: number) {
+    return this.drizzle.transaction(async (tx) => {
+      const accountPayable = await tx.query.accountsPayable.findFirst({
+        where: eq(accountsPayable.id, id),
+      });
+
+      if (!accountPayable) {
+        throw new NotFoundException('Account payable not found');
+      }
+
+      // 1. Validation
+      if (parseFloat(accountPayable.paidAmount) > 0) {
+        throw new BadRequestException(
+          'La CxP tiene pagos o transacciones activas.',
+        );
+      }
+
+      const associatedTransactions = await tx
+        .select()
+        .from(supplierTransactions)
+        .where(
+          and(
+            eq(supplierTransactions.accountsPayableId, id),
+            // Assuming "active" means not cancelled/reversed.
+            // If supplierTransactions has a status field, it should be checked here.
+            // For now, just checking for existence.
+          ),
+        );
+
+      if (associatedTransactions.length > 0) {
+        throw new BadRequestException(
+          'La CxP tiene pagos o transacciones activas.',
+        );
+      }
+
+      // 2. Update Account Payable
+      await tx
+        .update(accountsPayable)
+        .set({ status: 'CANCELLED', remainingAmount: '0.00' })
+        .where(eq(accountsPayable.id, id));
+
+      // 3. Update Associated Invoice
+      if (accountPayable.supplierInvoiceId) {
+        await tx
+          .update(supplierInvoices)
+          .set({ status: 'CANCELLED' })
+          .where(eq(supplierInvoices.id, accountPayable.supplierInvoiceId));
+
+        // 4. Update Associated Purchase Order (if applicable)
+        const associatedInvoice = await tx.query.supplierInvoices.findFirst({
+          where: eq(supplierInvoices.id, accountPayable.supplierInvoiceId),
+        });
+
+        if (associatedInvoice?.purchaseOrderId) {
+          await this.supplierInvoicesService.updatePurchaseOrderStatusOnCancel(
+            associatedInvoice.purchaseOrderId,
+            associatedInvoice.id, // Pass the invoice ID that was just cancelled
+            tx,
+          );
+        }
+      }
+
+      return { message: 'Account payable cancelled successfully' };
+    });
   }
 }

@@ -141,6 +141,13 @@
       "when": 1757096680514,
       "tag": "0019_clean_guardsmen",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1757116031970,
+      "tag": "0020_numerous_shadow_king",
+      "breakpoints": true
     }
   ]
 }

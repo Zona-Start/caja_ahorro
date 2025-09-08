@@ -381,6 +381,7 @@ export enum supplierTransactionsTypeEnum {
   ADVANCE_APPLIED = 'ADVANCE_APPLIED',
   CREDIT_NOTE_APPLIED = 'CREDIT_NOTE_APPLIED',
   DEBIT_NOTE_APPLIED = 'DEBIT_NOTE_APPLIED',
+  REVERSED = 'REVERSED',
 }
 
 export enum movementTypeInventory {
@@ -416,4 +417,5 @@ export enum paymentSupplierStatusEnum {
   PROCESSED = 'PROCESSED', // Procesado
   REJECTED = 'REJECTED', // Rechazado
   CANCELLED = 'CANCELLED', // Anulado
+  REVERSED = 'REVERSED', // Reversar pago
 }

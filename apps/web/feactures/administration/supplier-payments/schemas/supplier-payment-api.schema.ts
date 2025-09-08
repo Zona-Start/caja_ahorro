@@ -1,56 +1,47 @@
 import { z } from 'zod';
 
-export const supplierPaymentLineApiSchema = z.object({
+export const supplierPaymentLineSchema = z.object({
   id: z.number(),
   supplierPaymentId: z.number(),
   accountsPayableId: z.number().nullable(),
-  amount: z.string(), // numeric from db is string
+  amount: z.number(),
   description: z.string().nullable(),
 });
 
-export const supplierPaymentApiSchema = z.object({
+export const supplierPaymentSchema = z.object({
   id: z.number(),
   paymentNumber: z.string(),
   supplierId: z.number(),
-  totalAmount: z.string(),
+  supplierName: z.string().optional(),
+  totalAmount: z.number(),
   currencyCode: z.string(),
   paymentMethod: z.string(),
   bankAccountId: z.number().nullable(),
   status: z.string(),
-  requestedAt: z.string(), // date as string
+  requestedAt: z.string(),
   processedAt: z.string().nullable(),
   reversedAt: z.string().nullable(),
   observations: z.string().nullable(),
-  // Relations
-  supplier: z.object({ name: z.string() }).optional(),
-  lines: z.array(supplierPaymentLineApiSchema).optional(),
+  lines: z.array(supplierPaymentLineSchema),
 });
-
-export type SupplierPaymentAPI = z.infer<typeof supplierPaymentApiSchema>;
 
 export const supplierPaymentAllResponseSchema = z.object({
   message: z.string().optional(),
-  data: z.array(supplierPaymentApiSchema),
-  meta: z
-    .object({
-      page: z.number(),
-      limit: z.number(),
-      totalCount: z.number(),
-      totalPages: z.number(),
-      hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
-      nextPage: z.number().nullable(),
-      previousPage: z.number().nullable(),
-    })
-    .optional(),
+  data: z.array(supplierPaymentSchema),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    totalCount: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+    nextPage: z.number().nullable(),
+    previousPage: z.number().nullable(),
+  }),
 });
 
-export const supplierPaymentResponseOneSchema = z.object({
-  message: z.string().optional(),
-  data: supplierPaymentApiSchema,
+export const reversePaymentMutationResponseSchema = z.object({
+  message: z.string(),
 });
 
-export const supplierPaymentMutationResponseSchema = z.object({
-  message: z.string().optional(),
-  data: supplierPaymentApiSchema.optional(),
-});
+export type SupplierPayment = z.infer<typeof supplierPaymentSchema>;

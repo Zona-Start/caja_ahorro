@@ -10,11 +10,12 @@ import { paymentMethodEnum, priceTypeEnum } from '@/types/enum';
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
@@ -33,9 +34,9 @@ import { UpdateSupplierInvoiceDto } from './dto/update-supplier-invoice.dto';
 export class SupplierInvoicesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
-
     private readonly supplierTransactionsService: SupplierTransactionsService,
-    private readonly accountsPayableService: AccountsPayableService,
+    @Inject(forwardRef(() => AccountsPayableService))
+    private accountsPayableService: AccountsPayableService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly productPricesService: ProductPricesService,
     private readonly inventoryMovementsService: InventoryMovementsService,
@@ -43,7 +44,7 @@ export class SupplierInvoicesService {
     private readonly servicePricesService: ServicePricesService,
   ) {}
 
-  /***
+  /***DDDDDDDDDDDDDDD
    *  Crear una nueva factura de proveedor
    * → Validar el estado
    * → Iniciar una transacción
@@ -772,6 +773,7 @@ export class SupplierInvoicesService {
               .paymentMethod as paymentMethodEnum,
             bankMovementId: result.supplier_transactions
               .bankMovementId as number,
+            paymentId: result.supplier_transactions.paymentId as number,
             createdById: userId,
           },
           tx,
@@ -982,23 +984,222 @@ export class SupplierInvoicesService {
   }
 
   async remove(id: number) {
-    const invoice = await this.drizzle.query.supplierInvoices.findFirst({
-      where: eq(supplierInvoices.id, id),
+    return this.drizzle.transaction(async (tx) => {
+      const invoice = await tx.query.supplierInvoices.findFirst({
+        where: eq(supplierInvoices.id, id),
+      });
+      if (!invoice) {
+        throw new NotFoundException('Supplier invoice not found');
+      }
+      if (invoice.status === 'CANCELLED' || invoice.status === 'PAID') {
+        throw new BadRequestException(
+          'Cannot cancel an invoice that has been accounted for.',
+        );
+      }
+
+      // 1. Validate for associated payments
+      const associatedPayments = await tx
+        .select()
+        .from(schema.supplierPayments)
+        .leftJoin(
+          schema.supplierPaymentLines,
+          eq(
+            schema.supplierPayments.id,
+            schema.supplierPaymentLines.supplierPaymentId,
+          ),
+        )
+        .leftJoin(
+          schema.accountsPayable,
+          eq(
+            schema.supplierPaymentLines.accountsPayableId,
+            schema.accountsPayable.id,
+          ),
+        )
+        .where(
+          and(
+            eq(schema.accountsPayable.supplierInvoiceId, id),
+            ne(schema.supplierPayments.status, 'CANCELLED'), // Consider only non-cancelled payments
+          ),
+        );
+
+      if (associatedPayments.length > 0) {
+        throw new BadRequestException(
+          'Cannot cancel invoice: associated payments exist.',
+        );
+      }
+
+      // 1. Validate for associated credit notes (supplierTransactions)
+      const associatedCreditNotes = await tx
+        .select()
+        .from(schema.supplierTransactions)
+        .leftJoin(
+          schema.accountsPayable,
+          eq(
+            schema.supplierTransactions.accountsPayableId,
+            schema.accountsPayable.id,
+          ),
+        )
+        .where(
+          and(
+            eq(schema.accountsPayable.supplierInvoiceId, id),
+            or(
+              eq(schema.supplierTransactions.transactionType, 'CREDIT_NOTE'),
+              eq(
+                schema.supplierTransactions.transactionType,
+                'CREDIT_NOTE_APPLIED',
+              ),
+            ),
+          ),
+        );
+
+      if (associatedCreditNotes.length > 0) {
+        throw new BadRequestException(
+          'Cannot cancel invoice: associated credit notes exist.',
+        );
+      }
+
+      // 2. Update Invoice Status to CANCELLED
+      await tx
+        .update(supplierInvoices)
+        .set({ status: 'CANCELLED' })
+        .where(eq(supplierInvoices.id, id));
+
+      // 3. Update Accounts Payable
+      const [accountsPayableToUpdate] = await tx
+        .select()
+        .from(schema.accountsPayable)
+        .where(eq(schema.accountsPayable.supplierInvoiceId, id));
+
+      if (accountsPayableToUpdate) {
+        await tx
+          .update(schema.accountsPayable)
+          .set({ status: 'CANCELLED', remainingAmount: '0.00' })
+          .where(eq(schema.accountsPayable.id, accountsPayableToUpdate.id));
+      }
+
+      // 4. Update Purchase Order (if associated)
+      if (invoice.purchaseOrderId) {
+        await this.updatePurchaseOrderStatusOnCancel(
+          invoice.purchaseOrderId,
+          id,
+          tx,
+        );
+      }
+
+      // TODO: Aquí se anexará el reverso del movimiento de inventario y precio de item
+
+      return { message: 'Supplier invoice cancelled successfully' };
     });
-    if (!invoice) {
-      throw new NotFoundException('Supplier invoice not found');
-    }
-    if (invoice.status === 'ACCOUNTED_FOR') {
-      throw new BadRequestException(
-        'Cannot cancel an invoice that has been accounted for.',
-      );
-    }
-    await this.drizzle
-      .update(supplierInvoices)
-      .set({ status: 'CANCELLED' })
-      .where(eq(supplierInvoices.id, id));
-    return { message: 'Supplier invoice cancelled successfully' };
   }
+
+  // New helper method for updating purchase order status on invoice cancellation
+  // private async updatePurchaseOrderStatusOnCancel(
+  //   purchaseOrderId: number,
+  //   cancelledInvoiceId: number,
+  //   tx: NodePgDatabase<typeof schema>,
+  // ) {
+  //   // Get all items from the purchase order
+  //   const poItems = await tx
+  //     .select({
+  //       id: purchaseOrderItems.id,
+  //       itemId: purchaseOrderItems.itemId,
+  //       quantity: purchaseOrderItems.quantity,
+  //       lineType: purchaseOrderItems.lineType,
+  //       description: purchaseOrderItems.description,
+  //     })
+  //     .from(purchaseOrderItems)
+  //     .where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
+
+  //   if (poItems.length === 0) {
+  //     // No items in PO, nothing to do or throw error if PO should always have items
+  //     return;
+  //   }
+
+  //   // Get all *other* non-cancelled invoices related to this PO
+  //   const otherInvoices = await tx
+  //     .select({
+  //       id: supplierInvoices.id,
+  //       status: supplierInvoices.status,
+  //     })
+  //     .from(supplierInvoices)
+  //     .where(
+  //       and(
+  //         eq(supplierInvoices.purchaseOrderId, purchaseOrderId),
+  //         ne(supplierInvoices.id, cancelledInvoiceId), // Exclude the cancelled invoice
+  //         ne(supplierInvoices.status, 'CANCELLED'), // Exclude other cancelled invoices
+  //       ),
+  //     );
+
+  //   const otherInvoiceIds = otherInvoices.map((inv) => inv.id);
+
+  //   let totalInvoicedPerItem = new Map<string, number>();
+
+  //   // Helper to get unique key for item
+  //   const getUniqueKey = (item: {
+  //     itemId: number | null;
+  //     lineType: string;
+  //     description: string | null;
+  //   }): string => {
+  //     if (item.lineType === 'EXPENSE') {
+  //       if (!item.description) {
+  //         throw new BadRequestException(
+  //           'Expense item is missing a description.',
+  //         );
+  //       }
+  //       return `${item.lineType}-${item.description.trim()}`;
+  //     }
+
+  //     if (item.itemId === null || item.itemId === undefined) {
+  //       throw new BadRequestException(
+  //         `Item with lineType '${item.lineType}' is missing a valid itemId.`,
+  //       );
+  //     }
+
+  //     return `${item.lineType}-${item.itemId}`;
+  //   };
+
+  //   if (otherInvoiceIds.length > 0) {
+  //     // Get items from other non-cancelled invoices
+  //     const itemsFromOtherInvoices = await tx
+  //       .select({
+  //         itemId: supplierInvoiceItems.itemId,
+  //         quantity: supplierInvoiceItems.quantity,
+  //         lineType: supplierInvoiceItems.lineType,
+  //         description: supplierInvoiceItems.description,
+  //       })
+  //       .from(supplierInvoiceItems)
+  //       .where(sql`${supplierInvoiceItems.invoiceId} IN ${otherInvoiceIds}`);
+
+  //     for (const item of itemsFromOtherInvoices) {
+  //       const key = getUniqueKey(item);
+  //       const currentQty = totalInvoicedPerItem.get(key) || 0;
+  //       totalInvoicedPerItem.set(key, currentQty + item.quantity);
+  //     }
+  //   }
+
+  //   let isFullyCoveredByOtherInvoices = true;
+  //   for (const poItem of poItems) {
+  //     const key = getUniqueKey({
+  //       itemId: poItem.itemId,
+  //       lineType: poItem.lineType,
+  //       description: poItem.description,
+  //     });
+
+  //     const invoicedQty = totalInvoicedPerItem.get(key) || 0;
+
+  //     if (invoicedQty < poItem.quantity) {
+  //       isFullyCoveredByOtherInvoices = false;
+  //       break; // Found an item not fully covered
+  //     }
+  //   }
+
+  //   const newPoStatus = isFullyCoveredByOtherInvoices ? 'RECEIVED' : 'PENDING';
+
+  //   await tx
+  //     .update(purchaseOrders)
+  //     .set({ status: newPoStatus })
+  //     .where(eq(purchaseOrders.id, purchaseOrderId));
+  // }
 
   async findDraftPendiend() {
     const rawData = await this.drizzle
@@ -1108,5 +1309,113 @@ export class SupplierInvoicesService {
       .from(supplierAvailableCredits)
       .where(eq(supplierAvailableCredits.supplierId, id));
     return result;
+  }
+
+  // Helper method (copied and adapted from supplier-invoices.service.ts)
+  async updatePurchaseOrderStatusOnCancel(
+    purchaseOrderId: number,
+    cancelledInvoiceId: number,
+    tx: NodePgDatabase<typeof schema>,
+  ) {
+    // Get all items from the purchase order
+    const poItems = await tx
+      .select({
+        id: purchaseOrderItems.id,
+        itemId: purchaseOrderItems.itemId,
+        quantity: purchaseOrderItems.quantity,
+        lineType: purchaseOrderItems.lineType,
+        description: purchaseOrderItems.description,
+      })
+      .from(purchaseOrderItems)
+      .where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
+
+    if (poItems.length === 0) {
+      return;
+    }
+
+    // Get all other non-cancelled invoices related to this PO
+    const otherInvoices = await tx
+      .select({
+        id: supplierInvoices.id,
+        status: supplierInvoices.status,
+      })
+      .from(supplierInvoices)
+      .where(
+        and(
+          eq(supplierInvoices.purchaseOrderId, purchaseOrderId),
+          ne(supplierInvoices.id, cancelledInvoiceId), // Exclude the cancelled invoice
+          ne(supplierInvoices.status, 'CANCELLED'), // Exclude other cancelled invoices
+        ),
+      );
+
+    const otherInvoiceIds = otherInvoices.map((inv) => inv.id);
+
+    let totalInvoicedPerItem = new Map<string, number>();
+
+    // Helper to get unique key for item
+    const getUniqueKey = (item: {
+      itemId: number | null;
+      lineType: string;
+      description: string | null;
+    }): string => {
+      if (item.lineType === 'EXPENSE') {
+        if (!item.description) {
+          throw new BadRequestException(
+            'Expense item is missing a description.',
+          );
+        }
+        return `${item.lineType}-${item.description.trim()}`; // Corregido
+      }
+
+      if (item.itemId === null || item.itemId === undefined) {
+        throw new BadRequestException(
+          `Item with lineType '${item.lineType}' is missing a valid itemId.`,
+        );
+      }
+
+      return `${item.lineType}-${item.itemId}`; // Corregido
+    };
+
+    if (otherInvoiceIds.length > 0) {
+      // Get items from other non-cancelled invoices
+      const itemsFromOtherInvoices = await tx
+        .select({
+          itemId: supplierInvoiceItems.itemId,
+          quantity: supplierInvoiceItems.quantity,
+          lineType: supplierInvoiceItems.lineType,
+          description: supplierInvoiceItems.description,
+        })
+        .from(supplierInvoiceItems)
+        .where(inArray(supplierInvoiceItems.invoiceId, otherInvoiceIds)); // Corregido
+
+      for (const item of itemsFromOtherInvoices) {
+        const key = getUniqueKey(item);
+        const currentQty = totalInvoicedPerItem.get(key) || 0;
+        totalInvoicedPerItem.set(key, currentQty + item.quantity);
+      }
+    }
+
+    let isFullyCoveredByOtherInvoices = true;
+    for (const poItem of poItems) {
+      const key = getUniqueKey({
+        itemId: poItem.itemId,
+        lineType: poItem.lineType,
+        description: poItem.description,
+      });
+
+      const invoicedQty = totalInvoicedPerItem.get(key) || 0;
+
+      if (invoicedQty < poItem.quantity) {
+        isFullyCoveredByOtherInvoices = false;
+        break; // Found an item not fully covered
+      }
+    }
+
+    const newPoStatus = isFullyCoveredByOtherInvoices ? 'RECEIVED' : 'PENDING';
+
+    await tx
+      .update(purchaseOrders)
+      .set({ status: newPoStatus })
+      .where(eq(purchaseOrders.id, purchaseOrderId));
   }
 }

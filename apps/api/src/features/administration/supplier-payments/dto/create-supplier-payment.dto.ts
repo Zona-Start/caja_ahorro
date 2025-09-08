@@ -8,7 +8,6 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  ValidateNested,
 } from 'class-validator';
 
 class CreateSupplierPaymentLineDto {
@@ -67,7 +66,6 @@ export class CreateSupplierPaymentDto {
   observations?: string;
 
   @IsArray()
-  @ValidateNested({ each: true })
   @Type(() => CreateSupplierPaymentLineDto)
   lines: CreateSupplierPaymentLineDto[];
 }

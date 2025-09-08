@@ -57,7 +57,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleDelete = () => {
-    const allowedStatus = ['DRAFT', 'PENDING', 'RECEIVED', 'INVOICED'];
+    const allowedStatus = ['DRAFT', 'PENDING'];
     if (allowedStatus.includes(data.status!)) {
       setOpen(true);
     } else {
