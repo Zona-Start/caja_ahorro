@@ -10,7 +10,6 @@ import { paymentMethodEnum, priceTypeEnum } from '@/types/enum';
 import {
   BadRequestException,
   ConflictException,
-  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
@@ -35,7 +34,6 @@ export class SupplierInvoicesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly supplierTransactionsService: SupplierTransactionsService,
-    @Inject(forwardRef(() => AccountsPayableService))
     private accountsPayableService: AccountsPayableService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly productPricesService: ProductPricesService,

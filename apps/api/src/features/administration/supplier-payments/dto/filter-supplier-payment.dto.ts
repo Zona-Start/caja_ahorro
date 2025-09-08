@@ -1,13 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsArray,
-  IsDate,
-  IsInt,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
+import { IsDate, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class FilterSupplierPaymentDto {
   @ApiPropertyOptional({ description: 'Page number', default: 1 })
@@ -40,10 +33,9 @@ export class FilterSupplierPaymentDto {
   sortOrder?: 'asc' | 'desc' = 'asc';
 
   @ApiPropertyOptional({ description: 'Filter by supplier IDs' })
-  @IsArray()
-  @IsInt({ each: true })
-  @Type(() => Number)
   @IsOptional()
+  @IsInt({ each: true }) // Valida que cada elemento del array sea un entero.
+  @Type(() => Number) // Esta línea es redundante con la transformación, pero no causa daño. Puedes quitarla si quieres.
   supplierIds?: number[];
 
   @ApiPropertyOptional({ description: 'Filter by payment status' })
@@ -51,7 +43,9 @@ export class FilterSupplierPaymentDto {
   @IsOptional()
   status?: string; // Should be payment status enum
 
-  @ApiPropertyOptional({ description: 'Start date for transaction date filter' })
+  @ApiPropertyOptional({
+    description: 'Start date for transaction date filter',
+  })
   @IsDate()
   @Type(() => Date)
   @IsOptional()

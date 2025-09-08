@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 export const reversePaymentAccountSchema = z.object({
@@ -8,6 +7,7 @@ export const reversePaymentAccountSchema = z.object({
   supplierName: z.string().optional(),
   totalAmount: z.number(),
   status: z.string(),
+  accountPayableNumber: z.string().optional(),
   requestedAt: z.string(),
 });
 

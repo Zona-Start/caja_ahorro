@@ -7,7 +7,6 @@ import {
 } from '@/database/schema/administration';
 import {
   BadRequestException,
-  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
@@ -16,7 +15,6 @@ import { and, eq, ilike, inArray, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { SupplierInvoicesService } from '../supplier-invoices/supplier-invoices.service';
 import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
 import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
@@ -27,8 +25,6 @@ export class AccountsPayableService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
-    @Inject(forwardRef(() => SupplierInvoicesService))
-    private supplierInvoicesService: SupplierInvoicesService,
   ) {}
 
   async createCreditDebitNote(
@@ -584,11 +580,10 @@ export class AccountsPayableService {
         });
 
         if (associatedInvoice?.purchaseOrderId) {
-          await this.supplierInvoicesService.updatePurchaseOrderStatusOnCancel(
-            associatedInvoice.purchaseOrderId,
-            associatedInvoice.id, // Pass the invoice ID that was just cancelled
-            tx,
-          );
+          await tx
+            .update(schema.purchaseOrders)
+            .set({ status: 'CANCELLED' })
+            .where(eq(supplierInvoices.id, schema.purchaseOrders.id));
         }
       }
 

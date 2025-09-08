@@ -45,3 +45,18 @@ export const reversePaymentMutationResponseSchema = z.object({
 });
 
 export type SupplierPayment = z.infer<typeof supplierPaymentSchema>;
+
+export const supplierPaymentMutationResponseSchema = z.object({
+  id: z.number(),
+  paymentNumber: z.string(),
+  supplierId: z.number(),
+  totalAmount: z.string(),
+  currencyCode: z.string(),
+  paymentMethod: z.string(),
+  bankAccountId: z.number().nullable(),
+  status: z.string(),
+  requestedAt: z.string(),
+  processedAt: z.string().nullable(),
+  reversedAt: z.string(),
+  observations: z.string().nullable(),
+});

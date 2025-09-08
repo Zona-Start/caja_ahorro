@@ -11,14 +11,14 @@ export function useSupplierPayments(
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   } = {},
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
     ['supplier-payments', params],
     () => getSupplierPaymentsAction(params),
     {
-      enabled: (options?.enabled ?? true),
+      enabled: !!params.supplierIds?.length && (options?.enabled ?? true),
       ...options,
-    }
+    },
   );
 }

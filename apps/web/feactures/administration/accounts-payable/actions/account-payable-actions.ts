@@ -1,11 +1,15 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
+import { supplierPaymentMutationResponseSchema } from '../../supplier-payments/schemas';
 import {
   accountPayableAllResponseSchema,
   accountPayableMutationResponseSchema,
   accountPayableResponseOneSchema,
 } from '../schemas/account-payable-api.schema';
 import { AccountPayable } from '../schemas/account-payable.schema';
+import { AdvancePayment } from '../schemas/advance-payment.schema';
+import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
+import { preloadedPaymentResponseSchema } from '../schemas/preloaded-payment.schema';
 import { mapAccountPayableApiToForm } from '../utils';
 
 export const getAccountsPayableAction = async (params: {
@@ -154,11 +158,6 @@ export const getAccountPayableReportAction = async (id: number) => {
   return data;
 };
 
-import { supplierPaymentMutationResponseSchema } from '../../supplier-payments/schemas';
-import { AdvancePayment } from '../schemas/advance-payment.schema';
-import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
-import { preloadedPaymentResponseSchema } from '../schemas/preloaded-payment.schema';
-
 export const getAccountsPayableBySuppliersAction = async (params: {
   supplierIds?: number[]; // <--- Modificar el tipo de dato a un array de números
 }) => {
@@ -168,8 +167,6 @@ export const getAccountsPayableBySuppliersAction = async (params: {
   if (params.supplierIds && params.supplierIds.length > 0) {
     searchParams = `supplierIds=${params.supplierIds.join(',')}`;
   }
-
-  console.log(searchParams);
 
   const [error, response] = await safeFetchApi(
     accountPayableAllResponseSchema,

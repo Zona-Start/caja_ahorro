@@ -11,8 +11,8 @@ import {
 import { CreateAdvancePaymentDto } from './dto/create-advance-payment.dto';
 import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
 import { FilterSupplierPaymentDto } from './dto/filter-supplier-payment.dto'; // Import the new DTO
-import { UpdateSupplierPaymentDto } from './dto/update-supplier-payment.dto';
 import { ReversePaymentsDto } from './dto/reverse-payments.dto';
+import { UpdateSupplierPaymentDto } from './dto/update-supplier-payment.dto';
 import { SupplierPaymentsService } from './supplier-payments.service';
 
 @Controller('administration/supplier-payments')
@@ -74,6 +74,29 @@ export class SupplierPaymentsController {
     // Use the new DTO
     return this.supplierPaymentsService.findAll(paginationDto);
   }
+
+  // @Get('/by-suppliers')
+  // @Roles('admin')
+  // @RequirePermissions('read:supplier-payment')
+  // @ApiOperation({ summary: 'Get all supplier payment by suppliers' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Return all supplier payment by suppliers',
+  // })
+  // async findBySuppliers(
+  //   @Query('supplierIds', new ParseArrayPipe({ items: Number }))
+  //   supplierIds: number[],
+  // ) {
+  //   const data =
+  //     await this.supplierPaymentsService.findAccountsPayableBySuppliers(
+  //       supplierIds,
+  //     );
+
+  //   return {
+  //     message: 'Pagos obtenidas exitosamente.',
+  //     data: data,
+  //   };
+  // }
 
   @Patch(':id')
   updateDraft(

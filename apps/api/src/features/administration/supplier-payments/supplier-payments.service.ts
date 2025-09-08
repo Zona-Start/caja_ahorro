@@ -43,6 +43,7 @@ export class SupplierPaymentsService {
     return db.transaction(async (tx) => {
       const paymentNumber =
         await this.generateCodeService.generateNextReference('PAG-P', tx);
+
       const [newPayment] = await tx
         .insert(schema.supplierPayments)
         .values({
@@ -58,8 +59,7 @@ export class SupplierPaymentsService {
           bankDescription: dto.bankDescription,
           bankReference: dto.bankReference,
           bankTransactionDate: dto.bankTransactionDate.toISOString(),
-          observations:
-            dto.observations ?? `PAGO DE CTA. POR PAGAR  ${paymentNumber}`,
+          observations: dto.observations ?? `PAGO DE CTA. POR PAGAR`,
         })
         .returning();
 
@@ -69,12 +69,21 @@ export class SupplierPaymentsService {
         amount: line.amount.toString(),
         createdById: userId,
         supplierPaymentId: newPayment.id,
+        description:
+          line.description ?? `PAGO DE FACTURA N° ${line.accountsPayableId}`,
       }));
 
       await tx.insert(schema.supplierPaymentLines).values(paymentLines);
 
       return newPayment;
     });
+  }
+
+  async findAllPaymentBySuppliers(supplierIds: number[]) {
+    // Manejar el caso de un arreglo vacío
+    if (supplierIds.length === 0) {
+      return [];
+    }
   }
 
   async findAll(paginationDto: FilterSupplierPaymentDto) {
@@ -97,11 +106,31 @@ export class SupplierPaymentsService {
         ilike(schema.supplierPayments.paymentNumber, `%${search}%`),
       );
     }
-    if (supplierIds && supplierIds.length > 0) {
-      searchConditions.push(
-        inArray(schema.supplierPayments.supplierId, supplierIds),
-      );
+
+    let parsedSupplierIds: number[] = [];
+    if (supplierIds) {
+      // Convierte el valor a un array de números
+      //   if (typeof supplierIds === 'string') {
+      //   // Maneja el caso de '1,2,3'
+      //   parsedSupplierIds = supplierIds
+      //     .split(',')
+      //     .map((id) => parseInt(id, 10));
+      // } else
+      if (Array.isArray(supplierIds)) {
+        // Maneja el caso de [1,2,3]
+        parsedSupplierIds = supplierIds.map((id) => parseInt(id as any, 10));
+      } else if (typeof supplierIds === 'number') {
+        // Maneja el caso de un solo número
+        parsedSupplierIds = [supplierIds];
+      }
+
+      if (parsedSupplierIds.length > 0) {
+        searchConditions.push(
+          inArray(schema.supplierPayments.supplierId, parsedSupplierIds),
+        );
+      }
     }
+
     if (status) {
       searchConditions.push(eq(schema.supplierPayments.status, status as any));
     }
@@ -149,6 +178,7 @@ export class SupplierPaymentsService {
         payment: schema.supplierPayments, // Select the whole payment object
         supplier: schema.suppliers, // Select the whole supplier object
         line: schema.supplierPaymentLines, // Select the whole line object
+        accountPayable: schema.accountsPayable,
       })
       .from(schema.supplierPayments)
       .leftJoin(
@@ -162,6 +192,13 @@ export class SupplierPaymentsService {
           schema.supplierPaymentLines.supplierPaymentId,
         ),
       ) // Join supplierPaymentLines
+      .leftJoin(
+        schema.accountsPayable,
+        eq(
+          schema.accountsPayable.id,
+          schema.supplierPaymentLines.accountsPayableId,
+        ),
+      )
       .limit(limit)
       .offset(offset)
       .where(searchCondition)
@@ -178,6 +215,7 @@ export class SupplierPaymentsService {
           totalAmount: Number(row.payment.totalAmount), // Convert to number
           supplierName: row.supplier?.name, // Add supplier name
           lines: [], // Initialize lines array
+          accountPayableNumber: row.accountPayable?.accountsPayableNumber,
         });
       }
       if (row.line) {
@@ -644,15 +682,25 @@ export class SupplierPaymentsService {
         const [reversedPayment] = await tx
           .insert(schema.supplierPayments)
           .values({
-            ...payment[0].supplier_payments,
             paymentNumber: reversedPaymentNumber,
+            supplierId: payment[0]?.suppliers?.id as number,
             totalAmount: (-parseFloat(
               payment[0].supplier_payments.totalAmount,
             )).toString(),
+            currencyCode: 'VES',
+            paymentMethod: payment[0].supplier_payments.paymentMethod ?? null,
+            bankAccountId: payment[0].supplier_payments.bankAccountId,
             status: 'REVERSED',
-            observations: `REVERSA DE PAGO ${payment[0].supplier_payments.paymentNumber}`,
+            requestedAt: payment[0].supplier_payments.requestedAt,
+            processedAt: payment[0].supplier_payments.processedAt,
             reversedAt: new Date().toISOString(),
+            observations: `REVERSA DE PAGO ${payment[0].supplier_payments.paymentNumber}`,
             createdById: userId,
+            bankReference: payment[0].supplier_payments.bankReference ?? null,
+            bankDescription:
+              payment[0].supplier_payments.bankDescription ?? null,
+            bankTransactionDate:
+              payment[0].supplier_payments.bankTransactionDate ?? null,
           })
           .returning();
 
@@ -671,7 +719,7 @@ export class SupplierPaymentsService {
           // a. Create reversed supplier transaction
           await tx.insert(schema.supplierTransactions).values({
             accountsPayableId: line.accountsPayableId,
-            transactionNumber: `REV-TR-${payment[0].supplier_payments.paymentNumber}-${line.id}`,
+            transactionNumber: `REV-${payment[0].supplier_payments.paymentNumber}-${line.id}`,
             transactionType: 'REVERSED',
             transactionDate: new Date().toISOString(),
             amount: line.amount,

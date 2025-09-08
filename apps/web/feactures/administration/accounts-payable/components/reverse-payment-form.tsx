@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,13 +16,13 @@ import {
 } from '@repo/shadcn/table';
 import { useEffect, useMemo, useState } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
-import { useSupplierAll } from '../../suppliers/hooks/use-query-suppliers';
 import { useReversePaymentMutation } from '../../supplier-payments/hooks/use-mutation-supplier-payment';
 import { useSupplierPayments } from '../../supplier-payments/hooks/use-query-supplier-payment';
 import {
   ReversePayment,
   reversePaymentSchema,
 } from '../../supplier-payments/schemas/reverse-payment.schema';
+import { useSupplierAll } from '../../suppliers/hooks/use-query-suppliers';
 
 interface FormProps {
   onSuccess?: () => void;
@@ -43,10 +42,11 @@ export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
     return selectedSuppliers.map((id) => Number(id));
   }, [selectedSuppliers, suppliers]);
 
-  const { data: supplierPayments, isLoading: isLoadingSupplierPayments } = useSupplierPayments({
-    supplierIds: actualSupplierIds,
-    status: 'PROCESSED',
-  });
+  const { data: supplierPayments, isLoading: isLoadingSupplierPayments } =
+    useSupplierPayments({
+      supplierIds: actualSupplierIds,
+      status: 'PROCESSED',
+    });
 
   const form = useForm<ReversePayment>({
     resolver: zodResolver(reversePaymentSchema),
@@ -72,6 +72,7 @@ export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
         paymentNumber: p.paymentNumber,
         supplierName: p.supplierName,
         totalAmount: p.totalAmount,
+        accountPayableNumber: p.accountPayableNumber,
         status: p.status,
         requestedAt: p.requestedAt,
       }));
@@ -81,6 +82,7 @@ export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
 
   const selectedPayments = form.watch('payments').filter((p) => p.selected);
 
+  console.log(form.formState.errors);
   const onSubmit = (data: ReversePayment) => {
     const selectedPaymentIds = data.payments
       .filter((p) => p.selected)
@@ -96,7 +98,7 @@ export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
         onSuccess: () => {
           onSuccess?.();
         },
-      }
+      },
     );
   };
 
@@ -190,7 +192,9 @@ export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
                         {form.getValues(`payments.${index}`).supplierName}
                       </TableCell>
                       <TableCell>
-                        {new Date(form.getValues(`payments.${index}`).requestedAt).toLocaleDateString()}
+                        {new Date(
+                          form.getValues(`payments.${index}`).requestedAt,
+                        ).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         {form.getValues(`payments.${index}`).totalAmount}
@@ -209,7 +213,10 @@ export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
             <Button variant="outline" type="button" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending || selectedPayments.length === 0}>
+            <Button
+              type="submit"
+              disabled={isPending || selectedPayments.length === 0}
+            >
               {isPending ? 'Procesando...' : 'Reversar Pagos'}
             </Button>
           </div>

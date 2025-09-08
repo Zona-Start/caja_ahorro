@@ -14,8 +14,15 @@ export const getSupplierPaymentsAction = async (params: {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }) => {
+  let Params = '';
+
+  // Verificar si hay IDs de proveedores y construir la cadena de búsqueda
+  if (params.supplierIds && params.supplierIds.length > 0) {
+    Params = `${params.supplierIds.join(',')}`;
+  }
+
   const searchParams = new URLSearchParams({
-    ...(params.supplierIds && { supplierIds: params.supplierIds.join(',') }),
+    ...(params.supplierIds && { supplierIds: Params }),
     page: (params.page || 1).toString(),
     limit: (params.limit || 10).toString(),
     ...(params.search && { search: params.search }),
@@ -27,7 +34,7 @@ export const getSupplierPaymentsAction = async (params: {
   const [error, response] = await safeFetchApi(
     supplierPaymentAllResponseSchema,
     `/administration/supplier-payments?${searchParams}`,
-    'GET'
+    'GET',
   );
 
   if (error) {
@@ -50,12 +57,14 @@ export const getSupplierPaymentsAction = async (params: {
   };
 };
 
-export const reversePaymentsAction = async (payload: { paymentIds: number[] }) => {
+export const reversePaymentsAction = async (payload: {
+  paymentIds: number[];
+}) => {
   const [error, data] = await safeFetchApi(
     reversePaymentMutationResponseSchema,
     '/administration/supplier-payments/reverse',
     'POST',
-    payload
+    payload,
   );
 
   if (error) {
