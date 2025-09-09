@@ -1,10 +1,10 @@
 export const ESTATUS_TYPES = {
-  DRAFT: 'BORRADOR',
-  PENDING: 'PENDIENTE',
-  RECEIVED: 'RECIBIDA',
-  INVOICED: 'FACTURADA',
-  CLOSED: 'CERRADA',
-  CANCELLED: 'CANCELADA',
+  DRAFT: 'Borrador',
+  PENDING: 'Enviada',
+  RECEIVED: 'Recibida Parcial',
+  INVOICED: 'Facturada',
+  CLOSED: 'Cerrada',
+  CANCELLED: 'Cancelada',
 } as const;
 
 export type EstatusType = keyof typeof ESTATUS_TYPES;

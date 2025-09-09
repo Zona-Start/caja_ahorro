@@ -1,9 +1,9 @@
 'use client';
 
-import { searchParams } from '@repo/shadcn/lib/searchparams';
 import { useQueryState } from 'nuqs';
 import { useCallback, useMemo } from 'react';
 import { ESTATUS_TYPES } from '../../schemas/purchase-order-options';
+import { searchParams } from '../../utils';
 
 export const ESTATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(
   ([value, label]) => ({
@@ -28,6 +28,11 @@ export function usePurchaseOrdersFilters() {
     searchParams.q.withOptions({ shallow: false }).withDefault(''),
   );
 
+  const [supplierIdFilter, setSupplierIdFilter] = useQueryState(
+    'supplierId',
+    searchParams.supplierId.withOptions({ shallow: false }),
+  );
+
   const [page, setPage] = useQueryState(
     'page',
     searchParams.page.withDefault(1),
@@ -36,9 +41,10 @@ export function usePurchaseOrdersFilters() {
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
     setStatusFilter(null);
+    setSupplierIdFilter(null);
 
     setPage(1);
-  }, [setSearchQuery, setStatusFilter, setPage]);
+  }, [setSearchQuery, setStatusFilter, setSupplierIdFilter, setPage]);
 
   const isAnyFilterActive = useMemo(() => {
     return !!searchQuery || !!statusFilter;
@@ -53,5 +59,7 @@ export function usePurchaseOrdersFilters() {
     isAnyFilterActive,
     statusFilter,
     setStatusFilter,
+    supplierIdFilter,
+    setSupplierIdFilter,
   };
 }

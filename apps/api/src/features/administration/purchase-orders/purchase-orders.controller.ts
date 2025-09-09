@@ -95,18 +95,6 @@ export class PurchaseOrdersController {
     return { message: 'Purchase order updated successfully', data };
   }
 
-  // @Patch(':id/close')
-  // @Roles('admin')
-  // @RequirePermissions('update:purchase-order') // Assuming same permission for closing
-  // @ApiOperation({ summary: 'Close a purchase order' })
-  // @ApiResponse({ status: 200, description: 'Purchase order closed successfully.' })
-  // @ApiResponse({ status: 404, description: 'Purchase order not found.' })
-  // @ApiResponse({ status: 400, description: 'Cannot close purchase order from current status.' })
-  // async closePurchaseOrder(@Param('id') id: string) {
-  //   const data = await this.services.updateStatusToClosed(+id);
-  //   return { message: 'Purchase order closed successfully', data };
-  // }
-
   @Delete(':id')
   @Roles('admin')
   @RequirePermissions('delete:purchase-order')

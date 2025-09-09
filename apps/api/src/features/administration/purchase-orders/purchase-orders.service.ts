@@ -1,7 +1,10 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
+  fixedAssets,
+  products,
   purchaseOrderItems,
   purchaseOrders,
+  services,
   suppliers,
 } from '@/database/schema/administration';
 import { CurrencyCodeEnum } from '@/types/enum';
@@ -26,6 +29,46 @@ export class PurchaseOrdersService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
   ) {}
+
+  private async getItemNameByType(
+    itemId: number | null | undefined,
+    lineType: string,
+    db: any, // tu instancia Drizzle
+  ): Promise<string | null> {
+    if (!itemId) return null;
+
+    switch (lineType) {
+      case 'SERVICE':
+      case 'SERVICE_EXPENSE': {
+        const result = await db
+          .select({ name: services.name })
+          .from(services)
+          .where(eq(services.id, itemId));
+        return result[0]?.name ?? null;
+      }
+      case 'SALES_INVENTORY': {
+        const result = await db
+          .select({ name: products.name })
+          .from(products)
+          .where(eq(products.id, itemId));
+        return result[0]?.name ?? null;
+      }
+      case 'FIXED_ASSET': {
+        const result = await db
+          .select({ name: fixedAssets.name })
+          .from(fixedAssets)
+          .where(eq(fixedAssets.id, itemId));
+        return result[0]?.name ?? null;
+      }
+      case 'EXPENSE': {
+        // Para EXPENSE debes pasar además la descripción
+        // Aquí solo devolvemos null, el nombre vendría en item.description
+        return null;
+      }
+      default:
+        return null;
+    }
+  }
 
   private validateOrderItems(
     items?: {
@@ -219,41 +262,53 @@ export class PurchaseOrdersService {
       .from(purchaseOrderItems)
       .where(sql`${purchaseOrderItems.purchaseOrderId} IN ${ordersIds}`);
 
-    // Paso 4: Agrupar los ítems a cada factura en el código
-    const data = orders.map((orderRow) => {
-      // Declaramos explícitamente el tipo de 'invoice' para evitar el error
-      const order = {
-        id: orderRow.order.id,
-        orderNumber: orderRow.order.orderNumber,
-        supplierId: orderRow.order.supplierId,
-        supplierName: orderRow.supplierName,
-        status: orderRow.order.status,
-        observations: orderRow.order.observations,
-        orderDate: orderRow.order.orderDate,
-        expectedDeliveryDate: orderRow.order.expectedDeliveryDate,
-        subtotal: Number(orderRow.order.subtotal),
-        taxAmount: Number(orderRow.order.taxAmount),
-        totalAmount: Number(orderRow.order.totalAmount),
-        items: [] as any[], // Inicializamos el array de ítems aquí
-      };
+    // Paso 4: Agrupar los ítems a cada factura en el código (async map)
+    const data = await Promise.all(
+      orders.map(async (orderRow) => {
+        const order = {
+          id: orderRow.order.id,
+          orderNumber: orderRow.order.orderNumber,
+          supplierId: orderRow.order.supplierId,
+          supplierName: orderRow.supplierName,
+          status: orderRow.order.status,
+          observations: orderRow.order.observations,
+          orderDate: orderRow.order.orderDate,
+          expectedDeliveryDate: orderRow.order.expectedDeliveryDate,
+          subtotal: Number(orderRow.order.subtotal),
+          taxAmount: Number(orderRow.order.taxAmount),
+          totalAmount: Number(orderRow.order.totalAmount),
+          items: [] as any[],
+        };
 
-      const orderItems = allItems.filter(
-        (item) => item.purchaseOrderId === order.id,
-      );
+        const orderItems = allItems.filter(
+          (item) => item.purchaseOrderId === order.id,
+        );
 
-      // Mapea y convierte los ítems al formato correcto
-      order.items = orderItems.map((item) => ({
-        id: item.id,
-        lineType: item.lineType,
-        description: item.description,
-        itemId: item.itemId,
-        quantity: Number(item.quantity),
-        unitCost: Number(item.unitCost),
-        totalCost: Number(item.totalCost),
-      }));
+        order.items = await Promise.all(
+          orderItems.map(async (item) => {
+            const name = await this.getItemNameByType(
+              item.itemId,
+              item.lineType,
+              this.drizzle,
+            );
+            const itemName =
+              item.lineType === 'EXPENSE' ? item.description : name;
+            return {
+              id: item.id,
+              lineType: item.lineType,
+              description: item.description,
+              itemId: item.itemId,
+              itemName,
+              quantity: Number(item.quantity),
+              unitCost: Number(item.unitCost),
+              totalCost: Number(item.totalCost),
+            };
+          }),
+        );
 
-      return order;
-    });
+        return order;
+      }),
+    );
 
     const meta = {
       page: Number(page),

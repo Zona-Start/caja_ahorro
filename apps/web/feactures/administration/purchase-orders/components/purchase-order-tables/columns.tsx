@@ -1,5 +1,6 @@
 'use client';
 
+import { Badge } from '@repo/shadcn/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
 import { ESTATUS_TYPES } from '../../schemas/purchase-order-options';
 import { PurchaseOrder } from '../../schemas/purchase-order.schema';
@@ -23,20 +24,88 @@ export const columns: ColumnDef<PurchaseOrder>[] = [
     },
   },
   {
+    accessorKey: 'itemsCount',
+    header: 'Items',
+    cell: ({ row }) => {
+      const item = row.original.itemsCount;
+      return `${item} items` || row.original.itemsCount;
+    },
+  },
+  {
     accessorKey: 'totalAmount',
-    header: 'Monto Total',
+    header: 'Total',
   },
   {
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original.status as keyof typeof ESTATUS_TYPES;
-      return ESTATUS_TYPES[statusKey] || row.original.status;
+      const status = row.original.status;
+      const statusText =
+        ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
+
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'DRAFT':
+            return 'default';
+          case 'PENDING':
+            return 'secondary';
+          case 'RECEIVED':
+            return 'warning';
+          case 'INVOICED':
+            return 'success';
+          case 'CANCELLED':
+            return 'outline';
+          case 'CLOSED':
+          default:
+            return 'destructive';
+        }
+      })();
+
+      return (
+        <Badge
+          variant={
+            variant as
+              | 'default'
+              | 'destructive'
+              | 'outline'
+              | 'secondary'
+              | 'success'
+              | 'danger'
+          }
+        >
+          {statusText}
+        </Badge>
+      );
     },
   },
   {
     id: 'actions',
     header: 'Acciones',
-    cell: ({ row }) => <CellAction data={row.original} />,
+    cell: ({ row }) => {
+      const newItems = row.original.items.map((item) => ({
+        ...item,
+        lineType: item.lineType.toString(),
+        totalCost: item.totalCost ?? 0,
+      }));
+
+      const newData = {
+        ...row.original,
+        orderDate: row.original.orderDate
+          ? new Date(row.original.orderDate).toLocaleDateString()
+          : '',
+        expectedDeliveryDate: row.original.expectedDeliveryDate
+          ? new Date(row.original.expectedDeliveryDate).toLocaleDateString()
+          : '',
+        items: newItems,
+      };
+
+      return <CellAction data={row.original} dataDetails={newData} />;
+    },
   },
 ];

@@ -448,7 +448,7 @@ export function SupplierInvoiceForm({
               name="purchaseOrderId"
               render={({ field }) => (
                 <FormItem className="w-full">
-                  <FormLabel>Orden de Compra</FormLabel>
+                  <FormLabel>Orden de Compra (Opcional)</FormLabel>
                   <SelectSearchable
                     options={
                       filteredPurchaseOrders?.map((item: any) => ({
@@ -1311,7 +1311,7 @@ export function SupplierInvoiceForm({
                       handleSave(SupplierInvoiceStatusEnum.PENDING)
                     }
                   >
-                    {isSaving ? 'Validando...' : 'Validar'}
+                    {isSaving ? 'Guardando...' : 'Registrar Factura'}
                   </Button>
                 )}
 

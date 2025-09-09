@@ -25,7 +25,7 @@ export const columns: ColumnDef<SupplierInvoice>[] = [
   },
   {
     accessorKey: 'invoiceDate',
-    header: 'Fecha de Factura',
+    header: 'Fecha',
     cell: ({ row }) => {
       const date = new Date(row.original.invoiceDate);
       return date.toLocaleDateString();
@@ -33,7 +33,7 @@ export const columns: ColumnDef<SupplierInvoice>[] = [
   },
   {
     accessorKey: 'dueDate',
-    header: 'Fecha de Vencimiento',
+    header: 'Vencimiento',
     cell: ({ row }) => {
       const date = new Date(row.original.dueDate ?? '');
       return date.toLocaleDateString();
@@ -42,7 +42,7 @@ export const columns: ColumnDef<SupplierInvoice>[] = [
 
   {
     accessorKey: 'totalAmount',
-    header: 'Monto Total',
+    header: 'Monto',
     cell: ({ row }) => {
       const data = row.original.totalAmount;
 

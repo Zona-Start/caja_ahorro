@@ -178,7 +178,7 @@ export function PurchaseOrderForm({
                 </FormItem>
               )}
             />
-            <FormField
+            {/* <FormField
               control={form.control}
               name="expectedDeliveryDate"
               render={({ field }) => (
@@ -196,7 +196,7 @@ export function PurchaseOrderForm({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
             {defaultValues?.id && (
               <FormField
                 control={form.control}
@@ -551,7 +551,7 @@ export function PurchaseOrderForm({
                     onSubmit(data, 'PENDING'),
                   )}
                 >
-                  {isSaving ? 'Procesando...' : 'Procesar Orden'}
+                  {isSaving ? 'Procesando...' : 'Registrar Orden'}
                 </Button>
               </>
             )}

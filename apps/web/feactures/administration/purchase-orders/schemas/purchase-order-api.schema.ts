@@ -5,18 +5,19 @@ export const purchaseOrderItemApiSchema = z.object({
   lineType: z.string(),
   description: z.string().optional().nullable(),
   itemId: z.number().optional().nullable(),
+  itemName: z.string().optional().nullable(),
   quantity: z.coerce.number(),
   unitCost: z.coerce.number(),
   totalCost: z.coerce.number(),
 });
 
 export const purchaseOrderApiSchema = z.object({
-  id: z.number(),
+  id: z.number().optional(),
   supplierId: z.number(),
   supplierName: z.string().optional(),
-  orderNumber: z.string(),
+  orderNumber: z.string().optional(),
   status: z.string().optional(),
-  orderDate: z.string(),
+  orderDate: z.string().optional(),
   expectedDeliveryDate: z.string().nullable().optional(),
   subtotal: z.coerce.number(),
   taxAmount: z.coerce.number().optional().nullable(),
@@ -26,6 +27,9 @@ export const purchaseOrderApiSchema = z.object({
 });
 
 export type PurchaseOrderSchemaAPI = z.infer<typeof purchaseOrderApiSchema>;
+export type PurchaseOrderItemSchemaAPI = z.infer<
+  typeof purchaseOrderItemApiSchema
+>;
 
 export const purchaseOrderMutationResponseSchema = z.object({
   message: z.string(),

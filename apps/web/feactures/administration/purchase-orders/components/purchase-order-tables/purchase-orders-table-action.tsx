@@ -1,6 +1,8 @@
 'use client';
 
+import { useSupplierAll } from '@/feactures/administration/suppliers/hooks/use-query-suppliers';
 import { Button } from '@repo/shadcn/button';
+import { SelectSearchable } from '@repo/shadcn/components/ui/select-searchable';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
@@ -18,9 +20,12 @@ export default function PurchaseOrderTableAction() {
     searchQuery,
     setPage,
     setSearchQuery,
+    supplierIdFilter,
+    setSupplierIdFilter,
   } = usePurchaseOrdersFilters();
 
   const [open, setOpen] = useState(false);
+  const { data: suppliers } = useSupplierAll();
 
   return (
     <div className="flex items-center justify-between mt-4 ">
@@ -32,6 +37,22 @@ export default function PurchaseOrderTableAction() {
           setSearchQuery={setSearchQuery}
           setPage={setPage}
         />
+        <div className="w-[200px] p-0">
+          <SelectSearchable
+            placeholder="Filtrar por proveedor"
+            options={
+              suppliers?.map((supplier) => ({
+                value: supplier.id!.toString(),
+                label: supplier.name,
+              })) || []
+            }
+            onValueChange={(value) => {
+              setSupplierIdFilter(value ? Number(value) : null);
+            }}
+            defaultValue={supplierIdFilter?.toString()}
+            enableNoneOption
+          />
+        </div>
         <DataTableFilterBox
           filterKey="status"
           title="Estatus"

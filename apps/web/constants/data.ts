@@ -193,6 +193,11 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/administracion/cuentas-x-pagar',
       },
+      {
+        title: 'Pagos Proveedores',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/administracion/pagos-proveedores',
+      },
     ], // No child items
   },
 ];

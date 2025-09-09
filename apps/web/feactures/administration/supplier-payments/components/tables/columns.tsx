@@ -1,12 +1,11 @@
-
 'use client';
 
+import { Badge } from '@repo/shadcn/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
-import { SUPPLIER_PAYMENT_STATUS_TYPES } from '../../schemas';
-import { SupplierPaymentAPI } from '../../schemas';
+import { SUPPLIER_PAYMENT_STATUS_TYPES, SupplierPayment } from '../../schemas';
 import { CellAction } from './cell-action';
 
-export const columns: ColumnDef<SupplierPaymentAPI>[] = [
+export const columns: ColumnDef<SupplierPayment>[] = [
   {
     accessorKey: 'paymentNumber',
     header: 'Referencia',
@@ -19,7 +18,7 @@ export const columns: ColumnDef<SupplierPaymentAPI>[] = [
     accessorKey: 'totalAmount',
     header: 'Monto Total',
     cell: ({ row }) => {
-      const amount = parseFloat(row.original.totalAmount);
+      const amount = row.original.totalAmount;
       const currencyCode = row.original.currencyCode;
       const formatted = new Intl.NumberFormat('es-VE', {
         style: 'currency',
@@ -32,8 +31,52 @@ export const columns: ColumnDef<SupplierPaymentAPI>[] = [
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original.status as keyof typeof SUPPLIER_PAYMENT_STATUS_TYPES;
-      return SUPPLIER_PAYMENT_STATUS_TYPES[statusKey] || row.original.status;
+      const status = row.original.status;
+      const statusText =
+        SUPPLIER_PAYMENT_STATUS_TYPES[
+          status as keyof typeof SUPPLIER_PAYMENT_STATUS_TYPES
+        ] || status;
+
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'DRAFT':
+            return 'default';
+          case 'PENDING':
+            return 'outline';
+          case 'PEN_APR':
+            return 'warning';
+          case 'PROCESSED':
+            return 'success';
+          case 'ANULADO':
+          case 'REJECTED':
+            return 'destructive';
+          default:
+            return 'secondary';
+        }
+      })();
+
+      return (
+        <Badge
+          variant={
+            variant as
+              | 'default'
+              | 'destructive'
+              | 'outline'
+              | 'secondary'
+              | 'success'
+              | 'danger'
+          }
+          className={status === 'DRAFT' ? 'bg-pink-200 text-red-800' : ''}
+        >
+          {statusText}
+        </Badge>
+      );
     },
   },
   {

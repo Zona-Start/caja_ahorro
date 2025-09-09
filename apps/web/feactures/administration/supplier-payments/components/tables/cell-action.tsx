@@ -8,20 +8,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/components/ui/tooltip';
-import { Check, Edit, Eye, Send, ThumbsUp, Undo2 } from 'lucide-react';
+import { Edit, Eye } from 'lucide-react';
 import { useState } from 'react';
-import {
-  useApproveSupplierPayment,
-  useExecuteSupplierPayment,
-  useReverseSupplierPayment,
-  useValidateSupplierPayment,
-} from '../../hooks';
-import { SupplierPaymentAPI } from '../../schemas';
+
+import { SupplierPayment } from '../../schemas';
 
 // import { SupplierPaymentModal } from '../supplier-payment-modal'; // Descomentar cuando se cree
 
 interface CellActionProps {
-  data: SupplierPaymentAPI;
+  data: SupplierPayment;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
@@ -35,16 +30,16 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
 
-  const { mutate: validatePayment, isPending: validating } =
-    useValidateSupplierPayment();
-  const { mutate: approvePayment, isPending: approving } =
-    useApproveSupplierPayment();
-  const { mutate: executePayment, isPending: executing } =
-    useExecuteSupplierPayment();
-  const { mutate: reversePayment, isPending: reversing } =
-    useReverseSupplierPayment();
+  // const { mutate: validatePayment, isPending: validating } =
+  //   useValidateSupplierPayment();
+  // const { mutate: approvePayment, isPending: approving } =
+  //   useApproveSupplierPayment();
+  // const { mutate: executePayment, isPending: executing } =
+  //   useExecuteSupplierPayment();
+  // const { mutate: reversePayment, isPending: reversing } =
+  //   useReverseSupplierPayment();
 
-  const isLoading = validating || approving || executing || reversing;
+  // const isLoading = validating || approving || executing || reversing;
 
   const handleAction = (
     action: () => void,
@@ -70,7 +65,6 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         isOpen={alertOpen}
         onClose={() => setAlertOpen(false)}
         onConfirm={onConfirm}
-        loading={isLoading}
         title={alertTitle}
         description={alertDescription}
       />
@@ -114,7 +108,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           </TooltipProvider>
         )}
 
-        {data.status === 'DRAFT' && (
+        {/* {data.status === 'DRAFT' && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -172,7 +166,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                   variant="outline"
                   size="icon"
                   onClick={() => {
-                    /* TODO: Generate Batch Action */
+
                   }}
                 >
                   <Send className="h-4 w-4" />
@@ -208,7 +202,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        )}
+        )} */}
       </div>
     </>
   );

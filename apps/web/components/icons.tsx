@@ -35,6 +35,7 @@ import {
   Settings,
   SlidersHorizontal,
   SquarePercent,
+  SquareX,
   Store,
   SunMedium,
   SwatchBook,
@@ -103,6 +104,7 @@ export const Icons = {
   ticketPlus: TicketPlus,
   store: Store,
   container: Container,
+  squareX: SquareX,
   gitHub: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

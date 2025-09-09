@@ -50,6 +50,7 @@ export const purchaseOrderItemSchema = z
 
 export const purchaseOrderSchema = z.object({
   id: z.number().optional(),
+  orderNumber: z.string().optional(),
   supplierId: z.number({ required_error: 'Proveedor requerido' }),
   status: z.string().optional(),
   orderDate: z.date({ required_error: 'Fecha de orden requerida' }),
@@ -59,6 +60,7 @@ export const purchaseOrderSchema = z.object({
   totalAmount: z.coerce.number().min(0, 'El monto total no puede ser negativo'),
   observations: z.string().optional().nullable(),
   items: z.array(purchaseOrderItemSchema).min(1, 'Debe haber al menos un item'),
+  itemsCount: z.number().optional(),
 });
 
 export type PurchaseOrder = z.infer<typeof purchaseOrderSchema>;

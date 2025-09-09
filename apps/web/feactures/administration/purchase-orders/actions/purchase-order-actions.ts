@@ -88,7 +88,7 @@ export const getPurchaseOrdersForInvoiceAction = async (params: {
 };
 
 export const createPurchaseOrderAction = async (payload: PurchaseOrder) => {
-  const { id, ...payloadWithoutId } = payload;
+  const { id, itemsCount, orderNumber, ...payloadWithoutId } = payload;
 
   const [error, data] = await safeFetchApi(
     purchaseOrderMutationResponseSchema,
@@ -106,7 +106,8 @@ export const createPurchaseOrderAction = async (payload: PurchaseOrder) => {
 };
 
 export const updatePurchaseOrderAction = async (payload: PurchaseOrder) => {
-  const { id, subtotal, totalAmount, ...payloadWithoutId } = payload;
+  const { id, subtotal, totalAmount, itemsCount, ...payloadWithoutId } =
+    payload;
 
   const transform = {
     ...payloadWithoutId,

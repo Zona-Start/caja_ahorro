@@ -10,17 +10,23 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Eye, Trash } from 'lucide-react';
+import { Edit, Eye, SquareX } from 'lucide-react';
 import { useState } from 'react';
 import { useDeletePurchaseOrder } from '../../hooks/use-mutation-purchase-order';
+import { PurchaseOrderSchemaAPI } from '../../schemas';
 import { PurchaseOrder } from '../../schemas/purchase-order.schema';
+import { PurchaseOrderDetailModal } from '../purchase-order-detail-modal';
 import { PurchaseOrderModal } from '../purchase-order-modal';
 
 interface CellActionProps {
   data: PurchaseOrder;
+  dataDetails: PurchaseOrderSchemaAPI;
 }
 
-export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+export const CellAction: React.FC<CellActionProps> = ({
+  data,
+  dataDetails,
+}) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -83,11 +89,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         defaultValues={data}
       />
 
-      <PurchaseOrderModal
+      <PurchaseOrderDetailModal
         open={showViewModal}
         onOpenChange={setShowViewModal}
-        defaultValues={data}
-        readOnly={true}
+        purchaseOrder={dataDetails}
       />
 
       <div className="flex gap-1">
@@ -105,7 +110,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Ver</p>
+              <p>Ver Detalles</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -126,11 +131,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="icon" onClick={handleDelete}>
-                <Trash className="h-4 w-4" />
+                <SquareX className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Anular</p>
+              <p>Cancelar</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
