@@ -1,11 +1,11 @@
 export const ACCOUNT_PAYABLE_STATUS_TYPES = {
-  PENDING: 'PENDIENTE',
-  PAID: 'PAGADA',
-  IN_PROGRESS: 'PARCIALMENTE PAGADA',
-  EXPIRED: 'VENCIDA',
-  CANCELLED: 'CANCELADA',
-  ADVANCE: 'ANTICIPO',
-  ADVANCE_APPLIED: 'ANTICIPO APLICADO',
+  PENDING: 'Pendiente',
+  PAID: 'Pagada',
+  IN_PROGRESS: 'Parcialmente Pagada',
+  EXPIRED: 'Vencida',
+  CANCELLED: 'Cancelada',
+  ADVANCE: 'Anticipo',
+  ADVANCE_APPLIED: 'Anticipo Aplicado',
 } as const;
 
 export type AccountPayableStatusType =
@@ -18,4 +18,5 @@ export enum AccountPayableStatusEnum {
   EXPIRED = 'EXPIRED',
   CANCELLED = 'CANCELLED',
   ADVANCE = 'ADVANCE',
+  ADVANCE_APPLIED = 'ADVANCE_APPLIED',
 }

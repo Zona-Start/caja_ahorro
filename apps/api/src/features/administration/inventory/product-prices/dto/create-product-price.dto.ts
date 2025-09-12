@@ -68,4 +68,9 @@ export class CreateProductPriceDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Supplier Invoice Id' })
+  @IsInt()
+  @IsOptional()
+  supplierInvoiceId?: number;
 }

@@ -21,6 +21,8 @@ const badgeVariants = cva(
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
         danger:
           'border-transparent bg-red-500 text-white [a&]:hover:bg-red-300',
+        warning:
+          'border-transparent bg-yellow-500 text-black [a&]:hover:bg-yellow-300',
       },
     },
     defaultVariants: {

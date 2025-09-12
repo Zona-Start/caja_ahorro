@@ -1,16 +1,16 @@
 'use client';
 
-import { searchParams } from '@repo/shadcn/lib/searchparams';
 import { useQueryState } from 'nuqs';
 import { useCallback, useMemo } from 'react';
 import { SUPPLIER_INVOICE_STATUS_TYPES } from '../../schemas/supplier-invoice-options';
+import { searchParams } from '../../utils';
 
-export const SUPPLIER_INVOICE_STATUS_OPTIONS = Object.entries(SUPPLIER_INVOICE_STATUS_TYPES).map(
-  ([value, label]) => ({
-    value,
-    label,
-  }),
-);
+export const SUPPLIER_INVOICE_STATUS_OPTIONS = Object.entries(
+  SUPPLIER_INVOICE_STATUS_TYPES,
+).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 export function useSupplierInvoicesFilters() {
   const [searchQuery, setSearchQuery] = useQueryState(
@@ -28,6 +28,11 @@ export function useSupplierInvoicesFilters() {
     searchParams.q.withOptions({ shallow: false }).withDefault(''),
   );
 
+  const [supplierIdFilter, setSupplierIdFilter] = useQueryState(
+    'supplierId',
+    searchParams.supplierId.withOptions({ shallow: false }),
+  );
+
   const [page, setPage] = useQueryState(
     'page',
     searchParams.page.withDefault(1),
@@ -36,9 +41,10 @@ export function useSupplierInvoicesFilters() {
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
     setStatusFilter(null);
+    setSupplierIdFilter(null);
 
     setPage(1);
-  }, [setSearchQuery, setStatusFilter, setPage]);
+  }, [setSearchQuery, setStatusFilter, setPage, setSupplierIdFilter]);
 
   const isAnyFilterActive = useMemo(() => {
     return !!searchQuery || !!statusFilter;
@@ -53,5 +59,7 @@ export function useSupplierInvoicesFilters() {
     isAnyFilterActive,
     statusFilter,
     setStatusFilter,
+    setSupplierIdFilter,
+    supplierIdFilter,
   };
 }

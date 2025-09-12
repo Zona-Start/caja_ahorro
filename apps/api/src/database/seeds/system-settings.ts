@@ -321,7 +321,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'ADV-2025',
+        key: 'ADV-P-2025',
         value: '0',
         description: 'Último consecutivo Anticipo Proveedor 2025',
         group: 'DOCUMENTS',

@@ -18,6 +18,11 @@ export class FilterAccountPayableDto extends PaginationDto {
 
   @ApiPropertyOptional({ description: 'Status' })
   @IsOptional()
+  @IsString({ each: true })
+  status?: string | string[] | undefined; // Should be payment status enum
+
+  @ApiPropertyOptional({ description: 'Authorize Payment' })
+  @IsOptional()
   @IsString()
-  status?: string;
+  isAuthorizePayment?: string;
 }

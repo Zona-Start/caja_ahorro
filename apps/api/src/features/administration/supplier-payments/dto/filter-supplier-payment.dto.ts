@@ -39,9 +39,9 @@ export class FilterSupplierPaymentDto {
   supplierIds?: number[];
 
   @ApiPropertyOptional({ description: 'Filter by payment status' })
-  @IsString()
   @IsOptional()
-  status?: string; // Should be payment status enum
+  @IsString({ each: true })
+  status?: string | string[] | undefined; // Should be payment status enum
 
   @ApiPropertyOptional({
     description: 'Start date for transaction date filter',

@@ -26,6 +26,7 @@ export function useBankAccountById(
   );
 }
 
+//hook para traer todas las cuenta de banco de la caja
 export function useBankAccountAll() {
   return useSafeQuery(['bank-account-all'], () => getBankAccountAllAction());
 }

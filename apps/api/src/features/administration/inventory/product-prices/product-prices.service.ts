@@ -160,6 +160,7 @@ export class ProductPricesService {
       isActive: true, // El nuevo precio siempre estará activo
       startDate: this.formatDate(data.startDate) ?? new Date().toISOString(),
       endDate: this.formatDate(data.endDate),
+      supplierInvoiceId: data.supplierInvoiceId,
     };
 
     return await db

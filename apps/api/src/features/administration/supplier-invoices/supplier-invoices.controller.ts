@@ -50,22 +50,6 @@ export class SupplierInvoicesController {
     };
   }
 
-  @Get('/supplier-available-credits/:id')
-  @Roles('admin')
-  @RequirePermissions('read:supplier-invoices')
-  @ApiOperation({ summary: 'Get all supplier available credits' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return all supplier supplier available credits.',
-  })
-  async findSupplierAvailableCredits(@Param('id') id: string) {
-    const result = await this.services.getSupplierAvailableCredits(+id);
-    return {
-      message: 'Supplier Available Credits fetched successfully',
-      data: result,
-    };
-  }
-
   @Get('/status/draft-pending')
   @Roles('admin')
   @RequirePermissions('read:supplier-invoices')

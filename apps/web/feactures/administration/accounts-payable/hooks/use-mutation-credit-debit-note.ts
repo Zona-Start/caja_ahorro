@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { createCreditDebitNoteAction } from '../actions/credit-debit-note.actions';
 import { CreditDebitNote } from '../schemas/credit-debit-note.schema';
 
+// hook para crear notas de credito o debito a cuenta por pagar
 export function useCreditDebitNoteMutation() {
   const queryClient = useQueryClient();
 

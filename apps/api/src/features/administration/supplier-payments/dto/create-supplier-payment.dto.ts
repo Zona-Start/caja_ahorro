@@ -22,6 +22,10 @@ class CreateSupplierPaymentLineDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsNumber()
+  @IsOptional()
+  relatedAdvanceId?: number;
 }
 
 export class CreateSupplierPaymentDto {

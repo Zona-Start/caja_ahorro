@@ -2,16 +2,19 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { AccountPayable } from '../../supplier-payments/schemas/account-payable.schema';
 import {
   createAdvancePaymentAction,
   deleteAccountPayableAction,
   payAccountPayableAction,
   saveAccountPayableAction,
 } from '../actions/account-payable-actions';
-import { AccountPayable } from '../schemas/account-payable.schema';
 import { AdvancePayment } from '../schemas/advance-payment.schema';
 import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
 
+import { authorizeAccountPayableAction } from '../actions/account-payable-actions';
+
+//Hook para crear una cuenta por pagar
 export function useAccountPayableMutation() {
   const queryClient = useQueryClient();
 
@@ -38,6 +41,22 @@ export function useAccountPayableMutation() {
   return mutation;
 }
 
+//hook para autorizar pago a una cuenta por pagar
+export function useAuthorizeAccountPayableMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => authorizeAccountPayableAction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      toast.success('Cuenta por pagar autorizado pago exitosamente');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Error al autorizar la cuenta por pagar');
+    },
+  });
+}
+
 export function usePayAccountPayableMutation() {
   const queryClient = useQueryClient();
 
@@ -53,6 +72,7 @@ export function usePayAccountPayableMutation() {
   });
 }
 
+// hook para crear anticipos
 export function useAdvancePaymentMutation() {
   const queryClient = useQueryClient();
 
@@ -68,6 +88,7 @@ export function useAdvancePaymentMutation() {
   });
 }
 
+//hooks para anular una cuenta por pagar
 export function useDeleteAccountPayable() {
   const queryClient = useQueryClient();
 

@@ -1,7 +1,6 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
-  supplierAdvancedCreditSchema,
   supplierInvoiceAllResponseSchema,
   supplierInvoiceDraftPendingResponseSchema,
   supplierInvoiceMutationResponseSchema,
@@ -75,25 +74,10 @@ export const getSupplierInvoicesAction = async (params: {
   };
 };
 
-export const supplierAvailableCreditAction = async (id: number) => {
-  const [error, data] = await safeFetchApi(
-    supplierAdvancedCreditSchema,
-    `/administration/supplier-invoices/supplier-available-credits/${id}`,
-    'GET',
-  );
-
-  if (error) {
-    console.error('Error:', error);
-    throw new Error(error.message || 'Error updating supplier invoice');
-  }
-
-  return data;
-};
-
 export const createSupplierInvoiceAction = async (
   payload: Partial<SupplierInvoice>,
 ) => {
-  const { id, ...payloadWithoutId } = payload;
+  const { id, purchaseOrdersNumber, ...payloadWithoutId } = payload;
 
   const [error, data] = await safeFetchApi(
     supplierInvoiceMutationResponseSchema,
@@ -112,6 +96,7 @@ export const createSupplierInvoiceAction = async (
 
 export const updateSupplierInvoiceAction = async ({
   id,
+  purchaseOrdersNumber,
   ...payload
 }: Partial<SupplierInvoice>) => {
   const [error, data] = await safeFetchApi(
@@ -131,6 +116,7 @@ export const updateSupplierInvoiceAction = async ({
 
 export const accountForSupplierInvoiceAction = async ({
   id,
+  purchaseOrdersNumber,
   ...payload
 }: Partial<SupplierInvoice>) => {
   const [error, data] = await safeFetchApi(

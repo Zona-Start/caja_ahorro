@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
-import { CustomCalendar } from '@repo/shadcn/components/ui/custom-calendar';
+import { SelectSearchable } from '@repo/shadcn/components/ui/select-searchable';
 import { Textarea } from '@repo/shadcn/components/ui/textarea';
 import {
   Form,
@@ -21,8 +21,8 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
+import { useAccountsPayable } from '../hooks';
 import { useCreditDebitNoteMutation } from '../hooks/use-mutation-credit-debit-note';
-import { AccountPayable } from '../schemas';
 import {
   CreditDebitNote,
   creditDebitNoteSchema,
@@ -31,23 +31,21 @@ import {
 interface FormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
-  accountPayable: AccountPayable;
 }
 
-export function CreditDebitNoteForm({
-  onSuccess,
-  onCancel,
-  accountPayable,
-}: FormProps) {
+export function CreditDebitNoteForm({ onSuccess, onCancel }: FormProps) {
   const { mutate: saveCreditDebitNote, isPending: isSaving } =
     useCreditDebitNoteMutation();
+  const { data: accountsPayable, isLoading: isLoadingAccountsPayable } =
+    useAccountsPayable({
+      status: 'PENDING,IN_PROGRESS,PAID,EXPIRED',
+    });
 
   const form = useForm<CreditDebitNote>({
     resolver: zodResolver(creditDebitNoteSchema),
     defaultValues: {
-      accountsPayableId: accountPayable.id,
+      accountsPayableId: undefined,
       transactionType: 'CREDIT_NOTE',
-      transactionDate: new Date(),
       amount: 0,
       reference: '',
       observations: '',
@@ -82,6 +80,27 @@ export function CreditDebitNoteForm({
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="accountsPayableId"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>Cuenta por Pagar</FormLabel>
+                <SelectSearchable
+                  options={
+                    accountsPayable?.data.map((item: any) => ({
+                      value: item.id!.toString(),
+                      label: `${item.accountsPayableNumber} - ${item.supplierName}`,
+                    })) || []
+                  }
+                  onValueChange={(value) => field.onChange(Number(value))}
+                  placeholder="Selecciona una cuenta por pagar"
+                  defaultValue={field.value?.toString()}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="transactionType"
@@ -123,22 +142,7 @@ export function CreditDebitNoteForm({
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="transactionDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Fecha de Transacción</FormLabel>
-                <FormControl>
-                  <CustomCalendar
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+
           <FormField
             control={form.control}
             name="reference"
@@ -175,7 +179,7 @@ export function CreditDebitNoteForm({
               Cancelar
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Guardando...' : 'Guardar'}
+              {isSaving ? 'Guardando...' : 'Registrar Nota'}
             </Button>
           </div>
         </div>

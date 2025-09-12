@@ -1,17 +1,18 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import { supplierPaymentMutationResponseSchema } from '../../supplier-payments/schemas';
+import { AccountPayable } from '../../supplier-payments/schemas/account-payable.schema';
 import {
   accountPayableAllResponseSchema,
   accountPayableMutationResponseSchema,
   accountPayableResponseOneSchema,
+  supplierAdvanceMutationResponseSchema,
 } from '../schemas/account-payable-api.schema';
-import { AccountPayable } from '../schemas/account-payable.schema';
 import { AdvancePayment } from '../schemas/advance-payment.schema';
 import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
-import { preloadedPaymentResponseSchema } from '../schemas/preloaded-payment.schema';
 import { mapAccountPayableApiToForm } from '../utils';
 
+//action consutlar datos de las cuentas por pagar
 export const getAccountsPayableAction = async (params: {
   page?: number;
   limit?: number;
@@ -113,6 +114,7 @@ export const updateAccountPayableAction = async (payload: AccountPayable) => {
   return data;
 };
 
+//actions para anular una cuenta por pagar
 export const deleteAccountPayableAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     accountPayableMutationResponseSchema,
@@ -158,54 +160,6 @@ export const getAccountPayableReportAction = async (id: number) => {
   return data;
 };
 
-export const getAccountsPayableBySuppliersAction = async (params: {
-  supplierIds?: number[]; // <--- Modificar el tipo de dato a un array de números
-}) => {
-  let searchParams = '';
-
-  // Verificar si hay IDs de proveedores y construir la cadena de búsqueda
-  if (params.supplierIds && params.supplierIds.length > 0) {
-    searchParams = `supplierIds=${params.supplierIds.join(',')}`;
-  }
-
-  const [error, response] = await safeFetchApi(
-    accountPayableAllResponseSchema,
-    // Unir la URL base con los parámetros
-    `/administration/accounts-payable/by-suppliers?${searchParams}`,
-    'GET',
-  );
-
-  if (error) {
-    console.error('Error:', error);
-    throw new Error(error.message || 'Error fetching accounts payable data');
-  }
-
-  const mappedData = mapAccountPayableApiToForm(response?.data || []);
-
-  return {
-    data: mappedData || [],
-  };
-
-  return {
-    data: [],
-  };
-};
-
-export const getPreloadedPaymentAction = async (id: number) => {
-  const [error, response] = await safeFetchApi(
-    preloadedPaymentResponseSchema,
-    `/administration/accounts-payable/${id}/preloaded-payment`,
-    'GET',
-  );
-
-  if (error) {
-    throw new Error(error.message || 'Error fetching preloaded payment data');
-  }
-
-  return response?.data;
-};
-('');
-
 export const payAccountPayableAction = async (payload: PayAccountPayable) => {
   // Transform the payload to match CreateSupplierPaymentDto
   const paymentDto = {
@@ -240,20 +194,17 @@ export const payAccountPayableAction = async (payload: PayAccountPayable) => {
   return data;
 };
 
+// action para crear anticipos
 export const createAdvancePaymentAction = async (payload: AdvancePayment) => {
   const advancePaymentDto = {
     supplierId: payload.supplierId,
     amount: payload.amount,
-    paymentMethod: payload.paymentMethod,
-    bankAccountId: payload.bankAccountId,
-    bankReference: payload.bankReference,
-    bankDescription: payload.paymentDescription,
-    bankTransactionDate: payload.transactionDate,
+    observations: payload.observations,
   };
 
   const [error, data] = await safeFetchApi(
-    supplierPaymentMutationResponseSchema,
-    '/administration/supplier-payments/advance',
+    supplierAdvanceMutationResponseSchema,
+    '/administration/accounts-payable/advance',
     'POST',
     advancePaymentDto,
   );
@@ -276,4 +227,20 @@ export const saveAccountPayableAction = async (payload: AccountPayable) => {
   } catch (error: any) {
     throw new Error(error.message || 'Error saving account payable');
   }
+};
+
+//action para autorizar pago a una cuenta por pagar
+export const authorizeAccountPayableAction = async (id: number) => {
+  const [error, data] = await safeFetchApi(
+    accountPayableMutationResponseSchema,
+    `/administration/accounts-payable/authorize/${id}`,
+    'PATCH',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error authorizing account payable');
+  }
+
+  return data;
 };

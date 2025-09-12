@@ -28,6 +28,7 @@ export class InventoryMovementsService {
       documentType,
       documentNumber,
       notes,
+      supplierInvoiceId,
     } = data;
 
     // if (documentType && documentNumber) {
@@ -85,6 +86,7 @@ export class InventoryMovementsService {
             notes: notes,
             movementNumber: referenceId,
             createdById: userId,
+            supplierInvoiceId: supplierInvoiceId,
           })
           .returning({
             id: inventoryMovements.id,

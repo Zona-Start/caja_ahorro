@@ -23,9 +23,19 @@ export function useSupplierPaymentsFilters() {
       .withDefault(''),
   );
 
+  const [tab, setTab] = useQueryState(
+    'tab',
+    searchParams.tab.withOptions({ shallow: false }).withDefault('history'),
+  );
+
   const [statusFilter, setStatusFilter] = useQueryState(
     'status',
-    searchParams.q.withOptions({ shallow: false }).withDefault(''),
+    searchParams.status.withOptions({ shallow: false }).withDefault(''),
+  );
+
+  const [supplierIdFilter, setSupplierIdFilter] = useQueryState(
+    'supplierId',
+    searchParams.supplierId.withOptions({ shallow: false }),
   );
 
   const [page, setPage] = useQueryState(
@@ -35,13 +45,15 @@ export function useSupplierPaymentsFilters() {
 
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
+    setTab('history');
     setStatusFilter(null);
+    setSupplierIdFilter(null);
     setPage(1);
-  }, [setSearchQuery, setStatusFilter, setPage]);
+  }, [setSearchQuery, setTab, setStatusFilter, setSupplierIdFilter, setPage]);
 
   const isAnyFilterActive = useMemo(() => {
-    return !!searchQuery || !!statusFilter;
-  }, [searchQuery, statusFilter]);
+    return !!searchQuery || !!statusFilter || !!supplierIdFilter;
+  }, [searchQuery, statusFilter, supplierIdFilter]);
 
   return {
     searchQuery,
@@ -50,7 +62,11 @@ export function useSupplierPaymentsFilters() {
     setPage,
     resetFilters,
     isAnyFilterActive,
+    tab,
+    setTab,
     statusFilter,
     setStatusFilter,
+    supplierIdFilter,
+    setSupplierIdFilter,
   };
 }

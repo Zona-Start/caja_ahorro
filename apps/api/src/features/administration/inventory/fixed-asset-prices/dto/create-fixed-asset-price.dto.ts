@@ -51,4 +51,9 @@ export class CreateFixedAssetPriceDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Supplier Invoice Id' })
+  @IsInt()
+  @IsOptional()
+  supplierInvoiceId?: number;
 }

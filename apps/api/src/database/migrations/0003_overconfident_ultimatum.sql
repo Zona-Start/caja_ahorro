@@ -1,2 +1,0 @@
-ALTER TABLE "administration"."supplier_invoices" DROP CONSTRAINT "supplier_invoices_order_number_unique";--> statement-breakpoint
-ALTER TABLE "administration"."supplier_invoices" DROP COLUMN "order_number";

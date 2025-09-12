@@ -1,1 +1,0 @@
-ALTER TABLE "administration"."supplier_invoices" ALTER COLUMN "total_amount" DROP NOT NULL;

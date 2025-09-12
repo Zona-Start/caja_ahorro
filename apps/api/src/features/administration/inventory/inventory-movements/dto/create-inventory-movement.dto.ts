@@ -10,8 +10,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   ValidateNested,
-  MaxLength, // New import
 } from 'class-validator';
 
 export class InventoryMovementItemDto {
@@ -72,4 +72,9 @@ export class CreateInventoryMovementDto {
   @Type(() => InventoryMovementItemDto)
   @IsArray()
   items: InventoryMovementItemDto[];
+
+  @ApiPropertyOptional({ description: 'Supplier Invoice Id' })
+  @IsInt()
+  @IsOptional()
+  supplierInvoiceId?: number;
 }

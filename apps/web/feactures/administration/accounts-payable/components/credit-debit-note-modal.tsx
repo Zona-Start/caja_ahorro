@@ -7,20 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { AccountPayable } from '../schemas/account-payable.schema';
 import { CreditDebitNoteForm } from './credit-debit-note-form';
 
 interface ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  accountPayable: AccountPayable;
 }
 
-export function CreditDebitNoteModal({
-  open,
-  onOpenChange,
-  accountPayable,
-}: ModalProps) {
+export function CreditDebitNoteModal({ open, onOpenChange }: ModalProps) {
   const handleSuccess = () => {
     onOpenChange(false);
   };
@@ -40,7 +34,7 @@ export function CreditDebitNoteModal({
     >
       <DialogContent className="sm:max-w-[800px] z-50 backdrop-blur-lg">
         <DialogHeader>
-          <DialogTitle>Nota de Crédito/Débito</DialogTitle>
+          <DialogTitle>Nota de Crédito / Débito</DialogTitle>
           <DialogDescription>
             Complete los campos para crear una nota de crédito o débito.
           </DialogDescription>
@@ -48,7 +42,6 @@ export function CreditDebitNoteModal({
         <CreditDebitNoteForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
-          accountPayable={accountPayable}
         />
       </DialogContent>
     </Dialog>

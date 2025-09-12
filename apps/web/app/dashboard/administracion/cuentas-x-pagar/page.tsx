@@ -6,7 +6,6 @@ import {
   searchParamsCache,
   serialize,
 } from '@/feactures/administration/accounts-payable/utils';
-
 import { SearchParams } from 'nuqs/server';
 
 export const metadata = {

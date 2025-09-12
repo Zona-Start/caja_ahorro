@@ -2,9 +2,8 @@ import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
-  CurrencyCodeEnum,
-  paymentAccountsPayableEnum,
   paymentMethodEnum,
+  paymentSupplierStatusEnum,
   supplierTransactionsTypeEnum,
 } from '@/types/enum';
 import {
@@ -18,7 +17,6 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
 import { SupplierInvoicesService } from '../supplier-invoices/supplier-invoices.service';
-import { CreateAdvancePaymentDto } from './dto/create-advance-payment.dto';
 import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
 import { FilterSupplierPaymentDto } from './dto/filter-supplier-payment.dto';
 import { ReversePaymentsDto } from './dto/reverse-payments.dto';
@@ -63,14 +61,22 @@ export class SupplierPaymentsService {
         })
         .returning();
 
+      const accountPayableFilter = dto.lines.map((l) => {
+        if (l.relatedAdvanceId === null || l.relatedAdvanceId === undefined)
+          return {
+            accountsPayableId: l.accountsPayableId,
+          };
+      });
+
       const paymentLines = dto.lines.map((line) => ({
         ...line,
-        accountsPayableId: line.accountsPayableId,
+        accountsPayableId: accountPayableFilter[0]?.accountsPayableId,
         amount: line.amount.toString(),
         createdById: userId,
         supplierPaymentId: newPayment.id,
         description:
           line.description ?? `PAGO DE FACTURA N° ${line.accountsPayableId}`,
+        relatedAdvanceId: line.relatedAdvanceId ?? null,
       }));
 
       await tx.insert(schema.supplierPaymentLines).values(paymentLines);
@@ -79,43 +85,22 @@ export class SupplierPaymentsService {
     });
   }
 
-  async findAllPaymentBySuppliers(supplierIds: number[]) {
-    // Manejar el caso de un arreglo vacío
-    if (supplierIds.length === 0) {
-      return [];
-    }
-  }
-
-  async findAll(paginationDto: FilterSupplierPaymentDto) {
+  async findAllPaymentBySuppliers(paginationDto: FilterSupplierPaymentDto) {
     const {
       page = 1,
       limit = 10,
-      search = '',
       sortBy = 'id',
       sortOrder = 'asc',
       supplierIds,
-      status,
       startDate,
       endDate,
     } = paginationDto;
     const offset = (page - 1) * limit;
 
     let searchConditions: SQL<unknown>[] = [];
-    if (search) {
-      searchConditions.push(
-        ilike(schema.supplierPayments.paymentNumber, `%${search}%`),
-      );
-    }
 
     let parsedSupplierIds: number[] = [];
     if (supplierIds) {
-      // Convierte el valor a un array de números
-      //   if (typeof supplierIds === 'string') {
-      //   // Maneja el caso de '1,2,3'
-      //   parsedSupplierIds = supplierIds
-      //     .split(',')
-      //     .map((id) => parseInt(id, 10));
-      // } else
       if (Array.isArray(supplierIds)) {
         // Maneja el caso de [1,2,3]
         parsedSupplierIds = supplierIds.map((id) => parseInt(id as any, 10));
@@ -131,9 +116,158 @@ export class SupplierPaymentsService {
       }
     }
 
-    if (status) {
-      searchConditions.push(eq(schema.supplierPayments.status, status as any));
+    if (startDate) {
+      searchConditions.push(
+        sql`${schema.supplierPayments.requestedAt} >= ${startDate.toISOString()}`,
+      );
     }
+    if (endDate) {
+      searchConditions.push(
+        sql`${schema.supplierPayments.requestedAt} <= ${endDate.toISOString()}`,
+      );
+    }
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${schema.supplierPayments[sortBy as keyof typeof schema.supplierPayments]} asc`
+        : sql`${schema.supplierPayments[sortBy as keyof typeof schema.supplierPayments]} desc`;
+
+    // Step 1: Get total count of unique payments
+    const totalCountResult = await this.db
+      .select({
+        count: sql<number>`count(DISTINCT ${schema.supplierPayments.id})`,
+      }) // Count distinct payments
+      .from(schema.supplierPayments)
+      .leftJoin(
+        schema.supplierPaymentLines,
+        eq(
+          schema.supplierPayments.id,
+          schema.supplierPaymentLines.supplierPaymentId,
+        ),
+      ) // Join lines for filtering if needed
+      .where(searchCondition);
+
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Step 2: Get payments with pagination and joined lines
+    const rawPayments = await this.db
+      .select({
+        payment: schema.supplierPayments, // Select the whole payment object
+        supplier: schema.suppliers, // Select the whole supplier object
+        line: schema.supplierPaymentLines, // Select the whole line object
+        accountPayable: schema.accountsPayable,
+      })
+      .from(schema.supplierPayments)
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierPayments.supplierId, schema.suppliers.id),
+      )
+      .leftJoin(
+        schema.supplierPaymentLines,
+        eq(
+          schema.supplierPayments.id,
+          schema.supplierPaymentLines.supplierPaymentId,
+        ),
+      ) // Join supplierPaymentLines
+      .leftJoin(
+        schema.accountsPayable,
+        eq(
+          schema.accountsPayable.id,
+          schema.supplierPaymentLines.accountsPayableId,
+        ),
+      )
+      .limit(limit)
+      .offset(offset)
+      .where(searchCondition)
+      .orderBy(orderBy);
+
+    // Step 3: Group raw results into structured payment objects with nested lines
+    const groupedPayments = new Map<number, any>();
+
+    rawPayments.forEach((row) => {
+      const paymentId = row.payment.id;
+      if (!groupedPayments.has(paymentId)) {
+        groupedPayments.set(paymentId, {
+          ...row.payment,
+          totalAmount: Number(row.payment.totalAmount), // Convert to number
+          supplierName: row.supplier?.name, // Add supplier name
+          lines: [], // Initialize lines array
+          accountPayableNumber: row.accountPayable?.accountsPayableNumber,
+        });
+      }
+      if (row.line) {
+        const payment = groupedPayments.get(paymentId);
+        payment.lines.push({
+          ...row.line,
+          amount: Number(row.line.amount), // Convert to number
+        });
+      }
+    });
+
+    const data = Array.from(groupedPayments.values());
+
+    const meta = {
+      page: Number(page),
+      limit: Number(limit),
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return { data, meta };
+  }
+
+  async findAll(paginationDto: FilterSupplierPaymentDto) {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+      status,
+      startDate,
+      endDate,
+    } = paginationDto;
+    const offset = (page - 1) * limit;
+
+    let searchConditions: SQL<unknown>[] = [];
+    if (search) {
+      searchConditions.push(
+        ilike(schema.supplierPayments.paymentNumber, `%${search}%`),
+      );
+    }
+
+    if (status) {
+      let parsedSupplierStatus: paymentSupplierStatusEnum[] = [];
+      if (Array.isArray(status)) {
+        if (status.length === 1 && status[0].includes(',')) {
+          // Si es un array con un string con comas, separar
+          parsedSupplierStatus = status[0].split(
+            ',',
+          ) as paymentSupplierStatusEnum[];
+        } else {
+          parsedSupplierStatus = status as paymentSupplierStatusEnum[];
+        }
+      } else if (typeof status === 'string') {
+        parsedSupplierStatus = status.split(',') as paymentSupplierStatusEnum[];
+      }
+
+      // Ahora pasamos array limpio a inArray (o al filtro manual con OR)
+      if (parsedSupplierStatus.length > 0) {
+        searchConditions.push(
+          inArray(schema.supplierPayments.status, parsedSupplierStatus),
+        );
+      }
+    }
+
     if (startDate) {
       searchConditions.push(
         sql`${schema.supplierPayments.requestedAt} >= ${startDate.toISOString()}`,
@@ -280,6 +414,7 @@ export class SupplierPaymentsService {
         amount: schema.supplierPaymentLines.amount,
         description: schema.supplierPaymentLines.description,
         accountsPayableId: schema.supplierPaymentLines.accountsPayableId,
+        relatedAdvanceId: schema.supplierPaymentLines.relatedAdvanceId,
       })
       .from(schema.supplierPaymentLines)
       .where(eq(schema.supplierPaymentLines.supplierPaymentId, id));
@@ -369,21 +504,81 @@ export class SupplierPaymentsService {
     const db = tx || this.db;
     const payment = await this.findOne(id, tx);
 
+    const accountPayableFilter = payment.lines.map((l) => {
+      if (l.relatedAdvanceId === null)
+        return {
+          accountsPayableId: l.accountsPayableId,
+        };
+    });
+
     if (payment.status !== 'PENDING' && payment.status !== 'SENT_TO_BANK') {
-      throw new BadRequestException('Only PENDING payments can be executed.');
+      throw new BadRequestException(
+        'Only PENDING or SENT_TO_BANK payments can be executed.',
+      );
+    }
+
+    // Validaciones del payload
+    const lines = payment.lines ?? [];
+    if (!lines.length) {
+      throw new BadRequestException('Payment has no lines.');
+    }
+
+    // Todos los montos deben ser positivos
+    for (const l of lines) {
+      if (Number(l.amount) <= 0) {
+        throw new BadRequestException(
+          'All payment line amounts must be positive.',
+        );
+      }
+    }
+
+    // Validar suma de líneas == totalAmount
+    const sumLines = lines.reduce((s, l) => s + Number(l.amount), 0);
+    if (Number(payment.totalAmount) !== sumLines) {
+      throw new BadRequestException(
+        'Sum of payment lines must equal totalAmount.',
+      );
+    }
+
+    // Obtener todas las cuentas por pagar a tocar (con lock idealmente)
+    const accountsPayableIds = lines
+      .map((line) => line.accountsPayableId)
+      .filter(Boolean) as number[];
+    let accountsPayableMap = new Map<
+      number,
+      typeof schema.accountsPayable.$inferSelect
+    >();
+    if (accountsPayableIds.length > 0) {
+      // Nota: si tu driver soporta FOR UPDATE, úsalo aquí para evitar race conditions.
+      const accountsPayableRecords = await db
+        .select()
+        .from(schema.accountsPayable)
+        .where(inArray(schema.accountsPayable.id, accountsPayableIds));
+      accountsPayableMap = new Map(
+        accountsPayableRecords.map((ap) => [ap.id, ap]),
+      );
     }
 
     return db.transaction(async (tx) => {
-      // 1. Crear movimiento bancario (placeholder)
+      // 1) Crear movimiento bancario (tu servicio)
+      // --- calcular efectivo que sale por banco: total menos los montos que son "aplicación de anticipo"
+      const totalAppliedFromAdvances = lines
+        .filter((l: any) => !!l.relatedAdvanceId) // líneas que son aplicaciones de anticipos
+        .reduce((s, l) => s + Number(l.amount), 0);
+
+      const cashOutAmount =
+        Number(payment.totalAmount) - totalAppliedFromAdvances;
+
+      // 1) Crear movimiento bancario (solo si hay efectivo saliente)
 
       const movementBank = await this.bankMovementsService.create(
         {
           bankAccountId: Number(payment.bankAccountId),
           transactionDate:
             payment.bankTransactionDate || new Date().toISOString(),
-          description: payment.observations ?? 'null',
-          debitAmount: Number(payment.totalAmount),
-          bankReference: payment.bankReference ?? 'null',
+          description: payment.observations ?? 'Pago proveedor',
+          debitAmount: cashOutAmount, // <--- usar solo efectivo saliente
+          bankReference: payment?.bankReference ?? undefined,
           transactionType: payment.paymentMethod as paymentMethodEnum,
           category: 'INTERNAL_TRANSFER',
           createdById: userId,
@@ -392,114 +587,170 @@ export class SupplierPaymentsService {
         tx,
       );
 
-      // 2. Crear supplierTransactions (una por línea)
-      const transactions = await Promise.all(
-        payment.lines?.map(async (line) => {
-          const accountsPayable = await db.query.accountsPayable.findFirst({
-            where: eq(
-              schema.accountsPayable.id,
-              line.accountsPayableId as number,
-            ),
-          });
+      const existingLines = await tx
+        .select({
+          accountsPayableId: schema.supplierPaymentLines.accountsPayableId,
+        })
+        .from(schema.supplierPaymentLines)
+        .where(eq(schema.supplierPaymentLines.supplierPaymentId, payment.id));
 
-          const transactionType =
-            accountsPayable?.status === 'ADVANCE' ? 'ADVANCE' : 'PAYMENT';
+      const existingIds = new Set(
+        existingLines.map((l) => l.accountsPayableId),
+      );
+
+      // 2) Insertar supplier_payment_lines (todas positivas)
+      // Insertar solo las líneas que aún no existen
+      const paymentLinesToInsert = lines
+        .filter((line) => !existingIds.has(line.accountsPayableId))
+        .map((line: any) => ({
+          supplierPaymentId: payment.id,
+          accountsPayableId: line.accountsPayableId,
+          amount: String(line.amount),
+          description: line.description ?? null,
+          createdById: userId,
+          updatedById: userId,
+        }));
+
+      if (paymentLinesToInsert.length) {
+        await tx
+          .insert(schema.supplierPaymentLines)
+          .values(paymentLinesToInsert);
+      }
+
+      // 3) Crear supplier_transactions (1 por payment line)
+      const transactions = await Promise.all(
+        lines.map(async (line: any) => {
+          const ap = accountsPayableMap.get(line.accountsPayableId as number);
+          const transactionNumber =
+            await this.generateCodeService.generateNextReference('TRS-P');
+          const isAdvance =
+            ap?.accountsPayableNumber?.startsWith?.('ADV-P') ?? false;
+
+          // Si la línea viene con relatedAdvanceId (aplicación de anticipo), usarla.
+          const relatedAdvanceId = line.relatedAdvanceId ?? null;
+
+          // Determinar tipo:
+          // - Si la CxP apuntada es un anticipo y el payment line corresponde a pagarlo -> ADVANCE
+          // - Si la línea es una aplicación (tiene relatedAdvanceId) -> ADVANCE (aplicación)
+          // - En otro caso -> PAYMENT
+          const transactionType: supplierTransactionsTypeEnum = relatedAdvanceId
+            ? supplierTransactionsTypeEnum.ADVANCE_APPLIED // si es aplicacion -> ADVANCE_APPLIED
+            : isAdvance
+              ? supplierTransactionsTypeEnum.ADVANCE // si es solo pago de anticipo -> ADVANCE
+              : supplierTransactionsTypeEnum.PAYMENT;
 
           return {
-            accountsPayableId: line.accountsPayableId,
-            transactionNumber:
-              await this.generateCodeService.generateNextReference('TRS-P', tx),
-            transactionType: transactionType as supplierTransactionsTypeEnum,
+            accountsPayableId: accountPayableFilter[0]?.accountsPayableId,
+            relatedAdvanceId: relatedAdvanceId,
+            transactionNumber,
+            transactionType,
             transactionDate: new Date().toISOString(),
-            amount: line.amount,
-            direction: 'CR' as 'CR' | 'DR', // CR = pago/abono
-            currencyCode: 'VES' as CurrencyCodeEnum,
+            amount: String(line.amount),
+            direction: 'CR' as const, // los pagos/anticipos aplicados reducen la deuda (CR)
+            currencyCode: payment.currencyCode,
             paymentMethod: payment.paymentMethod,
             paymentId: payment.id,
             bankMovementId: movementBank.id,
-            reference: payment.bankReference,
+            reference: payment.bankReference ?? null,
             createdById: userId,
-            ///por definir la referencia
+            updatedById: userId,
           };
         }),
       );
 
-      await tx.insert(schema.supplierTransactions).values(transactions);
+      if (transactions.length) {
+        await tx.insert(schema.supplierTransactions).values(transactions);
+      }
 
-      const dataPayment = payment.lines.map((line) => {
-        return {
-          accountsPayableId: line.accountsPayableId,
-          amount: line.amount,
-        };
-      });
+      // 4) Calcular y devolver updates llamando a updateBalances (no aplica estados complejos aquí)
+      // updateBalances devolverá un Map con id -> { newPaidAmount, newRemainingAmount, invoiceId, status, isAdvance }
+      const dataPayment = lines.map((l: any) => ({
+        accountsPayableId: l.accountsPayableId,
+        amount: Number(l.amount),
+        relatedAdvanceId: l.relatedAdvanceId ?? null,
+        description: l.description ?? null,
+      }));
 
-      // 3. Actualizar saldos de CxP (placeholder)
-      const updateAccountPayable =
-        await this.accountsPayableService.updateBalances(
-          dataPayment,
-          userId,
-          tx,
-        );
+      const updates = await this.accountsPayableService.updateBalances(
+        dataPayment,
+        userId,
+        tx,
+      );
+      // updates is a Map<number, { newPaidAmount, newRemainingAmount, invoiceId, status, isAdvance }>
 
-      // Verifica si updateAccountPayable existe y no es 'undefined' antes de usarlo.
-      if (updateAccountPayable) {
-        const invoiceLines = payment.lines.filter(
-          (line) => !updateAccountPayable.get(line.accountsPayableId as number),
-        );
-        const advanceLines = payment.lines.filter((line) =>
-          updateAccountPayable.get(line.accountsPayableId as number),
-        );
+      // 5) Aplicar estados y observaciones finales basados en contexto del payment lines
+      //    - Si la línea fue pago directo de un anticipo (la CxP apuntada es ADVANCE y la línea apunta a ella),
+      //      marcamos el anticipo como PAID (sin tocar montos si así se definió).
+      //    - Si la línea fue la aplicación de un anticipo contra una factura, ajustamos ambos estados.
+      //    - Si fue pago de factura, marcamos PAID o IN_PROGRESS según remaining.
 
-        let invoicePayableNumber = 'N/A';
-        if (invoiceLines.length > 0) {
-          const [invoicePayable] = await tx
-            .select()
-            .from(schema.accountsPayable)
-            .where(
-              eq(
-                schema.accountsPayable.id,
-                invoiceLines[0].accountsPayableId as number,
-              ),
-            );
-          invoicePayableNumber = invoicePayable?.accountsPayableNumber ?? 'N/A';
-        }
+      // Para poder mapear las cuentas afectadas, leer las CxP actuales (otra vez) o usar accountsPayableMap
 
-        for (const [id, newValues] of updateAccountPayable) {
-          if (newValues.status === 'ADVANCE') {
-            const newRemainingAmount = newValues.newRemainingAmount;
-            const newStatus =
-              newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE';
+      //  newPaidAmount,
+      //     newRemainingAmount,
+      //     invoiceId: (account.supplierInvoiceId as number) ?? null,
+      //     status: newStatus,
+      //     isAdvance: true,
 
-            const [currentAdvance] = await tx
-              .select()
-              .from(schema.accountsPayable)
-              .where(eq(schema.accountsPayable.id, id));
+      for (const [apId, calc] of updates) {
+        const apRecord = accountsPayableMap.get(apId);
+        const isAdvance = calc.isAdvance;
 
+        if (isAdvance) {
+          // Si la CxP es un anticipo y la operación fue "pago directo" (es decir, la payment line
+          // tenía accountsPayableId = anticipo.id) -> marcar PAID (sin tocar montos si tu política lo requiere).
+          // Sin embargo, si la updateBalances devolvió newRemainingAmount (por aplicación), aplicarlo.
+          if (calc.status === 'PAID') {
             await tx
               .update(schema.accountsPayable)
               .set({
-                paidAmount: '0.00',
-                remainingAmount: newRemainingAmount.toString(),
-                status: newStatus,
-                observations: `${currentAdvance.observations} | ANTICIPO APLICADO A ${invoicePayableNumber}`,
+                status: calc.status,
+                updatedById: userId,
               })
-              .where(eq(schema.accountsPayable.id, id));
+              .where(eq(schema.accountsPayable.id, apId));
           } else {
-            // Llama al servicio SOLO cuando el saldo restante es 0
-            if (newValues.newRemainingAmount === 0) {
-              this.supplierInvoicesService.updateStatusToPaid(
-                newValues.invoiceId,
-                tx,
-              );
-            }
+            // Si queda saldo (parcial)
+            await tx
+              .update(schema.accountsPayable)
+              .set({
+                remainingAmount: String(calc.newRemainingAmount),
+                paidAmount: String(calc.newPaidAmount),
+                status: calc.status,
+                updatedById: userId,
+              })
+              .where(eq(schema.accountsPayable.id, apId));
+          }
+        } else {
+          // Caso factura normal:
+
+          await tx
+            .update(schema.accountsPayable)
+            .set({
+              remainingAmount: String(calc.newRemainingAmount),
+              paidAmount: String(calc.newPaidAmount),
+              status: calc.newRemainingAmount === 0 ? 'PAID' : 'IN_PROGRESS',
+              updatedById: userId,
+            })
+            .where(eq(schema.accountsPayable.id, apId));
+
+          // Si la factura se quedó en 0 y está relacionada a un supplierInvoice, actualizar su estatus
+          if (calc.newRemainingAmount === 0 && calc.invoiceId) {
+            await this.supplierInvoicesService.updateStatusToPaid(
+              calc.invoiceId,
+              tx,
+            );
           }
         }
       }
 
-      // 4. Pasa orden a PROCESSED
+      // 6) Finalmente actualizar supplierPayments.status a PROCESSED y devolver info
       const [processedPayment] = await tx
         .update(schema.supplierPayments)
-        .set({ status: 'PROCESSED', processedAt: new Date().toISOString() })
+        .set({
+          status: 'PROCESSED',
+          processedAt: new Date().toISOString(),
+          updatedById: userId,
+        })
         .where(eq(schema.supplierPayments.id, id))
         .returning({
           id: schema.supplierPayments.id,
@@ -510,9 +761,8 @@ export class SupplierPaymentsService {
           paymentMethod: schema.supplierPayments.paymentMethod,
           bankAccountId: schema.supplierPayments.bankAccountId,
           status: schema.supplierPayments.status,
-          requestedAt: schema.supplierPayments.requestedAt, // date as string
+          requestedAt: schema.supplierPayments.requestedAt,
           processedAt: schema.supplierPayments.processedAt,
-          reversedAt: schema.supplierPayments.requestedAt,
           observations: schema.supplierPayments.observations,
         });
 
@@ -520,6 +770,7 @@ export class SupplierPaymentsService {
     });
   }
 
+  //metodo para ejecutar un pago
   async createAndExecutePayment(dto: CreateSupplierPaymentDto, userId: number) {
     return this.db.transaction(async (tx) => {
       // 1. Crear el pago en estado DRAFT
@@ -571,72 +822,6 @@ export class SupplierPaymentsService {
       return {
         message: 'Payments processed successfully',
       };
-    });
-  }
-
-  async createAdvancePayment(dto: CreateAdvancePaymentDto, userId: number) {
-    return this.db.transaction(async (tx) => {
-      // 1. Crear la cuenta por pagar con saldo negativo y estado ADVANCE
-      const accountsPayableNumber =
-        await this.generateCodeService.generateNextReference('ADV-P', tx);
-      const [newAccountPayable] = await tx
-        .insert(schema.accountsPayable)
-        .values({
-          supplierId: dto.supplierId,
-          accountsPayableNumber: accountsPayableNumber,
-          originalAmount: (dto.amount * -1).toString(), // Saldo negativo
-          paidAmount: '0.00',
-          remainingAmount: (dto.amount * -1).toString(), // Saldo negativo
-          currencyCode: 'VES',
-          status: paymentAccountsPayableEnum.ADVANCE,
-          observations:
-            dto.observations ?? `ANTICIPO A PROVEEDOR ${accountsPayableNumber}`,
-          createdById: userId,
-          dueDate: null, // Fecha actual para anticipos
-        })
-        .returning();
-
-      // 2. Crear el pago asociado a este anticipo
-      const paymentNumber =
-        await this.generateCodeService.generateNextReference('PAG-P', tx);
-      const [newPayment] = await tx
-        .insert(schema.supplierPayments)
-        .values({
-          supplierId: dto.supplierId,
-          paymentNumber: paymentNumber,
-          totalAmount: dto.amount.toString(),
-          currencyCode: 'VES',
-          paymentMethod: dto.paymentMethod as paymentMethodEnum,
-          bankAccountId: dto.bankAccountId,
-          status: 'DRAFT',
-          requestedAt: new Date().toISOString(),
-          createdById: userId,
-          bankDescription: dto.bankDescription,
-          bankReference: dto.bankReference,
-          bankTransactionDate: dto.bankTransactionDate.toISOString(),
-          observations:
-            dto.observations ?? `ANTICIPO A PROVEEDOR ${paymentNumber}`,
-        })
-        .returning();
-
-      // 3. Crear la línea de pago vinculada a la cuenta por pagar de anticipo
-      await tx.insert(schema.supplierPaymentLines).values({
-        supplierPaymentId: newPayment.id,
-        accountsPayableId: newAccountPayable.id,
-        amount: dto.amount.toString(),
-        description: `ANTICIPO A PROVEEDOR ${newAccountPayable.accountsPayableNumber}`,
-        createdById: userId,
-      });
-
-      // 4. Validar y ejecutar el pago del anticipo
-      const validatedPayment = await this.validate(newPayment.id, userId, tx);
-      const executedPayment = await this.execute(
-        Number(validatedPayment[0].id),
-        userId,
-        tx,
-      );
-
-      return executedPayment;
     });
   }
 
@@ -824,5 +1009,64 @@ export class SupplierPaymentsService {
         reversedPayments: reversedPaymentsInfo,
       };
     });
+  }
+
+  //metodo que consulta los creditos dispobible para proveedor
+  async getSupplierAvailableCredits(id: number) {
+    const result = await this.db
+      .select({
+        id: schema.accountsPayable.id,
+        accountsPayableNumber: schema.accountsPayable.accountsPayableNumber,
+        status: schema.accountsPayable.status,
+        remainingAmount: schema.accountsPayable.remainingAmount,
+        supplierId: schema.accountsPayable.supplierId,
+        supplierName: schema.suppliers.name,
+        supplierTaxId: schema.suppliers.taxId,
+        currencyCode: schema.accountsPayable.currencyCode,
+      })
+      .from(schema.accountsPayable)
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.accountsPayable.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          or(
+            eq(schema.accountsPayable.status, 'PAID'),
+            eq(schema.accountsPayable.status, 'ADVANCE_PARTIAL'),
+          ),
+          eq(schema.accountsPayable.isAuthorizePayment, true),
+          ilike(schema.accountsPayable.accountsPayableNumber, `%${'ADV-P'}%`),
+          eq(schema.accountsPayable.supplierId, id),
+        ),
+      );
+
+    if (result.length === 0) {
+      return null;
+    }
+
+    const availableCredit = result
+      .reduce((sum, item) => sum + Number(item.remainingAmount), 0)
+      .toString(); // resultado como string, conserva el signo
+
+    const credits = result.map((item) => ({
+      amount: Number(item.remainingAmount),
+      cxpId: item.id,
+      cxpNumber: item.accountsPayableNumber,
+      origin: 'ADVANCE',
+    }));
+
+    const response = [
+      {
+        availableCredit,
+        credits,
+        currencyCode: result[0]?.currencyCode ?? '',
+        supplierId: result[0]?.supplierId ?? null,
+        supplierName: result[0]?.supplierName ?? '',
+        taxId: result[0]?.supplierTaxId ?? '',
+      },
+    ];
+
+    return response;
   }
 }

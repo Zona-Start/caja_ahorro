@@ -1,3 +1,5 @@
+import { Roles } from '@/common/decorators';
+import { RequirePermissions } from '@/common/decorators/permissions.decorator';
 import {
   Body,
   Controller,
@@ -8,7 +10,8 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { CreateAdvancePaymentDto } from './dto/create-advance-payment.dto';
+import { ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+
 import { CreateSupplierPaymentDto } from './dto/create-supplier-payment.dto';
 import { FilterSupplierPaymentDto } from './dto/filter-supplier-payment.dto'; // Import the new DTO
 import { ReversePaymentsDto } from './dto/reverse-payments.dto';
@@ -21,16 +24,70 @@ export class SupplierPaymentsController {
     private readonly supplierPaymentsService: SupplierPaymentsService,
   ) {}
 
-  @Post('advance')
-  createAdvancePayment(
+  @Post()
+  @Roles('admin')
+  @RequirePermissions('create:supplier-payment')
+  @ApiOperation({ summary: 'Create a new supplier payment' })
+  @ApiResponse({
+    status: 201,
+    description: 'Supplier payment created successfully.',
+  })
+  createDraft(
     @Req() req: Request,
-    @Body() createAdvancePaymentDto: CreateAdvancePaymentDto,
+    @Body() createSupplierPaymentDto: CreateSupplierPaymentDto,
   ) {
     const userId = req['user'].id;
-    return this.supplierPaymentsService.createAdvancePayment(
-      createAdvancePaymentDto,
+    return this.supplierPaymentsService.createDraft(
+      createSupplierPaymentDto,
       userId,
     );
+  }
+
+  @Post('massive-payment') // New endpoint
+  @Roles('admin')
+  @RequirePermissions('create:supplier-payment')
+  @ApiOperation({ summary: 'Create a new supplier payment' })
+  @ApiResponse({
+    status: 201,
+    description: 'Supplier payment created successfully.',
+  })
+  createMassivePayments(
+    @Req() req: Request,
+    @Body() createSupplierPaymentDtos: CreateSupplierPaymentDto[], // Expects an array
+  ) {
+    const userId = req['user'].id;
+    return this.supplierPaymentsService.createAndExecuteBulkPayments(
+      createSupplierPaymentDtos,
+      userId,
+    );
+  }
+
+  @Get()
+  @Roles('admin')
+  @RequirePermissions('read:supplier-payment')
+  @ApiOperation({ summary: 'Get all supplier payments' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Return all supplier payments.' })
+  findAll(@Query() paginationDto: FilterSupplierPaymentDto) {
+    // Use the new DTO
+    return this.supplierPaymentsService.findAll(paginationDto);
+  }
+
+  @Get('/supplier-available-credits/:id')
+  @Roles('admin')
+  @RequirePermissions('read:supplier-payment')
+  @ApiOperation({ summary: 'Get all supplier available credits' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all supplier supplier available credits.',
+  })
+  async findSupplierAvailableCredits(@Param('id') id: string) {
+    const result =
+      await this.supplierPaymentsService.getSupplierAvailableCredits(+id);
+    return {
+      message: 'Supplier Available Credits fetched successfully',
+      data: result,
+    };
   }
 
   @Post('pay')
@@ -45,58 +102,11 @@ export class SupplierPaymentsController {
     );
   }
 
-  @Post('massive-payment') // New endpoint
-  createMassivePayments(
-    @Req() req: Request,
-    @Body() createSupplierPaymentDtos: CreateSupplierPaymentDto[], // Expects an array
-  ) {
+  @Post('reverse')
+  reverse(@Req() req: Request, @Body() reversePaymentsDto: ReversePaymentsDto) {
     const userId = req['user'].id;
-    return this.supplierPaymentsService.createAndExecuteBulkPayments(
-      createSupplierPaymentDtos,
-      userId,
-    );
+    return this.supplierPaymentsService.reverse(reversePaymentsDto, userId);
   }
-
-  @Post()
-  createDraft(
-    @Req() req: Request,
-    @Body() createSupplierPaymentDto: CreateSupplierPaymentDto,
-  ) {
-    const userId = req['user'].id;
-    return this.supplierPaymentsService.createDraft(
-      createSupplierPaymentDto,
-      userId,
-    );
-  }
-
-  @Get()
-  findAll(@Query() paginationDto: FilterSupplierPaymentDto) {
-    // Use the new DTO
-    return this.supplierPaymentsService.findAll(paginationDto);
-  }
-
-  // @Get('/by-suppliers')
-  // @Roles('admin')
-  // @RequirePermissions('read:supplier-payment')
-  // @ApiOperation({ summary: 'Get all supplier payment by suppliers' })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'Return all supplier payment by suppliers',
-  // })
-  // async findBySuppliers(
-  //   @Query('supplierIds', new ParseArrayPipe({ items: Number }))
-  //   supplierIds: number[],
-  // ) {
-  //   const data =
-  //     await this.supplierPaymentsService.findAccountsPayableBySuppliers(
-  //       supplierIds,
-  //     );
-
-  //   return {
-  //     message: 'Pagos obtenidas exitosamente.',
-  //     data: data,
-  //   };
-  // }
 
   @Patch(':id')
   updateDraft(
@@ -109,11 +119,23 @@ export class SupplierPaymentsController {
     );
   }
 
+  @Post(':id/execute')
+  execute(@Req() req: Request, @Param('id') id: string) {
+    const userId = req['user'].id;
+    return this.supplierPaymentsService.execute(+id, userId);
+  }
+
   @Patch(':id/validate')
   validate(@Req() req: Request, @Param('id') id: string) {
     const userId = req['user'].id;
     return this.supplierPaymentsService.validate(+id, userId);
   }
+
+  //   return {
+  //     message: 'Pagos obtenidas exitosamente.',
+  //     data: data,
+  //   };
+  // }
 
   // @Patch(':id/approve')
   // approve(@Param('id') id: string) {
@@ -129,16 +151,4 @@ export class SupplierPaymentsController {
   // processResponse(@Param('id') id: string, @Body() response: any) { // TODO: Crear DTO para la respuesta del banco
   //   return this.supplierPaymentsService.processResponse(+id, response);
   // }
-
-  @Post(':id/execute')
-  execute(@Req() req: Request, @Param('id') id: string) {
-    const userId = req['user'].id;
-    return this.supplierPaymentsService.execute(+id, userId);
-  }
-
-  @Post('reverse')
-  reverse(@Req() req: Request, @Body() reversePaymentsDto: ReversePaymentsDto) {
-    const userId = req['user'].id;
-    return this.supplierPaymentsService.reverse(reversePaymentsDto, userId);
-  }
 }

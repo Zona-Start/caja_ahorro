@@ -1,16 +1,19 @@
 import { z } from 'zod';
 
+//scehama paa consulta datos de cuenta por pagar
 export const accountPayableApiSchema = z.object({
   id: z.number(),
   accountsPayableNumber: z.string(),
   supplierName: z.string().nullable(),
   supplierId: z.number().nullable(),
   supplierInvoiceId: z.number().nullable(),
+  supplierInvoiceNumber: z.string().nullable(),
   originalAmount: z.string(),
   paidAmount: z.string(),
   remainingAmount: z.string(),
   status: z.string(),
   observations: z.string().optional().nullable(),
+  isAuthorizePayment: z.boolean(),
   supplierInvoice: z
     .object({
       invoiceNumber: z.string().nullable(),
@@ -23,10 +26,12 @@ export const accountPayableApiSchema = z.object({
 
 export type AccountPayableSchemaAPI = z.infer<typeof accountPayableApiSchema>;
 
+//scehama paa mutacion anular  cuenta por pagar y autorizar  pago
 export const accountPayableMutationResponseSchema = z.object({
   message: z.string(),
 });
 
+//scehama paa consulta datos de cuenta por pagar
 export const accountPayableAllResponseSchema = z.object({
   message: z.string().optional(),
   data: z.array(accountPayableApiSchema),
@@ -47,4 +52,15 @@ export const accountPayableAllResponseSchema = z.object({
 export const accountPayableResponseOneSchema = z.object({
   message: z.string(),
   data: accountPayableApiSchema,
+});
+
+//response mutation advance supplier
+export const supplierAdvanceMutationResponseSchema = z.object({
+  id: z.number(),
+  supplierId: z.number(),
+  totalAmount: z.string(),
+  currencyCode: z.string(),
+  status: z.string(),
+  observations: z.string().nullable(),
+  transactionDate: z.string(),
 });

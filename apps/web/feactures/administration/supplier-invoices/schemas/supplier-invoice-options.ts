@@ -1,9 +1,9 @@
 export const SUPPLIER_INVOICE_STATUS_TYPES = {
-  DRAFT: 'BORRADOR',
-  PENDING: 'PENDIENTE',
-  ACCOUNTED_FOR: 'CONTABILIZADA',
-  PAID: 'PAGADA',
-  CANCELLED: 'ANULADA',
+  DRAFT: 'Borrador',
+  PENDING: 'Pendiente',
+  ACCOUNTED_FOR: 'Contabilizada',
+  PAID: 'Pagada',
+  CANCELLED: 'Cancelada',
 } as const;
 
 export type SupplierInvoiceStatusType =

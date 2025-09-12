@@ -14,16 +14,16 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountsPayableService } from './accounts-payable.service';
-import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
+import { CreateAdvanceSupplierDto } from './dto/create-advance-supplierdto';
 import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
-import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
 
 @ApiTags('administration/accounts-payable')
 @Controller('administration/accounts-payable')
 export class AccountsPayableController {
   constructor(private readonly services: AccountsPayableService) {}
 
+  // endpoint para crear una nota de credito/debito a cuenta por pagar
   @Post('/transaction/credit-debit-note')
   @Roles('admin')
   @RequirePermissions('create:account-payable')
@@ -41,20 +41,21 @@ export class AccountsPayableController {
     return { message: 'Transaction created successfully', data };
   }
 
-  @Post()
-  @Roles('admin')
-  @RequirePermissions('create:account-payable')
-  @ApiOperation({ summary: 'Create a new account payable' })
-  @ApiResponse({
-    status: 201,
-    description: 'Account payable created successfully.',
-  })
-  async create(@Req() req: Request, @Body() dto: CreateAccountPayableDto) {
-    const userId = req['user'].id;
-    const data = await this.services.create(userId, dto);
-    return { message: 'Account payable created successfully', data };
-  }
+  // @Post()
+  // @Roles('admin')
+  // @RequirePermissions('create:account-payable')
+  // @ApiOperation({ summary: 'Create a new account payable' })
+  // @ApiResponse({
+  //   status: 201,
+  //   description: 'Account payable created successfully.',
+  // })
+  // async create(@Req() req: Request, @Body() dto: CreateAccountPayableDto) {
+  //   const userId = req['user'].id;
+  //   const data = await this.services.create(userId, dto);
+  //   return { message: 'Account payable created successfully', data };
+  // }
 
+  // CONSULTAS LAS CUENTAS POR PAGAR
   @Get('/paginated')
   @Roles('admin')
   @RequirePermissions('read:accounts-payable')
@@ -70,6 +71,7 @@ export class AccountsPayableController {
     };
   }
 
+  //Listar cuentas por pagar para pagos masivos
   @Get('/by-suppliers')
   @Roles('admin')
   @RequirePermissions('read:accounts-payable')
@@ -103,17 +105,18 @@ export class AccountsPayableController {
   //   return new StreamableFile(pdfBuffer);
   // }
 
-  @Get(':id/preloaded-payment')
-  @Roles('admin')
-  @RequirePermissions('read:account-payable') // O el permiso que corresponda
-  @ApiOperation({
-    summary: 'Get preloaded payment data for an account payable',
-  })
-  @ApiResponse({ status: 200, description: 'Return preloaded payment data.' })
-  async getPreloadedPaymentData(@Param('id') id: string) {
-    const data = await this.services.getPreloadedPaymentData(+id);
-    return { message: 'Preloaded data fetched successfully', data };
-  }
+  //VERFICIAR SI HACE FALTA SI NO ELIMINAR
+  // @Get(':id/preloaded-payment')
+  // @Roles('admin')
+  // @RequirePermissions('read:account-payable') // O el permiso que corresponda
+  // @ApiOperation({
+  //   summary: 'Get preloaded payment data for an account payable',
+  // })
+  // @ApiResponse({ status: 200, description: 'Return preloaded payment data.' })
+  // async getPreloadedPaymentData(@Param('id') id: string) {
+  //   const data = await this.services.getPreloadedPaymentData(+id);
+  //   return { message: 'Preloaded data fetched successfully', data };
+  // }
 
   @Get(':id')
   @Roles('admin')
@@ -126,23 +129,52 @@ export class AccountsPayableController {
     return { message: 'Account payable fetched successfully', data };
   }
 
-  @Patch(':id')
+  // @Patch(':id')
+  // @Roles('admin')
+  // @RequirePermissions('update:account-payable')
+  // @ApiOperation({ summary: 'Update an account payable' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Account payable updated successfully.',
+  // })
+  // @ApiResponse({ status: 404, description: 'Account payable not found.' })
+  // async update(
+  //   @Req() req: Request,
+  //   @Param('id') id: string,
+  //   @Body() dto: UpdateAccountPayableDto,
+  // ) {
+  //   const userId = req['user'].id;
+  //   const data = await this.services.update(userId, +id, dto);
+  //   return { message: 'Account payable updated successfully', data };
+  // }
+
+  // endpoint para autorizar una cuenta por pagar
+  @Patch('/authorize/:id')
   @Roles('admin')
   @RequirePermissions('update:account-payable')
-  @ApiOperation({ summary: 'Update an account payable' })
+  @ApiOperation({ summary: 'Athorized an account payable' })
   @ApiResponse({
     status: 200,
-    description: 'Account payable updated successfully.',
+    description: 'Account payable authorized successfully.',
   })
   @ApiResponse({ status: 404, description: 'Account payable not found.' })
-  async update(
+  async autorize(@Req() req: Request, @Param('id') id: string) {
+    const userId = req['user'].id;
+    const data = await this.services.autorize(userId, +id);
+    return { message: 'Account payable authorized successfully', data };
+  }
+
+  // endpoint para crear un anticipo
+  @Post('advance')
+  createAdvancePayment(
     @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateAccountPayableDto,
+    @Body() createAdvanceSupplierDto: CreateAdvanceSupplierDto,
   ) {
     const userId = req['user'].id;
-    const data = await this.services.update(userId, +id, dto);
-    return { message: 'Account payable updated successfully', data };
+    return this.services.createAdvanceSupplier(
+      createAdvanceSupplierDto,
+      userId,
+    );
   }
 
   @Delete(':id')

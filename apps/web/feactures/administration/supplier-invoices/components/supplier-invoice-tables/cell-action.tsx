@@ -18,6 +18,7 @@ import {
 } from '../../hooks/use-mutation-supplier-invoice';
 import { SupplierInvoiceStatusEnum } from '../../schemas/supplier-invoice-options';
 import { SupplierInvoice } from '../../schemas/supplier-invoice.schema';
+import { SupplierInvoiceDetailsModal } from '../supplier-invoice-details-modal';
 import { SupplierInvoiceModal } from '../supplier-invoice-modal';
 
 interface CellActionProps {
@@ -27,7 +28,7 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
   const { mutate: cancelSupplierInvoice, isPending: isCancelling } =
@@ -77,7 +78,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleDelete = () => {
-    if (data.status === 'DRAFT' || data.status === 'PENDING') {
+    if (
+      data.status === 'DRAFT' ||
+      data.status === 'PENDING' ||
+      data.status === 'ACCOUNTED_FOR'
+    ) {
       setOpen(true);
     } else {
       showNotAllowedToast(
@@ -93,7 +98,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirmDelete}
         loading={isCancelling}
-        title="¿Estás seguro que desea anular esta factura?"
+        title="¿Estás seguro que desea cancelar esta factura?"
         description="Esta acción no se puede deshacer."
       />
       <AlertModal
@@ -111,12 +116,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         defaultValues={data}
       />
 
-      <SupplierInvoiceModal
-        open={showViewModal}
-        onOpenChange={setShowViewModal}
-        defaultValues={data}
-        readOnly={true}
-      />
+      {showDetailsModal && (
+        <SupplierInvoiceDetailsModal
+            open={showDetailsModal}
+            onOpenChange={setShowDetailsModal}
+            invoice={data}
+        />
+      )}
 
       <div className="flex gap-1">
         <TooltipProvider>
@@ -126,7 +132,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setShowViewModal(true);
+                  setShowDetailsModal(true);
                 }}
               >
                 <Eye className="h-4 w-4" />
@@ -186,13 +192,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={handleDelete}
-                disabled={data.status !== 'PENDING'}
+                disabled={data.status === 'PAID' || data.status === 'CANCELLED'}
               >
                 <Trash className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Anular</p>
+              <p>Cancelar</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

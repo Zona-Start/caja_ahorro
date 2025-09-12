@@ -30,6 +30,7 @@ export class PurchaseOrdersService {
     private readonly generateCodeService: GenerateCodeService,
   ) {}
 
+  ///metodo para buscar datos de items
   private async getItemNameByType(
     itemId: number | null | undefined,
     lineType: string,
@@ -70,6 +71,7 @@ export class PurchaseOrdersService {
     }
   }
 
+  //metodo para validar ordenes
   private validateOrderItems(
     items?: {
       lineType: string;
@@ -113,6 +115,7 @@ export class PurchaseOrdersService {
     }
   }
 
+  //metodo para crear una orden
   async create(userId: number, data: CreatePurchaseOrderDto) {
     const { items, ...orderData } = data;
 
@@ -177,6 +180,7 @@ export class PurchaseOrdersService {
     });
   }
 
+  //busqueda de todas las ordenes
   async findAll(paginationDto: FilterPurchaseOrderDto) {
     const {
       page = 1,
@@ -324,6 +328,7 @@ export class PurchaseOrdersService {
     return { data, meta };
   }
 
+  //busqueda de todas las ordenes segun facturas
   async findAllForInvoice(params: FindAllForInvoiceDto) {
     const { supplierId, status } = params;
 
@@ -397,6 +402,7 @@ export class PurchaseOrdersService {
     return data;
   }
 
+  //metodo de busqueda de una sola orden
   async findOne(id: number) {
     const data = await this.drizzle.query.purchaseOrders.findFirst({
       where: eq(purchaseOrders.id, id),
@@ -413,6 +419,7 @@ export class PurchaseOrdersService {
     return data;
   }
 
+  //metodo para actualizar ordenes
   async update(userId: number, id: number, data: UpdatePurchaseOrderDto) {
     const { items, ...orderData } = data;
 
@@ -530,6 +537,7 @@ export class PurchaseOrdersService {
     return updatedOrder[0];
   }
 
+  //metodo para cancelar una orden
   async remove(id: number) {
     const order = await this.drizzle.query.purchaseOrders.findFirst({
       where: eq(purchaseOrders.id, id),
@@ -555,6 +563,7 @@ export class PurchaseOrdersService {
     return { message: 'Orden de compra anulada exitosamente' };
   }
 
+  //metodo para cerrar ordenes
   async updateStatusToClosed(id: number) {
     const order = await this.drizzle
       .select()

@@ -5,12 +5,11 @@ import { DataTableFilterBox } from '@repo/shadcn/components/ui/table/data-table-
 import { DataTableSearch } from '@repo/shadcn/components/ui/table/data-table-search';
 
 import { Button } from '@repo/shadcn/components/ui/button';
-import { CreditCard, DollarSign } from 'lucide-react';
+import { CreditCard, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { useSupplierAll } from '../../../suppliers/hooks/use-query-suppliers';
 import { AdvancePaymentModal } from '../advance-payment-modal';
-import { MassivePaymentModal } from '../massive-payment-modal';
-import { ReversePaymentModal } from '../reverse-payment-modal';
+import { CreditDebitNoteModal } from '../credit-debit-note-modal';
 import {
   ACCOUNT_PAYABLE_STATUS_OPTIONS,
   useAccountPayableFilters,
@@ -28,9 +27,9 @@ export default function AccountPayableTableAction() {
   } = useAccountPayableFilters();
 
   const [openAdvanceModal, setOpenAdvanceModal] = useState(false);
-  const [openMassivePaymentModal, setOpenMassivePaymentModal] = useState(false);
+  const [openCreditDebitNoteModal, setOpenCreditDebitNoteModal] =
+    useState(false);
   const { data: suppliers } = useSupplierAll();
-  const [openReversePaymentModal, setOpenReversePaymentModal] = useState(false);
 
   return (
     <div className="flex items-center justify-between mt-4 ">
@@ -41,13 +40,6 @@ export default function AccountPayableTableAction() {
           searchQuery={searchQuery || ''}
           setSearchQuery={setSearchQuery}
           setPage={setPage}
-        />
-        <DataTableFilterBox
-          filterKey="status"
-          title="Estatus"
-          options={ACCOUNT_PAYABLE_STATUS_OPTIONS}
-          setFilterValue={setStatusFilter}
-          filterValue={statusFilter}
         />
         <div className="w-[200px] p-0">
           <SelectSearchable
@@ -65,16 +57,21 @@ export default function AccountPayableTableAction() {
             enableNoneOption
           />
         </div>
+        <DataTableFilterBox
+          filterKey="status"
+          title="Estatus"
+          options={ACCOUNT_PAYABLE_STATUS_OPTIONS}
+          setFilterValue={setStatusFilter}
+          filterValue={statusFilter}
+        />
       </div>
       <div className="flex gap-2">
         <Button onClick={() => setOpenAdvanceModal(true)} size="sm">
-          <CreditCard className="h-4 w-4" /> Anticipo
+          <CreditCard className="h-4 w-4 " /> Anticipos
         </Button>
-        <Button onClick={() => setOpenMassivePaymentModal(true)} size="sm">
-          <DollarSign className="h-4 w-4" /> Pagos Masivos
-        </Button>
-        <Button onClick={() => setOpenReversePaymentModal(true)} size="sm">
-          <CreditCard className="h-4 w-4" /> Reversar Pagos
+        <Button onClick={() => setOpenCreditDebitNoteModal(true)} size="sm">
+          <FileText className="h-4 w-4 " />
+          Notas C/D
         </Button>
       </div>
 
@@ -82,13 +79,9 @@ export default function AccountPayableTableAction() {
         open={openAdvanceModal}
         onOpenChange={setOpenAdvanceModal}
       />
-      <MassivePaymentModal
-        open={openMassivePaymentModal}
-        onOpenChange={setOpenMassivePaymentModal}
-      />
-      <ReversePaymentModal
-        open={openReversePaymentModal}
-        onOpenChange={setOpenReversePaymentModal}
+      <CreditDebitNoteModal
+        open={openCreditDebitNoteModal}
+        onOpenChange={setOpenCreditDebitNoteModal}
       />
     </div>
   );

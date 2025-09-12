@@ -5,6 +5,7 @@ import {
   suppliers,
   supplierTransactions,
 } from '@/database/schema/administration';
+import { paymentAccountsPayableEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -16,9 +17,9 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { CreateAccountPayableDto } from './dto/create-account-payable.dto';
+import { CreateAdvanceSupplierDto } from './dto/create-advance-supplierdto';
 import { CreateSupplierTransactionDto } from './dto/create-supplier-transaction.dto';
 import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
-import { UpdateAccountPayableDto } from './dto/update-account-payable.dto';
 
 @Injectable()
 export class AccountsPayableService {
@@ -27,6 +28,7 @@ export class AccountsPayableService {
     private readonly generateCodeService: GenerateCodeService,
   ) {}
 
+  //metodo apra crear notas debito o credito
   async createCreditDebitNote(
     userId: number,
     dto: CreateSupplierTransactionDto,
@@ -55,7 +57,7 @@ export class AccountsPayableService {
         transactionNumber:
           await this.generateCodeService.generateNextReference('TRS-P'),
         transactionType: dto.transactionType,
-        transactionDate: dto.transactionDate.toISOString(),
+        transactionDate: new Date().toISOString(),
         amount: dto.amount.toString(),
         direction: direction,
         currencyCode: accountPayable.currencyCode ?? 'VES',
@@ -91,6 +93,7 @@ export class AccountsPayableService {
     return newTransaction[0];
   }
 
+  //metodo para crear una cuenta por pagar
   async create(
     userId: number,
     data: CreateAccountPayableDto,
@@ -125,6 +128,7 @@ export class AccountsPayableService {
     return newAccountPayable[0];
   }
 
+  //metodo de consulta de las cuenta por pagar
   async findAll(paginationDto: FilterAccountPayableDto) {
     const {
       page = 1,
@@ -135,6 +139,7 @@ export class AccountsPayableService {
       supplierId,
       supplierInvoiceId,
       status,
+      isAuthorizePayment,
     } = paginationDto;
     const offset = (page - 1) * limit;
 
@@ -152,8 +157,39 @@ export class AccountsPayableService {
         eq(accountsPayable.supplierInvoiceId, supplierInvoiceId),
       );
     }
+
+    if (isAuthorizePayment) {
+      searchConditions.push(
+        eq(
+          accountsPayable.isAuthorizePayment,
+          isAuthorizePayment === 'true' ? true : false,
+        ),
+      );
+    }
+
     if (status) {
-      searchConditions.push(eq(accountsPayable.status, status as any));
+      let parsedSupplierStatus: paymentAccountsPayableEnum[] = [];
+      if (Array.isArray(status)) {
+        if (status.length === 1 && status[0].includes(',')) {
+          // Si es un array con un string con comas, separar
+          parsedSupplierStatus = status[0].split(
+            ',',
+          ) as paymentAccountsPayableEnum[];
+        } else {
+          parsedSupplierStatus = status as paymentAccountsPayableEnum[];
+        }
+      } else if (typeof status === 'string') {
+        parsedSupplierStatus = status.split(
+          ',',
+        ) as paymentAccountsPayableEnum[];
+      }
+
+      // Ahora pasamos array limpio a inArray (o al filtro manual con OR)
+      if (parsedSupplierStatus.length > 0) {
+        searchConditions.push(
+          inArray(schema.accountsPayable.status, parsedSupplierStatus),
+        );
+      }
     }
 
     const searchCondition = searchConditions.length
@@ -172,6 +208,7 @@ export class AccountsPayableService {
         supplierName: schema.suppliers.name,
         accountsPayableNumber: schema.accountsPayable.accountsPayableNumber,
         supplierInvoiceId: schema.accountsPayable.supplierInvoiceId,
+        supplierInvoiceNumber: schema.supplierInvoices.supplierInvoiceNumber,
         originalAmount: schema.accountsPayable.originalAmount,
         paidAmount: schema.accountsPayable.paidAmount,
         remainingAmount: schema.accountsPayable.remainingAmount,
@@ -179,6 +216,7 @@ export class AccountsPayableService {
         observations: schema.accountsPayable.observations,
         dueDate: schema.accountsPayable.dueDate,
         createdAt: schema.accountsPayable.createdAt,
+        isAuthorizePayment: schema.accountsPayable.isAuthorizePayment,
         supplierInvoice: {
           invoiceNumber: schema.supplierInvoices.invoiceNumber,
         },
@@ -243,7 +281,33 @@ export class AccountsPayableService {
     return data[0];
   }
 
-  async update(userId: number, id: number, data: UpdateAccountPayableDto) {
+  // async update(userId: number, id: number, data: UpdateAccountPayableDto) {
+  //   const exist = await this.drizzle.query.accountsPayable.findFirst({
+  //     where: eq(accountsPayable.id, id),
+  //   });
+
+  //   if (!exist) {
+  //     throw new NotFoundException('Account payable not found');
+  //   }
+
+  //   const updatedAccountPayable = await this.drizzle
+  //     .update(accountsPayable)
+  //     .set({
+  //       ...data,
+  //       originalAmount: data.originalAmount?.toString(),
+  //       paidAmount: data.paidAmount?.toString(),
+  //       remainingAmount: data.remainingAmount?.toString(),
+  //       dueDate: data.dueDate?.toISOString() || null,
+  //       updatedById: userId,
+  //     })
+  //     .where(eq(accountsPayable.id, id))
+  //     .returning();
+
+  //   return updatedAccountPayable[0];
+  // }
+
+  //meotod para autorizar el pago de una cuenta por pagar
+  async autorize(userId: number, id: number) {
     const exist = await this.drizzle.query.accountsPayable.findFirst({
       where: eq(accountsPayable.id, id),
     });
@@ -252,20 +316,59 @@ export class AccountsPayableService {
       throw new NotFoundException('Account payable not found');
     }
 
-    const updatedAccountPayable = await this.drizzle
-      .update(accountsPayable)
-      .set({
-        ...data,
-        originalAmount: data.originalAmount?.toString(),
-        paidAmount: data.paidAmount?.toString(),
-        remainingAmount: data.remainingAmount?.toString(),
-        dueDate: data.dueDate?.toISOString() || null,
-        updatedById: userId,
-      })
-      .where(eq(accountsPayable.id, id))
-      .returning();
+    if (exist.status === 'PENDING') {
+      await this.drizzle
+        .update(accountsPayable)
+        .set({
+          isAuthorizePayment: true,
+          updatedById: userId,
+        })
+        .where(eq(accountsPayable.id, id));
+    } else if (exist.status === 'ADVANCE') {
+      await this.drizzle
+        .update(accountsPayable)
+        .set({
+          isAuthorizePayment: true,
+          updatedById: userId,
+        })
+        .where(eq(accountsPayable.id, id));
+    }
+  }
 
-    return updatedAccountPayable[0];
+  //metodo para crear anticipos
+  async createAdvanceSupplier(dto: CreateAdvanceSupplierDto, userId: number) {
+    return this.drizzle.transaction(async (tx) => {
+      // 1. Crear la cuenta por pagar con saldo negativo y estado ADVANCE
+      const accountsPayableNumber =
+        await this.generateCodeService.generateNextReference('ADV-P', tx);
+      const [newAccountPayable] = await tx
+        .insert(schema.accountsPayable)
+        .values({
+          supplierId: dto.supplierId,
+          accountsPayableNumber: accountsPayableNumber,
+          originalAmount: (dto.amount * -1).toString(), // Saldo negativo
+          paidAmount: '0.00',
+          remainingAmount: (dto.amount * -1).toString(), // Saldo negativo
+          currencyCode: 'VES',
+          status: paymentAccountsPayableEnum.ADVANCE,
+          observations:
+            dto.observations ?? `ANTICIPO A PROVEEDOR ${accountsPayableNumber}`,
+          createdById: userId,
+          dueDate: null, // Fecha actual para anticipos
+        })
+        .returning({
+          id: schema.accountsPayable.id,
+          supplierId: schema.accountsPayable.supplierId,
+          totalAmount: schema.accountsPayable.remainingAmount,
+          currencyCode: schema.accountsPayable.currencyCode,
+          status: schema.accountsPayable.status,
+          observations: schema.accountsPayable.observations,
+          transactionDate: schema.accountsPayable.createdAt,
+          isAuthorizePayment: schema.accountsPayable.isAuthorizePayment,
+        });
+
+      return newAccountPayable;
+    });
   }
 
   // async generateAccountPayableReport(id: number): Promise<Buffer> {
@@ -309,128 +412,219 @@ export class AccountsPayableService {
   //   return this.pdfGeneratorService.generatePdf(docDefinition);
   // }
 
-  async getPreloadedPaymentData(id: number) {
-    const [result] = await this.drizzle
-      .select({
-        supplierId: schema.supplierInvoices.supplierId,
-        chargePayment: schema.supplierInvoices.chargePayment,
-        bankAccountId: schema.supplierInvoices.bankAccountId,
-        paymentDescription: schema.supplierInvoices.paymentDescription,
-        paymentMethod: schema.supplierInvoices.paymentMethod,
-        bankReference: schema.supplierInvoices.paymentBankReference,
-        transactionDate: schema.supplierInvoices.transactionDate,
-        amount: accountsPayable.remainingAmount, // Precargar el monto restante
-      })
-      .from(accountsPayable)
-      .leftJoin(
-        schema.supplierInvoices,
-        eq(accountsPayable.supplierInvoiceId, schema.supplierInvoices.id),
-      )
-      .where(eq(accountsPayable.id, id));
+  //VERFICIAR SI HACE FALTA SI NO ELIMINAR
+  // async getPreloadedPaymentData(id: number) {
+  //   const [result] = await this.drizzle
+  //     .select({
+  //       supplierId: schema.supplierInvoices.supplierId,
+  //       chargePayment: schema.supplierInvoices.chargePayment,
+  //       bankAccountId: schema.supplierInvoices.bankAccountId,
+  //       paymentDescription: schema.supplierInvoices.paymentDescription,
+  //       paymentMethod: schema.supplierInvoices.paymentMethod,
+  //       bankReference: schema.supplierInvoices.paymentBankReference,
+  //       transactionDate: schema.supplierInvoices.transactionDate,
+  //       amount: accountsPayable.remainingAmount, // Precargar el monto restante
+  //     })
+  //     .from(accountsPayable)
+  //     .leftJoin(
+  //       schema.supplierInvoices,
+  //       eq(accountsPayable.supplierInvoiceId, schema.supplierInvoices.id),
+  //     )
+  //     .where(eq(accountsPayable.id, id));
 
-    if (!result.chargePayment) {
-      return null; // No hay datos que precargar
-    }
+  //   if (!result.chargePayment) {
+  //     return null; // No hay datos que precargar
+  //   }
 
-    return {
-      supplierId: result.supplierId,
-      bankAccountId: result.bankAccountId,
-      paymentDescription: result.paymentDescription,
-      paymentMethod: result.paymentMethod,
-      bankReference: result.bankReference,
-      transactionDate: result.transactionDate,
-      amount: result.amount, // Precargar el monto restante
-    };
-  }
+  //   return {
+  //     supplierId: result.supplierId,
+  //     bankAccountId: result.bankAccountId,
+  //     paymentDescription: result.paymentDescription,
+  //     paymentMethod: result.paymentMethod,
+  //     bankReference: result.bankReference,
+  //     transactionDate: result.transactionDate,
+  //     amount: result.amount, // Precargar el monto restante
+  //   };
+  // }
 
   async updateBalances(
-    data: { accountsPayableId: number | null; amount: string | number }[],
+    data: {
+      accountsPayableId: number | null;
+      amount: string | number;
+      description?: string;
+      relatedAdvanceId?: number | null;
+    }[],
     userId: number,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx || this.drizzle;
 
-    // 1. Obtener todos los IDs únicos de las cuentas por pagar de los datos
-    const accountsPayableIds = data.map((item) => item.accountsPayableId);
+    const accountsPayableIds = data
+      .map((item) => item.accountsPayableId)
+      .filter(Boolean) as number[];
     const uniqueAccountsIds = [...new Set(accountsPayableIds)];
 
-    if (uniqueAccountsIds.length === 0) {
-      return;
-    }
+    if (uniqueAccountsIds.length === 0) return new Map();
 
-    // 2. Obtener todas las cuentas por pagar, incluyendo el ID de la factura asociada
+    // Obtener las cuentas por pagar que se van a tocar
     const accountsToUpdate = await db
       .select({
         id: accountsPayable.id,
         remainingAmount: accountsPayable.remainingAmount,
         paidAmount: accountsPayable.paidAmount,
-        supplierInvoiceId: accountsPayable.supplierInvoiceId, // <-- Asegúrate de que este campo exista
+        supplierInvoiceId: accountsPayable.supplierInvoiceId,
         status: accountsPayable.status,
+        accountsPayableNumber: accountsPayable.accountsPayableNumber,
       })
       .from(accountsPayable)
-      .where(
-        inArray(
-          accountsPayable.id,
-          uniqueAccountsIds.filter((id): id is number => id !== null),
-        ),
-      );
+      .where(inArray(accountsPayable.id, uniqueAccountsIds));
 
-    if (accountsToUpdate.length === 0) {
+    if (!accountsToUpdate.length) {
       throw new NotFoundException('Cuentas por pagar no encontradas.');
     }
 
     const accountsMap = new Map(accountsToUpdate.map((ap) => [ap.id, ap]));
+
+    // Prepara helper maps
+    const isAdvanceById = new Map<number, boolean>();
+    for (const [id, ap] of accountsMap.entries()) {
+      isAdvanceById.set(
+        id,
+        String(ap.accountsPayableNumber).startsWith('ADV-P'),
+      );
+    }
+
+    // Map de resultados que devolvemos
     const updates = new Map<
       number,
       {
         newPaidAmount: number;
         newRemainingAmount: number;
-        invoiceId: number;
+        invoiceId: number | null;
         status: string;
+        isAdvance: boolean;
       }
     >();
 
-    for (const item of data) {
-      const account = accountsMap.get(item.accountsPayableId as number);
+    // 1) Normalizar: si el payload contiene una línea "aplicación" donde accountsPayableId apunta al anticipo
+    //    pero la intención es aplicarlo a una factura, detectamos la factura objetivo (si hay exactamente 1 factura en payload).
+    //    Si no hay coincidencia clara, esperamos que el frontend mande accountsPayableId = invoiceId y relatedAdvanceId = advanceId.
+    const invoiceLines = data.filter((d) => {
+      const ap = accountsMap.get(d.accountsPayableId as number);
+      return ap && !String(ap.accountsPayableNumber).startsWith('ADV-P');
+    });
 
-      if (account && account.status !== 'ADVANCE') {
-        const currentPaid = Number(account.paidAmount) || 0;
-        const currentRemaining = Number(account.remainingAmount) || 0;
-        const paymentAmount = Number(item.amount);
-        const newPaidAmount = currentPaid + paymentAmount;
-        const newRemainingAmount = currentRemaining - paymentAmount;
+    for (const item of data) {
+      const id = item.accountsPayableId as number;
+      const account = accountsMap.get(id);
+      if (!account) continue;
+
+      const paymentAmount = Number(item.amount);
+      const currentPaid = Number(account.paidAmount) || 0;
+      const currentRemaining = Number(account.remainingAmount) || 0;
+      const isAdvance = isAdvanceById.get(id) ?? false;
+
+      // Caso: línea que aplica anticipo a factura
+      const hasRelatedAdvance = item.relatedAdvanceId != null;
+
+      // If this line is for a non-advance (invoice):
+      if (!isAdvance) {
+        // Sum any advance application amounts that are intended for this invoice.
+        // Two possible payload shapes:
+        //  A) The application is represented as a separate line that points to the invoice and has relatedAdvanceId.
+        //  B) The application is represented as a line that points to the advance (we try to infer the target invoice).
+        let totalAppliedFromAdvancesToThisInvoice = 0;
+
+        // A) same-line application to this invoice:
+        if (hasRelatedAdvance) {
+          totalAppliedFromAdvancesToThisInvoice += paymentAmount;
+        }
+
+        // B) find application lines that point to an advance but should apply to this invoice.
+        //    Heurística: application-line where accountsPayableId is an advance id and there's exactly one invoice line overall.
+        for (const possible of data) {
+          const pid = possible.accountsPayableId as number;
+          if (!pid) continue;
+          const possibleAp = accountsMap.get(pid);
+          if (!possibleAp) continue;
+          const possibleIsAdvance = String(
+            possibleAp.accountsPayableNumber,
+          ).startsWith('ADV-P');
+          if (!possibleIsAdvance) continue;
+          // possible is an advance-line; if it has relatedAdvanceId (meaning it's an application) and
+          // the frontend used the 'advance-line' style (accountsPayableId = advanceId), then we need to attribute
+          // this amount to the invoice. We only do this when we can unambiguously find the invoice target.
+          if (possible.relatedAdvanceId != null) {
+            // If this `item` is the single invoice line (or specifically the intended invoice),
+            // we add the advance amount to it. Heuristics: if there's only one invoice line in payload,
+            // consider it the target.
+            if (invoiceLines.length === 1) {
+              totalAppliedFromAdvancesToThisInvoice += Number(possible.amount);
+            }
+            // else: if there are multiple invoices, the frontend must send the application as accountsPayableId = invoiceId
+            // and relatedAdvanceId = advanceId. If not, we cannot guess — throw.
+          }
+        }
+
+        const newPaidAmount =
+          currentPaid +
+          Number(item.amount) +
+          totalAppliedFromAdvancesToThisInvoice;
+        const newRemainingAmount =
+          currentRemaining -
+          (Number(item.amount) + totalAppliedFromAdvancesToThisInvoice);
 
         if (newRemainingAmount < 0) {
           throw new BadRequestException(
-            'El monto del pago excede el saldo restante.',
+            'El monto del pago excede el saldo restante de la factura.',
           );
         }
 
-        updates.set(item.accountsPayableId as number, {
+        updates.set(id, {
           newPaidAmount,
           newRemainingAmount,
-          invoiceId: account.supplierInvoiceId as number,
-          status: account.status,
+          invoiceId: (account.supplierInvoiceId as number) ?? null,
+          status: newRemainingAmount === 0 ? 'PAID' : 'IN_PROGRESS',
+          isAdvance: false,
         });
-      }
-    }
+      } else {
+        // isAdvance === true (es un anticipo)
+        // Debemos ver si la línea representa:
+        //  - Pago directo del anticipo (no relatedAdvanceId) => marcar PAID, no tocar montos
+        //  - Aplicación del anticipo a una factura (relatedAdvanceId present) => reducir anticipo remaining y setear status
+        const isDirectAdvancePayment =
+          !hasRelatedAdvance && !data.some((d) => d.relatedAdvanceId === id);
+        // Explanation: if no relatedAdvanceId on this line and no other line references this advance as relatedAdvanceId,
+        // consider it a direct payment of the advance (tesorería). Otherwise it's an application.
 
-    // 5. Actualizar la base de datos y el estado de la factura
-    for (const [id, newValues] of updates) {
-      // Solo actualiza si no es un anticipo o si el anticipo está siendo aplicado
-      // (aunque la lógica de aplicación de anticipos a facturas se manejaría en otro lugar)
-      if (newValues.status !== 'ADVANCE') {
-        await db
-          .update(accountsPayable)
-          .set({
-            paidAmount: String(newValues.newPaidAmount),
-            remainingAmount: String(newValues.newRemainingAmount),
-            updatedById: userId,
-            status: newValues.newRemainingAmount === 0 ? 'PAID' : 'IN_PROGRESS',
-          })
-          .where(eq(accountsPayable.id, id));
+        if (isDirectAdvancePayment) {
+          // pago directo: no tocar montos, solo marcar PAID (si corresponde)
+          updates.set(id, {
+            newPaidAmount: currentPaid,
+            newRemainingAmount: currentRemaining,
+            invoiceId: (account.supplierInvoiceId as number) ?? null,
+            status: 'PAID',
+            isAdvance: true,
+          });
+        } else {
+          // Aplicación del anticipo: el payload debe indicarnos cuánto se aplica (paymentAmount).
+          // currentRemaining es negativo (modelo de anticipos), al aplicar sumamos paymentAmount.
+          const newRemainingAmount = currentRemaining + paymentAmount; // ej: -2500 + 2500 = 0
+          const newPaidAmount = currentPaid; // según tu política
+          const newStatus =
+            newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE_PARTIAL';
+
+          updates.set(id, {
+            newPaidAmount,
+            newRemainingAmount,
+            invoiceId: (account.supplierInvoiceId as number) ?? null,
+            status: newStatus,
+            isAdvance: true,
+          });
+        }
       }
-    }
+    } // end for
+
     return updates;
   }
 
@@ -480,6 +674,7 @@ export class AccountsPayableService {
   }
 
   async findAccountsPayableBySuppliers(supplierIds: number[]) {
+    //REVISAR QUIEN LO USA
     // Manejar el caso de un arreglo vacío
     if (supplierIds.length === 0) {
       return [];
@@ -492,6 +687,7 @@ export class AccountsPayableService {
         supplierName: schema.suppliers.name,
         accountsPayableNumber: schema.accountsPayable.accountsPayableNumber,
         supplierInvoiceId: schema.accountsPayable.supplierInvoiceId,
+        supplierInvoiceNumber: schema.supplierInvoices.supplierInvoiceNumber,
         originalAmount: schema.accountsPayable.originalAmount,
         paidAmount: schema.accountsPayable.paidAmount,
         remainingAmount: schema.accountsPayable.remainingAmount,
@@ -502,6 +698,7 @@ export class AccountsPayableService {
         supplierInvoice: {
           invoiceNumber: schema.supplierInvoices.invoiceNumber,
         },
+        isAuthorizePayment: schema.accountsPayable.isAuthorizePayment,
       })
       .from(accountsPayable)
       .leftJoin(
@@ -517,11 +714,13 @@ export class AccountsPayableService {
             eq(accountsPayable.status, 'IN_PROGRESS'),
             eq(accountsPayable.status, 'EXPIRED'),
           ),
+          eq(accountsPayable.isAuthorizePayment, true),
         ),
       );
 
     // La validación de "not found" no es necesaria aquí, ya que devolver un arreglo vacío es el comportamiento esperado si no se encuentran resultados.
     // La lógica para lanzar un error debe manejarse en un nivel superior si es un caso de uso específico.
+    console.log(data);
 
     return data;
   }

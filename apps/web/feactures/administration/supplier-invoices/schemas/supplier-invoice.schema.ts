@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import {
-  PaymentMethodEnum,
   purchaseItemTypeEnum,
   SupplierInvoicePaymentTypeEnum,
   SupplierInvoiceStatusEnum,
@@ -65,6 +64,7 @@ export const supplierInvoiceSchema = z
     supplierId: z.number({ required_error: 'El proveedor es requerido' }),
     supplierName: z.string().optional(),
     purchaseOrderId: z.number().optional().nullable(),
+    purchaseOrdersNumber: z.string().optional().nullable(),
     invoiceNumber: z.string().min(1, 'El número de factura es requerido'),
     controlNumber: z.string().optional().nullable(),
     invoiceDate: z.date(),
@@ -78,13 +78,6 @@ export const supplierInvoiceSchema = z
     items: z
       .array(supplierInvoiceItemSchema)
       .min(1, 'Debe haber al menos un item'),
-    chargePayment: z.boolean().optional(),
-    bankAccountId: z.number().optional().nullable(),
-    transactionDate: z.date().optional().nullable(),
-    paymentDescription: z.string().optional().nullable(),
-    paymentBankReference: z.string().optional().nullable(),
-    paymentAmount: z.coerce.number().optional().nullable(),
-    paymentMethod: z.nativeEnum(PaymentMethodEnum).optional().nullable(),
     draftAppliedCredits: z
       .array(
         z.object({
@@ -106,30 +99,6 @@ export const supplierInvoiceSchema = z
         path: ['dueDate'],
         message: 'La fecha de vencimiento es requerida para facturas a crédito',
       });
-    }
-
-    if (data.chargePayment) {
-      if (!data.bankAccountId) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['bankAccountId'],
-          message: 'La cuenta bancaria es requerida',
-        });
-      }
-      if (!data.paymentDescription) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['paymentDescription'],
-          message: 'La descripción del pago es requerida',
-        });
-      }
-      if (!data.paymentMethod) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['paymentMethod'],
-          message: 'El método de pago es requerido',
-        });
-      }
     }
   });
 

@@ -1,1 +1,0 @@
-ALTER TABLE "administration"."purchase_order_items" DROP COLUMN "item_name";

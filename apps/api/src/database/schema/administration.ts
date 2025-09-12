@@ -3,7 +3,6 @@ import {
   date,
   index,
   integer,
-  jsonb,
   numeric,
   serial,
   text,
@@ -150,21 +149,6 @@ export const supplierInvoices = administrationSchema.table(
     status: invoiceSuppliersStatusEnum('status').notNull().default('DRAFT'),
     observations: text('observations'),
 
-    //datos bancarios
-    //datos para guardar datos bancarios
-    chargePayment: boolean('charge_payment').default(false),
-    paymentBankReference: varchar('payment_bank_reference', { length: 50 }),
-    paymentDescription: varchar('payment_description', { length: 255 }),
-    paymentAmount: numeric('payment_amount', {
-      precision: 18,
-      scale: 2,
-    }),
-    transactionDate: date('transaction_date'),
-    paymentMethod: paymentMethodEnum('payment_method'),
-    bankAccountId: integer('bank_account_id').references(() => bankAccounts.id),
-
-    //manejo de datos anticipo
-    draftAppliedCredits: jsonb('draft_applied_credits').default('[]'),
     /* FK opcional al asiento contable al recibir la factura */
     // accountingEntryId: integer('accounting_entry_id').references(() => entradaContables.id),
 
@@ -231,6 +215,7 @@ export const accountsPayable = administrationSchema.table(
     dueDate: date('due_date'),
     currencyCode: currencyCodeEnum('currency_code').notNull(),
     status: paymentAccountsPayableEnum('status').notNull().default('PENDING'),
+    isAuthorizePayment: boolean('is_authorize_payment').default(false),
     observations: text('observations'),
     // Referencia al asiento contable (entrada_contables) si se registra al recibir la factura.
     // Esto es un débito a una cuenta de gastos y un crédito a Cuentas por Pagar (Pasivo).
@@ -290,6 +275,11 @@ export const supplierPaymentLines = administrationSchema.table(
     accountsPayableId: integer('accounts_payable_id').references(
       () => accountsPayable.id,
       { onDelete: 'cascade' },
+    ),
+
+    relatedAdvanceId: integer('related_advance_id').references(
+      () => accountsPayable.id,
+      { onDelete: 'set null' },
     ),
 
     amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo
@@ -430,6 +420,9 @@ export const productPrices = inventorySchema.table('product_prices', {
     .default('0.00'),
   /* Precio final calculado */
   finalPrice: numeric('final_price', { precision: 18, scale: 6 }), // precio de lista
+  supplierInvoiceId: integer('supplier_invoice_id').references(
+    () => supplierInvoices.id,
+  ),
 
   startDate: date('start_date').defaultNow(),
   endDate: date('end_date'),
@@ -465,6 +458,10 @@ export const servicePrices = inventorySchema.table('service_prices', {
     .default('0.00'),
   /* Costo total = baseCost + otherCosts + purchaseTax */
   totalCost: numeric('total_cost', { precision: 18, scale: 6 }), // calculado o guardado
+
+  supplierInvoiceId: integer('supplier_invoice_id').references(
+    () => supplierInvoices.id,
+  ),
 
   startDate: date('start_date').defaultNow(),
   endDate: date('end_date'),
@@ -561,6 +558,10 @@ export const fixedAssetsPrices = inventorySchema.table('fixed_assets_prices', {
   /* Costo total = baseCost + otherCosts + purchaseTax */
   totalCost: numeric('total_cost', { precision: 18, scale: 6 }), // calculado o guardado
 
+  supplierInvoiceId: integer('supplier_invoice_id').references(
+    () => supplierInvoices.id,
+  ),
+
   startDate: date('start_date').defaultNow(),
   endDate: date('end_date'),
   isActive: boolean('is_active').default(true),
@@ -582,6 +583,9 @@ export const inventoryMovements = inventorySchema.table('inventory_movements', {
   unitCost: numeric('unit_cost', { precision: 18, scale: 2 }),
   documentType: varchar('document_type', { length: 50 }), // COMPRA, VENTA, NC, ND, AJUSTE…
   documentNumber: varchar('document_number', { length: 50 }),
+  supplierInvoiceId: integer('supplier_invoice_id').references(
+    () => supplierInvoices.id,
+  ),
   notes: text('notes'),
   ...timestamps,
 });

@@ -1,7 +1,6 @@
 import {
   currencyCodeEnum,
   invoiceSuppliersStatusEnum,
-  paymentMethodEnum,
   purchaseOrderTypeEnum,
   supplierInvoicesPaymentEnum,
 } from '@/database/schema/enum';
@@ -9,7 +8,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsDate,
   IsEnum,
   IsInt,
@@ -19,7 +17,6 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { AppliedAdvanceDto } from './applied-advance.dto';
 
 class SupplierInvoiceItemDto {
   @ApiProperty({ description: 'Item ID' })
@@ -150,52 +147,6 @@ export class CreateSupplierInvoiceDto {
   @ValidateNested({ each: true })
   @Type(() => SupplierInvoiceItemDto)
   items: SupplierInvoiceItemDto[];
-
-  @ApiPropertyOptional({ description: 'Bank account ID' })
-  @IsInt()
-  @IsOptional()
-  bankAccountId: number;
-
-  @ApiPropertyOptional({ description: 'Charge payment' })
-  @IsOptional()
-  @IsBoolean()
-  chargePayment: boolean;
-
-  @ApiPropertyOptional({ description: 'Payment bank reference' })
-  @IsString()
-  @IsOptional()
-  paymentBankReference: string;
-
-  @ApiPropertyOptional({ description: 'Payment description' })
-  @IsString()
-  @IsOptional()
-  paymentDescription: string;
-
-  @ApiPropertyOptional({ description: 'Transaction date' })
-  @IsDate()
-  @Type(() => Date)
-  @IsOptional()
-  transactionDate: Date;
-
-  @ApiPropertyOptional({
-    description: 'Payment Method',
-    enum: paymentMethodEnum.enumValues,
-  })
-  @IsEnum(paymentMethodEnum.enumValues)
-  @IsOptional()
-  paymentMethod: (typeof paymentMethodEnum.enumValues)[number];
-
-  @ApiPropertyOptional({ description: 'Payment amount for immediate payment' })
-  @IsNumber()
-  @IsOptional()
-  paymentAmount?: number;
-
-  @ApiPropertyOptional({ type: () => [AppliedAdvanceDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => AppliedAdvanceDto)
-  @IsOptional()
-  draftAppliedCredits?: AppliedAdvanceDto[];
 
   @ApiProperty({ description: 'Supplier Invoice Number' })
   @IsString()

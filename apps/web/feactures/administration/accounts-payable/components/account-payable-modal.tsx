@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { AccountPayable } from '../schemas/account-payable.schema';
+import { AccountPayable } from '../../supplier-payments/schemas/account-payable.schema';
 import { AccountPayableForm } from './account-payable-form';
 
 interface ModalProps {

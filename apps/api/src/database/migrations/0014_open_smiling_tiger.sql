@@ -1,2 +1,0 @@
-ALTER TABLE "administration"."supplier_invoices" ALTER COLUMN "total_amount" SET NOT NULL;--> statement-breakpoint
-ALTER TABLE "administration"."supplier_invoices" ADD COLUMN "payment_amount" numeric(18, 2);

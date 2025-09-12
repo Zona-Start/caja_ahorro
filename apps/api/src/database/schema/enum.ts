@@ -379,7 +379,8 @@ export const paymentAccountsPayableEnum = pgEnum(
     'CANCELLED', //Se cancela por nota de crédito o error.
     'EXPIRED', // La fecha de vencimiento es menor aL dia .
     'ADVANCE', // status para los anticipos
-    'ADVANCE_APPLIED', // status para los anticipos
+    'ADVANCE_PARTIAL', // uso de avance parcial
+    'ADVANCE_APPLIED', // avance completo aplicado
   ],
 );
 

@@ -8,10 +8,12 @@ export function mapSupplierPaymentApiToForm(
     id: data.id,
     supplierId: data.supplierId,
     paymentNumber: data.paymentNumber,
-    totalAmount: data.totalAmount,
+    totalAmount: Math.abs(data.totalAmount),
     currencyCode: data.currencyCode,
     paymentMethod: data.paymentMethod as any, // Cast as enum
     bankAccountId: data.bankAccountId,
+    bankReference: data.bankReference,
+    accountPayableNumber: data.accountPayableNumber,
     status: data.status,
     observations: data.observations,
     requestedAt: data.requestedAt,
@@ -24,4 +26,29 @@ export function mapSupplierPaymentApiToForm(
         supplierPaymentId: line.supplierPaymentId,
       })) || [],
   };
+}
+
+//funciona mapear resultados de las cuentas por pagar pendientes
+export function mapAccountPayableApiToForm(data: any) {
+  if (!data) {
+    return [];
+  }
+
+  return data.map((item: any) => {
+    return {
+      id: item.id,
+      supplierId: item.supplierId,
+      supplierName: item.supplierName,
+      accountsPayableNumber: item.accountsPayableNumber,
+      supplierInvoiceId: item.supplierInvoiceId,
+      originalAmount: Math.abs(item.originalAmount),
+      paidAmount: Number(item.paidAmount),
+      remainingAmount: Math.abs(item.remainingAmount),
+      status: item.status,
+      observations: item.observations,
+      supplierInvoice: item.supplierInvoice,
+      createdAt: item.createdAt.split('T')[0],
+      dueDate: item.dueDate,
+    };
+  });
 }

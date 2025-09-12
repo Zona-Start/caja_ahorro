@@ -1,5 +1,5 @@
 {
-  "id": "adfe1674-eccc-4f34-88b8-4918b3ba0d39",
+  "id": "ed28a769-2cce-4d66-99cf-c77aee4d91cb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1251,11 +1251,17 @@
           "primaryKey": true,
           "notNull": true
         },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "supplier_invoice_id": {
           "name": "supplier_invoice_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "ap_number": {
           "name": "ap_number",
@@ -1302,6 +1308,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'PENDING'"
+        },
+        "is_authorize_payment": {
+          "name": "is_authorize_payment",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "observations": {
           "name": "observations",
@@ -1368,6 +1381,20 @@
         }
       },
       "foreignKeys": {
+        "accounts_payable_supplier_id_suppliers_id_fk": {
+          "name": "accounts_payable_supplier_id_suppliers_id_fk",
+          "tableFrom": "accounts_payable",
+          "tableTo": "suppliers",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "accounts_payable_supplier_invoice_id_supplier_invoices_id_fk": {
           "name": "accounts_payable_supplier_invoice_id_supplier_invoices_id_fk",
           "tableFrom": "accounts_payable",
@@ -1720,6 +1747,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "supplier_invoice_id": {
+          "name": "supplier_invoice_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "start_date": {
           "name": "start_date",
           "type": "date",
@@ -1789,6 +1822,20 @@
           "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fixed_assets_prices_supplier_invoice_id_supplier_invoices_id_fk": {
+          "name": "fixed_assets_prices_supplier_invoice_id_supplier_invoices_id_fk",
+          "tableFrom": "fixed_assets_prices",
+          "tableTo": "supplier_invoices",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_invoice_id"
           ],
           "columnsTo": [
             "id"
@@ -2033,6 +2080,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "supplier_invoice_id": {
+          "name": "supplier_invoice_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "notes": {
           "name": "notes",
           "type": "text",
@@ -2067,6 +2120,20 @@
       },
       "indexes": {},
       "foreignKeys": {
+        "inventory_movements_supplier_invoice_id_supplier_invoices_id_fk": {
+          "name": "inventory_movements_supplier_invoice_id_supplier_invoices_id_fk",
+          "tableFrom": "inventory_movements",
+          "tableTo": "supplier_invoices",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "inventory_movements_created_by_id_users_id_fk": {
           "name": "inventory_movements_created_by_id_users_id_fk",
           "tableFrom": "inventory_movements",
@@ -2184,6 +2251,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "supplier_invoice_id": {
+          "name": "supplier_invoice_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "start_date": {
           "name": "start_date",
           "type": "date",
@@ -2253,6 +2326,20 @@
           "schemaTo": "administration",
           "columnsFrom": [
             "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "product_prices_supplier_invoice_id_supplier_invoices_id_fk": {
+          "name": "product_prices_supplier_invoice_id_supplier_invoices_id_fk",
+          "tableFrom": "product_prices",
+          "tableTo": "supplier_invoices",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_invoice_id"
           ],
           "columnsTo": [
             "id"
@@ -2724,12 +2811,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "item_name": {
-          "name": "item_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
         "quantity": {
           "name": "quantity",
           "type": "integer",
@@ -3048,6 +3129,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "supplier_invoice_id": {
+          "name": "supplier_invoice_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "start_date": {
           "name": "start_date",
           "type": "date",
@@ -3124,6 +3211,20 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
+        "service_prices_supplier_invoice_id_supplier_invoices_id_fk": {
+          "name": "service_prices_supplier_invoice_id_supplier_invoices_id_fk",
+          "tableFrom": "service_prices",
+          "tableTo": "supplier_invoices",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_invoice_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "service_prices_created_by_id_users_id_fk": {
           "name": "service_prices_created_by_id_users_id_fk",
           "tableFrom": "service_prices",
@@ -3172,6 +3273,12 @@
         "name": {
           "name": "name",
           "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "service_code": {
+          "name": "service_code",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
@@ -3267,7 +3374,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "services_service_code_unique": {
+          "name": "services_service_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "service_code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -3444,8 +3559,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "order_number": {
-          "name": "order_number",
+        "supplier_invoice_number": {
+          "name": "supplier_invoice_number",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
@@ -3631,11 +3746,11 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "supplier_invoices_order_number_unique": {
-          "name": "supplier_invoices_order_number_unique",
+        "supplier_invoices_supplier_invoice_number_unique": {
+          "name": "supplier_invoices_supplier_invoice_number_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "order_number"
+            "supplier_invoice_number"
           ]
         }
       },
@@ -3816,6 +3931,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "bank_reference": {
+          "name": "bank_reference",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_description": {
+          "name": "bank_description",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_transaction_date": {
+          "name": "bank_transaction_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "payment_supplier_status",
@@ -3964,6 +4097,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "related_advance_id": {
+          "name": "related_advance_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "transaction_number": {
           "name": "transaction_number",
           "type": "varchar(50)",
@@ -4006,6 +4145,12 @@
           "name": "payment_method",
           "type": "payment_method_enum",
           "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_id": {
+          "name": "payment_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -4068,6 +4213,34 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_transactions_related_advance_id_accounts_payable_id_fk": {
+          "name": "supplier_transactions_related_advance_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_transactions",
+          "tableTo": "accounts_payable",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "related_advance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_transactions_payment_id_supplier_payments_id_fk": {
+          "name": "supplier_transactions_payment_id_supplier_payments_id_fk",
+          "tableFrom": "supplier_transactions",
+          "tableTo": "supplier_payments",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "payment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "supplier_transactions_bank_movement_id_bank_transactions_id_fk": {
@@ -5915,6 +6088,13 @@
         "bank_account_id": {
           "name": "bank_account_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_type": {
+          "name": "transaction_type",
+          "type": "payment_method_enum",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -12680,7 +12860,9 @@
         "IN_PROGRESS",
         "PAID",
         "CANCELLED",
-        "EXPIRED"
+        "EXPIRED",
+        "ADVANCE",
+        "ADVANCE_APPLIED"
       ]
     },
     "public.payment_method_enum": {
@@ -12723,7 +12905,8 @@
         "SENT_TO_BANK",
         "PROCESSED",
         "REJECTED",
-        "CANCELLED"
+        "CANCELLED",
+        "REVERSED"
       ]
     },
     "public.price_type_enum": {
@@ -12765,7 +12948,8 @@
         "SALES_INVENTORY",
         "FIXED_ASSET",
         "SERVICE",
-        "EXPENSE"
+        "EXPENSE",
+        "SERVICE_EXPENSE"
       ]
     },
     "public.reconciliation_item_status_enum": {
@@ -12828,7 +13012,11 @@
         "PAYMENT",
         "CREDIT_NOTE",
         "DEBIT_NOTE",
-        "ADVANCE"
+        "ADVANCE",
+        "ADVANCE_APPLIED",
+        "CREDIT_NOTE_APPLIED",
+        "DEBIT_NOTE_APPLIED",
+        "REVERSED"
       ]
     },
     "public.unit_of_measure": {
@@ -13075,6 +13263,51 @@
       "definition": "\n  SELECT\n      l.id AS loan_id,\n      l.associate_id,\n      l.currency_code,\n      l.status AS loan_status,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"loans\" l\n  JOIN\n      \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n      l.status IN ('DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)\n  GROUP BY\n      l.id,\n      l.associate_id,\n      l.currency_code,\n      l.status\n",
       "name": "loan_outstanding_balance",
       "schema": "savings_banks",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_available_credits_view": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_name": {
+          "name": "supplier_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_credit": {
+          "name": "available_credit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credits": {
+          "name": "credits",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n     SELECT\n    ap.supplier_id AS supplier_id,\n    s.name AS supplier_name,\n    s.tax_id AS tax_id,\n    ap.currency_code AS currency_code,\n    SUM(ABS(ap.remaining_amount)) AS available_credit,\n    JSONB_AGG(\n      JSONB_BUILD_OBJECT(\n        'cxpId', ap.id,\n        'cxpNumber', ap.ap_number,\n        'origin', CASE\n          WHEN ap.status = 'ADVANCE' THEN 'ADVANCE'\n          ELSE 'CREDIT_NOTE'\n        END,\n        'amount', ABS(ap.remaining_amount)\n      ) ORDER BY ap.created_at\n    ) AS credits\n  FROM\n    \"administration\".\"accounts_payable\" ap\n  JOIN\n      \"administration\".\"suppliers\" s ON s.id = ap.supplier_id\n  WHERE\n    ap.remaining_amount < 0\n    AND ap.status <> 'CANCELLED'\n  GROUP BY\n    ap.supplier_id,\n    s.name,\n    s.tax_id,\n    ap.currency_code\n",
+      "name": "supplier_available_credits_view",
+      "schema": "administration",
       "isExisting": false,
       "materialized": false
     }

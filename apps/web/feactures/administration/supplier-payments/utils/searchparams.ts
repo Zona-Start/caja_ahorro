@@ -1,4 +1,3 @@
-
 import {
   createSearchParamsCache,
   createSerializer,
@@ -15,6 +14,8 @@ export const searchParams = {
   supplierId: parseAsInteger,
   startDate: parseAsIsoDate,
   endDate: parseAsIsoDate,
+  tab: parseAsString.withDefault('history'),
+  isAuthorizePayment: parseAsString.withDefault('true'),
 };
 
 export const searchParamsCache = createSearchParamsCache(searchParams);

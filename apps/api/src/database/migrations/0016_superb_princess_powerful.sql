@@ -1,1 +1,0 @@
-ALTER TABLE "administration"."supplier_invoices" RENAME COLUMN "draft_applied_advances" TO "draft_applied_credits";

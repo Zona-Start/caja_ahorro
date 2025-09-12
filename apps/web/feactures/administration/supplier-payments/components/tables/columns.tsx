@@ -2,34 +2,61 @@
 
 import { Badge } from '@repo/shadcn/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
-import { SUPPLIER_PAYMENT_STATUS_TYPES, SupplierPayment } from '../../schemas';
+import {
+  PAYMENT_METHOD_TYPES,
+  SUPPLIER_PAYMENT_STATUS_TYPES,
+  SupplierPayment,
+} from '../../schemas';
 import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<SupplierPayment>[] = [
   {
     accessorKey: 'paymentNumber',
-    header: 'Referencia',
+    header: 'Número',
   },
   {
-    accessorKey: 'supplier.name',
+    accessorKey: 'requestedAt',
+    header: 'Fecha',
+    cell: ({ row }) => {
+      const date = new Date(row.original.requestedAt);
+      return date.toLocaleDateString();
+    },
+  },
+  {
+    accessorKey: 'supplierName',
     header: 'Proveedor',
   },
   {
     accessorKey: 'totalAmount',
-    header: 'Monto Total',
+    header: 'Monto',
     cell: ({ row }) => {
-      const amount = row.original.totalAmount;
-      const currencyCode = row.original.currencyCode;
-      const formatted = new Intl.NumberFormat('es-VE', {
-        style: 'currency',
-        currency: currencyCode,
-      }).format(amount);
-      return <div className="text-right font-medium">{formatted}</div>;
+      return (
+        <div className="text-right font-medium">
+          {Number(row.original.totalAmount)} Bs.
+        </div>
+      );
     },
   },
   {
+    accessorKey: 'paymentMethod',
+    header: 'Método',
+    cell: ({ row }) => {
+      const paymentMethod = row.original.paymentMethod;
+      const paymenText =
+        PAYMENT_METHOD_TYPES[
+          paymentMethod as keyof typeof PAYMENT_METHOD_TYPES
+        ] || paymentMethod;
+
+      return paymenText;
+    },
+  },
+  {
+    accessorKey: 'bankReference',
+    header: 'Referencia',
+  },
+  {
     accessorKey: 'status',
-    header: 'Estatus',
+    header: 'Estado',
     cell: ({ row }) => {
       const status = row.original.status;
       const statusText =
@@ -48,16 +75,17 @@ export const columns: ColumnDef<SupplierPayment>[] = [
           case 'DRAFT':
             return 'default';
           case 'PENDING':
-            return 'outline';
-          case 'PEN_APR':
             return 'warning';
+          case 'SENT_TO_BANK':
+            return 'secondary';
           case 'PROCESSED':
             return 'success';
-          case 'ANULADO':
+          case 'CANCELLED':
+            return 'secondary';
           case 'REJECTED':
             return 'destructive';
           default:
-            return 'secondary';
+            return 'outline';
         }
       })();
 
@@ -80,16 +108,12 @@ export const columns: ColumnDef<SupplierPayment>[] = [
     },
   },
   {
-    accessorKey: 'requestedAt',
-    header: 'Fecha de Solicitud',
-    cell: ({ row }) => {
-      const date = new Date(row.original.requestedAt);
-      return date.toLocaleDateString();
-    },
+    accessorKey: 'accountPayableNumber',
+    header: 'Enlace',
   },
   {
     id: 'actions',
     header: 'Acciones',
-    cell: ({ row }) => <CellAction data={row.original} />,
+    cell: ({ row }) => <CellAction data={row.original} tab="history" />,
   },
 ];

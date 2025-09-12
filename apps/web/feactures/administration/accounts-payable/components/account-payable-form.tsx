@@ -23,20 +23,19 @@ import {
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
 import { useSupplierInvoices } from '../../supplier-invoices/hooks/use-query-supplier-invoice';
-import { useAccountPayableMutation } from '../hooks/use-mutation-account-payable';
+import {
+  PaymentAccountPayable,
+  paymentAccountPayableSchema,
+} from '../../supplier-payments/schemas';
 import {
   ACCOUNT_PAYABLE_STATUS_TYPES,
   AccountPayableStatusEnum,
 } from '../schemas/account-payable-options';
-import {
-  AccountPayable,
-  accountPayableSchema,
-} from '../schemas/account-payable.schema';
 
 interface FormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
-  defaultValues?: Partial<AccountPayable>;
+  defaultValues?: Partial<PaymentAccountPayable>;
   readOnly?: boolean;
 }
 
@@ -46,12 +45,12 @@ export function AccountPayableForm({
   defaultValues,
   readOnly = false,
 }: FormProps) {
-  const { mutate: saveAccountPayable, isPending: isSaving } =
-    useAccountPayableMutation();
+  // const { mutate: saveAccountPayable, isPending: isSaving } =
+  //   useAccountPayableMutation();
   const { data: supplierInvoices } = useSupplierInvoices();
 
-  const form = useForm<AccountPayable>({
-    resolver: zodResolver(accountPayableSchema),
+  const form = useForm<PaymentAccountPayable>({
+    resolver: zodResolver(paymentAccountPayableSchema),
     defaultValues: {
       id: defaultValues?.id,
       supplierInvoiceId: defaultValues?.supplierInvoiceId,
@@ -64,19 +63,19 @@ export function AccountPayableForm({
     mode: 'onChange',
   });
 
-  const onSubmit = async (data: AccountPayable) => {
-    saveAccountPayable(data, {
-      onSuccess: () => {
-        form.reset();
-        onSuccess?.();
-      },
-      onError: (error) => {
-        form.setError('root', {
-          type: 'manual',
-          message: error.message || 'Error al guardar la cuenta por pagar',
-        });
-      },
-    });
+  const onSubmit = async (data: PaymentAccountPayable) => {
+    // saveAccountPayable(data, {
+    //   onSuccess: () => {
+    //     form.reset();
+    //     onSuccess?.();
+    //   },
+    //   onError: (error) => {
+    //     form.setError('root', {
+    //       type: 'manual',
+    //       message: error.message || 'Error al guardar la cuenta por pagar',
+    //     });
+    //   },
+    // });
   };
 
   return (
@@ -231,11 +230,7 @@ export function AccountPayableForm({
               <Button variant="outline" type="button" onClick={onCancel}>
                 {readOnly ? 'Cerrar' : 'Cancelar'}
               </Button>
-              {!readOnly && (
-                <Button type="submit" disabled={isSaving}>
-                  {isSaving ? 'Guardando...' : 'Guardar'}
-                </Button>
-              )}
+              {!readOnly && <Button type="submit">Guardar</Button>}
             </div>
           </div>
         </form>

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { accountPayableMutationResponseSchema } from '../schemas';
 import { CreditDebitNote } from '../schemas/credit-debit-note.schema';
 
+// action para crear notas de credito o debito a cuenta por pagar
 export const createCreditDebitNoteAction = async (payload: CreditDebitNote) => {
   const [error, data] = await safeFetchApi(
     accountPayableMutationResponseSchema,

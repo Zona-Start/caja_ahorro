@@ -24,6 +24,7 @@ export const supplierInvoiceApiSchema = z.object({
   supplierId: z.number(),
   supplierName: z.string().optional(),
   purchaseOrderId: z.number().optional().nullable(),
+  purchaseOrdersNumber: z.string().optional().nullable(),
   invoiceNumber: z.string(),
   controlNumber: z.string().optional().nullable(),
   invoiceDate: z.string(),
@@ -34,14 +35,6 @@ export const supplierInvoiceApiSchema = z.object({
   paymentType: z.string().optional(),
   status: z.string().optional(),
   observations: z.string().optional().nullable(),
-  bankAccountId: z.number().optional().nullable(),
-  chargePayment: z.boolean().optional().nullable(),
-  paymentDescription: z.string().optional().nullable(),
-  paymentBankReference: z.string().optional().nullable(),
-  paymentMethod: z.string().optional().nullable(),
-  paymentAmount: z.string().optional().nullable(),
-  transactionDate: z.string().optional().nullable(),
-  draftAppliedCredits: z.array(appliedAdvanceApiSchema).optional().nullable(),
   items: z.array(supplierInvoiceItemApiSchema).optional().nullable(),
 });
 
@@ -99,39 +92,11 @@ export const supplierInvoiceMutationApiSchema = z.object({
   paymentType: z.string().optional(),
   status: z.string().optional(),
   observations: z.string().optional().nullable(),
-  bankAccountId: z.number().optional().nullable(),
-  chargePayment: z.boolean().optional().nullable(),
-  paymentDescription: z.string().optional().nullable(),
-  paymentBankReference: z.string().optional().nullable(),
-  paymentMethod: z.string().optional().nullable(),
-  transactionDate: z.string().optional().nullable(),
+  supplierInvoiceNumber: z.string().optional().nullable(),
   items: z.array(supplierInvoiceItemMutationApiSchema).optional().nullable(),
 });
 
 export const supplierInvoiceMutationResponseSchema = z.object({
   message: z.string(),
   data: supplierInvoiceMutationApiSchema.optional(),
-});
-
-export const jsonCredits = z.array(
-  z.object({
-    cxpId: z.number(),
-    amount: z.number(),
-    origin: z.string(),
-    cxpNumber: z.string(),
-  }),
-);
-
-export const supplierAdvancedCredit = z.object({
-  supplierId: z.number(),
-  supplierName: z.string(),
-  taxId: z.string(),
-  currencyCode: z.string(),
-  availableCredit: z.string(),
-  credits: jsonCredits,
-});
-
-export const supplierAdvancedCreditSchema = z.object({
-  message: z.string(),
-  data: z.array(supplierAdvancedCredit).optional().nullable(),
 });

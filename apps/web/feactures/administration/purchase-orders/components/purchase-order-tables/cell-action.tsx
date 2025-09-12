@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Eye, SquareX } from 'lucide-react';
+import { Edit, Eye, Printer, SquareX } from 'lucide-react';
 import { useState } from 'react';
 import { useDeletePurchaseOrder } from '../../hooks/use-mutation-purchase-order';
 import { PurchaseOrderSchemaAPI } from '../../schemas';
@@ -123,6 +123,19 @@ export const CellAction: React.FC<CellActionProps> = ({
             </TooltipTrigger>
             <TooltipContent>
               <p>Editar</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Printer className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Comprobante</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

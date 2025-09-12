@@ -6,7 +6,7 @@ import {
   supplierInvoices,
   suppliers,
 } from '@/database/schema/administration';
-import { paymentMethodEnum, priceTypeEnum } from '@/types/enum';
+import { priceTypeEnum } from '@/types/enum';
 import {
   BadRequestException,
   ConflictException,
@@ -18,7 +18,6 @@ import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { supplierAvailableCredits } from 'src/database/index';
 import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
 import { FixedAssetPricesService } from '../inventory/fixed-asset-prices/fixed-asset-prices.service';
 import { InventoryMovementsService } from '../inventory/inventory-movements/inventory-movements.service';
@@ -69,15 +68,12 @@ export class SupplierInvoicesService {
           subtotal: dto.subtotal.toString(),
           taxAmount: dto.taxAmount?.toString(),
           totalAmount: dto.totalAmount.toString(),
-          paymentAmount: dto.paymentAmount?.toString(),
           dueDate: dto.dueDate?.toISOString(),
           invoiceDate: dto.invoiceDate.toISOString(),
-          transactionDate: dto.chargePayment ? new Date().toISOString() : null,
           currencyCode: 'VES',
           createdById: userId,
           supplierInvoiceNumber:
             await this.generateCodeService.generateNextReference('FAC-P'),
-          draftAppliedCredits: dto.draftAppliedCredits,
         })
         .returning({
           status: supplierInvoices.status,
@@ -110,12 +106,6 @@ export class SupplierInvoicesService {
           paymentType: supplierInvoices.paymentType,
           status: supplierInvoices.status,
           observations: supplierInvoices.observations,
-          chargePayment: supplierInvoices.chargePayment,
-          bankAccountId: supplierInvoices.bankAccountId,
-          transactionDate: supplierInvoices.transactionDate,
-          paymentDescription: supplierInvoices.paymentDescription,
-          paymentBankReference: supplierInvoices.paymentBankReference,
-          paymentMethod: supplierInvoices.paymentMethod,
         })
         .from(supplierInvoices)
         .where(eq(supplierInvoices.id, newInvoice[0].id));
@@ -182,10 +172,8 @@ export class SupplierInvoicesService {
           subtotal: dto.subtotal?.toString(),
           taxAmount: dto.taxAmount?.toString(),
           totalAmount: dto.totalAmount?.toString(),
-          paymentAmount: dto.paymentAmount?.toString(),
           dueDate: dto.dueDate?.toISOString(),
           invoiceDate: dto.invoiceDate?.toISOString(),
-          transactionDate: dto.chargePayment ? new Date().toISOString() : null,
           updatedById: userId,
         })
         .where(eq(supplierInvoices.id, invoiceId));
@@ -223,12 +211,6 @@ export class SupplierInvoicesService {
           paymentType: supplierInvoices.paymentType,
           status: supplierInvoices.status,
           observations: supplierInvoices.observations,
-          chargePayment: supplierInvoices.chargePayment,
-          bankAccountId: supplierInvoices.bankAccountId,
-          transactionDate: supplierInvoices.transactionDate,
-          paymentDescription: supplierInvoices.paymentDescription,
-          paymentBankReference: supplierInvoices.paymentBankReference,
-          paymentMethod: supplierInvoices.paymentMethod,
         })
         .from(supplierInvoices)
         .where(eq(supplierInvoices.id, invoiceId));
@@ -345,8 +327,6 @@ export class SupplierInvoicesService {
     if (dto.purchaseOrderId) {
       await this.updatePurchaseOrderStatus(dto.purchaseOrderId, invoiceId, tx);
     }
-    // 3. Payment and Accounts Payable Logic
-    await this.handlePaymentAndAccountsPayable(userId, invoiceId, dto, tx);
 
     // 4. Check if PO can be closed after payment
     if (dto.purchaseOrderId) {
@@ -373,6 +353,7 @@ export class SupplierInvoicesService {
             baseCost: unitCost,
             otherCosts: 0,
             isActive: true,
+            supplierInvoiceId: invoiceId,
           },
           userId,
           tx,
@@ -386,6 +367,7 @@ export class SupplierInvoicesService {
             description: `INGRESO PRODUCTO POR FACTURA DE PROVEEDOR ${dto.invoiceNumber}`,
             documentType: 'COMPRA',
             documentNumber: dto.invoiceNumber,
+            supplierInvoiceId: invoiceId,
             items: [
               {
                 itemId: item.itemId ?? 0,
@@ -407,6 +389,7 @@ export class SupplierInvoicesService {
             otherCosts: 0, // Assuming 0 for now, can be added to DTO later
             purchaseTax: 0, // Assuming 0 for now, can be added to DTO later
             startDate: dto.invoiceDate,
+            supplierInvoiceId: invoiceId,
             isActive: true,
           },
           tx,
@@ -420,6 +403,7 @@ export class SupplierInvoicesService {
             description: `INGRESO ACTIVO POR FACTURA PROVEEDOR ${dto.invoiceNumber}`,
             documentType: 'COMPRA',
             documentNumber: dto.invoiceNumber,
+            supplierInvoiceId: invoiceId,
             items: [
               {
                 itemId: item.itemId ?? 0,
@@ -442,6 +426,7 @@ export class SupplierInvoicesService {
             purchaseTax: 0,
             startDate: dto.invoiceDate,
             isActive: true,
+            supplierInvoiceId: invoiceId,
           },
           tx,
         );
@@ -473,12 +458,7 @@ export class SupplierInvoicesService {
         paymentType: supplierInvoices.paymentType,
         status: supplierInvoices.status,
         observations: supplierInvoices.observations,
-        chargePayment: supplierInvoices.chargePayment,
-        bankAccountId: supplierInvoices.bankAccountId,
-        transactionDate: supplierInvoices.transactionDate,
-        paymentDescription: supplierInvoices.paymentDescription,
-        paymentBankReference: supplierInvoices.paymentBankReference,
-        paymentMethod: supplierInvoices.paymentMethod,
+        supplierInvoiceNumber: supplierInvoices.supplierInvoiceNumber,
       })
       .from(supplierInvoices)
       .where(eq(supplierInvoices.id, invoiceId));
@@ -496,6 +476,15 @@ export class SupplierInvoicesService {
       })
       .from(supplierInvoiceItems)
       .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
+
+    // . Payment and Accounts Payable Logic
+    await this.handlePaymentAndAccountsPayable(
+      userId,
+      invoiceId,
+      finalInvoice[0].supplierInvoiceNumber,
+      dto,
+      tx,
+    );
 
     return { ...finalInvoice[0], items };
   }
@@ -676,51 +665,52 @@ export class SupplierInvoicesService {
   private async handlePaymentAndAccountsPayable(
     userId: number,
     invoiceId: number,
+    invoiceReference: string,
     dto: CreateSupplierInvoiceDto,
     tx: NodePgDatabase<typeof schema>,
   ) {
     let remainingAmount = dto.totalAmount;
     let paidAmount = 0;
 
-    if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
-      const totalApplied = dto.draftAppliedCredits.reduce(
-        (sum, credit) => sum + credit.amount,
-        0,
-      );
+    // if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
+    //   const totalApplied = dto.draftAppliedCredits.reduce(
+    //     (sum, credit) => sum + credit.amount,
+    //     0,
+    //   );
 
-      if (totalApplied > dto.totalAmount) {
-        throw new BadRequestException(
-          'Total applied from credits cannot exceed the invoice total amount.',
-        );
-      }
+    //   if (totalApplied > dto.totalAmount) {
+    //     throw new BadRequestException(
+    //       'Total applied from credits cannot exceed the invoice total amount.',
+    //     );
+    //   }
 
-      remainingAmount -= totalApplied;
-      paidAmount += totalApplied;
+    //   remainingAmount -= totalApplied;
+    //   paidAmount += totalApplied;
 
-      for (const credit of dto.draftAppliedCredits) {
-        try {
-          if (credit.origin === 'ADVANCE') {
-            await this.accountsPayableService.applyAdvance(
-              credit.cxpId,
-              credit.amount,
-              userId,
-              tx,
-            );
-          } else if (credit.origin === 'CREDIT_NOTE') {
-            await this.applyCreditNote(credit.cxpId, credit.amount, userId, tx);
-          } else {
-            throw new BadRequestException(
-              `Invalid credit origin: "${credit.origin}"`,
-            );
-          }
-        } catch (error) {
-          console.error(
-            `Error processing credit with cxpId: ${credit.cxpId} and origin: ${credit.origin}`,
-            error,
-          );
-        }
-      }
-    }
+    //   for (const credit of dto.draftAppliedCredits) {
+    //     try {
+    //       if (credit.origin === 'ADVANCE') {
+    //         await this.accountsPayableService.applyAdvance(
+    //           credit.cxpId,
+    //           credit.amount,
+    //           userId,
+    //           tx,
+    //         );
+    //       } else if (credit.origin === 'CREDIT_NOTE') {
+    //         await this.applyCreditNote(credit.cxpId, credit.amount, userId, tx);
+    //       } else {
+    //         throw new BadRequestException(
+    //           `Invalid credit origin: "${credit.origin}"`,
+    //         );
+    //       }
+    //     } catch (error) {
+    //       console.error(
+    //         `Error processing credit with cxpId: ${credit.cxpId} and origin: ${credit.origin}`,
+    //         error,
+    //       );
+    //     }
+    //   }
+    // }
 
     const invoiceAP = await this.accountsPayableService.create(
       userId,
@@ -733,51 +723,48 @@ export class SupplierInvoicesService {
         currencyCode: 'VES',
         status: remainingAmount <= 0 ? 'PAID' : 'PENDING',
         dueDate: dto.dueDate || new Date(),
-        observations:
-          dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0
-            ? `CUENTA POR PAGAR POR FACTURA N° ${dto.invoiceNumber} CON CRÉDITOS CARGADOS`
-            : `CUENTA POR PAGAR POR FACTURA  N° ${dto.invoiceNumber}`,
+        observations: `CUENTA POR PAGAR POR FACTURA  N° ${invoiceReference}`,
       },
       tx,
     );
 
     // Create transactions for applied credits
-    if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
-      for (const credit of dto.draftAppliedCredits) {
-        const result = await this.supplierTransactionsService.findOne(
-          credit.cxpId,
-        );
-        const transactionCode =
-          await this.generateCodeService.generateNextReference('TRS-P', tx);
+    // if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
+    //   for (const credit of dto.draftAppliedCredits) {
+    //     const result = await this.supplierTransactionsService.findOne(
+    //       credit.cxpId,
+    //     );
+    //     const transactionCode =
+    //       await this.generateCodeService.generateNextReference('TRS-P', tx);
 
-        const isAdvance = credit.origin === 'ADVANCE';
+    //     const isAdvance = credit.origin === 'ADVANCE';
 
-        await this.supplierTransactionsService.create(
-          {
-            accountsPayableId: invoiceAP.id,
-            relatedAdvanceId: credit.cxpId,
-            transactionNumber: transactionCode,
-            transactionType: isAdvance
-              ? 'ADVANCE_APPLIED'
-              : 'CREDIT_NOTE_APPLIED',
-            transactionDate: new Date(),
-            amount: credit.amount,
-            direction: 'CR',
-            currencyCode: 'VES',
-            reference: isAdvance
-              ? `APLICACION DE ANTICIPO A FACTURA N° ${dto.invoiceNumber}`
-              : `APLICACION DE NOTA DE CREDITO A FACTURA N° ${dto.invoiceNumber}`,
-            paymentMethod: result.supplier_transactions
-              .paymentMethod as paymentMethodEnum,
-            bankMovementId: result.supplier_transactions
-              .bankMovementId as number,
-            paymentId: result.supplier_transactions.paymentId as number,
-            createdById: userId,
-          },
-          tx,
-        );
-      }
-    }
+    //     await this.supplierTransactionsService.create(
+    //       {
+    //         accountsPayableId: invoiceAP.id,
+    //         relatedAdvanceId: credit.cxpId,
+    //         transactionNumber: transactionCode,
+    //         transactionType: isAdvance
+    //           ? 'ADVANCE_APPLIED'
+    //           : 'CREDIT_NOTE_APPLIED',
+    //         transactionDate: new Date(),
+    //         amount: credit.amount,
+    //         direction: 'CR',
+    //         currencyCode: 'VES',
+    //         reference: isAdvance
+    //           ? `APLICACION DE ANTICIPO A FACTURA N° ${dto.invoiceNumber}`
+    //           : `APLICACION DE NOTA DE CREDITO A FACTURA N° ${dto.invoiceNumber}`,
+    //         paymentMethod: result.supplier_transactions
+    //           .paymentMethod as paymentMethodEnum,
+    //         bankMovementId: result.supplier_transactions
+    //           .bankMovementId as number,
+    //         paymentId: result.supplier_transactions.paymentId as number,
+    //         createdById: userId,
+    //       },
+    //       tx,
+    //     );
+    //   }
+    // }
 
     return invoiceAP;
   }
@@ -869,9 +856,14 @@ export class SupplierInvoicesService {
       .select({
         invoice: supplierInvoices,
         supplierName: suppliers.name,
+        purchaseOrdersNumber: purchaseOrders.orderNumber,
       })
       .from(supplierInvoices)
       .leftJoin(suppliers, eq(supplierInvoices.supplierId, suppliers.id))
+      .leftJoin(
+        schema.purchaseOrders,
+        eq(supplierInvoices.purchaseOrderId, schema.purchaseOrders.id),
+      )
       .limit(limit)
       .offset(offset)
       .where(searchCondition)
@@ -911,6 +903,7 @@ export class SupplierInvoicesService {
         supplierId: invoiceRow.invoice.supplierId,
         supplierName: invoiceRow.supplierName,
         purchaseOrderId: invoiceRow.invoice.purchaseOrderId,
+        purchaseOrdersNumber: invoiceRow.purchaseOrdersNumber,
         invoiceNumber: invoiceRow.invoice.invoiceNumber,
         controlNumber: invoiceRow.invoice.controlNumber,
         invoiceDate: invoiceRow.invoice.invoiceDate,
@@ -921,14 +914,6 @@ export class SupplierInvoicesService {
         paymentType: invoiceRow.invoice.paymentType,
         status: invoiceRow.invoice.status,
         observations: invoiceRow.invoice.observations,
-        bankAccountId: invoiceRow.invoice.bankAccountId,
-        chargePayment: invoiceRow.invoice.chargePayment,
-        paymentDescription: invoiceRow.invoice.paymentDescription,
-        paymentBankReference: invoiceRow.invoice.paymentBankReference,
-        paymentAmount: invoiceRow.invoice.paymentAmount,
-        paymentMethod: invoiceRow.invoice.paymentMethod,
-        transactionDate: invoiceRow.invoice.transactionDate,
-        draftAppliedCredits: invoiceRow.invoice.draftAppliedCredits,
         items: [] as any[], // Inicializamos el array de ítems aquí
       };
 
@@ -1075,13 +1060,20 @@ export class SupplierInvoicesService {
           .where(eq(schema.accountsPayable.id, accountsPayableToUpdate.id));
       }
 
-      // 4. Update Purchase Order (if associated)
+      // 4. Update Purchase Order (if associated) /// revisar por si se debe activae
+      // if (invoice.purchaseOrderId) {
+      //   await this.updatePurchaseOrderStatusOnCancel(
+      //     invoice.purchaseOrderId,
+      //     id,
+      //     tx,
+      //   );
+      // }
+
       if (invoice.purchaseOrderId) {
-        await this.updatePurchaseOrderStatusOnCancel(
-          invoice.purchaseOrderId,
-          id,
-          tx,
-        );
+        await this.drizzle
+          .update(purchaseOrders)
+          .set({ status: 'PENDING' })
+          .where(eq(purchaseOrders.id, invoice.purchaseOrderId));
       }
 
       // TODO: Aquí se anexará el reverso del movimiento de inventario y precio de item
@@ -1299,14 +1291,6 @@ export class SupplierInvoicesService {
     }
 
     return updatedSupplierinvoice;
-  }
-
-  async getSupplierAvailableCredits(id: number) {
-    const result = await this.drizzle
-      .select()
-      .from(supplierAvailableCredits)
-      .where(eq(supplierAvailableCredits.supplierId, id));
-    return result;
   }
 
   // Helper method (copied and adapted from supplier-invoices.service.ts)

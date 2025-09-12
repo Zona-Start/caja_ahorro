@@ -8,6 +8,7 @@ import {
 } from '../schemas/bank-account-response-api';
 import { BankAccount } from '../schemas/bank-account.schema';
 
+//action para traer todas las cuenta de banco de la caja
 export const getBankAccountAllAction = async () => {
   const [error, response] = await safeFetchApi(
     bankAccountAllResponseSchema,

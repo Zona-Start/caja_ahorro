@@ -1,23 +1,23 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import { getSupplierPaymentsAction } from '../actions/supplier-payment-actions';
 
+// hook para buscar los pagos realizados
 export function useSupplierPayments(
   params: {
     page?: number;
     limit?: number;
-    status?: string;
+    status?: string[];
     search?: string;
-    supplierIds?: number[];
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   } = {},
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['supplier-payments', params],
+    ['payments-by-supplier', params],
     () => getSupplierPaymentsAction(params),
     {
-      enabled: !!params.supplierIds?.length && (options?.enabled ?? true),
+      enabled: !!params.status?.length && (options?.enabled ?? true),
       ...options,
     },
   );

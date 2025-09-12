@@ -1,12 +1,5 @@
-
-import {
-  currencyCodeEnum,
-  supplierTransactionsTypeEnum,
-} from '@/database/schema/enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
 import {
-  IsDate,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -28,12 +21,6 @@ export class CreateSupplierTransactionDto {
   @IsEnum(['CREDIT_NOTE', 'DEBIT_NOTE'])
   @IsNotEmpty()
   transactionType: 'CREDIT_NOTE' | 'DEBIT_NOTE';
-
-  @ApiProperty({ description: 'Transaction date' })
-  @IsDate()
-  @Type(() => Date)
-  @IsNotEmpty()
-  transactionDate: Date;
 
   @ApiProperty({ description: 'Amount' })
   @IsNumber({ maxDecimalPlaces: 2 })

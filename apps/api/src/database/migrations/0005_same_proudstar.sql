@@ -1,1 +1,0 @@
-ALTER TABLE "banking"."bank_transactions" ADD COLUMN "transaction_type" "payment_method_enum" NOT NULL;

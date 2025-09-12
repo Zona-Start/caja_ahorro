@@ -92,6 +92,7 @@ export class ServicePricesService {
       createdById: userId,
       startDate: this.formatDate(data.startDate),
       endDate: this.formatDate(data.endDate),
+      supplierInvoiceId: data.supplierInvoiceId,
     });
 
     return {
