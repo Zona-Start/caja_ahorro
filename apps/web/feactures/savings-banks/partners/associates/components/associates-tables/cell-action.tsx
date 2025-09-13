@@ -16,6 +16,7 @@ import { useDeleteAssociate } from '../../hooks/use-associate-mutation';
 import { useAssociatesById } from '../../hooks/use-query-associates';
 import { AssociatesMutate } from '../../schemas/associates.schema';
 import { AssociatesModal } from '../associates-modal';
+import { AssociateViewModal } from '../associate-view-modal';
 
 interface CellActionProps {
   data: AssociatesMutate;
@@ -98,13 +99,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             }}
           />
 
-          <AssociatesModal
+          <AssociateViewModal
             open={showViewModal}
             onOpenChange={(open) => {
               setShowViewModal(open);
               if (!open) setAssociateId(null);
             }}
-            defaultValues={{
+            associateData={{
               ...associateData.data,
               birthdate: associateData.data.birthdate
                 ? new Date(associateData.data.birthdate)
@@ -121,7 +122,6 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 parseInt(associateData.data.baseSalary).toFixed(2),
               ),
             }}
-            readOnly={true}
           />
         </>
       )}

@@ -48,6 +48,18 @@ export class ProductsController {
     };
   }
 
+  @Get('/all/getCredit')
+  @RequirePermissions('read:products')
+  @ApiOperation({ summary: 'Get all  products' })
+  @ApiResponse({ status: 200, description: 'Return all  products.' })
+  async findAllProductByCredit() {
+    const result = await this.services.findAllProductByCredit();
+    return {
+      message: 'Products fetched successfully',
+      data: result,
+    };
+  }
+
   @Get('/paginated')
   @Roles('admin')
   @RequirePermissions('read:products')

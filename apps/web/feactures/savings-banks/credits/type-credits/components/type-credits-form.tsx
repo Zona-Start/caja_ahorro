@@ -53,11 +53,11 @@ export function TypeCreditsForm({
       description: defaultValues?.description || null,
       interestRate: defaultValues?.interestRate
         ? String(defaultValues.interestRate)
-        : '1', // Ajuste aquí
+        : '0', // Ajuste aquí
       termType: defaultValues?.termType || 'CUOTAS',
       termUnits: defaultValues?.termUnits
         ? String(defaultValues.termUnits)
-        : '1', // Ajuste aquí
+        : '0', // Ajuste aquí
       cancellationPercentage: defaultValues?.cancellationPercentage || '0',
       creditAccountChartId: defaultValues?.creditAccountChartId,
       interestEarnedAccountChartId: defaultValues?.interestEarnedAccountChartId,

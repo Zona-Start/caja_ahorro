@@ -1,2 +1,0 @@
-ALTER TABLE "administration"."supplier_payment_lines" ADD COLUMN "related_advance_id" integer;--> statement-breakpoint
-ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_related_advance_id_accounts_payable_id_fk" FOREIGN KEY ("related_advance_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE set null ON UPDATE no action;

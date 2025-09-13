@@ -174,6 +174,7 @@ export const createCreditManagementAction = async (
     notes: payloadWithoutId.notes,
     invoiceNumber: payloadWithoutId.invoiceNumber,
     commercialHouseId: payloadWithoutId.commercialHouseId,
+    products: payloadWithoutId.products,
   };
 
   const [error, data] = await safeFetchApi(
@@ -210,6 +211,7 @@ export const updateCreditManagementAction = async (
     notes: payloadWithoutId.notes,
     invoiceNumber: payloadWithoutId.invoiceNumber,
     commercialHouseId: payloadWithoutId.commercialHouseId,
+    products: payloadWithoutId.products,
   };
 
   const [error, data] = await safeFetchApi(

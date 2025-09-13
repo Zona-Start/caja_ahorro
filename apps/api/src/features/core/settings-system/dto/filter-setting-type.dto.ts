@@ -7,4 +7,9 @@ export class FilterSettingTypeDto extends PartialType(PaginationDto) {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @ApiPropertyOptional({ description: 'Column group' })
+  @IsOptional()
+  @IsString()
+  group?: string;
 }

@@ -5,6 +5,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@repo/shadcn/collapsible';
+import { cn } from '@repo/shadcn/lib/utils';
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -18,9 +19,8 @@ import {
 import { ChevronRightIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Icons } from './icons';
 import { IconWrapper } from './icon-wrapper';
-
+import { Icons } from './icons';
 
 export function NavMain({
   titleGroup,
@@ -31,7 +31,7 @@ export function NavMain({
     title: string;
     url: string;
     icon?: keyof typeof Icons;
-    colorIcons?: string
+    colorIcons?: string;
     isActive?: boolean;
     items?: {
       title: string;
@@ -41,15 +41,15 @@ export function NavMain({
   }[];
 }) {
   const pathname = usePathname();
-  
+
   return (
     <SidebarGroup className="mt-0">
       <SidebarGroupLabel className="text-md">{titleGroup}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => {
-          const Icon = item.icon 
-          ? 
-          Icons[item.icon] : Icons.logo;
+          const Icon = item.icon ? Icons[item.icon] : Icons.logo;
+          const isActive = pathname === item.url;
+
           return item?.items && item?.items?.length > 0 ? (
             <Collapsible
               key={item.title}
@@ -61,12 +61,18 @@ export function NavMain({
                 <CollapsibleTrigger asChild>
                   <SidebarMenuButton
                     tooltip={item.title}
-                    isActive={pathname === item.url}
-
+                    // We pass the isActive prop directly
+                    isActive={isActive}
+                    className={cn(
+                      'text-gray-900 dark:text-gray-100',
+                      'hover:text-blue-500 dark:hover:text-blue-400',
+                    )}
                   >
-                     {item.icon && (
-                      <IconWrapper color={item.colorIcons || 'blue'}  className="w-5 h-5">
-                        <Icon />
+                    {item.icon && (
+                      // Apply size classes directly to the icon.
+                      // The wrapper will scale to fit its content.
+                      <IconWrapper>
+                        <Icon className="w-5 h-5" />
                       </IconWrapper>
                     )}
                     <span>{item.title}</span>
@@ -96,11 +102,15 @@ export function NavMain({
               <SidebarMenuButton
                 asChild
                 tooltip={item.title}
-                isActive={pathname === item.url}
+                isActive={isActive}
+                className={cn(
+                  'text-gray-900 dark:text-gray-100',
+                  'hover:text-blue-500 dark:hover:text-blue-400',
+                )}
               >
                 <Link href={item.url}>
-                <IconWrapper color={item.colorIcons || 'blue'}  className="w-5 h-5">
-                    <Icon />
+                  <IconWrapper>
+                    <Icon className="w-5 h-5" />
                   </IconWrapper>
                   <span>{item.title}</span>
                 </Link>

@@ -38,7 +38,7 @@ CREATE TYPE "public"."loan_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION');
 CREATE TYPE "public"."loan_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'PENDING_DISBURSEMENT_BANK_BATCH', 'DISBURSED', 'DISBURSEMENT_FAILED', 'DISBURSED_REVERSED', 'IN_PAYMENT', 'PAID', 'OVERDUE', 'ADJUSTED');--> statement-breakpoint
 CREATE TYPE "public"."movement_type_inventory" AS ENUM('IN', 'OUT', 'ADJUST_IN', 'ADJUST_OUT', 'TRANSFER', 'COMMIT', 'UN_COMMIT', 'ORDERED', 'RECEIVED');--> statement-breakpoint
 CREATE TYPE "public"."nationality" AS ENUM('VENEZOLANO', 'EXTRANJERO');--> statement-breakpoint
-CREATE TYPE "public"."payment_accounts_payable_enum" AS ENUM('PENDING', 'IN_PROGRESS', 'PAID', 'CANCELLED', 'EXPIRED', 'ADVANCE', 'ADVANCE_APPLIED');--> statement-breakpoint
+CREATE TYPE "public"."payment_accounts_payable_enum" AS ENUM('PENDING', 'IN_PROGRESS', 'PAID', 'CANCELLED', 'EXPIRED', 'ADVANCE', 'ADVANCE_PARTIAL', 'ADVANCE_APPLIED');--> statement-breakpoint
 CREATE TYPE "public"."payment_method_enum" AS ENUM('CASH', 'BANK_TRANSFER', 'CHECK', 'DEPOSIT', 'OTHER', 'MOBILE_PAYMENT');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('DONE', 'CANCELED');--> statement-breakpoint
 CREATE TYPE "public"."payment_status_enum" AS ENUM('PENDING', 'PAID', 'OVERDUE', 'PARTIAL', 'CANCELED');--> statement-breakpoint
@@ -420,6 +420,7 @@ CREATE TABLE "administration"."supplier_payment_lines" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"supplier_payment_id" integer NOT NULL,
 	"accounts_payable_id" integer,
+	"related_advance_id" integer,
 	"amount" numeric(18, 2) NOT NULL,
 	"description" varchar(255),
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -1267,6 +1268,7 @@ ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoic
 ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_supplier_payment_id_supplier_payments_id_fk" FOREIGN KEY ("supplier_payment_id") REFERENCES "administration"."supplier_payments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_accounts_payable_id_accounts_payable_id_fk" FOREIGN KEY ("accounts_payable_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_related_advance_id_accounts_payable_id_fk" FOREIGN KEY ("related_advance_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_payments_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1753,35 +1755,4 @@ CREATE VIEW "savings_banks"."loan_outstanding_balance" AS (
       l.associate_id,
       l.currency_code,
       l.status
-);--> statement-breakpoint
-CREATE VIEW "administration"."supplier_available_credits_view" AS (
-     SELECT
-    ap.supplier_id AS supplier_id,
-    s.name AS supplier_name,
-    s.tax_id AS tax_id,
-    ap.currency_code AS currency_code,
-    SUM(ABS(ap.remaining_amount)) AS available_credit,
-    JSONB_AGG(
-      JSONB_BUILD_OBJECT(
-        'cxpId', ap.id,
-        'cxpNumber', ap.ap_number,
-        'origin', CASE
-          WHEN ap.status = 'ADVANCE' THEN 'ADVANCE'
-          ELSE 'CREDIT_NOTE'
-        END,
-        'amount', ABS(ap.remaining_amount)
-      ) ORDER BY ap.created_at
-    ) AS credits
-  FROM
-    "administration"."accounts_payable" ap
-  JOIN
-      "administration"."suppliers" s ON s.id = ap.supplier_id
-  WHERE
-    ap.remaining_amount < 0
-    AND ap.status <> 'CANCELLED'
-  GROUP BY
-    ap.supplier_id,
-    s.name,
-    s.tax_id,
-    ap.currency_code
 );

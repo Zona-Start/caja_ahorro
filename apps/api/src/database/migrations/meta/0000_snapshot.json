@@ -1,5 +1,5 @@
 {
-  "id": "ed28a769-2cce-4d66-99cf-c77aee4d91cb",
+  "id": "419fc246-0870-4ff4-a6ff-ad876dc1835a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -3780,6 +3780,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "related_advance_id": {
+          "name": "related_advance_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "amount": {
           "name": "amount",
           "type": "numeric(18, 2)",
@@ -3846,6 +3852,20 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_payment_lines_related_advance_id_accounts_payable_id_fk": {
+          "name": "supplier_payment_lines_related_advance_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_payment_lines",
+          "tableTo": "accounts_payable",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "related_advance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "supplier_payment_lines_created_by_id_users_id_fk": {
@@ -12862,6 +12882,7 @@
         "CANCELLED",
         "EXPIRED",
         "ADVANCE",
+        "ADVANCE_PARTIAL",
         "ADVANCE_APPLIED"
       ]
     },
@@ -13263,51 +13284,6 @@
       "definition": "\n  SELECT\n      l.id AS loan_id,\n      l.associate_id,\n      l.currency_code,\n      l.status AS loan_status,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"loans\" l\n  JOIN\n      \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n      l.status IN ('DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)\n  GROUP BY\n      l.id,\n      l.associate_id,\n      l.currency_code,\n      l.status\n",
       "name": "loan_outstanding_balance",
       "schema": "savings_banks",
-      "isExisting": false,
-      "materialized": false
-    },
-    "administration.supplier_available_credits_view": {
-      "columns": {
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_name": {
-          "name": "supplier_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tax_id": {
-          "name": "tax_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency_code": {
-          "name": "currency_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "available_credit": {
-          "name": "available_credit",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "credits": {
-          "name": "credits",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "\n     SELECT\n    ap.supplier_id AS supplier_id,\n    s.name AS supplier_name,\n    s.tax_id AS tax_id,\n    ap.currency_code AS currency_code,\n    SUM(ABS(ap.remaining_amount)) AS available_credit,\n    JSONB_AGG(\n      JSONB_BUILD_OBJECT(\n        'cxpId', ap.id,\n        'cxpNumber', ap.ap_number,\n        'origin', CASE\n          WHEN ap.status = 'ADVANCE' THEN 'ADVANCE'\n          ELSE 'CREDIT_NOTE'\n        END,\n        'amount', ABS(ap.remaining_amount)\n      ) ORDER BY ap.created_at\n    ) AS credits\n  FROM\n    \"administration\".\"accounts_payable\" ap\n  JOIN\n      \"administration\".\"suppliers\" s ON s.id = ap.supplier_id\n  WHERE\n    ap.remaining_amount < 0\n    AND ap.status <> 'CANCELLED'\n  GROUP BY\n    ap.supplier_id,\n    s.name,\n    s.tax_id,\n    ap.currency_code\n",
-      "name": "supplier_available_credits_view",
-      "schema": "administration",
       "isExisting": false,
       "materialized": false
     }

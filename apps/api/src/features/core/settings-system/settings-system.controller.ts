@@ -20,17 +20,12 @@ export class SettingsSystemController {
     return { message: 'Settings System fetched successfully', data };
   }
 
-  @Get('/group/:group/')
+  @Get('/group/')
   @ApiOperation({ summary: 'Get all settings system' })
   @ApiResponse({ status: 200, description: 'Return all settings system.' })
-  async findAllByGroup(
-    @Param('group') group: string,
-    @Query() filterSettingTypeDto: FilterSettingTypeDto,
-  ) {
-    const result = await this.settingsSystemService.findAllByGroup(
-      group,
-      filterSettingTypeDto,
-    );
+  async findAllByGroup(@Query() filterSettingTypeDto: FilterSettingTypeDto) {
+    const result =
+      await this.settingsSystemService.findAllByGroup(filterSettingTypeDto);
     return {
       message: 'Settings System fetchedsuccessfully',
       data: result.data,

@@ -1,12 +1,8 @@
 'use client';
 
-import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 
-import {
-  TYPE_OPTIONS,
-  useSettingSystemTableFilters,
-} from './use-system-properties-table-filters';
+import { useSettingSystemTableFilters } from './use-system-properties-table-filters';
 
 export default function SettingSystemTableAction({
   filterVisibility,
@@ -26,7 +22,7 @@ export default function SettingSystemTableAction({
           setSearchQuery={setSearchQuery}
           setPage={setPage}
         />
-        {filterVisibility === 'ALL' && (
+        {/* {filterVisibility === 'ALL' && (
           <DataTableFilterBox
             filterKey="type"
             title="Modulo"
@@ -34,7 +30,7 @@ export default function SettingSystemTableAction({
             setFilterValue={setTypeFilter}
             filterValue={typeFilter}
           />
-        )}
+        )} */}
       </div>
     </div>
   );

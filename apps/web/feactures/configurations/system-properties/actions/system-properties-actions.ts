@@ -52,17 +52,15 @@ export const getCurrenciesAction = async () => {
   return response?.data || [];
 };
 
-export const getSettingSytemAction = async (
-  params: {
-    page?: number;
-    limit?: number;
-    type?: string;
-    search?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-  },
-  group: string,
-) => {
+export const getSettingSytemAction = async (params: {
+  page?: number;
+  limit?: number;
+  type?: string;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  group?: string;
+}) => {
   const searchParams = new URLSearchParams({
     page: (params.page || 1).toString(),
     limit: (params.limit || 10).toString(),
@@ -70,11 +68,12 @@ export const getSettingSytemAction = async (
     ...(params.type && { type: params.type }),
     ...(params.sortBy && { sortBy: params.sortBy }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
+    ...(params.group && { group: params.group }),
   });
 
   const [error, response] = await safeFetchApi(
     settingSystemAllResponseSchema,
-    `/core/settings-system/group/${group}?${searchParams}`,
+    `/core/settings-system/group?${searchParams}`,
     'GET',
   );
 

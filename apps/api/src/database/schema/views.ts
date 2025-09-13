@@ -2,13 +2,12 @@ import { sql } from 'drizzle-orm';
 import {
   decimal,
   integer,
-  jsonb,
   numeric,
   serial,
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
-import { accountsPayable, suppliers } from './administration';
+import { inventoryMovements } from './administration';
 import {
   associateAccountMovements,
   associateAccounts,
@@ -17,7 +16,7 @@ import {
   loanAmortizationSchedule,
   loans,
 } from './savings-banks';
-import { administrationSchema, savingsBanksSchema } from './schemas';
+import { inventorySchema, savingsBanksSchema } from './schemas';
 
 export const associateAccountBalances = savingsBanksSchema
   .view('associate_account_balances', {
@@ -296,69 +295,25 @@ export const associateHaberesBalance = savingsBanksSchema.view(
       ${associateAccountMovements.associateAccountId}
 `);
 
-export const supplierAvailableCredits = administrationSchema.view(
-  'supplier_available_credits_view',
+//vista de  movimientos de inventario
+export const inventoryAvailability = inventorySchema.view(
+  'inventory_availability',
   {
-    supplierId: integer('supplier_id').notNull(),
-    supplierName: text('supplier_name').notNull(),
-    taxId: text('tax_id').notNull(),
-    currencyCode: text('currency_code').notNull(),
-    availableCredit: decimal('available_credit', {
-      precision: 20,
-      scale: 6,
-    }).notNull(),
-    credits: jsonb('credits').notNull(),
+    itemId: serial('item_id').primaryKey(),
+    itemType: text('item_type').notNull(),
+    availableQuantity: integer('available_quantity').notNull(),
   },
 ).as(sql`
-     SELECT
-    ap.supplier_id AS supplier_id,
-    s.name AS supplier_name,
-    s.tax_id AS tax_id,
-    ap.currency_code AS currency_code,
-    SUM(ABS(ap.remaining_amount)) AS available_credit,
-    JSONB_AGG(
-      JSONB_BUILD_OBJECT(
-        'cxpId', ap.id,
-        'cxpNumber', ap.ap_number,
-        'origin', CASE
-          WHEN ap.status = 'ADVANCE' THEN 'ADVANCE'
-          ELSE 'CREDIT_NOTE'
-        END,
-        'amount', ABS(ap.remaining_amount)
-      ) ORDER BY ap.created_at
-    ) AS credits
-  FROM
-    ${accountsPayable} ap
-  JOIN
-      ${suppliers} s ON s.id = ap.supplier_id
-  WHERE
-    ap.remaining_amount < 0
-    AND ap.status <> 'CANCELLED'
-  GROUP BY
-    ap.supplier_id,
-    s.name,
-    s.tax_id,
-    ap.currency_code
+  SELECT
+    item_id AS item_id,
+    item_type AS item_type,
+    SUM(
+      CASE
+        WHEN movement_type = 'IN' THEN quantity
+        WHEN movement_type = 'OUT' THEN -quantity
+        ELSE quantity -- Ajustes u otros tipos se toman con su signo
+      END
+    ) AS available_quantity
+  FROM ${inventoryMovements}
+  GROUP BY item_id, item_type
 `);
-
-// export const accountsPayableSummaryView = accountsPayableSchema.view(
-//   'accounts_payable_summary',
-//   {
-//     totalAmount: numeric('total_amount', { precision: 18, scale: 2 }),
-//     pendingAmount: numeric('pending_amount', { precision: 18, scale: 2 }),
-//     paidAmount: numeric('paid_amount', { precision: 18, scale: 2 }),
-//     overdueAmount: numeric('overdue_amount', { precision: 18, scale: 2 }),
-//   },
-// ).as(sql`
-//   SELECT
-//     SUM(${accountsPayable.totalAmount}) AS total_amount,
-//     SUM(CASE WHEN ${accountsPayable.status} = 'PENDING' THEN ${accountsPayable.remainingAmount} ELSE 0 END) AS pending_amount,
-//     SUM(CASE WHEN ${accountsPayable.status} = 'PAID' THEN ${accountsPayable.paidAmount} ELSE 0 END) AS paid_amount,
-//     SUM(
-//       CASE
-//         WHEN ${accountsPayable.status} = 'PENDING' AND ${accountsPayable.dueDate} < CURRENT_DATE THEN ${accountsPayable.remainingAmount}
-//         ELSE 0
-//       END
-//     ) AS overdue_amount
-//   FROM ${accountsPayable}
-// `);

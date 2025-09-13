@@ -39,7 +39,7 @@ export default async function Page(props: pageProps) {
           initialSearch={search}
           initialLimit={pageLimit}
           initialType={type}
-          group="ALL"
+          initialGroup="ALL"
         />
       </div>
     </PageContainer>

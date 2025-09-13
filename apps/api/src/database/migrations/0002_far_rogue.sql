@@ -1,1 +1,0 @@
-ALTER TYPE "public"."payment_accounts_payable_enum" ADD VALUE 'ADVANCE_PARTIAL' BEFORE 'ADVANCE_APPLIED';

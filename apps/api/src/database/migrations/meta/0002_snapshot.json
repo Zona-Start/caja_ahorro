@@ -1,6 +1,6 @@
 {
-  "id": "f2d049e2-97cf-4815-87b0-bb33cc687b34",
-  "prevId": "e7db8714-e29f-4229-9525-572e56c6adb9",
+  "id": "d5f6b8a2-ec07-4fe1-9fea-81c39fef5768",
+  "prevId": "e33dcba1-fe56-407d-b5b0-44ac971a4907",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3780,6 +3780,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "related_advance_id": {
+          "name": "related_advance_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "amount": {
           "name": "amount",
           "type": "numeric(18, 2)",
@@ -3846,6 +3852,20 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_payment_lines_related_advance_id_accounts_payable_id_fk": {
+          "name": "supplier_payment_lines_related_advance_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_payment_lines",
+          "tableTo": "accounts_payable",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "related_advance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "supplier_payment_lines_created_by_id_users_id_fk": {
@@ -13216,6 +13236,33 @@
       "isExisting": false,
       "materialized": false
     },
+    "inventory.inventory_availability": {
+      "columns": {
+        "item_id": {
+          "name": "item_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "item_type": {
+          "name": "item_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_quantity": {
+          "name": "available_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    item_id AS item_id,\n    item_type AS item_type,\n    SUM(\n      CASE\n        WHEN movement_type = 'IN' THEN quantity\n        WHEN movement_type = 'OUT' THEN -quantity\n        ELSE quantity -- Ajustes u otros tipos se toman con su signo\n      END\n    ) AS available_quantity\n  FROM \"inventory\".\"inventory_movements\"\n  GROUP BY item_id, item_type\n",
+      "name": "inventory_availability",
+      "schema": "inventory",
+      "isExisting": false,
+      "materialized": false
+    },
     "savings_banks.loan_outstanding_balance": {
       "columns": {
         "loan_id": {
@@ -13264,51 +13311,6 @@
       "definition": "\n  SELECT\n      l.id AS loan_id,\n      l.associate_id,\n      l.currency_code,\n      l.status AS loan_status,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"loans\" l\n  JOIN\n      \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n      l.status IN ('DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)\n  GROUP BY\n      l.id,\n      l.associate_id,\n      l.currency_code,\n      l.status\n",
       "name": "loan_outstanding_balance",
       "schema": "savings_banks",
-      "isExisting": false,
-      "materialized": false
-    },
-    "administration.supplier_available_credits_view": {
-      "columns": {
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_name": {
-          "name": "supplier_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tax_id": {
-          "name": "tax_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency_code": {
-          "name": "currency_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "available_credit": {
-          "name": "available_credit",
-          "type": "numeric(20, 6)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "credits": {
-          "name": "credits",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "\n     SELECT\n    ap.supplier_id AS supplier_id,\n    s.name AS supplier_name,\n    s.tax_id AS tax_id,\n    ap.currency_code AS currency_code,\n    SUM(ABS(ap.remaining_amount)) AS available_credit,\n    JSONB_AGG(\n      JSONB_BUILD_OBJECT(\n        'cxpId', ap.id,\n        'cxpNumber', ap.ap_number,\n        'origin', CASE\n          WHEN ap.status = 'ADVANCE' THEN 'ADVANCE'\n          ELSE 'CREDIT_NOTE'\n        END,\n        'amount', ABS(ap.remaining_amount)\n      ) ORDER BY ap.created_at\n    ) AS credits\n  FROM\n    \"administration\".\"accounts_payable\" ap\n  JOIN\n      \"administration\".\"suppliers\" s ON s.id = ap.supplier_id\n  WHERE\n    ap.remaining_amount < 0\n    AND ap.status <> 'CANCELLED'\n  GROUP BY\n    ap.supplier_id,\n    s.name,\n    s.tax_id,\n    ap.currency_code\n",
-      "name": "supplier_available_credits_view",
-      "schema": "administration",
       "isExisting": false,
       "materialized": false
     }

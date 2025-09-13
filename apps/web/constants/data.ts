@@ -15,6 +15,11 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/socios/asociados',
       },
+      {
+        title: 'Tipos de Asociados',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/socios/tipo-asociados',
+      },
     ], // No child items
   },
   {
@@ -44,6 +49,11 @@ export const savingBankItems: NavItem[] = [
         title: 'Liquidación',
         shortcut: ['l', 'l'],
         url: '/dashboard/haberes/liquidacion',
+      },
+      {
+        title: 'Tipos de Rétiros',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/haberes/retiros/tipo-retiros',
       },
     ], // No child items
   },
@@ -104,46 +114,17 @@ export const savingBankItems: NavItem[] = [
     ],
   },
   {
-    title: 'Categorías',
-    url: '#',
-    icon: 'album',
-    shortcut: ['s', 's'],
-    isActive: false,
-    items: [
-      {
-        title: 'Frecuencias de Pagos',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/categorias/frecuencias-pago',
-      },
-      {
-        title: 'Tipos de Asociados',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/categorias/tipo-asociados',
-      },
-      {
-        title: 'Tipos de Nomina',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/categorias/tipo-nomina',
-      },
-      {
-        title: 'Tipos de Rétiros',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/haberes/retiros/tipo-retiros',
-      },
-      {
-        title: 'Inventario',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/categorias/inventario',
-      },
-    ], // No child items
-  },
-  {
     title: 'Inventarios',
     url: '#',
     icon: 'store',
     shortcut: ['s', 's'],
     isActive: false,
     items: [
+      {
+        title: 'Categorías',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/inventarios/categorias',
+      },
       {
         title: 'Productos',
         shortcut: ['l', 'l'],
@@ -222,73 +203,73 @@ export const AccountingItems: NavItem[] = [
       // },
     ],
   },
-  {
-    title: 'Operaciones',
-    url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'betweenHorizonalStart',
-    isActive: false,
-    colorIcons: 'red',
-    items: [
-      {
-        title: 'Asientos Contables',
-        url: '#',
-        shortcut: ['m', 'm'],
-      },
-      {
-        title: 'Libro Diario',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
-      {
-        title: 'Libro Mayor',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
-    ],
-  },
-  {
-    title: 'Estados Financieros',
-    url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'fileChartLine',
-    isActive: false,
-    colorIcons: 'emerald',
-    items: [
-      {
-        title: 'Balance Comprobación',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
-      {
-        title: 'Balance general',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
-      {
-        title: 'Estado de Resultados',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
-    ],
-  },
-  {
-    title: 'Gestión Asociados',
-    url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'handPlatter',
-    isActive: false,
-    colorIcons: 'rose',
-    items: [
-      {
-        title: 'Balance de Asociados',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
-      {
-        title: 'Cuentas de Asociados',
-        shortcut: ['l', 'l'],
-        url: '#',
-      },
-    ],
-  },
+  // {
+  //   title: 'Operaciones',
+  //   url: '#', // Placeholder as there is no direct link for the parent
+  //   icon: 'betweenHorizonalStart',
+  //   isActive: false,
+  //   colorIcons: 'red',
+  //   items: [
+  //     {
+  //       title: 'Asientos Contables',
+  //       url: '#',
+  //       shortcut: ['m', 'm'],
+  //     },
+  //     {
+  //       title: 'Libro Diario',
+  //       shortcut: ['l', 'l'],
+  //       url: '#',
+  //     },
+  //     {
+  //       title: 'Libro Mayor',
+  //       shortcut: ['l', 'l'],
+  //       url: '#',
+  //     },
+  //   ],
+  // },
+  // {
+  //   title: 'Estados Financieros',
+  //   url: '#', // Placeholder as there is no direct link for the parent
+  //   icon: 'fileChartLine',
+  //   isActive: false,
+  //   colorIcons: 'emerald',
+  //   items: [
+  //     {
+  //       title: 'Balance Comprobación',
+  //       shortcut: ['l', 'l'],
+  //       url: '#',
+  //     },
+  //     {
+  //       title: 'Balance general',
+  //       shortcut: ['l', 'l'],
+  //       url: '#',
+  //     },
+  //     {
+  //       title: 'Estado de Resultados',
+  //       shortcut: ['l', 'l'],
+  //       url: '#',
+  //     },
+  //   ],
+  // },
+  // {
+  //   title: 'Gestión Asociados',
+  //   url: '#', // Placeholder as there is no direct link for the parent
+  //   icon: 'handPlatter',
+  //   isActive: false,
+  //   colorIcons: 'rose',
+  //   items: [
+  //     {
+  //       title: 'Balance de Asociados',
+  //       shortcut: ['l', 'l'],
+  //       url: '#',
+  //     },
+  //     {
+  //       title: 'Cuentas de Asociados',
+  //       shortcut: ['l', 'l'],
+  //       url: '#',
+  //     },
+  //   ],
+  // },
 ];
 
 export const BankItems: NavItem[] = [
@@ -319,15 +300,15 @@ export const BankItems: NavItem[] = [
     isActive: false,
     items: [], // No child items
   },
-  {
-    title: 'Conciliacion Bancaria',
-    url: '#',
-    icon: 'squarePercent',
-    colorIcons: 'rose',
-    shortcut: ['p', 'p'],
-    isActive: false,
-    items: [], // No child items
-  },
+  // {
+  //   title: 'Conciliacion Bancaria',
+  //   url: '#',
+  //   icon: 'squarePercent',
+  //   colorIcons: 'rose',
+  //   shortcut: ['p', 'p'],
+  //   isActive: false,
+  //   items: [], // No child items
+  // },
 ];
 
 export const ConfigItems: NavItem[] = [
@@ -343,11 +324,22 @@ export const ConfigItems: NavItem[] = [
         url: '/dashboard/utilidades/configuraciones/datos-caja-ahorro',
         shortcut: ['m', 'm'],
       },
-      // {
-      //   title: 'Numeración  Documentos',
-      //   shortcut: ['l', 'l'],
-      //   url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
-      // },
+      {
+        title: 'Numeración  Documentos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
+      },
+
+      {
+        title: 'Tipos de Nomina',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/utilidades/configuraciones/tipo-nomina',
+      },
+      {
+        title: 'Frecuencias de Pagos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/utilidades/configuraciones/frecuencias-pago',
+      },
     ],
   },
   {

@@ -28,12 +28,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@repo/shadcn/table';
 import { Textarea } from '@repo/shadcn/textarea';
-import { CalendarDays, Check, CreditCard } from 'lucide-react';
+import {
+  CalendarDays,
+  Check,
+  CreditCard,
+  PlusCircle,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useTypeCredits } from '../../type-credits/hooks/use-query-type-credits';
+import { useProducts } from '../hooks/use-query-products';
 import {
   CREDIT_MODALITY,
   ESTATUS_TYPES,
@@ -93,6 +108,7 @@ export function CreditForm({
             notes: initialData?.notes,
             commercialHouseId: initialData?.commercialHouseId,
             invoiceNumber: initialData?.invoiceNumber,
+            products: initialData?.products || [],
           }
         : {
             id: '0',
@@ -111,15 +127,88 @@ export function CreditForm({
             notes: '',
             commercialHouseId: '',
             invoiceNumber: '',
+            products: [],
           },
   });
 
+  const { setValue, reset, watch, getValues, register } = form;
+
   const [exceedingAvailability, setExceedingAvailability] = useState(false);
+
+  const { data: productsData } = useProducts();
+  const availableProducts = productsData?.data || [];
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'products',
+  });
+
+  const commercialHouseId = watch('commercialHouseId');
+  const selectedProducts = watch('products');
+  const isCaprebicentenario = commercialHouseId === '1';
+  const requestedAmountValue = watch('requestedAmount');
+  const creditTypeId = watch('creditTypeId');
+  const startDateValue = watch('startDate');
+  const termMonthsValue = watch('termMonths');
+
+  const formatCurrency = (amount: number | undefined) => {
+    if (amount === undefined) {
+      return '';
+    }
+    if (currentCurrencyCode === 'USD' && currentExchangeRate) {
+      return `${(amount / currentExchangeRate).toFixed(2)}`;
+    }
+    if (currentCurrencyCode === 'VES') {
+      return `Bs. ${amount.toFixed(2)}`;
+    }
+    return `${amount.toFixed(2)}`; // Default to USD if currency code is not recognized
+  };
+
+  // Effect to update requestedAmount based on selected products
+  useEffect(() => {
+    const subscription = watch((value, { name }) => {
+      if (
+        isCaprebicentenario &&
+        name &&
+        (name.startsWith('products') || name === 'commercialHouseId')
+      ) {
+        const products = value.products || [];
+        const totalCost = products.reduce((acc, p) => {
+          const quantity = Number(p?.quantity) || 0;
+          if (p && p.productId && quantity > 0) {
+            const productDetails = availableProducts.find(
+              (product) => product.id === Number(p.productId),
+            );
+            if (productDetails) {
+              return acc + Number(productDetails.productPrice) * quantity;
+            }
+          }
+          return acc;
+        }, 0);
+
+        if (getValues('requestedAmount') !== totalCost.toFixed(2)) {
+          setValue('requestedAmount', totalCost.toFixed(2), {
+            shouldValidate: true,
+          });
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [watch, isCaprebicentenario, availableProducts, setValue, getValues]);
+
+  useEffect(() => {
+    // Si se cambia fuera del modo inventario, limpiar los productos y el monto.
+    if (!isCaprebicentenario) {
+      setValue('requestedAmount', '');
+      remove(); // Elimina todos los campos del array de productos
+    }
+  }, [isCaprebicentenario, setValue, remove]);
 
   // <-- Agrega este efecto para resetear el formulario cuando initialData cambie
   useEffect(() => {
     if (isEdit && initialData) {
-      form.reset({
+      reset({
         id: initialData?.id,
         creditTypeId: initialData?.creditTypeId,
         creditModality: initialData?.creditModality,
@@ -142,7 +231,7 @@ export function CreditForm({
         invoiceNumber: initialData?.invoiceNumber,
       });
     }
-  }, [isEdit, initialData]);
+  }, [isEdit, initialData, reset]);
 
   const { data: creditTypes } = useTypeCredits();
 
@@ -157,10 +246,10 @@ export function CreditForm({
   // Actualizar el associateId cuando cambia el asociado seleccionado
   useEffect(() => {
     if (selectedAssociate) {
-      form.setValue('associateId', selectedAssociate.associate.id);
+      setValue('associateId', selectedAssociate.associate.id);
     } else {
-      form.setValue('associateId', 0);
-      form.reset({
+      setValue('associateId', 0);
+      reset({
         id: '0',
         creditTypeId: '',
         creditModality: '',
@@ -179,23 +268,19 @@ export function CreditForm({
         invoiceNumber: '',
       });
     }
-  }, [selectedAssociate, form]);
+  }, [selectedAssociate, setValue, reset]);
 
   // Actualizar la tasa de interés cuando cambia el tipo de préstamo
   useEffect(() => {
-    const creditTypeId = form.watch('creditTypeId');
     if (creditTypeId) {
       const creditType = creditTypes?.data?.find(
         (lt) => lt.id === Number(creditTypeId),
       );
       if (creditType) {
-        form.setValue(
-          'interestRate',
-          parseInt(creditType.interestRate).toString(),
-        );
-        form.setValue('termMonths', String(Math.floor(creditType.termUnits)));
-        form.setValue('installmentsCount', creditType.termUnits.toString());
-        form.setValue(
+        setValue('interestRate', parseInt(creditType.interestRate).toString());
+        setValue('termMonths', String(Math.floor(creditType.termUnits)));
+        setValue('installmentsCount', creditType.termUnits.toString());
+        setValue(
           'expensesAmount',
           parseInt(
             creditType?.administrativeExpensePercentage ?? '0',
@@ -203,41 +288,33 @@ export function CreditForm({
         );
       }
     }
-  }, [form.watch('creditTypeId'), form]);
+  }, [creditTypeId, creditTypes, setValue]);
 
   // Sincronizar para que la fecha de finalización se calcule automáticamente
   useEffect(() => {
-    const subscription = form.watch((values, { name, type }) => {
-      // Solo recalcula si cambian startDate o termMonths
-      if (name === 'startDate' || name === 'termMonths') {
-        const { startDate, termMonths } = values;
-        if (startDate && termMonths) {
-          const start = new Date(startDate as string | Date);
-          const monthsToAdd = parseInt(termMonths as string);
-          if (!isNaN(start.getTime()) && !isNaN(monthsToAdd)) {
-            const newDate = new Date(start);
-            newDate.setMonth(newDate.getMonth() + monthsToAdd);
-            const calculatedEndDate = newDate.toISOString().split('T')[0];
-            // Solo actualiza si el valor realmente cambió
-            if (form.getValues('endDate') !== calculatedEndDate) {
-              form.setValue('endDate', calculatedEndDate, {
-                shouldDirty: true,
-              });
-            }
-          }
+    if (startDateValue && termMonthsValue) {
+      const start = new Date(startDateValue as string | Date);
+      const monthsToAdd = parseInt(termMonthsValue as string);
+      if (!isNaN(start.getTime()) && !isNaN(monthsToAdd)) {
+        const newDate = new Date(start);
+        newDate.setMonth(newDate.getMonth() + monthsToAdd);
+        const calculatedEndDate = newDate.toISOString().split('T')[0];
+        if (getValues('endDate') !== calculatedEndDate) {
+          setValue('endDate', calculatedEndDate, {
+            shouldDirty: true,
+          });
         }
       }
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
+    }
+  }, [startDateValue, termMonthsValue, setValue, getValues]);
 
   // Notificar cambios en el formulario al componente padre
   useEffect(() => {
-    const subscription = form.watch((value) => {
+    const subscription = watch((value) => {
       onFormChange(value);
     });
     return () => subscription.unsubscribe();
-  }, [form, onFormChange]);
+  }, [watch, onFormChange]);
 
   // Función para manejar el envío del formulario
   const handleSubmit = form.handleSubmit((data) => {
@@ -250,18 +327,13 @@ export function CreditForm({
   };
 
   //Verificar si el monto solicitado excede la disponibilidad
-  const requestedAmount = Number.parseFloat(
-    form.watch('requestedAmount') || '0',
-  );
-
   useEffect(() => {
     if (!selectedAssociate) return;
+    const requestedAmount = Number.parseFloat(requestedAmountValue || '0');
     if (requestedAmount) {
-      // Calcular resumen del préstamo
-      const amount = requestedAmount; //monto soclitado
       const balance = Number(selectedAssociate?.associate.balance);
       const availability = balance * 0.8;
-      if (amount > availability) {
+      if (requestedAmount > availability) {
         setExceedingAvailability(true);
       } else {
         setExceedingAvailability(false);
@@ -269,7 +341,7 @@ export function CreditForm({
     } else if (requestedAmount === 0) {
       setExceedingAvailability(false);
     }
-  }, [requestedAmount]);
+  }, [requestedAmountValue, selectedAssociate]);
 
   return (
     <Card>
@@ -378,38 +450,6 @@ export function CreditForm({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="requestedAmount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Monto del Crédito</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                        {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}
-                      </span>
-                      <Input
-                        className="pl-8"
-                        placeholder="0.00"
-                        {...field}
-                        disabled={
-                          !selectedAssociate ||
-                          isSubmitting ||
-                          isAssociateBlocked
-                        } // <-- Added isAssociateBlocked
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                  {/* {isAmountExceedingAvailability && (
-                        <p className="text-sm font-medium text-destructive">
-                          El monto excede la disponibilidad del asociado
-                        </p>
-                      )} */}
-                </FormItem>
-              )}
-            />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <FormField
                 control={form.control}
@@ -471,14 +511,15 @@ export function CreditForm({
                       </FormControl>
 
                       <SelectContent>
-                       {Object.entries(ESTATUS_TYPES)
-                          .filter(([value]) => ['REQUESTED', 'APPROVED'].includes(value)) // <-- FILTRO APLICADO AQUÍ
+                        {Object.entries(ESTATUS_TYPES)
+                          .filter(([value]) =>
+                            ['REQUESTED', 'APPROVED'].includes(value),
+                          ) // <-- FILTRO APLICADO AQUÍ
                           .map(([value, label]) => (
                             <SelectItem key={value} value={value}>
                               {label}
                             </SelectItem>
-                          ),
-                      )}
+                          ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -486,59 +527,7 @@ export function CreditForm({
                 )}
               />
             </div>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="overdraftAmount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monto de Sobregiro (si aplica)</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                          $
-                        </span>
-                        <Input
-                          className="pl-7"
-                          placeholder="0.00"
-                          {...field}
-                          value={field.value ?? ''}
-                          disabled={
-                            !selectedAssociate ||
-                            isSubmitting ||
-                            isAssociateBlocked
-                          } // <-- Added isAssociateBlocked
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="invoiceNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nro Factura</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          disabled={
-                            !selectedAssociate ||
-                            isSubmitting ||
-                            isAssociateBlocked
-                          } // <-- Added isAssociateBlocked
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
             <FormField
               control={form.control}
               name="commercialHouseId"
@@ -569,6 +558,236 @@ export function CreditForm({
                 </FormItem>
               )}
             />
+
+            {isCaprebicentenario && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Selección de Productos</CardTitle>
+                  <CardDescription>
+                    Añada productos del inventario. El monto del crédito se
+                    calculará automáticamente.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => append({ productId: '', quantity: 1 })}
+                    disabled={
+                      !selectedAssociate || isSubmitting || isAssociateBlocked
+                    }
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Anexar Producto
+                  </Button>
+
+                  {fields.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[40%]">Producto</TableHead>
+                          <TableHead className="w-[100px]">Cantidad</TableHead>
+                          <TableHead className="text-right">
+                            Precio Unit.
+                          </TableHead>
+                          <TableHead className="text-right">Subtotal</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {fields.map((field, index) => {
+                          const selectedProductId = watch(
+                            `products.${index}.productId`,
+                          );
+                          const productDetails = availableProducts.find(
+                            (p) => p.id === Number(selectedProductId),
+                          );
+                          const quantity =
+                            watch(`products.${index}.quantity`) || 0;
+                          const subtotal = productDetails
+                            ? Number(productDetails.productPrice) * quantity
+                            : 0;
+                          const selectedProductIdsInForm =
+                            watch('products')?.map((p) => p.productId) || [];
+
+                          return (
+                            <TableRow key={field.id}>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`products.${index}.productId`}
+                                  render={({ field: selectField }) => (
+                                    <FormItem>
+                                      <Select
+                                        onValueChange={selectField.onChange}
+                                        defaultValue={selectField.value}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione..." />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {availableProducts.map((product) => {
+                                            const isSelectedInAnotherRow =
+                                              selectedProductIdsInForm.includes(
+                                                String(product.id),
+                                              ) &&
+                                              String(product.id) !==
+                                                selectedProductId;
+                                            return (
+                                              <SelectItem
+                                                key={product.id}
+                                                value={String(product.id)}
+                                                disabled={
+                                                  isSelectedInAnotherRow
+                                                }
+                                              >
+                                                {product.name}
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`products.${index}.quantity`}
+                                  render={({ field: inputField }) => (
+                                    <FormItem>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        max={
+                                          productDetails?.available ?? undefined
+                                        } // ← aquí
+                                        {...inputField}
+                                        onChange={(e) =>
+                                          inputField.onChange(
+                                            parseInt(e.target.value, 10) || 0,
+                                          )
+                                        }
+                                      />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(
+                                  productDetails
+                                    ? Number(productDetails.productPrice)
+                                    : 0,
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(subtotal)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => remove(index)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="invoiceNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nro Factura</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          disabled={
+                            !selectedAssociate ||
+                            isSubmitting ||
+                            isAssociateBlocked
+                          } // <-- Added isAssociateBlocked
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="requestedAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monto del Crédito</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                          {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}
+                        </span>
+                        <Input
+                          className="pl-8"
+                          placeholder="0.00"
+                          {...field}
+                          disabled={
+                            !selectedAssociate ||
+                            isSubmitting ||
+                            isAssociateBlocked ||
+                            isCaprebicentenario
+                          }
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="overdraftAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monto de Sobregiro (si aplica)</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                          $
+                        </span>
+                        <Input
+                          className="pl-7"
+                          placeholder="0.00"
+                          {...field}
+                          value={field.value ?? ''}
+                          disabled={
+                            !selectedAssociate ||
+                            isSubmitting ||
+                            isAssociateBlocked
+                          } // <-- Added isAssociateBlocked
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="notes"

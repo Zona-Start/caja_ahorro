@@ -32,7 +32,7 @@ export class AssociatesService {
   ) {}
 
   async create(userId: number, createAssociateDto: CreateAssociateDto) {
-    const key = 'moneda';
+    const key = 'MONEDA';
     try {
       const result = await this.drizzle.transaction(async (tx) => {
         //genera un transaccion si ocurre un error no se guarda nada
@@ -387,7 +387,7 @@ export class AssociatesService {
     id: number,
     updateAssociateDto: UpdateAssociateDto,
   ) {
-    const key = 'moneda';
+    const key = 'MONEDA';
     try {
       const result = await this.drizzle.transaction(async (tx) => {
         // 1. Validar que el asociado a actualizar existe

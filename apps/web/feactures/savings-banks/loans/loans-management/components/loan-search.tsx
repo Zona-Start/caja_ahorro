@@ -49,9 +49,12 @@ export function LoanSearch({
   const queryClient = useQueryClient(); // Get query client instance
 
   // Usar el hook con la opción `enabled` para controlar su ejecución
-  const { data, error, isError, isLoading } = useAssociatesByCedula(submittedSearchTerm, {
-    enabled: shouldFetch && !!submittedSearchTerm.trim(), // Solo se ejecuta si `searchTerm` no está vacío
-  });
+  const { data, error, isError, isLoading } = useAssociatesByCedula(
+    submittedSearchTerm,
+    {
+      enabled: shouldFetch && !!submittedSearchTerm.trim(), // Solo se ejecuta si `searchTerm` no está vacío
+    },
+  );
 
   // Efecto para manejar los resultados de la búsqueda cuando el hook devuelve datos
   useEffect(() => {
@@ -81,29 +84,31 @@ export function LoanSearch({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
-        } else if (errorMessage.includes('retired'))  {
-            toast({
-              title: 'Asociado retirado',
-              description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
-            });
-        } else if (errorMessage.includes('inactive'))  {
-            toast({
-              title: 'Asociado inactivo',
-              description: 'el asociado está inactivo y no puede ser seleccionado.',
-            });
-        }  else {
+        } else if (errorMessage.includes('retired')) {
+          toast({
+            title: 'Asociado retirado',
+            description:
+              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+          });
+        } else if (errorMessage.includes('inactive')) {
+          toast({
+            title: 'Asociado inactivo',
+            description:
+              'el asociado está inactivo y no puede ser seleccionado.',
+          });
+        } else {
           toast({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
         }
-      } else if(data) {
+      } else if (data) {
         setSearchResults(data); // Actualiza los resultados con los datos del servidor
         onSelectAssociate(data);
       } else if (submittedSearchTerm && !data) {
-          setSearchResults(null); // Actualiza los resultados con los datos del servidor
-         onSelectAssociate(null);
-          toast({
+        setSearchResults(null); // Actualiza los resultados con los datos del servidor
+        onSelectAssociate(null);
+        toast({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
@@ -150,12 +155,7 @@ export function LoanSearch({
 
     setSubmittedSearchTerm(trimmedSearchTerm);
     setShouldFetch(true); // Activa la ejecución del hook
-  }, [
-    searchTerm,
-    submittedSearchTerm,
-    selectedAssociate,
-    onSelectAssociate,
-  ]);
+  }, [searchTerm, submittedSearchTerm, selectedAssociate, onSelectAssociate]);
 
   // Función para limpiar la selección de asociado
   const clearAssociate = useCallback(() => {
@@ -167,10 +167,7 @@ export function LoanSearch({
     // Remove the generic query key as well, just in case
     queryClient.removeQueries({ queryKey: ['loans-associates-by-cedula'] });
     // No need for setTimeout to re-enable fetch immediately
-  }, [
-    queryClient,
-    onSelectAssociate,
-  ]);
+  }, [queryClient, onSelectAssociate]);
 
   // Efecto para manejar la tecla Enter en la búsqueda
   useEffect(() => {
@@ -198,6 +195,7 @@ export function LoanSearch({
         const convertedBalance = balance / exchangeRate;
         return convertedBalance.toFixed(2);
       }
+
       return selectedAssociate.associate.balance;
     }
     return '';
@@ -247,17 +245,16 @@ export function LoanSearch({
             </div>
           )}
 
-           {/* Visualización del asociado seleccionado o estado vacío/carga */}
-                    {isLoading &&
-                      !selectedAssociate && ( // Mostrar solo si estamos cargando y no hay un asociado previo
-                        <div className="rounded-lg border border-dashed p-8 text-center mt-4">
-                          <div className="flex flex-col items-center justify-center text-muted-foreground">
-                            <Loader2 className="h-8 w-8 mb-2 animate-spin" />
-                            <p>Buscando asociado...</p>
-                          </div>
-                        </div>
-                      )}
-          
+          {/* Visualización del asociado seleccionado o estado vacío/carga */}
+          {isLoading &&
+            !selectedAssociate && ( // Mostrar solo si estamos cargando y no hay un asociado previo
+              <div className="rounded-lg border border-dashed p-8 text-center mt-4">
+                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                  <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                  <p>Buscando asociado...</p>
+                </div>
+              </div>
+            )}
 
           {!isLoading && selectedAssociate && (
             <div className="rounded-lg border p-4 mt-4">
@@ -275,8 +272,12 @@ export function LoanSearch({
                   </div>
                 </div>
                 {!isEdit && (
-                  <Button variant="ghost" size="icon" onClick={clearAssociate}  
-                  disabled={isLoading}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={clearAssociate}
+                    disabled={isLoading}
+                  >
                     <X className="h-4 w-4" />
                   </Button>
                 )}
@@ -306,7 +307,7 @@ export function LoanSearch({
               )}
             </div>
           )}
-          
+
           {!isLoading && !selectedAssociate && (
             <div className="rounded-lg border border-dashed p-8 text-center mt-4">
               <div className="flex flex-col items-center justify-center text-muted-foreground">

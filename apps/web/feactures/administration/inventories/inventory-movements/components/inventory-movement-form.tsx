@@ -127,7 +127,7 @@ export default function InventoryMovementForm({
     );
     return { totalItems, totalQuantity, totalValue };
   };
-
+  console.log(form.formState.errors);
   const onSubmit = async (data: CreateInventoryMovement) => {
     saveInventoryMovement(data, {
       onSuccess: () => {

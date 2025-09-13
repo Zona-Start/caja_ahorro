@@ -11,6 +11,7 @@ import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { inventoryAvailability } from 'src/database/index';
 import { ProductPricesService } from '../product-prices/product-prices.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { FilterProductDto } from './dto/filter-product.dto';
@@ -107,6 +108,36 @@ export class ProductsService {
         name: products.name,
       })
       .from(products);
+  }
+
+  async findAllProductByCredit() {
+    const rows = await this.drizzle
+      .select({
+        id: products.id,
+        name: products.name,
+        productPrice: schema.productPrices.finalPrice,
+        availableQuantity: inventoryAvailability.availableQuantity,
+      })
+      .from(products)
+      .leftJoin(
+        schema.productPrices,
+        eq(schema.productPrices.productId, products.id),
+      )
+      .leftJoin(
+        inventoryAvailability,
+        and(
+          eq(inventoryAvailability.itemId, products.id),
+          eq(inventoryAvailability.itemType, 'PRODUCT'),
+        ),
+      )
+      .where(eq(products.status, 'AVAILABLE'));
+
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      productPrice: r.productPrice,
+      available: r.availableQuantity ?? 0,
+    }));
   }
 
   async findAll(paginationDto: FilterProductDto) {

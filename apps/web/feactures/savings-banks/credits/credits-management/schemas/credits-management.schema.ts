@@ -35,6 +35,14 @@ export const creditManagementSchema = z.object({
     required_error: 'Por favor seleccione la casa comercial',
   }), //casa comercial
   notes: z.string(), //observaciones
+  products: z
+    .array(
+      z.object({
+        productId: z.string(),
+        quantity: z.number().min(1, 'La cantidad debe ser al menos 1'),
+      }),
+    )
+    .optional(),
 });
 
 export type CreditManagement = z.infer<typeof creditManagementSchema>;

@@ -19,7 +19,6 @@ export class SettingsSystemService {
   }
 
   async findAllByGroup(
-    group: string,
     filterSettingTypeDto?: FilterSettingTypeDto,
   ): Promise<{ data: SettingSystem[]; meta: any }> {
     const {
@@ -29,6 +28,7 @@ export class SettingsSystemService {
       sortBy = 'id',
       sortOrder = 'asc',
       type = '',
+      group = 'ALL',
     } = filterSettingTypeDto || {};
 
     // Calculate offset
@@ -55,8 +55,6 @@ export class SettingsSystemService {
         ? sql`${searchCondition} AND ${searchFilter}`
         : searchFilter;
     }
-
-    console.log(searchCondition);
 
     // Build sort condition
     const orderBy =
