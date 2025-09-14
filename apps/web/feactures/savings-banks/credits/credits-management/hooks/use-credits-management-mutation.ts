@@ -3,8 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  aprobeCreditManagementAction,
+  createCreditManagementAction,
   deleteCreditManagementAction,
-  saveCreditManagementAction,
 } from '../actions/credits-management-actions';
 import { CreditManagement } from '../schemas/credits-management.schema';
 
@@ -14,9 +15,31 @@ export function useCreditManagementMutation() {
 
   const mutation = useMutation({
     mutationFn: (creditManagement: CreditManagement) =>
-      saveCreditManagementAction(creditManagement),
+      createCreditManagementAction(creditManagement),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['credit-associates-individual-by-cedula'] });
+      queryClient.removeQueries({
+        queryKey: ['credit-associates-individual-by-cedula'],
+      });
+      queryClient.invalidateQueries({ queryKey: ['credit-management'] });
+      queryClient.invalidateQueries({ queryKey: ['credit-management-count'] });
+    },
+    onError: (error) => {
+      console.error('Error:', error);
+    },
+  });
+
+  return mutation;
+}
+
+export function useAprobedCreditMutation() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: number) => aprobeCreditManagementAction(id),
+    onSuccess: () => {
+      queryClient.removeQueries({
+        queryKey: ['credit-associates-individual-by-cedula'],
+      });
       queryClient.invalidateQueries({ queryKey: ['credit-management'] });
       queryClient.invalidateQueries({ queryKey: ['credit-management-count'] });
     },

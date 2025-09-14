@@ -1,0 +1,1 @@
+ALTER TABLE "savings_banks"."withdrawal_types" ADD COLUMN "is_internal_inventory" boolean DEFAULT false NOT NULL;

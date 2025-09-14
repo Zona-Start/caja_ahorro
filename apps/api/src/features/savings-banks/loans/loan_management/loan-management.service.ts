@@ -328,7 +328,7 @@ export class LoanManagementService {
       .from(company);
 
     const setting = await this.db.query.systemSettings.findFirst({
-      where: eq(systemSettings.key, 'moneda'),
+      where: eq(systemSettings.key, 'MONEDA'),
     });
     const entryDate = new Date().toISOString().split('T')[0];
     const exchangeRateData = await this.db.query.exchangeRates.findFirst({
@@ -983,7 +983,7 @@ export class LoanManagementService {
     }
 
     const setting = await this.db.query.systemSettings.findFirst({
-      where: eq(systemSettings.key, 'moneda'),
+      where: eq(systemSettings.key, 'MONEDA'),
     });
     const entryDate = new Date().toISOString().split('T')[0];
     const exchangeRateData = await this.db.query.exchangeRates.findFirst({

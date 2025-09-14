@@ -1,0 +1,1 @@
+ALTER TABLE "savings_banks"."credit_item_sales" ADD CONSTRAINT "credit_item_sales_days_category_types_id_fk" FOREIGN KEY ("days") REFERENCES "core"."category_types"("id") ON DELETE set null ON UPDATE no action;

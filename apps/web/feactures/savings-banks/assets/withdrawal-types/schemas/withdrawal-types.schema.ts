@@ -14,6 +14,8 @@ export const withdrawalTypesSchema = z.object({
   withdrawalLimitQuantity: z.number().optional().nullable(),
   minimumAntiquityDays: z.number().nullable().optional(),
   withdrawalFrequencyRelation: z.number({ message: 'Requerido' }).min(1),
+  isHouseComercial: z.boolean(),
+  isInternalInventory: z.boolean(),
 });
 
 export type WithdrawalTypes = z.infer<typeof withdrawalTypesSchema>;

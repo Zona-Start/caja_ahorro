@@ -4,6 +4,7 @@ import { useAccountingAccounts } from '@/feactures/accounting/accounting-account
 import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
+import { Switch } from '@repo/shadcn/components/ui/switch';
 import {
   Form,
   FormControl,
@@ -52,10 +53,13 @@ export function WithdrawalTypesForm({
       id: defaultValues?.id,
       description: defaultValues?.description || '',
       withdrawalPercentage: defaultValues?.withdrawalPercentage || '',
-      accountDebit: defaultValues?.accountDebit,
-      expenseAccount: defaultValues?.expenseAccount,
-      administrativeFeePercentage: defaultValues?.administrativeFeePercentage,
+      accountDebit: defaultValues?.accountDebit || undefined,
+      expenseAccount: defaultValues?.expenseAccount || undefined,
+      administrativeFeePercentage:
+        defaultValues?.administrativeFeePercentage || '',
       withdrawalFrequencyRelation: defaultValues?.withdrawalFrequencyRelation,
+      isHouseComercial: defaultValues?.isHouseComercial || false,
+      isInternalInventory: defaultValues?.isInternalInventory || false,
     },
     mode: 'onChange',
   });
@@ -198,7 +202,7 @@ export function WithdrawalTypesForm({
             name="withdrawalFrequencyRelation"
             render={({ field }) => (
               <FormItem className="w-full">
-                <FormLabel>Frecuencia Descuento</FormLabel>
+                <FormLabel>Frecuencia Retiros</FormLabel>
                 <Select
                   onValueChange={(value) => field.onChange(Number(value))}
                   defaultValue={String(field.value)}
@@ -221,6 +225,46 @@ export function WithdrawalTypesForm({
                     ))}
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="isInternalInventory"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <FormLabel>Utiliza Inventario</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value ?? false}
+                    onCheckedChange={field.onChange}
+                    disabled={readOnly}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="isHouseComercial"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <FormLabel>Utiliza Casa Comercial</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value ?? false}
+                    onCheckedChange={field.onChange}
+                    disabled={readOnly}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

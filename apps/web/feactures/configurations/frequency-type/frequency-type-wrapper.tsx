@@ -32,10 +32,12 @@ export function FrequencyTypeWrapper({
       <CategoriesTypesHeader
         description="Gestiona los tipos de frecuencia nomina en el sistema"
         title="Tipos de Frecuencia"
-        nameButton="Agregar Tipo"
+      />
+      <CategoriesTypesTableAction
+        inputTitle="Buscar por nombre"
+        nameButton="Agregar Frecuencia"
         group={group}
       />
-      <CategoriesTypesTableAction inputTitle="Buscar por nombre" />
       <CategoriesTypesList
         initialPage={page}
         initialSearch={search}

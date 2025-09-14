@@ -54,6 +54,8 @@ export class AssociateWithdrawalTypesService {
           withdrawalTypes.administrativeFeePercentage,
         withdrawalLimitQuantity: withdrawalTypes.withdrawalLimitQuantity,
         minimumAntiquityDays: withdrawalTypes.minimumAntiquityDays,
+        isHouseComercial: withdrawalTypes.isHouseComercial,
+        isInternalInventory: withdrawalTypes.isInternalInventory,
       })
       .from(withdrawalTypes);
 

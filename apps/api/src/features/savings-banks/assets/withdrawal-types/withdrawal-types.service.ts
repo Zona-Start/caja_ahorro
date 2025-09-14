@@ -58,6 +58,9 @@ export class WithdrawalTypesService {
             ? String(createWithdrawalTypeDto.administrativeFeePercentage)
             : null,
         createdById: userId,
+        isHouseComercial: createWithdrawalTypeDto.isHouseComercial ?? false,
+        isInternalInventory:
+          createWithdrawalTypeDto.isInternalInventory ?? false,
       })
       .returning();
 
@@ -122,6 +125,8 @@ export class WithdrawalTypesService {
         minimumAntiquityDays: withdrawalTypes.minimumAntiquityDays,
         withdrawalFrequencyRelation:
           withdrawalTypes.withdrawalFrequencyRelation,
+        isHouseComercial: withdrawalTypes.isHouseComercial,
+        isInternalInventory: withdrawalTypes.isInternalInventory,
       })
       .from(withdrawalTypes)
       .where(searchCondition)
@@ -161,6 +166,8 @@ export class WithdrawalTypesService {
         minimumAntiquityDays: withdrawalTypes.minimumAntiquityDays,
         withdrawalFrequencyRelation:
           withdrawalTypes.withdrawalFrequencyRelation,
+        isHouseComercial: withdrawalTypes.isHouseComercial,
+        isInternalInventory: withdrawalTypes.isInternalInventory,
       })
       .from(withdrawalTypes)
       .where(eq(withdrawalTypes.id, id));
@@ -193,6 +200,8 @@ export class WithdrawalTypesService {
         updateWithdrawalTypeDto.administrativeFeePercentage !== null
           ? String(updateWithdrawalTypeDto.administrativeFeePercentage)
           : null,
+      isHouseComercial: updateWithdrawalTypeDto.isHouseComercial,
+      isInternalInventory: updateWithdrawalTypeDto.isInternalInventory,
       updatedById: userId,
     };
 

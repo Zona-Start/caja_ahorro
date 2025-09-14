@@ -57,7 +57,11 @@ export const getPaginatedCategoryTypesAction = async (params: {
     } else if (item.group === GROUP_TYPES.DISCOUNT_FREQ) {
       name = 'FRECUENCIA NOMINA';
       options = item.options[0].frequency;
+    } else if (item.group === GROUP_TYPES.DAYS_TYPE) {
+      name = 'TIPO JORNADA';
+      options = null;
     }
+
     return {
       ...item,
       group: name,

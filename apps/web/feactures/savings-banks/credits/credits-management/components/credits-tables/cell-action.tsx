@@ -2,7 +2,6 @@
 
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/button';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import {
   Tooltip,
@@ -10,11 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Trash } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Eye, FileCheck, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteCredit } from '../../hooks/use-credits-management-mutation';
+import {
+  useAprobedCreditMutation,
+  useDeleteCredit,
+} from '../../hooks/use-credits-management-mutation';
 import { CreditManagement } from '../../schemas/credits-management.schema';
+import { CreditDetailsModal } from '../credit-details-modal';
 
 interface CellActionProps {
   data: CreditManagement;
@@ -23,11 +25,15 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const { mutate: deleteCredit } = useDeleteCredit();
-  const router = useRouter();
-  const { toast } = useToast();
+  const [showAprobedModal, setShowAprobedModal] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  const onConfirm = async () => {
+  const { mutate: deleteCredit } = useDeleteCredit();
+
+  const { mutate: aprobeCredit, isPending: isUpdating } =
+    useAprobedCreditMutation();
+
+  const onConfirmDelete = async () => {
     try {
       setLoading(true);
       deleteCredit(Number(data.id!));
@@ -39,24 +45,36 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
-  const onUpdate = async () => {
-    console.log('diclik');
-
-    toast({
-      variant: 'destructive',
-      title: 'No se puede editar el crédito',
-      description: `Solo se puede editar el crédito si el estado es 'solicitado'`,
+  const onConfirmUpdate = async () => {
+    aprobeCredit(Number(data.id!), {
+      onSuccess: () => {
+        setShowAprobedModal(false);
+      },
     });
   };
 
   return (
     <>
+      <CreditDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        credit={data}
+      />
       <AlertModal
         isOpen={open}
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
+        onConfirm={onConfirmDelete}
         loading={loading}
         title="¿Estás seguro que desea eliminar el Crédito? "
+        description="Esta acción no se puede deshacer."
+      />
+
+      <AlertModal
+        isOpen={showAprobedModal}
+        onClose={() => setShowAprobedModal(false)}
+        onConfirm={onConfirmUpdate}
+        loading={isUpdating}
+        title="¿Estás seguro que desea Aprobar este Crédito?"
         description="Esta acción no se puede deshacer."
       />
       <Toaster />
@@ -67,21 +85,33 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  if (data.status !== 'REQUESTED') {
-                    onUpdate();
-                  } else {
-                    router.push(
-                      `/dashboard/creditos/gestion/editar/${data.id}`,
-                    );
-                  }
-                }}
+                onClick={() => setIsDetailsModalOpen(true)}
               >
-                <Edit className="h-4 w-4" />
+                <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Editar</p>
+              <p>Ver Detalles</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={data.status !== 'REQUESTED'}
+                onClick={() => {
+                  setShowAprobedModal(true);
+                }}
+              >
+                <FileCheck className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Aprobar</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -93,6 +123,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => setOpen(true)}
+                disabled={data.status !== 'REQUESTED'}
               >
                 <Trash className="h-4 w-4" />
               </Button>

@@ -9,10 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Trash } from 'lucide-react';
+import { Eye, FileCheck, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteWithdrawal } from '../../hooks/use-withdrawal-mutation';
+import {
+  useAprobeWithdrawalMutation,
+  useDeleteWithdrawal,
+} from '../../hooks/use-withdrawal-mutation';
 import { WithdrawalPaymentApi } from '../../schemas/withdrawal-api-response';
+import { WithdrawalDetailsModal } from '../withdrawal-details-modal';
 
 interface CellActionProps {
   data: WithdrawalPaymentApi;
@@ -21,9 +25,15 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [showAprobedModal, setShowAprobedModal] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
   const { mutate: deleteWithdrawal } = useDeleteWithdrawal();
 
-  const onConfirm = async () => {
+  const { mutate: aprobeMutation, isPending: isUpdating } =
+    useAprobeWithdrawalMutation();
+
+  const onConfirmDelete = async () => {
     try {
       setLoading(true);
       deleteWithdrawal(Number(data.id!));
@@ -35,14 +45,36 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
+  const onConfirmUpdate = async () => {
+    aprobeMutation(Number(data.id!), {
+      onSuccess: () => {
+        setShowAprobedModal(false);
+      },
+    });
+  };
+
   return (
     <>
+      <WithdrawalDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={() => setIsDetailsModalOpen(false)}
+        withdrawal={data}
+      />
       <AlertModal
         isOpen={open}
         onClose={() => setOpen(false)}
-        onConfirm={onConfirm}
+        onConfirm={onConfirmDelete}
         loading={loading}
         title="¿Estás seguro que desea anular el retiro? "
+        description="Esta acción no se puede deshacer."
+      />
+
+      <AlertModal
+        isOpen={showAprobedModal}
+        onClose={() => setShowAprobedModal(false)}
+        onConfirm={onConfirmUpdate}
+        loading={isUpdating}
+        title="¿Estás seguro que desea Aprobar este retiro?"
         description="Esta acción no se puede deshacer."
       />
       <Toaster />
@@ -53,7 +85,44 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
+                onClick={() => setIsDetailsModalOpen(true)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ver Detalles</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={data.status !== 'REQUESTED'}
+                onClick={() => {
+                  setShowAprobedModal(true);
+                }}
+              >
+                <FileCheck className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Aprobar</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={() => setOpen(true)}
+                disabled={data.status !== 'REQUESTED'}
               >
                 <Trash className="h-4 w-4" />
               </Button>

@@ -340,6 +340,11 @@ export const ConfigItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/utilidades/configuraciones/frecuencias-pago',
       },
+      {
+        title: 'Tipos Jornadas',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/utilidades/configuraciones/tipo-jornadas',
+      },
     ],
   },
   {

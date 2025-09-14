@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
@@ -12,11 +12,13 @@ import {
   withdrawalTypes,
 } from '@/database/index';
 import { associateHaberesBalance } from '@/database/schema/views';
+import { InventoryMovementsService } from '@/features/administration/inventory/inventory-movements/inventory-movements.service';
 import {
   AssociateMovementTypeEnum,
   CreditStatusEnum,
   CurrencyCodeEnum,
   LoanStatusEnum,
+  withdrawalStatusEnum,
 } from '@/types/enum';
 import {
   BadRequestException,
@@ -35,133 +37,73 @@ export class WithdrawalAssociateService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
+    private readonly generateCodeService: GenerateCodeService,
+    private readonly inventoryMovementsService: InventoryMovementsService,
   ) {}
-
-  // --- Helper function to generate custom reference ---
-  // private async generateCustomReference(): Promise<string> {
-  //   // Fetch the current correlative number and increment it
-  //   const key = 'correlativo_retiros';
-  //   try {
-  //     const result = await this.db.transaction(async (tx) => {
-  //       // Lock the row for update
-  //       const setting = await tx.query.systemSettings.findFirst({
-  //         where: eq(systemSettings.key, key),
-  //         // Add forUpdate() if your Drizzle version supports it for row locking
-  //         // Example: columns: {}, with: { forUpdate: true }
-  //       });
-
-  //       if (!setting) {
-  //         throw new InternalServerErrorException(
-  //           `System setting '${key}' not found.`,
-  //         );
-  //       }
-
-  //       const currentNumber = parseInt(setting.value, 10);
-  //       if (isNaN(currentNumber)) {
-  //         throw new InternalServerErrorException(
-  //           `Invalid correlative number format for '${key}'.`,
-  //         );
-  //       }
-
-  //       const nextNumber = currentNumber + 1;
-  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
-
-  //       // Update the setting with the new value
-  //       await tx
-  //         .update(systemSettings)
-  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-  //         .where(eq(systemSettings.id, setting.id));
-
-  //       return nextValue; // Return the generated reference
-  //     });
-  //     return `RET${result}`; // Prefix the reference
-  //   } catch (error) {
-  //     console.error('Error generating custom reference:', error);
-  //     throw new InternalServerErrorException(
-  //       'Failed to generate custom loan reference.',
-  //     );
-  //   }
-  // }
 
   private _hasElapsedMonths(
     currentDate: Date,
     allowedMonths: number,
     lastOperationDate: Date | null,
   ): boolean {
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
-
     if (lastOperationDate === null) {
       return true;
     }
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
     const lastOperationYear = lastOperationDate.getFullYear();
     const lastOperationMonth = lastOperationDate.getMonth();
-
-    // Calculate the difference in months between the two dates
     const monthDifference =
       (currentYear - lastOperationYear) * 12 +
       (currentMonth - lastOperationMonth);
-
-    // Check if the difference is greater than or equal to the allowed number of months
     return monthDifference >= allowedMonths;
   }
 
-  async create(dto: CreateWithdrawalAssociateDto, userId: number) {
+  async execute(dto: CreateWithdrawalAssociateDto, userId: number) {
     const {
       associateAccountId,
       paymentMethod,
       requestedAmount,
       withdrawalDate,
       withdrawalTypeId,
+      commercialHouseId,
+      withdrawalItems,
     } = dto;
 
-    // Las líneas comentadas para moneda y tasa de cambio no son parte de la lógica central
-    // de pago del préstamo, pero las dejo si son necesarias para otras funcionalidades.
-    // const setting = await this.db.query.systemSettings.findFirst({
-    //   where: eq(systemSettings.key, 'moneda'),
-    // });
-    // const entryDate = new Date().toISOString().split('T')[0];
-    // const exchangeRateData = await this.db.query.exchangeRates.findFirst({
-    //   where: eq(exchangeRates.date, entryDate),
-    // });
-
     const setting = await this.db.query.systemSettings.findFirst({
-      where: eq(systemSettings.key, 'tiempo_retiro'),
+      where: eq(systemSettings.key, 'TIEMPO_RETIRO'),
     });
 
-    const [resultWithdrawal] = await this.db
+    const [lastWithdrawal] = await this.db
       .select()
       .from(withdrawalsAssociates)
       .where(eq(withdrawalsAssociates.associateAccountId, associateAccountId))
       .orderBy(desc(withdrawalsAssociates.createdAt))
       .limit(1);
-    console.log(resultWithdrawal);
 
-    if (resultWithdrawal) {
+    if (lastWithdrawal) {
       if (
-        resultWithdrawal.status === 'DISBURSED' ||
-        resultWithdrawal.status === 'ADJUSTED'
+        lastWithdrawal.status === withdrawalStatusEnum.DISBURSED ||
+        lastWithdrawal.status === withdrawalStatusEnum.ADJUSTED
       ) {
-        //Verificamos si tiene el tiempo permitido para retiro
         const monthsAllowed = this._hasElapsedMonths(
           withdrawalDate,
           Number(setting?.value),
-          resultWithdrawal?.createdAt ?? null,
+          lastWithdrawal?.createdAt ?? null,
         );
-
         if (!monthsAllowed) {
-          throw new NotFoundException(
-            `Associate does not comply with the time allowed to make a withdrawal`,
+          throw new BadRequestException(
+            `No ha transcurrido el tiempo permitido para un nuevo retiro.`,
           );
         }
       }
 
       if (
-        resultWithdrawal.status === 'APPROVED' ||
-        resultWithdrawal.status === 'REQUESTED'
+        lastWithdrawal.status === withdrawalStatusEnum.APPROVED ||
+        lastWithdrawal.status === withdrawalStatusEnum.REQUESTED
       ) {
-        throw new NotFoundException(
-          `A withdrawal cannot be made. You must disburse the last approved withdrawal.`,
+        throw new BadRequestException(
+          `No se puede procesar el retiro. Debe desembolsarse o anularse el último retiro.`,
         );
       }
     }
@@ -169,6 +111,10 @@ export class WithdrawalAssociateService {
     const withdrawalType = await this.db.query.withdrawalTypes.findFirst({
       where: eq(withdrawalTypes.id, Number(withdrawalTypeId)),
     });
+
+    if (!withdrawalType) {
+      throw new NotFoundException('Tipo de retiro no encontrado.');
+    }
 
     const [associateAccount] = await this.db
       .select()
@@ -180,96 +126,186 @@ export class WithdrawalAssociateService {
         ),
       );
 
-    const calculateAssets =
+    const maxAllowedAmount =
       (Number(associateAccount?.haberesBalance) *
         Number(withdrawalType?.withdrawalPercentage)) /
       100;
 
-    if (requestedAmount > calculateAssets) {
-      throw new NotFoundException(`amount exceeds 80% of their assets`);
+    if (requestedAmount > maxAllowedAmount) {
+      throw new BadRequestException(
+        `El monto solicitado excede el porcentaje máximo permitido de sus haberes.`,
+      );
     }
 
-    const calculateAadministrative =
-      (Number(requestedAmount) *
-        Number(withdrawalType?.administrativeFeePercentage)) /
-      100;
-    const calculeTotalPay = requestedAmount - calculateAadministrative;
-
-    // Inicia la transacción para asegurar la atomicidad de las operaciones
-    await this.db.transaction(async (tx) => {
-      // 1. Genera una referencia única para este retiro
-      const customReference = generateUniqueReference();
-
-      // 2. Inserta el registro principal del pago en la tabla ''
+    return this.db.transaction(async (tx) => {
       const [insertedWithdrawal] = await tx
         .insert(withdrawalsAssociates)
         .values({
           associateAccountId: Number(associateAccountId),
-          requestedAmount: requestedAmount,
-          administrativeFee: calculateAadministrative,
-          disbursedAmount: calculeTotalPay,
+          requestedAmount: requestedAmount.toString(),
           withdrawalDate: withdrawalDate,
           withdrawalTypeId: withdrawalTypeId,
-          referenceCode: customReference,
+          referenceCode:
+            await this.generateCodeService.generateNextReference('RH-RET'),
           paymentMethod: paymentMethod,
           createdById: Number(userId),
-          status: 'APPROVED',
+          status: withdrawalStatusEnum.REQUESTED, // <-- Nuevo estado inicial
+          commercialHouseId: commercialHouseId,
+          withdrawalItems: withdrawalItems,
         })
         .returning();
 
-      // const dataMovements = {
-      //   associateAccountId: Number(associateAccountId),
-      //   movementType: 'SAVING_WITHDRAWAL' as AssociateMovementTypeEnum,
-      //   amount: requestedAmount,
-      //   currencyCode: 'VES' as CurrencyCodeEnum,
-      //   transactionDate: withdrawalDate,
-      //   description: 'RETIRO HABERES',
-      //   referenceId: String(insertedWithdrawal.id),
-      //   referenceType: 'withdrawalsAssociates',
-      //   referenceNumber: customReference,
-      //   area: 'HABERES',
-      // };
-
-      // const dataMovementsAdministrativeFee = {
-      //   associateAccountId: Number(associateAccountId),
-      //   movementType: 'WITHDRAWAL_FEE_DEBIT' as AssociateMovementTypeEnum,
-      //   amount: calculateAadministrative,
-      //   currencyCode: 'VES' as CurrencyCodeEnum,
-      //   transactionDate: withdrawalDate,
-      //   description: 'DEBITO GASTOS ADMINISTRATIVOS POR RETIRO HABERES',
-      //   referenceId: String(insertedWithdrawal.id),
-      //   referenceType: 'withdrawalsAssociates',
-      //   referenceNumber: customReference,
-      //   area: 'HABERES',
-      // };
-
-      // //registra el movimiento en la cuenta asociado
-      // await this.associateAccountsMovementsService.create(
-      //   userId,
-      //   dataMovements,
-      // );
-
-      // await this.associateAccountsMovementsService.create(
-      //   userId,
-      //   dataMovementsAdministrativeFee,
-      // );
-
-      // Registra el log auditoria
       await tx.insert(auditLogs).values({
         tableName: 'withdrawalsAssociates',
         recordId: String(insertedWithdrawal.id),
         action: 'INSERT',
         userId: Number(userId),
         area: 'HABERES',
-        description: 'RETIRO HABERES APROBADO',
+        description: `SOLICTUD DE RETIRO DE HABERES POR EL VALOR DE ${requestedAmount}`,
         newData: [insertedWithdrawal],
       });
-    });
 
-    // Retorna una respuesta de éxito
-    return {
-      message: 'Withdrawal Associate create success',
-    };
+      return { message: 'Solicitud de retiro creada exitosamente' };
+    });
+  }
+
+  async approve(id: number, userId: number) {
+    return this.db.transaction(async (tx) => {
+      const [withdrawal] = await tx
+        .select()
+        .from(withdrawalsAssociates)
+        .where(eq(withdrawalsAssociates.id, id));
+
+      if (!withdrawal) {
+        throw new NotFoundException('Retiro no encontrado.');
+      }
+
+      if (withdrawal.status !== withdrawalStatusEnum.REQUESTED) {
+        throw new BadRequestException(
+          `Solo se pueden aprobar retiros en estado 'Solicitado'.`,
+        );
+      }
+
+      const withdrawalType = await tx.query.withdrawalTypes.findFirst({
+        where: eq(withdrawalTypes.id, Number(withdrawal.withdrawalTypeId)),
+      });
+
+      if (!withdrawalType) {
+        throw new NotFoundException('Tipo de retiro no encontrado.');
+      }
+
+      const isGoodsWithdrawal =
+        withdrawal.commercialHouseId != null ||
+        (Array.isArray(withdrawal.withdrawalItems) &&
+          withdrawal.withdrawalItems.length > 0);
+
+      if (isGoodsWithdrawal) {
+        // Es un retiro de bienes, se descuenta de haberes y se marca como desembolsado.
+        const administrativeFee =
+          (Number(withdrawal.requestedAmount) *
+            Number(withdrawalType.administrativeFeePercentage)) /
+          100;
+
+        await this.associateAccountsMovementsService.create(userId, {
+          associateAccountId: withdrawal.associateAccountId,
+          movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+          amount: Number(withdrawal.requestedAmount),
+          currencyCode: CurrencyCodeEnum.VES,
+          transactionDate: new Date(),
+          description: `RETIRO DE HABERES POR BIENES - REF: ${withdrawal.referenceCode}`,
+          referenceId: String(withdrawal.id),
+          referenceType: 'withdrawalsAssociates',
+          referenceNumber: withdrawal.referenceCode ?? undefined,
+          area: 'HABERES',
+        });
+
+        if (administrativeFee > 0) {
+          await this.associateAccountsMovementsService.create(userId, {
+            associateAccountId: withdrawal.associateAccountId,
+            movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
+            amount: administrativeFee,
+            currencyCode: CurrencyCodeEnum.VES,
+            transactionDate: new Date(),
+            description: `GASTO ADMINISTRATIVO POR RETIRO DE BIENES - REF: ${withdrawal.referenceCode}`,
+            referenceId: String(withdrawal.id),
+            referenceType: 'withdrawalsAssociates',
+            referenceNumber: withdrawal.referenceCode ?? undefined,
+            area: 'HABERES',
+          });
+        }
+
+        const disbursedAmount =
+          Number(withdrawal.requestedAmount) - administrativeFee;
+        const [updated] = await tx
+          .update(withdrawalsAssociates)
+          .set({
+            status: withdrawalStatusEnum.DISBURSED,
+            administrativeFee: administrativeFee.toString(),
+            disbursedAmount: disbursedAmount.toString(),
+            updatedById: userId,
+          })
+          .where(eq(withdrawalsAssociates.id, id))
+          .returning();
+
+        await tx.insert(auditLogs).values({
+          tableName: 'withdrawalsAssociates',
+          recordId: String(id),
+          action: 'UPDATE',
+          userId: userId,
+          area: 'HABERES',
+          description: `RETIRO DE HABERES POR BIENES DESEMBOLSADOS.`,
+          newData: [updated],
+          previousData: [withdrawal],
+        });
+
+        if (Array.isArray(withdrawal.withdrawalItems)) {
+          for (const item of withdrawal.withdrawalItems) {
+            if (item.itemType === 'PRODUCT') {
+              await this.inventoryMovementsService.create(
+                userId,
+                {
+                  movementType: 'OUT',
+                  description: `SALIDA PRODUCTO POR RETIRO DE HABERES N° ${withdrawal.referenceCode}`,
+                  documentType: 'VENTA',
+                  documentNumber: withdrawal.referenceCode ?? undefined,
+                  items: [
+                    {
+                      itemId: item.itemId ?? 0,
+                      itemType: 'PRODUCT',
+                      quantity: item.quantity,
+                      unitCost: Number(item.agreedSellingPrice),
+                    },
+                  ],
+                },
+                tx,
+              );
+            }
+          }
+        }
+
+        return { message: 'Retiro por bienes desembolsado exitosamente.' };
+      } else {
+        // Es un retiro monetario, solo se aprueba y queda pendiente de desembolso.
+        const [updated] = await tx
+          .update(withdrawalsAssociates)
+          .set({ status: withdrawalStatusEnum.APPROVED, updatedById: userId })
+          .where(eq(withdrawalsAssociates.id, id))
+          .returning();
+
+        await tx.insert(auditLogs).values({
+          tableName: 'withdrawalsAssociates',
+          recordId: String(id),
+          action: 'UPDATE',
+          userId: userId,
+          area: 'HABERES',
+          description: `Retiro monetario aprobado.`,
+          newData: [updated],
+          previousData: [withdrawal],
+        });
+
+        return { message: 'Retiro monetario aprobado exitosamente.' };
+      }
+    });
   }
 
   async findAll(paginationDto: FilterWithdrawalAssociateDto) {
@@ -282,10 +318,8 @@ export class WithdrawalAssociateService {
       type = '',
     } = paginationDto || {};
 
-    // Calculate offset
     const offset = (page - 1) * limit;
 
-    // Build search condition
     let searchConditions: SQL<unknown>[] = [];
 
     if (search) {
@@ -304,13 +338,11 @@ export class WithdrawalAssociateService {
       ? and(...searchConditions)
       : undefined;
 
-    // Build sort condition
     const orderBy =
       sortOrder === 'asc'
         ? sql`${withdrawalsAssociates[sortBy as keyof typeof withdrawalsAssociates]} asc`
         : sql`${withdrawalsAssociates[sortBy as keyof typeof withdrawalsAssociates]} desc`;
 
-    // Get total count for pagination
     const totalCountResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(withdrawalsAssociates)
@@ -319,7 +351,6 @@ export class WithdrawalAssociateService {
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Get paginated data
     const data = await this.db
       .select({
         id: withdrawalsAssociates.id,
@@ -348,7 +379,6 @@ export class WithdrawalAssociateService {
       .limit(limit)
       .offset(offset);
 
-    // Build pagination metadata
     const meta = {
       page,
       limit,
@@ -464,7 +494,6 @@ export class WithdrawalAssociateService {
 
   async remove(withdrawalId: number, userId: number) {
     return await this.db.transaction(async (tx) => {
-      // 1. Validar que el retiro existe
       const withdrawal = await tx.query.withdrawalsAssociates.findFirst({
         where: eq(withdrawalsAssociates.id, withdrawalId),
       });
@@ -476,9 +505,7 @@ export class WithdrawalAssociateService {
       const { status, associateAccountId, disbursedAmount, referenceCode } =
         withdrawal;
 
-      // 2. Validar y actuar según el estado
       if (status === 'REQUESTED' || status === 'APPROVED') {
-        // Caso A: Cancelar un retiro solicitado o aprobado
         await tx
           .update(withdrawalsAssociates)
           .set({ status: 'CANCELLED', updatedById: userId })
@@ -496,13 +523,11 @@ export class WithdrawalAssociateService {
 
         return { message: `The retreat has been cancelled.` };
       } else if (status === 'DISBURSED') {
-        // Caso B: Reversar un retiro ya desembolsado
         await tx
           .update(withdrawalsAssociates)
           .set({ status: 'REVERSED', updatedById: userId })
           .where(eq(withdrawalsAssociates.id, withdrawalId));
 
-        // Crear el movimiento de reverso en la cuenta
         await this.associateAccountsMovementsService.create(userId, {
           associateAccountId: associateAccountId,
           movementType:
@@ -527,7 +552,6 @@ export class WithdrawalAssociateService {
 
         return { message: `El retiro ${referenceCode} ha sido reversado.` };
       } else {
-        // Caso C: Estado no válido para la operación
         throw new BadRequestException(
           `A withdrawal with that status cannot be cancelled or reversed.`,
         );

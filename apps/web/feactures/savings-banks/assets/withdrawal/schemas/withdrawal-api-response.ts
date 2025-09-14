@@ -45,6 +45,8 @@ export const withdrawalTypeApiSchema = z.object({
   administrativeFeePercentage: z.string(),
   withdrawalLimitQuantity: z.number().nullable(),
   minimumAntiquityDays: z.number().nullable(),
+  isHouseComercial: z.boolean(),
+  isInternalInventory: z.boolean(),
 });
 
 export type WithdrawalType = z.infer<typeof withdrawalTypeApiSchema>;

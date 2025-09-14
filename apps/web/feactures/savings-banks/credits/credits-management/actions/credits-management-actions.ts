@@ -18,7 +18,7 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associate data');
   }
   return data;
@@ -32,7 +32,7 @@ export const getCreditManagementByIdAction = async (id: number) => {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error fetching loan with ID ${id}`);
   }
 
@@ -111,7 +111,7 @@ export const getCreditManagementAllAction = async (params: {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || 'Error fetching associates data');
   }
 
@@ -137,6 +137,11 @@ export const getCreditManagementAllAction = async (params: {
       creditTypeName: item.creditTypeName,
       associateCedula: item.associateCedula,
       associateFullname: item.associateFullname,
+      creditTypeInterestRate: item.creditTypeInterestRate,
+      creditTypeAdministrativeExpensePercentage:
+        item.creditTypeAdministrativeExpensePercentage,
+      creditTypeTermUnits: item.creditTypeTermUnits,
+      invoiceNumber: item.invoiceNumber,
     })) || [];
 
   return {
@@ -174,54 +179,33 @@ export const createCreditManagementAction = async (
     notes: payloadWithoutId.notes,
     invoiceNumber: payloadWithoutId.invoiceNumber,
     commercialHouseId: payloadWithoutId.commercialHouseId,
-    products: payloadWithoutId.products,
+    creditItems: payloadWithoutId.creditItems,
+    useCommercialHouse: payloadWithoutId.useCommercialHouse,
   };
 
   const [error, data] = await safeFetchApi(
     CreditManagementMutationResponse,
-    '/credit',
+    '/credit/request',
     'POST',
     payload,
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || 'Error create loan Management');
   }
 
   return data;
 };
 
-export const updateCreditManagementAction = async (
-  creditManagement: CreditManagement,
-) => {
-  const { id, ...payloadWithoutId } = creditManagement;
-  const payload = {
-    associateId: Number(payloadWithoutId.associateId),
-    creditTypeId: Number(payloadWithoutId.creditTypeId),
-    creditModality: payloadWithoutId.creditModality,
-    requestDate: payloadWithoutId.requestDate.toISOString().split('T')[0],
-    startDate: payloadWithoutId.startDate.toISOString().split('T')[0],
-    requestedAmount: Number(payloadWithoutId.requestedAmount),
-    overdraftAmount:
-      payloadWithoutId.overdraftAmount === ''
-        ? null
-        : Number(payloadWithoutId.overdraftAmount),
-    status: payloadWithoutId.status,
-    notes: payloadWithoutId.notes,
-    invoiceNumber: payloadWithoutId.invoiceNumber,
-    commercialHouseId: payloadWithoutId.commercialHouseId,
-    products: payloadWithoutId.products,
-  };
-
+export const aprobeCreditManagementAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     CreditManagementMutationResponse, // Assuming the response is similar
-    `/credit/${id}`, // API endpoint for updating a single loan
+    `/credit/approve/${id}`, // API endpoint for updating a single loan
     'PATCH', // Or 'PUT', depending on your API
-    payload,
   );
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error update loan with ID ${id}`);
   }
   return data;
@@ -235,7 +219,7 @@ export const deleteCreditManagementAction = async (id: number) => {
     'DELETE',
   );
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error delete loan with ID ${id}`);
   }
   return data;
@@ -249,23 +233,9 @@ export const getCreditManagementAllCountAction = async () => {
   );
 
   if (error) {
-   // console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error fetching loan count}`);
   }
 
   return data;
-};
-
-export const saveCreditManagementAction = async (
-  creditManagement: CreditManagement,
-) => {
-  try {
-    if (creditManagement.id !== '0') {
-      return await updateCreditManagementAction(creditManagement);
-    } else {
-      return await createCreditManagementAction(creditManagement);
-    }
-  } catch (error: any) {
-    throw new Error(error.message || 'Error saving associate data');
-  }
 };

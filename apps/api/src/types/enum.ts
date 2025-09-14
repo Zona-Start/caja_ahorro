@@ -421,3 +421,22 @@ export enum paymentSupplierStatusEnum {
   CANCELLED = 'CANCELLED', // Anulado
   REVERSED = 'REVERSED', // Reversar pago
 }
+
+export enum paymentBatchStatus {
+  DRAFT = 'DRAFT', // en edición
+  UPLOADED = 'UPLOADED', // archivo generado y subido al banco
+  PROCESSED = 'PROCESSED', // banco respondió OK
+  CANCELLED = 'CANCELLED', // anulado antes de procesar
+}
+
+export enum paymentBatchItemType {
+  LOAN = 'LOAN',
+  WITHDRAWAL = 'WITHDRAWAL',
+  LIQUIDATION = 'LIQUIDATION',
+}
+
+export enum paymentBatchItemStatus {
+  PENDING = 'PENDING', // pendiente de ser procesado
+  PROCESSED = 'PROCESSED', // procesado exitosamente
+  REJECTED = 'REJECTED', // rechazado por el banco
+}

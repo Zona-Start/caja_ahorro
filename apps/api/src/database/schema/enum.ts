@@ -433,3 +433,16 @@ export const paymentSupplierStatusEnum = pgEnum('payment_supplier_status', [
   'CANCELLED', // Anulado
   'REVERSED', // Reversar pago
 ]);
+
+export const paymentBatchStatus = pgEnum('payment_batch_status', [
+  'DRAFT', // en edición
+  'UPLOADED', // archivo generado y subido al banco
+  'PROCESSED', // banco respondió OK
+  'CANCELLED', // anulado antes de procesar
+]);
+
+export const paymentBatchItemType = pgEnum('payment_batch_item_type', [
+  'LOAN',
+  'WITHDRAWAL',
+  'LIQUIDATION',
+]);

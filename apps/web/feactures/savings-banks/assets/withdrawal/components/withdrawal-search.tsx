@@ -291,7 +291,7 @@ export function WithdrawalSearch({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="blue" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <User />
           </IconWrapper>
           {isEdit ? 'Datos del Asociado' : 'Busqueda de Asociado'}

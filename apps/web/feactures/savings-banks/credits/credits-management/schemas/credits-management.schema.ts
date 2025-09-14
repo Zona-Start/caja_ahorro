@@ -31,10 +31,8 @@ export const creditManagementSchema = z.object({
   invoiceNumber: z.string().optional(), //numero de factura
   status: z.string().optional(), //status
   installmentsCount: z.string(), //cantidad de cuotas
-  commercialHouseId: z.string({
-    required_error: 'Por favor seleccione la casa comercial',
-  }), //casa comercial
-  notes: z.string(), //observaciones
+  commercialHouseId: z.string().optional().nullable(), //casa comercial
+  notes: z.string().optional().nullable(), //observaciones
   products: z
     .array(
       z.object({
@@ -43,6 +41,31 @@ export const creditManagementSchema = z.object({
       }),
     )
     .optional(),
+  items: z
+    .array(
+      z.object({
+        description: z.string().min(1, 'La descripción es requerida'),
+        quantity: z.number().min(1, 'La cantidad debe ser al menos 1'),
+        cost: z.number().min(0, 'El costo no puede ser negativo'),
+        days: z.string().min(1, 'Debe seleccionar una jornada'),
+      }),
+    )
+    .optional(),
+  creditItems: z
+    .array(
+      z.object({
+        agreedSellingPrice: z
+          .number()
+          .min(0, 'El precio no puede ser negativo'),
+        itemId: z.number().optional(),
+        itemType: z.string().min(1, 'El tipo es requerido'),
+        itemDescription: z.string().optional(),
+        quantity: z.number().min(1, 'La cantidad debe ser al menos 1'),
+        days: z.string().min(1, 'Debe seleccionar una jornada'),
+      }),
+    )
+    .optional(),
+  useCommercialHouse: z.boolean().optional(),
 });
 
 export type CreditManagement = z.infer<typeof creditManagementSchema>;

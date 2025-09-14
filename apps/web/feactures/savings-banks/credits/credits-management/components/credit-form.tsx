@@ -1,6 +1,7 @@
 'use client';
 import { IconWrapper } from '@/components/icon-wrapper';
-import { useTypeSuppliers } from '@/constants/data';
+import { useSupplierAll } from '@/feactures/administration/suppliers/hooks/use-query-suppliers';
+import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -12,6 +13,7 @@ import {
 } from '@repo/shadcn/card';
 import { Badge } from '@repo/shadcn/components/ui/badge';
 import { CustomCalendar } from '@repo/shadcn/components/ui/custom-calendar';
+import { SelectSearchable } from '@repo/shadcn/components/ui/select-searchable';
 import {
   Form,
   FormControl,
@@ -45,14 +47,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 import { useTypeCredits } from '../../type-credits/hooks/use-query-type-credits';
 import { useProducts } from '../hooks/use-query-products';
-import {
-  CREDIT_MODALITY,
-  ESTATUS_TYPES,
-} from '../schemas/credits-management-options';
+import { CREDIT_MODALITY } from '../schemas/credits-management-options';
 import { creditManagementSchema } from '../schemas/credits-management.schema';
 import { AssociatesLoan } from '../schemas/individual-credit-api-schema'; // Ensure this import exists
 
@@ -65,10 +64,13 @@ interface CreditFormProps {
   onFormChange: (values: any) => void;
   currentCurrencyCode: string | undefined;
   currentExchangeRate: number | undefined;
-  endDate?: string | Date; // <-- NUEVO: recibir endDate como prop
-  initialData?: any; // <-- NUEVO: recibir initialData como prop
-  isEdit?: boolean; // <-- NUEVO: recibir isEdit como prop
+  endDate?: string | Date;
+  initialData?: any;
+  isEdit?: boolean;
 }
+
+const COMMERCIAL_HOUSE_NONE = 'none';
+const COMMERCIAL_HOUSE_INTERNAL = 'internal_inventory';
 
 export function CreditForm({
   selectedAssociate,
@@ -79,9 +81,9 @@ export function CreditForm({
   onFormChange,
   currentCurrencyCode,
   currentExchangeRate,
-  endDate, // <-- NUEVO: recibir endDate como prop
+  endDate,
   initialData,
-  isEdit, // <-- NUEVO: recibir isEdit como prop
+  isEdit,
 }: CreditFormProps) {
   const form = useForm<z.infer<typeof creditManagementSchema>>({
     resolver: zodResolver(creditManagementSchema),
@@ -89,6 +91,7 @@ export function CreditForm({
       isEdit && initialData
         ? {
             id: initialData?.id,
+            associateId: initialData?.associateId,
             creditTypeId: initialData?.creditTypeId,
             creditModality: initialData?.creditModality,
             requestDate: initialData.requestDate
@@ -105,10 +108,12 @@ export function CreditForm({
             installmentsCount: initialData?.termMonths,
             expensesAmount: initialData?.expensesAmount,
             overdraftAmount: initialData?.overdraftAmount,
-            notes: initialData?.notes,
+            notes: initialData?.notes ?? '',
             commercialHouseId: initialData?.commercialHouseId,
             invoiceNumber: initialData?.invoiceNumber,
             products: initialData?.products || [],
+            items: initialData?.items || [],
+            useCommercialHouse: initialData?.useCommercialHouse || false,
           }
         : {
             id: '0',
@@ -125,31 +130,53 @@ export function CreditForm({
             expensesAmount: '',
             overdraftAmount: null,
             notes: '',
-            commercialHouseId: '',
+            commercialHouseId: COMMERCIAL_HOUSE_NONE,
             invoiceNumber: '',
             products: [],
+            items: [],
+            useCommercialHouse: false,
           },
   });
 
-  const { setValue, reset, watch, getValues, register } = form;
+  const { setValue, reset, watch, getValues, control } = form;
 
   const [exceedingAvailability, setExceedingAvailability] = useState(false);
 
   const { data: productsData } = useProducts();
+
+  const { data: suppliers } = useSupplierAll();
+  const { data: daysType } = useCategoriesTypesGroup('DAYS_TYPE');
+  const { data: creditTypes } = useTypeCredits();
   const availableProducts = productsData?.data || [];
 
   const { fields, append, remove } = useFieldArray({
-    control: form.control,
+    control,
     name: 'products',
   });
 
+  const {
+    fields: itemFields,
+    append: appendItem,
+    remove: removeItem,
+  } = useFieldArray({
+    control,
+    name: 'items',
+  });
+
   const commercialHouseId = watch('commercialHouseId');
-  const selectedProducts = watch('products');
-  const isCaprebicentenario = commercialHouseId === '1';
+
+  const showInternalInventory = commercialHouseId === COMMERCIAL_HOUSE_INTERNAL;
+  const showCommercialItems =
+    commercialHouseId &&
+    commercialHouseId !== COMMERCIAL_HOUSE_NONE &&
+    commercialHouseId !== COMMERCIAL_HOUSE_INTERNAL;
+
   const requestedAmountValue = watch('requestedAmount');
   const creditTypeId = watch('creditTypeId');
   const startDateValue = watch('startDate');
   const termMonthsValue = watch('termMonths');
+  const watchedProducts = useWatch({ control, name: 'products' });
+  const watchedItems = useWatch({ control, name: 'items' });
 
   const formatCurrency = (amount: number | undefined) => {
     if (amount === undefined) {
@@ -161,89 +188,66 @@ export function CreditForm({
     if (currentCurrencyCode === 'VES') {
       return `Bs. ${amount.toFixed(2)}`;
     }
-    return `${amount.toFixed(2)}`; // Default to USD if currency code is not recognized
+    return `${amount.toFixed(2)}`;
   };
 
-  // Effect to update requestedAmount based on selected products
   useEffect(() => {
-    const subscription = watch((value, { name }) => {
-      if (
-        isCaprebicentenario &&
-        name &&
-        (name.startsWith('products') || name === 'commercialHouseId')
-      ) {
-        const products = value.products || [];
-        const totalCost = products.reduce((acc, p) => {
-          const quantity = Number(p?.quantity) || 0;
-          if (p && p.productId && quantity > 0) {
-            const productDetails = availableProducts.find(
-              (product) => product.id === Number(p.productId),
-            );
-            if (productDetails) {
-              return acc + Number(productDetails.productPrice) * quantity;
-            }
-          }
-          return acc;
-        }, 0);
+    if (!showInternalInventory) return;
 
-        if (getValues('requestedAmount') !== totalCost.toFixed(2)) {
-          setValue('requestedAmount', totalCost.toFixed(2), {
-            shouldValidate: true,
-          });
+    const totalCost = (watchedProducts || []).reduce((acc, p) => {
+      const quantity = Number(p?.quantity) || 0;
+      if (p?.productId && quantity > 0) {
+        const productDetails = availableProducts.find(
+          (prod) => prod.id === Number(p.productId),
+        );
+        if (productDetails) {
+          return acc + Number(productDetails.productPrice) * quantity;
         }
       }
-    });
+      return acc;
+    }, 0);
 
-    return () => subscription.unsubscribe();
-  }, [watch, isCaprebicentenario, availableProducts, setValue, getValues]);
+    const rounded = totalCost.toFixed(2);
+    if (getValues('requestedAmount') !== rounded) {
+      setValue('requestedAmount', rounded, { shouldValidate: true });
+      onFormChange({ ...getValues(), requestedAmount: rounded });
+    }
+  }, [
+    watchedProducts,
+    showInternalInventory,
+    availableProducts,
+    getValues,
+    setValue,
+    onFormChange,
+  ]);
 
   useEffect(() => {
-    // Si se cambia fuera del modo inventario, limpiar los productos y el monto.
-    if (!isCaprebicentenario) {
-      setValue('requestedAmount', '');
-      remove(); // Elimina todos los campos del array de productos
-    }
-  }, [isCaprebicentenario, setValue, remove]);
+    if (!showCommercialItems) return;
 
-  // <-- Agrega este efecto para resetear el formulario cuando initialData cambie
+    const totalCost = (watchedItems || []).reduce((acc, item) => {
+      const quantity = Number(item?.quantity) || 0;
+      const cost = Number(item?.cost) || 0;
+      return acc + quantity * cost;
+    }, 0);
+
+    const rounded = totalCost.toFixed(2);
+    if (getValues('requestedAmount') !== rounded) {
+      setValue('requestedAmount', rounded, { shouldValidate: true });
+      onFormChange({ ...getValues(), requestedAmount: rounded });
+    }
+  }, [watchedItems, showCommercialItems, getValues, setValue, onFormChange]);
+
   useEffect(() => {
     if (isEdit && initialData) {
-      reset({
-        id: initialData?.id,
-        creditTypeId: initialData?.creditTypeId,
-        creditModality: initialData?.creditModality,
-        requestDate: initialData.requestDate
-          ? new Date(initialData.requestDate)
-          : new Date(),
-        requestedAmount: initialData?.requestedAmount,
-        startDate: initialData?.startDate
-          ? new Date(initialData.startDate)
-          : new Date(),
-        endDate: initialData?.endDate,
-        termMonths: initialData?.termMonths,
-        status: initialData?.status,
-        interestRate: initialData?.interestRate,
-        installmentsCount: initialData?.termMonths,
-        expensesAmount: initialData?.expensesAmount,
-        overdraftAmount: initialData?.overdraftAmount,
-        notes: initialData?.notes,
-        commercialHouseId: initialData?.commercialHouseId,
-        invoiceNumber: initialData?.invoiceNumber,
-      });
+      reset(initialData);
     }
   }, [isEdit, initialData, reset]);
 
-  const { data: creditTypes } = useTypeCredits();
-
-  const { data: suppliersType } = useTypeSuppliers();
-
-  // Determine if the associate is blocked
   const isAssociateBlocked =
     selectedAssociate !== null &&
     (selectedAssociate.totalCredits > 0 ||
       selectedAssociate.associate.isPayrollCredit === true);
 
-  // Actualizar el associateId cuando cambia el asociado seleccionado
   useEffect(() => {
     if (selectedAssociate) {
       setValue('associateId', selectedAssociate.associate.id);
@@ -264,13 +268,15 @@ export function CreditForm({
         expensesAmount: '',
         overdraftAmount: null,
         notes: '',
-        commercialHouseId: '',
+        commercialHouseId: COMMERCIAL_HOUSE_NONE,
         invoiceNumber: '',
+        products: [],
+        items: [],
+        useCommercialHouse: false,
       });
     }
   }, [selectedAssociate, setValue, reset]);
 
-  // Actualizar la tasa de interés cuando cambia el tipo de préstamo
   useEffect(() => {
     if (creditTypeId) {
       const creditType = creditTypes?.data?.find(
@@ -290,7 +296,6 @@ export function CreditForm({
     }
   }, [creditTypeId, creditTypes, setValue]);
 
-  // Sincronizar para que la fecha de finalización se calcule automáticamente
   useEffect(() => {
     if (startDateValue && termMonthsValue) {
       const start = new Date(startDateValue as string | Date);
@@ -300,25 +305,63 @@ export function CreditForm({
         newDate.setMonth(newDate.getMonth() + monthsToAdd);
         const calculatedEndDate = newDate.toISOString().split('T')[0];
         if (getValues('endDate') !== calculatedEndDate) {
-          setValue('endDate', calculatedEndDate, {
-            shouldDirty: true,
-          });
+          setValue('endDate', calculatedEndDate, { shouldDirty: true });
         }
       }
     }
   }, [startDateValue, termMonthsValue, setValue, getValues]);
 
-  // Notificar cambios en el formulario al componente padre
   useEffect(() => {
-    const subscription = watch((value) => {
-      onFormChange(value);
-    });
+    const subscription = watch((value) => onFormChange(value));
     return () => subscription.unsubscribe();
   }, [watch, onFormChange]);
 
-  // Función para manejar el envío del formulario
   const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data);
+    const saleDate = new Date().toISOString();
+    let creditItems: any[] = [];
+
+    if (showInternalInventory) {
+      creditItems = (data.products || []).map((p: any) => {
+        const productDetails = availableProducts.find(
+          (prod) => prod.id === Number(p.productId),
+        );
+        return {
+          itemType: 'PRODUCT',
+          itemDescription: null,
+          itemId: Number(p.productId),
+          quantity: p.quantity,
+          agreedSellingPrice: productDetails
+            ? Number(productDetails.productPrice)
+            : 0,
+          saleDate,
+        };
+      });
+    } else if (showCommercialItems) {
+      creditItems = (data.items || []).map((item: any) => ({
+        itemType: 'EXTERNAL',
+        itemDescription: item.description,
+        itemId: null,
+        quantity: item.quantity,
+        agreedSellingPrice: item.cost,
+        saleDate,
+        days: Number(item.days),
+      }));
+    }
+
+    const dataToSubmit = {
+      ...data,
+      creditItems,
+      useCommercialHouse: showInternalInventory,
+      commercialHouseId:
+        commercialHouseId === COMMERCIAL_HOUSE_NONE ||
+        commercialHouseId === COMMERCIAL_HOUSE_INTERNAL
+          ? null
+          : commercialHouseId,
+    };
+    onSubmit(dataToSubmit);
+
+    delete dataToSubmit.products;
+    delete dataToSubmit.items;
   });
 
   const handleCancel = () => {
@@ -326,7 +369,6 @@ export function CreditForm({
     onCancel();
   };
 
-  //Verificar si el monto solicitado excede la disponibilidad
   useEffect(() => {
     if (!selectedAssociate) return;
     const requestedAmount = Number.parseFloat(requestedAmountValue || '0');
@@ -347,7 +389,7 @@ export function CreditForm({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="purple" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <CreditCard />
           </IconWrapper>
           Datos del Crédito
@@ -359,9 +401,9 @@ export function CreditForm({
       <CardContent>
         <Form {...form}>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <FormField
-                control={form.control}
+                control={control}
                 name="creditTypeId"
                 render={({ field }) => (
                   <FormItem>
@@ -371,7 +413,7 @@ export function CreditForm({
                       defaultValue={field.value}
                       disabled={
                         !selectedAssociate || isSubmitting || isAssociateBlocked
-                      } // <-- Added isAssociateBlocked
+                      }
                     >
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -392,7 +434,7 @@ export function CreditForm({
               />
 
               <FormField
-                control={form.control}
+                control={control}
                 name="creditModality"
                 render={({ field }) => (
                   <FormItem>
@@ -402,7 +444,7 @@ export function CreditForm({
                       defaultValue={field.value}
                       disabled={
                         !selectedAssociate || isSubmitting || isAssociateBlocked
-                      } // <-- Added isAssociateBlocked
+                      }
                     >
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -424,9 +466,11 @@ export function CreditForm({
                   </FormItem>
                 )}
               />
+            </div>
 
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <FormField
-                control={form.control}
+                control={control}
                 name="requestDate"
                 render={({ field }) => (
                   <FormItem className="w-full">
@@ -441,18 +485,15 @@ export function CreditForm({
                           !selectedAssociate ||
                           isSubmitting ||
                           isAssociateBlocked
-                        } // <-- Added isAssociateBlocked
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <FormField
-                control={form.control}
+                control={control}
                 name="startDate"
                 render={({ field }) => (
                   <FormItem>
@@ -467,7 +508,7 @@ export function CreditForm({
                           !selectedAssociate ||
                           isSubmitting ||
                           isAssociateBlocked
-                        } // <-- Added isAssociateBlocked
+                        }
                         minDate={new Date()}
                       />
                     </FormControl>
@@ -476,7 +517,7 @@ export function CreditForm({
                 )}
               />
               <FormField
-                control={form.control}
+                control={control}
                 name="endDate"
                 render={({ field }) => (
                   <FormItem>
@@ -491,8 +532,8 @@ export function CreditForm({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
+              {/* <FormField
+                control={control}
                 name="status"
                 render={({ field }) => (
                   <FormItem>
@@ -502,7 +543,7 @@ export function CreditForm({
                       defaultValue={field.value}
                       disabled={
                         !selectedAssociate || isSubmitting || isAssociateBlocked
-                      } // <-- Added isAssociateBlocked
+                      }
                     >
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -514,7 +555,7 @@ export function CreditForm({
                         {Object.entries(ESTATUS_TYPES)
                           .filter(([value]) =>
                             ['REQUESTED', 'APPROVED'].includes(value),
-                          ) // <-- FILTRO APLICADO AQUÍ
+                          )
                           .map(([value, label]) => (
                             <SelectItem key={value} value={value}>
                               {label}
@@ -525,41 +566,45 @@ export function CreditForm({
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              /> */}
             </div>
 
             <FormField
-              control={form.control}
+              control={control}
               name="commercialHouseId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Casa Comercial</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
+                  <SelectSearchable
+                    placeholder="Filtrar por proveedor"
+                    options={[
+                      {
+                        value: COMMERCIAL_HOUSE_INTERNAL,
+                        label: 'Inventario Interno',
+                      },
+                      ...(suppliers?.map((supplier) => ({
+                        value: supplier.id!.toString(),
+                        label: supplier.name,
+                      })) || []),
+                    ]}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      setValue('products', []);
+                      setValue('items', []);
+                      setValue('requestedAmount', '');
+                    }}
+                    defaultValue={field.value ?? undefined}
                     disabled={
                       !selectedAssociate || isSubmitting || isAssociateBlocked
-                    } // <-- Added isAssociateBlocked
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Seleccione el tipo" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {suppliersType?.map((type) => (
-                        <SelectItem key={type.id} value={String(type.id)}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    }
+                    enableNoneOption
+                  />
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {isCaprebicentenario && (
+            {showInternalInventory && (
               <Card>
                 <CardHeader>
                   <CardTitle>Selección de Productos</CardTitle>
@@ -572,7 +617,7 @@ export function CreditForm({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => append({ productId: '', quantity: 1 })}
+                    onClick={() => append({ productId: '', quantity: 0 })}
                     disabled={
                       !selectedAssociate || isSubmitting || isAssociateBlocked
                     }
@@ -614,13 +659,13 @@ export function CreditForm({
                             <TableRow key={field.id}>
                               <TableCell>
                                 <FormField
-                                  control={form.control}
+                                  control={control}
                                   name={`products.${index}.productId`}
-                                  render={({ field: selectField }) => (
+                                  render={({ field }) => (
                                     <FormItem>
                                       <Select
-                                        onValueChange={selectField.onChange}
-                                        defaultValue={selectField.value}
+                                        onValueChange={field.onChange} // ← RHF ya sabe qué hacer
+                                        value={field.value}
                                       >
                                         <FormControl>
                                           <SelectTrigger>
@@ -628,22 +673,18 @@ export function CreditForm({
                                           </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                          {availableProducts.map((product) => {
-                                            const isSelectedInAnotherRow =
+                                          {availableProducts.map((p) => {
+                                            const isSelected =
                                               selectedProductIdsInForm.includes(
-                                                String(product.id),
-                                              ) &&
-                                              String(product.id) !==
-                                                selectedProductId;
+                                                String(p.id),
+                                              ) && String(p.id) !== field.value;
                                             return (
                                               <SelectItem
-                                                key={product.id}
-                                                value={String(product.id)}
-                                                disabled={
-                                                  isSelectedInAnotherRow
-                                                }
+                                                key={p.id}
+                                                value={String(p.id)}
+                                                disabled={isSelected}
                                               >
-                                                {product.name}
+                                                {p.name}
                                               </SelectItem>
                                             );
                                           })}
@@ -656,22 +697,17 @@ export function CreditForm({
                               </TableCell>
                               <TableCell>
                                 <FormField
-                                  control={form.control}
+                                  control={control}
                                   name={`products.${index}.quantity`}
-                                  render={({ field: inputField }) => (
+                                  render={({ field }) => (
                                     <FormItem>
                                       <Input
                                         type="number"
                                         min="1"
-                                        max={
-                                          productDetails?.available ?? undefined
-                                        } // ← aquí
-                                        {...inputField}
+                                        {...field} // ← importante: spread completo
                                         onChange={(e) =>
-                                          inputField.onChange(
-                                            parseInt(e.target.value, 10) || 0,
-                                          )
-                                        }
+                                          field.onChange(e.target.valueAsNumber)
+                                        } // ← convierte a número
                                       />
                                       <FormMessage />
                                     </FormItem>
@@ -707,9 +743,166 @@ export function CreditForm({
               </Card>
             )}
 
+            {showCommercialItems && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Items de Casa Comercial</CardTitle>
+                  <CardDescription>
+                    Añada los items. El monto del crédito se calculará
+                    automáticamente.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendItem({
+                        description: '',
+                        quantity: 1,
+                        cost: 0,
+                        days: '',
+                      })
+                    }
+                    disabled={
+                      !selectedAssociate || isSubmitting || isAssociateBlocked
+                    }
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Agregar Item
+                  </Button>
+
+                  {itemFields.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[30%]">Descripción</TableHead>
+                          <TableHead className="w-[25%]">Jornada</TableHead>
+                          <TableHead className="w-[100px]">Cantidad</TableHead>
+                          <TableHead className="text-right">
+                            Costo Unit.
+                          </TableHead>
+                          <TableHead className="text-right">Subtotal</TableHead>
+                          <TableHead className="w-[50px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {itemFields.map((field, index) => {
+                          const quantity =
+                            watch(`items.${index}.quantity`) || 0;
+                          const cost = watch(`items.${index}.cost`) || 0;
+                          const subtotal = quantity * cost;
+
+                          return (
+                            <TableRow key={field.id}>
+                              <TableCell>
+                                <FormField
+                                  control={control}
+                                  name={`items.${index}.description`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Input type="text" {...field} />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={control}
+                                  name={`items.${index}.days`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Select
+                                        onValueChange={field.onChange}
+                                        value={field.value}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Selecciona una jornada" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
+                                          {daysType?.data?.map((item: any) => (
+                                            <SelectItem
+                                              key={item.id}
+                                              value={item.id!.toString()}
+                                            >
+                                              {item.description}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={control}
+                                  name={`items.${index}.quantity`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        {...field}
+                                        onChange={(e) =>
+                                          field.onChange(e.target.valueAsNumber)
+                                        }
+                                      />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={control}
+                                  name={`items.${index}.cost`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        {...field}
+                                        onChange={(e) =>
+                                          field.onChange(e.target.valueAsNumber)
+                                        }
+                                      />
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {formatCurrency(subtotal)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeItem(index)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <FormField
-                control={form.control}
+                control={control}
                 name="invoiceNumber"
                 render={({ field }) => (
                   <FormItem>
@@ -722,7 +915,7 @@ export function CreditForm({
                             !selectedAssociate ||
                             isSubmitting ||
                             isAssociateBlocked
-                          } // <-- Added isAssociateBlocked
+                          }
                         />
                       </div>
                     </FormControl>
@@ -731,7 +924,7 @@ export function CreditForm({
                 )}
               />
               <FormField
-                control={form.control}
+                control={control}
                 name="requestedAmount"
                 render={({ field }) => (
                   <FormItem>
@@ -745,11 +938,13 @@ export function CreditForm({
                           className="pl-8"
                           placeholder="0.00"
                           {...field}
+                          value={field.value ?? ''}
                           disabled={
                             !selectedAssociate ||
                             isSubmitting ||
                             isAssociateBlocked ||
-                            isCaprebicentenario
+                            !!showInternalInventory ||
+                            !!showCommercialItems
                           }
                         />
                       </div>
@@ -759,7 +954,7 @@ export function CreditForm({
                 )}
               />
               <FormField
-                control={form.control}
+                control={control}
                 name="overdraftAmount"
                 render={({ field }) => (
                   <FormItem>
@@ -778,7 +973,7 @@ export function CreditForm({
                             !selectedAssociate ||
                             isSubmitting ||
                             isAssociateBlocked
-                          } // <-- Added isAssociateBlocked
+                          }
                         />
                       </div>
                     </FormControl>
@@ -789,19 +984,19 @@ export function CreditForm({
             </div>
 
             <FormField
-              control={form.control}
+              control={control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Observaciones</FormLabel>
                   <FormControl>
                     <Textarea
+                      defaultValue={field.value ?? ''}
                       placeholder="Ingrese cualquier observación relevante sobre el crédito"
                       className="resize-none"
-                      {...field}
                       disabled={
                         !selectedAssociate || isSubmitting || isAssociateBlocked
-                      } // <-- Added isAssociateBlocked
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -854,7 +1049,7 @@ export function CreditForm({
                         {loanSummary.totalPayable}
                       </p>
                     </div>
-                    <div>
+                    {/* <div>
                       <p className="text-sm text-muted-foreground">
                         Total Crédito Disponible
                       </p>
@@ -862,7 +1057,7 @@ export function CreditForm({
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}
                         {loanSummary.totalAvailable}
                       </p>
-                    </div>
+                    </div> */}
                   </div>
                 </CardContent>
               </Card>

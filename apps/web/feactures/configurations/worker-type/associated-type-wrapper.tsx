@@ -27,6 +27,8 @@ export function AssociatedTypeWrapper({
     toggleOptions(false);
   }, [toggleOptions]);
 
+  console.log(group);
+
   return (
     <div className="flex flex-1 flex-col space-y-4">
       <CategoriesTypesHeader

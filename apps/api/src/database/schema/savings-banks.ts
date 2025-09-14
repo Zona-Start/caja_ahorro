@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../timestamps';
 import { accountPlan } from './accounting';
+import { suppliers } from './administration';
 import { users } from './auth';
 import { bankDirectory } from './banking';
 import {
@@ -34,6 +35,8 @@ import {
   loanPaymentTypeEnum,
   loanStatusEnum,
   nationalityEnum,
+  paymentBatchItemType,
+  paymentBatchStatus,
   paymentMethodEnum,
   paymentStatus,
   paymentStatusEnum,
@@ -234,6 +237,10 @@ export const withdrawalTypes = savingsBanksSchema.table(
       () => categoryType.id, // Relación con una tabla de categorías (ej: categorías de asociados para diferentes frecuencias de retiro)
       { onDelete: 'set null' },
     ),
+    isHouseComercial: boolean('is_house_comercial').notNull().default(false), //
+    isInternalInventory: boolean('is_internal_inventory')
+      .notNull()
+      .default(false),
     ...timestamps,
   },
   (table) => ({
@@ -277,6 +284,11 @@ export const withdrawalsAssociates = savingsBanksSchema.table(
     paymentMethod: paymentMethodEnum('payment_method'), // Ej: 'Transferencia', 'Cheque', 'Efectivo'
     referenceCode: varchar('reference_code', { length: 100 }).unique(), // Código de referencia único generado por el backend
     status: withdrawalStatusEnum('status').default('REQUESTED').notNull(),
+    commercialHouseId: integer('commercial_house_id').references(
+      () => suppliers.id,
+      { onDelete: 'set null' },
+    ),
+    withdrawalItems: jsonb('withdrawal_items'),
     ...timestamps,
   },
   (table) => ({
@@ -876,7 +888,9 @@ export const creditItemSales = savingsBanksSchema.table(
       .references(() => credits.id, { onDelete: 'cascade' }),
 
     /* Polimorfismo */
-    itemType: varchar('item_type', { enum: ['PRODUCT', 'SERVICE'] }).notNull(),
+    itemType: varchar('item_type', {
+      enum: ['PRODUCT', 'SERVICE', 'EXTERNAL'],
+    }).notNull(),
     itemId: integer('item_id').notNull(), // id en products o services
 
     quantity: integer('quantity').notNull().default(1),
@@ -888,11 +902,58 @@ export const creditItemSales = savingsBanksSchema.table(
     deliveryStatus: varchar('delivery_status', { length: 50 })
       .notNull()
       .default('ENTREGADO'),
-
+    days: integer('days').references(() => categoryType.id, {
+      onDelete: 'cascade',
+    }),
     ...timestamps,
   },
   (table) => ({
     creditIdIdx: index('credit_item_sale_credit_id_idx').on(table.creditId),
     itemTypeIdx: index('credit_item_sale_type_idx').on(table.itemType),
   }),
+);
+
+export const paymentBatches = savingsBanksSchema.table('payment_batches', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id').notNull(),
+  description: varchar('description', { length: 100 }),
+  status: paymentBatchStatus('status').notNull().default('DRAFT'),
+  recordCount: integer('record_count').notNull().default(0),
+  totalAmount: numeric('total_amount', { precision: 18, scale: 4 })
+    .notNull()
+    .default('0'),
+  currencyCode: currencyCodeEnum('currency_code').notNull(),
+  bankId: integer('bank_id').references(() => bankDirectory.id),
+  bankFileName: varchar('bank_file_name', { length: 150 }), // nombre TXT que bajas
+  bankReference: varchar('bank_reference', { length: 50 }), // devuelto por banco
+  processedAt: timestamp('processed_at'),
+  ...timestamps,
+});
+
+export const paymentBatchItems = savingsBanksSchema.table(
+  'payment_batch_items',
+  {
+    id: serial('id').primaryKey(),
+    paymentBatchId: integer('payment_batch_id').references(
+      () => paymentBatches.id,
+      { onDelete: 'cascade' },
+    ),
+    itemType: paymentBatchItemType('item_type').notNull(), // LOAN / WITHDRAWAL / LIQUIDATION
+    sourceId: integer('source_id').notNull(), // id en loans, withdrawals o liquidations
+    associateAccountId: integer('associate_account_id').references(
+      () => associateAccounts.id,
+    ),
+    beneficiaryAccountNumber: varchar('beneficiary_account_number', {
+      length: 50,
+    }).notNull(),
+    beneficiaryAccountType: varchar('beneficiary_account_type', {
+      length: 20,
+    }).notNull(), // AHORRO / CORRIENTE
+    beneficiaryId: varchar('beneficiary_id', { length: 20 }).notNull(), // CI / RIF
+    beneficiaryName: varchar('beneficiary_name', { length: 150 }).notNull(),
+    amount: numeric('amount', { precision: 18, scale: 4 }).notNull(),
+    status: varchar('status', { length: 20 }).notNull().default('PENDING'), // PENDING / PROCESSED / REJECTED
+    rejectionReason: text('rejection_reason'),
+    ...timestamps,
+  },
 );

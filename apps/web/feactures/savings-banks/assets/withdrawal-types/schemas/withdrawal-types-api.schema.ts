@@ -10,6 +10,8 @@ export const withdrawalTypesApiSchema = z.object({
   withdrawalLimitQuantity: z.string().optional().nullable(),
   minimumAntiquityDays: z.string().optional().nullable(),
   withdrawalFrequencyRelation: z.number(),
+  isHouseComercial: z.boolean(),
+  isInternalInventory: z.boolean(),
 });
 
 // Define el tipo TypesLoan basado en el esquema de Zod

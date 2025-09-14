@@ -1,6 +1,7 @@
 import { creditModalityTypeEnum, CreditStatusEnum } from '@/types/enum';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsDate,
   IsEnum,
   IsInt,
@@ -10,6 +11,41 @@ import {
   IsPositive,
   IsString,
 } from 'class-validator';
+
+export class CreditItem {
+  @IsNumber()
+  @IsPositive()
+  @IsNotEmpty()
+  agreedSellingPrice: number;
+
+  @IsString()
+  @IsOptional()
+  itemDescription?: string;
+
+  @IsInt()
+  @IsPositive()
+  @IsOptional()
+  itemId?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  itemType: string;
+
+  @IsInt()
+  @IsPositive()
+  @IsNotEmpty()
+  quantity: number;
+
+  @IsDate()
+  @Type(() => Date)
+  @IsNotEmpty()
+  saleDate: Date;
+
+  @IsInt()
+  @IsPositive()
+  @IsOptional()
+  days?: number;
+}
 
 export class CreateCreditDto {
   @IsInt()
@@ -69,4 +105,12 @@ export class CreateCreditDto {
   @IsString()
   @IsOptional()
   commercialHouseId: string;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  useCommercialHouse: boolean;
+
+  @Type(() => CreditItem)
+  @IsOptional()
+  creditItems?: CreditItem[];
 }

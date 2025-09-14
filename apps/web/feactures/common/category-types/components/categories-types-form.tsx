@@ -58,7 +58,9 @@ export function CategoriesTypesForm({
           ? 'DISCOUNT_FREQ'
           : data.group === 'TIPO ASOCIADO'
             ? 'ASSOCIATED_TYPE'
-            : data.group, // Transformar el grupo según la lógica deseada
+            : data.group === 'TIPO JORNADA'
+              ? 'DAYS_TYPE'
+              : data.group, // Transformar el grupo según la lógica deseada
       options: data.options ? [{ frequency: String(data.options) }] : null, // Asegurar que options sea un array con el formato esperado
     };
 

@@ -9,6 +9,25 @@ export const withdrawalSchema = z.object({
   withdrawalDate: z.date(), // ISO string
   requestedAmount: z.string().min(1, { message: 'Monto requerido' }), // monto cuota
   paymentMethod: paymentMethodEnum,
+  commercialHouseId: z.string().optional().nullable(),
+  products: z
+    .array(
+      z.object({
+        productId: z.string(),
+        quantity: z.number().min(1, 'La cantidad debe ser al menos 1'),
+      }),
+    )
+    .optional(),
+    items: z
+    .array(
+      z.object({
+        description: z.string().min(1, 'La descripción es requerida'),
+        quantity: z.number().min(1, 'La cantidad debe ser al menos 1'),
+        cost: z.number().min(0, 'El costo no puede ser negativo'),
+        days: z.string().optional(),
+      }),
+    )
+    .optional(),
 });
 
 export type Withdrawal = z.infer<typeof withdrawalSchema>;

@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -15,7 +16,6 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreditManagementService } from './credit-management.service';
 import { CreateCreditDto } from './dto/create-credit.dto';
 import { FilterCreditManagementDto } from './dto/filter-credit-management.dto';
-import { UpdateCreditDto } from './dto/update-credit.dto';
 
 @Controller('credit')
 export class CreditManagementController {
@@ -23,10 +23,10 @@ export class CreditManagementController {
     private readonly creditManagementService: CreditManagementService,
   ) {}
 
-  @Post()
-  create(@Req() req: Request, @Body() dto: CreateCreditDto) {
+  @Post('request')
+  async request(@Req() req: Request, @Body() dto: CreateCreditDto) {
     const userdId = req['user'].id;
-    return this.creditManagementService.create(dto, userdId);
+    return this.creditManagementService.request(dto, userdId);
   }
 
   @Get()
@@ -68,21 +68,27 @@ export class CreditManagementController {
     return this.creditManagementService.findOne(+id);
   }
 
-  @Patch(':id')
-  @RequirePermissions('update:credit-management')
-  @ApiOperation({ summary: 'Update an credit ' })
-  @ApiResponse({
-    status: 200,
-    description: 'credit updated successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'credit  not found.' })
-  update(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: UpdateCreditDto,
-  ) {
+  // @Patch(':id')
+  // @RequirePermissions('update:credit-management')
+  // @ApiOperation({ summary: 'Update an credit ' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'credit updated successfully.',
+  // })
+  // @ApiResponse({ status: 404, description: 'credit  not found.' })
+  // update(
+  //   @Req() req: Request,
+  //   @Param('id') id: string,
+  //   @Body() dto: UpdateCreditDto,
+  // ) {
+  //   const userdId = req['user'].id;
+  //   return this.creditManagementService.update(+id, dto, userdId);
+  // }
+
+  @Patch('approve/:id')
+  async approve(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
     const userdId = req['user'].id;
-    return this.creditManagementService.update(+id, dto, userdId);
+    return await this.creditManagementService.approve(id, userdId);
   }
 
   @Delete(':id')

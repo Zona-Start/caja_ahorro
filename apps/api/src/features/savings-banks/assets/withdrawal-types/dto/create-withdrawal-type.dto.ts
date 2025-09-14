@@ -1,5 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, Min, Max, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateWithdrawalTypeDto {
   @IsString()
@@ -8,7 +17,12 @@ export class CreateWithdrawalTypeDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'withdrawalPercentage debe ser un número con hasta 2 decimales' })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    {
+      message: 'withdrawalPercentage debe ser un número con hasta 2 decimales',
+    },
+  )
   @Min(0)
   @Max(100)
   withdrawalPercentage?: number;
@@ -25,7 +39,13 @@ export class CreateWithdrawalTypeDto {
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'administrativeFeePercentage debe ser un número con hasta 2 decimales' })
+  @IsNumber(
+    { maxDecimalPlaces: 2 },
+    {
+      message:
+        'administrativeFeePercentage debe ser un número con hasta 2 decimales',
+    },
+  )
   @Min(0)
   @Max(100)
   administrativeFeePercentage?: number;
@@ -46,4 +66,12 @@ export class CreateWithdrawalTypeDto {
   @Type(() => Number)
   @IsInt()
   withdrawalFrequencyRelation?: number;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  isHouseComercial: boolean;
+
+  @IsBoolean()
+  @IsNotEmpty()
+  isInternalInventory: boolean;
 }

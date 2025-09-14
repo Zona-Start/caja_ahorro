@@ -241,6 +241,7 @@ export function CreditView({ isEdit = false, initialData }: CreditViewProps) {
   // Función para manejar el envío del formulario
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
+
     saveLoan(data, {
       onSuccess: () => {
         toast({

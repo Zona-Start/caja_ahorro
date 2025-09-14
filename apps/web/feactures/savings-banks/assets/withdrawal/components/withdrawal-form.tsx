@@ -1,5 +1,8 @@
 'use client';
 import { IconWrapper } from '@/components/icon-wrapper';
+import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
+import { useSupplierAll } from '@/feactures/administration/suppliers/hooks/use-query-suppliers';
+import { useProducts } from '@/feactures/savings-banks/credits/credits-management/hooks/use-query-products';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -28,9 +31,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { Banknote, Check } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@repo/shadcn/table';
+import { Banknote, Check, PlusCircle, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 import { useQueryWithdrawalType } from '../hooks/use-query-withdrawal';
 import { PAYMENT_METHOD } from '../schemas/withdrawal-options';
@@ -43,9 +54,11 @@ interface WithdrawalProps {
   onCancel: () => void;
   currentCurrencyCode: string | undefined;
   currentExchangeRate: number | undefined;
-  initialData?: any; // <-- NUEVO: recibir initialData como prop
-  isEdit?: boolean; // <-- NUEVO: recibir isEdit como prop
+  initialData?: any;
+  isEdit?: boolean;
 }
+
+const COMMERCIAL_HOUSE_NONE = 'none';
 
 export function WithdrawalForm({
   isSubmitting,
@@ -54,7 +67,7 @@ export function WithdrawalForm({
   currentCurrencyCode,
   currentExchangeRate,
   initialData,
-  isEdit, // <-- NUEVO: recibir isEdit como prop
+  isEdit,
 }: WithdrawalProps) {
   const {
     selectedAssociate,
@@ -67,6 +80,11 @@ export function WithdrawalForm({
 
   const [exceedingAvailability, setExceedingAvailability] = useState(false);
   const { data: withdrawlTypes } = useQueryWithdrawalType();
+  const { data: productsData } = useProducts();
+  const { data: suppliers } = useSupplierAll();
+  const { data: daysType } = useCategoriesTypesGroup('DAYS_TYPE');
+  const availableProducts = productsData?.data || [];
+
   const form = useForm<z.infer<typeof withdrawalSchema>>({
     resolver: zodResolver(withdrawalSchema),
     defaultValues: {
@@ -76,10 +94,26 @@ export function WithdrawalForm({
       withdrawalTypeId: 0,
       requestedAmount: '',
       paymentMethod: 'BANK_TRANSFER',
+      commercialHouseId: COMMERCIAL_HOUSE_NONE,
+      products: [],
+      items: [],
     },
   });
 
-  //Actualizar el associateId cuando cambia el asociado seleccionado
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'products',
+  });
+
+  const {
+    fields: itemFields,
+    append: appendItem,
+    remove: removeItem,
+  } = useFieldArray({
+    control: form.control,
+    name: 'items',
+  });
+
   useEffect(() => {
     if (selectedAssociate) {
       form.setValue('associateAccountId', selectedAssociate.associateAccountId);
@@ -88,39 +122,94 @@ export function WithdrawalForm({
     }
   }, [selectedAssociate, form]);
 
-  const withdrawalType = useWatch({
+  const withdrawalTypeId = useWatch({
     control: form.control,
     name: 'withdrawalTypeId',
+  });
+
+  const commercialHouseId = useWatch({
+    control: form.control,
+    name: 'commercialHouseId',
   });
 
   const requestedAmount = Number.parseFloat(
     form.watch('requestedAmount') || '0',
   );
 
+  const watchedProducts = useWatch({ control: form.control, name: 'products' });
+  const watchedItems = useWatch({ control: form.control, name: 'items' });
+
+  const selectedWithdrawalType = withdrawlTypes?.data?.find(
+    (lt) => lt.id === Number(withdrawalTypeId),
+  );
+
+  const showProductSelection = selectedWithdrawalType?.isInternalInventory;
+  const showCommercialHouseDropdown = selectedWithdrawalType?.isHouseComercial;
+  const showCommercialItems =
+    showCommercialHouseDropdown &&
+    commercialHouseId &&
+    commercialHouseId !== COMMERCIAL_HOUSE_NONE;
+
   const balance = Number(selectedAssociate?.balance);
   const availability = balance * 0.8;
 
   useEffect(() => {
     if (!selectedAssociate) return;
-    if (withdrawalType) {
+    if (withdrawalTypeId) {
       const withdrawlType = withdrawlTypes?.data?.find(
-        (lt) => lt.id === Number(withdrawalType),
+        (lt) => lt.id === Number(withdrawalTypeId),
       );
       setselectedWithdrawlType(withdrawlType ?? null);
     } else {
       setselectedWithdrawlType(null);
     }
-  }, [withdrawalType]);
+  }, [
+    withdrawalTypeId,
+    withdrawlTypes,
+    setselectedWithdrawlType,
+    selectedAssociate,
+  ]);
+
+  useEffect(() => {
+    if (!showProductSelection) return;
+    const totalCost = (watchedProducts || []).reduce((acc, p) => {
+      const quantity = Number(p?.quantity) || 0;
+      if (p?.productId && quantity > 0) {
+        const productDetails = availableProducts.find(
+          (prod) => prod.id === Number(p.productId),
+        );
+        if (productDetails) {
+          return acc + Number(productDetails.productPrice) * quantity;
+        }
+      }
+      return acc;
+    }, 0);
+    const rounded = totalCost.toFixed(2);
+    if (form.getValues('requestedAmount') !== rounded) {
+      form.setValue('requestedAmount', rounded, { shouldValidate: true });
+    }
+  }, [watchedProducts, showProductSelection, availableProducts, form]);
+
+  useEffect(() => {
+    if (!showCommercialItems) return;
+    const totalCost = (watchedItems || []).reduce((acc, item) => {
+      const quantity = Number(item?.quantity) || 0;
+      const cost = Number(item?.cost) || 0;
+      return acc + quantity * cost;
+    }, 0);
+    const rounded = totalCost.toFixed(2);
+    if (form.getValues('requestedAmount') !== rounded) {
+      form.setValue('requestedAmount', rounded, { shouldValidate: true });
+    }
+  }, [watchedItems, showCommercialItems, form]);
 
   useEffect(() => {
     if (!selectedAssociate) return;
     if (requestedAmount) {
-      // Calcular resumen del préstamo
-      const amount = requestedAmount; //monto soclitado
       const expenses = Number.parseFloat(
         selectedWithdrawlType?.administrativeFeePercentage ?? '0',
-      ); //porcentaje de gastos
-      const totalAdministrativeExpenses = (requestedAmount * expenses) / 100; //total de gasto administrativo
+      );
+      const totalAdministrativeExpenses = (requestedAmount * expenses) / 100;
       const totalPayable = requestedAmount - totalAdministrativeExpenses;
 
       if (requestedAmount > availability) {
@@ -129,7 +218,7 @@ export function WithdrawalForm({
       } else {
         setExceedingAvailability(false);
         setWithdrawalSummary({
-          totalWithdrawal: amount.toFixed(2),
+          totalWithdrawal: requestedAmount.toFixed(2),
           totalPayable: totalPayable.toFixed(2),
           installmentAmount: totalAdministrativeExpenses.toFixed(2),
         });
@@ -138,11 +227,56 @@ export function WithdrawalForm({
       setWithdrawalSummary(null);
       setExceedingAvailability(false);
     }
-  }, [requestedAmount]);
+  }, [
+    requestedAmount,
+    selectedAssociate,
+    selectedWithdrawlType,
+    availability,
+    setWithdrawalSummary,
+  ]);
 
-  // Función para manejar el envío del formulario
   const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data);
+    let withdrawalItems: any[] = [];
+    if (showProductSelection) {
+      withdrawalItems = (data.products || []).map((p: any) => {
+        const productDetails = availableProducts.find(
+          (prod) => prod.id === Number(p.productId),
+        );
+        return {
+          itemType: 'PRODUCT',
+          itemDescription: null,
+          itemId: Number(p.productId),
+          quantity: p.quantity,
+          agreedSellingPrice: productDetails
+            ? Number(productDetails.productPrice)
+            : 0,
+          days: null,
+        };
+      });
+    } else if (showCommercialItems) {
+      withdrawalItems = (data.items || []).map((item: any) => {
+        const day = daysType?.data?.find((d) => d.id === Number(item.days));
+        return {
+          itemType: 'EXTERNAL',
+          itemDescription: item.description,
+          itemId: null,
+          quantity: item.quantity,
+          agreedSellingPrice: item.cost,
+          days: day?.description || null,
+        };
+      });
+    }
+
+    const dataToSubmit = {
+      ...data,
+      withdrawalItems,
+      commercialHouseId: showCommercialHouseDropdown ? commercialHouseId : null,
+    };
+
+    delete dataToSubmit.products;
+    delete dataToSubmit.items;
+
+    onSubmit(dataToSubmit);
   });
 
   const handleCancel = () => {
@@ -163,7 +297,7 @@ export function WithdrawalForm({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="purple" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <Banknote />
           </IconWrapper>
           Datos del Retiro
@@ -202,6 +336,278 @@ export function WithdrawalForm({
                 </FormItem>
               )}
             />
+
+            {showCommercialHouseDropdown && (
+              <FormField
+                control={form.control}
+                name="commercialHouseId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Casa Comercial</FormLabel>
+                    <SelectSearchable
+                      placeholder="Filtrar por proveedor"
+                      options={
+                        suppliers?.map((supplier) => ({
+                          value: supplier.id!.toString(),
+                          label: supplier.name,
+                        })) || []
+                      }
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        form.setValue('items', []);
+                        form.setValue('requestedAmount', '');
+                      }}
+                      defaultValue={field.value ?? undefined}
+                      disabled={!selectedAssociate || isSubmitting || hasBlocks}
+                      enableNoneOption
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {showProductSelection && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Selección de Productos</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => append({ productId: '', quantity: 1 })}
+                    disabled={!selectedAssociate || isSubmitting || hasBlocks}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Anexar Producto
+                  </Button>
+                  {fields.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Producto</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead className="text-right">Precio</TableHead>
+                          <TableHead className="text-right">Subtotal</TableHead>
+                          <TableHead />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {fields.map((field, index) => {
+                          const product = availableProducts.find(
+                            (p) =>
+                              p.id ===
+                              Number(form.watch(`products.${index}.productId`)),
+                          );
+                          const quantity =
+                            form.watch(`products.${index}.quantity`) || 0;
+                          const subtotal =
+                            (Number(product?.productPrice) || 0) * quantity;
+                          return (
+                            <TableRow key={field.id}>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`products.${index}.productId`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Select
+                                        onValueChange={field.onChange}
+                                        value={field.value}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione..." />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {availableProducts.map((p) => (
+                                            <SelectItem
+                                              key={p.id}
+                                              value={String(p.id)}
+                                            >
+                                              {p.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`products.${index}.quantity`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        {...field}
+                                        onChange={(e) =>
+                                          field.onChange(e.target.valueAsNumber)
+                                        }
+                                      />
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {Number(product?.productPrice).toFixed(2) || 0}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {subtotal.toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => remove(index)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {showCommercialItems && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Items de Casa Comercial</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      appendItem({ description: '', quantity: 1, cost: 0, days: '' })
+                    }
+                    disabled={!selectedAssociate || isSubmitting || hasBlocks}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Agregar Item
+                  </Button>
+                  {itemFields.length > 0 && (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Descripción</TableHead>
+                          <TableHead>Jornada</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead className="text-right">Costo</TableHead>
+                          <TableHead className="text-right">Subtotal</TableHead>
+                          <TableHead />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {itemFields.map((field, index) => {
+                          const quantity =
+                            form.watch(`items.${index}.quantity`) || 0;
+                          const cost = form.watch(`items.${index}.cost`) || 0;
+                          const subtotal = quantity * cost;
+                          return (
+                            <TableRow key={field.id}>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.description`}
+                                  render={({ field }) => <Input {...field} />}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.days`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Select
+                                        onValueChange={field.onChange}
+                                        value={field.value}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Selecciona una jornada" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          {daysType?.data?.map((item: any) => (
+                                            <SelectItem
+                                              key={item.id}
+                                              value={item.id!.toString()}
+                                            >
+                                              {item.description}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </FormItem>
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.quantity`}
+                                  render={({ field }) => (
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      {...field}
+                                      onChange={(e) =>
+                                        field.onChange(e.target.valueAsNumber)
+                                      }
+                                    />
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <FormField
+                                  control={form.control}
+                                  name={`items.${index}.cost`}
+                                  render={({ field }) => (
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      {...field}
+                                      onChange={(e) =>
+                                        field.onChange(e.target.valueAsNumber)
+                                      }
+                                    />
+                                  )}
+                                />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {subtotal.toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeItem(index)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <FormField
                 control={form.control}
@@ -218,11 +624,16 @@ export function WithdrawalForm({
                           className="pl-8"
                           placeholder="0.00"
                           {...field}
+                          value={field.value && !isNaN(field.value as any) ? field.value : ''}
                           disabled={
-                            !selectedAssociate ||
-                            isSubmitting ||
-                            !enabledTime ||
-                            hasBlocks
+                            !!(
+                              !selectedAssociate ||
+                              isSubmitting ||
+                              !enabledTime ||
+                              hasBlocks ||
+                              showProductSelection ||
+                              showCommercialItems
+                            )
                           }
                         />
                       </div>

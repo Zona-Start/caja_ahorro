@@ -3,8 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  aprobeWithdrawalAction,
+  createWithdrawalAction,
   deleteWithdrawalAction,
-  saveWithdrawalAction,
 } from '../actions/withdrawal-actions';
 import { Withdrawal } from '../schemas/withdrawal.schema';
 
@@ -13,7 +14,28 @@ export function useWithdrawalMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (withdrawal: Withdrawal) => saveWithdrawalAction(withdrawal),
+    mutationFn: (withdrawal: Withdrawal) => createWithdrawalAction(withdrawal),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['withdrawal'],
+      });
+      queryClient.removeQueries({
+        queryKey: ['withdrawal-type'],
+      });
+      queryClient.removeQueries({
+        queryKey: ['withdrawal-associate-individual'],
+      });
+    },
+  });
+
+  return mutation;
+}
+
+export function useAprobeWithdrawalMutation() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: number) => aprobeWithdrawalAction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['withdrawal'],

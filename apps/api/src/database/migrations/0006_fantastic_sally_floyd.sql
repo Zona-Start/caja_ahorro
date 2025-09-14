@@ -1,0 +1,1 @@
+ALTER TABLE "savings_banks"."withdrawal_types" ADD COLUMN "is_house_comercial" boolean DEFAULT false NOT NULL;

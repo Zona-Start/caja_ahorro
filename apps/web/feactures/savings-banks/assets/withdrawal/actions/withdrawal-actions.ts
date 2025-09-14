@@ -114,6 +114,8 @@ export const getWithdrawalAction = async (params: {
 
 export const createWithdrawalAction = async (withdrawal: Withdrawal) => {
   const { id, ...payloadWithoutId } = withdrawal;
+  console.log(payloadWithoutId);
+
   const payload = {
     ...payloadWithoutId,
     requestedAmount: Number(payloadWithoutId.requestedAmount),
@@ -125,6 +127,21 @@ export const createWithdrawalAction = async (withdrawal: Withdrawal) => {
     '/savings-banks/withdrawal-associate',
     'POST',
     payload,
+  );
+
+  if (error) {
+    //console.error('Error:', error);
+    throw new Error(error.message || 'Error create withdrawal Management');
+  }
+
+  return data;
+};
+
+export const aprobeWithdrawalAction = async (id: number) => {
+  const [error, data] = await safeFetchApi(
+    withdrawalMutationSchema,
+    `/savings-banks/withdrawal-associate/${id}/approve`,
+    'PATCH',
   );
 
   if (error) {

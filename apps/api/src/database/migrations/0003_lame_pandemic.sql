@@ -1,0 +1,1 @@
+ALTER TABLE "savings_banks"."credits" ADD COLUMN "use_commercial_house" boolean DEFAULT false;

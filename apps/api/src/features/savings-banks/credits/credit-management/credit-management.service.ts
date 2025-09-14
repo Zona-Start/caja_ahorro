@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
@@ -14,6 +14,7 @@ import {
   systemSettings,
 } from '@/database/index';
 import { associateHaberesBalance } from '@/database/schema/views';
+import { InventoryMovementsService } from '@/features/administration/inventory/inventory-movements/inventory-movements.service';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import {
   AssociateMovementTypeEnum,
@@ -23,6 +24,7 @@ import {
   PaymentStatusEnum,
 } from '@/types/enum';
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Inject,
@@ -35,9 +37,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateCreditDto } from './dto/create-credit.dto';
 import { FilterCreditManagementDto } from './dto/filter-credit-management.dto';
-import { UpdateCreditDto } from './dto/update-credit.dto';
 import { CreditAmortizationSchedule } from './entities/credit-amortization-schedule.entity';
-import { stat } from 'fs';
 
 @Injectable()
 export class CreditManagementService {
@@ -45,53 +45,9 @@ export class CreditManagementService {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly settingsSystemService: SettingsSystemService,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
+    private readonly generateCodeService: GenerateCodeService,
+    private readonly inventoryMovementsService: InventoryMovementsService,
   ) {}
-
-  // --- Helper function to generate custom reference ---
-  // private async generateCustomReference(): Promise<string> {
-  //   // Fetch the current correlative number and increment it
-  //   const key = 'correlativo_credito';
-  //   try {
-  //     const result = await this.db.transaction(async (tx) => {
-  //       // Lock the row for update
-  //       const setting = await tx.query.systemSettings.findFirst({
-  //         where: eq(systemSettings.key, key),
-  //         // Add forUpdate() if your Drizzle version supports it for row locking
-  //         // Example: columns: {}, with: { forUpdate: true }
-  //       });
-
-  //       if (!setting) {
-  //         throw new InternalServerErrorException(
-  //           `System setting '${key}' not found.`,
-  //         );
-  //       }
-
-  //       const currentNumber = parseInt(setting.value, 10);
-  //       if (isNaN(currentNumber)) {
-  //         throw new InternalServerErrorException(
-  //           `Invalid correlative number format for '${key}'.`,
-  //         );
-  //       }
-
-  //       const nextNumber = currentNumber + 1;
-  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
-
-  //       // Update the setting with the new value
-  //       await tx
-  //         .update(systemSettings)
-  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-  //         .where(eq(systemSettings.id, setting.id));
-
-  //       return nextValue; // Return the generated reference
-  //     });
-  //     return `CREDIT-${result}`; // Prefix the reference
-  //   } catch (error) {
-  //     console.error('Error generating custom reference:', error);
-  //     throw new InternalServerErrorException(
-  //       'Failed to generate custom credit reference.',
-  //     );
-  //   }
-  // }
 
   // --- Helper function to generate amortization schedule ---
   private generateAmortizationSchedule(
@@ -184,49 +140,29 @@ export class CreditManagementService {
   }
 
   // Helper function to add months to a date
-  private addMonthsToDate(date: Date, months: number): Date {
-    const result = new Date(date);
+  private addMonthsToDate(date: Date | string | null, months: number): Date {
+    if (!date) return new Date();
+    const parsedDate = typeof date === 'string' ? new Date(date) : date;
+    const result = new Date(parsedDate);
     result.setMonth(result.getMonth() + months);
     return result;
   }
 
-  async create(
+  async request(
     dto: CreateCreditDto,
     userId: number,
   ): Promise<{ id: number; customReference: string | null }> {
-    const {
-      associateId,
-      requestedAmount,
-      status,
-      requestDate,
-      startDate,
-      creditTypeId,
-      previousCreditId,
-      notes,
-      creditModality,
-      overdraftAmount,
-      commercialHouseId,
-      invoiceNumber,
-      endDate,
-    } = dto;
+    /* 1.  Validaciones idénticas a tu create  */
+    const { associateId, requestedAmount, creditTypeId, startDate } = dto;
 
-    //consulta los datos de la empresa, moneda y tasa de cambio
-    const [requestCompanyId] = await this.db
-      .select({
-        id: company.id,
-      })
-      .from(company);
+    const [companyId] = await this.db.select({ id: company.id }).from(company);
 
     const setting = await this.db.query.systemSettings.findFirst({
-      where: eq(systemSettings.key, 'moneda'),
-    });
-    const entryDate = new Date().toISOString().split('T')[0];
-    const exchangeRateData = await this.db.query.exchangeRates.findFirst({
-      where: eq(exchangeRates.date, entryDate),
+      where: eq(systemSettings.key, 'MONEDA'),
     });
 
-    // Verificar si existe un préstamo duplicado con las mismas características
-    const existingCredit = await this.db
+    // Duplicado
+    const dup = await this.db
       .select()
       .from(credits)
       .where(
@@ -234,36 +170,29 @@ export class CreditManagementService {
           eq(credits.associateId, associateId),
           eq(credits.requestedAmount, requestedAmount.toString()),
           eq(credits.creditTypeId, creditTypeId),
-          eq(credits.status, status),
+          eq(credits.status, CreditStatusEnum.REQUESTED),
         ),
       );
 
-    if (existingCredit.length > 0) {
-      throw new InternalServerErrorException(
-        'A credit with the same characteristics already exists.',
-      );
-    }
+    if (dup.length)
+      throw new InternalServerErrorException('Duplicate request.');
 
-    // Verificar si el asociado tiene un credito aprobado
-    const activeCredit = await this.db
+    // Crédito ya aprobado
+    const active = await this.db
       .select()
       .from(credits)
       .where(
-        or(
-          and(
-            eq(credits.associateId, associateId),
-            eq(credits.status, CreditStatusEnum.APPROVED),
-          ),
+        and(
+          eq(credits.associateId, associateId),
+          eq(credits.status, CreditStatusEnum.APPROVED),
         ),
       );
 
-    if (activeCredit.length > 0) {
-      throw new InternalServerErrorException(
-        'The member already has an approved in the payment process.',
-      );
-    }
+    if (active.length)
+      throw new InternalServerErrorException('Member has approved credit.');
 
-    const [associate] = await this.db
+    // Payroll
+    const [assoc] = await this.db
       .select({
         isPayrollCredit: associates.isPayrollCredit,
         balance: associateHaberesBalance.haberesBalance,
@@ -274,252 +203,315 @@ export class CreditManagementService {
       .leftJoin(
         associateAccounts,
         eq(associateAccounts.associateId, associateId),
-      ).leftJoin(associateHaberesBalance, eq(associateHaberesBalance.associateAccountId, associateAccounts.id));;
-
-    // verifica si el asociado tiene un credinomina activo
-    if (associate.isPayrollCredit) {
-      throw new InternalServerErrorException('has an active payroll credit.');
-    }
-
-    const assetsPercentage = this.calculatePercentage(
-      Number(associate?.balance ?? 0),
-      80,
-    );
-
-    //valida  que le monto solicitado sea menor al 80 de sus haberes disponible
-    if (Number(assetsPercentage) < Number(requestedAmount)) {
-      throw new InternalServerErrorException(
-        'Your available funds are less than the requested amount.',
+      )
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       );
-    }
 
-    //Fetch type Credit
-    const [getCreditTypes] = await this.db
+    if (assoc.isPayrollCredit)
+      throw new InternalServerErrorException('Active payroll credit.');
+    const avail = this.calculatePercentage(Number(assoc?.balance ?? 0), 80);
+    if (Number(avail) < Number(requestedAmount))
+      throw new InternalServerErrorException('Insufficient availability.');
+
+    /* 2.  Solo REQUESTED  */
+    const [creditType] = await this.db
       .select()
       .from(creditsTypes)
       .where(eq(creditsTypes.id, creditTypeId));
+    const finalDate = this.addMonthsToDate(startDate, creditType.termUnits);
 
-    // 1. Perform calculations
-    // Using the standard formula for annuity Credit payments
-    const annualInterestRate = parseFloat(getCreditTypes.interestRate); // Tasa de interés anual
-    const term = getCreditTypes.termUnits; // Plazo en meses
-    const expensePercentage = parseFloat(
-      getCreditTypes.administrativeExpensePercentage ?? '0',
-    ); //  Tasa Porcentaje de gastos administrativos
-    const percentageInterest = (requestedAmount * annualInterestRate) / 100; // Porcentaje de cuota
-    const percentageExpenses = (requestedAmount * expensePercentage) / 100; // Porcentaje de gastos
-
-    let totalQuota = 0; //Cálculo del pago cuotas mesual
-    let totalInterest = 0; //Cálculo del monto total de intereses
-    let installmentAmount = 0; //total gasto administrativo
-    let totalPayable = 0; //Cálculo del monto total a pagar
-    if (setting && setting.value === 'USD' && exchangeRateData) {
-      totalQuota =
-        (requestedAmount + percentageInterest) /
-        term /
-        Number(exchangeRateData.rate);
-      totalInterest =
-        (requestedAmount * annualInterestRate) /
-        100 /
-        Number(exchangeRateData.rate);
-      installmentAmount =
-        (requestedAmount * expensePercentage) /
-        100 /
-        Number(exchangeRateData.rate);
-      totalPayable =
-        (requestedAmount + totalInterest + installmentAmount) /
-        Number(exchangeRateData.rate);
-    } else {
-      totalQuota =
-        (requestedAmount + percentageInterest) / term;
-      totalInterest = (requestedAmount * annualInterestRate) / 100;
-      installmentAmount = (requestedAmount * expensePercentage) / 100;
-      totalPayable = requestedAmount + totalInterest + installmentAmount;
-    }
-
-    let customReference: string | null = null;
-    let approvalDate: Date | null = null;
-    const currentDate = new Date(); // Fecha actual
-    const finalDate = this.addMonthsToDate(startDate, getCreditTypes.termUnits); //fecha finalizacion del pago
-
-    // 2 & 3. Handle APPROVED status
-    if (status !== CreditStatusEnum.REQUESTED) {
-      customReference = generateUniqueReference();
-      approvalDate = currentDate;
-    }
-
-    // Start transaction
     const newCredit = await this.db.transaction(async (tx) => {
-      // Insert into Credit table
-      const insertedCredit = await tx
+      const [ins] = await tx
         .insert(credits)
         .values({
-          associateId: Number(associateId),
-          companyId: Number(requestCompanyId.id),
-          creditTypeId: Number(creditTypeId),
-          creditModality: creditModality,
-          requestDate: requestDate.toISOString().split('T')[0],
-          approvalDate: approvalDate
-            ? approvalDate.toISOString().split('T')[0]
-            : null,
-          requestedAmount: requestedAmount,
-          approvedAmount: requestedAmount,
-          disbursedAmount: requestedAmount,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: finalDate,
-          totalInterest: String(totalInterest.toFixed(6)),
-          totalPayable: String(totalPayable.toFixed(6)),
-          installmentAmount: String(totalQuota.toFixed(6)),
-          expensesAmount: installmentAmount.toString(),
-          overdraftAmount: overdraftAmount ?? null,
-          previousCreditId: previousCreditId ?? null,
-          status: status,
-          approvedByUserId: userId,
-          notes: notes ?? null,
-          customReference: customReference,
-          currencyCode: setting?.value === '1' ? 'VES' : 'USD',
-          currencyRate: setting?.value === '2' ? exchangeRateData?.id : null,
-          commercialHouseId: Number(commercialHouseId),
-          invoiceNumber: invoiceNumber,
+          ...dto,
+          companyId: Number(companyId.id),
+          requestedAmount: String(requestedAmount),
+          status: CreditStatusEnum.REQUESTED,
+          startDate: startDate.toISOString(),
+          requestDate: dto.requestDate.toISOString(),
+          endDate: finalDate.toISOString(),
+          overdraftAmount: String(dto.overdraftAmount) ?? null,
+          commercialHouseId: Number(dto.commercialHouseId) ?? null,
+          currencyCode:
+            setting?.value === '1' ? 'VES' : ('USD' as CurrencyCodeEnum),
+          creditModality: dto.creditModality as creditModalityTypeEnum,
           createdById: userId,
-          updatedById: userId, // Set updatedById initially
+          updatedById: userId,
         })
         .returning({
           id: credits.id,
           customReference: credits.customReference,
         });
 
-      if (
-        !insertedCredit ||
-        !Array.isArray(insertedCredit) ||
-        insertedCredit.length === 0
-      ) {
-        throw new InternalServerErrorException('Failed to create credit.');
-      }
-      const newCredit = insertedCredit[0];
-
-      // 4. Save initial status history
       await tx.insert(creditStatusHistory).values({
-        creditId: newCredit.id,
-        status,
-        changedAt: currentDate,
+        creditId: ins.id,
+        status: CreditStatusEnum.REQUESTED,
         changedByUserId: userId,
-        comment: 'Credit created',
+        comment: 'CREDIT REQUESTED',
       });
 
-      // 5. Generate and save amortization schedule if APPROVED
-      if (status === CreditStatusEnum.APPROVED) {
-        const schedule = this.generateAmortizationSchedule(
-          requestedAmount, // Monto del préstamo solicitado
-          term, // Plazos en meses
-          annualInterestRate, // Tasa de interés anual
-          approvalDate || currentDate, // Fecha de inicio del préstamo
-          newCredit.id, // Identificador del préstamo
-          userId,
+      if (dto?.creditItems && dto?.creditItems.length > 0) {
+        await tx.insert(schema.creditItemSales).values(
+          dto.creditItems.map((item) => ({
+            days: item.days,
+            itemId: item.itemId ?? 0,
+            itemDescription: item.itemDescription ?? null,
+            agreedSellingPrice: String(item.agreedSellingPrice),
+            quantity: Number(item.quantity),
+            itemType: item.itemType as 'PRODUCT' | 'SERVICE' | 'EXTERNAL',
+            creditId: ins.id,
+            deliveryStatus: 'COMMITTED' as 'COMMITTED' | 'DELIVERED',
+          })),
         );
-        if (schedule.length > 0) {
-          await tx.insert(creditAmortizationSchedule).values(
-            schedule.map((item) => ({
-              ...item,
-              dueDate: item.dueDate.toISOString(),
-              principalAmount: item.principalAmount.toString(),
-              interestAmount: item.interestAmount.toString(),
-              totalInstallmentAmount: item.totalInstallmentAmount.toString(),
-              principalBalancePending: item.principalBalancePending.toString(),
-              createdById: item.createdById,
-            })),
-          );
-        }
-
-        // 6. Generate audit
-        const paylodAuditData = {
-          associateId: Number(associateId),
-          companyId: Number(requestCompanyId.id),
-          creditTypeId: Number(creditTypeId),
-          creditModality: creditModality,
-          requestDate: requestDate.toISOString().split('T')[0],
-          approvalDate: approvalDate
-            ? approvalDate.toISOString().split('T')[0]
-            : null,
-          requestedAmount: requestedAmount,
-          approvedAmount: requestedAmount,
-          disbursedAmount: requestedAmount,
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: finalDate,
-          totalInterest: String(totalInterest.toFixed(6)),
-          totalPayable: String(totalPayable.toFixed(6)),
-          installmentAmount: String(totalQuota.toFixed(6)),
-          expensesAmount: installmentAmount.toString(),
-          overdraftAmount: overdraftAmount ?? null,
-          previousCreditId: previousCreditId ?? null,
-          status: status,
-          approvedByUserId: userId,
-          notes: notes ?? null,
-          customReference: customReference,
-          currencyCode: setting?.value === '1' ? 'VES' : 'USD',
-          currencyRate: setting?.value === '2' ? exchangeRateData?.id : null,
-          commercialHouseId: Number(commercialHouseId),
-          invoiceNumber: invoiceNumber,
-          createdById: userId,
-          updatedById: userId, // Set updatedById initially
-        };
-
-        await tx.insert(auditLogs).values({
-          tableName: 'credits',
-          recordId: String(newCredit.id),
-          action: 'INSERT',
-          userId: Number(userId),
-          area: 'CREDITOS',
-          description: 'CREDITO APROBADO',
-          newData: [paylodAuditData],
-        });
       }
-      return {
-        id: newCredit.id,
-        customReference: newCredit.customReference,
-        transation: true,
-      };
+
+      return ins;
     });
 
-    if (newCredit.transation && status === CreditStatusEnum.APPROVED) {
-      const payloadMovementCredits = {
-        associateAccountId: Number(associate.associateAccountId),
-        movementType:
-          'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
-        amount: requestedAmount,
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: approvalDate ? approvalDate : undefined,
-        description: 'APROBACION CREDITO',
-        referenceId: String(newCredit.id),
-        referenceType: 'credits',
-        referenceNumber: newCredit.customReference ?? undefined,
-      };
+    return { id: newCredit.id, customReference: newCredit.customReference };
+  }
 
-      const payloadMovementCreditsDebit = {
-        associateAccountId: Number(associate.associateAccountId),
-        movementType: 'CREDIT_ADMIN_FEE_DEBIT' as AssociateMovementTypeEnum,
-        amount: installmentAmount,
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: approvalDate ? approvalDate : undefined,
-        description: 'DEBITO GASTOS ADMINISTRATIVOS POR CREDITO',
-        referenceId: String(newCredit.id),
-        referenceType: 'credits',
-        referenceNumber: newCredit.customReference ?? undefined,
-      };
+  async approve(
+    id: number,
+    userId: number,
+  ): Promise<{ id: number; customReference: string | null }> {
+    /* 1.  Lock del registro  */
+    const credit = await this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(credits)
+        .where(eq(credits.id, id))
+        .for('update');
+      if (!row) throw new NotFoundException('Credit not found');
+      if (row.status !== CreditStatusEnum.REQUESTED)
+        throw new BadRequestException('Only REQUESTED credits can be approved');
+      return row;
+    });
 
-      await this.associateAccountsMovementsService.create(
-        userId,
-        payloadMovementCredits,
+    const creditSale = await this.db
+      .select()
+      .from(schema.creditItemSales)
+      .where(eq(schema.creditItemSales.creditId, id));
+
+    /* 2.  Repetir validaciones (mismas que create)  */
+    const {
+      associateId,
+      requestedAmount,
+      creditTypeId,
+      startDate,
+      currencyCode,
+      commercialHouseId,
+    } = credit;
+
+    // approved credit exists?
+    const active = await this.db
+      .select()
+      .from(credits)
+      .where(
+        and(
+          eq(credits.associateId, associateId),
+          eq(credits.status, CreditStatusEnum.APPROVED),
+          ne(credits.id, id), // excluir el propio
+        ),
       );
+    if (active.length)
+      throw new InternalServerErrorException('Member has approved credit.');
 
-      await this.associateAccountsMovementsService.create(
-        userId,
-        payloadMovementCreditsDebit,
+    // payroll
+    const [assoc] = await this.db
+      .select({
+        isPayrollCredit: associates.isPayrollCredit,
+        balance: associateHaberesBalance.haberesBalance,
+        associateAccountId: associateAccounts.id,
+      })
+      .from(associates)
+      .where(eq(associates.id, associateId))
+      .leftJoin(
+        associateAccounts,
+        eq(associateAccounts.associateId, associateId),
+      )
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       );
+    if (assoc.isPayrollCredit)
+      throw new InternalServerErrorException('Active payroll credit.');
+    const avail = this.calculatePercentage(Number(assoc?.balance ?? 0), 80);
+    if (Number(avail) < Number(requestedAmount))
+      throw new InternalServerErrorException('Insufficient availability.');
+
+    /* 3.  Cálculos (iguales que create)  */
+    const setting = await this.db
+      .select({ value: systemSettings.value })
+      .from(systemSettings)
+      .where(eq(systemSettings.key, 'MONEDA'))
+      .then((r) => r[0]);
+    const entryDate = new Date().toISOString().split('T')[0];
+    const exchangeRateData = await this.db.query.exchangeRates.findFirst({
+      where: eq(exchangeRates.date, entryDate),
+    });
+
+    const [creditType] = await this.db
+      .select()
+      .from(creditsTypes)
+      .where(eq(creditsTypes.id, creditTypeId));
+
+    const annualInterestRate = Number(creditType.interestRate);
+    const term = creditType.termUnits;
+    const expensePct = Number(creditType.administrativeExpensePercentage ?? 0);
+
+    const interest = (Number(requestedAmount) * annualInterestRate) / 100;
+    const expenses = (Number(requestedAmount) * expensePct) / 100;
+
+    let totalQuota = 0;
+    let totalInterest = 0;
+    let installmentAmount = 0;
+    let totalPayable = 0;
+
+    if (setting?.value === 'USD' && exchangeRateData) {
+      const rate = Number(exchangeRateData.rate);
+      totalQuota = (Number(requestedAmount) + interest) / term / rate;
+      totalInterest = interest / rate;
+      installmentAmount = expenses / rate;
+      totalPayable =
+        Number(requestedAmount) + totalInterest + installmentAmount;
+    } else {
+      totalQuota = (Number(requestedAmount) + interest) / term;
+      totalInterest = interest;
+      installmentAmount = expenses;
+      totalPayable =
+        Number(requestedAmount) + totalInterest + installmentAmount;
     }
 
-    // Convert to unknown first to safely cast to Credit type
-    return newCredit;
+    const finalDate = this.addMonthsToDate(startDate, term);
+    const customReference =
+      await this.generateCodeService.generateNextReference('CRE');
+
+    /* 4.  Transacción de aprobación  */
+    const result = await this.db.transaction(async (tx) => {
+      const credit = await tx
+        .update(credits)
+        .set({
+          status: CreditStatusEnum.APPROVED,
+          approvalDate: new Date().toISOString(),
+          customReference: customReference,
+          approvedByUserId: userId,
+          endDate: finalDate.toISOString(),
+          totalInterest: String(totalInterest.toFixed(6)),
+          installmentAmount: String(totalQuota.toFixed(6)),
+          expensesAmount: String(installmentAmount.toFixed(6)),
+          totalPayable: String(totalPayable.toFixed(6)),
+        })
+        .where(eq(credits.id, id))
+        .returning({
+          id: credits.id,
+          customReference: credits.customReference,
+        });
+
+      await tx
+        .update(schema.creditItemSales)
+        .set({
+          deliveryStatus: 'DELIVERED',
+        })
+        .where(eq(schema.creditItemSales.creditId, id));
+
+      await tx.insert(creditStatusHistory).values({
+        creditId: id,
+        status: CreditStatusEnum.APPROVED,
+        changedByUserId: userId,
+        comment: 'CREDIT APPROVED',
+      });
+
+      const schedule = this.generateAmortizationSchedule(
+        Number(requestedAmount),
+        term,
+        annualInterestRate,
+        new Date(),
+        id,
+        userId,
+      );
+
+      await tx.insert(creditAmortizationSchedule).values(
+        schedule.map((s) => ({
+          ...s,
+          dueDate: s.dueDate.toISOString(),
+          principalAmount: String(s.principalAmount),
+          interestAmount: String(s.interestAmount),
+          totalInstallmentAmount: String(s.totalInstallmentAmount),
+          principalBalancePending: String(s.principalBalancePending),
+        })),
+      );
+
+      //Moivmiento de inventario
+      for (const item of creditSale) {
+        if (item.itemType === 'PRODUCT') {
+          await this.inventoryMovementsService.create(
+            userId,
+            {
+              movementType: 'OUT',
+              description: `SALIDA PRODUCTO POR CREDITO ASOCIADO N° ${credit[0].customReference}`,
+              documentType: 'VENTA',
+              documentNumber: credit[0].customReference ?? undefined,
+              items: [
+                {
+                  itemId: item.itemId ?? 0,
+                  itemType: 'PRODUCT',
+                  quantity: item.quantity,
+                  unitCost: Number(item.agreedSellingPrice),
+                },
+              ],
+            },
+            tx,
+          );
+        }
+      }
+
+      // Movimientos
+
+      if (assoc?.associateAccountId) {
+        await this.associateAccountsMovementsService.create(userId, {
+          associateAccountId: assoc.associateAccountId,
+          movementType:
+            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
+          amount: Number(requestedAmount),
+          currencyCode: currencyCode as CurrencyCodeEnum,
+          transactionDate: new Date(),
+          description: 'CREDITO APROBADO',
+          referenceId: String(id),
+          referenceType: 'credits',
+          referenceNumber: customReference,
+        });
+        if (installmentAmount > 0) {
+          await this.associateAccountsMovementsService.create(userId, {
+            associateAccountId: assoc?.associateAccountId,
+            movementType: 'CREDIT_ADMIN_FEE_DEBIT' as AssociateMovementTypeEnum,
+            amount: installmentAmount,
+            currencyCode: currencyCode as CurrencyCodeEnum,
+            transactionDate: new Date(),
+            description: 'GASTOS ADMINISTRATIVOS',
+            referenceId: String(id),
+            referenceType: 'credits',
+            referenceNumber: customReference,
+          });
+        }
+      }
+
+      await tx.insert(auditLogs).values({
+        tableName: 'credits',
+        recordId: String(id),
+        action: 'UPDATE',
+        userId,
+        area: 'CREDITOS',
+        description: 'CREDITO APROBADO',
+      });
+
+      return credit[0];
+    });
+
+    return { id: result.id, customReference: result.customReference ?? null };
   }
 
   async findAll(paginationDto: FilterCreditManagementDto) {
@@ -597,6 +589,10 @@ export class CreditManagementService {
         creditTypeId: credits.creditTypeId,
         creditModality: credits.creditModality,
         creditTypeName: creditsTypes.name,
+        creditTypeInterestRate: creditsTypes.interestRate,
+        creditTypeAdministrativeExpensePercentage:
+          creditsTypes.administrativeExpensePercentage,
+        creditTypeTermUnits: creditsTypes.termUnits,
         requestDate: credits.requestDate,
         approvalDate: credits.approvalDate,
         requestedAmount: credits.requestedAmount,
@@ -741,269 +737,72 @@ export class CreditManagementService {
   }
 
   async findOneRequest(cedula: string) {
-      const associate = await this.db
-        .select({
-          id: associates.id,
-          cedula: associates.cedula,
-          fullname: associates.fullname,
-          phone: associates.phone,
-          email: associates.email,
-          dateAdmission: associates.dateAdmission,
-          isPayrollCredit: associates.isPayrollCredit,
-          status: associates.status,
-        })
-        .from(associates)
-        .where(
-          eq(associates.cedula, cedula),
-        );
+    const associate = await this.db
+      .select({
+        id: associates.id,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        phone: associates.phone,
+        email: associates.email,
+        dateAdmission: associates.dateAdmission,
+        isPayrollCredit: associates.isPayrollCredit,
+        status: associates.status,
+      })
+      .from(associates)
+      .where(eq(associates.cedula, cedula));
 
-      	
-      if (!associate.length) {
-            throw new NotFoundException(`Associate with cedula ${cedula} not found`);
-      }
-       if (associate[0].status === 'INACTIVE') {
-          throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
-        }
+    if (!associate.length) {
+      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+    }
+    if (associate[0].status === 'INACTIVE') {
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} is inactive`,
+      );
+    }
 
-        if (associate[0].status === 'RETIRED') {
-          throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
-        }
+    if (associate[0].status === 'RETIRED') {
+      throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
+    }
 
-      const associateAccount = await this.db
-        .select({
-          associateAccountId: associateAccounts.id,
-          accountNumber: associateAccounts.accountNumber,
-          balance: associateHaberesBalance.haberesBalance,
-        })
-        .from(associateAccounts)
-        .leftJoin(
-          associateHaberesBalance,
-          eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
-        )
-        .where(eq(associateAccounts.associateId, associate[0].id));
+    const associateAccount = await this.db
+      .select({
+        associateAccountId: associateAccounts.id,
+        accountNumber: associateAccounts.accountNumber,
+        balance: associateHaberesBalance.haberesBalance,
+      })
+      .from(associateAccounts)
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+      )
+      .where(eq(associateAccounts.associateId, associate[0].id));
 
-      const [{ count: total }] = await this.db
-        .select({
-          count: count(),
-        })
-        .from(credits)
-        .where(
-          and(
-            eq(credits.associateId, associate[0].id),
-            ne(credits.status, CreditStatusEnum.PAID),
-            ne(credits.status, CreditStatusEnum.REQUESTED),
-          ),
-        );
+    const [{ count: total }] = await this.db
+      .select({
+        count: count(),
+      })
+      .from(credits)
+      .where(
+        and(
+          eq(credits.associateId, associate[0].id),
+          ne(credits.status, CreditStatusEnum.PAID),
+          ne(credits.status, CreditStatusEnum.REQUESTED),
+        ),
+      );
 
-      return {
-        associate: {
-          ...associate[0],
-          associateAccountId: associateAccount[0].associateAccountId,
-          accountNumber: associateAccount[0].accountNumber,
-          balance: Number(associateAccount[0].balance).toFixed(2)
-        },
-        totalCredits: total,
-      };
-  
+    return {
+      associate: {
+        ...associate[0],
+        associateAccountId: associateAccount[0].associateAccountId,
+        accountNumber: associateAccount[0].accountNumber,
+        balance: Number(associateAccount[0].balance).toFixed(2),
+      },
+      totalCredits: total,
+    };
   }
 
   findOne(id: number) {
     return `This action returns a #${id} Credit`;
-  }
-
-  async update(
-    id: number,
-    dto: UpdateCreditDto,
-    userId: number,
-  ): Promise<{ id: number; customReference: string | null }> {
-    // 1. Obtener el préstamo actual
-
-    const existingCredit = await this.db
-      .select()
-      .from(credits)
-      .where(eq(credits.id, id));
-    if (existingCredit.length === 0) {
-      throw new InternalServerErrorException('Credit not found.');
-    }
-
-    const setting = await this.db.query.systemSettings.findFirst({
-      where: eq(systemSettings.key, 'moneda'),
-    });
-    const entryDate = new Date().toISOString().split('T')[0];
-    const exchangeRateData = await this.db.query.exchangeRates.findFirst({
-      where: eq(exchangeRates.date, entryDate),
-    });
-
-    // 2. Obtener datos relevantes para el cálculo
-    const [getCreditTypes] = await this.db
-      .select()
-      .from(creditsTypes)
-      .where(
-        eq(creditsTypes.id, dto.creditTypeId ?? existingCredit[0].creditTypeId),
-      );
-
-    // 3. Calcular nuevos valores si corresponde
-    // 1. Perform calculations
-    // Using the standard formula for annuity Credit payments
-    const annualInterestRate = parseFloat(getCreditTypes.interestRate); // Tasa de interés anual
-    const term = getCreditTypes.termUnits; // Plazo en meses
-    const expensePercentage = parseFloat(
-      getCreditTypes.administrativeExpensePercentage ?? '0',
-    ); //  Tasa Porcentaje de gastos administrativos
-    const percentageInterest =
-      ((dto.requestedAmount ?? 0) * annualInterestRate) / 100; // Porcentaje de cuota
-    const percentageExpenses =
-      ((dto.requestedAmount ?? 0) * expensePercentage) / 100; // Porcentaje de gastos
-
-    let totalQuota = 0; //Cálculo del pago cuotas mesual
-    let totalInterest = 0; //Cálculo del monto total de intereses
-    let installmentAmount = 0; //total gasto administrativo
-    let totalPayable = 0; //Cálculo del monto total a pagar
-    if (setting && setting.value === 'USD' && exchangeRateData) {
-      totalQuota =
-        ((dto?.requestedAmount ?? 0) +
-          percentageInterest) /
-        term /
-        Number(exchangeRateData.rate);
-      totalInterest =
-        ((dto?.requestedAmount ?? 0) * annualInterestRate) /
-        100 /
-        Number(exchangeRateData.rate);
-      installmentAmount =
-        ((dto?.requestedAmount ?? 0) * expensePercentage) /
-        100 /
-        Number(exchangeRateData.rate);
-      totalPayable =
-        ((dto?.requestedAmount ?? 0) + totalInterest + installmentAmount) /
-        Number(exchangeRateData.rate);
-    } else {
-      totalQuota =
-        ((dto?.requestedAmount ?? 0) +
-          percentageInterest) /
-        term;
-      totalInterest = ((dto?.requestedAmount ?? 0) * annualInterestRate) / 100;
-      installmentAmount =
-        ((dto?.requestedAmount ?? 0) * expensePercentage) / 100;
-      totalPayable =
-        (dto?.requestedAmount ?? 0) + totalInterest + installmentAmount;
-    }
-
-    let customReference: string | null | undefined = undefined;
-    let approvalDate: Date | null = null;
-    const currentDate = new Date(); // Fecha actual
-    const finalDate = this.addMonthsToDate(
-      dto?.startDate ?? currentDate,
-      getCreditTypes.termUnits,
-    ); //fecha finalizacion del pago
-
-    // 2 & 3. Handle APPROVED status
-    if (dto?.status !== CreditStatusEnum.REQUESTED) {
-      customReference = generateUniqueReference();
-      approvalDate = currentDate;
-    }
-
-    // 4. Actualizar el préstamo y la tabla de amortización en una transacción
-    const updatedCredit = await this.db.transaction(async (tx) => {
-      // Actualizar préstamo
-
-      const [creditUpdated] = await tx
-        .update(credits)
-        .set({
-          ...dto,
-          associateId: Number(dto.associateId),
-          creditTypeId: Number(dto.creditTypeId),
-          creditModality: dto?.creditModality,
-          requestDate: dto?.requestDate?.toISOString().split('T')[0],
-          approvalDate: approvalDate?.toISOString().split('T')[0],
-          requestedAmount:
-            dto.requestedAmount !== null && dto.requestedAmount !== undefined
-              ? String(dto.requestedAmount)
-              : undefined, // Usa undefined en vez de null
-          startDate: dto?.startDate?.toISOString().split('T')[0],
-          endDate: finalDate.toISOString().split('T')[0],
-          totalInterest:
-            totalInterest !== null && totalInterest !== undefined
-              ? String(totalInterest.toFixed(6))
-              : undefined, // Usa undefined en vez de null
-          totalPayable:
-            totalPayable !== null && totalPayable !== undefined
-              ? String(totalPayable.toFixed(6))
-              : undefined, // Usa undefined en vez de null
-          installmentAmount:
-            totalQuota !== null && totalQuota !== undefined
-              ? String(totalQuota.toFixed(6))
-              : undefined, // Usa undefined en vez de null
-          expensesAmount:
-            installmentAmount !== null && installmentAmount !== undefined
-              ? String(installmentAmount.toFixed(6))
-              : undefined, // Usa undefined en vez de null
-          // *** LÍNEA CORREGIDA PARA overdraftAmount ***
-          overdraftAmount:
-            dto.overdraftAmount !== null && dto.overdraftAmount !== undefined
-              ? String(dto.overdraftAmount)
-              : undefined, // Usa undefined en vez de null
-          previousCreditId: dto.previousCreditId ?? null,
-          status: dto?.status,
-          approvedByUserId: userId,
-          notes: dto.notes ?? null,
-          currencyCode: setting?.value === '1' ? 'VES' : 'USD',
-          exchangeRateId: setting?.value === '2' ? exchangeRateData?.id : null,
-          customReference: customReference,
-          commercialHouseId: Number(dto.commercialHouseId),
-          invoiceNumber: dto.invoiceNumber,
-          updatedById: userId,
-          updatedAt: new Date(),
-        })
-        .where(eq(credits.id, id))
-        .returning({
-          id: credits.id,
-          customReference: credits.customReference,
-        });
-
-      if (!creditUpdated) {
-        throw new InternalServerErrorException('Failed to update credit.');
-      }
-
-      // Eliminar tabla de amortización anterior
-      await tx
-        .delete(creditAmortizationSchedule)
-        .where(eq(creditAmortizationSchedule.creditId, id));
-
-      // Generar y guardar nueva tabla de amortización
-      const schedule = this.generateAmortizationSchedule(
-        dto.requestedAmount!,
-        term,
-        annualInterestRate,
-        dto.startDate!,
-        id,
-        userId,
-      );
-      if (schedule.length > 0) {
-        await tx.insert(creditAmortizationSchedule).values(
-          schedule.map((item) => ({
-            ...item,
-            dueDate: item.dueDate.toISOString(),
-            principalAmount: item.principalAmount.toString(),
-            interestAmount: item.interestAmount.toString(),
-            totalInstallmentAmount: item.totalInstallmentAmount.toString(),
-            principalBalancePending: item.principalBalancePending.toString(),
-          })),
-        );
-      }
-
-      // Registrar historial de estatus
-      await tx.insert(creditStatusHistory).values({
-        creditId: id,
-        status: dto.status!,
-        changedAt: new Date(),
-        changedByUserId: userId,
-        comment: 'Credit updated',
-      });
-
-      return creditUpdated;
-    });
-
-    return updatedCredit;
   }
 
   async remove(id: number): Promise<{ message: string }> {

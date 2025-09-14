@@ -130,7 +130,12 @@ export class ProductsService {
           eq(inventoryAvailability.itemType, 'PRODUCT'),
         ),
       )
-      .where(eq(products.status, 'AVAILABLE'));
+      .where(
+        and(
+          eq(products.status, 'AVAILABLE'),
+          eq(schema.productPrices.isActive, true),
+        ),
+      );
 
     return rows.map((r) => ({
       id: r.id,

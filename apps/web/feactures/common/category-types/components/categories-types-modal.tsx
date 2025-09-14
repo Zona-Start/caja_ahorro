@@ -45,6 +45,8 @@ export function CategoriesTypesModal({
     group === 'TIPO TRABAJADOR'
   ) {
     name = 'Tipo Trabajador';
+  } else if (group === GROUP_TYPES.DAYS_TYPE || group === 'TIPO DE JORNADA') {
+    name = 'Tipo Jornadas';
   }
 
   return (
