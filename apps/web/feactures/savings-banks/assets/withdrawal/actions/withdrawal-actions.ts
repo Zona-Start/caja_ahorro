@@ -114,7 +114,6 @@ export const getWithdrawalAction = async (params: {
 
 export const createWithdrawalAction = async (withdrawal: Withdrawal) => {
   const { id, ...payloadWithoutId } = withdrawal;
-  console.log(payloadWithoutId);
 
   const payload = {
     ...payloadWithoutId,

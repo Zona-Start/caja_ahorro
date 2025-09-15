@@ -1,9 +1,9 @@
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import { PaginationDto } from '@/common/dto/pagination.dto';
 import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateSettlementAssociateDto } from './dto/create-settlement-associate.dto';
 import { SettlementAssociateService } from './settlement-associate.service';
-import { PaginationDto } from '@/common/dto/pagination.dto';
 
 @Controller('savings-banks/settlement-associate')
 export class SettlementAssociateController {
@@ -14,6 +14,14 @@ export class SettlementAssociateController {
   create(@Req() req: Request, @Body() dto: CreateSettlementAssociateDto) {
     const userdId = req['user'].id;
     return this.service.create(dto, userdId);
+  }
+
+  @Get('approved')
+  @RequirePermissions('read:settlement-associate')
+  @ApiOperation({ summary: 'Get all settlement aproveed ' })
+  @ApiResponse({ status: 200, description: 'Return all settlement aproveed' })
+  findSettlementAprovee() {
+    return this.service.findSettlementAprovee();
   }
 
   @Get()

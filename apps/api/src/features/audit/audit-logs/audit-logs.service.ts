@@ -1,14 +1,13 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import { auditLogs } from '@/database/index';
+import { ActionEnumAudit } from '@/types/enum';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateAuditLogsDto } from './dto/create-audit.dto';
 import { UpdateAuditLogsDto } from './dto/update-audit.dto';
 import { Audit } from './entities/audit.entity';
-import { Action } from './dto/audit-logs-enum';
-import { ActionEnumAudit } from '@/types/enum';
 
 @Injectable()
 export class AuditLogsService {
@@ -22,7 +21,7 @@ export class AuditLogsService {
       ...record,
       action: record.action as ActionEnumAudit,
       previousData: record.previousData as JSON,
-      newData: record.newData  as JSON,
+      newData: record.newData as JSON,
     }));
   }
 
@@ -40,12 +39,16 @@ export class AuditLogsService {
       ...auditRecord[0],
       action: auditRecord[0].action as ActionEnumAudit,
       previousData: auditRecord[0].previousData as JSON,
-      newData: auditRecord[0].newData  as JSON,
+      newData: auditRecord[0].newData as JSON,
     };
   }
 
-  async create(createAuditLogsDto: CreateAuditLogsDto): Promise<Audit> {
-    const [auditRecord] = await this.drizzle
+  async create(
+    createAuditLogsDto: CreateAuditLogsDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<Audit> {
+    const db = tx ?? this.drizzle;
+    const [auditRecord] = await db
       .insert(auditLogs)
       .values({
         tableName: createAuditLogsDto.tableName,
@@ -63,11 +66,14 @@ export class AuditLogsService {
       ...auditRecord,
       action: auditRecord.action as ActionEnumAudit,
       previousData: auditRecord.previousData as JSON,
-      newData: auditRecord.newData  as JSON,
+      newData: auditRecord.newData as JSON,
     };
   }
 
-  async update(id: number, updateAuditLogsDto: UpdateAuditLogsDto): Promise<Audit> {
+  async update(
+    id: number,
+    updateAuditLogsDto: UpdateAuditLogsDto,
+  ): Promise<Audit> {
     // Check if audit record exists
     await this.findOne(id);
 

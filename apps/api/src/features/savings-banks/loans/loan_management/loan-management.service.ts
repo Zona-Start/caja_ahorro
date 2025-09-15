@@ -43,52 +43,6 @@ export class LoanManagementService {
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
-  // --- Helper function to generate custom reference ---
-  // private async generateCustomReference(): Promise<string> {
-  //   // Fetch the current correlative number and increment it
-  //   const key = 'correlativo_prestamo';
-  //   try {
-  //     const result = await this.db.transaction(async (tx) => {
-  //       // Lock the row for update
-  //       const setting = await tx.query.systemSettings.findFirst({
-  //         where: eq(systemSettings.key, key),
-  //         // Add forUpdate() if your Drizzle version supports it for row locking
-  //         // Example: columns: {}, with: { forUpdate: true }
-  //       });
-
-  //       if (!setting) {
-  //         throw new InternalServerErrorException(
-  //           `System setting '${key}' not found.`,
-  //         );
-  //       }
-
-  //       const currentNumber = parseInt(setting.value, 10);
-  //       if (isNaN(currentNumber)) {
-  //         throw new InternalServerErrorException(
-  //           `Invalid correlative number format for '${key}'.`,
-  //         );
-  //       }
-
-  //       const nextNumber = currentNumber + 1;
-  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
-
-  //       // Update the setting with the new value
-  //       await tx
-  //         .update(systemSettings)
-  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-  //         .where(eq(systemSettings.id, setting.id));
-
-  //       return nextValue; // Return the generated reference
-  //     });
-  //     return `PREST-${result}`; // Prefix the reference
-  //   } catch (error) {
-  //     console.error('Error generating custom reference:', error);
-  //     throw new InternalServerErrorException(
-  //       'Failed to generate custom loan reference.',
-  //     );
-  //   }
-  // }
-
   // --- Helper function to generate amortization schedule ---
   private generateAmortizationSchedule(
     loanAmount: number, // Monto del préstamo solicitado (capital)
@@ -1319,6 +1273,28 @@ export class LoanManagementService {
       totalLoanSpecialQuotas: Number(totalLoanSpecialQuotas[0].count),
       totalLoanPaid: Number(totalLoanPaid[0].count),
       totalLoanInPaymet: Number(totalLoanInPaymet[0].count),
+    };
+  }
+
+  async findLoanAprovee() {
+    // Get paginated data
+    const data = await this.db
+      .select({
+        id: loans.id,
+        associateId: loans.associateId,
+        associateCedula: associates.cedula,
+        associateName: associates.fullname,
+        reference: loans.customReference,
+        approvalDate: loans.approvalDate,
+        amount: loans.approvedAmount,
+      })
+      .from(loans)
+      .leftJoin(associates, eq(loans.associateId, associates.id))
+      .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id))
+      .where(eq(loans.status, LoanStatusEnum.APPROVED));
+
+    return {
+      data: data,
     };
   }
 }

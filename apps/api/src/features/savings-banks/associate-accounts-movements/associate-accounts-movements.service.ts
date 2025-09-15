@@ -48,7 +48,9 @@ export class AssociateAccountsMovementsService {
   async create(
     userId: number,
     createAssociateAccountsMovementDto: CreateAssociateAccountsMovementDto,
+    tx?: NodePgDatabase<typeof schema>,
   ): Promise<{ message: string }> {
+    const db = tx ?? this.drizzle;
     try {
       return await this.drizzle.transaction(async (tx) => {
         const {

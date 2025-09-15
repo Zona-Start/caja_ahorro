@@ -51,6 +51,11 @@ export const savingBankItems: NavItem[] = [
         url: '/dashboard/haberes/liquidacion',
       },
       {
+        title: 'Desembolsos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/haberes/desembolsos-asociados',
+      },
+      {
         title: 'Tipos de Rétiros',
         shortcut: ['l', 'l'],
         url: '/dashboard/haberes/retiros/tipo-retiros',

@@ -31,17 +31,12 @@ export class WithdrawalAssociateController {
     return this.service.execute(dto, userId);
   }
 
-  @Patch(':id/approve')
-  @RequirePermissions('approve:withdrawal-associate')
-  @ApiOperation({ summary: 'Approve a withdrawal request' })
-  @ApiResponse({
-    status: 200,
-    description: 'Withdrawal approved/disbursed successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
-  approve(@Req() req: Request, @Param('id') id: string) {
-    const userId = req['user'].id;
-    return this.service.approve(+id, userId);
+  @Get('approved')
+  @RequirePermissions('read:withdrawal-associate')
+  @ApiOperation({ summary: 'Get all withdrawal aproveed ' })
+  @ApiResponse({ status: 200, description: 'Return all withdrawal aproveed' })
+  findWithdrawalAprovee() {
+    return this.service.findWithdrawalAprovee();
   }
 
   @Get()
@@ -61,6 +56,19 @@ export class WithdrawalAssociateController {
   @ApiResponse({ status: 404, description: 'withdrawal Associate  not found.' })
   findOneRequest(@Param('cedula') cedula: string) {
     return this.service.findOneRequest(cedula);
+  }
+
+  @Patch(':id/approve')
+  @RequirePermissions('approve:withdrawal-associate')
+  @ApiOperation({ summary: 'Approve a withdrawal request' })
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal approved/disbursed successfully.',
+  })
+  @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
+  approve(@Req() req: Request, @Param('id') id: string) {
+    const userId = req['user'].id;
+    return this.service.approve(+id, userId);
   }
 
   @Delete(':id')

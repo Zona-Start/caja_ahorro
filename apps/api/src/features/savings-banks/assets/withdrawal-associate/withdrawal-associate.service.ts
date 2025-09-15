@@ -558,4 +558,28 @@ export class WithdrawalAssociateService {
       }
     });
   }
+
+  async findWithdrawalAprovee() {
+    const result = await this.db
+      .select({
+        id: withdrawalsAssociates.id,
+        associateId: associates.id,
+        associateCedula: associates.cedula,
+        associateName: associates.fullname,
+        reference: withdrawalsAssociates.referenceCode,
+        approvalDate: withdrawalsAssociates.updatedAt,
+        amount: withdrawalsAssociates.requestedAmount,
+      })
+      .from(withdrawalsAssociates)
+      .leftJoin(
+        associateAccounts,
+        eq(associateAccounts.id, withdrawalsAssociates.associateAccountId),
+      )
+      .leftJoin(associates, eq(associates.id, associateAccounts.associateId))
+      .where(eq(withdrawalsAssociates.status, 'APPROVED'));
+
+    return {
+      data: result,
+    };
+  }
 }

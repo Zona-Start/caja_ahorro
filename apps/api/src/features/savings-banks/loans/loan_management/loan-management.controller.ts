@@ -35,6 +35,14 @@ export class LoanManagementController {
     return this.loanManagementService.findAll(paginationDto);
   }
 
+  @Get('approved')
+  @RequirePermissions('read:loan-management')
+  @ApiOperation({ summary: 'Get all Loan aproveed ' })
+  @ApiResponse({ status: 200, description: 'Return all Loan aproveed' })
+  findLoanAprovee() {
+    return this.loanManagementService.findLoanAprovee();
+  }
+
   @Get('count')
   @RequirePermissions('read:loan-management-count')
   @ApiOperation({ summary: 'Get all Loan count' })

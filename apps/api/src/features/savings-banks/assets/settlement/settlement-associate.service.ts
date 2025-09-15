@@ -1,3 +1,4 @@
+import { PaginationDto } from '@/common/dto/pagination.dto';
 import { generateUniqueReference } from '@/common/utils/reference';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
@@ -27,7 +28,6 @@ import { AssociateAccountsMovementsService } from '../../associate-accounts-move
 import { CreditPaidService } from '../../credits/credit-paid/credit-paid.service';
 import { LoanPaidService } from '../../loans/loan_paid/loan-paid.service';
 import { CreateSettlementAssociateDto } from './dto/create-settlement-associate.dto';
-import { PaginationDto } from '@/common/dto/pagination.dto';
 
 @Injectable()
 export class SettlementAssociateService {
@@ -38,41 +38,46 @@ export class SettlementAssociateService {
     private readonly creditPaidService: CreditPaidService, // ¡Inyecta LoanPaidService!
   ) {}
 
-
-
   async findOneRequest(cedula: string) {
-
-    const result = await this.db.select().from(associates).where(eq(associates.cedula, cedula));
+    const result = await this.db
+      .select()
+      .from(associates)
+      .where(eq(associates.cedula, cedula));
 
     if (!result.length) {
       throw new NotFoundException(`Associate with cedula ${cedula} not found`);
     }
     if (result[0].status === 'INACTIVE') {
-      throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} is inactive`,
+      );
     }
 
     if (result[0].status === 'RETIRED') {
-      throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
+      throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
     }
-
 
     const resultLiquidations = await this.db.execute(
       sql.raw(
         `select *from savings_banks.calculate_associate_liquidation('${cedula}')`,
       ),
     );
-     
+
     if (resultLiquidations.rows.length === 0) {
-      throw new NotFoundException(`Associate with cedula ${cedula} has no liquidation data`);
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} has no liquidation data`,
+      );
     }
 
     const transformResultLiquidations = resultLiquidations.rows.map((row) => ({
       ...row,
       total_savings_balance: Number(row.total_savings_balance).toFixed(2),
       total_outstanding_loans: Number(row.total_outstanding_loans).toFixed(2),
-      total_outstanding_credits: Number(row.total_outstanding_credits).toFixed(2),
+      total_outstanding_credits: Number(row.total_outstanding_credits).toFixed(
+        2,
+      ),
       net_liquidation_amount: Number(row.net_liquidation_amount).toFixed(2),
-    }))
+    }));
 
     return {
       message: 'Associate liquidation calculated',
@@ -260,7 +265,7 @@ export class SettlementAssociateService {
       await tx
         .update(associateAccounts)
         .set({
-          status: 'CLOSED', // O 'INACTIVE'
+          status: 'ARCHIVED', // O 'INACTIVE'
           closingDate: (liquidationDate ?? new Date()).toISOString(),
           updatedAt: new Date(),
         })
@@ -303,91 +308,124 @@ export class SettlementAssociateService {
     });
   }
 
+  async findAll(paginationDto: PaginationDto) {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+    } = paginationDto || {};
 
-   async findAll(paginationDto: PaginationDto) {
-      const {
-        page = 1,
-        limit = 10,
-        search = '',
-        sortBy = 'id',
-        sortOrder = 'asc',
-      } = paginationDto || {};
-  
-      // Calculate offset
-      const offset = (page - 1) * limit;
-  
-      // Build search condition
-      let searchConditions: SQL<unknown>[] = [];
-  
-      if (search) {
-        searchConditions.push(
-          ilike(associates.cedula, `%${search}%`),
-        );
-      }
-  
-  
-      const searchCondition = searchConditions.length
-        ? and(...searchConditions)
-        : undefined;
-  
-      // Build sort condition
-      const orderBy =
-        sortOrder === 'asc'
-          ? sql`${liquidationsAssociates[sortBy as keyof typeof liquidationsAssociates]} asc`
-          : sql`${liquidationsAssociates[sortBy as keyof typeof liquidationsAssociates]} desc`;
-  
-      // Get total count for pagination
-      const totalCountResult = await this.db
-        .select({ count: sql<number>`count(*)` })
-        .from(liquidationsAssociates)
-        .leftJoin(associates, eq(associates.id, liquidationsAssociates.associateId))
-        .where(searchCondition);
-  
-      const totalCount = Number(totalCountResult[0].count);
-      const totalPages = Math.ceil(totalCount / limit);
-  
-      // Get paginated data
-      const data = await this.db
-        .select({
-          id: liquidationsAssociates.id,
-          customReference: liquidationsAssociates.customReference,
-          liquidationDate: liquidationsAssociates.liquidationDate,
-          totalSavingsBalanceAtLiquidation: liquidationsAssociates.totalSavingsBalanceAtLiquidation,
-          totalOutstandingLoansAtLiquidation: liquidationsAssociates.totalOutstandingLoansAtLiquidation,
-          totalOutstandingCreditsAtLiquidation: liquidationsAssociates.totalOutstandingCreditsAtLiquidation,
-          netLiquidationAmount: liquidationsAssociates.netLiquidationAmount,
-          associateCedula: associates.cedula,
-          associateFullname: associates.fullname,
-        })
-        .from(liquidationsAssociates)
-        .where(searchCondition)
-        .leftJoin(associates, eq(associates.id, liquidationsAssociates.associateId))
-        .orderBy(orderBy)
-        .limit(limit)
-        .offset(offset);
-  
-      // Build pagination metadata
-      const meta = {
-        page,
-        limit,
-        totalCount,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPreviousPage: page > 1,
-        nextPage: page < totalPages ? page + 1 : null,
-        previousPage: page > 1 ? page - 1 : null,
-      };
+    // Calculate offset
+    const offset = (page - 1) * limit;
 
-  
-      return {
-        data: data.map((item) => ({
-          ...item,
-          totalSavingsBalanceAtLiquidation: Number(item.totalSavingsBalanceAtLiquidation).toFixed(2),
-          totalOutstandingLoansAtLiquidation: Number(item.totalOutstandingLoansAtLiquidation).toFixed(2),
-          totalOutstandingCreditsAtLiquidation: Number(item.totalOutstandingCreditsAtLiquidation).toFixed(2),
-          netLiquidationAmount: Number(item.netLiquidationAmount).toFixed(2)
-        })),
-        meta,
-      };
+    // Build search condition
+    let searchConditions: SQL<unknown>[] = [];
+
+    if (search) {
+      searchConditions.push(ilike(associates.cedula, `%${search}%`));
     }
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    // Build sort condition
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${liquidationsAssociates[sortBy as keyof typeof liquidationsAssociates]} asc`
+        : sql`${liquidationsAssociates[sortBy as keyof typeof liquidationsAssociates]} desc`;
+
+    // Get total count for pagination
+    const totalCountResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(liquidationsAssociates)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .where(searchCondition);
+
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Get paginated data
+    const data = await this.db
+      .select({
+        id: liquidationsAssociates.id,
+        customReference: liquidationsAssociates.customReference,
+        liquidationDate: liquidationsAssociates.liquidationDate,
+        totalSavingsBalanceAtLiquidation:
+          liquidationsAssociates.totalSavingsBalanceAtLiquidation,
+        totalOutstandingLoansAtLiquidation:
+          liquidationsAssociates.totalOutstandingLoansAtLiquidation,
+        totalOutstandingCreditsAtLiquidation:
+          liquidationsAssociates.totalOutstandingCreditsAtLiquidation,
+        netLiquidationAmount: liquidationsAssociates.netLiquidationAmount,
+        associateCedula: associates.cedula,
+        associateFullname: associates.fullname,
+      })
+      .from(liquidationsAssociates)
+      .where(searchCondition)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    // Build pagination metadata
+    const meta = {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return {
+      data: data.map((item) => ({
+        ...item,
+        totalSavingsBalanceAtLiquidation: Number(
+          item.totalSavingsBalanceAtLiquidation,
+        ).toFixed(2),
+        totalOutstandingLoansAtLiquidation: Number(
+          item.totalOutstandingLoansAtLiquidation,
+        ).toFixed(2),
+        totalOutstandingCreditsAtLiquidation: Number(
+          item.totalOutstandingCreditsAtLiquidation,
+        ).toFixed(2),
+        netLiquidationAmount: Number(item.netLiquidationAmount).toFixed(2),
+      })),
+      meta,
+    };
+  }
+
+  async findSettlementAprovee() {
+    const result = await this.db
+      .select({
+        id: liquidationsAssociates.id,
+        associateId: associates.id,
+        associateCedula: associates.cedula,
+        associateName: associates.fullname,
+        reference: liquidationsAssociates.customReference,
+        approvalDate: liquidationsAssociates.liquidationDate,
+        amount: liquidationsAssociates.netLiquidationAmount,
+      })
+      .from(liquidationsAssociates)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .where(eq(liquidationsAssociates.status, 'REQUESTED'));
+
+    return {
+      data: result,
+    };
+  }
 }
