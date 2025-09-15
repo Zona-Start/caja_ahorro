@@ -1,5 +1,7 @@
 'use client';
 
+import { Badge } from '@repo/shadcn/components/ui/badge';
+import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { PaymentBatch } from '../../schemas/payment-batch-api-response';
 import { PAYMENT_BATCH_STATUS } from '../../schemas/payment-batch-options';
@@ -7,8 +9,8 @@ import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<PaymentBatch>[] = [
   {
-    accessorKey: 'id',
-    header: 'ID Lote',
+    accessorKey: 'paymentBatchReference',
+    header: 'Referencia',
   },
   {
     accessorKey: 'description',
@@ -30,8 +32,49 @@ export const columns: ColumnDef<PaymentBatch>[] = [
     accessorKey: 'status',
     header: 'Estado',
     cell: ({ row }) => {
-      const statusKey = row.original.status as keyof typeof PAYMENT_BATCH_STATUS;
-      return PAYMENT_BATCH_STATUS[statusKey] || row.original.status;
+      const status = row.original.status;
+      const statusText =
+        PAYMENT_BATCH_STATUS[status as keyof typeof PAYMENT_BATCH_STATUS] ||
+        status;
+
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'DRAFT':
+            return 'default';
+          case 'UPLOADED':
+            return 'warning';
+          case 'PROCESSED':
+            return 'success';
+          case 'CANCELLED':
+            return 'outline';
+          default:
+            return 'default';
+        }
+      })();
+
+      return (
+        <div className={cn('p-2 h-full w-full')}>
+          <Badge
+            variant={
+              variant as
+                | 'default'
+                | 'destructive'
+                | 'outline'
+                | 'secondary'
+                | 'success'
+                | 'danger'
+            }
+          >
+            {statusText}
+          </Badge>
+        </div>
+      );
     },
   },
   {

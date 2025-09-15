@@ -916,6 +916,11 @@ export const creditItemSales = savingsBanksSchema.table(
 export const paymentBatches = savingsBanksSchema.table('payment_batches', {
   id: serial('id').primaryKey(),
   companyId: integer('company_id').notNull(),
+  paymentBatchReference: varchar('payment_batch_reference', {
+    length: 50,
+  })
+    .notNull()
+    .unique(),
   description: varchar('description', { length: 100 }),
   status: paymentBatchStatus('status').notNull().default('DRAFT'),
   recordCount: integer('record_count').notNull().default(0),

@@ -3,18 +3,25 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsDateString,
+  IsIn,
+  IsNumber,
   IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
 
 class ItemResultDto {
+  @IsNumber() // ✅ Agrega el decorador de validación
   @ApiProperty()
   itemId: number;
 
+  @IsString()
+  @IsIn(['PROCESSED', 'REJECTED']) // ✅ Agrega la validación de valor
   @ApiProperty({ enum: ['PROCESSED', 'REJECTED'] })
   status: 'PROCESSED' | 'REJECTED';
 
+  @IsString()
+  @IsOptional()
   @ApiPropertyOptional()
   reason?: string;
 }

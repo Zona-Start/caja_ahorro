@@ -29,7 +29,6 @@ import {
   useApprovedLoans,
   useApprovedWithdrawals,
 } from '../hooks/use-query-source-items';
-import { PAYMENT_BATCH_ITEM_TYPE } from '../schemas/payment-batch-options';
 import {
   CreatePaymentBatch,
   createPaymentBatchSchema,
@@ -99,26 +98,26 @@ export function PaymentBatchForm({
   };
 
   const selectedLoansCount = selectedItems.filter(
-    (item) => item.type === PAYMENT_BATCH_ITEM_TYPE.LOAN,
+    (item) => item.type === 'LOAN',
   ).length;
   const selectedWithdrawalsCount = selectedItems.filter(
-    (item) => item.type === PAYMENT_BATCH_ITEM_TYPE.WITHDRAWAL,
+    (item) => item.type === 'WITHDRAWAL',
   ).length;
   const selectedLiquidationsCount = selectedItems.filter(
-    (item) => item.type === PAYMENT_BATCH_ITEM_TYPE.LIQUIDATION,
+    (item) => item.type === 'LIQUIDATION',
   ).length;
 
   const totalSelectedAmount = useMemo(() => {
     let total = 0;
     selectedItems.forEach((selected) => {
       let item;
-      if (selected.type === PAYMENT_BATCH_ITEM_TYPE.LOAN) {
+      if (selected.type === 'LOAN') {
         item = approvedLoans?.find((loan) => loan.id === selected.sourceId);
-      } else if (selected.type === PAYMENT_BATCH_ITEM_TYPE.WITHDRAWAL) {
+      } else if (selected.type === 'WITHDRAWAL') {
         item = approvedWithdrawals?.find(
           (withdrawal) => withdrawal.id === selected.sourceId,
         );
-      } else if (selected.type === PAYMENT_BATCH_ITEM_TYPE.LIQUIDATION) {
+      } else if (selected.type === 'LIQUIDATION') {
         item = approvedLiquidations?.find(
           (liquidation) => liquidation.id === selected.sourceId,
         );
@@ -129,15 +128,9 @@ export function PaymentBatchForm({
     });
     return total;
   }, [selectedItems, approvedLoans, approvedWithdrawals, approvedLiquidations]);
-
   const handleSubmit = form.handleSubmit((data) => {
     onSubmit(data);
   });
-
-  const currencies = [
-    { code: 'VES', name: 'Bolívares' },
-    { code: 'USD', name: 'Dólares' },
-  ];
 
   return (
     <Card>
@@ -177,7 +170,7 @@ export function PaymentBatchForm({
                 )}
               />
 
-              <FormField
+              {/* <FormField
                 control={form.control}
                 name="currencyCode"
                 render={({ field }) => (
@@ -196,7 +189,7 @@ export function PaymentBatchForm({
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              /> */}
             </div>
 
             <FormField
@@ -226,7 +219,7 @@ export function PaymentBatchForm({
                 <ApprovedItemsTable
                   title="Préstamos"
                   items={approvedLoans || []}
-                  itemType={PAYMENT_BATCH_ITEM_TYPE.LOAN}
+                  itemType={'LOAN'}
                   onSelectionChange={handleSelectionChange}
                   selectedItems={selectedItems}
                 />
@@ -242,7 +235,7 @@ export function PaymentBatchForm({
                 <ApprovedItemsTable
                   title="Retiros"
                   items={approvedWithdrawals || []}
-                  itemType={PAYMENT_BATCH_ITEM_TYPE.WITHDRAWAL}
+                  itemType={'WITHDRAWAL'}
                   onSelectionChange={handleSelectionChange}
                   selectedItems={selectedItems}
                 />
@@ -258,7 +251,7 @@ export function PaymentBatchForm({
                 <ApprovedItemsTable
                   title="Liquidaciones"
                   items={approvedLiquidations || []}
-                  itemType={PAYMENT_BATCH_ITEM_TYPE.LIQUIDATION}
+                  itemType={'LIQUIDATION'}
                   onSelectionChange={handleSelectionChange}
                   selectedItems={selectedItems}
                 />

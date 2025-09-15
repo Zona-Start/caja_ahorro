@@ -71,6 +71,13 @@
       "when": 1757895440126,
       "tag": "0009_minor_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1757964257968,
+      "tag": "0010_bored_micromax",
+      "breakpoints": true
     }
   ]
 }

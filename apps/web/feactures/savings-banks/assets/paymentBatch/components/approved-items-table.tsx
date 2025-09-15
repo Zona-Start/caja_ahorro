@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@repo/shadcn/table';
 import { format } from 'date-fns';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ApprovedItem {
   id: number;
@@ -26,9 +26,15 @@ interface ApprovedItemsTableProps {
   items: ApprovedItem[];
   itemType: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION';
   onSelectionChange: (
-    selectedItems: { type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION'; sourceId: number }[],
+    selectedItems: {
+      type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION';
+      sourceId: number;
+    }[],
   ) => void;
-  selectedItems: { type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION'; sourceId: number }[];
+  selectedItems: {
+    type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION';
+    sourceId: number;
+  }[];
 }
 
 export function ApprovedItemsTable({
@@ -40,10 +46,12 @@ export function ApprovedItemsTable({
 }: ApprovedItemsTableProps) {
   const [localSelectedItems, setLocalSelectedItems] = useState<
     { type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION'; sourceId: number }[]
-  >(selectedItems.filter(item => item.type === itemType));
+  >(selectedItems.filter((item) => item.type === itemType));
 
   useEffect(() => {
-    setLocalSelectedItems(selectedItems.filter(item => item.type === itemType));
+    setLocalSelectedItems(
+      selectedItems.filter((item) => item.type === itemType),
+    );
   }, [selectedItems, itemType]);
 
   const handleSelectAll = (checked: boolean) => {
@@ -55,14 +63,22 @@ export function ApprovedItemsTable({
 
     if (checked) {
       // Add all items of this type that are not already selected
-      currentTypeItems.forEach(newItem => {
-        if (!newSelectedItems.some(existingItem => existingItem.type === newItem.type && existingItem.sourceId === newItem.sourceId)) {
+      currentTypeItems.forEach((newItem) => {
+        if (
+          !newSelectedItems.some(
+            (existingItem) =>
+              existingItem.type === newItem.type &&
+              existingItem.sourceId === newItem.sourceId,
+          )
+        ) {
           newSelectedItems.push(newItem);
         }
       });
     } else {
       // Remove all items of this type
-      newSelectedItems = newSelectedItems.filter(item => item.type !== itemType);
+      newSelectedItems = newSelectedItems.filter(
+        (item) => item.type !== itemType,
+      );
     }
     onSelectionChange(newSelectedItems);
   };
@@ -76,7 +92,10 @@ export function ApprovedItemsTable({
     } else {
       newSelectedItems = newSelectedItems.filter(
         (selected) =>
-          !(selected.type === newItem.type && selected.sourceId === newItem.sourceId),
+          !(
+            selected.type === newItem.type &&
+            selected.sourceId === newItem.sourceId
+          ),
       );
     }
     onSelectionChange(newSelectedItems);
@@ -89,8 +108,7 @@ export function ApprovedItemsTable({
   };
 
   const isAllSelected =
-    items.length > 0 &&
-    items.every((item) => isItemSelected(item.id));
+    items.length > 0 && items.every((item) => isItemSelected(item.id));
 
   return (
     <div className="space-y-4">
@@ -122,13 +140,14 @@ export function ApprovedItemsTable({
               <TableHead className="w-[50px]">
                 <Checkbox
                   checked={isAllSelected}
-                  onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                  onCheckedChange={(checked) =>
+                    handleSelectAll(checked as boolean)
+                  }
                   disabled={items.length === 0}
                 />
               </TableHead>
               <TableHead>Asociado</TableHead>
               <TableHead>Referencia</TableHead>
-              <TableHead>Tipo</TableHead>
               <TableHead>Monto</TableHead>
               <TableHead>Fecha Aprobación</TableHead>
             </TableRow>
@@ -153,8 +172,7 @@ export function ApprovedItemsTable({
                   </TableCell>
                   <TableCell>{item.associateName}</TableCell>
                   <TableCell>{item.reference}</TableCell>
-                  <TableCell>{itemType}</TableCell>
-                  <TableCell>{item.amount}</TableCell>
+                  <TableCell>{Number(item.amount).toFixed(2)} Bs.</TableCell>
                   <TableCell>
                     {format(new Date(item.approvalDate), 'dd/MM/yyyy')}
                   </TableCell>

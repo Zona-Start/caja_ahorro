@@ -3,7 +3,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -39,18 +38,13 @@ export class CreatePaymentBatchDto {
     enum: () => CurrencyCodeEnum,
   })
   @IsEnum(CurrencyCodeEnum)
-  @IsNotEmpty()
-  currencyCode: CurrencyCodeEnum;
+  @IsOptional()
+  currencyCode?: CurrencyCodeEnum;
 
   @ApiPropertyOptional({ description: 'Descripción interna del lote' })
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiPropertyOptional({ description: 'Indica si el lote se procesará manualmente (sin archivo TXT)' })
-  @IsBoolean()
-  @IsOptional()
-  isManual?: boolean;
 
   @IsArray()
   @ValidateNested({ each: true })

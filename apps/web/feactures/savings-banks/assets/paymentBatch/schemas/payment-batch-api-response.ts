@@ -1,14 +1,10 @@
 import { z } from 'zod';
-import {
-  currencyCodeEnum,
-  paymentBatchItemTypeEnum,
-  paymentBatchStatusEnum,
-} from './payment-batch-options';
+import { currencyCodeEnum } from './payment-batch-options';
 
 export const paymentBatchItemApiSchema = z.object({
   id: z.number(),
   paymentBatchId: z.number(),
-  itemType: paymentBatchItemTypeEnum,
+  itemType: z.string(),
   sourceId: z.number(),
   associateAccountId: z.number(),
   beneficiaryAccountNumber: z.string(),
@@ -26,10 +22,11 @@ export const paymentBatchApiSchema = z.object({
   id: z.number(),
   companyId: z.number(),
   description: z.string().nullable().optional(),
-  status: paymentBatchStatusEnum,
+  status: z.string(),
   recordCount: z.number(),
   totalAmount: z.string(), // Numeric as string from backend
   currencyCode: currencyCodeEnum,
+  paymentBatchReference: z.string(),
   bankId: z.number(),
   bankFileName: z.string().nullable().optional(),
   bankReference: z.string().nullable().optional(),

@@ -51,6 +51,7 @@ export const getPaymentBatchesAction = async (filters: FilterPaymentBatch) => {
     response?.data?.map((item: any) => ({
       id: item.id,
       description: item.description,
+      paymentBatchReference: item.paymentBatchReference,
       status: item.status,
       totalAmount: item.totalAmount,
       recordCount: item.recordCount,
@@ -130,17 +131,23 @@ export const cancelPaymentBatchAction = async (id: number) => {
 };
 
 export const downloadTxtFileAction = async (id: number) => {
-  // This action will directly return the text content, not a mutation schema
+  // 📝 Ahora la función espera una respuesta de texto simple del servidor
   const [error, data] = await safeFetchApi(
-    z.object({ fileName: z.string(), content: z.string() }), // Expecting a specific response structure
+    z.string(), // ✅ Cambia el esquema a z.string()
     `/savings-banks/payment-batches/${id}/txt`,
     'GET',
   );
 
   if (error) {
-    throw new Error(error.message || 'Error downloading TXT file');
+    throw new Error(error.message || 'Error al descargar el archivo TXT');
   }
-  return data;
+
+  // El servidor solo devuelve el contenido, por lo que creamos el objeto completo
+  // en el cliente para el componente que lo usa.
+  return {
+    fileName: `pagos-por-lote-${id}.txt`, // El nombre del archivo puede ser inferido
+    content: data, // Aquí está el contenido del archivo
+  };
 };
 
 export const getApprovedLoansAction = async () => {

@@ -1,12 +1,11 @@
 import { z } from 'zod';
 import {
   currencyCodeEnum,
-  paymentBatchItemTypeEnum,
   paymentBatchStatusEnum,
 } from './payment-batch-options';
 
 export const createPaymentBatchItemSchema = z.object({
-  type: paymentBatchItemTypeEnum,
+  type: z.enum(['LOAN', 'WITHDRAWAL', 'LIQUIDATION']),
   sourceId: z.number().min(1, 'ID de origen requerido'),
 });
 
@@ -18,7 +17,6 @@ export const createPaymentBatchSchema = z.object({
     .min(1, 'ID de cuenta bancaria requerido'),
   currencyCode: currencyCodeEnum,
   description: z.string().optional(),
-  status: paymentBatchStatusEnum.default('DRAFT'),
   items: z
     .array(createPaymentBatchItemSchema)
     .min(1, 'Debe haber al menos un ítem'),
@@ -32,8 +30,12 @@ export const itemResultSchema = z.object({
 
 export const confirmPaymentBatchSchema = z.object({
   bankReference: z.string().optional().nullable(),
-  processedAt: z.string().datetime({ message: 'Fecha de procesamiento inválida' }),
-  items: z.array(itemResultSchema).min(1, 'Debe haber al menos un resultado de ítem'),
+  processedAt: z
+    .string()
+    .datetime({ message: 'Fecha de procesamiento inválida' }),
+  items: z
+    .array(itemResultSchema)
+    .min(1, 'Debe haber al menos un resultado de ítem'),
 });
 
 export const filterPaymentBatchSchema = z.object({

@@ -9,19 +9,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Check, Download, Eye, FileUp, Trash, X } from 'lucide-react';
+import { Check, Download, Eye, FileUp, Trash } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
+import { downloadTxtFileAction } from '../../actions/payment-batch-actions';
 import {
   useCancelPaymentBatchMutation,
   useConfirmPaymentBatchMutation,
   useMarkAsUploadedMutation,
 } from '../../hooks/use-payment-batch-mutation';
 import { PaymentBatch } from '../../schemas/payment-batch-api-response';
-import { PAYMENT_BATCH_STATUS } from '../../schemas/payment-batch-options';
-import { PaymentBatchDetailsModal } from '../payment-batch-details-modal';
 import { ConfirmPaymentBatchModal } from '../confirm-payment-batch-modal';
-import { downloadTxtFileAction } from '../../actions/payment-batch-actions';
-import { toast } from 'sonner';
+import { PaymentBatchDetailsModal } from '../payment-batch-details-modal';
 
 interface CellActionProps {
   data: PaymentBatch;
@@ -78,6 +77,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     try {
       setLoading(true);
       const result = await downloadTxtFileAction(data.id);
+      if (!result || result.content === null) {
+        // ✅ Verifica si result o su contenido es null
+        toast.error('No se pudo obtener el contenido del archivo.');
+        return;
+      }
+
       const blob = new Blob([result.content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -95,10 +100,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
-  const isDraft = data.status === PAYMENT_BATCH_STATUS.DRAFT;
-  const isUploaded = data.status === PAYMENT_BATCH_STATUS.UPLOADED;
-  const isProcessed = data.status === PAYMENT_BATCH_STATUS.PROCESSED;
-  const isCancelled = data.status === PAYMENT_BATCH_STATUS.CANCELLED;
+  const isDraft = data.status === 'DRAFT';
+  const isUploaded = data.status === 'UPLOADED';
+  const isProcessed = data.status === 'PROCESSED';
+  const isCancelled = data.status === 'CANCELLED';
 
   return (
     <>

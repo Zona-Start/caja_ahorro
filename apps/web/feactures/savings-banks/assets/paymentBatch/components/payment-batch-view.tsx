@@ -76,7 +76,9 @@ export function PaymentBatchView({
         </p>
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-3"> {/* Changed to lg:col-span-3 as summary is removed */}
+        <div className="lg:col-span-3">
+          {' '}
+          {/* Changed to lg:col-span-3 as summary is removed */}
           <PaymentBatchForm
             isSubmitting={isSubmitting}
             onSubmit={handleSubmit}

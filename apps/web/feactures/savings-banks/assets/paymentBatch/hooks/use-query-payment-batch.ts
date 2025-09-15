@@ -11,8 +11,10 @@ export function useQueryPaymentBatches(params: FilterPaymentBatch) {
   );
 }
 
-export function useQueryPaymentBatchDetails(id: number) {
-  return useSafeQuery(['payment-batch-details', id], () =>
-    getPaymentBatchDetailsAction(id),
+export function useQueryPaymentBatchDetails(id: number, enabled?: boolean) {
+  return useSafeQuery(
+    ['payment-batch-details', id],
+    () => getPaymentBatchDetailsAction(id),
+    { enabled },
   );
 }

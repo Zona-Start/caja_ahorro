@@ -32,6 +32,11 @@ export class PaymentBatchesController {
     return this.paymentBatchesService.findAll(dto);
   }
 
+  @Get(':id')
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.paymentBatchesService.findOne(id);
+  }
+
   @Get(':id/txt')
   async downloadTxt(@Param('id', ParseIntPipe) id: number) {
     const { fileName, content } =
@@ -65,7 +70,7 @@ export class PaymentBatchesController {
     @Req() req: Request,
   ) {
     const userdId = req['user'].id;
-    await this.paymentBatchesService.confirm(id, dto, userdId);
+    return await this.paymentBatchesService.confirm(id, dto, userdId);
   }
 
   @Patch(':id/cancel')

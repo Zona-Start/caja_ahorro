@@ -1,3 +1,4 @@
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import { paymentBatches, paymentBatchItems } from '@/database/index';
@@ -34,6 +35,7 @@ export class PaymentBatchesService {
     private readonly assocMvts: AssociateAccountsMovementsService,
     private readonly bankMvts: BankMovementsService,
     private readonly audit: AuditLogsService,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
 
   async create(dto: CreatePaymentBatchDto, userId: number) {
@@ -44,6 +46,7 @@ export class PaymentBatchesService {
       const bankAcc = await tx.query.bankAccounts.findFirst({
         where: eq(schema.bankDirectory.id, bankAccountId),
       });
+
       if (!bankAcc)
         throw new NotFoundException('Cuenta bancaria no encontrada');
       if (bankAcc.currencyCode !== currencyCode)
@@ -55,55 +58,118 @@ export class PaymentBatchesService {
       const lines: (typeof schema.paymentBatchItems.$inferInsert)[] = [];
 
       for (const it of items) {
-        let rec: any, net: number, assocAccId: number, curr: string;
+        let rec: any,
+          net: number,
+          assocAccId: number,
+          curr: string,
+          assocCedula: string,
+          assocNationality: string;
 
         switch (it.type) {
           case paymentBatchItemType.LOAN:
-            rec = await tx.query.loans.findFirst({
-              where: eq(schema.loans.id, it.sourceId),
-              with: { associate: true, disbursementAccount: true },
-            });
-            if (!rec || rec.status !== 'APPROVED')
+            rec = await tx
+              .select({
+                status: schema.loans.status,
+                approvedAmount: schema.loans.approvedAmount,
+                expensesAmount: schema.loans.expensesAmount,
+                disbursementAccountId: schema.associateAccounts.id,
+                currencyCode: schema.loans.currencyCode,
+                associateNationality: schema.associates.nationality,
+                associateCedula: schema.associates.cedula,
+              })
+              .from(schema.loans)
+              .leftJoin(
+                schema.associates,
+                eq(schema.associates.id, schema.loans.associateId),
+              )
+              .leftJoin(
+                schema.associateAccounts,
+                eq(schema.associateAccounts.associateId, schema.associates.id),
+              )
+              .where(eq(schema.loans.id, it.sourceId));
+
+            if (rec.length === 0 || rec[0].status !== 'APPROVED')
               throw new BadRequestException(
                 `Préstamo ${it.sourceId} no aprobado`,
               );
-            net = Number(rec.approvedAmount) - Number(rec.expensesAmount ?? 0);
-            assocAccId = rec.disbursementAccountId;
-            curr = rec.currencyCode;
+            net =
+              Number(rec[0].approvedAmount) -
+              Number(rec[0].expensesAmount ?? 0);
+            assocAccId = rec[0].disbursementAccountId;
+            assocNationality = rec[0].associateNationality?.[0] || '';
+            assocCedula = `${assocNationality}${rec[0].associateCedula}`;
+            curr = 'VES'; //rec[0].currencyCode;
             break;
 
           case paymentBatchItemType.WITHDRAWAL:
-            rec = await tx.query.withdrawalsAssociates.findFirst({
-              where: eq(schema.withdrawalsAssociates.id, it.sourceId),
-              with: { associateAccount: { with: { associate: true } } },
-            });
-            if (!rec || rec.status !== 'APPROVED')
+            rec = await tx
+              .select({
+                status: schema.withdrawalsAssociates.status,
+                disbursedAmount: schema.withdrawalsAssociates.requestedAmount,
+                disbursementAccountId: schema.associateAccounts.id,
+                associateNationality: schema.associates.nationality,
+                associateCedula: schema.associates.cedula,
+              })
+              .from(schema.withdrawalsAssociates)
+              .leftJoin(
+                schema.associateAccounts,
+                eq(
+                  schema.associateAccounts.id,
+                  schema.withdrawalsAssociates.associateAccountId,
+                ),
+              )
+              .leftJoin(
+                schema.associates,
+                eq(schema.associates.id, schema.associateAccounts.associateId),
+              )
+              .where(eq(schema.withdrawalsAssociates.id, it.sourceId));
+
+            if (rec.length === 0 || rec[0].status !== 'APPROVED')
               throw new BadRequestException(
                 `Retiro ${it.sourceId} no aprobado`,
               );
-            net = Number(rec.disbursedAmount);
-            assocAccId = rec.associateAccountId;
-            curr = rec.currencyCode;
+            net = Number(rec[0].disbursedAmount);
+            assocAccId = rec[0].disbursementAccountId;
+            assocNationality = rec[0].associateNationality?.[0] || '';
+            assocCedula = `${assocNationality}${rec[0].associateCedula}`;
+            curr = 'VES'; //rec[0].currencyCode;
             break;
 
           case paymentBatchItemType.LIQUIDATION:
-            rec = await tx.query.liquidationsAssociates.findFirst({
-              where: eq(schema.liquidationsAssociates.id, it.sourceId),
-              with: { associate: true },
-            });
-            if (!rec || rec.status !== 'APPROVED')
+            rec = await tx
+              .select({
+                status: schema.liquidationsAssociates.status,
+                netLiquidationAmount:
+                  schema.liquidationsAssociates
+                    .totalSavingsBalanceAtLiquidation,
+                disbursementAccountId: schema.associateAccounts.id,
+                currencyCode: schema.liquidationsAssociates.currencyCode,
+                associateNationality: schema.associates.nationality,
+                associateCedula: schema.associates.cedula,
+              })
+              .from(schema.liquidationsAssociates)
+              .leftJoin(
+                schema.associates,
+                eq(
+                  schema.associates.id,
+                  schema.liquidationsAssociates.associateId,
+                ),
+              )
+              .leftJoin(
+                schema.associateAccounts,
+                eq(schema.associateAccounts.associateId, schema.associates.id),
+              )
+              .where(eq(schema.liquidationsAssociates.id, it.sourceId));
+
+            if (rec.length === 0 || rec[0].status !== 'APPROVED')
               throw new BadRequestException(
                 `Liquidación ${it.sourceId} no aprobada`,
               );
-            net = Number(rec.netLiquidationAmount);
-            // Para liquidaciones tomamos la cuenta principal del asociado
-            const mainAcc = await tx.query.associateAccounts.findFirst({
-              where: eq(schema.associateAccounts.associateId, rec.associateId),
-              orderBy: (acc, { asc }) => asc(acc.id),
-            });
-            if (!mainAcc) throw new BadRequestException('Asociado sin cuenta');
-            assocAccId = mainAcc.id;
-            curr = rec.currencyCode;
+            net = Number(rec[0].netLiquidationAmount);
+            assocNationality = rec[0].associateNationality?.[0] || '';
+            assocCedula = `${assocNationality}${rec[0].associateCedula}`;
+            assocAccId = rec[0].disbursementAccountId;
+            curr = 'VES'; //rec[0].currencyCode;
             break;
 
           default:
@@ -123,6 +189,7 @@ export class PaymentBatchesService {
             sql`${schema.paymentBatchItems.paymentBatchId} in (select id from ${schema.paymentBatches} where status not in ('PROCESSED','CANCELLED'))`,
           ),
         });
+
         if (dup)
           throw new BadRequestException(
             `${it.type} ${it.sourceId} ya está en otro lote activo`,
@@ -146,6 +213,7 @@ export class PaymentBatchesService {
           );
 
         totalAmount += net;
+
         lines.push({
           paymentBatchId: 0, // se rellena después
           itemType: it.type,
@@ -154,7 +222,7 @@ export class PaymentBatchesService {
           beneficiaryAccountNumber:
             assocAcc[0].associate_accounts.accountNumber,
           beneficiaryAccountType: 'CORRIENTE',
-          beneficiaryId: String(assocAcc[0].associates?.id),
+          beneficiaryId: assocCedula,
           beneficiaryName: assocAcc[0].associates?.fullname ?? '',
           amount: net.toFixed(4),
           status: paymentBatchItemStatus.PENDING,
@@ -167,12 +235,15 @@ export class PaymentBatchesService {
         .values({
           companyId: 1, // TODO: desde contexto
           bankId: bankAccountId,
+          bankFileName: bankAcc.accountName,
           currencyCode,
           recordCount: lines.length,
           totalAmount: totalAmount.toFixed(4),
           status: paymentBatchStatus.DRAFT,
           description: dto.description ?? 'Lote automático',
           createdById: userId,
+          paymentBatchReference:
+            await this.generateCodeService.generateNextReference('LOT-P'),
         })
         .returning();
 
@@ -182,7 +253,6 @@ export class PaymentBatchesService {
           .insert(schema.paymentBatchItems)
           .values(lines.map((l) => ({ ...l, paymentBatchId: batch.id })));
       }
-
       return {
         id: batch.id,
         recordCount: batch.recordCount,
@@ -273,7 +343,7 @@ export class PaymentBatchesService {
   }
 
   async confirm(batchId: number, dto: ConfirmPaymentBatchDto, userId: number) {
-    return this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const batch = await tx.query.paymentBatches.findFirst({
         where: eq(schema.paymentBatches.id, batchId),
       });
@@ -312,7 +382,7 @@ export class PaymentBatchesService {
             {
               bankAccountId: Number(batch.bankId),
               transactionDate: new Date(dto.processedAt).toISOString(),
-              description: `Lote ${batchId}`,
+              description: `PAGO POR LOTE ${batchId}`,
               debitAmount: Number(it.amount), // <--- usar solo efectivo saliente
               bankReference: dto.bankReference ?? undefined,
               transactionType: paymentMethodEnum.BANK_TRANSFER,
@@ -390,6 +460,9 @@ export class PaymentBatchesService {
         tx,
       );
     });
+    return {
+      message: 'batch successfully processed',
+    };
   }
 
   async cancel(batchId: number, userId: number) {
@@ -416,8 +489,6 @@ export class PaymentBatchesService {
       userId: Number(userId),
     });
   }
-
-  // payment-batches.service.ts
 
   async markAsUploaded(batchId: number, userId: number) {
     const batch = await this.db.query.paymentBatches.findFirst({
@@ -498,6 +569,7 @@ export class PaymentBatchesService {
         id: paymentBatches.id,
         companyId: paymentBatches.companyId,
         description: paymentBatches.description,
+        paymentBatchReference: paymentBatches.paymentBatchReference,
         status: paymentBatches.status,
         recordCount: paymentBatches.recordCount,
         totalAmount: paymentBatches.totalAmount,
@@ -565,5 +637,67 @@ export class PaymentBatchesService {
     };
 
     return { data, meta };
+  }
+
+  async findOne(id: number) {
+    const rows = await this.db
+      .select({
+        // ── Cabecera
+        id: paymentBatches.id,
+        companyId: paymentBatches.companyId,
+        description: paymentBatches.description,
+        paymentBatchReference: paymentBatches.paymentBatchReference,
+        status: paymentBatches.status,
+        recordCount: paymentBatches.recordCount,
+        totalAmount: paymentBatches.totalAmount,
+        currencyCode: paymentBatches.currencyCode,
+        bankId: paymentBatches.bankId,
+        bankFileName: paymentBatches.bankFileName,
+        bankReference: paymentBatches.bankReference,
+        processedAt: paymentBatches.processedAt,
+        createdAt: paymentBatches.createdAt,
+        updatedAt: paymentBatches.updatedAt,
+
+        // ── Relación banco (object)
+        bankIdRel: schema.bankAccounts.id,
+        bankName: schema.bankAccounts.accountName,
+        bankAccountNumber: schema.bankAccounts.accountNumber,
+        bankCurrencyCode: schema.bankAccounts.currencyCode,
+      })
+      .from(paymentBatches)
+      .where(eq(paymentBatches.id, id))
+      .leftJoin(
+        schema.bankAccounts,
+        eq(schema.bankAccounts.id, paymentBatches.bankId),
+      );
+
+    /* ---------- 5. Cargar ítems en bloque (opción 1) ---------- */
+    const batchIds = rows.map((r) => r.id);
+    const allItems = batchIds.length
+      ? await this.db
+          .select()
+          .from(paymentBatchItems)
+          .where(inArray(paymentBatchItems.paymentBatchId, batchIds))
+      : [];
+
+    /* ---------- 6. Armamos objeto "bank" y "items" por fila ---------- */
+    const data = rows.map((row) => ({
+      ...row,
+      // Monto como string con 2 decimales
+      totalAmount: Number(row.totalAmount).toFixed(2),
+      // Relación banco
+      bank: row.bankIdRel
+        ? {
+            id: row.bankIdRel,
+            name: row.bankName,
+            accountNumber: row.bankAccountNumber,
+            currencyCode: row.bankCurrencyCode,
+          }
+        : undefined,
+      // Ítems que le corresponden
+      items: allItems.filter((it) => it.paymentBatchId === row.id),
+    }));
+
+    return data[0];
   }
 }

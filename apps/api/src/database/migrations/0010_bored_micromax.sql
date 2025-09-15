@@ -1,0 +1,2 @@
+ALTER TABLE "savings_banks"."payment_batches" ADD COLUMN "payment_batch_reference" varchar(50) NOT NULL;--> statement-breakpoint
+ALTER TABLE "savings_banks"."payment_batches" ADD CONSTRAINT "payment_batches_payment_batch_reference_unique" UNIQUE("payment_batch_reference");
