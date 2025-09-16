@@ -1,7 +1,7 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import { supplierPaymentMutationResponseSchema } from '../../supplier-payments/schemas';
-import { AccountPayable } from '../../supplier-payments/schemas/account-payable.schema';
+// import { AccountPayable } from '../../supplier-payments/schemas/account-payable.schema';
 import {
   accountPayableAllResponseSchema,
   accountPayableMutationResponseSchema,
@@ -64,55 +64,55 @@ export const getAccountsPayableAction = async (params: {
   };
 };
 
-export const createAccountPayableAction = async (payload: AccountPayable) => {
-  const { id, ...payloadWithoutId } = payload;
+// export const createAccountPayableAction = async (payload: AccountPayable) => {
+//   const { id, ...payloadWithoutId } = payload;
 
-  const transform = {
-    ...payloadWithoutId,
-    originalAmount: payloadWithoutId.originalAmount.toFixed(2),
-    paidAmount: payloadWithoutId.paidAmount?.toFixed(2),
-    remainingAmount: payloadWithoutId.remainingAmount.toFixed(2),
-  };
+//   const transform = {
+//     ...payloadWithoutId,
+//     originalAmount: payloadWithoutId.originalAmount.toFixed(2),
+//     paidAmount: payloadWithoutId.paidAmount?.toFixed(2),
+//     remainingAmount: payloadWithoutId.remainingAmount.toFixed(2),
+//   };
 
-  const [error, data] = await safeFetchApi(
-    accountPayableMutationResponseSchema,
-    '/administration/accounts-payable',
-    'POST',
-    transform,
-  );
+//   const [error, data] = await safeFetchApi(
+//     accountPayableMutationResponseSchema,
+//     '/administration/accounts-payable',
+//     'POST',
+//     transform,
+//   );
 
-  if (error) {
-    console.error('Error:', error);
-    throw new Error(error.message || 'Error creating account payable');
-  }
+//   if (error) {
+//     console.error('Error:', error);
+//     throw new Error(error.message || 'Error creating account payable');
+//   }
 
-  return data;
-};
+//   return data;
+// };
 
-export const updateAccountPayableAction = async (payload: AccountPayable) => {
-  const { id, ...payloadWithoutId } = payload;
+// export const updateAccountPayableAction = async (payload: AccountPayable) => {
+//   const { id, ...payloadWithoutId } = payload;
 
-  const transform = {
-    ...payloadWithoutId,
-    originalAmount: payloadWithoutId.originalAmount.toFixed(2),
-    paidAmount: payloadWithoutId.paidAmount?.toFixed(2),
-    remainingAmount: payloadWithoutId.remainingAmount.toFixed(2),
-  };
+//   const transform = {
+//     ...payloadWithoutId,
+//     originalAmount: payloadWithoutId.originalAmount.toFixed(2),
+//     paidAmount: payloadWithoutId.paidAmount?.toFixed(2),
+//     remainingAmount: payloadWithoutId.remainingAmount.toFixed(2),
+//   };
 
-  const [error, data] = await safeFetchApi(
-    accountPayableMutationResponseSchema,
-    `/administration/accounts-payable/${id}`,
-    'PATCH',
-    transform,
-  );
+//   const [error, data] = await safeFetchApi(
+//     accountPayableMutationResponseSchema,
+//     `/administration/accounts-payable/${id}`,
+//     'PATCH',
+//     transform,
+//   );
 
-  if (error) {
-    console.error('Error:', error);
-    throw new Error(error.message || 'Error updating account payable');
-  }
+//   if (error) {
+//     console.error('Error:', error);
+//     throw new Error(error.message || 'Error updating account payable');
+//   }
 
-  return data;
-};
+//   return data;
+// };
 
 //actions para anular una cuenta por pagar
 export const deleteAccountPayableAction = async (id: number) => {
@@ -217,17 +217,17 @@ export const createAdvancePaymentAction = async (payload: AdvancePayment) => {
   return data;
 };
 
-export const saveAccountPayableAction = async (payload: AccountPayable) => {
-  try {
-    if (payload.id) {
-      return await updateAccountPayableAction(payload);
-    } else {
-      return await createAccountPayableAction(payload);
-    }
-  } catch (error: any) {
-    throw new Error(error.message || 'Error saving account payable');
-  }
-};
+// export const saveAccountPayableAction = async (payload: AccountPayable) => {
+//   try {
+//     if (payload.id) {
+//       return await updateAccountPayableAction(payload);
+//     } else {
+//       return await createAccountPayableAction(payload);
+//     }
+//   } catch (error: any) {
+//     throw new Error(error.message || 'Error saving account payable');
+//   }
+// };
 
 //action para autorizar pago a una cuenta por pagar
 export const authorizeAccountPayableAction = async (id: number) => {
