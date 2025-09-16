@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
@@ -28,7 +28,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, count, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateLoanDto } from './dto/create-loan.dto';
 import { FilterLoanManagementDto } from './dto/filter-loan-management.dto';
@@ -39,7 +39,7 @@ import { LoanAmortizationSchedule } from './entities/loan-amortization-schedule.
 export class LoanManagementService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-    //private readonly settingsSystemService: SettingsSystemService,
+    private readonly generateCodeService: GenerateCodeService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
@@ -414,7 +414,8 @@ export class LoanManagementService {
     let approvalDate: Date | null = null;
     const currentDate = new Date(); // Fecha actual
     const finalDate = this.addMonthsToDate(startDate, getLoanTypes.termUnits); //fecha finalizacion del pago
-    customReference = generateUniqueReference();
+    customReference =
+      await this.generateCodeService.generateNextReference('PRE');
 
     // 2 & 3. Handle APPROVED status
     if (
@@ -1295,6 +1296,63 @@ export class LoanManagementService {
 
     return {
       data: data,
+    };
+  }
+
+  async findAllByAssociate(associateId: number) {
+    const results = await this.db
+      .select({
+        loanType: loanTypes.name,
+        interestRate: loanTypes.interestRate,
+        loanAmount: loans.requestedAmount,
+        outstandingBalance:
+          schema.loanOutstandingBalance.outstandingTotalBalance,
+        installmentAmount: loans.installmentAmount,
+        requestDate: loans.requestDate,
+        terms: loanTypes.termUnits,
+        status: loans.status,
+      })
+      .from(loans)
+      .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id))
+      .leftJoin(
+        schema.loanOutstandingBalance,
+        eq(loans.id, schema.loanOutstandingBalance.loanId),
+      )
+      .where(eq(loans.associateId, associateId))
+      .orderBy(desc(loans.requestDate));
+
+    if (!results.length) {
+      return {
+        message: 'No loans found for this associate.',
+        data: [],
+      };
+    }
+
+    const loansWithProgress = results.map((loan) => {
+      const totalAmount = parseFloat(loan.loanAmount || '0');
+      const outstanding = parseFloat(loan.outstandingBalance || '0');
+
+      let progress = 0;
+      if (totalAmount > 0) {
+        const paidAmount = totalAmount - outstanding;
+        progress = (paidAmount / totalAmount) * 10;
+      }
+
+      // Clamp progress between 0 and 10 and format to 2 decimal places
+      const formattedProgress = Math.max(0, Math.min(10, progress)).toFixed(2);
+
+      return {
+        ...loan,
+        loanAmount: totalAmount.toFixed(2),
+        outstandingBalance: outstanding.toFixed(2),
+        installmentAmount: parseFloat(loan.installmentAmount || '0').toFixed(2),
+        progress: formattedProgress,
+      };
+    });
+
+    return {
+      message: 'Loans fetched successfully.',
+      data: loansWithProgress,
     };
   }
 }

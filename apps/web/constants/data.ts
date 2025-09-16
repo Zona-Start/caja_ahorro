@@ -16,6 +16,11 @@ export const savingBankItems: NavItem[] = [
         url: '/dashboard/socios/asociados',
       },
       {
+        title: 'Estado de Cuenta',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/socios/estado-cuenta',
+      },
+      {
         title: 'Tipos de Asociados',
         shortcut: ['l', 'l'],
         url: '/dashboard/socios/tipo-asociados',

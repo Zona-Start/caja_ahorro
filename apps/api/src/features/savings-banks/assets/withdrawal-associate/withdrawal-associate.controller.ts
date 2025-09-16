@@ -58,6 +58,14 @@ export class WithdrawalAssociateController {
     return this.service.findOneRequest(cedula);
   }
 
+  @Get('by-associate/:associateId')
+  @RequirePermissions('read:withdrawals-by-associate')
+  @ApiOperation({ summary: 'Get all withdrawals for an associate' })
+  @ApiResponse({ status: 200, description: 'Return all withdrawals for the associate.' })
+  findAllByAssociate(@Param('associateId') associateId: string) {
+    return this.service.findAllByAssociate(+associateId);
+  }
+
   @Patch(':id/approve')
   @RequirePermissions('approve:withdrawal-associate')
   @ApiOperation({ summary: 'Approve a withdrawal request' })

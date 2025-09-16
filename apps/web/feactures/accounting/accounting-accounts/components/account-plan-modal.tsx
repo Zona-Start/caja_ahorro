@@ -38,7 +38,7 @@ export function AccountPlanModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg bg-background/80">
+      <DialogContent className="sm:max-w-[600px] z-50 ">
         <DialogHeader>
           <DialogTitle>
             {defaultValues?.id
@@ -46,7 +46,8 @@ export function AccountPlanModal({
               : 'Crear Cuenta Contable'}
           </DialogTitle>
           <DialogDescription>
-            Complete los campos para {defaultValues?.id ? 'actualizar' : 'crear'} la cuenta contable
+            Complete los campos para{' '}
+            {defaultValues?.id ? 'actualizar' : 'crear'} la cuenta contable
           </DialogDescription>
         </DialogHeader>
         <AccountPlanForm

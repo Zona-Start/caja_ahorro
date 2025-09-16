@@ -155,7 +155,7 @@
   }
 
   input {
-    @apply shadow-sm hover:shadow-md focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
+    @apply shadow-sm hover:shadow-md  focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
   }
 
   /* Aplica el estilo de foco a elementos interactivos como Cards */

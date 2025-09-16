@@ -40,7 +40,7 @@ export function TypePayrollModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg bg-background/80 overflow-y-auto max-h-[80vh]">
+      <DialogContent className="sm:max-w-[600px] z-50  overflow-y-auto max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>
             {readOnly

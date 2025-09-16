@@ -1,3 +1,4 @@
+import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.module';
 import { DrizzleModule } from '@/database/drizzle.module';
 import { AuditLogsModule } from '@/features/audit/audit-logs/audit-logs.module';
 import { SettingsSystemModule } from '@/features/core/settings-system/settings-system.module';
@@ -12,6 +13,7 @@ import { LoanManagementService } from './loan-management.service';
     DrizzleModule,
     AssociateAccountsMovementsModule,
     AuditLogsModule,
+    GenerateCodeModule,
   ],
   controllers: [LoanManagementController],
   providers: [LoanManagementService],

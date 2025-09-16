@@ -1,5 +1,5 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
@@ -36,6 +36,7 @@ export class SettlementAssociateService {
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly loanPaidService: LoanPaidService, // ¡Inyecta LoanPaidService!
     private readonly creditPaidService: CreditPaidService, // ¡Inyecta LoanPaidService!
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
 
   async findOneRequest(cedula: string) {
@@ -190,7 +191,8 @@ export class SettlementAssociateService {
         }
       }
 
-      const reference = generateUniqueReference();
+      const reference =
+        await this.generateCodeService.generateNextReference('RH-LIQ');
 
       // 3. Guardar el registro de la liquidación en la nueva tabla 'liquidations'
       const [newLiquidation] = await this.db

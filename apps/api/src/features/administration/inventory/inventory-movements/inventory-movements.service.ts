@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { inventoryMovements } from '@/database/schema/administration';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
@@ -13,6 +13,7 @@ import { FilterInventoryMovementDto } from './dto/filter-inventory-movement.dto'
 export class InventoryMovementsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
 
   async create(
@@ -70,7 +71,14 @@ export class InventoryMovementsService {
       };
       const insertedMovements: MovementReturnType[] = [];
       for (const item of items) {
-        const referenceId = generateUniqueReference();
+        const type =
+          movementType === 'IN'
+            ? 'INV-ENT'
+            : movementType === 'OUT'
+              ? 'INV-SAL'
+              : 'INV-AJU';
+        const referenceId =
+          await this.generateCodeService.generateNextReference(type);
         const newMovement = await tx
           .insert(inventoryMovements)
           .values({

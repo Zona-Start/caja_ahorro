@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
@@ -35,61 +35,15 @@ import { FilterCreditPaidDto } from './dto/filter-credit-paid.dto';
 // Por ejemplo, si la cuota es 17.666667 y el usuario paga 17.67, la diferencia es 0.003333.
 // Queremos que 17.67 sea "suficiente" para 17.666667.
 const ROUNDING_ACCEPTANCE_TOLERANCE = 0.005; // Permite hasta medio centavo de ajuste
-const EPSILON_COMPARISON = 0.050000; // Para errores de punto flotante muy pequeños
-
+const EPSILON_COMPARISON = 0.05; // Para errores de punto flotante muy pequeños
 
 @Injectable()
 export class CreditPaidService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
-
-  // --- Helper function to generate custom reference ---
-  // private async generateCustomReference(): Promise<string> {
-  //   // Fetch the current correlative number and increment it
-  //   const key = 'correlativo_pago_credito';
-  //   try {
-  //     const result = await this.db.transaction(async (tx) => {
-  //       // Lock the row for update
-  //       const setting = await tx.query.systemSettings.findFirst({
-  //         where: eq(systemSettings.key, key),
-  //         // Add forUpdate() if your Drizzle version supports it for row locking
-  //         // Example: columns: {}, with: { forUpdate: true }
-  //       });
-
-  //       if (!setting) {
-  //         throw new InternalServerErrorException(
-  //           `System setting '${key}' not found.`,
-  //         );
-  //       }
-
-  //       const currentNumber = parseInt(setting.value, 10);
-  //       if (isNaN(currentNumber)) {
-  //         throw new InternalServerErrorException(
-  //           `Invalid correlative number format for '${key}'.`,
-  //         );
-  //       }
-
-  //       const nextNumber = currentNumber + 1;
-  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
-
-  //       // Update the setting with the new value
-  //       await tx
-  //         .update(systemSettings)
-  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-  //         .where(eq(systemSettings.id, setting.id));
-
-  //       return nextValue; // Return the generated reference
-  //     });
-  //     return `PGCREDIT${result}`; // Prefix the reference
-  //   } catch (error) {
-  //     console.error('Error generating custom reference:', error);
-  //     throw new InternalServerErrorException(
-  //       'Failed to generate custom credit reference.',
-  //     );
-  //   }
-  // }
 
   // calculate balance pending
   private async _calculateBalancePending(creditId: number): Promise<number> {
@@ -110,7 +64,7 @@ export class CreditPaidService {
       END ASC,
       id ASC`);
 
-      const totalRemainingExact = creditAmortization.reduce((acc, item) => {
+    const totalRemainingExact = creditAmortization.reduce((acc, item) => {
       const total = Number(item.quotaAmount);
       const paid = Number(item.paidAmount || 0);
       const remaining = total - paid;
@@ -125,8 +79,12 @@ export class CreditPaidService {
     creditId: number,
     amount: number,
   ): Promise<{
-     paidInstallmentDetails: { id: number; amount: number }[];
-    partialInstallment?: { id: number; paidAmount: number; originalPaidAmount: number };
+    paidInstallmentDetails: { id: number; amount: number }[];
+    partialInstallment?: {
+      id: number;
+      paidAmount: number;
+      originalPaidAmount: number;
+    };
     remainingAmount: number;
   }> {
     const pendingInstallments =
@@ -141,22 +99,25 @@ export class CreditPaidService {
         orderBy: creditAmortizationSchedule.installmentNumber,
       });
 
-
     const paidInstallmentDetails: { id: number; amount: number }[] = [];
-    let partialInstallment: { id: number; paidAmount: number; originalPaidAmount: number } | undefined;
-    let remainingPaymentAmount = amount; 
+    let partialInstallment:
+      | { id: number; paidAmount: number; originalPaidAmount: number }
+      | undefined;
+    let remainingPaymentAmount = amount;
 
     for (const installment of pendingInstallments) {
       const installmentTotal = Number(installment.totalInstallmentAmount);
       const installmentPaid = Number(installment.paidAmount || 0);
-      let dueAmountExact = installmentTotal - installmentPaid; 
+      let dueAmountExact = installmentTotal - installmentPaid;
 
       if (dueAmountExact <= EPSILON_COMPARISON) {
         continue;
       }
 
       // *** LÓGICA DE COMPARACIÓN MODIFICADA AQUÍ ***
-      const diffBetweenPaymentAndDue = Math.abs(remainingPaymentAmount - dueAmountExact);
+      const diffBetweenPaymentAndDue = Math.abs(
+        remainingPaymentAmount - dueAmountExact,
+      );
 
       if (
         remainingPaymentAmount >= dueAmountExact - EPSILON_COMPARISON || // Suficiente para cubrir (incluyendo pequeñas diferencias flotantes)
@@ -166,13 +127,16 @@ export class CreditPaidService {
         // Registramos el monto EXACTO que se debía para esta cuota.
         paidInstallmentDetails.push({
           id: installment.id,
-          amount: parseFloat(dueAmountExact.toFixed(6)), 
+          amount: parseFloat(dueAmountExact.toFixed(6)),
         });
 
         // Ajustamos el remainingPaymentAmount del pago.
         // Si el pago era ligeramente mayor, se reduce por el dueAmountExact.
         // Si el pago era ligeramente menor, se considera que se consumió todo para completar la cuota.
-        remainingPaymentAmount = Math.max(0, remainingPaymentAmount - dueAmountExact);
+        remainingPaymentAmount = Math.max(
+          0,
+          remainingPaymentAmount - dueAmountExact,
+        );
 
         // Si después de completar una cuota, el `remainingPaymentAmount` es un valor pequeño
         // (por ejemplo, el resultado de una resta de flotantes muy cercanos, o el exceso absorbido)
@@ -181,7 +145,7 @@ export class CreditPaidService {
           remainingPaymentAmount > EPSILON_COMPARISON &&
           remainingPaymentAmount <= ROUNDING_ACCEPTANCE_TOLERANCE
         ) {
-          remainingPaymentAmount = 0; 
+          remainingPaymentAmount = 0;
           break; // Se absorbe el remanente, no hay más para procesar.
         }
       } else {
@@ -191,10 +155,10 @@ export class CreditPaidService {
           paidAmount: parseFloat(
             (installmentPaid + remainingPaymentAmount).toFixed(6),
           ),
-          originalPaidAmount: installmentPaid, 
+          originalPaidAmount: installmentPaid,
         };
         remainingPaymentAmount = 0;
-        break; 
+        break;
       }
 
       if (remainingPaymentAmount <= EPSILON_COMPARISON) {
@@ -213,7 +177,7 @@ export class CreditPaidService {
     return {
       paidInstallmentDetails,
       partialInstallment,
-      remainingAmount: parseFloat(remainingPaymentAmount.toFixed(6)), 
+      remainingAmount: parseFloat(remainingPaymentAmount.toFixed(6)),
     };
   }
 
@@ -242,9 +206,10 @@ export class CreditPaidService {
     // Inicia la transacción para asegurar la atomicidad de las operaciones
     const result = await this.db.transaction(async (tx) => {
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
-              await this._calculateCoveredInstallments(creditId, amount);
-      
-      const currentBalanceCalculatedFromInstallments = await this._calculateBalancePending(creditId);
+        await this._calculateCoveredInstallments(creditId, amount);
+
+      const currentBalanceCalculatedFromInstallments =
+        await this._calculateBalancePending(creditId);
 
       const appliedAmountExact = amount - remainingAmount;
 
@@ -256,9 +221,9 @@ export class CreditPaidService {
       if (newBalancePending < EPSILON_COMPARISON) {
         newBalancePending = 0;
       }
-      
-      const customReference = generateUniqueReference();
-      
+
+      const customReference =
+        await this.generateCodeService.generateNextReference('CRE-PAG');
 
       // 4. Inserta el registro principal del pago en la tabla 'creditPayments'
       const [insertedPayment] = await tx
@@ -316,8 +281,9 @@ export class CreditPaidService {
             updatedById: Number(userId),
           })
           .where(eq(creditAmortizationSchedule.id, partialInstallment.id));
-        
-        const amountAppliedToPartial = partialInstallment.paidAmount - partialInstallment.originalPaidAmount;
+
+        const amountAppliedToPartial =
+          partialInstallment.paidAmount - partialInstallment.originalPaidAmount;
 
         // Registra el detalle del pago parcial para esta cuota
         await tx.insert(creditPaymentsDetails).values({
@@ -329,8 +295,8 @@ export class CreditPaidService {
       }
 
       // 7. Lógica para ACTUALIZAR el estado del CRÉDITO principal y el SALDO A FAVOR
-      let newCreditStatus = 'APPROVED'; 
-      let balanceInFavorValue = remainingAmount; 
+      let newCreditStatus = 'APPROVED';
+      let balanceInFavorValue = remainingAmount;
 
       // Si el saldo pendiente del crédito es cero o insignificante (manejo de flotantes)
       if (newBalancePending <= 0) {
@@ -395,7 +361,7 @@ export class CreditPaidService {
           eq(schema.associateAccounts.associateId, schema.credits.associateId),
         )
         .where(eq(schema.credits.id, creditId));
-        
+
       const payloadMovementLoan = {
         associateAccountId: Number(resutAccount[0].id),
         movementType:
@@ -663,21 +629,20 @@ export class CreditPaidService {
         status: associates.status,
       })
       .from(associates)
-      .where(
-        eq(associates.cedula, cedula),
+      .where(eq(associates.cedula, cedula));
+
+    if (!associate.length) {
+      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+    }
+    if (associate[0].status === 'INACTIVE') {
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} is inactive`,
       );
+    }
 
-      
-      if (!associate.length) {
-            throw new NotFoundException(`Associate with cedula ${cedula} not found`);
-      }
-        if (associate[0].status === 'INACTIVE') {
-          throw new NotFoundException(  `Associate with cedula ${cedula} is inactive`);
-        }
-
-        if (associate[0].status === 'RETIRED') {
-          throw new NotFoundException(  `Associate with cedula ${cedula} is retired`);
-        }
+    if (associate[0].status === 'RETIRED') {
+      throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
+    }
 
     const result = await this.db
       .select({
@@ -756,7 +721,7 @@ export class CreditPaidService {
       ...item,
       quotaAmount: Number(item.quotaAmount).toFixed(2),
       paidAmount: Number(item.paidAmount).toFixed(2),
-     }))
+    }));
 
     return {
       id: associate[0].id,

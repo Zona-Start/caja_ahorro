@@ -1,3 +1,4 @@
+import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.module';
 import { DrizzleModule } from '@/database/drizzle.module';
 import { SettingsSystemModule } from '@/features/core/settings-system/settings-system.module';
 import { Module } from '@nestjs/common';
@@ -10,6 +11,7 @@ import { CreditPaidService } from './credit-paid.service';
     SettingsSystemModule,
     DrizzleModule,
     AssociateAccountsMovementsModule,
+    GenerateCodeModule,
   ],
   controllers: [CrediPaidController],
   providers: [CreditPaidService],

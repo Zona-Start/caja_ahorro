@@ -63,6 +63,14 @@ export class CreditManagementController {
     return this.creditManagementService.findRequestByEdit(+id);
   }
 
+  @Get('by-associate/:associateId')
+  @RequirePermissions('read:credits-by-associate')
+  @ApiOperation({ summary: 'Get all credits for a specific associate' })
+  @ApiResponse({ status: 200, description: 'Return all credits for the associate.' })
+  findAllByAssociate(@Param('associateId') associateId: string) {
+    return this.creditManagementService.findAllByAssociate(+associateId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.creditManagementService.findOne(+id);

@@ -4,7 +4,6 @@ import { Button } from '@repo/shadcn/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -35,10 +34,10 @@ export function UserNav() {
               </p>
             </div>
           </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
+          {/* <DropdownMenuSeparator /> */}
+          {/* <DropdownMenuGroup>
             <DropdownMenuItem>Perfil</DropdownMenuItem>
-          </DropdownMenuGroup>
+          </DropdownMenuGroup> */}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut()}>
             Cerrar Sessión

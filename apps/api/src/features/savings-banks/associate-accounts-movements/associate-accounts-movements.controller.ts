@@ -20,6 +20,22 @@ export class AssociateAccountsMovementsController {
     return this.associateAccountsMovementsService.findOne(+id);
   }
 
+  @Get('haberes/by-associate/:associateId')
+  @RequirePermissions('read:haberes-movements-by-associate')
+  @ApiOperation({ summary: 'Get all haberes movements for an associate' })
+  @ApiResponse({ status: 200, description: 'Return all haberes movements for the associate.' })
+  findAllHaberesByAssociate(@Param('associateId') associateId: string) {
+    return this.associateAccountsMovementsService.findAllHaberesByAssociate(+associateId);
+  }
+
+  @Get('history/by-associate/:associateId')
+  @RequirePermissions('read:all-movements-by-associate')
+  @ApiOperation({ summary: 'Get all transaction history for an associate' })
+  @ApiResponse({ status: 200, description: 'Return all transaction history for the associate.' })
+  findAllTransactionsByAssociate(@Param('associateId') associateId: string) {
+    return this.associateAccountsMovementsService.findAllByAssociate(+associateId);
+  }
+
   @Post()
   @RequirePermissions('create:associate-accounts-movements')
   @ApiOperation({ summary: 'Create a new associate account movements' })

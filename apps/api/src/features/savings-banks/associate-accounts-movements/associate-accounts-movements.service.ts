@@ -13,7 +13,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { CreateAssociateAccountsMovementDto } from './dto/create-associate-accounts-movement.dto';
@@ -209,5 +209,115 @@ export class AssociateAccountsMovementsService {
     updateAssociateAccountsMovementDto: UpdateAssociateAccountsMovementDto,
   ) {
     return `This action updates a #${id} associateAccountsMovement`;
+  }
+
+  async findAllHaberesByAssociate(associateId: number) {
+    // 1. Find the associate's account(s)
+    const accounts = await this.drizzle.query.associateAccounts.findMany({
+      where: eq(schema.associateAccounts.associateId, associateId),
+      columns: {
+        id: true,
+      },
+    });
+
+    if (!accounts.length) {
+      return {
+        message: `No accounts found for associate with ID ${associateId}`,
+        data: [],
+      };
+    }
+
+    const accountIds = accounts.map((acc) => acc.id);
+
+    // 2. Define the "haberes" movement types
+    const haberesTypes = [
+      'SAVING_CONTRIBUTION',
+      'EMPLOYER_CONTRIBUTION',
+      'VOLUNTARY_SAVINGS',
+      'DIVIDEND_CREDIT',
+    ] as const;
+
+    // 3. Query the movements
+    const movements = await this.drizzle
+      .select({
+        fecha: associateAccountMovements.transactionDate,
+        concepto: associateAccountMovements.description,
+        tipo: associateAccountMovements.movementType,
+        monto: associateAccountMovements.amount,
+      })
+      .from(associateAccountMovements)
+      .where(
+        and(
+          inArray(associateAccountMovements.associateAccountId, accountIds),
+          inArray(associateAccountMovements.movementType, [...haberesTypes]),
+        ),
+      )
+      .orderBy(desc(associateAccountMovements.transactionDate));
+
+    if (!movements.length) {
+      return {
+        message: 'No haberes movements found for this associate.',
+        data: [],
+      };
+    }
+
+    const formattedMovements = movements.map((m) => ({
+      ...m,
+      monto: parseFloat(m.monto).toFixed(2),
+    }));
+
+    return {
+      message: 'Haberes movements fetched successfully.',
+      data: formattedMovements,
+    };
+  }
+
+  async findAllByAssociate(associateId: number) {
+    // 1. Find the associate's account(s)
+    const accounts = await this.drizzle.query.associateAccounts.findMany({
+      where: eq(schema.associateAccounts.associateId, associateId),
+      columns: {
+        id: true,
+      },
+    });
+
+    if (!accounts.length) {
+      return {
+        message: `No accounts found for associate with ID ${associateId}`,
+        data: [],
+      };
+    }
+
+    const accountIds = accounts.map((acc) => acc.id);
+
+    // 2. Query all movements for those accounts
+    const movements = await this.drizzle
+      .select({
+        tipo: associateAccountMovements.movementType,
+        monto: associateAccountMovements.amount,
+        fecha: associateAccountMovements.transactionDate,
+        descripcion: associateAccountMovements.description,
+        numeroReferencia: associateAccountMovements.referenceNumber,
+      })
+      .from(associateAccountMovements)
+      .where(inArray(associateAccountMovements.associateAccountId, accountIds))
+      .orderBy(desc(associateAccountMovements.transactionDate));
+
+    if (!movements.length) {
+      return {
+        message: 'No transaction history found for this associate.',
+        data: [],
+      };
+    }
+
+    const formattedMovements = movements.map((m) => ({
+      ...m,
+      monto: parseFloat(m.monto).toFixed(2),
+    }));
+
+    return {
+      message: 'Transaction history fetched successfully.',
+      data: formattedMovements,
+    };
   }
 }

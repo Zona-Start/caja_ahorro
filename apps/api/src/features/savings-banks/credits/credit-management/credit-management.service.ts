@@ -32,7 +32,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, count, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateCreditDto } from './dto/create-credit.dto';
@@ -855,6 +855,65 @@ export class CreditManagementService {
       totalCreditSpecialQuotas: Number(totalCreditSpecialQuotas[0].count),
       totalCreditPaid: Number(totalCreditPaid[0].count),
       totalCreditInPaymet: Number(totalCreditInPaymet[0].count),
+    };
+  }
+
+  async findAllByAssociate(associateId: number) {
+    const results = await this.db
+      .select({
+        creditType: creditsTypes.name,
+        interestRate: creditsTypes.interestRate,
+        creditAmount: credits.requestedAmount,
+        outstandingBalance:
+          schema.creditOutstandingBalance.outstandingTotalBalance,
+        installmentAmount: credits.installmentAmount,
+        requestDate: credits.requestDate,
+        terms: creditsTypes.termUnits,
+        status: credits.status,
+      })
+      .from(credits)
+      .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id))
+      .leftJoin(
+        schema.creditOutstandingBalance,
+        eq(credits.id, schema.creditOutstandingBalance.creditId),
+      )
+      .where(eq(credits.associateId, associateId))
+      .orderBy(desc(credits.requestDate));
+
+    if (!results.length) {
+      return {
+        message: 'No credits found for this associate.',
+        data: [],
+      };
+    }
+
+    const creditsWithProgress = results.map((credit) => {
+      const totalAmount = parseFloat(credit.creditAmount || '0');
+      const outstanding = parseFloat(credit.outstandingBalance || '0');
+
+      let progress = 0;
+      if (totalAmount > 0) {
+        const paidAmount = totalAmount - outstanding;
+        progress = (paidAmount / totalAmount) * 10;
+      }
+
+      // Clamp progress between 0 and 10 and format to 2 decimal places
+      const formattedProgress = Math.max(0, Math.min(10, progress)).toFixed(2);
+
+      return {
+        ...credit,
+        creditAmount: totalAmount.toFixed(2),
+        outstandingBalance: outstanding.toFixed(2),
+        installmentAmount: parseFloat(credit.installmentAmount || '0').toFixed(
+          2,
+        ),
+        progress: formattedProgress,
+      };
+    });
+
+    return {
+      message: 'Credits fetched successfully.',
+      data: creditsWithProgress,
     };
   }
 }

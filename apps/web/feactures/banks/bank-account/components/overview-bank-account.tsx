@@ -4,12 +4,20 @@ import { useBankAccountStore } from '../store/bank-account.store';
 export function OverviewLoans() {
   const { totalBalanceBs, totalBalanceUsd } = useBankAccountStore();
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('es-VE', {
+  const formatCurrency = (value: number, currency: 'VES' | 'USD') => {
+    const formatted = new Intl.NumberFormat('es-VE', {
       style: 'currency',
-      currency: 'VES',
+      currency,
       minimumFractionDigits: 2,
     }).format(value);
+
+    // If the currency is VES, replace "Bs.S" with "Bs."
+    if (currency === 'VES') {
+      return formatted.replace('Bs.S', 'Bs.');
+    }
+
+    return formatted;
+  };
 
   return (
     <div className="space-y-6 mt-4 ">
@@ -23,7 +31,7 @@ export function OverviewLoans() {
           <CardContent>
             <div className="text-2xl font-bold">
               {' '}
-              {formatCurrency(totalBalanceBs)}
+              {formatCurrency(totalBalanceBs, 'VES')}
             </div>
           </CardContent>
         </Card>
@@ -35,7 +43,7 @@ export function OverviewLoans() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(totalBalanceUsd)}{' '}
+              {formatCurrency(totalBalanceUsd, 'VES')}{' '}
             </div>
           </CardContent>
         </Card>

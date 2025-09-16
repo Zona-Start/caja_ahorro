@@ -40,7 +40,7 @@ export function SupplierInvoiceModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[1000px] z-50 backdrop-blur-lg">
+      <DialogContent className="sm:max-w-[1000px] z-50 ">
         <DialogHeader>
           <DialogTitle>
             {readOnly

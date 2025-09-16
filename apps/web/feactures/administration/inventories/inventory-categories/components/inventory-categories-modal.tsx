@@ -39,7 +39,7 @@ export default function InventoryCategoriesModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg bg-background/80">
+      <DialogContent className="sm:max-w-[600px] z-50 ">
         <DialogHeader>
           <DialogTitle>
             {defaultValues ? 'Editar Categoría' : 'Nueva Categoría'}

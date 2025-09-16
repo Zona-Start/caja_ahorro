@@ -26,7 +26,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, ilike, or, SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, or, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateWithdrawalAssociateDto } from './dto/create-withdrawal-associate.dto';
@@ -489,6 +489,58 @@ export class WithdrawalAssociateService {
       withdrawalStatus: result[0].withdrawalStatus,
       totalLoansAssociate: Number(totalLoansAssociate[0].count),
       totalCreditsAssociate: Number(totalCreditsAssociate[0].count),
+    };
+  }
+
+  async findAllByAssociate(associateId: number) {
+    // First, find the associate's account(s)
+    const accounts = await this.db.query.associateAccounts.findMany({
+      where: eq(schema.associateAccounts.associateId, associateId),
+      columns: {
+        id: true,
+      },
+    });
+
+    if (!accounts.length) {
+      return {
+        message: `No accounts found for associate with ID ${associateId}`,
+        data: [],
+      };
+    }
+
+    const accountIds = accounts.map((acc) => acc.id);
+
+    const withdrawals = await this.db
+      .select({
+        withdrawalDate: withdrawalsAssociates.withdrawalDate,
+        description: withdrawalTypes.description,
+        amount: withdrawalsAssociates.requestedAmount,
+        paymentMethod: withdrawalsAssociates.paymentMethod,
+        status: withdrawalsAssociates.status,
+      })
+      .from(withdrawalsAssociates)
+      .leftJoin(
+        withdrawalTypes,
+        eq(withdrawalsAssociates.withdrawalTypeId, withdrawalTypes.id),
+      )
+      .where(inArray(withdrawalsAssociates.associateAccountId, accountIds))
+      .orderBy(desc(withdrawalsAssociates.withdrawalDate));
+
+    if (!withdrawals.length) {
+      return {
+        message: 'No withdrawals found for this associate.',
+        data: [],
+      };
+    }
+
+    const formattedWithdrawals = withdrawals.map((w) => ({
+      ...w,
+      amount: parseFloat(w.amount).toFixed(2),
+    }));
+
+    return {
+      message: 'Withdrawals fetched successfully.',
+      data: formattedWithdrawals,
     };
   }
 

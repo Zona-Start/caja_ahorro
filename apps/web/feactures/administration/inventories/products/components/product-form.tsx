@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { Package } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useInventoryCategoriesAll } from '../../inventory-categories/hooks/use-query-inventory-categories';
 import { useProductMutation } from '../hooks/use-mutation-product';
@@ -168,7 +167,7 @@ export default function ProductForm({
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="general">Información General</TabsTrigger>
               <TabsTrigger value="stock">Existencias</TabsTrigger>
-              <TabsTrigger value="suppliers">Proveedores</TabsTrigger>
+              {/* <TabsTrigger value="suppliers">Proveedores</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="general" className="space-y-6 mt-6">
@@ -731,7 +730,7 @@ export default function ProductForm({
                 </div>
 
                 {/* Sección derecha - Existencias Informativo */}
-                <div className="space-y-4">
+                {/* <div className="space-y-4">
                   <div className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-medium text-lg">
@@ -742,19 +741,19 @@ export default function ProductForm({
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      {/* Actual */}
-                      <div className="grid grid-cols-2 gap-4 items-center">
+                    <div className="space-y-3"> */}
+                {/* Actual */}
+                {/* <div className="grid grid-cols-2 gap-4 items-center">
                         <Label className="text-sm font-medium">Actual</Label>
                         <div className="text-right">
                           <span className="font-mono text-sm">
                             {currentStock.toFixed(2)}
                           </span>
                         </div>
-                      </div>
+                      </div> */}
 
-                      {/* Comprometida */}
-                      <div className="grid grid-cols-2 gap-4 items-center">
+                {/* Comprometida */}
+                {/* <div className="grid grid-cols-2 gap-4 items-center">
                         <Label className="text-sm font-medium">
                           Comprometida
                         </Label>
@@ -763,20 +762,20 @@ export default function ProductForm({
                             {committedStock.toFixed(2)}
                           </span>
                         </div>
-                      </div>
+                      </div> */}
 
-                      {/* Ordenada */}
-                      <div className="grid grid-cols-2 gap-4 items-center">
+                {/* Ordenada */}
+                {/* <div className="grid grid-cols-2 gap-4 items-center">
                         <Label className="text-sm font-medium">Ordenada</Label>
                         <div className="text-right">
                           <span className="font-mono text-sm text-muted-foreground">
                             {orderedStock.toFixed(2)}
                           </span>
                         </div>
-                      </div>
+                      </div> */}
 
-                      {/* Disponible */}
-                      <div className="grid grid-cols-2 gap-4 items-center border-t pt-3">
+                {/* Disponible */}
+                {/* <div className="grid grid-cols-2 gap-4 items-center border-t pt-3">
                         <Label className="text-sm font-medium">
                           Disponible
                         </Label>
@@ -785,19 +784,19 @@ export default function ProductForm({
                             {availableStock.toFixed(2)}
                           </span>
                         </div>
-                      </div>
-                    </div>
+                      </div> */}
+                {/* </div>
                   </div>
-                </div>
+                </div> */}
               </div>
             </TabsContent>
 
-            <TabsContent value="suppliers" className="space-y-4 mt-6">
+            {/* <TabsContent value="suppliers" className="space-y-4 mt-6">
               <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Información de proveedores disponible próximamente</p>
               </div>
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
 
           <div className="sticky bottom-0 w-full bg-background  py-2 px-6 mt-auto">

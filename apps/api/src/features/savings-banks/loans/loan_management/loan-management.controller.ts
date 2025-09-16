@@ -69,6 +69,14 @@ export class LoanManagementController {
     return this.loanManagementService.findRequestByEdit(+id);
   }
 
+  @Get('by-associate/:associateId')
+  @RequirePermissions('read:loans-by-associate')
+  @ApiOperation({ summary: 'Get all loans for a specific associate' })
+  @ApiResponse({ status: 200, description: 'Return all loans for the associate.' })
+  findAllByAssociate(@Param('associateId') associateId: string) {
+    return this.loanManagementService.findAllByAssociate(+associateId);
+  }
+
   @Patch(':id')
   @RequirePermissions('update:loan-management')
   @ApiOperation({ summary: 'Update an Loan ' })

@@ -40,7 +40,7 @@ export function SupplierModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg">
+      <DialogContent className="sm:max-w-[600px] z-50 ">
         <DialogHeader>
           <DialogTitle>
             {readOnly

@@ -1,3 +1,4 @@
+import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.module';
 import { DrizzleModule } from '@/database/drizzle.module';
 import { SettingsSystemModule } from '@/features/core/settings-system/settings-system.module';
 import { Module } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { SettlementAssociateService } from './settlement-associate.service';
     AssociateAccountsMovementsModule,
     LoanPaidModule,
     CreditPaidModule,
+    GenerateCodeModule,
   ],
   controllers: [SettlementAssociateController],
   providers: [SettlementAssociateService],

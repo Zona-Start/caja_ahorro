@@ -66,6 +66,16 @@ export class AssociatesController {
     return { message: 'Associate fetched successfully', data };
   }
 
+  @Get('details/:cedula')
+  @RequirePermissions('read:associate-details-by-cedula')
+  @ApiOperation({ summary: 'Get associate details by cedula' })
+  @ApiResponse({ status: 200, description: 'Return the associate details.' })
+  @ApiResponse({ status: 404, description: 'Associate not found.' })
+  async getAssociateDetailsByCedula(@Param('cedula') cedula: string) {
+    const data = await this.associatesService.getAssociateDetailsByCedula(cedula);
+    return { message: 'Associate details fetched successfully', data };
+  }
+
   @Get(':id')
   @Roles('admin')
   @RequirePermissions('read:associate')

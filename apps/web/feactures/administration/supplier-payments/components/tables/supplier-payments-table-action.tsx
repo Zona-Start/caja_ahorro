@@ -1,10 +1,8 @@
 'use client';
 import { ACCOUNT_PAYABLE_STATUS_TYPES } from '@/feactures/administration/accounts-payable/schemas';
-import { Button } from '@repo/shadcn/components/ui/button';
 import { SelectSearchable } from '@repo/shadcn/components/ui/select-searchable';
 import { DataTableFilterBox } from '@repo/shadcn/components/ui/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/components/ui/table/data-table-search';
-import { DollarSign } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSupplierAll } from '../../../suppliers/hooks/use-query-suppliers'; // Import useSupplierAll
 import { SUPPLIER_PAYMENT_STATUS_TYPES } from '../../schemas'; // Import status types
@@ -118,11 +116,11 @@ export default function SupplierPaymentsTableActions({
           defaultValue={supplierIdFilter?.toString()}
         />
         <div className="flex gap-2">
-          {tab === 'pending' && (
+          {/* {tab === 'pending' && (
             <Button onClick={() => setOpenMassivePaymentModal(true)} size="sm">
               <DollarSign className="h-4 w-4" /> Pagos Masivos
             </Button>
-          )}
+          )} */}
           {/* {tab === 'history' && (
             <Button onClick={() => setOpenReversePaymentModal(true)} size="sm">
               <CreditCard className="h-4 w-4" /> Reversar Pagos

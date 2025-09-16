@@ -5,7 +5,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { CreateInventoryMovement, InventoryMovement } from '../schemas/inventory-movement.schema'; // Changed import
+import {
+  CreateInventoryMovement,
+  InventoryMovement,
+} from '../schemas/inventory-movement.schema'; // Changed import
 import InventoryMovementForm from './inventory-movement-form';
 import InventoryMovementView from './inventory-movement-view'; // New import
 
@@ -39,10 +42,12 @@ export default function InventoryMovementModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[800px] z-50 backdrop-blur-lg ">
+      <DialogContent className="sm:max-w-[800px] z-50  ">
         <DialogHeader>
           <DialogTitle>
-            {readOnly ? 'Detalles del Movimiento' : 'Nuevo movimiento de inventario'}
+            {readOnly
+              ? 'Detalles del Movimiento'
+              : 'Nuevo movimiento de inventario'}
           </DialogTitle>
           <DialogDescription>
             {readOnly

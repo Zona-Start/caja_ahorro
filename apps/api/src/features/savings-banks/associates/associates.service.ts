@@ -382,6 +382,63 @@ export class AssociatesService {
     };
   }
 
+  async getAssociateDetailsByCedula(cedula: string) {
+    const result = await this.drizzle
+      .select({
+        // From associates
+        id: associates.id,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        nationality: associates.nationality,
+        gender: associates.gender,
+        admissionDate: associates.dateAdmission,
+        graduationDate: associates.dateGraduation,
+        status: associates.status,
+        isPayrollCredit: associates.isPayrollCredit,
+        baseSalary: associates.baseSalary,
+
+        // From states (as locality)
+        locality: schema.states.name,
+
+        // From associateAccounts
+        accountNumber: associateAccounts.accountNumber,
+
+        // From bankDirectory
+        bankName: schema.bankDirectory.name,
+
+        // From associateHaberesBalance view
+        totalHaberes: associateHaberesBalance.haberesBalance,
+      })
+      .from(associates)
+      .where(and(eq(associates.cedula, cedula)))
+      .leftJoin(
+        associateAccounts,
+        eq(associateAccounts.associateId, associates.id),
+      )
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+      )
+      .leftJoin(schema.states, eq(associates.localityId, schema.states.id))
+      .leftJoin(
+        schema.bankDirectory,
+        eq(associateAccounts.bankDirectoryId, schema.bankDirectory.id),
+      );
+
+    if (!result.length) {
+      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+    }
+
+    const associateData = result[0];
+    const paymentCapacity = parseFloat(associateData.baseSalary || '0') * 0.3;
+
+    return {
+      ...associateData,
+      totalHaberes: Number(associateData.totalHaberes || 0).toFixed(2),
+      paymentCapacity: paymentCapacity.toFixed(2),
+    };
+  }
+
   async update(
     userId: number,
     id: number,

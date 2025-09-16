@@ -40,7 +40,7 @@ export function WithdrawalTypesModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[600px] z-50 backdrop-blur-lg bg-background/80">
+      <DialogContent className="sm:max-w-[600px] z-50">
         <DialogHeader>
           <DialogTitle>
             {defaultValues ? 'Editar Tipo de Rétiro' : 'Crear Tipo de Rétiro'}

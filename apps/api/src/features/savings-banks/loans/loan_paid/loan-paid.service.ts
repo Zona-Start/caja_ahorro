@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import {
@@ -44,53 +44,8 @@ export class LoanPaidService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
-
-  // --- Helper function to generate custom reference ---
-  // private async generateCustomReference(): Promise<string> {
-  //   // Fetch the current correlative number and increment it
-  //   const key = 'correlativo_pago_prestamo';
-  //   try {
-  //     const result = await this.db.transaction(async (tx) => {
-  //       // Lock the row for update
-  //       const setting = await tx.query.systemSettings.findFirst({
-  //         where: eq(systemSettings.key, key),
-  //         // Add forUpdate() if your Drizzle version supports it for row locking
-  //         // Example: columns: {}, with: { forUpdate: true }
-  //       });
-
-  //       if (!setting) {
-  //         throw new InternalServerErrorException(
-  //           `System setting '${key}' not found.`,
-  //         );
-  //       }
-
-  //       const currentNumber = parseInt(setting.value, 10);
-  //       if (isNaN(currentNumber)) {
-  //         throw new InternalServerErrorException(
-  //           `Invalid correlative number format for '${key}'.`,
-  //         );
-  //       }
-
-  //       const nextNumber = currentNumber + 1;
-  //       const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
-
-  //       // Update the setting with the new value
-  //       await tx
-  //         .update(systemSettings)
-  //         .set({ value: nextValue, updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-  //         .where(eq(systemSettings.id, setting.id));
-
-  //       return nextValue; // Return the generated reference
-  //     });
-  //     return `PGPRES${result}`; // Prefix the reference
-  //   } catch (error) {
-  //     console.error('Error generating custom reference:', error);
-  //     throw new InternalServerErrorException(
-  //       'Failed to generate custom loan reference.',
-  //     );
-  //   }
-  // }
 
   // Función para recalcular el balance pendiente de un préstamo
   // Útil para obtener el balance actual, pero no directamente usada en la lógica de aplicar el pago completo
@@ -290,7 +245,8 @@ export class LoanPaidService {
         newBalancePending = 0;
       }
 
-      const customReference = generateUniqueReference();
+      const customReference =
+        await this.generateCodeService.generateNextReference('PRE-PAG');
 
       const [insertedPayment] = await tx
         .insert(loanPayments)
