@@ -1,13 +1,13 @@
 export const ESTATUS_TYPES = {
-  REQUESTED: 'SOLICITADO',
-  APPROVED: 'APROBADO',
-  IN_PAYMENT: 'EN_PAGO',
-  PAID: 'PAGADO',
+  REQUESTED: 'Solicitado',
+  APPROVED: 'Aprobado',
+  IN_PAYMENT: 'En Pago',
+  PAID: 'Pagado',
 } as const;
 
 export const CREDIT_MODALITY = {
-  ORDINARY: 'ORDINARIO',
-  SPECIAL_QUOTAS: 'CUOTAS ESPECIALES',
+  ORDINARY: 'Ordinario',
+  SPECIAL_QUOTAS: 'Cuotas Especiales',
 } as const;
 
 export type EstatusType = keyof typeof ESTATUS_TYPES;

@@ -11,6 +11,7 @@ import {
   creditStatusHistory,
   creditsTypes,
   exchangeRates,
+  loans,
   systemSettings,
 } from '@/database/index';
 import { associateHaberesBalance } from '@/database/schema/views';
@@ -21,6 +22,7 @@ import {
   creditModalityTypeEnum,
   CreditStatusEnum,
   CurrencyCodeEnum,
+  LoanStatusEnum,
   PaymentStatusEnum,
 } from '@/types/enum';
 import {
@@ -790,6 +792,21 @@ export class CreditManagementService {
         ),
       );
 
+    const [{ count: totalLoans }] = await this.db
+      .select({
+        count: count(),
+      })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.associateId, associate[0].id),
+          ne(loans.status, LoanStatusEnum.PAID),
+          ne(loans.status, LoanStatusEnum.REQUESTED),
+          ne(loans.status, LoanStatusEnum.CANCELLED),
+          ne(loans.status, LoanStatusEnum.REJECTED),
+        ),
+      );
+
     return {
       associate: {
         ...associate[0],
@@ -798,6 +815,7 @@ export class CreditManagementService {
         balance: Number(associateAccount[0].balance).toFixed(2),
       },
       totalCredits: total,
+      totalLoans: totalLoans,
     };
   }
 

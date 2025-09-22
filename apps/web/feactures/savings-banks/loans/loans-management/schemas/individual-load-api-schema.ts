@@ -18,6 +18,7 @@ export const loadAssociate = z.object({
 export const loadAssociateApiResponseSchema = z.object({
   associate: loadAssociate,
   totalLoans: z.number(),
+  totalCredits: z.number()
 });
 
 export type AssociatesLoan = z.infer<typeof loadAssociateApiResponseSchema>;

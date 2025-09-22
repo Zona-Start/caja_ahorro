@@ -305,7 +305,9 @@ export function LoanSearch({
                       ? 'posee un credinomina activo y un préstamo sin cancelar'
                       : selectedAssociate?.associate?.isPayrollCredit
                         ? 'posee un credinomina activo'
-                        : 'posee un préstamo sin cancelar'}
+                        : selectedAssociate?.totalCredits
+                          ? 'posee un crédito sin cancelar'
+                          : 'posee un préstamo sin cancelar'}
                   </Badge>
                 </div>
               )}

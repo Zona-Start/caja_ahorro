@@ -3,8 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  aprobeLoanManagementAction,
+  createLoanManagementAction,
   deleteLoanManagementAction,
-  saveLoanManagementAction,
 } from '../actions/loans-management-actions';
 import { LoanManagement } from '../schemas/loans-management.schema';
 
@@ -14,13 +15,35 @@ export function useLoanManagementMutation() {
 
   const mutation = useMutation({
     mutationFn: (loanManagement: LoanManagement) =>
-      saveLoanManagementAction(loanManagement),
+      createLoanManagementAction(loanManagement),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['loan-management'] });
       queryClient.removeQueries({ queryKey: ['loans-associates-by-cedula'] });
       queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
     },
     onError: (error) => {
+      console.error('Error:', error);
+    },
+  });
+
+  return mutation;
+}
+
+export function useAprobedLoanMutation() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (id: number) => aprobeLoanManagementAction(id),
+    onSuccess: () => {
+      queryClient.removeQueries({
+        queryKey: ['loan-associates-individual-by-cedula'],
+      });
+      queryClient.invalidateQueries({ queryKey: ['loan-management'] });
+      queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
+      toast.success('Prestamo aprobado exitosamente');
+    },
+    onError: (error) => {
+      toast.error('Error al aprobar el prestamo, contacte el administrador');
       console.error('Error:', error);
     },
   });

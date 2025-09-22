@@ -13,6 +13,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@repo/shadcn/table';
 import { format } from 'date-fns';
 import { useQueryPaymentBatchDetails } from '../hooks/use-query-payment-batch';
 import { PAYMENT_BATCH_STATUS } from '../schemas/payment-batch-options';
@@ -47,7 +55,7 @@ export function PaymentBatchDetailsModal({
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DataTableSkeleton columnCount={2} rowCount={5} />
         </DialogContent>
       </Dialog>
@@ -68,10 +76,12 @@ export function PaymentBatchDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalles del Lote de Pago</DialogTitle>
-          <DialogDescription>ID del Lote: {paymentBatch.id}</DialogDescription>
+          <DialogDescription>
+            ID del Lote: {paymentBatch.paymentBatchReference}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -79,11 +89,13 @@ export function PaymentBatchDetailsModal({
             <CardHeader>
               <CardTitle>Información General</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1">
-              <DetailItem
-                label="Descripción"
-                value={paymentBatch.description}
-              />
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 pt-4">
+              <div className="md:col-span-2">
+                <DetailItem
+                  label="Descripción"
+                  value={paymentBatch.description}
+                />
+              </div>
               <DetailItem label="Estado" value={<Badge>{statusLabel}</Badge>} />
               <DetailItem
                 label="Monto Total"
@@ -119,41 +131,54 @@ export function PaymentBatchDetailsModal({
                 <CardTitle>Ítems del Lote</CardTitle>
               </CardHeader>
               <CardContent>
-                {paymentBatch.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="border-b border-border/50 pb-2 mb-2 last:border-b-0 last:mb-0"
-                  >
-                    <DetailItem label="Tipo" value={item.itemType} />
-                    <DetailItem label="ID Origen" value={item.sourceId} />
-                    <DetailItem
-                      label="Beneficiario"
-                      value={item.beneficiaryName}
-                    />
-                    <DetailItem
-                      label="Cuenta Beneficiario"
-                      value={item.beneficiaryAccountNumber}
-                    />
-                    <DetailItem
-                      label="Monto"
-                      value={formatCurrency(Number(item.amount), 'VES')}
-                    />
-                    <DetailItem
-                      label="Estado Ítem"
-                      value={
-                        PAYMENT_BATCH_STATUS[
-                          item.status as keyof typeof PAYMENT_BATCH_STATUS
-                        ]
-                      }
-                    />
-                    {item.rejectionReason && (
-                      <DetailItem
-                        label="Razón de Rechazo"
-                        value={item.rejectionReason}
-                      />
-                    )}
-                  </div>
-                ))}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Beneficiario</TableHead>
+                      <TableHead>Cuenta</TableHead>
+                      <TableHead className="text-right">Monto</TableHead>
+                      <TableHead>Estado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paymentBatch.items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {item.beneficiaryName}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Cédula: {item.beneficiaryId}
+                          </div>
+                        </TableCell>
+                        <TableCell>{item.beneficiaryAccountNumber}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(Number(item.amount), 'VES')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              item.status === 'REJECTED'
+                                ? 'destructive'
+                                : 'default'
+                            }
+                          >
+                            {
+                              PAYMENT_BATCH_STATUS[
+                                item.status as keyof typeof PAYMENT_BATCH_STATUS
+                              ]
+                            }
+                          </Badge>
+                          {item.rejectionReason && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {item.rejectionReason}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
           )}

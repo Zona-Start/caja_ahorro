@@ -176,7 +176,7 @@ export function LoanPaidForm({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="purple" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <Banknote />
           </IconWrapper>
           Datos del Pago

@@ -37,6 +37,11 @@ export const loanManagementSchema = z.object({
   termMonths: z.string(),
   interestRate: z.string(),
   installmentsCount: z.string(),
+
+  disbursedAmount: z.string().optional(),
+  totalInterest: z.string().optional(),
+  totalPayable: z.string().optional(),
+  approvalDate: z.string().optional(),
 });
 
 export type LoanManagement = z.infer<typeof loanManagementSchema>;

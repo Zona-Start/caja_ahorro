@@ -6,6 +6,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -14,17 +15,16 @@ import {
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateLoanDto } from './dto/create-loan.dto';
 import { FilterLoanManagementDto } from './dto/filter-loan-management.dto';
-import { UpdateLoanDto } from './dto/update-loan.dto';
 import { LoanManagementService } from './loan-management.service';
 
 @Controller('loan')
 export class LoanManagementController {
   constructor(private readonly loanManagementService: LoanManagementService) {}
 
-  @Post()
-  create(@Req() req: Request, @Body() createLoanDto: CreateLoanDto) {
+  @Post('request')
+  async request(@Req() req: Request, @Body() createLoanDto: CreateLoanDto) {
     const userdId = req['user'].id;
-    return this.loanManagementService.create(createLoanDto, userdId);
+    return this.loanManagementService.request(createLoanDto, userdId);
   }
 
   @Get()
@@ -72,26 +72,35 @@ export class LoanManagementController {
   @Get('by-associate/:associateId')
   @RequirePermissions('read:loans-by-associate')
   @ApiOperation({ summary: 'Get all loans for a specific associate' })
-  @ApiResponse({ status: 200, description: 'Return all loans for the associate.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all loans for the associate.',
+  })
   findAllByAssociate(@Param('associateId') associateId: string) {
     return this.loanManagementService.findAllByAssociate(+associateId);
   }
 
-  @Patch(':id')
-  @RequirePermissions('update:loan-management')
-  @ApiOperation({ summary: 'Update an Loan ' })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan  updated successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Loan  not found.' })
-  update(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() updateLoanDto: UpdateLoanDto,
-  ) {
+  // @Patch(':id')
+  // @RequirePermissions('update:loan-management')
+  // @ApiOperation({ summary: 'Update an Loan ' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Loan  updated successfully.',
+  // })
+  // @ApiResponse({ status: 404, description: 'Loan  not found.' })
+  // update(
+  //   @Req() req: Request,
+  //   @Param('id') id: string,
+  //   @Body() updateLoanDto: UpdateLoanDto,
+  // ) {
+  //   const userdId = req['user'].id;
+  //   return this.loanManagementService.update(+id, updateLoanDto, userdId);
+  // }
+
+  @Patch('approve/:id')
+  async approve(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {
     const userdId = req['user'].id;
-    return this.loanManagementService.update(+id, updateLoanDto, userdId);
+    return await this.loanManagementService.approve(id, userdId);
   }
 
   @Delete(':id')

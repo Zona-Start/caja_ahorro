@@ -206,7 +206,7 @@ export const aprobeCreditManagementAction = async (id: number) => {
   );
   if (error) {
     // console.error('Error:', error);
-    throw new Error(error.message || `Error update loan with ID ${id}`);
+    throw new Error(error.message || `Error update credit with ID ${id}`);
   }
   return data;
 };
@@ -220,7 +220,7 @@ export const deleteCreditManagementAction = async (id: number) => {
   );
   if (error) {
     // console.error('Error:', error);
-    throw new Error(error.message || `Error delete loan with ID ${id}`);
+    throw new Error(error.message || `Error delete credit with ID ${id}`);
   }
   return data;
 };
@@ -234,7 +234,7 @@ export const getCreditManagementAllCountAction = async () => {
 
   if (error) {
     // console.error('Error:', error);
-    throw new Error(error.message || `Error fetching loan count}`);
+    throw new Error(error.message || `Error fetching credit count}`);
   }
 
   return data;

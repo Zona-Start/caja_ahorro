@@ -42,8 +42,10 @@ export function useAprobedCreditMutation() {
       });
       queryClient.invalidateQueries({ queryKey: ['credit-management'] });
       queryClient.invalidateQueries({ queryKey: ['credit-management-count'] });
+      toast.success('Crédito aprobado exitosamente');
     },
     onError: (error) => {
+      toast.error('Error al aprobar el crédito');
       console.error('Error:', error);
     },
   });

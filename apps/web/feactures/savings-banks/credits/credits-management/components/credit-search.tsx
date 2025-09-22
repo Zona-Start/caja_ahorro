@@ -204,6 +204,7 @@ export function CreditSearch({
 
   const hasBlocks =
     selectedAssociate?.totalCredits !== 0 ||
+    selectedAssociate?.totalLoans !== 0 ||
     selectedAssociate?.associate?.isPayrollCredit === true;
 
   return (
@@ -302,7 +303,9 @@ export function CreditSearch({
                       ? 'posee un credinomina activo y un crédito sin cancelar'
                       : selectedAssociate?.associate?.isPayrollCredit
                         ? 'posee un credinomina activo'
-                        : 'posee un crédito sin cancelar'}
+                        : selectedAssociate?.totalLoans
+                          ? 'posee un prestamo sin cancelar'
+                          : 'posee un crédito sin cancelar'}
                   </Badge>
                 </div>
               )}

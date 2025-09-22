@@ -62,7 +62,7 @@ export function LoanSummary({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
-              <IconWrapper color="indigo" className="w-6 h-6">
+              <IconWrapper className="w-6 h-6">
                 <CreditCard className="h-4 w-4" />
               </IconWrapper>
               Información del Tipo de Préstamo
@@ -89,6 +89,7 @@ export function LoanSummary({
 
   const hasBlocks =
     selectedAssociate?.totalLoans !== 0 ||
+    selectedAssociate?.totalCredits !== 0 ||
     selectedAssociate?.associate?.isPayrollCredit === true;
 
   return (
@@ -140,7 +141,7 @@ export function LoanSummary({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2">
-            <IconWrapper color="indigo" className="w-6 h-6">
+            <IconWrapper className="w-6 h-6">
               <CreditCard className="h-4 w-4" />
             </IconWrapper>
             Información del Tipo de Préstamo

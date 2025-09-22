@@ -77,7 +77,7 @@ export function NavMain({
                       'group/menu-item',
                       'text-gray-900 dark:text-gray-100',
                       'hover:!text-blue-600 hover:!bg-blue-100',
-                      'dark:hover:text-blue-400 dark:hover:bg-blue-950/50',
+                      'dark:hover:!text-blue-400 dark:hover:!bg-blue-950/50',
                       isActive && [
                         '!text-blue-600 !bg-blue-50 !font-medium',
                         'dark:!text-blue-400 dark:!bg-blue-950/50',
@@ -105,7 +105,7 @@ export function NavMain({
                             className={cn(
                               'text-gray-700 dark:text-gray-300',
                               'hover:!text-blue-600 hover:!bg-blue-100',
-                              'dark:hover:text-blue-400 dark:hover:bg-blue-950/50',
+                              'dark:hover:!text-blue-400 dark:hover:!bg-blue-950/50',
                               isSubItemActive && [
                                 '!text-blue-600 !bg-blue-100 !font-medium',
                                 'dark:!text-blue-400 dark:!bg-blue-950/50',

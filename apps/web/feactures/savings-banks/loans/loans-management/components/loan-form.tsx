@@ -151,10 +151,12 @@ export function LoanForm({
 
   const { data: loanTypes } = useTypeLoans();
 
+
   // Determine if the associate is blocked
   const isAssociateBlocked =
     selectedAssociate !== null &&
     (selectedAssociate.totalLoans > 0 ||
+      selectedAssociate.totalCredits > 0 ||
       selectedAssociate.associate.isPayrollCredit === true);
 
   // Actualizar el associateId cuando cambia el asociado seleccionado
@@ -276,7 +278,7 @@ export function LoanForm({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="purple" className="w-8 h-8">
+          <IconWrapper  className="w-8 h-8">
             <CreditCard />
           </IconWrapper>
           Datos del Préstamo
@@ -425,7 +427,7 @@ export function LoanForm({
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <FormField
                     control={form.control}
                     name="startDate"
@@ -466,7 +468,7 @@ export function LoanForm({
                       </FormItem>
                     )}
                   />
-                  <FormField
+                  {/* <FormField
                     control={form.control}
                     name="status"
                     render={({ field }) => (
@@ -504,7 +506,7 @@ export function LoanForm({
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
+                  /> */}
                 </div>
               </TabsContent>
 

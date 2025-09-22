@@ -246,6 +246,7 @@ export function CreditForm({
   const isAssociateBlocked =
     selectedAssociate !== null &&
     (selectedAssociate.totalCredits > 0 ||
+      selectedAssociate.totalLoans > 0 ||
       selectedAssociate.associate.isPayrollCredit === true);
 
   useEffect(() => {

@@ -75,6 +75,7 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
           dateAdmission: initialData?.associateDateAdmission,
         },
         totalLoans: initialData?.totalLoans ?? 0,
+        totalCredits: initialData?.totalCredits ?? 0,
       });
 
       SetIsEditActive(true);

@@ -140,6 +140,10 @@ export const getLoanManagementAllAction = async (params: {
       loanTypeName: item.loanTypeName,
       associateCedula: item.associateCedula,
       associateFullname: item.associateFullname,
+      disbursedAmount: item.disbursedAmount,
+      totalInterest: item.totalInterest,
+      totalPayable: item.totalPayable,
+      approvalDate: item.approvalDate,
     })) || [];
 
   return {
@@ -180,7 +184,7 @@ export const createLoanManagementAction = async (
 
   const [error, data] = await safeFetchApi(
     LoanManagementMutationResponse,
-    '/loan',
+    '/loan/request',
     'POST',
     payload,
   );
@@ -193,35 +197,14 @@ export const createLoanManagementAction = async (
   return data;
 };
 
-export const updateLoanManagementAction = async (
-  loanManagement: LoanManagement,
-) => {
-  const { id, ...payloadWithoutId } = loanManagement;
-  const payload = {
-    associateId: Number(payloadWithoutId.associateId),
-    loanTypeId: Number(payloadWithoutId.loanTypeId),
-    loanModality: payloadWithoutId.loanModality,
-    requestDate: payloadWithoutId.requestDate.toISOString().split('T')[0],
-    startDate: payloadWithoutId.startDate.toISOString().split('T')[0],
-    requestedAmount: Number(payloadWithoutId.requestedAmount),
-    overdraftAmount:
-      payloadWithoutId.overdraftAmount === ''
-        ? null
-        : Number(payloadWithoutId.overdraftAmount),
-    paymentMethod: payloadWithoutId.paymentMethod,
-    disbursementAccountId: Number(payloadWithoutId.disbursementAccountId),
-    status: payloadWithoutId.status,
-    notes: payloadWithoutId.notes,
-  };
-
+export const aprobeLoanManagementAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     LoanManagementMutationResponse, // Assuming the response is similar
-    `/loan/${id}`, // API endpoint for updating a single loan
+    `/loan/approve/${id}`, // API endpoint for updating a single loan
     'PATCH', // Or 'PUT', depending on your API
-    payload,
   );
   if (error) {
-    //console.error('Error:', error);
+    // console.error('Error:', error);
     throw new Error(error.message || `Error update loan with ID ${id}`);
   }
   return data;
@@ -254,18 +237,4 @@ export const getLoanManagementAllCountAction = async () => {
   }
 
   return data;
-};
-
-export const saveLoanManagementAction = async (
-  loanManagement: LoanManagement,
-) => {
-  try {
-    if (loanManagement.id !== '0') {
-      return await updateLoanManagementAction(loanManagement);
-    } else {
-      return await createLoanManagementAction(loanManagement);
-    }
-  } catch (error: any) {
-    throw new Error(error.message || 'Error saving associate data');
-  }
 };
