@@ -4,6 +4,7 @@ import { useBanksQuery } from '@/feactures/banks/bank-directory/hooks/use-banks-
 import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { useStatesQuery } from '@/feactures/common/states/hooks/use-querys-states';
 import { useTypePayroll } from '@/feactures/configurations/type-payroll/hooks/use-query-type-payroll';
+import { formatCurrency } from '@/lib/formatCurrent';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import {
@@ -186,7 +187,10 @@ export function AssociateViewModal({
                 />
                 <DataRow
                   label="Sueldo Base"
-                  value={associateData?.baseSalary}
+                  value={formatCurrency(
+                    Number(associateData?.baseSalary),
+                    'VES',
+                  )}
                 />
               </CardContent>
             </Card>

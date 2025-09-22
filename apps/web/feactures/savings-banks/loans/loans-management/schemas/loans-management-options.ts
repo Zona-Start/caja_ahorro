@@ -1,25 +1,25 @@
 export const ESTATUS_TYPES = {
-  REQUESTED: 'SOLICITADO',
-  APPROVED: 'APROBADO',
-  DISBURSED: 'DESEMBOLSADO',
-  IN_PAYMENT: 'EN_PAGO',
-  PAID: 'PAGADO',
-  CANCELLED: 'CANCELADO',
-  REJECTED: 'RECHAZADO',
+  REQUESTED: 'Solicitado',
+  APPROVED: 'Aprobado',
+  DISBURSED: 'Desembolsado',
+  IN_PAYMENT: 'En pago',
+  PAID: 'Pagado',
+  CANCELLED: 'Cancelado',
+  REJECTED: 'Rechazado',
 } as const;
 
 export const PAYMENT_METHOD = {
-  CASH: 'EFECTIVO',
-  BANK_TRANSFER: 'TRANSFERENCIA BANCARIA',
-  CHECK: 'CHEQUE',
-  DEPOSIT: 'DEPÓSITO',
-  MOBILE_PAYMENT: 'PAGO_MÓVIL',
-  OTHER: 'OTRO',
+  CASH: 'Efectivo',
+  BANK_TRANSFER: 'Transferencia bancaria',
+  CHECK: 'Cheque',
+  DEPOSIT: 'Depósito',
+  MOBILE_PAYMENT: 'Pago móvil',
+  OTHER: 'Otro',
 } as const;
 
 export const lOAN_MODALITY = {
-  ORDINARY: 'ORDINARIO',
-  SPECIAL_QUOTAS: 'CUOTAS ESPECIALES',
+  ORDINARY: 'Ordinario',
+  SPECIAL_QUOTAS: 'Cuotas especiales',
 } as const;
 
 export type EstatusType = keyof typeof ESTATUS_TYPES;

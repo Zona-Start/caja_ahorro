@@ -26,7 +26,9 @@ export const supplierSchema = z.object({
     .optional(),
   contactPhone: z
     .string()
-    .max(50, { message: 'máximo 50 caracteres' })
+    .regex(/^[0-9]+$/, 'El teléfono solo puede contener números')
+    .min(10, 'El teléfono no puede tener menos de 10 dígitos')
+    .max(11, 'El teléfono no puede tener más de 11 dígitos')
     .optional(),
   state: z.number().optional(), // Puede ser null en la BD, por eso optional
   address: z.string().optional(),

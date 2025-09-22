@@ -1,3 +1,4 @@
+import { formatCurrency } from '@/lib/formatCurrent';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { DollarSign, PiggyBank, TrendingUp, Wallet } from 'lucide-react';
 import { AssociateDetails } from '../schemas/inquiry-schema';
@@ -5,21 +6,6 @@ import { AssociateDetails } from '../schemas/inquiry-schema';
 interface InquiryOverviewCardsProps {
   associate: AssociateDetails;
 }
-
-const formatCurrency = (value: number, currency: 'VES' | 'USD') => {
-  const formatted = new Intl.NumberFormat('es-VE', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(value);
-
-  // If the currency is VES, replace "Bs.S" with "Bs."
-  if (currency === 'VES') {
-    return formatted.replace('Bs.S', 'Bs.');
-  }
-
-  return formatted;
-};
 
 export function InquiryOverviewCards({ associate }: InquiryOverviewCardsProps) {
   const availability = parseFloat(associate.totalHaberes) * 0.8;

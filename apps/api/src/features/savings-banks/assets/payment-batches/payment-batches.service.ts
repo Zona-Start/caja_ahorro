@@ -4,6 +4,7 @@ import * as schema from '@/database/index';
 import { paymentBatches, paymentBatchItems } from '@/database/index';
 import { AuditLogsService } from '@/features/audit/audit-logs/audit-logs.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import {
   ActionEnumAudit,
   AssociateMovementTypeEnum,
@@ -36,6 +37,7 @@ export class PaymentBatchesService {
     private readonly bankMvts: BankMovementsService,
     private readonly audit: AuditLogsService,
     private readonly generateCodeService: GenerateCodeService,
+    private readonly settingsSystemService: SettingsSystemService,
   ) {}
 
   async create(dto: CreatePaymentBatchDto, userId: number) {
@@ -285,6 +287,9 @@ export class PaymentBatchesService {
       )
       .where(eq(schema.paymentBatches.id, batchId));
 
+    const codeBank =
+      await this.settingsSystemService.findKey('CODIGO_BANCO_CAJA');
+
     if (batch.length === 0) throw new NotFoundException('Lote no encontrado');
     if (batch[0].payment_batches.status !== paymentBatchStatus.UPLOADED)
       throw new BadRequestException('Lote debe estar en estado UPLOADED');
@@ -307,7 +312,7 @@ export class PaymentBatchesService {
     /* ----------  HEADER  (57 posiciones)  ---------- */
     let content = '';
     content += '10'; // 01-02  ID registro fijo
-    content += rzf(1, 6); // 03-08  Nro. de afiliado (ej. 1)
+    content += codeBank.value; // 03-08  Nro. de afiliado (ej. 1)  rzf(1, 6)
     content += rzf(batch[0]?.bank_accounts?.accountNumber ?? '', 20).slice(
       0,
       20,

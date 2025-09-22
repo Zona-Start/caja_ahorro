@@ -1,7 +1,7 @@
 'use client';
 import { IconWrapper } from '@/components/icon-wrapper';
-import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { useSupplierAll } from '@/feactures/administration/suppliers/hooks/use-query-suppliers';
+import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
 import { useProducts } from '@/feactures/savings-banks/credits/credits-management/hooks/use-query-products';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
@@ -40,7 +40,7 @@ import {
   TableRow,
 } from '@repo/shadcn/table';
 import { Banknote, Check, PlusCircle, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 import { useQueryWithdrawalType } from '../hooks/use-query-withdrawal';
@@ -92,7 +92,7 @@ export function WithdrawalForm({
       associateAccountId: 0,
       withdrawalDate: new Date(),
       withdrawalTypeId: 0,
-      requestedAmount: '',
+      requestedAmount: '0.00',
       paymentMethod: 'BANK_TRANSFER',
       commercialHouseId: COMMERCIAL_HOUSE_NONE,
       products: [],
@@ -138,17 +138,30 @@ export function WithdrawalForm({
 
   const watchedProducts = useWatch({ control: form.control, name: 'products' });
   const watchedItems = useWatch({ control: form.control, name: 'items' });
-
   const selectedWithdrawalType = withdrawlTypes?.data?.find(
     (lt) => lt.id === Number(withdrawalTypeId),
   );
 
   const showProductSelection = selectedWithdrawalType?.isInternalInventory;
   const showCommercialHouseDropdown = selectedWithdrawalType?.isHouseComercial;
+
   const showCommercialItems =
     showCommercialHouseDropdown &&
     commercialHouseId &&
     commercialHouseId !== COMMERCIAL_HOUSE_NONE;
+
+  const commercialItemsInvalid = useMemo(() => {
+    if (!showCommercialItems) {
+      return false;
+    }
+    if (watchedItems && watchedItems.length > 0) {
+      return watchedItems.some(
+        (item) =>
+          !item.description || item.description.trim() === '' || !item.days,
+      );
+    }
+    return false;
+  }, [showCommercialItems, watchedItems]);
 
   const balance = Number(selectedAssociate?.balance);
   const availability = balance * 0.8;
@@ -403,7 +416,7 @@ export function WithdrawalForm({
                           const quantity =
                             form.watch(`products.${index}.quantity`) || 0;
                           const subtotal =
-                            (Number(product?.productPrice) || 0) * quantity;
+                            Number(product?.productPrice || 0) * quantity;
                           return (
                             <TableRow key={field.id}>
                               <TableCell>
@@ -455,7 +468,7 @@ export function WithdrawalForm({
                                 />
                               </TableCell>
                               <TableCell className="text-right">
-                                {Number(product?.productPrice).toFixed(2) || 0}
+                                {Number(product?.productPrice || 0).toFixed(2)}
                               </TableCell>
                               <TableCell className="text-right">
                                 {subtotal.toFixed(2)}
@@ -489,7 +502,12 @@ export function WithdrawalForm({
                     type="button"
                     variant="outline"
                     onClick={() =>
-                      appendItem({ description: '', quantity: 1, cost: 0, days: '' })
+                      appendItem({
+                        description: '',
+                        quantity: 1,
+                        cost: 0,
+                        days: '',
+                      })
                     }
                     disabled={!selectedAssociate || isSubmitting || hasBlocks}
                   >
@@ -624,7 +642,11 @@ export function WithdrawalForm({
                           className="pl-8"
                           placeholder="0.00"
                           {...field}
-                          value={field.value && !isNaN(field.value as any) ? field.value : ''}
+                          value={
+                            field.value && !isNaN(field.value as any)
+                              ? field.value
+                              : ''
+                          }
                           disabled={
                             !!(
                               !selectedAssociate ||
@@ -771,7 +793,9 @@ export function WithdrawalForm({
                   isSubmitting ||
                   !form.formState.isValid ||
                   exceedingAvailability ||
-                  hasBlocks
+                  hasBlocks ||
+                  requestedAmount <= 0 ||
+                  commercialItemsInvalid
                 }
               >
                 {isSubmitting ? (

@@ -7,4 +7,9 @@ export class FilterWithdrawalAssociateDto extends PartialType(PaginationDto) {
   @IsOptional()
   @IsString()
   type?: string;
+
+  @ApiPropertyOptional({ description: 'Column Status' })
+  @IsOptional()
+  @IsString()
+  status?: string;
 }

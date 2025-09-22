@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCurrency } from '@/lib/formatCurrent';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
@@ -39,12 +40,6 @@ export function WithdrawalDetailsModal({
   withdrawal,
 }: WithdrawalDetailsModalProps) {
   if (!withdrawal) return null;
-
-  const formatCurrency = (amount: number | string | null | undefined) => {
-    const num = Number(amount);
-    if (isNaN(num)) return 'N/A';
-    return `${num.toFixed(2)} Bs.`;
-  };
 
   const formatDate = (date: string | null | undefined) => {
     if (!date) return 'N/A';
@@ -87,7 +82,10 @@ export function WithdrawalDetailsModal({
             <CardContent className="grid grid-cols-1 gap-x-8 gap-y-1">
               <DetailItem
                 label="Monto Solicitado"
-                value={formatCurrency(withdrawal.requestedAmount)}
+                value={formatCurrency(
+                  Number(withdrawal.requestedAmount),
+                  'VES',
+                )}
               />
               <DetailItem
                 label="Tipo de Retiro"

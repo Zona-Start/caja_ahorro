@@ -117,6 +117,18 @@ export class AssociateAccountsMovementsService {
             : null;
 
         // 4. Guarda los datos en associateAccountMovements retornando el id
+
+        const descriptionDefault =
+          movementType === 'SAVING_CONTRIBUTION'
+            ? 'Aporte Asociado'
+            : movementType === 'EMPLOYER_CONTRIBUTION'
+              ? 'Aporte Empleador'
+              : movementType === 'VOLUNTARY_SAVINGS'
+                ? 'Aporte Voluntario'
+                : description;
+
+        console.log(description);
+
         const [newMovement] = await tx
           .insert(associateAccountMovements)
           .values({
@@ -125,7 +137,12 @@ export class AssociateAccountsMovementsService {
             amount: amount.toString(),
             currencyCode: currencyCode as CurrencyCodeEnum,
             transactionDate,
-            description,
+            description:
+              description === undefined
+                ? descriptionDefault
+                : description === ''
+                  ? descriptionDefault
+                  : description,
             referenceId,
             referenceType,
             referenceNumber: reference,

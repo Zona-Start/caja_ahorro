@@ -2,6 +2,7 @@
 
 import { IconWrapper } from '@/components/icon-wrapper';
 import { toast } from '@/components/use-toast';
+import { formatCurrency } from '@/lib/formatCurrent';
 import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -213,23 +214,19 @@ export function WithdrawalSearch({
       });
       return;
     }
-    // Previene búsquedas repetidas con el mismo término si ya hay un resultado
-    if (trimmedSearchTerm === submittedSearchTerm && selectedAssociate) {
-      toast({
-        title: 'Información ya cargada',
-        description: `Ya se muestran los datos para la cédula ${trimmedSearchTerm}.`,
-      });
-      return;
-    }
+
+    // Limpiar caché y estado antes de nueva búsqueda
+    queryClient.removeQueries({
+      queryKey: ['withdrawal-associate-individual'],
+      exact: false,
+    });
+
+    // Limpiar estado previo
+    setSelectedAssociate(null);
 
     setSubmittedSearchTerm(trimmedSearchTerm);
     setShouldFetch(true); // Activa la ejecución del hook
-  }, [
-    searchTerm,
-    submittedSearchTerm,
-    selectedAssociate,
-    setSelectedAssociate,
-  ]);
+  }, [searchTerm, queryClient, setSelectedAssociate]);
 
   const clearAssociate = useCallback(() => {
     clearAllLoanData();
@@ -240,14 +237,9 @@ export function WithdrawalSearch({
     setEnabledTime(true);
     queryClient.removeQueries({
       queryKey: ['withdrawal-associate-individual'],
-      exact: true,
+      exact: false,
     });
-  }, [
-    clearAllLoanData,
-    queryClient,
-    setSelectedAssociate,
-    setShouldClearSearch, // Si es parte de la lógica de `useLoansPaidStore`
-  ]);
+  }, [clearAllLoanData, queryClient, setSelectedAssociate, setEnabledTime]);
 
   // Efecto para manejar la tecla Enter en la búsqueda
   useEffect(() => {
@@ -273,7 +265,7 @@ export function WithdrawalSearch({
         const convertedBalance = balance / exchangeRate;
         return convertedBalance.toFixed(2);
       }
-      return selectedAssociate.balance;
+      return formatCurrency(Number(selectedAssociate.balance), 'VES');
     }
     return '';
   };
@@ -370,7 +362,7 @@ export function WithdrawalSearch({
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Saldo Actual:</span>
                 <span className="font-bold text-lg text-green-600">
-                  {formatBalance()} {currentCurrencyCode}
+                  {formatBalance()}
                 </span>
               </div>
               {hasBlocks && (

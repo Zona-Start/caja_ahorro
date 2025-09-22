@@ -527,7 +527,7 @@ export function AssociatesForm({
                   <FormLabel>Sueldo</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
+                      type="text"
                       placeholder="0.00"
                       {...field}
                       disabled={readOnly}

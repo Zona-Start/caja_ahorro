@@ -2,6 +2,8 @@
 
 import { ColumnDef } from '@tanstack/react-table';
 
+import { Badge } from '@repo/shadcn/components/ui/badge';
+import { cn } from '@repo/shadcn/lib/utils';
 import {
   ESTATUS_TYPES,
   lOAN_MODALITY,
@@ -51,8 +53,52 @@ export const columns: ColumnDef<LoanManagement>[] = [
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original.status as keyof typeof ESTATUS_TYPES;
-      return ESTATUS_TYPES[statusKey] || row.original.status;
+      const status = row.original.status;
+      const statusText =
+        ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
+
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'REQUESTED':
+            return 'default';
+          case 'APPROVED':
+            return 'secondary';
+          case 'DISBURSED':
+            return 'warning';
+          case 'IN_PAYMENT':
+            return 'outline';
+          case 'PAID':
+            return 'success';
+          case 'CANCELLED':
+            return 'destructive';
+          default:
+            return 'default';
+        }
+      })();
+
+      return (
+        <div className={cn('p-2 h-full w-full')}>
+          <Badge
+            variant={
+              variant as
+                | 'default'
+                | 'destructive'
+                | 'outline'
+                | 'secondary'
+                | 'success'
+                | 'danger'
+            }
+          >
+            {statusText}
+          </Badge>
+        </div>
+      );
     },
   },
   {

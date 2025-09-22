@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { Save } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useSupplierMutation } from '../hooks/use-mutation-suppliers';
 import {
@@ -349,7 +350,8 @@ export function SupplierForm({
               </Button>
               {!readOnly && (
                 <Button type="submit" disabled={isSaving}>
-                  {isSaving ? 'Guardando...' : 'Guardar'}
+                  <Save className="h-4 w-4" />
+                  {defaultValues?.id ? 'Actualizar' : 'Guardar'}
                 </Button>
               )}
             </div>

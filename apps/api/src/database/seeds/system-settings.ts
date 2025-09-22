@@ -29,7 +29,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'porcentaje_prestamos',
+        key: 'PORCENTAJE_PRESTAMOS',
         value: '12',
         description: 'PORCENTAJE PRESTAMO',
         group: 'LOANS',
@@ -40,7 +40,7 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'tiempo_retiro',
+        key: 'TIEMPO_RETIRO',
         value: '6',
         description: 'TIEMPO RETIROS EN MESES',
         group: 'WITHDRAWAL',
@@ -76,6 +76,18 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         key: 'IVA-COMPRA',
         value: '16',
         description: 'IVA FACTURAS DE COMPRA',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'CODIGO_BANCO_CAJA',
+        value: '005823',
+        description: 'CÓDIGO BANCARIO CAJA PARA TRANSACCIONES EN LOTE',
         group: 'GENERAL',
         createdById: 1,
         updatedById: 1,

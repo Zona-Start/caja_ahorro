@@ -316,6 +316,7 @@ export class WithdrawalAssociateService {
       sortBy = 'id',
       sortOrder = 'asc',
       type = '',
+      status = '',
     } = paginationDto || {};
 
     const offset = (page - 1) * limit;
@@ -331,6 +332,12 @@ export class WithdrawalAssociateService {
     if (type !== '') {
       searchConditions.push(
         eq(withdrawalsAssociates.withdrawalTypeId, Number(type)),
+      );
+    }
+
+    if (status !== '') {
+      searchConditions.push(
+        eq(withdrawalsAssociates.status, status as withdrawalStatusEnum),
       );
     }
 

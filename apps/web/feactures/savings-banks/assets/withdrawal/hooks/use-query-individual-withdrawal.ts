@@ -6,7 +6,7 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['withdrawal-associate-individual'], // Use a query key that includes the cedula
+    ['withdrawal-associate-individual', cedula], // Include cedula in query key
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula?.trim() ? options?.enabled : false,

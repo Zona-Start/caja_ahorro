@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { useDeleteBankAccount } from '../../hooks/use-mutation-bank-account';
 import { BankAccount } from '../../schemas/bank-account.schema';
 import { BankAccountModal } from '../bank-account-modal';
+import { BankAccountDetailsModal } from '../bank-account-details-modal';
 
 interface CellActionProps {
   data: BankAccount;
@@ -70,22 +71,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         }}
       />
 
-      <BankAccountModal
+      <BankAccountDetailsModal
         open={showViewModal}
         onOpenChange={(open) => {
           setShowViewModal(open);
           if (!open) setBankAccountId(null);
         }}
-        defaultValues={{
-          ...data,
-          currencyCode:
-            data.currencyCode === 'VES'
-              ? '1'
-              : data.currencyCode === 'USD'
-                ? '2'
-                : '3',
-        }}
-        readOnly={true}
+        bankAccount={data}
       />
 
       <div className="flex gap-1">

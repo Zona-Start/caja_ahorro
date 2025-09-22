@@ -1,7 +1,10 @@
 'use client';
 
+import { formatCurrency } from '@/lib/formatCurrent';
+import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
+import { DataTableSkeleton } from '@repo/shadcn/components/ui/table/data-table-skeleton';
 import {
   Dialog,
   DialogContent,
@@ -10,11 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
+import { format } from 'date-fns';
 import { useQueryPaymentBatchDetails } from '../hooks/use-query-payment-batch';
 import { PAYMENT_BATCH_STATUS } from '../schemas/payment-batch-options';
-import { Badge } from '@repo/shadcn/badge';
-import { DataTableSkeleton } from '@repo/shadcn/components/ui/table/data-table-skeleton';
-import { format } from 'date-fns';
 
 interface PaymentBatchDetailsModalProps {
   isOpen: boolean;
@@ -40,9 +41,8 @@ export function PaymentBatchDetailsModal({
   onClose,
   paymentBatchId,
 }: PaymentBatchDetailsModalProps) {
-  const { data: paymentBatch, isLoading } = useQueryPaymentBatchDetails(
-    paymentBatchId,
-  );
+  const { data: paymentBatch, isLoading } =
+    useQueryPaymentBatchDetails(paymentBatchId);
 
   if (isLoading) {
     return (
@@ -55,12 +55,6 @@ export function PaymentBatchDetailsModal({
   }
 
   if (!paymentBatch) return null;
-
-  const formatCurrency = (amount: string | null | undefined) => {
-    const num = Number(amount);
-    if (isNaN(num)) return 'N/A';
-    return `${num.toFixed(2)} ${paymentBatch.currencyCode}`;
-  };
 
   const formatDate = (date: string | null | undefined) => {
     if (!date) return 'N/A';
@@ -77,9 +71,7 @@ export function PaymentBatchDetailsModal({
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Detalles del Lote de Pago</DialogTitle>
-          <DialogDescription>
-            ID del Lote: {paymentBatch.id}
-          </DialogDescription>
+          <DialogDescription>ID del Lote: {paymentBatch.id}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
@@ -88,15 +80,24 @@ export function PaymentBatchDetailsModal({
               <CardTitle>Información General</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
-              <DetailItem label="Descripción" value={paymentBatch.description} />
+              <DetailItem
+                label="Descripción"
+                value={paymentBatch.description}
+              />
               <DetailItem label="Estado" value={<Badge>{statusLabel}</Badge>} />
               <DetailItem
                 label="Monto Total"
-                value={formatCurrency(paymentBatch.totalAmount)}
+                value={formatCurrency(Number(paymentBatch.totalAmount), 'VES')}
               />
-              <DetailItem label="Cantidad de Ítems" value={paymentBatch.recordCount} />
+              <DetailItem
+                label="Cantidad de Ítems"
+                value={paymentBatch.recordCount}
+              />
               <DetailItem label="Moneda" value={paymentBatch.currencyCode} />
-              <DetailItem label="Banco" value={paymentBatch.bank?.name || 'N/A'} />
+              <DetailItem
+                label="Banco"
+                value={paymentBatch.bank?.name || 'N/A'}
+              />
               <DetailItem
                 label="Referencia Bancaria"
                 value={paymentBatch.bankReference}
@@ -135,9 +136,16 @@ export function PaymentBatchDetailsModal({
                     />
                     <DetailItem
                       label="Monto"
-                      value={formatCurrency(item.amount)}
+                      value={formatCurrency(Number(item.amount), 'VES')}
                     />
-                    <DetailItem label="Estado Ítem" value={item.status} />
+                    <DetailItem
+                      label="Estado Ítem"
+                      value={
+                        PAYMENT_BATCH_STATUS[
+                          item.status as keyof typeof PAYMENT_BATCH_STATUS
+                        ]
+                      }
+                    />
                     {item.rejectionReason && (
                       <DetailItem
                         label="Razón de Rechazo"

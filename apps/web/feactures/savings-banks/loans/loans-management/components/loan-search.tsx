@@ -144,18 +144,19 @@ export function LoanSearch({
       });
       return;
     }
-    // Previene búsquedas repetidas con el mismo término si ya hay un resultado
-    if (trimmedSearchTerm === submittedSearchTerm && selectedAssociate) {
-      toast({
-        title: 'Información ya cargada',
-        description: `Ya se muestran los datos para la cédula ${trimmedSearchTerm}.`,
-      });
-      return;
-    }
+
+    // Limpiar caché y estado antes de nueva búsqueda
+    queryClient.removeQueries({
+      queryKey: ['loans-associates-by-cedula'],
+      exact: false,
+    });
+
+    // Limpiar estado previo
+    setSearchResults(null);
 
     setSubmittedSearchTerm(trimmedSearchTerm);
     setShouldFetch(true); // Activa la ejecución del hook
-  }, [searchTerm, submittedSearchTerm, selectedAssociate, onSelectAssociate]);
+  }, [searchTerm, queryClient, onSelectAssociate]);
 
   // Función para limpiar la selección de asociado
   const clearAssociate = useCallback(() => {
@@ -165,7 +166,10 @@ export function LoanSearch({
     setSearchResults(null);
     setShouldFetch(false);
     // Remove the generic query key as well, just in case
-    queryClient.removeQueries({ queryKey: ['loans-associates-by-cedula'] });
+    queryClient.removeQueries({
+      queryKey: ['loans-associates-by-cedula'],
+      exact: false,
+    });
     // No need for setTimeout to re-enable fetch immediately
   }, [queryClient, onSelectAssociate]);
 
@@ -209,7 +213,7 @@ export function LoanSearch({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="blue" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <User />
           </IconWrapper>
           {isEdit ? 'Datos del Asociado' : 'Selección de Asociado'}

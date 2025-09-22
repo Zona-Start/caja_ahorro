@@ -98,7 +98,7 @@ export function SettingSystemForm({
               <FormItem>
                 <FormLabel>Valor</FormLabel>
                 <FormControl>
-                  {form.getValues('key') === 'moneda' ? (
+                  {form.getValues('key') === 'MONEDA' ? (
                     <Select
                       onValueChange={(value) => field.onChange(value)}
                       value={field.value}

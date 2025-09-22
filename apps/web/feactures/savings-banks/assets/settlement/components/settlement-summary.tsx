@@ -28,6 +28,8 @@ export function SettlementSummary({
     if (amount === undefined) {
       return '';
     }
+    console.log('currentCurrencyCode', currentCurrencyCode);
+
     if (currentCurrencyCode === 'USD' && currentExchangeRate) {
       return `$${(amount / currentExchangeRate).toFixed(2)}`;
     }
@@ -128,7 +130,7 @@ export function SettlementSummary({
             </div>
 
             <Separator />
-             <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Total Haberes</span>
               <span className="font-medium">
                 {formatCurrency(
@@ -137,7 +139,6 @@ export function SettlementSummary({
                 )}
               </span>
             </div>
-
 
             <div className="flex items-center justify-between pt-10">
               <span className="text-sm font-medium">Préstamos Pendientes</span>

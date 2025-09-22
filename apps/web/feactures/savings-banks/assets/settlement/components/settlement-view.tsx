@@ -65,7 +65,7 @@ export function SettlementView({ isEdit = false, initialData }: LoanViewProps) {
   useEffect(() => {
     const getCurrentCurrencyCode = (state: SystemConfigState) => {
       const currentSystemConfig = state.generalConfig.find(
-        (config) => config.key === 'moneda',
+        (config) => config.key === 'MONEDA',
       );
       const today = new Date().toISOString().split('T')[0];
       const exchangeRateData = state.exchangeRates?.find((entry) => {

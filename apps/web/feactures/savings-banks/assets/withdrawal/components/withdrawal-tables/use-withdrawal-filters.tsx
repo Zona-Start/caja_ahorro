@@ -3,9 +3,16 @@
 import { searchParams } from '@repo/shadcn/lib/searchparams';
 import { useQueryState } from 'nuqs';
 import { useCallback, useMemo } from 'react';
-import { PAYMENT_METHOD } from '../../schemas/withdrawal-options';
+import { ESTATUS_TYPES, PAYMENT_METHOD } from '../../schemas/withdrawal-options';
 
 export const PAYMENT_METHOD_OPTIONS = Object.entries(PAYMENT_METHOD).map(
+  ([value, label]) => ({
+    value,
+    label,
+  }),
+);
+
+export const ESTATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(
   ([value, label]) => ({
     value,
     label,
@@ -29,6 +36,11 @@ export function useWithdrawalTableFilters() {
     searchParams.q.withOptions({ shallow: false }).withDefault(''),
   );
 
+  const [statusFilter, setStatusFilter] = useQueryState(
+    'status',
+    searchParams.q.withOptions({ shallow: false }).withDefault(''),
+  );
+
   const [page, setPage] = useQueryState(
     'page',
     searchParams.page.withDefault(1),
@@ -37,12 +49,13 @@ export function useWithdrawalTableFilters() {
   const resetFilters = useCallback(() => {
     setSearchQuery(null);
     setTypeFilter(null);
+    setStatusFilter(null);
     setPage(1);
-  }, [setSearchQuery, setTypeFilter, setPage]);
+  }, [setSearchQuery, setTypeFilter, setStatusFilter, setPage]);
 
   const isAnyFilterActive = useMemo(() => {
-    return !!searchQuery || !!typeFilter;
-  }, [searchQuery, typeFilter]);
+    return !!searchQuery || !!typeFilter || !!statusFilter;
+  }, [searchQuery, typeFilter, statusFilter]);
 
   return {
     searchQuery,
@@ -53,5 +66,7 @@ export function useWithdrawalTableFilters() {
     isAnyFilterActive,
     typeFilter,
     setTypeFilter,
+    statusFilter,
+    setStatusFilter,
   };
 }

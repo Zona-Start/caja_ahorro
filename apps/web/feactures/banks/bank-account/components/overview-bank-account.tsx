@@ -43,7 +43,7 @@ export function OverviewLoans() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(totalBalanceUsd, 'VES')}{' '}
+              {formatCurrency(totalBalanceUsd, 'USD')}{' '}
             </div>
           </CardContent>
         </Card>

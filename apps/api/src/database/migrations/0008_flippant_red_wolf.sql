@@ -1,3 +1,0 @@
-ALTER TABLE "savings_banks"."withdrawals_associates" ADD COLUMN "commercial_house_id" integer;--> statement-breakpoint
-ALTER TABLE "savings_banks"."withdrawals_associates" ADD COLUMN "withdrawal_items" jsonb;--> statement-breakpoint
-ALTER TABLE "savings_banks"."withdrawals_associates" ADD CONSTRAINT "withdrawals_associates_commercial_house_id_suppliers_id_fk" FOREIGN KEY ("commercial_house_id") REFERENCES "administration"."suppliers"("id") ON DELETE set null ON UPDATE no action;

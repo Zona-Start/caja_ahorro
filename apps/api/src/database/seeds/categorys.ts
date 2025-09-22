@@ -1,6 +1,6 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../index';
-import { categoryType, typePayrolls } from '../index';
+import { categoryType } from '../index';
 
 export async function seedCategories(db: NodePgDatabase<typeof schema>) {
   try {
@@ -12,23 +12,6 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
       { description: 'Trimestral', options: [{ frequency: '4' }] },
       { description: 'Semestral', options: [{ frequency: '2' }] },
       { description: 'Anual', options: [{ frequency: '1' }] },
-    ];
-
-    // Payroll Types (from the image "tipo_nomina.jpg")
-    const payrollTypes = [
-      {
-        code: '5502',
-        description: 'Aportes Asociado (5502)',
-        deferred_date: '2022-03-31',
-        date_canceled: '2022-03-31',
-        deferred_number: 81,
-        number_canceled: 91,
-        group: 'ASSETS',
-        metadata: null,
-        associated_account: 60,
-        employer_account: 548,
-        loan_account: 525,
-      },
     ];
 
     // Associate Types (from the image "tipos_Asociados.jpg")
@@ -69,28 +52,6 @@ export async function seedCategories(db: NodePgDatabase<typeof schema>) {
           description: associatedTypes.description,
           options: associatedTypes.options,
           isActive: true,
-          createdById: 1,
-          updatedById: 1,
-        })
-        .onConflictDoNothing();
-    }
-
-    // Insert Payroll Types
-    for (const payrollTypes2 of payrollTypes) {
-      await db
-        .insert(typePayrolls)
-        .values({
-          code: payrollTypes2.code,
-          description: payrollTypes2.description,
-          deferredDate: payrollTypes2.deferred_date,
-          dateCanceled: payrollTypes2.date_canceled,
-          deferredNumber: payrollTypes2.deferred_number,
-          numberCanceled: payrollTypes2.number_canceled,
-          group: payrollTypes2.group,
-          metadata: payrollTypes2.metadata,
-          associatedAccount: payrollTypes2.associated_account,
-          employerAccount: payrollTypes2.employer_account,
-          loanAccount: payrollTypes2.loan_account,
           createdById: 1,
           updatedById: 1,
         })

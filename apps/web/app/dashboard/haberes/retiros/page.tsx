@@ -26,6 +26,7 @@ export default async function Page(props: pageProps) {
   const search = searchParamsCache.get('q');
   const pageLimit = Number(searchParamsCache.get('limit')) || 10;
   const type = searchParamsCache.get('type');
+  const status = searchParamsCache.get('status');
 
   return (
     <PageContainer scrollable={false}>
@@ -37,6 +38,7 @@ export default async function Page(props: pageProps) {
           initialSearch={search}
           initialLimit={pageLimit}
           initialType={type}
+          initialStatus={status}
         />
       </div>
     </PageContainer>

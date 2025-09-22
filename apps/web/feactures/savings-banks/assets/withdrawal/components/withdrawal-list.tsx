@@ -11,6 +11,7 @@ interface WithdrawaltListProps {
   initialSearch?: string | null;
   initialLimit: number;
   initialType?: string | null;
+  initialStatus?: string | null;
 }
 
 export default function WithdrawalList({
@@ -18,12 +19,14 @@ export default function WithdrawalList({
   initialSearch,
   initialLimit,
   initialType,
+  initialStatus,
 }: WithdrawaltListProps) {
   const filters = {
     page: initialPage,
     limit: initialLimit,
     ...(initialSearch && { search: initialSearch }),
     ...(initialType && { type: initialType }),
+    ...(initialStatus && { status: initialStatus }),
   };
 
   const { data, isLoading } = useQueryWithdrawal(filters);

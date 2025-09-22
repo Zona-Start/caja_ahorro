@@ -16,13 +16,13 @@ export const columns: ColumnDef<SettingSystem>[] = [
     cell: ({ row }) => {
       const { currencies } = useSystemConfigStore();
       const currency =
-        row.original.key === 'moneda'
+        row.original.key === 'MONEDA'
           ? currencies.find(
               (currency) => currency.id === Number(row.original.value),
             )
           : null;
 
-      return row.original.key === 'moneda'
+      return row.original.key === 'MONEDA'
         ? currency?.name || 'Cargando...'
         : row.original.value;
     },

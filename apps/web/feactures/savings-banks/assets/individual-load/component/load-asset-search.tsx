@@ -2,6 +2,7 @@
 
 import { IconWrapper } from '@/components/icon-wrapper';
 import { toast } from '@/components/use-toast';
+import { formatCurrency } from '@/lib/formatCurrent';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -33,8 +34,8 @@ export function LoadAssetsSearch({
   onClearSearch,
 }: LoadAssetsSearchProps) {
   const [searchTerm, setSearchTerm] = useState(''); // Controla el valor del input
-   const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
-   const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
+  const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
+  const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
 
   const [searchResults, setSearchResults] = useState<Associates | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -44,7 +45,7 @@ export function LoadAssetsSearch({
   const { data, error, isLoading, isError } = useAssociatesByCedula(
     submittedSearchTerm,
     {
-       enabled: shouldFetch && !!submittedSearchTerm.trim(), // Activar solo si shouldFetch es true y hay un término
+      enabled: shouldFetch && !!submittedSearchTerm.trim(), // Activar solo si shouldFetch es true y hay un término
     },
   );
 
@@ -72,32 +73,39 @@ export function LoadAssetsSearch({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${searchTerm}.`,
           });
-          
-        }  else if (errorMessage.includes('retired'))  {
+        } else if (errorMessage.includes('retired')) {
           toast({
             title: 'Asociado retirado',
-            description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+            description:
+              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
           });
-        } else  {
+        } else {
           toast({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
         }
-      } else if(data) {
-         setSearchResults(data.data); // Actualiza los resultados con los datos del servidor
+      } else if (data) {
+        setSearchResults(data.data); // Actualiza los resultados con los datos del servidor
         onSelectAssociate(data.data);
       } else {
-           setSearchResults(null); // Actualiza los resultados con los datos del servidor
-          onSelectAssociate(null);
-           toast({
+        setSearchResults(null); // Actualiza los resultados con los datos del servidor
+        onSelectAssociate(null);
+        toast({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
       }
-    } 
-
-  }, [data, isError, error, isLoading,setSearchResults, submittedSearchTerm,shouldFetch]);
+    }
+  }, [
+    data,
+    isError,
+    error,
+    isLoading,
+    setSearchResults,
+    submittedSearchTerm,
+    shouldFetch,
+  ]);
 
   // Efecto para limpiar el input cuando shouldClearSearch sea true
   useEffect(() => {
@@ -107,11 +115,11 @@ export function LoadAssetsSearch({
       setSearchResults(null); // Limpiar los resultados de búsqueda
       onClearSearch(); // Notificar al componente padre que se limpió el input
     }
-  }, [shouldClearSearch,queryClient,setSearchResults, onClearSearch]);
+  }, [shouldClearSearch, queryClient, setSearchResults, onClearSearch]);
 
   // Función para buscar asociados
-  const handleSearch =  useCallback(() => {
-   const trimmedSearchTerm = searchTerm.trim();
+  const handleSearch = useCallback(() => {
+    const trimmedSearchTerm = searchTerm.trim();
     if (!trimmedSearchTerm) {
       toast({
         title: 'Campo vacío',
@@ -119,39 +127,33 @@ export function LoadAssetsSearch({
       });
       return;
     }
-    // Previene búsquedas repetidas con el mismo término si ya hay un resultado
-    if (trimmedSearchTerm === submittedSearchTerm && selectedAssociate) {
-      toast({
-        title: 'Información ya cargada',
-        description: `Ya se muestran los datos para la cédula ${trimmedSearchTerm}.`,
-      });
-      return;
-    }
+
+    // Limpiar caché y estado antes de nueva búsqueda
+    queryClient.removeQueries({
+      queryKey: ['assets-individual-load-associates-by-cedula'],
+      exact: false,
+    });
+    
+    // Limpiar estado previo
+    setSearchResults(null);
+    onSelectAssociate(null);
 
     setSubmittedSearchTerm(trimmedSearchTerm);
     setShouldFetch(true); // Activa la ejecución del hook
-  }, [
-    searchTerm,
-    submittedSearchTerm,
-    selectedAssociate,
-    setSearchResults,
-  ]);
+  }, [searchTerm, queryClient, onSelectAssociate]);
 
   // Función para limpiar la selección de asociado
-  const clearAssociate =  useCallback(() => {
+  const clearAssociate = useCallback(() => {
     queryClient.removeQueries({
-      queryKey: ['assets-individual-load-associates-by-cedula'], exact: true
+      queryKey: ['assets-individual-load-associates-by-cedula'],
+      exact: false,
     });
     onSelectAssociate(null);
     setSearchTerm('');
     setSearchResults(null);
     setSubmittedSearchTerm('');
     setShouldFetch(false);
-  }, [
-    setSearchResults,
-    queryClient,
-    setShouldFetch
-  ]);
+  }, [onSelectAssociate, queryClient]);
 
   // Efecto para manejar la tecla Enter en la búsqueda
   useEffect(() => {
@@ -172,7 +174,7 @@ export function LoadAssetsSearch({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="indigo" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <User />
           </IconWrapper>
           Selección de Asociado
@@ -206,7 +208,7 @@ export function LoadAssetsSearch({
             </Button>
           </div>
 
-             {/* Visualización del asociado seleccionado o estado vacío/carga */}
+          {/* Visualización del asociado seleccionado o estado vacío/carga */}
           {isLoading &&
             !selectedAssociate && ( // Mostrar solo si estamos cargando y no hay un asociado previo
               <div className="rounded-lg border border-dashed p-8 text-center mt-4">
@@ -216,7 +218,6 @@ export function LoadAssetsSearch({
                 </div>
               </div>
             )}
-
 
           {!isLoading && selectedAssociate && (
             <div className="rounded-lg border p-4 mt-4">
@@ -234,7 +235,12 @@ export function LoadAssetsSearch({
                     </Badge>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={clearAssociate}  disabled={isLoading} >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={clearAssociate}
+                  disabled={isLoading}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -242,7 +248,7 @@ export function LoadAssetsSearch({
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Saldo Actual:</span>
                 <span className="font-bold text-lg">
-                  {selectedAssociate.balance} VES
+                  {formatCurrency(Number(selectedAssociate.balance), 'VES')}
                 </span>
               </div>
             </div>

@@ -70,9 +70,7 @@ const Field = React.memo(
     return (
       <div className="mb-4">
         <div className="flex items-center gap-2 mb-1">
-          <IconWrapper color={color} className="w-7 h-7">
-            {icon}
-          </IconWrapper>
+          <IconWrapper className="w-7 h-7">{icon}</IconWrapper>
           <Label htmlFor={name} className="font-medium">
             {label}
           </Label>
@@ -87,7 +85,7 @@ const Field = React.memo(
             className="w-full"
           />
         ) : (
-          <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-md border">
+          <div className="p-2 bg-gray-50 dark:bg-neutral-800/50 rounded-md border">
             {value}
           </div>
         )}
@@ -197,9 +195,9 @@ export function CompanyForm() {
         </h1>
 
         <Card className="shadow-lg">
-          <CardHeader className="bg-gray-50 dark:bg-gray-800/50">
+          <CardHeader className="bg-gray-50 dark:bg-neutral-800/50">
             <CardTitle className="flex items-center gap-2">
-              <IconWrapper color="blue" className="w-8 h-8">
+              <IconWrapper className="w-8 h-8">
                 <Building2 />
               </IconWrapper>
               Datos de la Caja de Ahorro
@@ -317,7 +315,8 @@ export function CompanyForm() {
               </>
             ) : (
               <Button onClick={handleEdit}>
-                <Edit className="mr-2 h-4 w-4" /> Editar Información
+                <Edit className=" h-4 w-4" />
+                Editar Información
               </Button>
             )}
           </CardFooter>

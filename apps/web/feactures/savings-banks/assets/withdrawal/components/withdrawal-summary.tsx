@@ -1,6 +1,7 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
+import { formatCurrency } from '@/lib/formatCurrent';
 import {
   Card,
   CardContent,
@@ -24,18 +25,6 @@ export function WithdrawalSummary({
 }: LoanSummaryProps) {
   const { selectedAssociate, selectedWithdrawlType, enabledTime } =
     useWithdrawalStore();
-  const formatCurrency = (amount: number | undefined) => {
-    if (amount === undefined) {
-      return '';
-    }
-    if (currentCurrencyCode === 'USD' && currentExchangeRate) {
-      return `$${(amount / currentExchangeRate).toFixed(2)}`;
-    }
-    if (currentCurrencyCode === 'VES') {
-      return `Bs. ${amount.toFixed(2)}`;
-    }
-    return `$${amount.toFixed(2)}`; // Default to USD if currency code is not recognized
-  };
 
   if (!selectedAssociate) {
     return (
@@ -60,7 +49,7 @@ export function WithdrawalSummary({
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
-              <IconWrapper color="indigo" className="w-6 h-6">
+              <IconWrapper className="w-6 h-6">
                 <CreditCard className="h-4 w-4" />
               </IconWrapper>
               Información del Tipo de Retiro
@@ -117,19 +106,21 @@ export function WithdrawalSummary({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Ahorros</span>
-              <span className="font-medium">{formatCurrency(balance)}</span>
+              <span className="font-medium">
+                {formatCurrency(balance, 'VES')}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">80% de Haberes</span>
               <span className="font-medium">
-                {formatCurrency(availability)}
+                {formatCurrency(availability, 'VES')}
               </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Disponibilidad</span>
               <span className="text-lg font-bold text-green-600">
-                {formatCurrency(availability)}
+                {formatCurrency(availability, 'VES')}
               </span>
             </div>
 
@@ -137,7 +128,7 @@ export function WithdrawalSummary({
               <div className="flex items-center justify-between">
                 <span className="text-sm">Máximo Recomendado</span>
                 <span className="font-medium">
-                  {formatCurrency(maxRecommended)}
+                  {formatCurrency(maxRecommended, 'VES')}
                 </span>
               </div>
             </div>
@@ -148,7 +139,7 @@ export function WithdrawalSummary({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2">
-            <IconWrapper color="indigo" className="w-6 h-6">
+            <IconWrapper className="w-6 h-6">
               <CreditCard className="h-4 w-4" />
             </IconWrapper>
             Información del Tipo de Retiro

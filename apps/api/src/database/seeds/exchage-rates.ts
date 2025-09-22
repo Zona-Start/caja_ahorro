@@ -10,7 +10,7 @@ export async function seedExchangeRate(db: NodePgDatabase<typeof schema>) {
         date: 'now()',
         fromCurrencyCode: 'USD',
         toCurrencyCode: 'VES',
-        rate: '84.42',
+        rate: '163.64',
         source: 'BCV',
         createdById: 1,
         updatedById: 1,

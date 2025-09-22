@@ -1,5 +1,7 @@
 'use client';
 
+import { Badge } from '@repo/shadcn/components/ui/badge';
+import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { ESTATUS_TYPES } from '../../schemas/associates-options';
 import { AssociatesMutate } from '../../schemas/associates.schema';
@@ -22,10 +24,54 @@ export const columns: ColumnDef<AssociatesMutate>[] = [
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      const label = ESTATUS_TYPES[row.original.status] || row.original.status;
-      const colorClass =
-        row.original.status === 'ACTIVE' ? 'text-green-500' : 'text-red-500';
-      return <span className={colorClass}>{label}</span>;
+      const status = row.original.status;
+      const statusText =
+        ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
+
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'ACTIVE':
+            return 'success';
+          case 'INACTIVE':
+            return 'destructive';
+          case 'PENDING':
+            return 'warning';
+          case 'SUSPENDED':
+            return 'secondary';
+          case 'LOCKED':
+            return 'outline';
+          case 'RETIRED':
+            return 'destructive';
+          case 'ARCHIVED':
+            return 'default';
+          default:
+            return 'default';
+        }
+      })();
+
+      return (
+        <div className={cn('p-2 h-full w-full')}>
+          <Badge
+            variant={
+              variant as
+                | 'default'
+                | 'destructive'
+                | 'outline'
+                | 'secondary'
+                | 'success'
+                | 'danger'
+            }
+          >
+            {statusText}
+          </Badge>
+        </div>
+      );
     },
   },
   {

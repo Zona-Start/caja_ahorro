@@ -48,6 +48,7 @@ export const getWithdrawalAction = async (params: {
   type?: string;
   search?: string;
   sortBy?: string;
+  status?: string;
   sortOrder?: 'asc' | 'desc';
 }) => {
   let searchType = '';
@@ -70,6 +71,7 @@ export const getWithdrawalAction = async (params: {
     ...(params.type && { type: params.type }),
     ...(params.sortBy && { sortBy: params.sortBy }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
+    ...(params.status && { status: params.status }),
   });
 
   const [error, response] = await safeFetchApi(

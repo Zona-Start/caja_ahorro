@@ -1,6 +1,6 @@
 {
-  "id": "e33dcba1-fe56-407d-b5b0-44ac971a4907",
-  "prevId": "419fc246-0870-4ff4-a6ff-ad876dc1835a",
+  "id": "72e151b9-7684-439f-8666-2ba526557fc4",
+  "prevId": "3171821d-ca2a-4499-b377-ac23df8b1be2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -9204,6 +9204,12 @@
           "notNull": true,
           "default": "'ENTREGADO'"
         },
+        "days": {
+          "name": "days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -9271,6 +9277,20 @@
           ],
           "tableTo": "credits",
           "schemaTo": "savings_banks",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "credit_item_sales_days_category_types_id_fk": {
+          "name": "credit_item_sales_days_category_types_id_fk",
+          "tableFrom": "credit_item_sales",
+          "columnsFrom": [
+            "days"
+          ],
+          "tableTo": "category_types",
+          "schemaTo": "core",
           "columnsTo": [
             "id"
           ],
@@ -12111,6 +12131,341 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "savings_banks.payment_batch_items": {
+      "name": "payment_batch_items",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "payment_batch_id": {
+          "name": "payment_batch_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "item_type": {
+          "name": "item_type",
+          "type": "payment_batch_item_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_id": {
+          "name": "source_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associate_account_id": {
+          "name": "associate_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "beneficiary_account_number": {
+          "name": "beneficiary_account_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "beneficiary_account_type": {
+          "name": "beneficiary_account_type",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "beneficiary_id": {
+          "name": "beneficiary_id",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "beneficiary_name": {
+          "name": "beneficiary_name",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "rejection_reason": {
+          "name": "rejection_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "payment_batch_items_payment_batch_id_payment_batches_id_fk": {
+          "name": "payment_batch_items_payment_batch_id_payment_batches_id_fk",
+          "tableFrom": "payment_batch_items",
+          "columnsFrom": [
+            "payment_batch_id"
+          ],
+          "tableTo": "payment_batches",
+          "schemaTo": "savings_banks",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "payment_batch_items_associate_account_id_associate_accounts_id_fk": {
+          "name": "payment_batch_items_associate_account_id_associate_accounts_id_fk",
+          "tableFrom": "payment_batch_items",
+          "columnsFrom": [
+            "associate_account_id"
+          ],
+          "tableTo": "associate_accounts",
+          "schemaTo": "savings_banks",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "payment_batch_items_created_by_id_users_id_fk": {
+          "name": "payment_batch_items_created_by_id_users_id_fk",
+          "tableFrom": "payment_batch_items",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "payment_batch_items_updated_by_id_users_id_fk": {
+          "name": "payment_batch_items_updated_by_id_users_id_fk",
+          "tableFrom": "payment_batch_items",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings_banks.payment_batches": {
+      "name": "payment_batches",
+      "schema": "savings_banks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment_batch_reference": {
+          "name": "payment_batch_reference",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "payment_batch_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "record_count": {
+          "name": "record_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code_enum",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_id": {
+          "name": "bank_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_file_name": {
+          "name": "bank_file_name",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_reference": {
+          "name": "bank_reference",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "payment_batches_bank_id_bank_directory_id_fk": {
+          "name": "payment_batches_bank_id_bank_directory_id_fk",
+          "tableFrom": "payment_batches",
+          "columnsFrom": [
+            "bank_id"
+          ],
+          "tableTo": "bank_directory",
+          "schemaTo": "banking",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "payment_batches_created_by_id_users_id_fk": {
+          "name": "payment_batches_created_by_id_users_id_fk",
+          "tableFrom": "payment_batches",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "payment_batches_updated_by_id_users_id_fk": {
+          "name": "payment_batches_updated_by_id_users_id_fk",
+          "tableFrom": "payment_batches",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "payment_batches_payment_batch_reference_unique": {
+          "name": "payment_batches_payment_batch_reference_unique",
+          "columns": [
+            "payment_batch_reference"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "savings_banks.withdrawal_types": {
       "name": "withdrawal_types",
       "schema": "savings_banks",
@@ -12169,6 +12524,20 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "is_house_comercial": {
+          "name": "is_house_comercial",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_internal_inventory": {
+          "name": "is_internal_inventory",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -12413,6 +12782,18 @@
           "notNull": true,
           "default": "'REQUESTED'"
         },
+        "commercial_house_id": {
+          "name": "commercial_house_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "withdrawal_items": {
+          "name": "withdrawal_items",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -12524,6 +12905,20 @@
           ],
           "tableTo": "withdrawal_types",
           "schemaTo": "savings_banks",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "withdrawals_associates_commercial_house_id_suppliers_id_fk": {
+          "name": "withdrawals_associates_commercial_house_id_suppliers_id_fk",
+          "tableFrom": "withdrawals_associates",
+          "columnsFrom": [
+            "commercial_house_id"
+          ],
+          "tableTo": "suppliers",
+          "schemaTo": "administration",
           "columnsTo": [
             "id"
           ],
@@ -12886,6 +13281,25 @@
         "ADVANCE_APPLIED"
       ]
     },
+    "public.payment_batch_item_type": {
+      "name": "payment_batch_item_type",
+      "schema": "public",
+      "values": [
+        "LOAN",
+        "WITHDRAWAL",
+        "LIQUIDATION"
+      ]
+    },
+    "public.payment_batch_status": {
+      "name": "payment_batch_status",
+      "schema": "public",
+      "values": [
+        "DRAFT",
+        "UPLOADED",
+        "PROCESSED",
+        "CANCELLED"
+      ]
+    },
     "public.payment_method_enum": {
       "name": "payment_method_enum",
       "schema": "public",
@@ -13230,6 +13644,33 @@
         }
       },
       "definition": "\n  SELECT\n      c.id AS credit_id,\n      c.associate_id,\n      c.currency_code,\n      c.status AS credit_status,\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN cas.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN cas.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"credits\" c\n  JOIN\n      \"savings_banks\".\"credit_amortization_schedule\" cas ON c.id = cas.credit_id\n  WHERE\n      c.status IN ('APPROVED'::credit_status_enum, 'IN_PAYMENT'::credit_status_enum)\n  GROUP BY\n      c.id,\n      c.associate_id,\n      c.currency_code,\n      c.status\n",
+      "materialized": false,
+      "isExisting": false
+    },
+    "inventory.inventory_availability": {
+      "name": "inventory_availability",
+      "schema": "inventory",
+      "columns": {
+        "item_id": {
+          "name": "item_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "item_type": {
+          "name": "item_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_quantity": {
+          "name": "available_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    item_id AS item_id,\n    item_type AS item_type,\n    SUM(\n      CASE\n        WHEN movement_type = 'IN' THEN quantity\n        WHEN movement_type = 'OUT' THEN -quantity\n        ELSE quantity -- Ajustes u otros tipos se toman con su signo\n      END\n    ) AS available_quantity\n  FROM \"inventory\".\"inventory_movements\"\n  GROUP BY item_id, item_type\n",
       "materialized": false,
       "isExisting": false
     },

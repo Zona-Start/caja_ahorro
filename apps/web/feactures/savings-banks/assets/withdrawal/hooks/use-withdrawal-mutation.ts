@@ -46,6 +46,11 @@ export function useAprobeWithdrawalMutation() {
       queryClient.removeQueries({
         queryKey: ['withdrawal-associate-individual'],
       });
+      toast.success('Retiro aprobado exitosamente');
+    },
+    onError: (error) => {
+      toast.error('Error no se aprobo el retiro contacte al adminsitrador');
+      console.error('Error:', error);
     },
   });
 
@@ -59,7 +64,7 @@ export function useDeleteWithdrawal() {
     mutationFn: (id: number) => deleteWithdrawalAction(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['withdrawal'] });
-      toast.success('Retiro procesado exitosamente');
+      toast.success('Retiro anulado exitosamente');
     },
     onError: (error) => {
       toast.error('Error al eliminar el retiro');

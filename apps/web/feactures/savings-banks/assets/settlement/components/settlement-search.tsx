@@ -78,22 +78,25 @@ export function SettlementSearch({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
-        } else if (errorMessage.includes('retired'))  {
-            toast({
-              title: 'Asociado retirado',
-              description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
-            });
-        } else if (errorMessage.includes('inactive'))  {
-            toast({
-              title: 'Asociado Inactivo',
-              description: 'el asociado tiene un estatus de inactivo y no puede ser seleccionado.',
-            });
-        } else if (errorMessage.includes('no liquidation data'))  {
-            toast({
-              title: 'Asociado sin datos de liquidación',
-              description: 'el asociado no tiene datos para ser liquidado y no puede ser seleccionado.',
-            });
-        }  else {
+        } else if (errorMessage.includes('retired')) {
+          toast({
+            title: 'Asociado retirado',
+            description:
+              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+          });
+        } else if (errorMessage.includes('inactive')) {
+          toast({
+            title: 'Asociado Inactivo',
+            description:
+              'el asociado tiene un estatus de inactivo y no puede ser seleccionado.',
+          });
+        } else if (errorMessage.includes('no liquidation data')) {
+          toast({
+            title: 'Asociado sin datos de liquidación',
+            description:
+              'el asociado no tiene datos para ser liquidado y no puede ser seleccionado.',
+          });
+        } else {
           toast({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
@@ -147,21 +150,21 @@ export function SettlementSearch({
       });
       return;
     }
-    // Previene búsquedas repetidas con el mismo término si ya hay un resultado
-    if (trimmedSearchTerm === submittedSearchTerm && selectedAssociate) {
-      toast({
-        title: 'Información ya cargada',
-        description: `Ya se muestran los datos para la cédula ${trimmedSearchTerm}.`,
-      });
-      return;
-    }
+
+    // Limpiar caché y estado antes de nueva búsqueda
+    queryClient.removeQueries({
+      queryKey: ['settlement-associate-individual-by-cedula'],
+      exact: false,
+    });
+    
+    // Limpiar estado previo
+    setSelectedAssociate(null);
 
     setSubmittedSearchTerm(trimmedSearchTerm);
     setShouldFetch(true); // Activa la ejecución del hook
   }, [
     searchTerm,
-    submittedSearchTerm,
-    selectedAssociate,
+    queryClient,
     setSelectedAssociate,
   ]);
 
@@ -171,16 +174,15 @@ export function SettlementSearch({
     setSearchTerm('');
     setSubmittedSearchTerm('');
     setShouldFetch(false);
-     queryClient.removeQueries({
-        queryKey: ['settlement-associate-individual-by-cedula'],
-      });
-      queryClient.invalidateQueries({queryKey: ['settlement-all']});
+    queryClient.removeQueries({
+      queryKey: ['settlement-associate-individual-by-cedula'],
+      exact: false,
+    });
+    queryClient.invalidateQueries({ queryKey: ['settlement-all'] });
   }, [
     clearAllLoanData,
-    submittedSearchTerm, // Para `termToClear`
     queryClient,
     setSelectedAssociate,
-    setShouldClearSearch, // Si es parte de la lógica de `useLoansPaidStore`
   ]);
 
   // Efecto para manejar la tecla Enter en la búsqueda
@@ -203,7 +205,7 @@ export function SettlementSearch({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="blue" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <User />
           </IconWrapper>
           {isEdit ? 'Datos del Asociado' : 'Busqueda de Asociado'}

@@ -5,11 +5,21 @@ import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useQueryWithdrawalType } from '../../hooks/use-query-withdrawal';
-import { useWithdrawalTableFilters } from './use-withdrawal-filters';
+import {
+  ESTATUS_OPTIONS,
+  useWithdrawalTableFilters,
+} from './use-withdrawal-filters';
 
 export default function WithdrawalTableAction() {
-  const { typeFilter, setTypeFilter, searchQuery, setPage, setSearchQuery } =
-    useWithdrawalTableFilters();
+  const {
+    typeFilter,
+    setTypeFilter,
+    searchQuery,
+    setPage,
+    setSearchQuery,
+    setStatusFilter,
+    statusFilter,
+  } = useWithdrawalTableFilters();
 
   const { data: WithdrawalType } = useQueryWithdrawalType();
   const WITHDRAWAL_TYPE_OPTIONS =
@@ -34,6 +44,14 @@ export default function WithdrawalTableAction() {
           options={WITHDRAWAL_TYPE_OPTIONS}
           setFilterValue={setTypeFilter}
           filterValue={typeFilter}
+        />
+
+        <DataTableFilterBox
+          filterKey="status"
+          title="Estado"
+          options={ESTATUS_OPTIONS}
+          setFilterValue={setStatusFilter}
+          filterValue={statusFilter}
         />
       </div>
       <Link href="/dashboard/haberes/retiros/nuevo">

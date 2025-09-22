@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { useDeleteSupplier } from '../../hooks/use-mutation-suppliers';
 import { Supplier } from '../../schemas/suppliers.schema';
 import { SupplierModal } from '../suppliers-modal';
+import { SupplierDetailsModal } from '../supplier-details-modal';
 
 interface CellActionProps {
   data: Supplier;
@@ -60,15 +61,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         }}
       />
 
-      <SupplierModal
+      <SupplierDetailsModal
         open={showViewModal}
         onOpenChange={(open) => {
           setShowViewModal(open);
         }}
-        defaultValues={{
-          ...data,
-        }}
-        readOnly={true}
+        supplier={data}
       />
 
       <div className="flex gap-1">

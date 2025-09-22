@@ -54,13 +54,23 @@ export const AssociateMutationSchema = z.object({
   discountFrequencyId: z.number({
     message: 'La frecuencia de descuento es requerida',
   }),
-  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED', 'RETIRED']),
+  status: z.enum([
+    'ACTIVE',
+    'INACTIVE',
+    'PENDING',
+    'SUSPENDED',
+    'LOCKED',
+    'RETIRED',
+    'ARCHIVED',
+  ]),
   isPayrollCredit: z.boolean(),
   localityId: z.number({ message: 'El Estado es requerido' }),
   phone: z
     .string()
-    .min(10, 'El teléfono no puede tener menos de 10 digítos')
-    .max(11, 'El teléfono no puede tener más de 11 digítos'),
+    .regex(/^[0-9]+$/, 'El teléfono solo puede contener números')
+    .min(10, 'El teléfono no puede tener menos de 10 dígitos')
+    .max(11, 'El teléfono no puede tener más de 11 dígitos'),
+
   email: z.string().email('El correo electrónico no es válido'),
   payrollTypeId: z
     .number({ message: 'El tipo de nomina es requerido' })
@@ -69,7 +79,13 @@ export const AssociateMutationSchema = z.object({
     .number({ message: 'El tipo de Asociado es requerido' })
     .optional(),
   jobTitle: z.string().optional(),
-  baseSalary: z.string().min(1, 'Sueldo base es requerido'),
+  baseSalary: z
+    .string()
+    .regex(
+      /^[0-9]+(\.[0-9]+)?$/,
+      'El sueldo base solo puede contener números y decimales',
+    )
+    .min(1, 'Sueldo base es requerido'),
   accountNumber: z
     .string()
     .min(20, 'Debe tener 20 dígitos')
