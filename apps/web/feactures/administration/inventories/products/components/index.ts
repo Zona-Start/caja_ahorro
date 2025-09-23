@@ -6,3 +6,4 @@ export * from './product-tables/cell-action';
 export * from './product-tables/columns';
 export * from './product-tables/table-actions';
 export * from './product-tables/use-product-filters';
+export * from './product-details-modal';

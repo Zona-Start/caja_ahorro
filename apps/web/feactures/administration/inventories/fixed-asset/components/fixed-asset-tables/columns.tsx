@@ -1,4 +1,6 @@
 'use client';
+import { Badge } from '@repo/shadcn/components/ui/badge';
+import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { FixedAssetSchemaAPI } from '../../schemas/fixed-asset-api.schema';
 import { ESTATUS_TYPES } from '../../schemas/fixed-asset-options';
@@ -37,8 +39,48 @@ export const columns: ColumnDef<FixedAssetSchemaAPI>[] = [
     accessorKey: 'assetStatus',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original.assetStatus as keyof typeof ESTATUS_TYPES;
-      return ESTATUS_TYPES[statusKey] || row.original.assetStatus;
+      const status = row.original.assetStatus;
+      const statusText =
+        ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
+
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'ACTIVE':
+            return 'success';
+          case 'UNDER_MAINTENANCE':
+            return 'secondary';
+          case 'INACTIVE':
+            return 'warning';
+          case 'DEREGISTERED':
+            return 'destructive';
+          default:
+            return 'default';
+        }
+      })();
+
+      return (
+        <div className={cn('p-2 h-full w-full')}>
+          <Badge
+            variant={
+              variant as
+                | 'default'
+                | 'destructive'
+                | 'outline'
+                | 'secondary'
+                | 'success'
+                | 'danger'
+            }
+          >
+            {statusText}
+          </Badge>
+        </div>
+      );
     },
   },
   {

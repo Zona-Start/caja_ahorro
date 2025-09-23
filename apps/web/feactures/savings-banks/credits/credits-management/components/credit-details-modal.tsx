@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCurrency } from '@/lib/formatCurrent';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
@@ -43,12 +44,6 @@ export function CreditDetailsModal({
 }: CreditDetailsModalProps) {
   if (!credit) return null;
 
-  const formatCurrency = (amount: number | string | null | undefined) => {
-    const num = Number(amount);
-    if (isNaN(num)) return 'N/A';
-    return `$${num.toFixed(2)}`;
-  };
-
   const formatDate = (date: Date | string | null | undefined) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleDateString('es-VE', {
@@ -61,8 +56,30 @@ export function CreditDetailsModal({
   const modalityLabel =
     CREDIT_MODALITY[credit.creditModality as keyof typeof CREDIT_MODALITY] ||
     credit.creditModality;
+  const status = credit.status;
   const statusLabel =
-    ESTATUS_TYPES[credit.status as keyof typeof ESTATUS_TYPES] || credit.status;
+    ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
+
+  const statusVariant:
+    | 'default'
+    | 'destructive'
+    | 'outline'
+    | 'secondary'
+    | 'success'
+    | 'warning' = (() => {
+    switch (status) {
+      case 'REQUESTED':
+        return 'outline';
+      case 'APPROVED':
+        return 'default';
+      case 'IN_PAYMENT':
+        return 'warning';
+      case 'PAID':
+        return 'success';
+      default:
+        return 'default';
+    }
+  })();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -92,7 +109,7 @@ export function CreditDetailsModal({
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
               <DetailItem
                 label="Monto Solicitado"
-                value={formatCurrency(credit.requestedAmount)}
+                value={formatCurrency(Number(credit.requestedAmount), 'VES')}
               />
               <DetailItem
                 label="Tipo de Crédito"
@@ -101,7 +118,9 @@ export function CreditDetailsModal({
               <DetailItem label="Modalidad" value={modalityLabel} />
               <DetailItem
                 label="Estatus"
-                value={<Badge>{statusLabel}</Badge>}
+                value={
+                  <Badge variant={statusVariant as any}>{statusLabel}</Badge>
+                }
               />
               <DetailItem
                 label="Tasa de Interés Anual"

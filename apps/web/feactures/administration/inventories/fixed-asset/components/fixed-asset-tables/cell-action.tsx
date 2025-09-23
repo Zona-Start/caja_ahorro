@@ -12,6 +12,7 @@ import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteFixedAsset } from '../../hooks/use-mutation-fixed-asset';
 import { FixedAsset } from '../../schemas/fixed-asset.schema';
+import FixedAssetDetailsModal from '../fixed-asset-details-modal';
 import FixedAssetModal from '../fixed-asset-modal';
 
 interface CellActionProps {
@@ -22,7 +23,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [mode, setMode] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const { mutate: deleteFixedAsset } = useDeleteFixedAsset();
 
@@ -36,6 +37,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const processedData = {
+    ...data,
+    acquisitionDate: data.acquisitionDate
+      ? new Date(data.acquisitionDate)
+      : undefined,
+    lastDepreciationDate: data.lastDepreciationDate
+      ? new Date(data.lastDepreciationDate)
+      : undefined,
+    disposalDate: data.disposalDate ? new Date(data.disposalDate) : undefined,
   };
 
   return (
@@ -52,19 +64,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <FixedAssetModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
-        defaultValues={{
-          ...data,
-          acquisitionDate: data.acquisitionDate
-            ? new Date(data.acquisitionDate)
-            : undefined,
-          lastDepreciationDate: data.lastDepreciationDate
-            ? new Date(data.lastDepreciationDate)
-            : undefined,
-          disposalDate: data.disposalDate
-            ? new Date(data.disposalDate)
-            : undefined,
-        }}
-        readOnly={mode}
+        defaultValues={processedData}
+        readOnly={false}
+      />
+
+      <FixedAssetDetailsModal
+        open={showDetailsModal}
+        onOpenChange={setShowDetailsModal}
+        asset={data}
       />
 
       <div className="flex gap-1">
@@ -75,8 +82,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setMode(true);
-                  setShowEditModal(true);
+                  setShowDetailsModal(true);
                 }}
               >
                 <Eye className="h-4 w-4" />
@@ -94,7 +100,6 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setMode(false);
                   setShowEditModal(true);
                 }}
               >

@@ -105,6 +105,7 @@ export async function createProduct(payload: any): Promise<any> {
     unitType: payloadWithoutId.unitType,
     purchaseTax: payloadWithoutId.purchaseTax,
     saleTax: payloadWithoutId.saleTax,
+    status: 'COMMING_SOON',
   };
 
   const [error, data] = await safeFetchApi(

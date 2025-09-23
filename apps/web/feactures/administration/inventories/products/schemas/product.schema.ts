@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const productSchema = z.object({
   id: z.number().nullable().optional(),
   categoryId: z.number({ required_error: 'La categoría es requerida' }),
+  categoryName: z.string().optional().nullable(),
   sku: z.string().optional().nullable(),
   name: z.string({ required_error: 'El nombre es requerido' }).min(1),
   description: z.string().optional().nullable(),
@@ -78,6 +79,8 @@ export const productSchema = z.object({
   expensePercent: z.string().optional().nullable(),
   profitPercent: z.string().optional().nullable(),
   salesTaxPercent: z.string().optional().nullable(),
+  available: z.number().optional().nullable(),
+  finalPrice: z.string().optional().nullable(),
 });
 
 export type Product = z.infer<typeof productSchema>;

@@ -1,4 +1,6 @@
 'use client';
+import { Badge } from '@repo/shadcn/components/ui/badge';
+import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { SERVICE_STATUS_TYPES } from '../../schemas/service-options';
 import { Service } from '../../schemas/service.schema';
@@ -25,9 +27,45 @@ export const columns: ColumnDef<Service>[] = [
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
-      const statusKey = row.original
-        .status as keyof typeof SERVICE_STATUS_TYPES;
-      return SERVICE_STATUS_TYPES[statusKey] || row.original.status;
+      const status = row.original.status;
+      const statusText =
+        SERVICE_STATUS_TYPES[status as keyof typeof SERVICE_STATUS_TYPES] ||
+        status;
+
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'ACTIVE':
+            return 'success';
+          case 'INACTIVE':
+            return 'destructive';
+          default:
+            return 'default';
+        }
+      })();
+
+      return (
+        <div className={cn('p-2 h-full w-full')}>
+          <Badge
+            variant={
+              variant as
+                | 'default'
+                | 'destructive'
+                | 'outline'
+                | 'secondary'
+                | 'success'
+                | 'danger'
+            }
+          >
+            {statusText}
+          </Badge>
+        </div>
+      );
     },
   },
   {

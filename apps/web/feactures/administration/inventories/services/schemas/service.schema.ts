@@ -6,6 +6,7 @@ export const serviceSchema = z.object({
   description: z.string().optional().nullable(),
   serviceCode: z.string().optional().nullable(),
   categoryId: z.number({ required_error: 'El proveedor es requerido' }),
+  categoryName: z.string().optional(),
   supplierCost: z.coerce
     .number({
       required_error: 'El costo es requerido',

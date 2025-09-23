@@ -28,7 +28,6 @@ export default function ProductModal({
   const handleCancel = () => {
     onOpenChange(false);
   };
-
   return (
     <Dialog
       open={open}

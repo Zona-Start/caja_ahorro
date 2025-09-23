@@ -7,7 +7,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
+import { and, eq, gt, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
@@ -54,7 +54,7 @@ export class ProductsService {
         stockMin: data.stockMin,
         stockMax: data.stockMax,
         reorderPoint: data.reorderPoint,
-        status: 'AVAILABLE',
+        status: data.status as (typeof products.$inferInsert)['status'],
         unitOfMeasure: data.unitType as unitOfMeasureEnum,
         createdById: userId,
       })
@@ -134,6 +134,7 @@ export class ProductsService {
         and(
           eq(products.status, 'AVAILABLE'),
           eq(schema.productPrices.isActive, true),
+          gt(inventoryAvailability.availableQuantity, 0),
         ),
       );
 
@@ -182,7 +183,7 @@ export class ProductsService {
       ? and(...searchConditions)
       : undefined;
 
-    const data = await this.drizzle
+    const productData = await this.drizzle
       .select({
         id: schema.products.id,
         categoryId: schema.products.categoryId,
@@ -215,6 +216,45 @@ export class ProductsService {
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
 
+    const productIds = productData.map((p) => p.id);
+
+    const prices = await this.drizzle
+      .select({
+        productId: schema.productPrices.productId,
+        totalCost: schema.productPrices.totalCost,
+        finalPrice: schema.productPrices.finalPrice,
+      })
+      .from(schema.productPrices)
+      .where(
+        and(
+          inArray(schema.productPrices.productId, productIds),
+          eq(schema.productPrices.isActive, true),
+        ),
+      );
+
+    const availability = await this.drizzle
+      .select({
+        itemId: schema.inventoryAvailability.itemId,
+        availableQuantity: schema.inventoryAvailability.availableQuantity,
+      })
+      .from(schema.inventoryAvailability)
+      .where(inArray(schema.inventoryAvailability.itemId, productIds));
+
+    const pricesMap = new Map(prices.map((p) => [p.productId, p]));
+    const availabilityMap = new Map(availability.map((a) => [a.itemId, a]));
+
+    const data = productData.map((product) => {
+      const priceInfo = pricesMap.get(product.id);
+      const availabilityInfo = availabilityMap.get(product.id);
+
+      return {
+        ...product,
+        totalCost: priceInfo?.totalCost || null,
+        finalPrice: priceInfo?.finalPrice || null,
+        available: availabilityInfo?.availableQuantity || 0,
+      };
+    });
+
     const meta = {
       page: Number(page),
       limit: Number(limit),
@@ -244,6 +284,7 @@ export class ProductsService {
         stockMax: schema.products.stockMax,
         reorderPoint: schema.products.reorderPoint,
         status: schema.products.status,
+        unitType: schema.products.unitOfMeasure,
       })
       .from(products)
       .leftJoin(
@@ -271,9 +312,16 @@ export class ProductsService {
           eq(schema.productPrices.isActive, true),
         ),
       );
+
+    const dataAvailable = await this.drizzle
+      .select()
+      .from(inventoryAvailability)
+      .where(eq(inventoryAvailability.itemId, id));
+
     return {
       dataProduct: dataProduct[0],
       dataProductPrices: dataProductPrices ?? null,
+      dataAvailable: dataAvailable[0] ?? null,
     };
   }
 

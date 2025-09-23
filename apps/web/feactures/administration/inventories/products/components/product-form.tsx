@@ -1,7 +1,6 @@
 import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
-import { Label } from '@repo/shadcn/components/ui/label';
 import { ScrollArea } from '@repo/shadcn/components/ui/scroll-area';
 import {
   Tabs,
@@ -26,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useInventoryCategoriesAll } from '../../inventory-categories/hooks/use-query-inventory-categories';
 import { useProductMutation } from '../hooks/use-mutation-product';
@@ -66,8 +66,8 @@ export default function ProductForm({
   defaultValues,
   readOnly = false,
 }: Props) {
+  const [activeTab, setActiveTab] = useState('general');
   const { mutate: saveProduct, isPending: isSaving } = useProductMutation();
-
   const { data: dataCategory } = useInventoryCategoriesAll('PRODUCT');
 
   const form = useForm<Product>({
@@ -165,9 +165,17 @@ export default function ProductForm({
 
           <Tabs defaultValue="general" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="general">Información General</TabsTrigger>
-              <TabsTrigger value="stock">Existencias</TabsTrigger>
-              {/* <TabsTrigger value="suppliers">Proveedores</TabsTrigger> */}
+              <TabsTrigger
+                value="general"
+                onClick={() => setActiveTab('general')}
+                className={`border-b-2 ${
+                  activeTab === 'general'
+                    ? 'border-b-primary dark:!border-b-primary'
+                    : 'border-transparent'
+                }`}
+              >
+                Información General
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="general" className="space-y-6 mt-6">
@@ -419,6 +427,79 @@ export default function ProductForm({
                   />
                 </div>
               </div>
+              {/* Existencia */}
+              <div className="border rounded-lg p-4 space-y-4">
+                <h3 className="font-medium text-lg">Stok Configuración</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="stockMin"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Stock Mínimo</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                            value={field.value ?? ''}
+                            disabled={readOnly}
+                            className={readOnly ? 'bg-muted' : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="stockMax"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Stock Máximo</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                            value={field.value ?? ''}
+                            disabled={readOnly}
+                            className={readOnly ? 'bg-muted' : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="reorderPoint"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Punto de Reorden</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                            value={field.value ?? ''}
+                            disabled={readOnly}
+                            className={readOnly ? 'bg-muted' : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
               {/* Costos */}
               <div className="border rounded-lg p-4 space-y-4">
@@ -628,175 +709,6 @@ export default function ProductForm({
                 </div>
               </div>
             </TabsContent>
-
-            <TabsContent value="stock" className="space-y-4 mt-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Sección izquierda - Configuración de existencias */}
-                <div className="space-y-4">
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-medium text-lg mb-4">Existencia</h3>
-
-                    <div className="space-y-4">
-                      {/* Existencia con Mínima y Máxima */}
-                      <div>
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                          <Label className="text-sm font-medium text-center">
-                            Mínima
-                          </Label>
-                          <Label className="text-sm font-medium text-center">
-                            Máxima
-                          </Label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <FormField
-                            control={form.control}
-                            name="stockMin"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Stock Mínimo</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    {...field}
-                                    onChange={(e) =>
-                                      field.onChange(Number(e.target.value))
-                                    }
-                                    value={field.value ?? ''}
-                                    disabled={readOnly}
-                                    className={readOnly ? 'bg-muted' : ''}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="stockMax"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Stock Máximo</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    {...field}
-                                    onChange={(e) =>
-                                      field.onChange(Number(e.target.value))
-                                    }
-                                    value={field.value ?? ''}
-                                    disabled={readOnly}
-                                    className={readOnly ? 'bg-muted' : ''}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Punto de Reorden */}
-                      <div className="grid grid-cols-2 gap-2 items-center">
-                        <Label className="text-sm font-medium">
-                          Punto de Reorden
-                        </Label>
-                        <div className="text-center">
-                          <FormField
-                            control={form.control}
-                            name="reorderPoint"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    {...field}
-                                    onChange={(e) =>
-                                      field.onChange(Number(e.target.value))
-                                    }
-                                    value={field.value ?? ''}
-                                    disabled={readOnly}
-                                    className={readOnly ? 'bg-muted' : ''}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sección derecha - Existencias Informativo */}
-                {/* <div className="space-y-4">
-                  <div className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium text-lg">
-                        Existencias (Informativo)
-                      </h3>
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="font-medium">UNIDAD</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3"> */}
-                {/* Actual */}
-                {/* <div className="grid grid-cols-2 gap-4 items-center">
-                        <Label className="text-sm font-medium">Actual</Label>
-                        <div className="text-right">
-                          <span className="font-mono text-sm">
-                            {currentStock.toFixed(2)}
-                          </span>
-                        </div>
-                      </div> */}
-
-                {/* Comprometida */}
-                {/* <div className="grid grid-cols-2 gap-4 items-center">
-                        <Label className="text-sm font-medium">
-                          Comprometida
-                        </Label>
-                        <div className="text-right">
-                          <span className="font-mono text-sm text-muted-foreground">
-                            {committedStock.toFixed(2)}
-                          </span>
-                        </div>
-                      </div> */}
-
-                {/* Ordenada */}
-                {/* <div className="grid grid-cols-2 gap-4 items-center">
-                        <Label className="text-sm font-medium">Ordenada</Label>
-                        <div className="text-right">
-                          <span className="font-mono text-sm text-muted-foreground">
-                            {orderedStock.toFixed(2)}
-                          </span>
-                        </div>
-                      </div> */}
-
-                {/* Disponible */}
-                {/* <div className="grid grid-cols-2 gap-4 items-center border-t pt-3">
-                        <Label className="text-sm font-medium">
-                          Disponible
-                        </Label>
-                        <div className="text-right">
-                          <span className="font-mono text-sm font-medium">
-                            {availableStock.toFixed(2)}
-                          </span>
-                        </div>
-                      </div> */}
-                {/* </div>
-                  </div>
-                </div> */}
-              </div>
-            </TabsContent>
-
-            {/* <TabsContent value="suppliers" className="space-y-4 mt-6">
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Información de proveedores disponible próximamente</p>
-              </div>
-            </TabsContent> */}
           </Tabs>
 
           <div className="sticky bottom-0 w-full bg-background  py-2 px-6 mt-auto">

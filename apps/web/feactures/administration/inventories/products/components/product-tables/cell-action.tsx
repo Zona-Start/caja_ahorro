@@ -14,7 +14,12 @@ import { useEffect, useState } from 'react';
 import { useProductById } from '../../hooks';
 import { useDeleteProduct } from '../../hooks/use-mutation-product';
 import { Product } from '../../schemas/product.schema';
-import { mapProductApiToForm } from '../../utils/product-mapper';
+import {
+  mapProductApiToDetails,
+  mapProductApiToForm,
+  ProductDetails,
+} from '../../utils/product-mapper';
+import ProductDetailsModal from '../product-details-modal';
 import ProductModal from '../product-modal';
 
 interface CellActionProps {
@@ -25,8 +30,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [mode, setMode] = useState(false);
   const [productData, setProductData] = useState<Partial<Product> | null>(null);
+  const [productDataDetails, setProductDataDetails] =
+    useState<Partial<ProductDetails> | null>(null);
   const [productIdToFetch, setProductIdToFetch] = useState<number | null>(null);
 
   const { mutate: deleteProduct } = useDeleteProduct();
@@ -37,11 +45,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   useEffect(() => {
     if (fetchedProductData && !isProductFetching) {
       const mappedData = mapProductApiToForm(fetchedProductData);
+      const mapperDataForDetails = mapProductApiToDetails(fetchedProductData);
       setProductData(mappedData);
-      setShowEditModal(true);
+      setProductDataDetails(mapperDataForDetails);
+      if (mode) {
+        setShowDetailsModal(true);
+      } else {
+        setShowEditModal(true);
+      }
       setProductIdToFetch(null);
     }
-  }, [fetchedProductData, isProductFetching]);
+  }, [fetchedProductData, isProductFetching, mode]);
 
   const onConfirm = async () => {
     try {
@@ -55,13 +69,21 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     }
   };
 
-  const handleUpdateClick = (id: number, mode: boolean = false) => {
-    setMode(mode);
+  const handleActionClick = (id: number, isDetails: boolean = false) => {
+    setMode(isDetails);
     setProductIdToFetch(id);
   };
 
   const handleModalOpenChange = (isOpen: boolean) => {
     setShowEditModal(isOpen);
+    if (!isOpen) {
+      setProductData(null);
+      setProductIdToFetch(null);
+    }
+  };
+
+  const handleDetailsModalOpenChange = (isOpen: boolean) => {
+    setShowDetailsModal(isOpen);
     if (!isOpen) {
       setProductData(null);
       setProductIdToFetch(null);
@@ -83,7 +105,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         open={showEditModal}
         onOpenChange={handleModalOpenChange}
         defaultValues={productData ?? undefined}
-        readOnly={mode}
+        readOnly={false} // Edit modal is never read-only
+      />
+
+      <ProductDetailsModal
+        open={showDetailsModal}
+        onOpenChange={handleDetailsModalOpenChange}
+        productData={productDataDetails ?? undefined}
+        isLoading={isProductFetching}
       />
 
       <div className="flex gap-1">
@@ -93,10 +122,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleUpdateClick(data.id!, true)}
+                onClick={() => handleActionClick(data.id!, true)}
                 disabled={isProductFetching}
               >
-                {isProductFetching ? (
+                {isProductFetching && productIdToFetch === data.id && mode ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Eye className="h-4 w-4" />
@@ -114,10 +143,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => handleUpdateClick(data.id!)}
+                onClick={() => handleActionClick(data.id!)}
                 disabled={isProductFetching}
               >
-                {isProductFetching ? (
+                {isProductFetching && productIdToFetch === data.id && !mode ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Edit className="h-4 w-4" />

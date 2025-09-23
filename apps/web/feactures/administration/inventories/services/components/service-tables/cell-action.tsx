@@ -12,6 +12,7 @@ import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteService } from '../../hooks/use-mutation-service';
 import { Service } from '../../schemas/service.schema';
+import ServiceDetailsModal from '../service-details-modal';
 import ServiceModal from '../service-modal';
 
 interface CellActionProps {
@@ -22,7 +23,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [mode, setMode] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const { mutate: deleteService } = useDeleteService();
 
@@ -53,7 +54,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         open={showEditModal}
         onOpenChange={setShowEditModal}
         defaultValues={data}
-        readOnly={mode}
+        readOnly={false}
+      />
+
+      <ServiceDetailsModal
+        open={showDetailsModal}
+        onOpenChange={setShowDetailsModal}
+        service={data}
       />
 
       <div className="flex gap-1">
@@ -64,8 +71,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setMode(true);
-                  setShowEditModal(true);
+                  setShowDetailsModal(true);
                 }}
               >
                 <Eye className="h-4 w-4" />
@@ -83,7 +89,6 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setMode(false);
                   setShowEditModal(true);
                 }}
               >

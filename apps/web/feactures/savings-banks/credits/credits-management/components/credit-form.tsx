@@ -140,9 +140,12 @@ export function CreditForm({
 
   const { setValue, reset, watch, getValues, control } = form;
 
+  const commercialHouseId = watch('commercialHouseId');
   const [exceedingAvailability, setExceedingAvailability] = useState(false);
 
-  const { data: productsData } = useProducts();
+  const { data: productsData } = useProducts(undefined, {
+    enabled: commercialHouseId === COMMERCIAL_HOUSE_INTERNAL,
+  });
 
   const { data: suppliers } = useSupplierAll();
   const { data: daysType } = useCategoriesTypesGroup('DAYS_TYPE');
@@ -162,8 +165,6 @@ export function CreditForm({
     control,
     name: 'items',
   });
-
-  const commercialHouseId = watch('commercialHouseId');
 
   const showInternalInventory = commercialHouseId === COMMERCIAL_HOUSE_INTERNAL;
   const showCommercialItems =

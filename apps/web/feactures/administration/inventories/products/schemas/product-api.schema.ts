@@ -13,6 +13,9 @@ export const productApiSchema = z.object({
   stockMax: z.number(),
   reorderPoint: z.number(),
   status: z.string(),
+  totalCost: z.string().nullable(),
+  finalPrice: z.string().nullable(),
+  available: z.number().nullable(),
 });
 
 export type ProductSchemaAPI = z.infer<typeof productApiSchema>;
@@ -95,9 +98,16 @@ export const getProductPriceResponseArraySchema = z.array(
   getProductPriceSchema,
 );
 
+export const getproductAvailable = z.object({
+  itemId: z.number(),
+  itemType: z.string(),
+  availableQuantity: z.number(),
+});
+
 export const getProductApiSchema = z.object({
   dataProduct: getProductsResponseSchema,
   dataProductPrices: getProductPriceResponseArraySchema,
+  dataAvailable: getproductAvailable.nullable(),
 });
 export const getOneProductResponseApiSchema = z.object({
   message: z.string().optional(),

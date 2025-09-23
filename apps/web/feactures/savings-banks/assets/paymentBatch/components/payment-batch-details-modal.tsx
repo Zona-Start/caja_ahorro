@@ -69,10 +69,30 @@ export function PaymentBatchDetailsModal({
     return format(new Date(date), 'dd/MM/yyyy HH:mm');
   };
 
+  const status = paymentBatch.status;
   const statusLabel =
-    PAYMENT_BATCH_STATUS[
-      paymentBatch.status as keyof typeof PAYMENT_BATCH_STATUS
-    ] || paymentBatch.status;
+    PAYMENT_BATCH_STATUS[status as keyof typeof PAYMENT_BATCH_STATUS] || status;
+
+  const statusVariant:
+    | 'default'
+    | 'destructive'
+    | 'outline'
+    | 'secondary'
+    | 'success'
+    | 'warning' = (() => {
+    switch (status) {
+      case 'DRAFT':
+        return 'default';
+      case 'UPLOADED':
+        return 'warning';
+      case 'PROCESSED':
+        return 'success';
+      case 'CANCELLED':
+        return 'outline';
+      default:
+        return 'default';
+    }
+  })();
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -96,7 +116,12 @@ export function PaymentBatchDetailsModal({
                   value={paymentBatch.description}
                 />
               </div>
-              <DetailItem label="Estado" value={<Badge>{statusLabel}</Badge>} />
+              <DetailItem
+                label="Estado"
+                value={
+                  <Badge variant={statusVariant as any}>{statusLabel}</Badge>
+                }
+              />
               <DetailItem
                 label="Monto Total"
                 value={formatCurrency(Number(paymentBatch.totalAmount), 'VES')}
@@ -156,18 +181,14 @@ export function PaymentBatchDetailsModal({
                           {formatCurrency(Number(item.amount), 'VES')}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              item.status === 'REJECTED'
-                                ? 'destructive'
-                                : 'default'
-                            }
-                          >
-                            {
-                              PAYMENT_BATCH_STATUS[
-                                item.status as keyof typeof PAYMENT_BATCH_STATUS
-                              ]
-                            }
+                          <Badge variant={statusVariant}>
+                            {PAYMENT_BATCH_STATUS[
+                              item.status as keyof typeof PAYMENT_BATCH_STATUS
+                            ]
+                              ? PAYMENT_BATCH_STATUS[
+                                  item.status as keyof typeof PAYMENT_BATCH_STATUS
+                                ]
+                              : 'En Proceso'}
                           </Badge>
                           {item.rejectionReason && (
                             <div className="text-xs text-muted-foreground mt-1">

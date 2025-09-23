@@ -6,3 +6,4 @@ export * from './service-tables/cell-action';
 export * from './service-tables/columns';
 export * from './service-tables/table-actions';
 export * from './service-tables/use-service-filters';
+export * from './service-details-modal';
