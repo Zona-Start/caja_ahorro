@@ -21,7 +21,7 @@ import {
   accountTypeEnum,
   currencyCodeEnum,
   cycleStatusEnum,
-  statusEnum,
+  entryStatusEnum,
 } from './enum';
 import { accountingSchema } from './schemas';
 
@@ -102,7 +102,7 @@ export const accountingEntries = accountingSchema.table(
     description: text('description').notNull(),
     originReferenceId: text('origin_reference_id'), // ID de la operación origen (loan_id, payment_id, etc.)
     originType: varchar('origin_type', { length: 50 }), // Tipo de operación origen ('LOAN_DISBURSEMENT', 'BANK_DEPOSIT', 'MANUAL_ENTRY')
-    status: statusEnum('status').notNull().default('PENDING'), // Estado del asiento ej. PENDING, POSTED, CANCELLED
+    status: entryStatusEnum('status').notNull().default('DRAFT'), // Estado del asiento ej. PENDING, POSTED, CANCELLED
     postedAt: timestamp('posted_at'),
     currencyCode: currencyCodeEnum('currency_code').notNull(), //Moneda del asiento (generalmente la base)
     // total_debit: numeric('total_debit', { precision: 18, scale: 2 }), // Opcional, calculado o almacenado

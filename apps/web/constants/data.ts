@@ -206,6 +206,11 @@ export const AccountingItems: NavItem[] = [
         url: '/dashboard/contabilidad/cuentas-contables',
         shortcut: ['m', 'm'],
       },
+      {
+        title: 'Ciclos Contables',
+        url: '/dashboard/contabilidad/ciclos-contables',
+        shortcut: ['m', 'm'],
+      },
       // {
       //   title: 'Cuentas de Asociados',
       //   shortcut: ['l', 'l'],
@@ -213,30 +218,30 @@ export const AccountingItems: NavItem[] = [
       // },
     ],
   },
-  // {
-  //   title: 'Operaciones',
-  //   url: '#', // Placeholder as there is no direct link for the parent
-  //   icon: 'betweenHorizonalStart',
-  //   isActive: false,
-  //   colorIcons: 'red',
-  //   items: [
-  //     {
-  //       title: 'Asientos Contables',
-  //       url: '#',
-  //       shortcut: ['m', 'm'],
-  //     },
-  //     {
-  //       title: 'Libro Diario',
-  //       shortcut: ['l', 'l'],
-  //       url: '#',
-  //     },
-  //     {
-  //       title: 'Libro Mayor',
-  //       shortcut: ['l', 'l'],
-  //       url: '#',
-  //     },
-  //   ],
-  // },
+  {
+    title: 'Operaciones',
+    url: '#', // Placeholder as there is no direct link for the parent
+    icon: 'betweenHorizonalStart',
+    isActive: false,
+    colorIcons: 'red',
+    items: [
+      {
+        title: 'Asientos Contables',
+        url: '/dashboard/contabilidad/operaciones/asientos-contables',
+        shortcut: ['m', 'm'],
+      },
+      // {
+      //   title: 'Libro Diario',
+      //   shortcut: ['l', 'l'],
+      //   url: '#',
+      // },
+      // {
+      //   title: 'Libro Mayor',
+      //   shortcut: ['l', 'l'],
+      //   url: '#',
+      // },
+    ],
+  },
   // {
   //   title: 'Estados Financieros',
   //   url: '#', // Placeholder as there is no direct link for the parent

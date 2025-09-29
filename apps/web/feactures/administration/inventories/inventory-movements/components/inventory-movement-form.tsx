@@ -80,6 +80,8 @@ export default function InventoryMovementForm({
     name: 'items',
   });
 
+  const movementType = form.watch('movementType');
+
   // Estado local para el ítem que se va a agregar
   const [newItem, setNewItem] = useState<NewItemState>({
     itemType: null,
@@ -127,7 +129,7 @@ export default function InventoryMovementForm({
     );
     return { totalItems, totalQuantity, totalValue };
   };
-  console.log(form.formState.errors);
+
   const onSubmit = async (data: CreateInventoryMovement) => {
     saveInventoryMovement(data, {
       onSuccess: () => {
@@ -211,43 +213,8 @@ export default function InventoryMovementForm({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="documentType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tipo de Documento</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      disabled={readOnly}
-                      className={readOnly ? 'bg-muted' : ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="documentNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Número de Documento</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      value={field.value ?? ''}
-                      disabled={readOnly}
-                      className={readOnly ? 'bg-muted' : ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
             <FormField
               control={form.control}
@@ -268,6 +235,48 @@ export default function InventoryMovementForm({
               )}
             />
           </div>
+          {(movementType === 'IN' || movementType === 'OUT') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="documentType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Documento (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        disabled={readOnly}
+                        placeholder="Venta, Compra, NC, ND, etc...."
+                        className={readOnly ? 'bg-muted' : ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="documentNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de Documento (Opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        value={field.value ?? ''}
+                        disabled={readOnly}
+                        placeholder="Número...."
+                        className={readOnly ? 'bg-muted' : ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          )}
 
           <hr className="my-4" />
 
@@ -423,7 +432,11 @@ export default function InventoryMovementForm({
 
                       return (
                         <TableRow key={field.id}>
-                          <TableCell>{field.itemType}</TableCell>
+                          <TableCell>
+                            {field.itemType === 'PRODUCT'
+                              ? 'Producto'
+                              : 'Activo Fijo'}
+                          </TableCell>
                           <TableCell>{itemData?.name}</TableCell>
                           <TableCell>{field.quantity}</TableCell>
                           <TableCell>

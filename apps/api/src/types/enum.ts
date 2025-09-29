@@ -9,6 +9,13 @@ export enum StatusEnum {
   ARCHIVED = 'ARCHIVED', // Nuevo: Para asociados o registros antiguos que se mantienen por historia pero no son activos ni liquidados
 }
 
+export enum entryStatusEnum {
+  DRAFT = 'DRAFT', // 1. Editable, no validado aún
+  PENDING = 'PENDING', // 2. Validado, pendiente de contabilizar (por aprobación o cierre)
+  POSTED = 'POSTED', // 3. Contabilizado ⇒ **sí afecta saldos y reportes**
+  CANCELLED = 'CANCELLED', // 4. Anulado (inverso generado o marcado como nulo)
+}
+
 export enum GenderEnum {
   FEMENINO = 'FEMENINO',
   MASCULINO = 'MASCULINO',

@@ -27,6 +27,7 @@ CREATE TYPE "public"."credit_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION'
 CREATE TYPE "public"."credit_status_enum" AS ENUM('REQUESTED', 'APPROVED', 'IN_PAYMENT', 'PAID');--> statement-breakpoint
 CREATE TYPE "public"."currency_code_enum" AS ENUM('VES', 'USD', 'EUR');--> statement-breakpoint
 CREATE TYPE "public"."cycle_status_enum" AS ENUM('OPEN', 'CLOSED', 'CLOSING');--> statement-breakpoint
+CREATE TYPE "public"."accounting_entry_status" AS ENUM('DRAFT', 'PENDING', 'POSTED', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "public"."fixed_assets_inventory_status" AS ENUM('ACTIVE', 'UNDER_MAINTENANCE', 'INACTIVE', 'DEREGISTERED');--> statement-breakpoint
 CREATE TYPE "auth"."gender" AS ENUM('FEMENINO', 'MASCULINO', 'OTRO');--> statement-breakpoint
 CREATE TYPE "public"."internal_link_status" AS ENUM('LINKED', 'UNLINKED', 'PARTIALLY_LINKED', 'NOT_APPLICABLE');--> statement-breakpoint
@@ -112,7 +113,7 @@ CREATE TABLE "accounting"."accounting_entries" (
 	"description" text NOT NULL,
 	"origin_reference_id" text,
 	"origin_type" varchar(50),
-	"status" "status_enum" DEFAULT 'PENDING' NOT NULL,
+	"status" "accounting_entry_status" DEFAULT 'DRAFT' NOT NULL,
 	"posted_at" timestamp,
 	"currency_code" "currency_code_enum" NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -1629,6 +1630,22 @@ CREATE INDEX "withdrawals_associate_account_idx" ON "savings_banks"."withdrawals
 CREATE INDEX "withdrawals_withdrawal_type_idx" ON "savings_banks"."withdrawals_associates" USING btree ("withdrawal_type_id");--> statement-breakpoint
 CREATE INDEX "withdrawals_withdrawal_date_idx" ON "savings_banks"."withdrawals_associates" USING btree ("withdrawal_date");--> statement-breakpoint
 CREATE UNIQUE INDEX "withdrawals_reference_code_uidx" ON "savings_banks"."withdrawals_associates" USING btree ("reference_code");--> statement-breakpoint
+CREATE VIEW "accounting"."account_balance" AS (
+  SELECT
+    ap.id                                     AS account_plan_id,
+    ap.code                                     AS account_code,
+    ap.name                                     AS account_name,
+    ae.currency_code                              AS currency_code,
+    COALESCE(SUM(aed.debit), 0)                  AS total_debit,
+    COALESCE(SUM(aed.credit), 0)                  AS total_credit,
+    COALESCE(SUM(aed.debit - aed.credit), 0)    AS balance
+  FROM "accounting"."account_plan" ap
+  LEFT JOIN "accounting"."accounting_entry_details" aed ON aed.account_plan_id = ap.id 
+  LEFT JOIN "accounting"."accounting_entries" ae
+          ON ae.id = aed.accounting_entry_id -- CORRECCIÓN: Usar accounting_entry_id (Prevención de futuro error)
+        AND ae.status = 'POSTED' -- solo asientos validados
+  GROUP BY ap.id, ap.code, ap.name, ae.currency_code
+);--> statement-breakpoint
 CREATE VIEW "savings_banks"."associate_account_balances" AS (
     SELECT
       aa.id AS associate_account_id,
@@ -1797,6 +1814,8 @@ CREATE VIEW "inventory"."inventory_availability" AS (
       CASE
         WHEN movement_type = 'IN' THEN quantity
         WHEN movement_type = 'OUT' THEN -quantity
+        WHEN movement_type = 'ADJUST_IN' THEN quantity
+        WHEN movement_type = 'ADJUST_OUT' THEN -quantity
         ELSE quantity -- Ajustes u otros tipos se toman con su signo
       END
     ) AS available_quantity

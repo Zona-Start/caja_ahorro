@@ -1,5 +1,5 @@
 {
-  "id": "3171821d-ca2a-4499-b377-ac23df8b1be2",
+  "id": "5881924f-c8c4-4ba1-929b-966cff6b409e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -646,11 +646,11 @@
         },
         "status": {
           "name": "status",
-          "type": "status_enum",
+          "type": "accounting_entry_status",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'PENDING'"
+          "default": "'DRAFT'"
         },
         "posted_at": {
           "name": "posted_at",
@@ -13146,6 +13146,16 @@
         "CLOSING"
       ]
     },
+    "public.accounting_entry_status": {
+      "name": "accounting_entry_status",
+      "schema": "public",
+      "values": [
+        "DRAFT",
+        "PENDING",
+        "POSTED",
+        "CANCELLED"
+      ]
+    },
     "public.fixed_assets_inventory_status": {
       "name": "fixed_assets_inventory_status",
       "schema": "public",
@@ -13497,6 +13507,57 @@
   "roles": {},
   "policies": {},
   "views": {
+    "accounting.account_balance": {
+      "columns": {
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_debit": {
+          "name": "total_debit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_credit": {
+          "name": "total_credit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    ap.id                                     AS account_plan_id,\n    ap.code                                     AS account_code,\n    ap.name                                     AS account_name,\n    ae.currency_code                              AS currency_code,\n    COALESCE(SUM(aed.debit), 0)                  AS total_debit,\n    COALESCE(SUM(aed.credit), 0)                  AS total_credit,\n    COALESCE(SUM(aed.debit - aed.credit), 0)    AS balance\n  FROM \"accounting\".\"account_plan\" ap\n  LEFT JOIN \"accounting\".\"accounting_entry_details\" aed ON aed.account_plan_id = ap.id \n  LEFT JOIN \"accounting\".\"accounting_entries\" ae\n          ON ae.id = aed.accounting_entry_id -- CORRECCIÓN: Usar accounting_entry_id (Prevención de futuro error)\n        AND ae.status = 'POSTED' -- solo asientos validados\n  GROUP BY ap.id, ap.code, ap.name, ae.currency_code\n",
+      "name": "account_balance",
+      "schema": "accounting",
+      "isExisting": false,
+      "materialized": false
+    },
     "savings_banks.associate_account_balances": {
       "columns": {
         "associate_account_id": {
@@ -13671,7 +13732,7 @@
           "notNull": true
         }
       },
-      "definition": "\n  SELECT\n    item_id AS item_id,\n    item_type AS item_type,\n    SUM(\n      CASE\n        WHEN movement_type = 'IN' THEN quantity\n        WHEN movement_type = 'OUT' THEN -quantity\n        ELSE quantity -- Ajustes u otros tipos se toman con su signo\n      END\n    ) AS available_quantity\n  FROM \"inventory\".\"inventory_movements\"\n  GROUP BY item_id, item_type\n",
+      "definition": "\n  SELECT\n    item_id AS item_id,\n    item_type AS item_type,\n    SUM(\n      CASE\n        WHEN movement_type = 'IN' THEN quantity\n        WHEN movement_type = 'OUT' THEN -quantity\n        WHEN movement_type = 'ADJUST_IN' THEN quantity\n        WHEN movement_type = 'ADJUST_OUT' THEN -quantity\n        ELSE quantity -- Ajustes u otros tipos se toman con su signo\n      END\n    ) AS available_quantity\n  FROM \"inventory\".\"inventory_movements\"\n  GROUP BY item_id, item_type\n",
       "name": "inventory_availability",
       "schema": "inventory",
       "isExisting": false,

@@ -1,7 +1,7 @@
 'use client';
 import { Badge } from '@repo/shadcn/components/ui/badge';
 import { ColumnDef } from '@tanstack/react-table';
-import { Plus, RotateCcw, TrendingDown, TrendingUp } from 'lucide-react';
+import { Minus, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { MOVEMENT_TYPES } from '../../schemas/inventory-movement-options';
 import { InventoryMovement } from '../../schemas/inventory-movement.schema';
 import { CellAction } from './cell-action';
@@ -9,13 +9,15 @@ import { CellAction } from './cell-action';
 const getMovementColor = (type: string) => {
   switch (type) {
     case 'IN':
-      return 'bg-green-100 text-green-800';
+      return 'bg-green-500 text-black';
     case 'OUT':
-      return 'bg-red-100 text-red-800';
-    case 'ADJUSTMENT':
-      return 'bg-blue-100 text-blue-800';
+      return 'bg-red-400 text-white';
+    case 'ADJUST_IN':
+      return 'bg-blue-400 text-black';
+    case 'ADJUST_OUT':
+      return 'bg-yellow-400 text-black';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'bg-gray-400 text-black';
   }
 };
 
@@ -25,8 +27,8 @@ const getMovementIcon = (type: string) => {
       return <TrendingUp className="h-4 w-4" />;
     case 'OUT':
       return <TrendingDown className="h-4 w-4" />;
-    case 'ADJUSTMENT':
-      return <RotateCcw className="h-4 w-4" />;
+    case 'ADJUST_OUT':
+      return <Minus className="h-4 w-4" />;
     default:
       return <Plus className="h-4 w-4" />;
   }
@@ -81,10 +83,10 @@ export const columns: ColumnDef<InventoryMovement>[] = [
     accessorKey: 'quantity',
     header: 'Cantidad',
   },
-  {
-    accessorKey: 'unitCost',
-    header: 'Costo Unitario',
-  },
+  // {
+  //   accessorKey: 'unitCost',
+  //   header: 'Costo Unitario',
+  // },
   {
     accessorKey: 'description',
     header: 'Descripción',

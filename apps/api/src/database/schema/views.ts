@@ -7,6 +7,11 @@ import {
   text,
   timestamp,
 } from 'drizzle-orm/pg-core';
+import {
+  accountingEntries,
+  accountingEntryDetails,
+  accountPlan,
+} from './accounting';
 import { inventoryMovements } from './administration';
 import {
   associateAccountMovements,
@@ -16,7 +21,11 @@ import {
   loanAmortizationSchedule,
   loans,
 } from './savings-banks';
-import { inventorySchema, savingsBanksSchema } from './schemas';
+import {
+  accountingSchema,
+  inventorySchema,
+  savingsBanksSchema,
+} from './schemas';
 
 export const associateAccountBalances = savingsBanksSchema
   .view('associate_account_balances', {
@@ -311,9 +320,36 @@ export const inventoryAvailability = inventorySchema.view(
       CASE
         WHEN movement_type = 'IN' THEN quantity
         WHEN movement_type = 'OUT' THEN -quantity
+        WHEN movement_type = 'ADJUST_IN' THEN quantity
+        WHEN movement_type = 'ADJUST_OUT' THEN -quantity
         ELSE quantity -- Ajustes u otros tipos se toman con su signo
       END
     ) AS available_quantity
   FROM ${inventoryMovements}
   GROUP BY item_id, item_type
+`);
+
+export const accountingBalance = accountingSchema.view('account_balance', {
+  accountPlanId: serial('account_plan_id').primaryKey(),
+  accountCode: text('account_code').notNull(),
+  accountName: text('account_name').notNull(),
+  currencyCode: text('currency_code').notNull(),
+  totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
+  totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
+  balance: numeric('balance', { precision: 20, scale: 6 }).notNull(),
+}).as(sql`
+  SELECT
+    ap.id                                     AS account_plan_id,
+    ap.code                                     AS account_code,
+    ap.name                                     AS account_name,
+    ae.currency_code                              AS currency_code,
+    COALESCE(SUM(aed.debit), 0)                  AS total_debit,
+    COALESCE(SUM(aed.credit), 0)                  AS total_credit,
+    COALESCE(SUM(aed.debit - aed.credit), 0)    AS balance
+  FROM ${accountPlan} ap
+  LEFT JOIN ${accountingEntryDetails} aed ON aed.account_plan_id = ap.id 
+  LEFT JOIN ${accountingEntries} ae
+          ON ae.id = aed.accounting_entry_id -- CORRECCIÓN: Usar accounting_entry_id (Prevención de futuro error)
+        AND ae.status = 'POSTED' -- solo asientos validados
+  GROUP BY ap.id, ap.code, ap.name, ae.currency_code
 `);

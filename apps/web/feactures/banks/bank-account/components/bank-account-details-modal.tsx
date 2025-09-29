@@ -1,5 +1,3 @@
-'use client';
-
 import { formatCurrency } from '@/lib/formatCurrent';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
@@ -14,14 +12,20 @@ import {
 } from '@repo/shadcn/dialog';
 import { Separator } from '@repo/shadcn/separator';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@repo/shadcn/tooltip';
+import {
   Building2,
   Calendar,
   CreditCard,
   DollarSign,
   FileText,
   Hash,
+  HelpCircle,
   Landmark,
-  Receipt,
   User,
   X,
 } from 'lucide-react';
@@ -69,7 +73,6 @@ export function BankAccountDetailsModal({
       case 'bs':
         return { symbol: 'Bs.', name: 'Bolívares' };
       case 'usd':
-      case '$':
         return { symbol: 'USD', name: 'Dólares Estadounidenses' };
       case 'eur':
       case '€':
@@ -97,6 +100,18 @@ export function BankAccountDetailsModal({
 
   const statusInfo = getStatusBadge(bankAccount.isActive);
   const currencyInfo = getCurrencyInfo(bankAccount.currencyCode);
+
+  const bookBalance = Number(bankAccount.currentBalance) || 0;
+  const bankBalance = Number(bankAccount.lastStatementBalance) || 0;
+  const difference = bankBalance - bookBalance;
+
+  const getDifferenceColor = () => {
+    if (difference === 0) return 'text-green-600';
+    if (bookBalance === 0) return 'text-gray-500';
+    const percentageDiff = Math.abs((difference / bookBalance) * 100);
+    if (percentageDiff > 1) return 'text-red-600';
+    return 'text-orange-500';
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -207,26 +222,51 @@ export function BankAccountDetailsModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
-                    <DollarSign className="h-4 w-4" />
-                    Saldo Actual
+                    Saldo según libros
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-4 w-4 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Suma de todos los asientos contables.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 bg-green-50 dark:bg-green-900/20 px-3 py-2 rounded">
-                    {formatCurrency(Number(bankAccount.currentBalance), 'VES')}
+                  <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-neutral-800 px-3 py-2 rounded">
+                    {bookBalance ? formatCurrency(bookBalance, 'VES') : '—'}
                   </p>
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
-                    <Receipt className="h-4 w-4" />
-                    Saldo Último Estado
+                    Saldo extracto
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="h-4 w-4 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Último valor reportado por el banco.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
-                  <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 bg-blue-50 dark:bg-neutral-800 px-3 py-2 rounded">
-                    {formatCurrency(
-                      Number(bankAccount.lastStatementBalance),
-                      'VES',
-                    )}
+                  <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-neutral-800 px-3 py-2 rounded">
+                    {bankBalance ? formatCurrency(bankBalance, 'VES') : '—'}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    Diferencia
+                  </div>
+                  <p
+                    className={`text-lg font-semibold px-3 py-2 rounded ${getDifferenceColor()}`}
+                  >
+                    {formatCurrency(difference, 'VES')}
                   </p>
                 </div>
               </div>

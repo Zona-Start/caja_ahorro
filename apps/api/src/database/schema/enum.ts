@@ -11,6 +11,13 @@ export const statusEnum = pgEnum('status_enum', [
   'RETIRED', // Asociado retirado y liqudiado (ya no es miembro, pero su historial se mantiene)
   'ARCHIVED', // Nuevo: Para asociados o registros antiguos que se mantienen por historia pero no son activos ni liquidados
 ]);
+
+export const entryStatusEnum = pgEnum('accounting_entry_status', [
+  'DRAFT', // 1. Editable, no validado aún
+  'PENDING', // 2. Validado, pendiente de contabilizar (por aprobación o cierre)
+  'POSTED', // 3. Contabilizado ⇒ **sí afecta saldos y reportes**
+  'CANCELLED', // 4. Anulado (inverso generado o marcado como nulo)
+]);
 export const genderEnum = authSchema.enum('gender', [
   'FEMENINO',
   'MASCULINO',

@@ -2,12 +2,10 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AccountPayable } from '../../supplier-payments/schemas/account-payable.schema';
 import {
   createAdvancePaymentAction,
   deleteAccountPayableAction,
   payAccountPayableAction,
-  saveAccountPayableAction,
 } from '../actions/account-payable-actions';
 import { AdvancePayment } from '../schemas/advance-payment.schema';
 import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
@@ -15,31 +13,31 @@ import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
 import { authorizeAccountPayableAction } from '../actions/account-payable-actions';
 
 //Hook para crear una cuenta por pagar
-export function useAccountPayableMutation() {
-  const queryClient = useQueryClient();
+// export function useAccountPayableMutation() {
+//   const queryClient = useQueryClient();
 
-  const mutation = useMutation({
-    mutationFn: (data: AccountPayable) => saveAccountPayableAction(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable-by-id'] });
-      toast.success('Cuenta por pagar guardada exitosamente');
-    },
-    onError: (error) => {
-      if (error instanceof Error) {
-        if (error.message.includes('already exists')) {
-          toast.error('Error, La cuenta por pagar para esta factura ya existe');
-        } else {
-          toast.error(
-            'Error al crear la cuenta por pagar, contacte al administrador',
-          );
-        }
-      }
-    },
-  });
+//   const mutation = useMutation({
+//     mutationFn: (data: AccountPayable) => saveAccountPayableAction(data),
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+//       queryClient.invalidateQueries({ queryKey: ['accounts-payable-by-id'] });
+//       toast.success('Cuenta por pagar guardada exitosamente');
+//     },
+//     onError: (error) => {
+//       if (error instanceof Error) {
+//         if (error.message.includes('already exists')) {
+//           toast.error('Error, La cuenta por pagar para esta factura ya existe');
+//         } else {
+//           toast.error(
+//             'Error al crear la cuenta por pagar, contacte al administrador',
+//           );
+//         }
+//       }
+//     },
+//   });
 
-  return mutation;
-}
+//   return mutation;
+// }
 
 //hook para autorizar pago a una cuenta por pagar
 export function useAuthorizeAccountPayableMutation() {

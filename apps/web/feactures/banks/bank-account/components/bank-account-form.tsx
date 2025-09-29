@@ -257,7 +257,7 @@ export function BankAccountForm({
               name="currentBalance"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Saldo Actual</FormLabel>
+                  <FormLabel>Saldo según libros</FormLabel>
                   <FormControl>
                     <Input
                       type="number"

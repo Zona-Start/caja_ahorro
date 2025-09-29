@@ -35,31 +35,39 @@ export default function BankAccountList({
 
   const { data, isLoading } = useBankAccount(filters);
 
-  const { setTotalBalanceBs, setTotalBalanceUsd } = useBankAccountStore();
+  const { 
+    setTotalBookBalanceBs, 
+    setTotalStatementBalanceBs, 
+    setTotalBookBalanceUsd, 
+    setTotalStatementBalanceUsd 
+  } = useBankAccountStore();
 
   useEffect(() => {
     if (data?.data) {
-      // Calcular totales por moneda
-      const totalsByVES = data.data
-        .filter((account) => account.isActive && account.currencyCode === 'VES')
-        .reduce(
-          (sum, account) =>
-            sum + Number.parseFloat(account?.currentBalance ?? '0'),
-          0,
-        );
+      const activeAccounts = data.data.filter((account) => account.isActive);
 
-      const totalsByUSD = data.data
-        .filter((account) => account.isActive && account.currencyCode === 'USD')
-        .reduce(
-          (sum, account) =>
-            sum + Number.parseFloat(account.currentBalance ?? '0'),
-          0,
-        );
+      const totalBookBs = activeAccounts
+        .filter((acc) => acc.currencyCode === 'VES')
+        .reduce((sum, acc) => sum + Number(acc.currentBalance ?? '0'), 0);
 
-      setTotalBalanceBs(Number(totalsByVES));
-      setTotalBalanceUsd(Number(totalsByUSD));
+      const totalStatementBs = activeAccounts
+        .filter((acc) => acc.currencyCode === 'VES')
+        .reduce((sum, acc) => sum + Number(acc.lastStatementBalance ?? '0'), 0);
+
+      const totalBookUsd = activeAccounts
+        .filter((acc) => acc.currencyCode === 'USD')
+        .reduce((sum, acc) => sum + Number(acc.currentBalance ?? '0'), 0);
+
+      const totalStatementUsd = activeAccounts
+        .filter((acc) => acc.currencyCode === 'USD')
+        .reduce((sum, acc) => sum + Number(acc.lastStatementBalance ?? '0'), 0);
+
+      setTotalBookBalanceBs(totalBookBs);
+      setTotalStatementBalanceBs(totalStatementBs);
+      setTotalBookBalanceUsd(totalBookUsd);
+      setTotalStatementBalanceUsd(totalStatementUsd);
     }
-  }, [data, setTotalBalanceBs, setTotalBalanceUsd]);
+  }, [data, setTotalBookBalanceBs, setTotalStatementBalanceBs, setTotalBookBalanceUsd, setTotalStatementBalanceUsd]);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={6} rowCount={initialLimit} />;

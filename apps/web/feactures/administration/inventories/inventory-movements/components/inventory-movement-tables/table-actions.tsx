@@ -67,13 +67,15 @@ export default function InventoryMovementTableActions() {
           setFilterValue={setItemTypeFilter}
           filterValue={itemTypeFilter}
         />
-        <DataTableFilterBox
-          filterKey="itemId"
-          title="Item"
-          options={ITEM_OPTIONS}
-          setFilterValue={setItemIdFilter}
-          filterValue={itemIdFilter}
-        />
+        {itemTypeFilter && (
+          <DataTableFilterBox
+            filterKey="itemId"
+            title="Item"
+            options={ITEM_OPTIONS}
+            setFilterValue={setItemIdFilter}
+            filterValue={itemIdFilter}
+          />
+        )}
         <DataTableFilterBox
           filterKey="movementType"
           title="Tipo de Movimiento"

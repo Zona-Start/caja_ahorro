@@ -6,9 +6,7 @@ import {
   searchParamsCache,
   serialize,
 } from '@/feactures/accounting/accounting-accounts/utils/searchparams';
-import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { SearchParams } from 'nuqs/server';
-import { Suspense } from 'react';
 
 export const metadata = {
   title: 'Dashboard: Cuentas Contables',

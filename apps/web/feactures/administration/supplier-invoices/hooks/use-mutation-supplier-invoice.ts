@@ -12,9 +12,13 @@ import { SupplierInvoice } from '../schemas/supplier-invoice.schema';
 
 export function useSupplierInvoiceMutation() {
   const queryClient = useQueryClient();
-
+  let toastMessage: string;
   const mutation = useMutation({
     mutationFn: (data: Partial<SupplierInvoice>) => {
+      toastMessage =
+        data.status !== 'ACCOUNTED_FOR'
+          ? 'Factura de proveedor guardada exitosamente'
+          : 'Factura de proveedor contabilizada exitosamente';
       if (data.id && data.status !== 'ACCOUNTED_FOR') {
         return updateSupplierInvoiceAction(data);
       } else if (data.id && data.status === 'ACCOUNTED_FOR') {
@@ -25,7 +29,7 @@ export function useSupplierInvoiceMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices-by-id'] });
-      toast.success('Factura de proveedor guardada exitosamente');
+      toast.success(toastMessage);
     },
     onError: (error) => {
       if (error instanceof Error) {

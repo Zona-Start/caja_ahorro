@@ -67,7 +67,10 @@ export class AccountingCyclesService {
   }
 
   async findAll() {
-    return await this.drizzle.select().from(schema.accountingCycles);
+    return await this.drizzle
+      .select()
+      .from(schema.accountingCycles)
+      .where(eq(schema.accountingCycles.status, 'OPEN'));
   }
 
   async findAllPaginated(

@@ -42,7 +42,7 @@ export default function InventoryMovementModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[800px] z-50  ">
+      <DialogContent className="sm:max-w-[1000px] z-50  ">
         <DialogHeader>
           <DialogTitle>
             {readOnly

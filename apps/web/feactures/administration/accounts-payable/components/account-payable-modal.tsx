@@ -7,13 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { AccountPayable } from '../../supplier-payments/schemas/account-payable.schema';
+
 import { AccountPayableForm } from './account-payable-form';
 
 interface ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultValues?: Partial<AccountPayable>;
+  defaultValues?: Partial<any>;
   readOnly?: boolean;
 }
 
