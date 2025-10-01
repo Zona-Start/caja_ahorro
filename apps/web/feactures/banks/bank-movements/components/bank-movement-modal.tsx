@@ -8,20 +8,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { AccountingEntry } from '../schemas/accounting-entry.schema';
-import { AccountingEntryForm } from './accounting-entry-form';
+import { BankMovement } from '../schemas/bank-movement.schema';
+import { BankMovementForm } from './bank-movement-form';
 
-interface AccountingEntryModalProps {
+interface BankMovementModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultValues?: Partial<AccountingEntry>;
+  defaultValues?: Partial<BankMovement>;
 }
 
-export function AccountingEntryModal({
+export function BankMovementModal({
   open,
   onOpenChange,
   defaultValues,
-}: AccountingEntryModalProps) {
+}: BankMovementModalProps) {
   const handleSuccess = () => {
     onOpenChange(false);
   };
@@ -32,20 +32,19 @@ export function AccountingEntryModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1000px] z-50 ">
+      <DialogContent className="sm:max-w-[800px] z-50 ">
         <DialogHeader>
           <DialogTitle>
             {defaultValues?.id
-              ? 'Actualizar Asiento Contable'
-              : 'Crear Asiento Contable'}
+              ? 'Actualizar Movimiento Bancario'
+              : 'Crear Movimiento Bancario'}
           </DialogTitle>
           <DialogDescription>
-            Complete el formulario para registrar un nuevo asiento contable.
-            Recuerde que el debe y el haber deben ser iguales.
+            Complete el formulario para registrar un nuevo movimiento bancario.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-[calc(100vh-200px)]">
-          <AccountingEntryForm
+          <BankMovementForm
             onSuccess={handleSuccess}
             onCancel={handleCancel}
             defaultValues={defaultValues}

@@ -1,18 +1,17 @@
 'use server';
-import { safeFetchApi } from '@/lib';
+import { safeFetchRefresh } from '@/lib/fetch.refreshToken';
 import {
   RefreshTokenResponseSchema,
   RefreshTokenValue,
 } from '../schemas/refreshToken';
 
 export const resfreshTokenAction = async (refreshToken: RefreshTokenValue) => {
-  const [error, data] = await safeFetchApi(
+  const [error, data] = await safeFetchRefresh(
     RefreshTokenResponseSchema,
-    '/auth/refreshToken',
+    '/auth/refresh-token',
     'POST',
     refreshToken,
   );
-  console.log('refres', data);
 
   if (error) {
     console.error('Error:', error);
@@ -24,8 +23,15 @@ export const resfreshTokenAction = async (refreshToken: RefreshTokenValue) => {
     };
   }
   // En caso de éxito, devuelve el objeto que contiene los tokens
+
+  const tokens = {
+    access_token: data?.access_token,
+    access_expire_in: data?.access_expire_in,
+    refresh_token: data?.refresh_token,
+    refresh_expire_in: data?.refresh_expire_in,
+  };
   return {
     type: 'SUCCESS',
-    tokens: data?.tokens,
+    tokens: tokens,
   };
 };

@@ -9,7 +9,7 @@ import {
 import { SearchParams } from 'nuqs/server';
 
 export const metadata = {
-  title: 'Dashboard: Ciclos Contables',
+  title: 'Dashboard: Asientos Contables',
 };
 
 type pageProps = {

@@ -1,8 +1,11 @@
 import { SignInAction } from '@/feactures/auth/actions/login-action';
+import { logoutAction } from '@/feactures/auth/actions/logout-action';
 import { resfreshTokenAction } from '@/feactures/auth/actions/refresh-token-action';
 import { CredentialsSignin, NextAuthConfig, Session, User } from 'next-auth';
-import { DefaultJWT } from 'next-auth/jwt';
+import { DefaultJWT, JWT } from 'next-auth/jwt';
 import CredentialProvider from 'next-auth/providers/credentials';
+
+let isRefreshing = false; // Bandera para evitar múltiples solicitudes de refresco
 
 const authConfig: NextAuthConfig = {
   providers: [
@@ -17,7 +20,6 @@ const authConfig: NextAuthConfig = {
       },
       async authorize(
         credentials: Partial<Record<'username' | 'password', unknown>>,
-        request: Request,
       ): Promise<User | null> {
         const credential = {
           username: credentials?.username as string,
@@ -49,18 +51,6 @@ const authConfig: NextAuthConfig = {
         } else {
           return null;
         }
-
-        // return {
-        //   id: response?.user.id?.toString() ?? '0',
-        //   username: response?.user.username ?? '',
-        //   fullname: response?.user.fullname ?? '',
-        //   email: response?.user.email ?? '',
-        //   role: response?.user.rol ?? [], // Add role array
-        //   access_token: response?.tokens.access_token ?? '',
-        //   access_expire_in: response?.tokens.access_expire_in ?? 0,
-        //   refresh_token: response?.tokens.refresh_token ?? '',
-        //   refresh_expire_in: response?.tokens.refresh_expire_in ?? 0,
-        // };
       },
     }),
   ],
@@ -69,28 +59,7 @@ const authConfig: NextAuthConfig = {
     //error: '/error',
   },
   callbacks: {
-    async jwt({
-      token,
-      user,
-      account,
-    }: {
-      token: any;
-      user: User;
-      account: any;
-    }) {
-      // Si es un nuevo login, asignamos los datos
-      // if (user) {
-      //   token.id = user.id;
-      //   token.username = user.username;
-      //   token.fullname = user.fullname;
-      //   token.email = user.email;
-      //   token.role = user.role;
-      //   token.access_token = user.access_token;
-      //   token.access_expire_in = user.access_expire_in;
-      //   token.refresh_token = user.refresh_token;
-      //   token.refresh_expire_in = user.refresh_expire_in;
-      // }
-
+    async jwt({ token, user }: { token: any; user: User }) {
       if (user) {
         return {
           ...token,
@@ -100,49 +69,25 @@ const authConfig: NextAuthConfig = {
           email: user.email,
           role: user.role,
           access_token: user.access_token,
-          // Convertimos a milisegundos para consistencia
-          access_expire_in: user.access_expire_in * 1000,
+          access_expire_in: user.access_expire_in,
           refresh_token: user.refresh_token,
-          // Convertimos a milisegundos para consistencia
-          refresh_expire_in: user.refresh_expire_in * 1000,
+          refresh_expire_in: user.refresh_expire_in,
         };
       }
 
-      // Renovar access_token si ha expirado
-      // if (Date.now() / 1000 > (token.access_expire_in as number)) {
-      //   if (Date.now() / 1000 > (token.refresh_expire_in as number)) {
-      //     return null; // Forzar logout
-      //   }
+      const now = Math.floor(Date.now() / 1000);
 
-      //   try {
-      //     const res = await resfreshTokenAction({
-      //       token: token.refresh_token as string,
-      //     });
-      //     if (!res) throw new Error('Failed to refresh token');
-      //     token.access_token = res.tokens.access_token;
-      //     token.access_expire_in = res.tokens.access_expire_in;
-      //     token.refresh_token = res.tokens.refresh_token;
-      //     token.refresh_expire_in = res.tokens.refresh_expire_in;
-      //   } catch (error) {
-      //     return null;
-      //   }
-      // }
+      /* 2. ¿refresh token caducado? → logout */
+      if (now > (token.refresh_expire_in as number)) {
+        return null;
+      }
 
-      // El token de acceso aún es válido, no hacemos nada
-      if (Date.now() < token.access_expire_in) {
+      /* 3. ¿access token aún válido? → no tocar */
+      if (now < (token.access_expire_in as number)) {
         return token;
       }
 
-      // Si el token de acceso no ha expirado
-      if (Date.now() < (token.access_expire_in as number)) {
-        return token;
-      }
-
-      // El token de acceso ha expirado, intentar refrescarlo
-      if (Date.now() / 1000 > (token.refresh_expire_in as number)) {
-        return null; // Forzar logout
-      }
-
+      /* 4. Access token caducado pero refresh token válido → refrescar */
       try {
         const res = await resfreshTokenAction({
           token: token.refresh_token as string,
@@ -154,30 +99,47 @@ const authConfig: NextAuthConfig = {
         }
 
         if (res.tokens) {
-          token.access_token = res.tokens?.access_token;
-          token.access_expire_in = res.tokens.access_expire_in * 1000;
-          token.refresh_token = res.tokens?.refresh_token;
-          token.refresh_expire_in = res.tokens.refresh_expire_in * 1000;
+          return {
+            ...token, // Mantenemos datos como id, email, role, etc.
+            access_token: res.tokens.access_token,
+            access_expire_in: res.tokens.access_expire_in,
+            refresh_token: res.tokens.refresh_token,
+            refresh_expire_in: res.tokens.refresh_expire_in,
+          };
         }
       } catch (error) {
         // En caso de error inesperado, también forzamos el logout
         return null;
       }
-      return token;
     },
     async session({ session, token }: { session: Session; token: DefaultJWT }) {
-      session.access_token = token.access_token as string;
-      session.access_expire_in = token.access_expire_in as number;
-      session.refresh_token = token.refresh_token as string;
-      session.refresh_expire_in = token.refresh_expire_in as number;
-      session.user = {
-        id: token.id as number,
-        username: token.username as string,
-        fullname: token.fullname as string,
-        email: token.email as string,
-        role: token.role as Array<{ id: number; rol: string }>,
-      };
+      if (token) {
+        session.user = {
+          id: token.id as number,
+          username: token.username as string,
+          fullname: token.fullname as string,
+          email: token.email as string,
+          role: token.role as Array<{ id: number; rol: string }>,
+        };
+        session.access_token = token.access_token as string;
+        session.access_expire_in = token.access_expire_in as number;
+        session.refresh_token = token.refresh_token as string;
+        session.refresh_expire_in = token.refresh_expire_in as number;
+      }
+
       return session;
+    },
+  },
+  events: {
+    async signOut(message) {
+      // 1.  verificamos que venga token (puede no venir con algunos providers)
+      const token = (message as { token?: JWT }).token;
+      if (!token?.access_token) return;
+      try {
+        await logoutAction(String(token?.id));
+      } catch {
+        /* silencioso para que next-auth siempre cierre */
+      }
     },
   },
 } satisfies NextAuthConfig;

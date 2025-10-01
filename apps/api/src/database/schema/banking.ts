@@ -74,6 +74,7 @@ export const bankAccounts = bankingSchema.table(
       .references(() => accountPlan.id, { onDelete: 'set null' })
       .notNull(), //Cuenta contable (Activo) que representa esta cuenta bancaria
     isActive: boolean('is_active').default(true).notNull(),
+    openingEntryPosted: boolean('opening_entry_posted').default(false),
     ...timestamps,
   },
   (table) => ({

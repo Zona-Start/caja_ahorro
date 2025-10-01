@@ -42,7 +42,7 @@ export default function UserAuthForm() {
         const login = await signIn('credentials', {
           username: data.username,
           password: data.password,
-          redirect: false, // No queremos una redirección automática aquí
+          redirect: false,
         });
 
         if (login?.error) {
@@ -57,7 +57,7 @@ export default function UserAuthForm() {
         // Si la autenticación es exitosa y `redirect: false`, necesitamos redirigir manualmente
         if (login?.ok && !login?.error) {
           toast.success('Ingreso Exitoso!');
-          router.push(callbackUrl ?? '/dashboard');
+          router.push('/dashboard');
         }
       } catch (error) {
         console.error('Error durante el inicio de sesión:', error);
@@ -110,7 +110,7 @@ export default function UserAuthForm() {
                     <FormControl>
                       <div className="relative">
                         <Input
-                          type={showPassword ? "text" : "password"}
+                          type={showPassword ? 'text' : 'password'}
                           placeholder="*************"
                           disabled={loading}
                           {...field}

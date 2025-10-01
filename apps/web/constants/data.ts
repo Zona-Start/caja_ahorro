@@ -308,7 +308,7 @@ export const BankItems: NavItem[] = [
   },
   {
     title: 'Movimientos Bancarios',
-    url: '#',
+    url: '/dashboard/bancos/movimientos-bancarios',
     icon: 'receiptText',
     colorIcons: 'cyan',
     shortcut: ['p', 'p'],

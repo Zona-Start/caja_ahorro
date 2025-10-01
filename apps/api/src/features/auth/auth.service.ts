@@ -147,7 +147,7 @@ export class AuthService {
       .select()
       .from(users)
       .where(eq(users.username, username));
-       return user[0] as User | null;
+    return user[0] as User | null;
   }
 
   //Find User
@@ -195,7 +195,6 @@ export class AuthService {
 
   //Sign In User Account
   async signIn(dto: SignInUserDto): Promise<LoginUserInterface> {
-    
     const user = await this.validateUser(dto);
     const tokens = await this.generateTokens(user);
     const decodeAccess = this.decodeToken(tokens.access_token);
@@ -261,33 +260,42 @@ export class AuthService {
 
   //Refresh User Access Token
   async refreshToken(dto: RefreshTokenDto): Promise<RefreshTokenInterface> {
-    const { user_id } = dto;
+    const { userId, refreshToken } = dto;
+
+    const verify = await this.jwtService.verifyAsync(refreshToken, {
+      secret: envs.refresh_token_secret,
+    });
+
+    if (!verify) throw new UnauthorizedException('Invalid Refresh Token');
 
     const session = await this.drizzle
       .select()
       .from(sessions)
       .where(
         and(
-          eq(sessions.userId, user_id) &&
-            eq(sessions.sessionToken, dto.refresh_token),
+          eq(sessions.userId, userId) &&
+            eq(sessions.sessionToken, dto.refreshToken),
         ),
       );
 
     if (session.length === 0) throw new NotFoundException('session not found');
-    const user = await this.findUserById(dto.user_id);
+    const user = await this.findUserById(dto.userId);
     if (!user) throw new NotFoundException('User not found');
-    const tokens = await this.generateTokens(user);
-    const decodeAccess = this.decodeToken(tokens.access_token);
-    const decodeRefresh = this.decodeToken(tokens.refresh_token);
+    const tokensNew = await this.generateTokens(user);
+    const decodeAccess = this.decodeToken(tokensNew.access_token);
+    const decodeRefresh = this.decodeToken(tokensNew.refresh_token);
     await this.drizzle
       .update(sessions)
-      .set({ sessionToken: tokens.refresh_token, expiresAt: decodeRefresh.exp })
-      .where(eq(sessions.userId, dto.user_id));
+      .set({
+        sessionToken: tokensNew.refresh_token,
+        expiresAt: decodeRefresh.exp,
+      })
+      .where(eq(sessions.userId, dto.userId));
 
     return {
-      access_token: tokens.access_token,
+      access_token: tokensNew.access_token,
       access_expire_in: decodeAccess.exp,
-      refresh_token: tokens.refresh_token,
+      refresh_token: tokensNew.refresh_token,
       refresh_expire_in: decodeRefresh.exp,
     };
   }

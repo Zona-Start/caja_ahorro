@@ -250,7 +250,12 @@ export function AccountingEntryForm({
             variant="outline"
             size="sm"
             onClick={() =>
-              append({ accountPlanId: 0, debit: 0, credit: 0, description: '' })
+              append({
+                accountPlanId: 0,
+                debit: 0,
+                credit: 0,
+                description: '',
+              })
             }
           >
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -259,7 +264,7 @@ export function AccountingEntryForm({
         </div>
 
         {/* Totals Section */}
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end pt-4 pr-4">
           <div className="w-full max-w-xs space-y-2">
             <div className="flex justify-between font-semibold">
               <span>Total Debe:</span>
@@ -281,7 +286,7 @@ export function AccountingEntryForm({
           </div>
         </div>
 
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-end gap-4 pr-4">
           <Button variant="outline" type="button" onClick={onCancel}>
             Cancelar
           </Button>

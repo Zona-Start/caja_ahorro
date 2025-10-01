@@ -6,9 +6,9 @@ export class RefreshTokenDto {
   @IsString({
     message: 'Refresh token must be a string',
   })
-  refresh_token: string;
+  refreshToken: string;
 
   @ApiProperty()
   @IsNumber()
-  user_id: number;
+  userId: number;
 }

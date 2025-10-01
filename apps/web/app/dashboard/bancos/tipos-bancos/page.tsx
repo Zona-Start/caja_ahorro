@@ -10,7 +10,7 @@ import {
 import { SearchParams } from 'nuqs/server';
 
 export const metadata = {
-  title: 'Dashboard: Bancos',
+  title: 'Dashboard: Tipos Bancos',
 };
 
 type pageProps = {
