@@ -1,11 +1,14 @@
 import { sql } from 'drizzle-orm';
 import {
+  date,
   decimal,
   integer,
   numeric,
+  primaryKey,
   serial,
   text,
   timestamp,
+  varchar,
 } from 'drizzle-orm/pg-core';
 import {
   accountingEntries,
@@ -13,6 +16,7 @@ import {
   accountPlan,
 } from './accounting';
 import { inventoryMovements } from './administration';
+import { bankAccounts, bankTransactions } from './banking';
 import {
   associateAccountMovements,
   associateAccounts,
@@ -23,6 +27,7 @@ import {
 } from './savings-banks';
 import {
   accountingSchema,
+  bankingSchema,
   inventorySchema,
   savingsBanksSchema,
 } from './schemas';
@@ -329,8 +334,35 @@ export const inventoryAvailability = inventorySchema.view(
   GROUP BY item_id, item_type
 `);
 
+// export const accountingBalance = accountingSchema.view('account_balance', {
+//   accountPlanId: integer('account_plan_id').notNull(),
+//   accountCode: text('account_code').notNull(),
+//   accountName: text('account_name').notNull(),
+//   currencyCode: text('currency_code').notNull(),
+//   totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
+//   totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
+//   balance: numeric('balance', { precision: 20, scale: 6 }).notNull(),
+// }).as(sql`
+//   SELECT
+//     ap.id AS account_plan_id,
+//     ap.code AS account_code,
+//     ap.name AS account_name,
+//     COALESCE(ae.currency_code, 'VES') AS currency_code,
+//     COALESCE(SUM(aed.debit), 0) AS total_debit,
+//     COALESCE(SUM(aed.credit), 0) AS total_credit,
+//     COALESCE(SUM(aed.debit - aed.credit), 0) AS balance
+//   FROM ${accountPlan} ap
+//   LEFT JOIN ${accountingEntryDetails} aed
+//     ON aed.account_plan_id = ap.id
+//   LEFT JOIN ${accountingEntries} ae
+//     ON ae.id = aed.accounting_entry_id
+//    AND ae.status = 'POSTED'
+//   GROUP BY ap.id, ap.code, ap.name, COALESCE(ae.currency_code, 'VES')
+// `);
+
 export const accountingBalance = accountingSchema.view('account_balance', {
-  accountPlanId: serial('account_plan_id').primaryKey(),
+  tenantId: integer('tenant_id').notNull(),
+  accountPlanId: integer('account_plan_id').notNull(),
   accountCode: text('account_code').notNull(),
   accountName: text('account_name').notNull(),
   currencyCode: text('currency_code').notNull(),
@@ -339,17 +371,103 @@ export const accountingBalance = accountingSchema.view('account_balance', {
   balance: numeric('balance', { precision: 20, scale: 6 }).notNull(),
 }).as(sql`
   SELECT
-    ap.id                                     AS account_plan_id,
-    ap.code                                     AS account_code,
-    ap.name                                     AS account_name,
-    ae.currency_code                              AS currency_code,
-    COALESCE(SUM(aed.debit), 0)                  AS total_debit,
-    COALESCE(SUM(aed.credit), 0)                  AS total_credit,
-    COALESCE(SUM(aed.debit - aed.credit), 0)    AS balance
+    ap.company_id AS tenant_id,
+    ap.id AS account_plan_id,
+    ap.code AS account_code,
+    ap.name AS account_name,
+    COALESCE(ae.currency_code, 'VES') AS currency_code,
+    COALESCE(SUM(aed.debit), 0) AS total_debit,
+    COALESCE(SUM(aed.credit), 0) AS total_credit,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)
+      ELSE 0
+    END AS balance
   FROM ${accountPlan} ap
-  LEFT JOIN ${accountingEntryDetails} aed ON aed.account_plan_id = ap.id 
+  LEFT JOIN ${accountingEntryDetails} aed 
+    ON aed.account_plan_id = ap.id
   LEFT JOIN ${accountingEntries} ae
-          ON ae.id = aed.accounting_entry_id -- CORRECCIÓN: Usar accounting_entry_id (Prevención de futuro error)
-        AND ae.status = 'POSTED' -- solo asientos validados
-  GROUP BY ap.id, ap.code, ap.name, ae.currency_code
+    ON ae.id = aed.accounting_entry_id
+   AND ae.company_id  = ap.company_id 
+   AND ae.status = 'POSTED'
+  GROUP BY ap.company_id, ap.id, ap.code, ap.name, ap.nature, COALESCE(ae.currency_code, 'VES')
+`);
+
+// Clave primaria compuesta
+export const accountingBalanceRelations = (view: typeof accountingBalance) => ({
+  pk: primaryKey(view.tenantId, view.accountPlanId, view.currencyCode),
+});
+
+export const bankStatementBalance = bankingSchema.view(
+  'bank_statement_balance',
+  {
+    bankAccountId: integer('bank_account_id').notNull(),
+    accountNumber: varchar('account_number', { length: 20 }).notNull(),
+    accountName: varchar('account_name', { length: 255 }),
+    currencyCode: text('currency_code').notNull(),
+    totalCredits: numeric('total_credits', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    totalDebits: numeric('total_debits', { precision: 20, scale: 6 }).notNull(),
+    currentStatementBalance: numeric('current_statement_balance', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    lastTransactionDate: date('last_transaction_date'),
+  },
+).as(sql`
+  SELECT 
+    ba.id AS bank_account_id,
+    ba.account_number,
+    ba.account_name,
+    ba.currency_code,
+    COALESCE(SUM(bt.credit_amount), 0) AS total_credits,
+    COALESCE(SUM(bt.debit_amount), 0)  AS total_debits,
+    COALESCE(SUM(bt.credit_amount - bt.debit_amount), 0) AS current_statement_balance,
+    MAX(bt.transaction_date) AS last_transaction_date
+  FROM ${bankAccounts} ba
+  LEFT JOIN ${bankTransactions} bt 
+         ON bt.bank_account_id = ba.id
+  GROUP BY ba.id, ba.account_number, ba.account_name, ba.currency_code
+`);
+
+export const accountingBalanceByBank = accountingSchema.view(
+  'accounting_balance_by_bank',
+  {
+    tenantId: integer('tenant_id').notNull(),
+    bankAccountId: integer('bank_account_id').notNull(),
+    accountPlanId: integer('account_plan_id').notNull(),
+    accountCode: text('account_code').notNull(),
+    accountName: text('account_name').notNull(),
+    currencyCode: text('currency_code').notNull(),
+    totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
+    totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
+    balance: numeric('balance', { precision: 20, scale: 6 }).notNull(),
+  },
+).as(sql`
+  SELECT
+    ap.company_id AS tenant_id,
+    ba.id AS bank_account_id,
+    ap.id AS account_plan_id,
+    ap.code AS account_code,
+    ap.name AS account_name,
+    COALESCE(ae.currency_code, ba.currency_code) AS currency_code,
+    COALESCE(SUM(aed.debit), 0) AS total_debit,
+    COALESCE(SUM(aed.credit), 0) AS total_credit,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)
+      ELSE 0
+    END AS balance
+  FROM ${bankAccounts} ba
+  INNER JOIN ${accountPlan} ap ON ap.id = ba.linked_chart_account_id
+  LEFT JOIN ${accountingEntryDetails} aed 
+         ON aed.account_plan_id = ap.id
+  LEFT JOIN ${accountingEntries} ae
+         ON ae.id = aed.accounting_entry_id
+        AND ae.company_id = ap.company_id
+        AND ae.status = 'POSTED'
+  GROUP BY ap.company_id, ba.id, ap.id, ap.code, ap.name, ap.nature,
+           COALESCE(ae.currency_code, ba.currency_code)
 `);

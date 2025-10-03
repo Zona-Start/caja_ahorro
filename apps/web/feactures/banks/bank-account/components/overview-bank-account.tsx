@@ -1,3 +1,4 @@
+import { formatCurrency } from '@/lib/formatCurrent';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { useBankAccountStore } from '../store/bank-account.store';
 
@@ -8,20 +9,6 @@ export function OverviewLoans() {
     totalBookBalanceUsd,
     totalStatementBalanceUsd,
   } = useBankAccountStore();
-
-  const formatCurrency = (value: number, currency: 'VES' | 'USD') => {
-    const formatted = new Intl.NumberFormat('es-VE', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-    }).format(value);
-
-    if (currency === 'VES') {
-      return formatted.replace('Bs.S', 'Bs.');
-    }
-
-    return formatted;
-  };
 
   const differenceBs = totalStatementBalanceBs - totalBookBalanceBs;
   const differenceUsd = totalStatementBalanceUsd - totalBookBalanceUsd;

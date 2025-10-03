@@ -389,6 +389,7 @@ export class PaymentBatchesService {
               transactionDate: new Date(dto.processedAt).toISOString(),
               description: `PAGO POR LOTE ${batchId}`,
               debitAmount: Number(it.amount), // <--- usar solo efectivo saliente
+              creditAmount: 0,
               bankReference: dto.bankReference ?? undefined,
               transactionType: paymentMethodEnum.BANK_TRANSFER,
               category: 'INTERNAL_TRANSFER',

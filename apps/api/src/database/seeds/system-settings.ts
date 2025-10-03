@@ -364,6 +364,19 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
         updatedById: 1,
       })
       .onConflictDoNothing();
+
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'CAPITAL_ACCOUNT_ID',
+        value: '3',
+        description:
+          'Id de la cuenta de capital/contrapartida para apertura de bancos',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
     console.log('System Setting seeded successfully');
   } catch (error) {
     console.error('Error creating System Setting:', error);

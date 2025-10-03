@@ -1,0 +1,1 @@
+ALTER TABLE "banking"."bank_accounts" ADD COLUMN "opening_entry_posted" boolean DEFAULT false;

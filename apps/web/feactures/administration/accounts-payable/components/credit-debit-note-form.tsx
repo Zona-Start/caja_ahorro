@@ -53,6 +53,10 @@ export function CreditDebitNoteForm({ onSuccess, onCancel }: FormProps) {
     mode: 'onChange',
   });
 
+  const filteredAccountsPayable = accountsPayable?.data.filter(
+    (ap) => !ap.accountsPayableNumber.startsWith('ADV-P'),
+  );
+
   const onSubmit = async (data: CreditDebitNote) => {
     saveCreditDebitNote(data, {
       onSuccess: () => {
@@ -88,7 +92,7 @@ export function CreditDebitNoteForm({ onSuccess, onCancel }: FormProps) {
                 <FormLabel>Cuenta por Pagar</FormLabel>
                 <SelectSearchable
                   options={
-                    accountsPayable?.data.map((item: any) => ({
+                    filteredAccountsPayable?.map((item: any) => ({
                       value: item.id!.toString(),
                       label: `${item.accountsPayableNumber} - ${item.supplierName}`,
                     })) || []

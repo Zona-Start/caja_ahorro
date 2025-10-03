@@ -32,6 +32,140 @@ export class SupplierPaymentsService {
     private readonly supplierInvoicesService: SupplierInvoicesService,
   ) {}
 
+  async getPaymentHistory(accountsPayableId: number) {
+    const paymentLines = await this.db
+      .select({
+        paymentId: schema.supplierPaymentLines.supplierPaymentId,
+        amount: schema.supplierPaymentLines.amount,
+        description: schema.supplierPaymentLines.description,
+      })
+      .from(schema.supplierPaymentLines)
+      .where(eq(schema.supplierPaymentLines.accountsPayableId, accountsPayableId));
+
+    if (paymentLines.length === 0) {
+      return [];
+    }
+
+    const paymentIds = paymentLines.map((line) => line.paymentId);
+
+    const payments = await this.db
+      .select()
+      .from(schema.supplierPayments)
+      .where(inArray(schema.supplierPayments.id, paymentIds));
+
+    return payments.map((payment) => ({
+      ...payment,
+      lines: paymentLines.filter((line) => line.paymentId === payment.id),
+    }));
+  }
+
+  async getAppliedTransactions(accountsPayableId: number) {
+    return this.db
+      .select()
+      .from(schema.supplierTransactions)
+      .where(
+        and(
+          eq(schema.supplierTransactions.accountsPayableId, accountsPayableId),
+          inArray(schema.supplierTransactions.transactionType, [
+            'CREDIT_NOTE_APPLIED',
+            'DEBIT_NOTE_APPLIED',
+            'ADVANCE_APPLIED',
+          ]),
+        ),
+      );
+  }
+
+  async getSupplierAvailableCredits(id: number) {
+    // 1. Get available advances from accountsPayable
+    const advances = await this.db
+      .select({
+        id: schema.accountsPayable.id,
+        accountsPayableNumber: schema.accountsPayable.accountsPayableNumber,
+        remainingAmount: schema.accountsPayable.remainingAmount,
+        currencyCode: schema.accountsPayable.currencyCode,
+      })
+      .from(schema.accountsPayable)
+      .where(
+        and(
+          eq(schema.accountsPayable.supplierId, id),
+          eq(schema.accountsPayable.isAuthorizePayment, true),
+          ilike(schema.accountsPayable.accountsPayableNumber, 'ADV-P%'),
+          or(
+            eq(schema.accountsPayable.status, 'PAID'),
+            eq(schema.accountsPayable.status, 'ADVANCE_PARTIAL')
+          )
+        )
+      );
+
+    const advanceCredits = advances
+      .filter(a => Number(a.remainingAmount) > 0)
+      .map((item) => ({
+        amount: Number(item.remainingAmount),
+        cxpId: item.id,
+        cxpNumber: item.accountsPayableNumber,
+        origin: 'ADVANCE' as const,
+        currencyCode: item.currencyCode,
+      }));
+
+    // 2. Get available Credit Notes from supplierTransactions
+    const creditNotesQuery = sql`
+        SELECT 
+            st.id, 
+            st.transaction_number, 
+            st.amount, 
+            ap.supplier_id,
+            st.currency_code,
+            (SELECT SUM(sta.amount) 
+             FROM administration.supplier_transactions sta 
+             WHERE sta.transaction_type = 'CREDIT_NOTE_APPLIED' 
+             AND sta.reference = st.transaction_number) as applied_amount
+        FROM administration.supplier_transactions st
+        JOIN administration.accounts_payable ap ON st.accounts_payable_id = ap.id
+        WHERE ap.supplier_id = ${id} AND st.transaction_type = 'CREDIT_NOTE' AND st.status = 'ACTIVE';
+    `;
+    const creditNotesQueryResult = await this.db.execute(creditNotesQuery);
+    const creditNotesResult: any[] = creditNotesQueryResult.rows;
+
+    const creditNoteCredits = creditNotesResult
+      .map(cn => ({
+        originalAmount: Number(cn.amount),
+        appliedAmount: Number(cn.applied_amount || 0),
+        cxpId: cn.id, // Note: This is the transaction ID
+        cxpNumber: cn.transaction_number,
+        origin: 'CREDIT_NOTE' as const,
+        currencyCode: cn.currency_code,
+      }))
+      .filter(cn => cn.originalAmount > cn.appliedAmount)
+      .map(cn => ({
+        ...cn,
+        amount: cn.originalAmount - cn.appliedAmount,
+      }));
+
+    const allCredits = [...advanceCredits, ...creditNoteCredits];
+
+    if (allCredits.length === 0) {
+      return null;
+    }
+
+    const totalAvailableCredit = allCredits.reduce((sum, item) => sum + item.amount, 0);
+
+    // Assuming all credits for a supplier are in the same currency for simplicity
+    const [supplierInfo] = await this.db.select().from(schema.suppliers).where(eq(schema.suppliers.id, id));
+
+    const response = [
+      {
+        availableCredit: totalAvailableCredit.toString(),
+        credits: allCredits,
+        currencyCode: allCredits[0]?.currencyCode ?? '',
+        supplierId: id,
+        supplierName: supplierInfo?.name ?? '',
+        taxId: supplierInfo?.taxId ?? '',
+      },
+    ];
+
+    return response;
+  }
+
   async createDraft(
     dto: CreateSupplierPaymentDto,
     userId?: number,
@@ -472,30 +606,6 @@ export class SupplierPaymentsService {
       });
   }
 
-  // async generateBatch(id: number) {
-  //   const payment = await this.findOne(id);
-  //   // TODO: Lógica para generar el archivo TXT del lote bancario
-  //   console.log('Generating batch file...');
-
-  //   return this.db
-  //     .update(schema.supplierPayments)
-  //     .set({ status: 'SENT_TO_BANK' })
-  //     .where(eq(schema.supplierPayments.id, id))
-  //     .returning();
-  // }
-
-  // async processResponse(id: number, response: any) {
-  //   const payment = await this.findOne(id);
-  //   // TODO: Lógica para leer y procesar el archivo de respuesta del banco
-  //   const isOk = true; // Simulación
-  //   console.log('Processing bank response...');
-
-  //   if (isOk) {
-  //     return this.execute(id);
-  //   }
-  //   // else: manejar el error, cambiar estado a REJECTED, etc.
-  // }
-
   async execute(
     id: number,
     userId: number,
@@ -578,6 +688,7 @@ export class SupplierPaymentsService {
             payment.bankTransactionDate || new Date().toISOString(),
           description: payment.observations ?? 'Pago proveedor',
           debitAmount: cashOutAmount, // <--- usar solo efectivo saliente
+          creditAmount: 0,
           bankReference: payment?.bankReference ?? undefined,
           transactionType: payment.paymentMethod as paymentMethodEnum,
           category: 'INTERNAL_TRANSFER',
@@ -1009,64 +1120,5 @@ export class SupplierPaymentsService {
         reversedPayments: reversedPaymentsInfo,
       };
     });
-  }
-
-  //metodo que consulta los creditos dispobible para proveedor
-  async getSupplierAvailableCredits(id: number) {
-    const result = await this.db
-      .select({
-        id: schema.accountsPayable.id,
-        accountsPayableNumber: schema.accountsPayable.accountsPayableNumber,
-        status: schema.accountsPayable.status,
-        remainingAmount: schema.accountsPayable.remainingAmount,
-        supplierId: schema.accountsPayable.supplierId,
-        supplierName: schema.suppliers.name,
-        supplierTaxId: schema.suppliers.taxId,
-        currencyCode: schema.accountsPayable.currencyCode,
-      })
-      .from(schema.accountsPayable)
-      .leftJoin(
-        schema.suppliers,
-        eq(schema.accountsPayable.supplierId, schema.suppliers.id),
-      )
-      .where(
-        and(
-          or(
-            eq(schema.accountsPayable.status, 'PAID'),
-            eq(schema.accountsPayable.status, 'ADVANCE_PARTIAL'),
-          ),
-          eq(schema.accountsPayable.isAuthorizePayment, true),
-          ilike(schema.accountsPayable.accountsPayableNumber, `%${'ADV-P'}%`),
-          eq(schema.accountsPayable.supplierId, id),
-        ),
-      );
-
-    if (result.length === 0) {
-      return null;
-    }
-
-    const availableCredit = result
-      .reduce((sum, item) => sum + Number(item.remainingAmount), 0)
-      .toString(); // resultado como string, conserva el signo
-
-    const credits = result.map((item) => ({
-      amount: Number(item.remainingAmount),
-      cxpId: item.id,
-      cxpNumber: item.accountsPayableNumber,
-      origin: 'ADVANCE',
-    }));
-
-    const response = [
-      {
-        availableCredit,
-        credits,
-        currencyCode: result[0]?.currencyCode ?? '',
-        supplierId: result[0]?.supplierId ?? null,
-        supplierName: result[0]?.supplierName ?? '',
-        taxId: result[0]?.supplierTaxId ?? '',
-      },
-    ];
-
-    return response;
   }
 }

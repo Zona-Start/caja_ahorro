@@ -286,6 +286,11 @@ export const internalLinkStatusEnum = pgEnum('internal_link_status', [
 ]);
 
 export const bankTransactionCategory = pgEnum('bank_transaction_category', [
+  'OPENING_BANK', // Saldo inicial al abrir la cuenta BANCARIA
+  'INITIAL_ADJUSTMENT_BANK', // Ajuste inicial al abrir la cuenta BANCARIA
+  'CLOSING', // Saldo final al cerrar la cuenta
+  'DEPOSIT', // Ejemplo: Depósitos en efectivo, transferencias entrantes
+  'WITHDRAWAL', // Ejemplo: Retiros en efectivo, transferencias salientes
   'MEMBER_DUES', // Ejemplo: Cuotas de Ahorro, Aportes, etc.
   'LOAN_DISABURSEMENT', // Ejemplo: Dinero enviado por un préstamo
   'LOAN_PAYMENT', // Ejemplo: Pagos recibidos de préstamos

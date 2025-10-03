@@ -195,6 +195,28 @@ export function BankAccountDetailsModal({
                   <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <Hash className="h-4 w-4" />
+                    Asiento Contanble inicial
+                  </div>
+                  <p className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-neutral-800 px-2 py-1 rounded">
+                    {bankAccount.openingEntryPosted ? 'Sí' : 'No'}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <Hash className="h-4 w-4" />
+                    Conciliacion incial
+                  </div>
+                  <p className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-neutral-800 px-2 py-1 rounded">
+                    {bankAccount.openingConciliationPosted ? 'Sí' : 'No'}
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

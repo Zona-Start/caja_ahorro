@@ -75,4 +75,11 @@ export class CreateBankAccountDto {
   @ApiProperty({ description: 'Estado activo de la cuenta bancaria' })
   @IsBoolean()
   is_active: boolean;
+
+  @ApiProperty({
+    description: 'Indica si se ha registrado la entrada de apertura',
+  })
+  @IsBoolean()
+  @IsOptional()
+  openingEntryPosted?: boolean;
 }

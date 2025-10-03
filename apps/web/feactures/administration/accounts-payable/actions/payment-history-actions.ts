@@ -1,16 +1,33 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
-import { supplierPaymentAllResponseSchema } from '../../supplier-payments/schemas';
+import {
+  appliedTransactionsResponseSchema,
+  paymentHistoryResponseSchema,
+} from '../schemas/payment-history-api.schema';
 
-export const getPaymentsByAccountPayableAction = async (id: number) => {
+export const getPaymentHistoryAction = async (id: number) => {
   const [error, response] = await safeFetchApi(
-    supplierPaymentAllResponseSchema,
-    `/administration/supplier-payments/by-account-payable/${id}`,
+    paymentHistoryResponseSchema,
+    `/administration/supplier-payments/history/accounts-payable/${id}`,
     'GET',
   );
 
   if (error) {
     throw new Error(error.message || 'Error fetching payment history');
+  }
+
+  return response;
+};
+
+export const getAppliedTransactionsAction = async (id: number) => {
+  const [error, response] = await safeFetchApi(
+    appliedTransactionsResponseSchema,
+    `/administration/supplier-payments/applied-transactions/accounts-payable/${id}`,
+    'GET',
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Error fetching applied transactions');
   }
 
   return response;

@@ -8,6 +8,11 @@ export const PAYMENT_METHOD = {
 } as const;
 
 export const BANK_TRANSACTION_CATEGORY = {
+  OPENING_BANK: 'Saldo Inicial Bancario', // Saldo inicial al abrir la cuenta BANCARIA
+  INITIAL_ADJUSTMENT_BANK: 'Ajuste inicial al abrir la cuenta BANCARIA', // Ajuste inicial al abrir la cuenta BANCARIA
+  CLOSING: 'CLOSING', // Saldo final al cerrar la cuenta
+  DEPOSIT: 'DEPOSIT', // Ejemplo: Depósitos en efectivo, transferencias entrantes
+  WITHDRAWAL: 'WITHDRAWAL', // Ejemplo: Retiros en efectivo, transferencias salientes
   MEMBER_DUES: 'Aportes al Asociado',
   LOAN_DISABURSEMENT: 'Desembolso de Préstamo',
   LOAN_PAYMENT: 'Pago de Préstamo',

@@ -167,12 +167,17 @@ export const accountingConfiguration = accountingSchema.table(
       .references(() => company.id, { onDelete: 'cascade' }),
     operationType: varchar('operation_type', { length: 100 }).notNull(), //Ej: LOAN_DISBURSEMENT_VES, SAVING_CONTRIBUTION_USD, INTEREST_ACCRUAL
     descriptionTemplate: text('description_template'), //Plantilla para descripción del asiento. Ej: "Desembolso Préstamo #{loanId}
-    debitAccountId: integer('debit_account_id')
-      .notNull()
-      .references(() => accountPlan.id, { onDelete: 'restrict' }),
-    creditAccountId: integer('credit_account_id')
-      .notNull()
-      .references(() => accountPlan.id, { onDelete: 'restrict' }),
+    debitAccountId: integer('debit_account_id').references(
+      () => accountPlan.id,
+      { onDelete: 'restrict' },
+    ),
+    creditAccountId: integer('credit_account_id').references(
+      () => accountPlan.id,
+      { onDelete: 'restrict' },
+    ),
+    contraAccountId: integer('contra_account_id').references(
+      () => accountPlan.id, //contra partida para ajustes
+    ),
     is_active: boolean('is_active').default(true),
     ...timestamps,
   },

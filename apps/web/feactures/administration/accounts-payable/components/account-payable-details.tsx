@@ -10,9 +10,15 @@ import {
   TableHeader,
   TableRow,
 } from '@repo/shadcn/table';
-import { usePaymentsByAccountPayable } from '../hooks/use-query-payment-history';
+import {
+  useAppliedTransactions,
+  usePaymentHistory,
+} from '../hooks/use-query-payment-history';
 import { AccountPayableSchemaAPI } from '../schemas';
-import { ACCOUNT_PAYABLE_STATUS_TYPES } from '../schemas/account-payable-options';
+import {
+  ACCOUNT_PAYABLE_STATUS_TYPES,
+  TRANSACTION_TYPES,
+} from '../schemas/account-payable-options';
 
 interface DetailsProps {
   accountPayable: AccountPayableSchemaAPI;
@@ -24,15 +30,16 @@ export function AccountPayableDetails({ accountPayable }: DetailsProps) {
       accountPayable.status as keyof typeof ACCOUNT_PAYABLE_STATUS_TYPES
     ] || accountPayable.status;
 
-  const { data: paymentHistory, isLoading: isLoadingHistory } =
-    usePaymentsByAccountPayable(accountPayable.id);
+  const isAdvance = accountPayable.accountsPayableNumber.startsWith('ADV-P');
 
-  const payments = paymentHistory?.data.filter(
-    (p) => !['ADVANCE', 'CREDIT_NOTE'].includes(p.paymentType),
-  );
-  const appliedCredits = paymentHistory?.data.filter((p) =>
-    ['ADVANCE', 'CREDIT_NOTE'].includes(p.paymentType),
-  );
+  const { data: paymentHistory, isLoading: isLoadingHistory } =
+    usePaymentHistory(accountPayable.id);
+
+  const { data: appliedTransactions, isLoading: isLoadingApplied } =
+    useAppliedTransactions(accountPayable.id, { enabled: !isAdvance });
+
+  const payments = paymentHistory?.data;
+  const appliedCredits = appliedTransactions?.data;
 
   return (
     <ScrollArea className="h-[75vh] p-1">
@@ -128,7 +135,7 @@ export function AccountPayableDetails({ accountPayable }: DetailsProps) {
                       ).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      {payment.totalAmount.toFixed(2)} Bs.
+                      {Number(payment.totalAmount).toFixed(2)} Bs.
                     </TableCell>
                   </TableRow>
                 ))}
@@ -142,39 +149,46 @@ export function AccountPayableDetails({ accountPayable }: DetailsProps) {
         </div>
 
         {/* Applied Advances and Credit Notes */}
-        <div className="p-4 border rounded-lg">
-          <h3 className="font-semibold text-lg mb-2">
-            Anticipos y Notas de Crédito Aplicadas
-          </h3>
-          {isLoadingHistory ? (
-            <p>Cargando...</p>
-          ) : appliedCredits && appliedCredits.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Referencia</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Monto Aplicado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {appliedCredits.map((credit) => (
-                  <TableRow key={credit.id}>
-                    <TableCell>{credit.paymentNumber}</TableCell>
-                    <TableCell>{credit.paymentType}</TableCell>
-                    <TableCell className="text-right">
-                      {credit.totalAmount.toFixed(2)} Bs.
-                    </TableCell>
+        {!isAdvance && (
+          <div className="p-4 border rounded-lg">
+            <h3 className="font-semibold text-lg mb-2">
+              Anticipos y Notas de Crédito o Débito Aplicadas
+            </h3>
+            {isLoadingApplied ? (
+              <p>Cargando...</p>
+            ) : appliedCredits && appliedCredits.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Referencia</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead className="text-right">Monto Aplicado</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No hay anticipos ni notas de crédito aplicadas.
-            </p>
-          )}
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {appliedCredits.map((credit) => (
+                    <TableRow key={credit.id}>
+                      <TableCell>{credit.transactionNumber}</TableCell>
+                      <TableCell>
+                        {TRANSACTION_TYPES[
+                          credit.transactionType as keyof typeof TRANSACTION_TYPES
+                        ] || credit.transactionType}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        {Number(credit.amount).toFixed(2)} Bs.
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No hay anticipos ni notas de crédito aplicadas.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </ScrollArea>
   );

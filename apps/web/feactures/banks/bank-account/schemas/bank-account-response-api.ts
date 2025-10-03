@@ -16,6 +16,8 @@ export const bankAccountApiSchema = z.object({
   lastStatementDate: z.string().optional().nullable(),
   linkedChartAccountId: z.number(),
   isActive: z.boolean(),
+  openingEntryPosted: z.boolean(),
+  openingConciliationPosted: z.boolean().optional(),
 });
 
 //schema response query pagination
@@ -58,4 +60,13 @@ export const bankAccountAllApiSchema = z.object({
 export const bankAccountAllResponseSchema = z.object({
   message: z.string(),
   data: z.array(bankAccountAllApiSchema),
+});
+
+export const bankConcilitianInitialSchema = z.object({
+  reconciliationId: z.number(),
+});
+
+export const bankConcilitianInitialResponseSchema = z.object({
+  message: z.string(),
+  data: bankConcilitianInitialSchema,
 });

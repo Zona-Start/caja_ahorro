@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { IndividualLoadModule } from './assets/individual-load/individual-load.module';
 import { PaymentBatchesModule } from './assets/payment-batches/payment-batches.module';
 import { SettlementAssociateModule } from './assets/settlement/settlement-associate.module';
 import { WithdrawalAssociateModule } from './assets/withdrawal-associate/withdrawal-associate.module';
@@ -22,6 +23,7 @@ import { LoansFeaturesModule } from './loans/loans.module';
     SettlementAssociateModule,
     WithdrawalTypesModule,
     PaymentBatchesModule,
+    IndividualLoadModule,
   ],
 })
 export class SavingsBanksFeatureModule {}

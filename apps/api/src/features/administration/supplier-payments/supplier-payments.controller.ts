@@ -24,6 +24,33 @@ export class SupplierPaymentsController {
     private readonly supplierPaymentsService: SupplierPaymentsService,
   ) {}
 
+  @Get('history/accounts-payable/:id')
+  @Roles('admin')
+  @RequirePermissions('read:supplier-payment')
+  @ApiOperation({ summary: 'Get payment history for an accounts payable' })
+  @ApiResponse({ status: 200, description: 'Return payment history.' })
+  async getPaymentHistory(@Param('id') id: string) {
+    const result = await this.supplierPaymentsService.getPaymentHistory(+id);
+    return {
+      message: 'History fetched successfully',
+      data: result,
+    };
+  }
+
+  @Get('applied-transactions/accounts-payable/:id')
+  @Roles('admin')
+  @RequirePermissions('read:supplier-payment')
+  @ApiOperation({ summary: 'Get applied transactions for an accounts payable' })
+  @ApiResponse({ status: 200, description: 'Return applied transactions.' })
+  async getAppliedTransactions(@Param('id') id: string) {
+    const result =
+      await this.supplierPaymentsService.getAppliedTransactions(+id);
+    return {
+      message: 'Applied transactions fetched successfully',
+      data: result,
+    };
+  }
+
   @Post()
   @Roles('admin')
   @RequirePermissions('create:supplier-payment')

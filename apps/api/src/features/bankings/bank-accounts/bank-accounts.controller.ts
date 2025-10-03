@@ -15,9 +15,31 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BankAccountsService } from './bank-accounts.service';
 import { FilterBankAccountDto } from './dto/filter-bank-account.dto';
 
+import { InitialReconciliationDto } from './dto/initial-reconciliation.dto';
+
 @Controller('bakings/bank-accounts')
 export class BankAccountsController {
   constructor(private readonly bankAccountsService: BankAccountsService) {}
+
+  @Post('/initial-reconciliation')
+  @Roles('admin')
+  @RequirePermissions('create:bank-reconciliation') // Assuming this permission
+  @ApiOperation({ summary: 'Perform initial bank reconciliation' })
+  @ApiResponse({
+    status: 200,
+    description: 'Initial reconciliation performed successfully.',
+  })
+  async initialReconciliation(
+    @Req() req: Request,
+    @Body() initialReconciliationDto: InitialReconciliationDto,
+  ) {
+    const userId = req['user'].id;
+    const data = await this.bankAccountsService.initialReconciliation(
+      userId,
+      initialReconciliationDto,
+    );
+    return { message: 'Initial reconciliation successful', data };
+  }
 
   @Post()
   @Roles('admin')

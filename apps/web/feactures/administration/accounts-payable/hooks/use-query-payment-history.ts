@@ -1,17 +1,34 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
-import { getPaymentsByAccountPayableAction } from '../actions/payment-history-actions';
+import {
+  getAppliedTransactionsAction,
+  getPaymentHistoryAction,
+} from '../actions/payment-history-actions';
 
-//hook para consultar detalles de la cuenta por pagar
-export function usePaymentsByAccountPayable(
+export function usePaymentHistory(
   id: number,
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
     ['payment-history', id],
-    () => getPaymentsByAccountPayableAction(id),
+    () => getPaymentHistoryAction(id),
     {
       enabled: !!id && (options?.enabled ?? true),
       ...options,
     },
   );
 }
+
+export function useAppliedTransactions(
+  id: number,
+  options?: { enabled?: boolean },
+) {
+  return useSafeQuery(
+    ['applied-transactions', id],
+    () => getAppliedTransactionsAction(id),
+    {
+      enabled: !!id && (options?.enabled ?? true),
+      ...options,
+    },
+  );
+}
+

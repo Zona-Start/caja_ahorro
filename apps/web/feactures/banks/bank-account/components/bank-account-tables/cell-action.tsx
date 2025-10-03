@@ -8,12 +8,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Eye, Trash } from 'lucide-react';
+import { Edit, Eye, Scale, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteBankAccount } from '../../hooks/use-mutation-bank-account';
 import { BankAccount } from '../../schemas/bank-account.schema';
-import { BankAccountModal } from '../bank-account-modal';
 import { BankAccountDetailsModal } from '../bank-account-details-modal';
+import { BankAccountModal } from '../bank-account-modal';
+import { InitialReconciliationModal } from '../initial-reconciliation-modal';
 
 interface CellActionProps {
   data: BankAccount;
@@ -24,6 +25,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const { mutate: deleteBankAccount } = useDeleteBankAccount();
   const [bankAccountId, setBankAccountId] = useState<number | null>(null);
 
@@ -40,8 +42,6 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleEdit = () => {
-    console.log(data.isActive);
-
     setBankAccountId(data.id!);
     setShowEditModal(true);
   };
@@ -80,6 +80,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         bankAccount={data}
       />
 
+      <InitialReconciliationModal
+        open={showReconciliationModal}
+        onOpenChange={setShowReconciliationModal}
+        bankAccount={data}
+      />
+
       <div className="flex gap-1">
         <TooltipProvider>
           <Tooltip>
@@ -109,6 +115,26 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </TooltipTrigger>
             <TooltipContent>
               <p>Editar</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowReconciliationModal(true)}
+                disabled={
+                  !data.openingEntryPosted || data.openingConciliationPosted
+                }
+              >
+                <Scale className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Conciliación Inicial</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
