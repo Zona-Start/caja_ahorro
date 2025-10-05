@@ -12,7 +12,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { AccountsPayableService } from '../accounts-payable/accounts-payable.service';
@@ -40,7 +40,9 @@ export class SupplierPaymentsService {
         description: schema.supplierPaymentLines.description,
       })
       .from(schema.supplierPaymentLines)
-      .where(eq(schema.supplierPaymentLines.accountsPayableId, accountsPayableId));
+      .where(
+        eq(schema.supplierPaymentLines.accountsPayableId, accountsPayableId),
+      );
 
     if (paymentLines.length === 0) {
       return [];
@@ -59,22 +61,6 @@ export class SupplierPaymentsService {
     }));
   }
 
-  async getAppliedTransactions(accountsPayableId: number) {
-    return this.db
-      .select()
-      .from(schema.supplierTransactions)
-      .where(
-        and(
-          eq(schema.supplierTransactions.accountsPayableId, accountsPayableId),
-          inArray(schema.supplierTransactions.transactionType, [
-            'CREDIT_NOTE_APPLIED',
-            'DEBIT_NOTE_APPLIED',
-            'ADVANCE_APPLIED',
-          ]),
-        ),
-      );
-  }
-
   async getSupplierAvailableCredits(id: number) {
     // 1. Get available advances from accountsPayable
     const advances = await this.db
@@ -90,15 +76,12 @@ export class SupplierPaymentsService {
           eq(schema.accountsPayable.supplierId, id),
           eq(schema.accountsPayable.isAuthorizePayment, true),
           ilike(schema.accountsPayable.accountsPayableNumber, 'ADV-P%'),
-          or(
-            eq(schema.accountsPayable.status, 'PAID'),
-            eq(schema.accountsPayable.status, 'ADVANCE_PARTIAL')
-          )
-        )
+          or(eq(schema.accountsPayable.status, 'PAID')),
+        ),
       );
 
     const advanceCredits = advances
-      .filter(a => Number(a.remainingAmount) > 0)
+      .filter((a) => Number(a.remainingAmount) > 0)
       .map((item) => ({
         amount: Number(item.remainingAmount),
         cxpId: item.id,
@@ -127,7 +110,7 @@ export class SupplierPaymentsService {
     const creditNotesResult: any[] = creditNotesQueryResult.rows;
 
     const creditNoteCredits = creditNotesResult
-      .map(cn => ({
+      .map((cn) => ({
         originalAmount: Number(cn.amount),
         appliedAmount: Number(cn.applied_amount || 0),
         cxpId: cn.id, // Note: This is the transaction ID
@@ -135,8 +118,8 @@ export class SupplierPaymentsService {
         origin: 'CREDIT_NOTE' as const,
         currencyCode: cn.currency_code,
       }))
-      .filter(cn => cn.originalAmount > cn.appliedAmount)
-      .map(cn => ({
+      .filter((cn) => cn.originalAmount > cn.appliedAmount)
+      .map((cn) => ({
         ...cn,
         amount: cn.originalAmount - cn.appliedAmount,
       }));
@@ -147,10 +130,16 @@ export class SupplierPaymentsService {
       return null;
     }
 
-    const totalAvailableCredit = allCredits.reduce((sum, item) => sum + item.amount, 0);
+    const totalAvailableCredit = allCredits.reduce(
+      (sum, item) => sum + item.amount,
+      0,
+    );
 
     // Assuming all credits for a supplier are in the same currency for simplicity
-    const [supplierInfo] = await this.db.select().from(schema.suppliers).where(eq(schema.suppliers.id, id));
+    const [supplierInfo] = await this.db
+      .select()
+      .from(schema.suppliers)
+      .where(eq(schema.suppliers.id, id));
 
     const response = [
       {
@@ -770,7 +759,7 @@ export class SupplierPaymentsService {
       );
 
       if (transactions.length) {
-        await tx.insert(schema.supplierTransactions).values(transactions);
+        //await tx.insert(schema.supplierTransactions).values(transactions);
       }
 
       // 4) Calcular y devolver updates llamando a updateBalances (no aplica estados complejos aquí)
@@ -1013,18 +1002,18 @@ export class SupplierPaymentsService {
         // 3. Create reversed supplier transactions and update related entities
         for (const line of paymentLines) {
           // a. Create reversed supplier transaction
-          await tx.insert(schema.supplierTransactions).values({
-            accountsPayableId: line.accountsPayableId,
-            transactionNumber: `REV-${payment[0].supplier_payments.paymentNumber}-${line.id}`,
-            transactionType: 'REVERSED',
-            transactionDate: new Date().toISOString(),
-            amount: line.amount,
-            direction: 'DR', // Debit to reverse the original credit
-            currencyCode: 'VES',
-            status: 'REVERSED',
-            paymentId: reversedPayment.id, // Link to the new reversed payment
-            createdById: userId,
-          });
+          // await tx.insert(schema.supplierTransactions).values({
+          //   accountsPayableId: line.accountsPayableId,
+          //   transactionNumber: `REV-${payment[0].supplier_payments.paymentNumber}-${line.id}`,
+          //   transactionType: 'REVERSED',
+          //   transactionDate: new Date().toISOString(),
+          //   amount: line.amount,
+          //   direction: 'DR', // Debit to reverse the original credit
+          //   currencyCode: 'VES',
+          //   status: 'REVERSED',
+          //   paymentId: reversedPayment.id, // Link to the new reversed payment
+          //   createdById: userId,
+          // });
 
           // b. Update accounts payable
           const accountPayable = await tx
@@ -1040,10 +1029,10 @@ export class SupplierPaymentsService {
             .where(
               and(
                 eq(schema.accountsPayable.id, line.accountsPayableId as number),
-                or(
-                  ne(schema.accountsPayable.status, 'ADVANCE'),
-                  ne(schema.accountsPayable.status, 'ADVANCE_APPLIED'),
-                ),
+                // or(
+                //   ne(schema.accountsPayable.status, 'ADVANCE'),
+                //   ne(schema.accountsPayable.status, 'ADVANCE_APPLIED'),
+                // ),
               ),
             );
 

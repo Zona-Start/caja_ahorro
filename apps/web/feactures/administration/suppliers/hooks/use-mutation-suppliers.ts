@@ -7,28 +7,40 @@ import {
   saveSupplierAction,
 } from '../actions/suppliers-actions';
 import { Supplier } from '../schemas/suppliers.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
-// Mutation hook remains the same
+/**
+ * Hook para la mutación (crear/actualizar) de proveedores
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useSupplierMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: Supplier) => saveSupplierAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supplier'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.suppliers.all() 
+      });
+      // Invalidar todos los detalles de proveedores
       queryClient.invalidateQueries({ queryKey: ['supplier-by-id'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-count'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-all'] });
-      toast.success('Proveedor guardada exitosamente');
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.suppliers.count() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.suppliers.listAll() 
+      });
+      toast.success('Proveedor guardado exitosamente');
     },
     onError: (error) => {
       if (error instanceof Error) {
         if (error.message.includes('Supplier with code')) {
           toast.error('Error, El proveedor con ese código ya existe');
         } else if (error.message.includes('Supplier with tax ID')) {
-          toast.error('Error, El proveedor con ese Rif ya existe');
+          toast.error('Error, El proveedor con ese RIF ya existe');
         } else {
-          toast.error('Error al crear el proveedor, contate al administrador');
+          toast.error('Error al crear el proveedor, contacte al administrador');
         }
       }
     },
@@ -37,16 +49,28 @@ export function useSupplierMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar un proveedor
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteSupplier() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => deleteSupplierAction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supplier'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.suppliers.all() 
+      });
+      // Invalidar todos los detalles de proveedores
       queryClient.invalidateQueries({ queryKey: ['supplier-by-id'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-count'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-all'] });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.suppliers.count() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.suppliers.listAll() 
+      });
       toast.success('Proveedor eliminado exitosamente');
     },
     onError: (error) => {
@@ -71,7 +95,7 @@ export function useDeleteSupplier() {
           );
         } else {
           toast.error(
-            'Error al eliminar el proveedor, contate al administrador',
+            'Error al eliminar el proveedor, contacte al administrador',
           );
         }
       }

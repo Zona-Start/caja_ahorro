@@ -7,17 +7,24 @@ import {
   savePurchaseOrderAction,
 } from '../actions/purchase-order-actions';
 import { PurchaseOrder } from '../schemas/purchase-order.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
-// Mutation hook remains the same
+/**
+ * Hook para la mutación (crear/actualizar) de órdenes de compra
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function usePurchaseOrderMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: PurchaseOrder) => savePurchaseOrderAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.purchaseOrders.all() 
+      });
+      // Invalidar todos los detalles de órdenes de compra
       queryClient.invalidateQueries({ queryKey: ['purchase-orders-by-id'] });
-      // queryClient.invalidateQueries({ queryKey: ['purchase-orders-count'] });
       toast.success('Orden de compra guardada exitosamente');
     },
     onError: (error) => {
@@ -36,15 +43,22 @@ export function usePurchaseOrderMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar una orden de compra
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeletePurchaseOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => deletePurchaseOrderAction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.purchaseOrders.all() 
+      });
+      // Invalidar todos los detalles de órdenes de compra
       queryClient.invalidateQueries({ queryKey: ['purchase-orders-by-id'] });
-      // queryClient.invalidateQueries({ queryKey: ['purchase-orders-count'] });
       toast.success('Orden de compra eliminada exitosamente');
     },
     onError: (error) => {

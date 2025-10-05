@@ -2,11 +2,14 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-
 import { createMassivePaymentAction } from '../actions/massive-payment.actions';
 import { CreateSupplierPaymentDto } from '../schemas/massive-payment.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
-//hook para pagos masivos
+/**
+ * Hook para procesar pagos masivos de proveedores
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useMassivePaymentMutation() {
   const queryClient = useQueryClient();
 
@@ -14,10 +17,15 @@ export function useMassivePaymentMutation() {
     mutationFn: (data: CreateSupplierPaymentDto[]) =>
       createMassivePaymentAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['payments-by-supplier'] });
-      queryClient.invalidateQueries({
-        queryKey: ['accounts-payable-advances'],
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.supplierPayments.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.advances() 
       });
       toast.success('Pagos masivos procesados exitosamente');
     },

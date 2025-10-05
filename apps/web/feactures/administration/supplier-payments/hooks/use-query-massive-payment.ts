@@ -1,16 +1,20 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import { getAccountsPayableBySuppliersAction } from '../actions';
+import { queryKeys } from '@/lib/queryKeys';
 
-// hook para consultar las cuentas por pagar
+/**
+ * Hook para consultar cuentas por pagar filtradas por proveedores específicos
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useAccountsPayableBySuppliers(
-  params: { supplierIds?: number[] } = {}, // <-- Cambiado de string a number[]
+  params: { supplierIds?: number[] } = {},
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['accounts-payable-by-suppliers', params],
+    queryKeys.accountsPayable.bySuppliers(params),
     () => getAccountsPayableBySuppliersAction(params),
     {
-      // La validación ahora comprueba si el array no está vacío
+      // Habilitado solo si hay proveedores seleccionados
       enabled: !!params.supplierIds?.length && (options?.enabled ?? true),
       ...options,
     },

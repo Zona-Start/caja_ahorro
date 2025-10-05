@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
+import { useSupplierAll } from '../../suppliers/hooks/use-query-suppliers';
 import { useAccountsPayable } from '../hooks';
 import { useCreditDebitNoteMutation } from '../hooks/use-mutation-credit-debit-note';
 import {
@@ -36,26 +37,28 @@ interface FormProps {
 export function CreditDebitNoteForm({ onSuccess, onCancel }: FormProps) {
   const { mutate: saveCreditDebitNote, isPending: isSaving } =
     useCreditDebitNoteMutation();
-  const { data: accountsPayable, isLoading: isLoadingAccountsPayable } =
-    useAccountsPayable({
-      status: 'PENDING,IN_PROGRESS,PAID,EXPIRED',
-    });
 
   const form = useForm<CreditDebitNote>({
     resolver: zodResolver(creditDebitNoteSchema),
     defaultValues: {
-      accountsPayableId: undefined,
       transactionType: 'CREDIT_NOTE',
       amount: 0,
-      reference: '',
+      reason: '',
       observations: '',
     },
     mode: 'onChange',
   });
 
-  const filteredAccountsPayable = accountsPayable?.data.filter(
-    (ap) => !ap.accountsPayableNumber.startsWith('ADV-P'),
-  );
+  const transactionType = form.watch('transactionType');
+  const supplierId = form.watch('supplierId');
+
+  const { data: accountsPayable, isLoading: isLoadingAccountsPayable } =
+    useAccountsPayable({
+      status: 'PENDING,IN_PROGRESS,PAID,EXPIRED',
+      supplierId: supplierId,
+    });
+
+  const { data: suppliers } = useSupplierAll();
 
   const onSubmit = async (data: CreditDebitNote) => {
     saveCreditDebitNote(data, {
@@ -86,27 +89,6 @@ export function CreditDebitNoteForm({ onSuccess, onCancel }: FormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="accountsPayableId"
-            render={({ field }) => (
-              <FormItem className="w-full">
-                <FormLabel>Cuenta por Pagar</FormLabel>
-                <SelectSearchable
-                  options={
-                    filteredAccountsPayable?.map((item: any) => ({
-                      value: item.id!.toString(),
-                      label: `${item.accountsPayableNumber} - ${item.supplierName}`,
-                    })) || []
-                  }
-                  onValueChange={(value) => field.onChange(Number(value))}
-                  placeholder="Selecciona una cuenta por pagar"
-                  defaultValue={field.value?.toString()}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="transactionType"
             render={({ field }) => (
               <FormItem>
@@ -131,6 +113,57 @@ export function CreditDebitNoteForm({ onSuccess, onCancel }: FormProps) {
           />
           <FormField
             control={form.control}
+            name="supplierId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Proveedor</FormLabel>
+                <SelectSearchable
+                  options={
+                    suppliers?.map((item) => ({
+                      value: item.id!.toString(),
+                      label: item.name,
+                    })) || []
+                  }
+                  onValueChange={(value) => {
+                    field.onChange(Number(value));
+                    form.resetField('accountsPayableId');
+                  }}
+                  placeholder="Selecciona un proveedor"
+                  defaultValue={field.value?.toString()}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="accountsPayableId"
+            render={({ field }) => (
+              <FormItem className="w-full">
+                <FormLabel>
+                  {transactionType === 'CREDIT_NOTE'
+                    ? 'Cuentas por pagar (opcional)'
+                    : 'Cuentas por pagar'}
+                </FormLabel>
+                <SelectSearchable
+                  disabled={!supplierId}
+                  options={
+                    accountsPayable?.data?.map((item: any) => ({
+                      value: item.id!.toString(),
+                      label: `${item.accountsPayableNumber} - ${item.supplierName}`,
+                    })) || []
+                  }
+                  onValueChange={(value) => field.onChange(Number(value))}
+                  placeholder="Selecciona una cuenta por pagar"
+                  defaultValue={field.value?.toString()}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="amount"
             render={({ field }) => (
               <FormItem>
@@ -146,13 +179,14 @@ export function CreditDebitNoteForm({ onSuccess, onCancel }: FormProps) {
               </FormItem>
             )}
           />
-
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
           <FormField
             control={form.control}
-            name="reference"
+            name="reason"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Concepto</FormLabel>
+                <FormLabel>Concepto o Motivo</FormLabel>
                 <FormControl>
                   <Input {...field} value={field.value ?? ''} />
                 </FormControl>

@@ -20,6 +20,11 @@ export class CreateAccountPayableDto {
   @IsNotEmpty()
   supplierId?: number;
 
+  @ApiProperty({ description: 'Company ID' })
+  @IsInt()
+  @IsNotEmpty()
+  companyId?: number;
+
   @ApiProperty({ description: 'Supplier Invoice ID' })
   @IsInt()
   @IsNotEmpty()
@@ -66,4 +71,9 @@ export class CreateAccountPayableDto {
   @Type(() => Date)
   @IsOptional()
   dueDate?: Date;
+
+  @ApiPropertyOptional({ description: 'Priority' })
+  @IsString()
+  @IsOptional()
+  priority?: string;
 }

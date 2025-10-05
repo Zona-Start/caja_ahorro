@@ -1,6 +1,11 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import { getAccountsPayableAction } from '../actions/accounts-payable-actions';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para obtener cuentas por pagar con parámetros avanzados
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useAccountsPayable(
   params: {
     page?: number;
@@ -13,10 +18,11 @@ export function useAccountsPayable(
   } = {},
   options?: { enabled?: boolean },
 ) {
-  return useSafeQuery(['accounts-payable', params], () =>
-    getAccountsPayableAction(params),
+  return useSafeQuery(
+    queryKeys.accountsPayable.all(params), 
+    () => getAccountsPayableAction(params),
     {
-        ...options,
+      ...options,
     }
   );
 }

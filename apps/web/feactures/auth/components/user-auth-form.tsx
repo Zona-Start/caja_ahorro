@@ -1,4 +1,5 @@
 'use client';
+import { toast } from '@/hooks/use-toast-system';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -15,14 +16,12 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
-
-import { toast, Toaster } from 'sonner';
+import { Toaster } from 'sonner';
 import { formSchema, UserFormValue } from '../schemas/login';
 
 export default function UserAuthForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const callbackUrl = searchParams.get('callbackUrl');
   const [loading, startTransition] = useTransition();
   const [error, SetError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -145,7 +144,7 @@ export default function UserAuthForm() {
               Ingresar
             </Button>
           </div>
-          <Toaster richColors />
+          <Toaster />
         </form>
       </Form>
       <div className="relative hidden bg-muted md:block border-muted border-2 rounded-lg overflow-hidden">

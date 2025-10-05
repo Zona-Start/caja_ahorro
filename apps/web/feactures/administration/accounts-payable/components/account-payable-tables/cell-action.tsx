@@ -35,8 +35,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data, dataApi }) => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const canBeAuthorized =
-    (data.status === 'PENDING' && data.isAuthorizePayment === false) ||
-    (data.status === 'ADVANCE' && data.isAuthorizePayment === false);
+    data.status === 'PENDING' && data.isAuthorizePayment === false;
   const canBeCancelled = data.status === 'PENDING' || data.status === 'EXPIRED';
 
   const onConfirmDelete = async () => {

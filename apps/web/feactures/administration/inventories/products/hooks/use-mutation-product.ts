@@ -2,15 +2,26 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { deleteProduct, saveProductAction } from '../actions/product-actions';
 import { Product } from '../schemas/product.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para la mutación (crear/actualizar) de productos
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useProductMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: Product) => saveProductAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['products-all'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.products.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.products.listAll() 
+      });
+      // Invalidar todos los detalles de productos
       queryClient.invalidateQueries({ queryKey: ['product'] });
       toast.success('Producto guardado exitosamente');
     },
@@ -23,13 +34,23 @@ export function useProductMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar un producto
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => deleteProduct(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['products-all'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.products.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.products.listAll() 
+      });
+      // Invalidar todos los detalles de productos
       queryClient.invalidateQueries({ queryKey: ['product'] });
       toast.success('Producto eliminado exitosamente');
     },

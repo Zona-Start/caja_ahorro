@@ -178,7 +178,7 @@ export const accountingConfiguration = accountingSchema.table(
     contraAccountId: integer('contra_account_id').references(
       () => accountPlan.id, //contra partida para ajustes
     ),
-    is_active: boolean('is_active').default(true),
+    isActive: boolean('is_active').default(true),
     ...timestamps,
   },
   (table) => ({

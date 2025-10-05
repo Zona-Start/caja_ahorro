@@ -6,7 +6,7 @@ import {
   accountPayableAllResponseSchema,
   accountPayableMutationResponseSchema,
   accountPayableResponseOneSchema,
-  supplierAdvanceMutationResponseSchema,
+  supplierMutationResponseSchema,
 } from '../schemas/account-payable-api.schema';
 import { AdvancePayment } from '../schemas/advance-payment.schema';
 import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
@@ -203,7 +203,7 @@ export const createAdvancePaymentAction = async (payload: AdvancePayment) => {
   };
 
   const [error, data] = await safeFetchApi(
-    supplierAdvanceMutationResponseSchema,
+    supplierMutationResponseSchema,
     '/administration/accounts-payable/advance',
     'POST',
     advancePaymentDto,

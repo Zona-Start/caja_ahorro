@@ -22,7 +22,7 @@ export const getPaymentHistoryAction = async (id: number) => {
 export const getAppliedTransactionsAction = async (id: number) => {
   const [error, response] = await safeFetchApi(
     appliedTransactionsResponseSchema,
-    `/administration/supplier-payments/applied-transactions/accounts-payable/${id}`,
+    `/administration/accounts-payable/applied-transactions/${id}`,
     'GET',
   );
 

@@ -29,5 +29,6 @@ export const appliedTransactionItemSchema = z.object({
 });
 
 export const appliedTransactionsResponseSchema = z.object({
+  message: z.string().optional(),
   data: z.array(appliedTransactionItemSchema).optional(),
 });

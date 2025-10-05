@@ -55,12 +55,19 @@ export const accountPayableResponseOneSchema = z.object({
 });
 
 //response mutation advance supplier
-export const supplierAdvanceMutationResponseSchema = z.object({
+export const supplierMutationResponseSchema = z.object({
   id: z.number(),
-  supplierId: z.number(),
-  totalAmount: z.string(),
+  transactionNumber: z.string(),
+  transactionType: z.string(),
+  transactionDate: z.string(),
+  amount: z.string(),
   currencyCode: z.string(),
   status: z.string(),
   observations: z.string().nullable(),
-  transactionDate: z.string(),
+  createdById: z.number(),
+});
+
+export const supplierMutationResponseApiSchema = z.object({
+  message: z.string(),
+  data: supplierMutationResponseSchema,
 });

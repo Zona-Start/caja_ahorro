@@ -10,20 +10,27 @@ import {
   cancelAccountingEntryAction,
 } from '../actions/accounting-entry-actions';
 import { AccountingEntry } from '../schemas/accounting-entry.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
-export const ACCOUNTING_ENTRIES_KEY = ['accounting_entries'];
-export const PAGINATED_ACCOUNTING_ENTRIES_KEY = ['paginated_accounting_entries'];
-
+/**
+ * Función helper para invalidar todas las queries relacionadas con asientos contables
+ * Utiliza la fábrica centralizada de claves para garantizar consistencia
+ */
 const invalidateQueries = (queryClient: any) => {
-  queryClient.invalidateQueries({ queryKey: ACCOUNTING_ENTRIES_KEY });
-  queryClient.invalidateQueries({ queryKey: PAGINATED_ACCOUNTING_ENTRIES_KEY });
+  queryClient.invalidateQueries({ queryKey: queryKeys.accountingEntries.all() });
+  queryClient.invalidateQueries({ queryKey: queryKeys.accountingEntries.paginated() });
 };
 
+/**
+ * Hook para la mutación (crear/actualizar) de asientos contables
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useAccountingEntryMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: AccountingEntry) => saveAccountingEntryAction(data),
     onSuccess: () => {
+      // ✅ Invalidación robusta usando helper centralizado
       invalidateQueries(queryClient);
       toast.success('Asiento contable guardado exitosamente');
     },
@@ -33,11 +40,16 @@ export function useAccountingEntryMutation() {
   });
 }
 
+/**
+ * Hook para eliminar un asiento contable
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteAccountingEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => deleteAccountingEntryAction(id),
     onSuccess: () => {
+      // ✅ Invalidación robusta usando helper centralizado
       invalidateQueries(queryClient);
       toast.success('Asiento contable eliminado exitosamente');
     },
@@ -47,11 +59,16 @@ export function useDeleteAccountingEntry() {
   });
 }
 
+/**
+ * Hook para enviar un asiento contable para aprobación
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useSubmitAccountingEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => submitAccountingEntryAction(id),
     onSuccess: () => {
+      // ✅ Invalidación robusta usando helper centralizado
       invalidateQueries(queryClient);
       toast.success('Asiento contable enviado para aprobación');
     },
@@ -61,11 +78,16 @@ export function useSubmitAccountingEntry() {
   });
 }
 
+/**
+ * Hook para contabilizar un asiento contable (postearlo al libro mayor)
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function usePostAccountingEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => postAccountingEntryAction(id),
     onSuccess: () => {
+      // ✅ Invalidación robusta usando helper centralizado
       invalidateQueries(queryClient);
       toast.success('Asiento contable contabilizado exitosamente');
     },
@@ -75,11 +97,16 @@ export function usePostAccountingEntry() {
   });
 }
 
+/**
+ * Hook para anular/cancelar un asiento contable
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useCancelAccountingEntry() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => cancelAccountingEntryAction(id),
     onSuccess: () => {
+      // ✅ Invalidación robusta usando helper centralizado
       invalidateQueries(queryClient);
       toast.success('Asiento contable anulado exitosamente');
     },

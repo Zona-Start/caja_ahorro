@@ -1,5 +1,5 @@
 {
-  "id": "5881924f-c8c4-4ba1-929b-966cff6b409e",
+  "id": "93037e5f-e00e-47c0-aed4-ab5718e608cc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -268,13 +268,19 @@
           "name": "debit_account_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "credit_account_id": {
           "name": "credit_account_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "contra_account_id": {
+          "name": "contra_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "is_active": {
           "name": "is_active",
@@ -373,6 +379,20 @@
             "id"
           ],
           "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "accounting_configuration_contra_account_id_account_plan_id_fk": {
+          "name": "accounting_configuration_contra_account_id_account_plan_id_fk",
+          "tableFrom": "accounting_configuration",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "contra_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "accounting_configuration_created_by_id_users_id_fk": {
@@ -1251,6 +1271,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "supplier_id": {
           "name": "supplier_id",
           "type": "integer",
@@ -1309,6 +1335,13 @@
           "notNull": true,
           "default": "'PENDING'"
         },
+        "priority": {
+          "name": "priority",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'NORMAL'"
+        },
         "is_authorize_payment": {
           "name": "is_authorize_payment",
           "type": "boolean",
@@ -1353,6 +1386,12 @@
           "name": "payable_invoice_uidx",
           "columns": [
             {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
               "expression": "supplier_invoice_id",
               "isExpression": false,
               "asc": true,
@@ -1381,6 +1420,20 @@
         }
       },
       "foreignKeys": {
+        "accounts_payable_company_id_company_id_fk": {
+          "name": "accounts_payable_company_id_company_id_fk",
+          "tableFrom": "accounts_payable",
+          "tableTo": "company",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "accounts_payable_supplier_id_suppliers_id_fk": {
           "name": "accounts_payable_supplier_id_suppliers_id_fk",
           "tableFrom": "accounts_payable",
@@ -3387,6 +3440,474 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "administration.supplier_advances": {
+      "name": "supplier_advances",
+      "schema": "administration",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "available_amount": {
+          "name": "available_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "is_authorize_payment": {
+          "name": "is_authorize_payment",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'PENDING'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_advances_transaction_id_supplier_transactions_id_fk": {
+          "name": "supplier_advances_transaction_id_supplier_transactions_id_fk",
+          "tableFrom": "supplier_advances",
+          "tableTo": "supplier_transactions",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_advances_supplier_id_suppliers_id_fk": {
+          "name": "supplier_advances_supplier_id_suppliers_id_fk",
+          "tableFrom": "supplier_advances",
+          "tableTo": "suppliers",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_advances_created_by_id_users_id_fk": {
+          "name": "supplier_advances_created_by_id_users_id_fk",
+          "tableFrom": "supplier_advances",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_advances_updated_by_id_users_id_fk": {
+          "name": "supplier_advances_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_advances",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "administration.supplier_credit_notes": {
+      "name": "supplier_credit_notes",
+      "schema": "administration",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accounts_payable_id": {
+          "name": "accounts_payable_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit_note_number": {
+          "name": "credit_note_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "available_amount": {
+          "name": "available_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_credit_notes_transaction_id_supplier_transactions_id_fk": {
+          "name": "supplier_credit_notes_transaction_id_supplier_transactions_id_fk",
+          "tableFrom": "supplier_credit_notes",
+          "tableTo": "supplier_transactions",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_credit_notes_supplier_id_suppliers_id_fk": {
+          "name": "supplier_credit_notes_supplier_id_suppliers_id_fk",
+          "tableFrom": "supplier_credit_notes",
+          "tableTo": "suppliers",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_credit_notes_accounts_payable_id_accounts_payable_id_fk": {
+          "name": "supplier_credit_notes_accounts_payable_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_credit_notes",
+          "tableTo": "accounts_payable",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "accounts_payable_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "supplier_credit_notes_created_by_id_users_id_fk": {
+          "name": "supplier_credit_notes_created_by_id_users_id_fk",
+          "tableFrom": "supplier_credit_notes",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_credit_notes_updated_by_id_users_id_fk": {
+          "name": "supplier_credit_notes_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_credit_notes",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "supplier_credit_notes_credit_note_number_unique": {
+          "name": "supplier_credit_notes_credit_note_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "credit_note_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "administration.supplier_debit_notes": {
+      "name": "supplier_debit_notes",
+      "schema": "administration",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accounts_payable_id": {
+          "name": "accounts_payable_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "debit_note_number": {
+          "name": "debit_note_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_debit_notes_transaction_id_supplier_transactions_id_fk": {
+          "name": "supplier_debit_notes_transaction_id_supplier_transactions_id_fk",
+          "tableFrom": "supplier_debit_notes",
+          "tableTo": "supplier_transactions",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_debit_notes_supplier_id_suppliers_id_fk": {
+          "name": "supplier_debit_notes_supplier_id_suppliers_id_fk",
+          "tableFrom": "supplier_debit_notes",
+          "tableTo": "suppliers",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "supplier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_debit_notes_accounts_payable_id_accounts_payable_id_fk": {
+          "name": "supplier_debit_notes_accounts_payable_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_debit_notes",
+          "tableTo": "accounts_payable",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "accounts_payable_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_debit_notes_created_by_id_users_id_fk": {
+          "name": "supplier_debit_notes_created_by_id_users_id_fk",
+          "tableFrom": "supplier_debit_notes",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_debit_notes_updated_by_id_users_id_fk": {
+          "name": "supplier_debit_notes_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_debit_notes",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "supplier_debit_notes_debit_note_number_unique": {
+          "name": "supplier_debit_notes_debit_note_number_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "debit_note_number"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "administration.supplier_invoice_items": {
       "name": "supplier_invoice_items",
       "schema": "administration",
@@ -3547,6 +4068,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "supplier_id": {
           "name": "supplier_id",
           "type": "integer",
@@ -3687,6 +4214,20 @@
         }
       },
       "foreignKeys": {
+        "supplier_invoices_company_id_company_id_fk": {
+          "name": "supplier_invoices_company_id_company_id_fk",
+          "tableFrom": "supplier_invoices",
+          "tableTo": "company",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "company_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "supplier_invoices_supplier_id_suppliers_id_fk": {
           "name": "supplier_invoices_supplier_id_suppliers_id_fk",
           "tableFrom": "supplier_invoices",
@@ -4101,6 +4642,79 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "administration.supplier_transaction_applications": {
+      "name": "supplier_transaction_applications",
+      "schema": "administration",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accounts_payable_id": {
+          "name": "accounts_payable_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "applied_amount": {
+          "name": "applied_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "application_date": {
+          "name": "application_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "supplier_transaction_applications_transaction_id_supplier_transactions_id_fk": {
+          "name": "supplier_transaction_applications_transaction_id_supplier_transactions_id_fk",
+          "tableFrom": "supplier_transaction_applications",
+          "tableTo": "supplier_transactions",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_transaction_applications_accounts_payable_id_accounts_payable_id_fk": {
+          "name": "supplier_transaction_applications_accounts_payable_id_accounts_payable_id_fk",
+          "tableFrom": "supplier_transaction_applications",
+          "tableTo": "accounts_payable",
+          "schemaTo": "administration",
+          "columnsFrom": [
+            "accounts_payable_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "administration.supplier_transactions": {
       "name": "supplier_transactions",
       "schema": "administration",
@@ -4111,17 +4725,17 @@
           "primaryKey": true,
           "notNull": true
         },
-        "accounts_payable_id": {
-          "name": "accounts_payable_id",
+        "company_id": {
+          "name": "company_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "related_advance_id": {
-          "name": "related_advance_id",
+        "supplier_id": {
+          "name": "supplier_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "transaction_number": {
           "name": "transaction_number",
@@ -4148,18 +4762,19 @@
           "primaryKey": false,
           "notNull": true
         },
-        "direction": {
-          "name": "direction",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
         "currency_code": {
           "name": "currency_code",
           "type": "currency_code_enum",
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ACTIVE'"
         },
         "payment_method": {
           "name": "payment_method",
@@ -4168,30 +4783,29 @@
           "primaryKey": false,
           "notNull": false
         },
-        "payment_id": {
-          "name": "payment_id",
+        "bank_account_id": {
+          "name": "bank_account_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "bank_movement_id": {
-          "name": "bank_movement_id",
-          "type": "integer",
+        "bank_reference": {
+          "name": "bank_reference",
+          "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
         },
-        "reference": {
-          "name": "reference",
-          "type": "varchar(255)",
+        "bank_transaction_date": {
+          "name": "bank_transaction_date",
+          "type": "date",
           "primaryKey": false,
           "notNull": false
         },
-        "status": {
-          "name": "status",
-          "type": "varchar",
+        "observations": {
+          "name": "observations",
+          "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "default": "'ACTIVE'"
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",
@@ -4219,15 +4833,37 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "st_tn_comp_uidx": {
+          "name": "st_tn_comp_uidx",
+          "columns": [
+            {
+              "expression": "company_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "transaction_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "supplier_transactions_accounts_payable_id_accounts_payable_id_fk": {
-          "name": "supplier_transactions_accounts_payable_id_accounts_payable_id_fk",
+        "supplier_transactions_company_id_company_id_fk": {
+          "name": "supplier_transactions_company_id_company_id_fk",
           "tableFrom": "supplier_transactions",
-          "tableTo": "accounts_payable",
-          "schemaTo": "administration",
+          "tableTo": "company",
+          "schemaTo": "core",
           "columnsFrom": [
-            "accounts_payable_id"
+            "company_id"
           ],
           "columnsTo": [
             "id"
@@ -4235,41 +4871,27 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "supplier_transactions_related_advance_id_accounts_payable_id_fk": {
-          "name": "supplier_transactions_related_advance_id_accounts_payable_id_fk",
+        "supplier_transactions_supplier_id_suppliers_id_fk": {
+          "name": "supplier_transactions_supplier_id_suppliers_id_fk",
           "tableFrom": "supplier_transactions",
-          "tableTo": "accounts_payable",
+          "tableTo": "suppliers",
           "schemaTo": "administration",
           "columnsFrom": [
-            "related_advance_id"
+            "supplier_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "supplier_transactions_payment_id_supplier_payments_id_fk": {
-          "name": "supplier_transactions_payment_id_supplier_payments_id_fk",
+        "supplier_transactions_bank_account_id_bank_accounts_id_fk": {
+          "name": "supplier_transactions_bank_account_id_bank_accounts_id_fk",
           "tableFrom": "supplier_transactions",
-          "tableTo": "supplier_payments",
-          "schemaTo": "administration",
-          "columnsFrom": [
-            "payment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "supplier_transactions_bank_movement_id_bank_transactions_id_fk": {
-          "name": "supplier_transactions_bank_movement_id_bank_transactions_id_fk",
-          "tableFrom": "supplier_transactions",
-          "tableTo": "bank_transactions",
+          "tableTo": "bank_accounts",
           "schemaTo": "banking",
           "columnsFrom": [
-            "bank_movement_id"
+            "bank_account_id"
           ],
           "columnsTo": [
             "id"
@@ -5329,6 +5951,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": true
+        },
+        "opening_entry_posted": {
+          "name": "opening_entry_posted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "opening_conciliation_posted": {
+          "name": "opening_conciliation_posted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "created_at": {
           "name": "created_at",
@@ -13077,6 +13713,11 @@
       "name": "bank_transaction_category",
       "schema": "public",
       "values": [
+        "OPENING_BANK",
+        "INITIAL_ADJUSTMENT_BANK",
+        "CLOSING",
+        "DEPOSIT",
+        "WITHDRAWAL",
         "MEMBER_DUES",
         "LOAN_DISABURSEMENT",
         "LOAN_PAYMENT",
@@ -13285,10 +13926,7 @@
         "IN_PROGRESS",
         "PAID",
         "CANCELLED",
-        "EXPIRED",
-        "ADVANCE",
-        "ADVANCE_PARTIAL",
-        "ADVANCE_APPLIED"
+        "EXPIRED"
       ]
     },
     "public.payment_batch_item_type": {
@@ -13457,11 +14095,7 @@
         "PAYMENT",
         "CREDIT_NOTE",
         "DEBIT_NOTE",
-        "ADVANCE",
-        "ADVANCE_APPLIED",
-        "CREDIT_NOTE_APPLIED",
-        "DEBIT_NOTE_APPLIED",
-        "REVERSED"
+        "ADVANCE"
       ]
     },
     "public.unit_of_measure": {
@@ -13509,10 +14143,16 @@
   "views": {
     "accounting.account_balance": {
       "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "account_plan_id": {
           "name": "account_plan_id",
-          "type": "serial",
-          "primaryKey": true,
+          "type": "integer",
+          "primaryKey": false,
           "notNull": true
         },
         "account_code": {
@@ -13552,8 +14192,71 @@
           "notNull": true
         }
       },
-      "definition": "\n  SELECT\n    ap.id                                     AS account_plan_id,\n    ap.code                                     AS account_code,\n    ap.name                                     AS account_name,\n    ae.currency_code                              AS currency_code,\n    COALESCE(SUM(aed.debit), 0)                  AS total_debit,\n    COALESCE(SUM(aed.credit), 0)                  AS total_credit,\n    COALESCE(SUM(aed.debit - aed.credit), 0)    AS balance\n  FROM \"accounting\".\"account_plan\" ap\n  LEFT JOIN \"accounting\".\"accounting_entry_details\" aed ON aed.account_plan_id = ap.id \n  LEFT JOIN \"accounting\".\"accounting_entries\" ae\n          ON ae.id = aed.accounting_entry_id -- CORRECCIÓN: Usar accounting_entry_id (Prevención de futuro error)\n        AND ae.status = 'POSTED' -- solo asientos validados\n  GROUP BY ap.id, ap.code, ap.name, ae.currency_code\n",
+      "definition": "\n  SELECT\n    ap.company_id AS tenant_id,\n    ap.id AS account_plan_id,\n    ap.code AS account_code,\n    ap.name AS account_name,\n    COALESCE(ae.currency_code, 'VES') AS currency_code,\n    COALESCE(SUM(aed.debit), 0) AS total_debit,\n    COALESCE(SUM(aed.credit), 0) AS total_credit,\n    CASE \n      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)\n      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)\n      ELSE 0\n    END AS balance\n  FROM \"accounting\".\"account_plan\" ap\n  LEFT JOIN \"accounting\".\"accounting_entry_details\" aed \n    ON aed.account_plan_id = ap.id\n  LEFT JOIN \"accounting\".\"accounting_entries\" ae\n    ON ae.id = aed.accounting_entry_id\n   AND ae.company_id  = ap.company_id \n   AND ae.status = 'POSTED'\n  GROUP BY ap.company_id, ap.id, ap.code, ap.name, ap.nature, COALESCE(ae.currency_code, 'VES')\n",
       "name": "account_balance",
+      "schema": "accounting",
+      "isExisting": false,
+      "materialized": false
+    },
+    "accounting.accounting_balance_by_bank": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_account_id": {
+          "name": "bank_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_debit": {
+          "name": "total_debit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_credit": {
+          "name": "total_credit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    ap.company_id AS tenant_id,\n    ba.id AS bank_account_id,\n    ap.id AS account_plan_id,\n    ap.code AS account_code,\n    ap.name AS account_name,\n    COALESCE(ae.currency_code, ba.currency_code) AS currency_code,\n    COALESCE(SUM(aed.debit), 0) AS total_debit,\n    COALESCE(SUM(aed.credit), 0) AS total_credit,\n    CASE \n      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)\n      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)\n      ELSE 0\n    END AS balance\n  FROM \"banking\".\"bank_accounts\" ba\n  INNER JOIN \"accounting\".\"account_plan\" ap ON ap.id = ba.linked_chart_account_id\n  LEFT JOIN \"accounting\".\"accounting_entry_details\" aed \n         ON aed.account_plan_id = ap.id\n  LEFT JOIN \"accounting\".\"accounting_entries\" ae\n         ON ae.id = aed.accounting_entry_id\n        AND ae.company_id = ap.company_id\n        AND ae.status = 'POSTED'\n  GROUP BY ap.company_id, ba.id, ap.id, ap.code, ap.name, ap.nature,\n           COALESCE(ae.currency_code, ba.currency_code)\n",
+      "name": "accounting_balance_by_bank",
       "schema": "accounting",
       "isExisting": false,
       "materialized": false
@@ -13657,6 +14360,63 @@
       "definition": "\n  SELECT\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\",\n      -- Saldo total de haberes (la suma y resta de todos los movimientos que componen el haber)\n      SUM(\n          CASE\n              -- Movimientos que SUMAN al Haber Patrimonial (Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum,\n                  'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_CREDIT'::public.associate_movement_type_enum,\n                  'DIVIDEND_CREDIT'::public.associate_movement_type_enum,\n                  'FEE_REIMBURSEMENT_CREDIT'::public.associate_movement_type_enum,\n                  'LOAN_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT'::public.associate_movement_type_enum,\n                  'SAVING_WITHDRAWAL_REVERSAL_CREDIT'::associate_movement_type_enum,\n                  'LIQUIDATION_BALANCE_REVERSAL_CREDIT'::associate_movement_type_enum,\n                  'ACCOUNTING_ADJUSTMENT_CREDIT'::associate_movement_type_enum,\n                  'OTHER_CREDIT'::associate_movement_type_enum\n              ]) THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              -- Movimientos que RESTAN del Haber Patrimonial (Reducciones del Capital Propio)\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = ANY (ARRAY[\n                  'SAVING_WITHDRAWAL'::public.associate_movement_type_enum,\n                  'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum,\n                  'ADJUSTMENT_DEBIT'::public.associate_movement_type_enum,\n                  'FEE_CORRECTION_DEBIT'::public.associate_movement_type_enum,\n                  'PAYMENT_REVERSAL_DEBIT'::associate_movement_type_enum, -- Aunque es \"PAYMENT\", podría ser una reversión de pago de algo no crediticio\n                  'ADMIN_FEE_DEBIT'::associate_movement_type_enum,\n                  'OTHER_DEBIT'::associate_movement_type_enum,\n                  'FEE_DEBIT'::associate_movement_type_enum,\n                  'LIQUIDATION_BALANCE'::associate_movement_type_enum,\n                  'ACCOUNTING_ADJUSTMENT_DEBIT'::associate_movement_type_enum\n              ]) THEN -\"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ) AS haberes_balance,\n      MAX(\"savings_banks\".\"associate_account_movements\".\"transaction_date\") AS last_movement_date,\n\n      -- --- Columnas de desglose ---\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_contribution,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'VOLUNTARY_SAVINGS'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_voluntary,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'EMPLOYER_CONTRIBUTION'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS haberes_employer,\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'DIVIDEND_CREDIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS surpluses,\n      -- Nueva columna para la suma de todos los retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'SAVING_WITHDRAWAL'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawals,\n      -- Nueva columna para la suma de todos los gastos administrativos por retiros\n      COALESCE(SUM(\n          CASE\n              WHEN \"savings_banks\".\"associate_account_movements\".\"movement_type\" = 'WITHDRAWAL_FEE_DEBIT'::public.associate_movement_type_enum THEN \"savings_banks\".\"associate_account_movements\".\"amount\"\n              ELSE 0\n          END\n      ), 0) AS total_withdrawal_fees\n  FROM\n      \"savings_banks\".\"associate_account_movements\"\n  GROUP BY\n      \"savings_banks\".\"associate_account_movements\".\"associate_account_id\"\n",
       "name": "associate_haberes_balance",
       "schema": "savings_banks",
+      "isExisting": false,
+      "materialized": false
+    },
+    "banking.bank_statement_balance": {
+      "columns": {
+        "bank_account_id": {
+          "name": "bank_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_credits": {
+          "name": "total_credits",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_debits": {
+          "name": "total_debits",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_statement_balance": {
+          "name": "current_statement_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_transaction_date": {
+          "name": "last_transaction_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT \n    ba.id AS bank_account_id,\n    ba.account_number,\n    ba.account_name,\n    ba.currency_code,\n    COALESCE(SUM(bt.credit_amount), 0) AS total_credits,\n    COALESCE(SUM(bt.debit_amount), 0)  AS total_debits,\n    COALESCE(SUM(bt.credit_amount - bt.debit_amount), 0) AS current_statement_balance,\n    MAX(bt.transaction_date) AS last_transaction_date\n  FROM \"banking\".\"bank_accounts\" ba\n  LEFT JOIN \"banking\".\"bank_transactions\" bt \n         ON bt.bank_account_id = ba.id\n  GROUP BY ba.id, ba.account_number, ba.account_name, ba.currency_code\n",
+      "name": "bank_statement_balance",
+      "schema": "banking",
       "isExisting": false,
       "materialized": false
     },

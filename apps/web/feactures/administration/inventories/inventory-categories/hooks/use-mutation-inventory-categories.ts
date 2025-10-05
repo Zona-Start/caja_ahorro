@@ -5,7 +5,12 @@ import {
   saveInventoryCategoryAction,
 } from '../actions/inventory-categories-actions';
 import { InventoryCategory } from '../schemas/inventory-category.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para la mutación (crear/actualizar) de categorías de inventario
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useInventoryCategoryMutation() {
   const queryClient = useQueryClient();
 
@@ -13,9 +18,12 @@ export function useInventoryCategoryMutation() {
     mutationFn: (data: InventoryCategory) =>
       saveInventoryCategoryAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory-categories'] });
-      queryClient.invalidateQueries({
-        queryKey: ['inventory-categories-all'],
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.inventoryCategories.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.inventoryCategories.listAll() 
       });
       toast.success('Categoria de Inventario guardada exitosamente');
     },
@@ -28,14 +36,21 @@ export function useInventoryCategoryMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar una categoría de inventario
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteInventoryCategory() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => deleteInventoryCategory(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory-categories'] });
-      queryClient.invalidateQueries({
-        queryKey: ['inventory-categories-all'],
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.inventoryCategories.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.inventoryCategories.listAll() 
       });
       toast.success('Categoria eliminada exitosamente');
     },

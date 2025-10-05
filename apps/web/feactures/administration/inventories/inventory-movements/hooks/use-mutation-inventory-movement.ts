@@ -4,15 +4,23 @@ import {
   deleteInventoryMovement,
   saveInventoryMovementAction,
 } from '../actions/inventory-movement-actions';
-import { CreateInventoryMovement } from '../schemas/inventory-movement.schema'; // Changed import
+import { CreateInventoryMovement } from '../schemas/inventory-movement.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para la mutación (crear/actualizar) de movimientos de inventario
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useInventoryMovementMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: CreateInventoryMovement) => saveInventoryMovementAction(data), // Changed data type
+    mutationFn: (data: CreateInventoryMovement) => saveInventoryMovementAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.inventoryMovements.all() 
+      });
       toast.success('Movimiento de inventario guardado exitosamente');
     },
     onError: (error) => {
@@ -24,12 +32,19 @@ export function useInventoryMovementMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar un movimiento de inventario
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteInventoryMovement() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => deleteInventoryMovement(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory-movements'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.inventoryMovements.all() 
+      });
       toast.success('Movimiento de inventario eliminado exitosamente');
     },
     onError: (error) => {

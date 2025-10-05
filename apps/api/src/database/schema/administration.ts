@@ -32,7 +32,7 @@ import {
 
 import { relations } from 'drizzle-orm';
 import { accountPlan } from './accounting';
-import { bankAccounts, bankTransactions } from './banking';
+import { bankAccounts } from './banking';
 import { administrationSchema, inventorySchema } from './schemas';
 
 // tabla proveedores
@@ -119,6 +119,11 @@ export const supplierInvoices = administrationSchema.table(
   'supplier_invoices',
   {
     id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, {
+        onDelete: 'cascade',
+      }),
     supplierId: integer('supplier_id')
       .notNull()
       .references(() => suppliers.id),
@@ -191,6 +196,11 @@ export const accountsPayable = administrationSchema.table(
   'accounts_payable',
   {
     id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, {
+        onDelete: 'cascade',
+      }),
     supplierId: integer('supplier_id').references(() => suppliers.id, {
       onDelete: 'cascade',
     }),
@@ -215,6 +225,7 @@ export const accountsPayable = administrationSchema.table(
     dueDate: date('due_date'),
     currencyCode: currencyCodeEnum('currency_code').notNull(),
     status: paymentAccountsPayableEnum('status').notNull().default('PENDING'),
+    priority: varchar('priority', { length: 20 }).default('NORMAL'),
     isAuthorizePayment: boolean('is_authorize_payment').default(false),
     observations: text('observations'),
     // Referencia al asiento contable (entrada_contables) si se registra al recibir la factura.
@@ -224,10 +235,91 @@ export const accountsPayable = administrationSchema.table(
   },
   (table) => ({
     payableInvoiceUnique: uniqueIndex('payable_invoice_uidx').on(
+      table.companyId,
       table.supplierInvoiceId,
     ), // Factura única por proveedor y compañía
     payableStatusIdx: index('ap_status_idx').on(table.status),
   }),
+);
+
+export const supplierAdvances = administrationSchema.table(
+  'supplier_advances',
+  {
+    id: serial('id').primaryKey(),
+    transactionId: integer('transaction_id')
+      .notNull()
+      .references(() => supplierTransactions.id, { onDelete: 'cascade' }),
+    supplierId: integer('supplier_id')
+      .notNull()
+      .references(() => suppliers.id, { onDelete: 'cascade' }),
+    amount: numeric('amount', {
+      precision: 18,
+      scale: 2,
+    }).default('0.00'),
+    availableAmount: numeric('available_amount', {
+      precision: 18,
+      scale: 2,
+    }).default('0.00'),
+    isAuthorizePayment: boolean('is_authorize_payment').default(false),
+    statusPayment: varchar('status', {
+      enum: ['PENDING', 'PAID'],
+    }).default('PENDING'),
+    ...timestamps,
+  },
+);
+
+export const supplierCreditNotes = administrationSchema.table(
+  'supplier_credit_notes',
+  {
+    id: serial('id').primaryKey(),
+    transactionId: integer('transaction_id')
+      .notNull()
+      .references(() => supplierTransactions.id, { onDelete: 'cascade' }),
+    supplierId: integer('supplier_id')
+      .notNull()
+      .references(() => suppliers.id, { onDelete: 'cascade' }),
+    accountsPayableId: integer('accounts_payable_id').references(
+      () => accountsPayable.id,
+    ),
+    creditNoteNumber: varchar('credit_note_number', { length: 50 })
+      .notNull()
+      .unique(),
+    reason: text('reason'),
+    amount: numeric('amount', {
+      precision: 18,
+      scale: 2,
+    }).default('0.00'),
+    availableAmount: numeric('available_amount', {
+      precision: 18,
+      scale: 2,
+    }).default('0.00'),
+    ...timestamps,
+  },
+);
+
+export const supplierDebitNotes = administrationSchema.table(
+  'supplier_debit_notes',
+  {
+    id: serial('id').primaryKey(),
+    transactionId: integer('transaction_id')
+      .notNull()
+      .references(() => supplierTransactions.id, { onDelete: 'cascade' }),
+    supplierId: integer('supplier_id')
+      .notNull()
+      .references(() => suppliers.id, { onDelete: 'cascade' }),
+    accountsPayableId: integer('accounts_payable_id')
+      .notNull()
+      .references(() => accountsPayable.id, { onDelete: 'cascade' }),
+    debitNoteNumber: varchar('debit_note_number', { length: 50 })
+      .notNull()
+      .unique(),
+    reason: text('reason'),
+    amount: numeric('amount', {
+      precision: 18,
+      scale: 2,
+    }).default('0.00'),
+    ...timestamps,
+  },
 );
 
 export const supplierPayments = administrationSchema.table(
@@ -270,70 +362,78 @@ export const supplierPaymentLines = administrationSchema.table(
     supplierPaymentId: integer('supplier_payment_id')
       .notNull()
       .references(() => supplierPayments.id, { onDelete: 'cascade' }),
-
     // puede apuntar a una CxP o ser un anticipo:
     accountsPayableId: integer('accounts_payable_id').references(
       () => accountsPayable.id,
       { onDelete: 'cascade' },
     ),
-
     relatedAdvanceId: integer('related_advance_id').references(
       () => accountsPayable.id,
       { onDelete: 'set null' },
     ),
-
     amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo
     description: varchar('description', { length: 255 }),
-
     ...timestamps,
   },
 );
 
-// Tabla genérica que cubre pagos, NC, ND y anticipos contra cuentas por pagar
 export const supplierTransactions = administrationSchema.table(
   'supplier_transactions',
   {
     id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, { onDelete: 'cascade' }),
+    supplierId: integer('supplier_id')
+      .notNull()
+      .references(() => suppliers.id, { onDelete: 'cascade' }),
 
-    // 1) Obligatorio para NC/ND/Pagos, NULL para anticipos “sueltos”
-    accountsPayableId: integer('accounts_payable_id').references(
-      () => accountsPayable.id,
-      { onDelete: 'cascade' },
-    ),
-    relatedAdvanceId: integer('related_advance_id').references(
-      () => accountsPayable.id,
-      { onDelete: 'set null' },
-    ),
-
-    // 2) Número único → generado con tu servicio PAG-P-2025-…
     transactionNumber: varchar('transaction_number', { length: 50 })
       .notNull()
       .unique(),
-
-    // 3) Tipo
     transactionType: supplierTransactionsTypeEnum('transaction_type').notNull(), // PAYMENT | CREDIT_NOTE | DEBIT_NOTE | ADVANCE
-
-    // 4) Fecha y valor absoluto
     transactionDate: date('transaction_date').notNull(),
     amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo
-    direction: varchar('direction', { enum: ['DR', 'CR'] }).notNull(), // DR = carga al proveedor, CR = pago/abono
-
     currencyCode: currencyCodeEnum('currency_code').notNull(),
-
-    // 5) Sólo si es pago o anticipo
-    paymentMethod: paymentMethodEnum('payment_method'),
-    paymentId: integer('payment_id').references(() => supplierPayments.id, {
-      onDelete: 'set null',
-    }), // si es pago o anticipo
-    bankMovementId: integer('bank_movement_id').references(
-      () => bankTransactions.id,
-    ), // para conciliar
-
-    reference: varchar('reference', { length: 255 }), // cheque, transferencia, nro-NC, etc.
-    status: varchar('status', { enum: ['ACTIVE', 'REVERSED'] })
+    status: varchar('status', {
+      enum: ['ACTIVE', 'PARTIALLY_APPLIED', 'APPLIED', 'REVERSED'],
+    })
       .notNull()
       .default('ACTIVE'),
 
+    // Campos específicos para PAGOS/ANTICIPOS (siempre NULL para NC/ND)
+    paymentMethod: paymentMethodEnum('payment_method'),
+    bankAccountId: integer('bank_account_id').references(() => bankAccounts.id),
+    bankReference: varchar('bank_reference', { length: 100 }),
+    bankTransactionDate: date('bank_transaction_date'),
+
+    observations: text('observations'),
+    ...timestamps,
+  },
+  (table) => ({
+    // Índice único compuesto para el número de transacción (CRUCIAL)
+    transactionNumberUnique: uniqueIndex('st_tn_comp_uidx').on(
+      table.companyId,
+      table.transactionNumber,
+    ),
+  }),
+);
+
+export const supplierTransactionApplications = administrationSchema.table(
+  'supplier_transaction_applications',
+  {
+    id: serial('id').primaryKey(),
+    transactionId: integer('transaction_id')
+      .notNull()
+      .references(() => supplierTransactions.id, { onDelete: 'cascade' }),
+    accountsPayableId: integer('accounts_payable_id')
+      .notNull()
+      .references(() => accountsPayable.id, { onDelete: 'cascade' }),
+    appliedAmount: numeric('applied_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    applicationDate: date('application_date').defaultNow(),
     ...timestamps,
   },
 );

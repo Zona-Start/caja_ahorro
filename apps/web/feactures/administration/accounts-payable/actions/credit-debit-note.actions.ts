@@ -1,13 +1,13 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import { revalidatePath } from 'next/cache';
-import { accountPayableMutationResponseSchema } from '../schemas';
+import { supplierMutationResponseApiSchema } from '../schemas';
 import { CreditDebitNote } from '../schemas/credit-debit-note.schema';
 
 // action para crear notas de credito o debito a cuenta por pagar
 export const createCreditDebitNoteAction = async (payload: CreditDebitNote) => {
   const [error, data] = await safeFetchApi(
-    accountPayableMutationResponseSchema,
+    supplierMutationResponseApiSchema,
     '/administration/accounts-payable/transaction/credit-debit-note',
     'POST',
     payload,

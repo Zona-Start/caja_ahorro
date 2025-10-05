@@ -14,6 +14,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { differenceInDays } from 'date-fns';
 import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -53,6 +54,15 @@ export class SupplierInvoicesService {
   async create(userId: number, dto: CreateSupplierInvoiceDto) {
     const { status } = dto;
 
+    const supplier = await this.drizzle
+      .select()
+      .from(suppliers)
+      .where(eq(suppliers.id, dto.supplierId));
+
+    if (supplier.length === 0) {
+      throw new NotFoundException('Supplier not found');
+    }
+
     if (status !== 'DRAFT' && status !== 'PENDING') {
       throw new BadRequestException(
         `Invalid status for creation: ${status}. Only 'DRAFT' or 'PENDING' are allowed.`,
@@ -64,6 +74,7 @@ export class SupplierInvoicesService {
         .insert(supplierInvoices)
         .values({
           ...dto,
+          companyId: dto.companyId ?? Number(supplier[0].companyId),
           status: dto.status,
           subtotal: dto.subtotal.toString(),
           taxAmount: dto.taxAmount?.toString(),
@@ -662,6 +673,15 @@ export class SupplierInvoicesService {
       .where(eq(schema.accountsPayable.id, cxpId));
   }
 
+  private isOverdue(dueDate: string | null): boolean {
+    if (!dueDate) return false;
+    const date = new Date(dueDate);
+    const now = new Date();
+    date.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+    return differenceInDays(date, now) < 0;
+  }
+
   private async handlePaymentAndAccountsPayable(
     userId: number,
     invoiceId: number,
@@ -672,50 +692,11 @@ export class SupplierInvoicesService {
     let remainingAmount = dto.totalAmount;
     let paidAmount = 0;
 
-    // if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
-    //   const totalApplied = dto.draftAppliedCredits.reduce(
-    //     (sum, credit) => sum + credit.amount,
-    //     0,
-    //   );
-
-    //   if (totalApplied > dto.totalAmount) {
-    //     throw new BadRequestException(
-    //       'Total applied from credits cannot exceed the invoice total amount.',
-    //     );
-    //   }
-
-    //   remainingAmount -= totalApplied;
-    //   paidAmount += totalApplied;
-
-    //   for (const credit of dto.draftAppliedCredits) {
-    //     try {
-    //       if (credit.origin === 'ADVANCE') {
-    //         await this.accountsPayableService.applyAdvance(
-    //           credit.cxpId,
-    //           credit.amount,
-    //           userId,
-    //           tx,
-    //         );
-    //       } else if (credit.origin === 'CREDIT_NOTE') {
-    //         await this.applyCreditNote(credit.cxpId, credit.amount, userId, tx);
-    //       } else {
-    //         throw new BadRequestException(
-    //           `Invalid credit origin: "${credit.origin}"`,
-    //         );
-    //       }
-    //     } catch (error) {
-    //       console.error(
-    //         `Error processing credit with cxpId: ${credit.cxpId} and origin: ${credit.origin}`,
-    //         error,
-    //       );
-    //     }
-    //   }
-    // }
-
     const invoiceAP = await this.accountsPayableService.create(
       userId,
       {
         supplierId: dto.supplierId,
+        companyId: dto.companyId,
         supplierInvoiceId: invoiceId,
         originalAmount: dto.totalAmount,
         paidAmount: paidAmount,
@@ -723,48 +704,17 @@ export class SupplierInvoicesService {
         currencyCode: 'VES',
         status: remainingAmount <= 0 ? 'PAID' : 'PENDING',
         dueDate: dto.dueDate || new Date(),
-        observations: `CUENTA POR PAGAR POR FACTURA  N° ${invoiceReference}`,
+        priority: this.isOverdue(
+          dto.dueDate // 1. Verifica si existe dto.dueDate
+            ? dto.dueDate.toDateString() // 2. SI existe, llama al método y pasa el string
+            : null, // 3. SI NO existe, pasa null
+        )
+          ? 'HIGH'
+          : 'NORMAL',
+        observations: `CUENTA POR PAGAR POR FACTURA N° ${invoiceReference}`,
       },
       tx,
     );
-
-    // Create transactions for applied credits
-    // if (dto.draftAppliedCredits && dto.draftAppliedCredits.length > 0) {
-    //   for (const credit of dto.draftAppliedCredits) {
-    //     const result = await this.supplierTransactionsService.findOne(
-    //       credit.cxpId,
-    //     );
-    //     const transactionCode =
-    //       await this.generateCodeService.generateNextReference('TRS-P', tx);
-
-    //     const isAdvance = credit.origin === 'ADVANCE';
-
-    //     await this.supplierTransactionsService.create(
-    //       {
-    //         accountsPayableId: invoiceAP.id,
-    //         relatedAdvanceId: credit.cxpId,
-    //         transactionNumber: transactionCode,
-    //         transactionType: isAdvance
-    //           ? 'ADVANCE_APPLIED'
-    //           : 'CREDIT_NOTE_APPLIED',
-    //         transactionDate: new Date(),
-    //         amount: credit.amount,
-    //         direction: 'CR',
-    //         currencyCode: 'VES',
-    //         reference: isAdvance
-    //           ? `APLICACION DE ANTICIPO A FACTURA N° ${dto.invoiceNumber}`
-    //           : `APLICACION DE NOTA DE CREDITO A FACTURA N° ${dto.invoiceNumber}`,
-    //         paymentMethod: result.supplier_transactions
-    //           .paymentMethod as paymentMethodEnum,
-    //         bankMovementId: result.supplier_transactions
-    //           .bankMovementId as number,
-    //         paymentId: result.supplier_transactions.paymentId as number,
-    //         createdById: userId,
-    //       },
-    //       tx,
-    //     );
-    //   }
-    // }
 
     return invoiceAP;
   }
@@ -980,6 +930,15 @@ export class SupplierInvoicesService {
         );
       }
 
+      const accountsPayableRecord = await tx
+        .select()
+        .from(schema.accountsPayable)
+        .where(eq(schema.accountsPayable.supplierInvoiceId, id));
+
+      const accountsPayableId = accountsPayableRecord.length
+        ? accountsPayableRecord[0].id
+        : null;
+
       // 1. Validate for associated payments
       const associatedPayments = await tx
         .select()
@@ -1012,30 +971,28 @@ export class SupplierInvoicesService {
       }
 
       // 1. Validate for associated credit notes (supplierTransactions)
-      const associatedCreditNotes = await tx
+      const appliedCreditNotes = await tx
         .select()
-        .from(schema.supplierTransactions)
+        .from(schema.supplierTransactionApplications)
         .leftJoin(
-          schema.accountsPayable,
+          schema.supplierTransactions,
           eq(
-            schema.supplierTransactions.accountsPayableId,
-            schema.accountsPayable.id,
+            schema.supplierTransactions.id,
+            schema.supplierTransactionApplications.transactionId,
           ),
         )
         .where(
           and(
-            eq(schema.accountsPayable.supplierInvoiceId, id),
-            or(
-              eq(schema.supplierTransactions.transactionType, 'CREDIT_NOTE'),
-              eq(
-                schema.supplierTransactions.transactionType,
-                'CREDIT_NOTE_APPLIED',
-              ),
+            eq(
+              schema.supplierTransactionApplications.accountsPayableId,
+              accountsPayableId ?? 0,
             ),
+            eq(schema.supplierTransactions.transactionType, 'CREDIT_NOTE'),
+            eq(schema.supplierTransactions.status, 'ACTIVE'),
           ),
         );
 
-      if (associatedCreditNotes.length > 0) {
+      if (appliedCreditNotes.length > 0) {
         throw new BadRequestException(
           'Cannot cancel invoice: associated credit notes exist.',
         );

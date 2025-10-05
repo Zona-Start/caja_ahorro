@@ -68,6 +68,11 @@ export class CreateSupplierInvoiceDto {
   @IsNotEmpty()
   supplierId: number;
 
+  @ApiProperty({ description: 'Company ID' })
+  @IsInt()
+  @IsOptional()
+  companyId?: number;
+
   @ApiPropertyOptional({ description: 'Purchase Order ID' })
   @IsInt()
   @IsOptional()

@@ -4,19 +4,29 @@ import {
   getSupplierInvoiceByIdAction,
   getSupplierInvoicesAction,
 } from '../actions/supplier-invoice-actions';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para obtener facturas de proveedor con parámetros de paginación/filtros
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useSupplierInvoices(params = {}) {
-  return useSafeQuery(['supplier-invoices', params], () =>
-    getSupplierInvoicesAction(params),
+  return useSafeQuery(
+    queryKeys.supplierInvoices.all(params), 
+    () => getSupplierInvoicesAction(params)
   );
 }
 
+/**
+ * Hook para obtener una factura de proveedor específica por ID
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useSupplierInvoiceById(
   id: number,
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['supplier-invoice', id],
+    queryKeys.supplierInvoices.detail(id),
     () => getSupplierInvoiceByIdAction(id),
     {
       enabled: id ? options?.enabled : false,
@@ -25,12 +35,16 @@ export function useSupplierInvoiceById(
   );
 }
 
+/**
+ * Hook para obtener facturas de proveedor por proveedor específico
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useSupplierInvoicesBySupplier(
   supplierId: number | undefined,
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['supplier-invoices-by-supplier', supplierId],
+    queryKeys.supplierInvoices.bySupplier(supplierId),
     () => getSupplierInvoicesAction({ supplierId, status: 'OPEN' }),
     {
       enabled: supplierId ? options?.enabled : false,
@@ -39,9 +53,13 @@ export function useSupplierInvoicesBySupplier(
   );
 }
 
+/**
+ * Hook para obtener facturas de proveedor en borrador/pendientes
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useSupplierInvoicesDraftPending(enabled?: boolean) {
   return useSafeQuery(
-    ['supplier-invoices-draft-pending'],
+    queryKeys.supplierInvoices.draftPending(),
     () => getInvoicesDraftPendingAction(),
     {
       enabled: enabled ? true : false,

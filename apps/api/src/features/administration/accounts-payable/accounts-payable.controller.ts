@@ -23,38 +23,6 @@ import { FilterAccountPayableDto } from './dto/filter-account-payable.dto';
 export class AccountsPayableController {
   constructor(private readonly services: AccountsPayableService) {}
 
-  // endpoint para crear una nota de credito/debito a cuenta por pagar
-  @Post('/transaction/credit-debit-note')
-  @Roles('admin')
-  @RequirePermissions('create:account-payable')
-  @ApiOperation({ summary: 'Create a new credit/debit note' })
-  @ApiResponse({
-    status: 201,
-    description: 'Transaction created successfully.',
-  })
-  async createCreditDebitNote(
-    @Req() req: Request,
-    @Body() dto: CreateSupplierTransactionDto,
-  ) {
-    const userId = req['user'].id;
-    const data = await this.services.createCreditDebitNote(userId, dto);
-    return { message: 'Transaction created successfully', data };
-  }
-
-  // @Post()
-  // @Roles('admin')
-  // @RequirePermissions('create:account-payable')
-  // @ApiOperation({ summary: 'Create a new account payable' })
-  // @ApiResponse({
-  //   status: 201,
-  //   description: 'Account payable created successfully.',
-  // })
-  // async create(@Req() req: Request, @Body() dto: CreateAccountPayableDto) {
-  //   const userId = req['user'].id;
-  //   const data = await this.services.create(userId, dto);
-  //   return { message: 'Account payable created successfully', data };
-  // }
-
   // CONSULTAS LAS CUENTAS POR PAGAR
   @Get('/paginated')
   @Roles('admin')
@@ -105,18 +73,18 @@ export class AccountsPayableController {
   //   return new StreamableFile(pdfBuffer);
   // }
 
-  //VERFICIAR SI HACE FALTA SI NO ELIMINAR
-  // @Get(':id/preloaded-payment')
-  // @Roles('admin')
-  // @RequirePermissions('read:account-payable') // O el permiso que corresponda
-  // @ApiOperation({
-  //   summary: 'Get preloaded payment data for an account payable',
-  // })
-  // @ApiResponse({ status: 200, description: 'Return preloaded payment data.' })
-  // async getPreloadedPaymentData(@Param('id') id: string) {
-  //   const data = await this.services.getPreloadedPaymentData(+id);
-  //   return { message: 'Preloaded data fetched successfully', data };
-  // }
+  @Get('/applied-transactions/:id')
+  @Roles('admin')
+  @RequirePermissions('read:supplier-payment')
+  @ApiOperation({ summary: 'Get applied transactions for an accounts payable' })
+  @ApiResponse({ status: 200, description: 'Return applied transactions.' })
+  async getAppliedTransactions(@Param('id') id: string) {
+    const result = await this.services.getAppliedTransactions(+id);
+    return {
+      message: 'Applied transactions fetched successfully',
+      data: result,
+    };
+  }
 
   @Get(':id')
   @Roles('admin')
@@ -128,25 +96,6 @@ export class AccountsPayableController {
     const data = await this.services.findOne(+id);
     return { message: 'Account payable fetched successfully', data };
   }
-
-  // @Patch(':id')
-  // @Roles('admin')
-  // @RequirePermissions('update:account-payable')
-  // @ApiOperation({ summary: 'Update an account payable' })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'Account payable updated successfully.',
-  // })
-  // @ApiResponse({ status: 404, description: 'Account payable not found.' })
-  // async update(
-  //   @Req() req: Request,
-  //   @Param('id') id: string,
-  //   @Body() dto: UpdateAccountPayableDto,
-  // ) {
-  //   const userId = req['user'].id;
-  //   const data = await this.services.update(userId, +id, dto);
-  //   return { message: 'Account payable updated successfully', data };
-  // }
 
   // endpoint para autorizar una cuenta por pagar
   @Patch('/authorize/:id')
@@ -175,6 +124,24 @@ export class AccountsPayableController {
       createAdvanceSupplierDto,
       userId,
     );
+  }
+
+  // endpoint para crear una nota de credito/debito a cuenta por pagar
+  @Post('/transaction/credit-debit-note')
+  @Roles('admin')
+  @RequirePermissions('create:account-payable')
+  @ApiOperation({ summary: 'Create a new credit/debit note' })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction created successfully.',
+  })
+  async createCreditDebitNote(
+    @Req() req: Request,
+    @Body() dto: CreateSupplierTransactionDto,
+  ) {
+    const userId = req['user'].id;
+    const data = await this.services.createCreditDebitNote(userId, dto);
+    return { message: 'Transaction created successfully', data };
   }
 
   @Delete(':id')

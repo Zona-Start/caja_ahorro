@@ -1,24 +1,29 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import {
-  getInventoryMovements, // Keep this for now
+  getInventoryMovements,
 } from '../actions/inventory-movement-actions';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para obtener movimientos de inventario con parámetros de filtros
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useInventoryMovements(
   params: {
-    // Added type for params
     page?: number;
     limit?: number;
     search?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-    itemId?: number; // Changed from productId
-    itemType?: string; // Changed from productId
+    itemId?: number;
+    itemType?: string;
     movementType?: string;
     documentType?: string;
     documentNumber?: string;
   } = {},
 ) {
-  return useSafeQuery(['inventory-movements', params], () =>
-    getInventoryMovements(params),
+  return useSafeQuery(
+    queryKeys.inventoryMovements.all(params), 
+    () => getInventoryMovements(params)
   );
 }

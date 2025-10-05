@@ -4,21 +4,37 @@ import {
   getInventoryCategories,
   getInventoryCategoryById,
 } from '../actions/inventory-categories-actions';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para obtener categorías de inventario con parámetros de paginación/filtros
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useInventoryCategories(params = {}) {
-  return useSafeQuery(['inventory-categories', params], () =>
-    getInventoryCategories(params),
+  return useSafeQuery(
+    queryKeys.inventoryCategories.all(params), 
+    () => getInventoryCategories(params)
   );
 }
 
+/**
+ * Hook para obtener todas las categorías de inventario por grupo
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useInventoryCategoriesAll(group: string) {
-  return useSafeQuery(['inventory-categories-all', group], () =>
-    getAllInventoryCategories(group),
+  return useSafeQuery(
+    queryKeys.inventoryCategories.listAll(group), 
+    () => getAllInventoryCategories(group)
   );
 }
 
+/**
+ * Hook para obtener una categoría de inventario específica por ID
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useInventoryCategoryById(id: number) {
-  return useSafeQuery(['inventory-category', id], () =>
-    getInventoryCategoryById(id),
+  return useSafeQuery(
+    queryKeys.inventoryCategories.detail(id), 
+    () => getInventoryCategoryById(id)
   );
 }

@@ -1,7 +1,11 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import { getSupplierPaymentsAction } from '../actions/supplier-payment-actions';
+import { queryKeys } from '@/lib/queryKeys';
 
-// hook para buscar los pagos realizados
+/**
+ * Hook para buscar/consultar los pagos realizados a proveedores
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useSupplierPayments(
   params: {
     page?: number;
@@ -14,7 +18,7 @@ export function useSupplierPayments(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['payments-by-supplier', params],
+    queryKeys.supplierPayments.all(params),
     () => getSupplierPaymentsAction(params),
     {
       enabled: !!params.status?.length && (options?.enabled ?? true),

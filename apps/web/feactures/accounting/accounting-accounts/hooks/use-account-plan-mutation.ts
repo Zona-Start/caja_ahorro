@@ -7,20 +7,25 @@ import {
   saveAccountPlanAction,
 } from '../actions/account-plan-actions';
 import { AccountPlan } from '../schemas/account-plan.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
-export const ACCOUNTING_ACCOUNTS_KEY = ['accounting_accounts'];
-export const PAGINATED_ACCOUNTS_KEY = ['paginated_accounts'];
-
-
-// Mutation hook remains the same
+/**
+ * Hook para la mutación (crear/actualizar) de planes de cuentas
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useAccountPlanMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: AccountPlan) => saveAccountPlanAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNTING_ACCOUNTS_KEY });
-      queryClient.invalidateQueries({ queryKey: PAGINATED_ACCOUNTS_KEY });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountingAccounts.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountingAccounts.paginated() 
+      });
       toast.success('Cuenta contable guardada exitosamente');
     },
     onError: (error) => {
@@ -32,14 +37,23 @@ export function useAccountPlanMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar un plan de cuenta
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteAccountPlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => deleteAccountPlanAction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNTING_ACCOUNTS_KEY });
-      queryClient.invalidateQueries({ queryKey: PAGINATED_ACCOUNTS_KEY });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountingAccounts.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountingAccounts.paginated() 
+      });
       toast.success('Cuenta contable eliminada exitosamente');
     },
     onError: (error) => {

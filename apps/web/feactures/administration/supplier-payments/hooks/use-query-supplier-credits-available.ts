@@ -1,13 +1,17 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import { supplierAvailableCreditAction } from '../actions/supplier-credtis-available';
+import { queryKeys } from '@/lib/queryKeys';
 
-//hook para consultar los creditos disponibles de un proveedor
+/**
+ * Hook para consultar los créditos/anticipos disponibles de un proveedor
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useSupplierAvailableCredit(
   supplierId: number | undefined,
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['accounts-payable-advances', supplierId],
+    queryKeys.accountsPayable.advances(supplierId),
     () => supplierAvailableCreditAction(supplierId as number),
     {
       enabled: !!supplierId && (options?.enabled ?? true),

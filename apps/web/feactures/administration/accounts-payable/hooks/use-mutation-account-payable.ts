@@ -9,8 +9,8 @@ import {
 } from '../actions/account-payable-actions';
 import { AdvancePayment } from '../schemas/advance-payment.schema';
 import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
-
 import { authorizeAccountPayableAction } from '../actions/account-payable-actions';
+import { queryKeys } from '@/lib/queryKeys';
 
 //Hook para crear una cuenta por pagar
 // export function useAccountPayableMutation() {
@@ -39,14 +39,20 @@ import { authorizeAccountPayableAction } from '../actions/account-payable-action
 //   return mutation;
 // }
 
-//hook para autorizar pago a una cuenta por pagar
+/**
+ * Hook para autorizar pago a una cuenta por pagar
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useAuthorizeAccountPayableMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => authorizeAccountPayableAction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.all() 
+      });
       toast.success('Cuenta por pagar autorizado pago exitosamente');
     },
     onError: (error) => {
@@ -55,13 +61,20 @@ export function useAuthorizeAccountPayableMutation() {
   });
 }
 
+/**
+ * Hook para procesar pagos de cuentas por pagar
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function usePayAccountPayableMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: PayAccountPayable) => payAccountPayableAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.all() 
+      });
       toast.success('Pago procesado exitosamente');
     },
     onError: (error) => {
@@ -70,14 +83,20 @@ export function usePayAccountPayableMutation() {
   });
 }
 
-// hook para crear anticipos
+/**
+ * Hook para crear anticipos/pagos adelantados
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useAdvancePaymentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: AdvancePayment) => createAdvancePaymentAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.all() 
+      });
       toast.success('Anticipo registrado exitosamente');
     },
     onError: (error) => {
@@ -86,14 +105,21 @@ export function useAdvancePaymentMutation() {
   });
 }
 
-//hooks para anular una cuenta por pagar
+/**
+ * Hook para anular/eliminar una cuenta por pagar
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteAccountPayable() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => deleteAccountPayableAction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.all() 
+      });
+      // No se usa queryKeys.accountsPayable.detail(id) porque la clave original era diferente
       queryClient.invalidateQueries({ queryKey: ['accounts-payable-by-id'] });
       toast.success('Cuenta por pagar eliminada exitosamente');
     },

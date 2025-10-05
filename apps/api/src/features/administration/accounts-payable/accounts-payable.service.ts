@@ -1,8 +1,12 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import {
   accountsPayable,
+  supplierAdvances,
+  supplierCreditNotes,
+  supplierDebitNotes,
   supplierInvoices,
   suppliers,
+  supplierTransactionApplications,
   supplierTransactions,
 } from '@/database/schema/administration';
 import { paymentAccountsPayableEnum } from '@/types/enum';
@@ -28,78 +32,30 @@ export class AccountsPayableService {
     private readonly generateCodeService: GenerateCodeService,
   ) {}
 
-  //metodo apra crear notas debito o credito
-  async createCreditDebitNote(
-    userId: number,
-    dto: CreateSupplierTransactionDto,
-    tx?: NodePgDatabase<typeof schema>,
-  ) {
-    const db = tx ?? this.drizzle;
-
-    const accountPayable = await db.query.accountsPayable.findFirst({
-      where: eq(accountsPayable.id, dto.accountsPayableId),
-    });
-
-    if (!accountPayable) {
-      throw new NotFoundException('Account payable not found');
-    }
-
-    const direction = dto.transactionType === 'CREDIT_NOTE' ? 'CR' : 'DR';
-    const amount =
-      dto.transactionType === 'CREDIT_NOTE'
-        ? -Math.abs(dto.amount)
-        : Math.abs(dto.amount);
-
-    const newTransaction = await db
-      .insert(supplierTransactions)
-      .values({
-        accountsPayableId: dto.accountsPayableId,
-        transactionNumber:
-          await this.generateCodeService.generateNextReference('TRS-P'),
-        transactionType: dto.transactionType,
-        transactionDate: new Date().toISOString(),
-        amount: dto.amount.toString(),
-        direction: direction,
-        currencyCode: accountPayable.currencyCode ?? 'VES',
-        reference: dto.reference,
-        createdById: userId,
-      })
-      .returning();
-
-    const currentRemainingAmount = parseFloat(accountPayable.remainingAmount);
-    const newRemainingAmount = currentRemainingAmount + amount;
-
-    let status = accountPayable.status;
-
-    if (newRemainingAmount < 0) {
-      status = 'PENDING';
-    } else if (newRemainingAmount === 0) {
-      status = 'PAID';
-    } else {
-      if (status === 'PAID') {
-        status = 'IN_PROGRESS';
-      }
-    }
-
-    await db
-      .update(accountsPayable)
-      .set({
-        remainingAmount: newRemainingAmount.toString(),
-        status: status,
-        updatedById: userId,
-      })
-      .where(eq(accountsPayable.id, dto.accountsPayableId));
-
-    return newTransaction[0];
-  }
-
-  //metodo para crear una cuenta por pagar
+  //metodo para crear una cuenta por pagar se utiliza principalmente al contabilizar una factura de proveedor
   async create(
     userId: number,
     data: CreateAccountPayableDto,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.drizzle;
+
+    const supplier = await db
+      .select()
+      .from(suppliers)
+      .where(
+        and(
+          eq(suppliers.id, Number(data.supplierId)),
+          eq(suppliers.status, 'ACTIVE'),
+        ),
+      );
+
+    if (supplier.length === 0) {
+      throw new BadRequestException(
+        'Supplier is not active or does not exist.',
+      );
+    }
+
     const exist = await db.query.accountsPayable.findFirst({
       where: eq(accountsPayable.supplierInvoiceId, data.supplierInvoiceId),
     });
@@ -114,6 +70,7 @@ export class AccountsPayableService {
       .insert(accountsPayable)
       .values({
         ...data,
+        companyId: Number(supplier[0].companyId),
         currencyCode: data.currencyCode || 'VES',
         accountsPayableNumber:
           await this.generateCodeService.generateNextReference('CXP'),
@@ -124,6 +81,8 @@ export class AccountsPayableService {
         createdById: userId,
       })
       .returning();
+
+    console.log('newAccountPayable', newAccountPayable);
 
     return newAccountPayable[0];
   }
@@ -281,31 +240,6 @@ export class AccountsPayableService {
     return data[0];
   }
 
-  // async update(userId: number, id: number, data: UpdateAccountPayableDto) {
-  //   const exist = await this.drizzle.query.accountsPayable.findFirst({
-  //     where: eq(accountsPayable.id, id),
-  //   });
-
-  //   if (!exist) {
-  //     throw new NotFoundException('Account payable not found');
-  //   }
-
-  //   const updatedAccountPayable = await this.drizzle
-  //     .update(accountsPayable)
-  //     .set({
-  //       ...data,
-  //       originalAmount: data.originalAmount?.toString(),
-  //       paidAmount: data.paidAmount?.toString(),
-  //       remainingAmount: data.remainingAmount?.toString(),
-  //       dueDate: data.dueDate?.toISOString() || null,
-  //       updatedById: userId,
-  //     })
-  //     .where(eq(accountsPayable.id, id))
-  //     .returning();
-
-  //   return updatedAccountPayable[0];
-  // }
-
   //meotod para autorizar el pago de una cuenta por pagar
   async autorize(userId: number, id: number) {
     const exist = await this.drizzle.query.accountsPayable.findFirst({
@@ -316,137 +250,191 @@ export class AccountsPayableService {
       throw new NotFoundException('Account payable not found');
     }
 
-    if (exist.status === 'PENDING') {
-      await this.drizzle
-        .update(accountsPayable)
-        .set({
-          isAuthorizePayment: true,
-          updatedById: userId,
-        })
-        .where(eq(accountsPayable.id, id));
-    } else if (exist.status === 'ADVANCE') {
-      await this.drizzle
-        .update(accountsPayable)
-        .set({
-          isAuthorizePayment: true,
-          updatedById: userId,
-        })
-        .where(eq(accountsPayable.id, id));
+    if (exist.status !== 'PENDING') {
+      throw new BadRequestException(
+        'The account payable is already authorized for payment',
+      );
     }
+    await this.drizzle
+      .update(accountsPayable)
+      .set({
+        isAuthorizePayment: true,
+        updatedById: userId,
+      })
+      .where(eq(accountsPayable.id, id));
   }
 
   //metodo para crear anticipos
   async createAdvanceSupplier(dto: CreateAdvanceSupplierDto, userId: number) {
+    const supplier = await this.drizzle
+      .select()
+      .from(suppliers)
+      .where(
+        and(eq(suppliers.id, dto.supplierId), eq(suppliers.status, 'ACTIVE')),
+      );
+    if (supplier.length === 0) {
+      throw new NotFoundException('Supplier not found');
+    }
+
     return this.drizzle.transaction(async (tx) => {
-      // 1. Crear la cuenta por pagar con saldo negativo y estado ADVANCE
-      const accountsPayableNumber =
+      const supplierAdvanceNumber =
         await this.generateCodeService.generateNextReference('ADV-P', tx);
-      const [newAccountPayable] = await tx
-        .insert(schema.accountsPayable)
+
+      const [newSupplierTransaction] = await tx
+        .insert(supplierTransactions)
         .values({
+          companyId: Number(supplier[0].companyId),
           supplierId: dto.supplierId,
-          accountsPayableNumber: accountsPayableNumber,
-          originalAmount: (dto.amount * -1).toString(), // Saldo negativo
-          paidAmount: '0.00',
-          remainingAmount: (dto.amount * -1).toString(), // Saldo negativo
+          transactionNumber: supplierAdvanceNumber,
+          transactionType: 'ADVANCE',
+          transactionDate: new Date().toISOString(),
+          amount: dto.amount.toString(),
           currencyCode: 'VES',
-          status: paymentAccountsPayableEnum.ADVANCE,
-          observations:
-            dto.observations ?? `ANTICIPO A PROVEEDOR ${accountsPayableNumber}`,
+          status: 'ACTIVE',
+          observations: dto.observations ?? `ANTICIPO A PROVEEDOR`,
           createdById: userId,
-          dueDate: null, // Fecha actual para anticipos
         })
         .returning({
-          id: schema.accountsPayable.id,
-          supplierId: schema.accountsPayable.supplierId,
-          totalAmount: schema.accountsPayable.remainingAmount,
-          currencyCode: schema.accountsPayable.currencyCode,
-          status: schema.accountsPayable.status,
-          observations: schema.accountsPayable.observations,
-          transactionDate: schema.accountsPayable.createdAt,
-          isAuthorizePayment: schema.accountsPayable.isAuthorizePayment,
+          id: schema.supplierTransactions.id,
+          transactionNumber: schema.supplierTransactions.transactionNumber,
+          transactionType: schema.supplierTransactions.transactionType,
+          transactionDate: schema.supplierTransactions.transactionDate,
+          amount: schema.supplierTransactions.amount,
+          currencyCode: schema.supplierTransactions.currencyCode,
+          status: schema.supplierTransactions.status,
+          observations: schema.supplierTransactions.observations,
+          createdById: schema.supplierTransactions.createdById,
         });
 
-      return newAccountPayable;
+      await tx
+        .insert(supplierAdvances)
+        .values({
+          transactionId: newSupplierTransaction.id,
+          supplierId: dto.supplierId,
+          amount: dto.amount.toString(),
+          availableAmount: dto.amount.toString(),
+          createdById: userId,
+        })
+        .returning({
+          id: schema.supplierAdvances.id,
+          transactionId: schema.supplierAdvances.transactionId,
+          supplierId: schema.supplierAdvances.supplierId,
+          amount: schema.supplierAdvances.amount,
+          availableAmount: schema.supplierAdvances.availableAmount,
+          createdById: schema.supplierAdvances.createdById,
+        });
+
+      return newSupplierTransaction;
     });
   }
 
-  // async generateAccountPayableReport(id: number): Promise<Buffer> {
-  //   const accountPayable = await this.drizzle.query.accountsPayable.findFirst({
-  //     where: eq(accountsPayable.id, id),
-  //     with: {
-  //       supplierInvoice: {
-  //         with: {
-  //           supplier: true,
-  //         },
-  //       },
-  //     },
-  //   });
+  //metodo apra crear notas debito o credito
+  async createCreditDebitNote(
+    userId: number,
+    dto: CreateSupplierTransactionDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
 
-  //   if (!accountPayable) {
-  //     throw new NotFoundException('Account payable not found');
-  //   }
+    const supplier = await this.drizzle
+      .select()
+      .from(suppliers)
+      .where(
+        and(eq(suppliers.id, dto.supplierId), eq(suppliers.status, 'ACTIVE')),
+      );
+    if (supplier.length === 0) {
+      throw new NotFoundException('Supplier not found');
+    }
 
-  //   const docDefinition = {
-  //     content: [
-  //       { text: 'Reporte de Cuenta por Pagar', style: 'header' },
-  //       { text: `Número de Referencia: ${accountPayable.accountsPayableNumber}` },
-  //       { text: `Factura de Proveedor: ${accountPayable.supplierInvoice?.invoiceNumber || 'N/A'}` },
-  //       { text: `Proveedor: ${accountPayable.supplierInvoice?.supplier?.name || 'N/A'}` },
-  //       { text: `Monto Original: ${accountPayable.originalAmount} ${accountPayable.currencyCode}` },
-  //       { text: `Monto Pagado: ${accountPayable.paidAmount} ${accountPayable.currencyCode}` },
-  //       { text: `Monto Restante: ${accountPayable.remainingAmount} ${accountPayable.currencyCode}` },
-  //       { text: `Estatus: ${accountPayable.status}` },
-  //       { text: `Fecha de Vencimiento: ${accountPayable.dueDate ? new Date(accountPayable.dueDate).toLocaleDateString() : 'N/A'}` },
-  //       { text: `Observaciones: ${accountPayable.observations || 'N/A'}` },
-  //     ],
-  //     styles: {
-  //       header: {
-  //         fontSize: 18,
-  //         bold: true,
-  //         margin: [0, 0, 0, 10],
-  //       },
-  //     },
-  //   };
+    return db.transaction(async (tx) => {
+      const typeReference =
+        dto.transactionType === 'CREDIT_NOTE' ? 'NC-P' : 'ND-P';
+      const referenceNumber =
+        await this.generateCodeService.generateNextReference(typeReference, tx);
 
-  //   return this.pdfGeneratorService.generatePdf(docDefinition);
-  // }
+      const [newSupplierTransaction] = await tx
+        .insert(supplierTransactions)
+        .values({
+          companyId: Number(supplier[0].companyId),
+          supplierId: dto.supplierId,
+          transactionNumber: referenceNumber,
+          transactionType:
+            dto.transactionType === 'CREDIT_NOTE'
+              ? 'CREDIT_NOTE'
+              : 'DEBIT_NOTE',
+          transactionDate: new Date().toISOString(),
+          amount: dto.amount.toString(),
+          currencyCode: 'VES',
+          status: 'ACTIVE',
+          observations:
+            (dto.observations ?? dto.transactionType === 'CREDIT_NOTE')
+              ? `NOTA DE CRÉDITO A PROVEEDOR`
+              : `NOTA DE DÉDITO A PROVEEDOR`,
+          createdById: userId,
+        })
+        .returning({
+          id: schema.supplierTransactions.id,
+          transactionNumber: schema.supplierTransactions.transactionNumber,
+          transactionType: schema.supplierTransactions.transactionType,
+          transactionDate: schema.supplierTransactions.transactionDate,
+          amount: schema.supplierTransactions.amount,
+          currencyCode: schema.supplierTransactions.currencyCode,
+          status: schema.supplierTransactions.status,
+          observations: schema.supplierTransactions.observations,
+          createdById: schema.supplierTransactions.createdById,
+        });
 
-  //VERFICIAR SI HACE FALTA SI NO ELIMINAR
-  // async getPreloadedPaymentData(id: number) {
-  //   const [result] = await this.drizzle
-  //     .select({
-  //       supplierId: schema.supplierInvoices.supplierId,
-  //       chargePayment: schema.supplierInvoices.chargePayment,
-  //       bankAccountId: schema.supplierInvoices.bankAccountId,
-  //       paymentDescription: schema.supplierInvoices.paymentDescription,
-  //       paymentMethod: schema.supplierInvoices.paymentMethod,
-  //       bankReference: schema.supplierInvoices.paymentBankReference,
-  //       transactionDate: schema.supplierInvoices.transactionDate,
-  //       amount: accountsPayable.remainingAmount, // Precargar el monto restante
-  //     })
-  //     .from(accountsPayable)
-  //     .leftJoin(
-  //       schema.supplierInvoices,
-  //       eq(accountsPayable.supplierInvoiceId, schema.supplierInvoices.id),
-  //     )
-  //     .where(eq(accountsPayable.id, id));
+      if (dto.transactionType === 'CREDIT_NOTE') {
+        await tx.insert(supplierCreditNotes).values({
+          transactionId: newSupplierTransaction.id,
+          supplierId: dto.supplierId,
+          accountsPayableId: dto.accountsPayableId || null,
+          creditNoteNumber: referenceNumber,
+          reason: dto.reason,
+          amount: dto.amount.toString(),
+          availableAmount: dto.amount.toString(),
+          createdById: userId,
+        });
+      } else if (
+        dto.transactionType === 'DEBIT_NOTE' &&
+        dto.accountsPayableId
+      ) {
+        const accountPayable = await db
+          .select()
+          .from(accountsPayable)
+          .where(eq(accountsPayable.id, Number(dto.accountsPayableId)));
 
-  //   if (!result.chargePayment) {
-  //     return null; // No hay datos que precargar
-  //   }
+        await tx.insert(supplierDebitNotes).values({
+          transactionId: newSupplierTransaction.id,
+          supplierId: dto.supplierId,
+          accountsPayableId: Number(dto.accountsPayableId),
+          debitNoteNumber: referenceNumber,
+          reason: dto.reason,
+          amount: dto.amount.toString(),
+          createdById: userId,
+        });
 
-  //   return {
-  //     supplierId: result.supplierId,
-  //     bankAccountId: result.bankAccountId,
-  //     paymentDescription: result.paymentDescription,
-  //     paymentMethod: result.paymentMethod,
-  //     bankReference: result.bankReference,
-  //     transactionDate: result.transactionDate,
-  //     amount: result.amount, // Precargar el monto restante
-  //   };
-  // }
+        await tx.insert(supplierTransactionApplications).values({
+          transactionId: newSupplierTransaction.id,
+          accountsPayableId: Number(dto.accountsPayableId),
+          appliedAmount: dto.amount.toString(),
+          applicationDate: new Date().toISOString(),
+          createdById: userId,
+        });
 
+        const sum =
+          Number(accountPayable[0].remainingAmount) + Number(dto.amount);
+
+        await tx.update(accountsPayable).set({
+          remainingAmount: sum.toString(),
+          updatedById: userId,
+        });
+      }
+      return newSupplierTransaction;
+    });
+  }
+
+  ///revisar quien la usa
   async updateBalances(
     data: {
       accountsPayableId: number | null;
@@ -628,51 +616,52 @@ export class AccountsPayableService {
     return updates;
   }
 
-  async applyAdvance(
-    advanceId: number,
-    amountToApply: number,
-    userId: number,
-    tx?: NodePgDatabase<typeof schema>,
-  ) {
-    const db = tx || this.drizzle;
+  // async applyAdvance(
+  //   advanceId: number,
+  //   amountToApply: number,
+  //   userId: number,
+  //   tx?: NodePgDatabase<typeof schema>,
+  // ) {
+  //   const db = tx || this.drizzle;
 
-    const advance = await db.query.accountsPayable.findFirst({
-      where: eq(accountsPayable.id, advanceId),
-    });
+  //   const advance = await db.query.accountsPayable.findFirst({
+  //     where: eq(accountsPayable.id, advanceId),
+  //   });
 
-    if (!advance) {
-      throw new NotFoundException(`Advance with ID ${advanceId} not found`);
-    }
+  //   if (!advance) {
+  //     throw new NotFoundException(`Advance with ID ${advanceId} not found`);
+  //   }
 
-    if (advance.status !== 'ADVANCE') {
-      throw new BadRequestException(
-        `Account payable ${advanceId} is not an advance.`,
-      );
-    }
+  //   if (advance.status !== 'ADVANCE') {
+  //     throw new BadRequestException(
+  //       `Account payable ${advanceId} is not an advance.`,
+  //     );
+  //   }
 
-    const remainingAmount = Number(advance.remainingAmount);
-    // Los anticipos tienen remainingAmount negativo. Aplicar un monto lo acerca a 0.
-    const newRemainingAmount = remainingAmount + amountToApply;
+  //   const remainingAmount = Number(advance.remainingAmount);
+  //   // Los anticipos tienen remainingAmount negativo. Aplicar un monto lo acerca a 0.
+  //   const newRemainingAmount = remainingAmount + amountToApply;
 
-    if (newRemainingAmount > 0) {
-      throw new BadRequestException(
-        `Amount to apply (${amountToApply}) exceeds the remaining advance amount (${-remainingAmount}).`,
-      );
-    }
+  //   if (newRemainingAmount > 0) {
+  //     throw new BadRequestException(
+  //       `Amount to apply (${amountToApply}) exceeds the remaining advance amount (${-remainingAmount}).`,
+  //     );
+  //   }
 
-    const newStatus = newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE';
+  //   const newStatus = newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE';
 
-    await db
-      .update(accountsPayable)
-      .set({
-        remainingAmount: newRemainingAmount.toString(),
-        paidAmount: '0.00',
-        status: newStatus,
-        updatedById: userId,
-      })
-      .where(eq(accountsPayable.id, advanceId));
-  }
+  //   await db
+  //     .update(accountsPayable)
+  //     .set({
+  //       remainingAmount: newRemainingAmount.toString(),
+  //       paidAmount: '0.00',
+  //       status: newStatus,
+  //       updatedById: userId,
+  //     })
+  //     .where(eq(accountsPayable.id, advanceId));
+  // }
 
+  ///revisar quien la usa
   async findAccountsPayableBySuppliers(supplierIds: number[]) {
     //REVISAR QUIEN LO USA
     // Manejar el caso de un arreglo vacío
@@ -720,7 +709,6 @@ export class AccountsPayableService {
 
     // La validación de "not found" no es necesaria aquí, ya que devolver un arreglo vacío es el comportamiento esperado si no se encuentran resultados.
     // La lógica para lanzar un error debe manejarse en un nivel superior si es un caso de uso específico.
-    console.log(data);
 
     return data;
   }
@@ -744,19 +732,12 @@ export class AccountsPayableService {
 
       const associatedTransactions = await tx
         .select()
-        .from(supplierTransactions)
-        .where(
-          and(
-            eq(supplierTransactions.accountsPayableId, id),
-            // Assuming "active" means not cancelled/reversed.
-            // If supplierTransactions has a status field, it should be checked here.
-            // For now, just checking for existence.
-          ),
-        );
+        .from(supplierTransactionApplications)
+        .where(eq(supplierTransactionApplications.accountsPayableId, id));
 
       if (associatedTransactions.length > 0) {
         throw new BadRequestException(
-          'La CxP tiene pagos o transacciones activas.',
+          'La CxP tiene pagos o transacciones aplicadas.',
         );
       }
 
@@ -789,4 +770,39 @@ export class AccountsPayableService {
       return { message: 'Account payable cancelled successfully' };
     });
   }
+
+  //metodo para listar las transacciones aplicadas a una cuenta por pagar (anticipos, notas credito/debito)
+  async getAppliedTransactions(accountsPayableId: number) {
+    return this.drizzle
+      .select({
+        id: schema.supplierTransactions.id,
+        transactionNumber: schema.supplierTransactions.transactionNumber,
+        transactionType: schema.supplierTransactions.transactionType,
+        amount: schema.supplierTransactionApplications.appliedAmount,
+        transactionDate: schema.supplierTransactions.transactionDate,
+        reference: schema.supplierTransactions.observations,
+      })
+      .from(schema.supplierTransactionApplications)
+      .leftJoin(
+        schema.supplierTransactions,
+        eq(
+          schema.supplierTransactionApplications.transactionId,
+          schema.supplierTransactions.id,
+        ),
+      )
+      .where(
+        and(
+          eq(
+            schema.supplierTransactionApplications.accountsPayableId,
+            accountsPayableId,
+          ),
+        ),
+      );
+  }
 }
+
+//  inArray(schema.supplierTransactions.transactionType, [
+//               'CREDIT_NOTE_APPLIED',
+//               'DEBIT_NOTE_APPLIED',
+//               'ADVANCE_APPLIED',
+//             ]),

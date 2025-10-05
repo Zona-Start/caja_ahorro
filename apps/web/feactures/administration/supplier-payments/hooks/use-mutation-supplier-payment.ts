@@ -7,15 +7,25 @@ import {
   reversePaymentsAction,
 } from '../actions/supplier-payment-actions';
 import { PayAccountPayable } from '../schemas';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para reversar/anular pagos de proveedores
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useReversePaymentMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: { paymentIds: number[] }) => reversePaymentsAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supplier-payments'] });
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.supplierPayments.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.all() 
+      });
       toast.success('Pagos reversados exitosamente');
     },
     onError: (error) => {
@@ -26,19 +36,26 @@ export function useReversePaymentMutation() {
   return mutation;
 }
 
-// hook para guardar datos de un pago
+/**
+ * Hook para procesar pagos de cuentas por pagar
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function usePayAccountPayableMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: PayAccountPayable) => payAccountPayableAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
-      queryClient.invalidateQueries({ queryKey: ['payments-by-supplier'] });
-      queryClient.invalidateQueries({
-        queryKey: ['accounts-payable-advances'],
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.all() 
       });
-
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.supplierPayments.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountsPayable.advances() 
+      });
       toast.success('Pago procesado exitosamente');
     },
     onError: (error) => {

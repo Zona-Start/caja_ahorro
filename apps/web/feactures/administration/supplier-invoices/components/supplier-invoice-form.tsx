@@ -296,7 +296,8 @@ export function SupplierInvoiceForm({
         const { id, ...rest } = item;
         return {
           ...rest,
-          totalLine: (Number(item.quantity) || 0) * (Number(item.unitCost) || 0),
+          totalLine:
+            (Number(item.quantity) || 0) * (Number(item.unitCost) || 0),
         };
       });
 

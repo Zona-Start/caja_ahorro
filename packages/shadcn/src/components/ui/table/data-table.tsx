@@ -92,7 +92,7 @@ export function DataTable<TData, TValue>({
   return (
     <div className="flex flex-1 flex-col space-y-4">
       <div className="relative flex flex-1">
-        <div className="absolute bottom-0 left-0 right-0 top-0 flex border rounded-md ">
+        <div className="absolute bottom-0 left-0 right-0 top-0 flex border rounded-md overflow-hidden">
           <Table className="relative">
             <TableHeader className="sticky top-0 z-10 bg-muted">
               {table.getHeaderGroups().map((headerGroup) => (

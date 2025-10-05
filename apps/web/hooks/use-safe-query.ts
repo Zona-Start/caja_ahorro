@@ -1,7 +1,11 @@
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 
-export function useSafeQuery<T, K = unknown>(
-  queryKey: [string, K?],
+/**
+ * Hook seguro para useQuery que acepta arrays de longitud variable como queryKey
+ * Compatible con el patrón de Query Key Factory
+ */
+export function useSafeQuery<T>(
+  queryKey: ReadonlyArray<unknown>,
   queryFn: () => Promise<T>,
   options?: Omit<UseQueryOptions<T>, 'queryKey' | 'queryFn'>,
 ) {

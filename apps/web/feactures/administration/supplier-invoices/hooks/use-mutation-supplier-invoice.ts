@@ -9,7 +9,12 @@ import {
   updateSupplierInvoiceAction,
 } from '../actions/supplier-invoice-actions';
 import { SupplierInvoice } from '../schemas/supplier-invoice.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para la mutación (crear/actualizar/contabilizar) de facturas de proveedor
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useSupplierInvoiceMutation() {
   const queryClient = useQueryClient();
   let toastMessage: string;
@@ -27,7 +32,11 @@ export function useSupplierInvoiceMutation() {
       return createSupplierInvoiceAction(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.supplierInvoices.all() 
+      });
+      // Invalidar todos los detalles de facturas
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices-by-id'] });
       toast.success(toastMessage);
     },
@@ -50,13 +59,21 @@ export function useSupplierInvoiceMutation() {
   return mutation;
 }
 
+/**
+ * Hook para anular/cancelar una factura de proveedor
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useCancelSupplierInvoice() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => deleteSupplierInvoiceAction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['supplier-invoices'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.supplierInvoices.all() 
+      });
+      // Invalidar todos los detalles de facturas
       queryClient.invalidateQueries({ queryKey: ['supplier-invoices-by-id'] });
       toast.success('Factura de proveedor anulada exitosamente');
     },

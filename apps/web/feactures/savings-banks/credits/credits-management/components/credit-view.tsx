@@ -74,6 +74,7 @@ export function CreditView({ isEdit = false, initialData }: CreditViewProps) {
           balance: initialData?.associateBalance,
           dateAdmission: initialData?.associateDateAdmission,
         },
+        totalLoans: initialData?.totalLoans ?? 0,
         totalCredits: initialData?.totalCredits ?? 0,
       });
 

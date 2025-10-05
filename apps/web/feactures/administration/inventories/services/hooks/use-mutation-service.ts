@@ -5,15 +5,25 @@ import {
   saveServiceAction,
 } from '../actions/service-actions';
 import { Service } from '../schemas/service.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
+/**
+ * Hook para la mutación (crear/actualizar) de servicios
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useServiceMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: Service) => saveServiceAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
-      queryClient.invalidateQueries({ queryKey: ['services-all'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.services.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.services.listAll() 
+      });
       toast.success('Servicio guardado exitosamente');
     },
     onError: (error) => {
@@ -25,13 +35,22 @@ export function useServiceMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar un servicio
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteService() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => deleteService(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
-      queryClient.invalidateQueries({ queryKey: ['services-all'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.services.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.services.listAll() 
+      });
       toast.success('Servicio eliminado exitosamente');
     },
     onError: (error) => {

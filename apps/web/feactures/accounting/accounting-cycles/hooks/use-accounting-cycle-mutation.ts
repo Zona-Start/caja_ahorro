@@ -8,19 +8,25 @@ import {
   saveAccountingCycleAction,
 } from '../actions/accounting-cycle-actions';
 import { AccountingCycle } from '../schemas/accounting-cycle.schema';
+import { queryKeys } from '@/lib/queryKeys';
 
-export const ACCOUNTING_CYCLES_KEY = ['accounting_cycles'];
-export const PAGINATED_ACCOUNTING_CYCLES_KEY = ['paginated_accounting_cycles'];
-
-
+/**
+ * Hook para la mutación (crear/actualizar) de ciclos contables
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useAccountingCycleMutation() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: AccountingCycle) => saveAccountingCycleAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNTING_CYCLES_KEY });
-      queryClient.invalidateQueries({ queryKey: PAGINATED_ACCOUNTING_CYCLES_KEY });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountingCycles.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.accountingCycles.paginated() 
+      });
       toast.success('Ciclo contable guardado exitosamente');
     },
     onError: (error) => {
@@ -32,14 +38,23 @@ export function useAccountingCycleMutation() {
   return mutation;
 }
 
+/**
+ * Hook para cerrar un ciclo contable
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useCloseAccountingCycle() {
     const queryClient = useQueryClient();
   
     return useMutation({
       mutationFn: (id: number) => closeAccountingCycleAction(id),
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ACCOUNTING_CYCLES_KEY });
-        queryClient.invalidateQueries({ queryKey: PAGINATED_ACCOUNTING_CYCLES_KEY });
+        // ✅ Invalidación robusta usando la fábrica de claves
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.accountingCycles.all() 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: queryKeys.accountingCycles.paginated() 
+        });
         toast.success('Ciclo contable cerrado exitosamente');
       },
       onError: (error) => {

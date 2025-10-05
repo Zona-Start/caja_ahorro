@@ -368,11 +368,21 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'CAPITAL_ACCOUNT_ID',
-        value: '3',
-        description:
-          'Id de la cuenta de capital/contrapartida para apertura de bancos',
-        group: 'GENERAL',
+        key: 'NC-P-2025',
+        value: '0',
+        description: 'Último consecutivo Nota Crédito Proveedor 2025',
+        group: 'DOCUMENTS',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'ND-P-2025',
+        value: '0',
+        description: 'Último consecutivo Nota Débito Proveedor 2025',
+        group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,
       })

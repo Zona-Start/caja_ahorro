@@ -4,20 +4,29 @@ import {
   getPurchaseOrderByIdAction,
   getPurchaseOrdersForInvoiceAction,
 } from '../actions/purchase-order-actions';
+import { queryKeys } from '@/lib/queryKeys';
 
-// Hook for associates
+/**
+ * Hook para obtener órdenes de compra con parámetros de paginación/filtros
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function usePurchaseOrders(params = {}) {
-  return useSafeQuery(['purchase-orders', params], () =>
-    getPurchaseOrdersAction(params),
+  return useSafeQuery(
+    queryKeys.purchaseOrders.all(params), 
+    () => getPurchaseOrdersAction(params)
   );
 }
 
+/**
+ * Hook para obtener órdenes de compra para facturas de proveedor
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function usePurchaseOrdersForInvoice(params: {
   supplierId: number;
   status?: string[];
 }) {
   return useSafeQuery(
-    ['purchase-orders-for-invoice', params],
+    queryKeys.purchaseOrders.forInvoice(params),
     () => getPurchaseOrdersForInvoiceAction(params),
     {
       enabled: !!params.supplierId,
@@ -25,12 +34,16 @@ export function usePurchaseOrdersForInvoice(params: {
   );
 }
 
+/**
+ * Hook para obtener una orden de compra específica por ID
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function usePurchaseOrderById(
   id: number,
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['purchase-orders-by-id', id],
+    queryKeys.purchaseOrders.detail(id),
     () => getPurchaseOrderByIdAction(id),
     {
       enabled: id ? options?.enabled : false,

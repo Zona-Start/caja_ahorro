@@ -178,6 +178,18 @@ export const columns: ColumnDef<AccountPayableSchemaAPI>[] = [
     },
   },
   {
+    header: 'Orden Pago',
+    id: 'isAuthorizePayment',
+    cell: ({ row }) => {
+      const isAuthorized = row.original.isAuthorizePayment;
+      if (isAuthorized) {
+        return 'Si';
+      } else {
+        return 'No';
+      }
+    },
+  },
+  {
     id: 'actions',
     header: 'Acciones',
     cell: ({ row }) => {

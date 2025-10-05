@@ -377,9 +377,6 @@ export enum paymentAccountsPayableEnum {
   PAID = 'PAID',
   CANCELLED = 'CANCELLED',
   EXPIRED = 'EXPIRED',
-  ADVANCE = 'ADVANCE',
-  ADVANCE_PARTIAL = 'ADVANCE_PARTIAL',
-  ADVANCE_APPLIED = 'ADVANCE_APPLIED',
 }
 
 export enum supplierTransactionsTypeEnum {
