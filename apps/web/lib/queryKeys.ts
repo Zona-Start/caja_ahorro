@@ -1,10 +1,10 @@
 /**
  * Query Key Factory - Centralizada para toda la aplicación
- * 
+ *
  * Este archivo centraliza todas las claves de consulta para TanStack Query.
  * Sigue el patrón de Query Key Factory para una mejor organización y
  * facilita la invalidación de queries de manera robusta y predecible.
- * 
+ *
  * Patrón utilizado:
  * - _def: Clave base del módulo para invalidar todo
  * - all: Para listas generales (sin filtros específicos)
@@ -19,9 +19,17 @@ export const queryKeys = {
   accountingAccounts: {
     _def: ['accounting_accounts'],
     all: () => [...queryKeys.accountingAccounts._def],
-    list: (filters?: Record<string, any>) => [...queryKeys.accountingAccounts._def, 'list', filters],
+    list: (filters?: Record<string, any>) => [
+      ...queryKeys.accountingAccounts._def,
+      'list',
+      filters,
+    ],
     paginated: (params?: Record<string, any>) => ['paginated_accounts', params],
-    detail: (id: number) => [...queryKeys.accountingAccounts._def, 'detail', id],
+    detail: (id: number) => [
+      ...queryKeys.accountingAccounts._def,
+      'detail',
+      id,
+    ],
   },
 
   // =============================================
@@ -30,8 +38,15 @@ export const queryKeys = {
   accountingCycles: {
     _def: ['accounting_cycles'],
     all: () => [...queryKeys.accountingCycles._def],
-    list: (filters?: Record<string, any>) => [...queryKeys.accountingCycles._def, 'list', filters],
-    paginated: (params?: Record<string, any>) => ['paginated_accounting_cycles', params],
+    list: (filters?: Record<string, any>) => [
+      ...queryKeys.accountingCycles._def,
+      'list',
+      filters,
+    ],
+    paginated: (params?: Record<string, any>) => [
+      'paginated_accounting_cycles',
+      params,
+    ],
     detail: (id: number) => [...queryKeys.accountingCycles._def, 'detail', id],
   },
 
@@ -41,8 +56,15 @@ export const queryKeys = {
   accountingEntries: {
     _def: ['accounting_entries'],
     all: () => [...queryKeys.accountingEntries._def],
-    list: (filters?: Record<string, any>) => [...queryKeys.accountingEntries._def, 'list', filters],
-    paginated: (params?: Record<string, any>) => ['paginated_accounting_entries', params],
+    list: (filters?: Record<string, any>) => [
+      ...queryKeys.accountingEntries._def,
+      'list',
+      filters,
+    ],
+    paginated: (params?: Record<string, any>) => [
+      'paginated_accounting_entries',
+      params,
+    ],
     detail: (id: number) => [...queryKeys.accountingEntries._def, 'detail', id],
   },
 
@@ -51,12 +73,17 @@ export const queryKeys = {
   // =============================================
   accountsPayable: {
     _def: ['accounts-payable'],
-    all: (params?: Record<string, any>) => [...queryKeys.accountsPayable._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.accountsPayable._def,
+      params,
+    ],
     detail: (id: number) => ['account-payable', id],
     paymentHistory: (id: number) => ['payment-history', id],
     appliedTransactions: (id: number) => ['applied-transactions', id],
-    bySuppliers: (params?: Record<string, any>) => ['accounts-payable-by-suppliers', params],
-    advances: (supplierId?: number) => ['accounts-payable-advances', supplierId],
+    bySuppliers: (params?: Record<string, any>) => [
+      'accounts-payable-by-suppliers',
+      params,
+    ],
   },
 
   // =============================================
@@ -64,9 +91,15 @@ export const queryKeys = {
   // =============================================
   purchaseOrders: {
     _def: ['purchase-orders'],
-    all: (params?: Record<string, any>) => [...queryKeys.purchaseOrders._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.purchaseOrders._def,
+      params,
+    ],
     detail: (id: number) => ['purchase-orders-by-id', id],
-    forInvoice: (params?: Record<string, any>) => ['purchase-orders-for-invoice', params],
+    forInvoice: (params?: Record<string, any>) => [
+      'purchase-orders-for-invoice',
+      params,
+    ],
   },
 
   // =============================================
@@ -74,9 +107,15 @@ export const queryKeys = {
   // =============================================
   supplierInvoices: {
     _def: ['supplier-invoices'],
-    all: (params?: Record<string, any>) => [...queryKeys.supplierInvoices._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.supplierInvoices._def,
+      params,
+    ],
     detail: (id: number) => ['supplier-invoice', id],
-    bySupplier: (supplierId?: number) => ['supplier-invoices-by-supplier', supplierId],
+    bySupplier: (supplierId?: number) => [
+      'supplier-invoices-by-supplier',
+      supplierId,
+    ],
     draftPending: () => ['supplier-invoices-draft-pending'],
   },
 
@@ -85,7 +124,10 @@ export const queryKeys = {
   // =============================================
   supplierPayments: {
     _def: ['payments-by-supplier'],
-    all: (params?: Record<string, any>) => [...queryKeys.supplierPayments._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.supplierPayments._def,
+      params,
+    ],
   },
 
   // =============================================
@@ -93,8 +135,14 @@ export const queryKeys = {
   // =============================================
   supplierTransactions: {
     _def: ['supplier-transactions'],
-    all: (params?: Record<string, any>) => [...queryKeys.supplierTransactions._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.supplierTransactions._def,
+      params,
+    ],
     detail: (id: number) => ['supplier-transaction', id],
+    advances: () => ['supplier-transaction-advance'],
+    noteCredit: () => ['supplier-transaction-note-credit'],
+    noteDebit: () => ['supplier-transaction-note-debit'],
   },
 
   // =============================================
@@ -102,7 +150,10 @@ export const queryKeys = {
   // =============================================
   suppliers: {
     _def: ['supplier'],
-    all: (params?: Record<string, any>) => [...queryKeys.suppliers._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.suppliers._def,
+      params,
+    ],
     detail: (id: number) => ['supplier-by-id', id],
     count: () => ['supplier-count'],
     listAll: () => ['supplier-all'],
@@ -113,7 +164,10 @@ export const queryKeys = {
   // =============================================
   fixedAssets: {
     _def: ['fixed-asset'],
-    all: (params?: Record<string, any>) => [...queryKeys.fixedAssets._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.fixedAssets._def,
+      params,
+    ],
     listAll: () => ['fixed-asset-all'],
   },
 
@@ -122,7 +176,10 @@ export const queryKeys = {
   // =============================================
   inventoryCategories: {
     _def: ['inventory-categories'],
-    all: (params?: Record<string, any>) => [...queryKeys.inventoryCategories._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.inventoryCategories._def,
+      params,
+    ],
     listAll: (group?: string) => ['inventory-categories-all', group],
     detail: (id: number) => ['inventory-category', id],
   },
@@ -132,7 +189,10 @@ export const queryKeys = {
   // =============================================
   inventoryMovements: {
     _def: ['inventory-movements'],
-    all: (params?: Record<string, any>) => [...queryKeys.inventoryMovements._def, params],
+    all: (params?: Record<string, any>) => [
+      ...queryKeys.inventoryMovements._def,
+      params,
+    ],
   },
 
   // =============================================

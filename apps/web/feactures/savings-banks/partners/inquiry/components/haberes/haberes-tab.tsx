@@ -13,21 +13,6 @@ interface HaberesTabProps {
   // isError: boolean;
 }
 
-const formatCurrency = (value: number, currency: 'VES' | 'USD') => {
-  const formatted = new Intl.NumberFormat('es-VE', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(value);
-
-  // If the currency is VES, replace "Bs.S" with "Bs."
-  if (currency === 'VES') {
-    return formatted.replace('Bs.S', 'Bs.');
-  }
-
-  return formatted;
-};
-
 const AuxiliarComponents = ({
   text,
   color,

@@ -17,6 +17,7 @@ interface DataTableSearchProps {
     value: number | ((old: number) => number | null) | null,
     options?: Options | undefined,
   ) => Promise<URLSearchParams>;
+  w?: string;
 }
 
 /*************  ✨ Command ⭐  *************/
@@ -47,6 +48,7 @@ export function DataTableSearch({
   setSearchQuery,
   setPage,
   title = 'Buscar',
+  w = 'w-72 md:max-w-sm',
 }: DataTableSearchProps) {
   const [isLoading, startTransition] = useTransition();
 
@@ -60,7 +62,7 @@ export function DataTableSearch({
       placeholder={`${title}...`}
       value={searchQuery ?? ''}
       onChange={(e) => handleSearch(e.target.value)}
-      className={cn('w-72 md:max-w-sm', isLoading && 'animate-pulse')}
+      className={cn(`${w}`, isLoading && 'animate-pulse')}
     />
   );
 }

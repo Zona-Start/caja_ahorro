@@ -365,7 +365,7 @@ export class AccountsPayableService {
           transactionDate: new Date().toISOString(),
           amount: dto.amount.toString(),
           currencyCode: 'VES',
-          status: 'ACTIVE',
+          status: dto.transactionType === 'DEBIT_NOTE' ? 'APPLIED' : 'ACTIVE',
           observations:
             (dto.observations ?? dto.transactionType === 'CREDIT_NOTE')
               ? `NOTA DE CRÉDITO A PROVEEDOR`
