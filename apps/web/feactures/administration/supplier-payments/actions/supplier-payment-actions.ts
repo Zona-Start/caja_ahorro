@@ -1,8 +1,9 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import { accountPayableAllResponseSchema } from '../../accounts-payable/schemas';
-import { PayAccountPayable } from '../schemas';
+import { PayAccountPayableHookAction, PayAdvance } from '../schemas';
 import {
+  payAdvanceMutationResponseSchema,
   reversePaymentMutationResponseSchema,
   supplierPaymentAllResponseSchema,
   supplierPaymentMutationResponseSchema,
@@ -123,45 +124,31 @@ export const reversePaymentsAction = async (payload: {
   return data;
 };
 
-// action para guardar datos de un pago
-export const payAccountPayableAction = async (payload: PayAccountPayable) => {
-  // Transform the payload to match CreateSupplierPaymentDto
-
-  const mainLineAmount =
-    payload.amount +
-    (payload.appliedCredits?.reduce((acc, credit) => acc + credit.amount, 0) ||
-      0);
-
-  const paymentDto = {
-    supplierId: payload.supplierId,
-    totalAmount: mainLineAmount,
-    paymentMethod: payload.paymentMethod,
-    bankAccountId: payload.bankAccountId,
-    bankReference: payload.bankReference,
-    bankDescription: payload.paymentDescription,
-    bankTransactionDate: payload.transactionDate,
-    lines: [
-      {
-        accountsPayableId: payload.accountsPayableId,
-        amount: payload.amount, // Use the adjusted amount for the main line
-        description: payload.paymentDescription,
-      },
-      ...(payload.appliedCredits?.map((credit) => ({
-        accountsPayableId: credit.cxpId,
-        amount: credit.amount,
-        description: `APLICACIÓN DE ANTICIPO ${credit.cxpNumber}`,
-        relatedAdvanceId: credit.cxpId,
-      })) || []),
-    ],
-  };
-
-  console.log('paymentDto:', paymentDto);
-
+// action para guardar datos de un pago de  la cuenta por pagar
+export const payAccountPayableAction = async (
+  payload: PayAccountPayableHookAction,
+) => {
   const [error, data] = await safeFetchApi(
     supplierPaymentMutationResponseSchema,
     '/administration/supplier-payments/pay',
     'POST',
-    paymentDto,
+    payload,
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error processing payment');
+  }
+  return data;
+};
+
+// action para guardar datos de un pago de anticipo
+export const payAdvanceAction = async (payload: PayAdvance) => {
+  const [error, data] = await safeFetchApi(
+    payAdvanceMutationResponseSchema,
+    '/administration/supplier-payments/pay-advance',
+    'POST',
+    payload,
   );
 
   if (error) {

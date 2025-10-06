@@ -509,7 +509,11 @@ CREATE TABLE "administration"."supplier_transaction_applications" (
 	"transaction_id" integer NOT NULL,
 	"accounts_payable_id" integer NOT NULL,
 	"applied_amount" numeric(18, 2) NOT NULL,
-	"application_date" date DEFAULT now()
+	"application_date" date DEFAULT now(),
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" integer,
+	"updated_by_id" integer
 );
 --> statement-breakpoint
 CREATE TABLE "administration"."supplier_transactions" (
@@ -1391,7 +1395,6 @@ ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoic
 ALTER TABLE "administration"."supplier_invoices" ADD CONSTRAINT "supplier_invoices_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_supplier_payment_id_supplier_payments_id_fk" FOREIGN KEY ("supplier_payment_id") REFERENCES "administration"."supplier_payments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_accounts_payable_id_accounts_payable_id_fk" FOREIGN KEY ("accounts_payable_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_related_advance_id_accounts_payable_id_fk" FOREIGN KEY ("related_advance_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payment_lines" ADD CONSTRAINT "supplier_payment_lines_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_payments_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1400,6 +1403,8 @@ ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_paymen
 ALTER TABLE "administration"."supplier_payments" ADD CONSTRAINT "supplier_payments_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_transaction_applications" ADD CONSTRAINT "supplier_transaction_applications_transaction_id_supplier_transactions_id_fk" FOREIGN KEY ("transaction_id") REFERENCES "administration"."supplier_transactions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_transaction_applications" ADD CONSTRAINT "supplier_transaction_applications_accounts_payable_id_accounts_payable_id_fk" FOREIGN KEY ("accounts_payable_id") REFERENCES "administration"."accounts_payable"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_transaction_applications" ADD CONSTRAINT "supplier_transaction_applications_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "administration"."supplier_transaction_applications" ADD CONSTRAINT "supplier_transaction_applications_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_company_id_company_id_fk" FOREIGN KEY ("company_id") REFERENCES "core"."company"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "administration"."suppliers"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "administration"."supplier_transactions" ADD CONSTRAINT "supplier_transactions_bank_account_id_bank_accounts_id_fk" FOREIGN KEY ("bank_account_id") REFERENCES "banking"."bank_accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

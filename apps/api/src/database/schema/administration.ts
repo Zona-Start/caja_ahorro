@@ -367,10 +367,7 @@ export const supplierPaymentLines = administrationSchema.table(
       () => accountsPayable.id,
       { onDelete: 'cascade' },
     ),
-    relatedAdvanceId: integer('related_advance_id').references(
-      () => accountsPayable.id,
-      { onDelete: 'set null' },
-    ),
+    relatedAdvanceId: integer('related_advance_id'),
     amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo
     description: varchar('description', { length: 255 }),
     ...timestamps,

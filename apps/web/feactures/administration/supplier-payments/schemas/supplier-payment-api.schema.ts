@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AccountPayableStatusEnum } from '../../accounts-payable/schemas';
 
+// schema para buscar los pagos realizados
 export const supplierPaymentLineSchema = z.object({
   id: z.number(),
   supplierPaymentId: z.number(),
@@ -45,6 +46,13 @@ export const supplierPaymentAllResponseSchema = z.object({
   }),
 });
 
+//squema retorno de la api al procesar pago de advance
+export const payAdvanceMutationResponseSchema = z.object({
+  id: z.number(),
+  reference: z.string(),
+});
+
+////por revisar ****/////
 export const reversePaymentMutationResponseSchema = z.object({
   message: z.string(),
 });
@@ -56,17 +64,10 @@ export const masivePaymentMutationResponseSchema = z.object({
 });
 
 export const supplierPaymentMutationResponseSchema = z.object({
-  id: z.number(),
-  paymentNumber: z.string(),
-  supplierId: z.number(),
-  totalAmount: z.string(),
-  currencyCode: z.string(),
-  paymentMethod: z.string(),
-  bankAccountId: z.number().nullable(),
-  status: z.string(),
-  requestedAt: z.string(),
-  processedAt: z.string().nullable(),
-  observations: z.string().nullable(),
+  data: z.object({
+    id: z.number(),
+    reference: z.string(),
+  }),
 });
 
 export const accountPayableSchema = z.object({
@@ -105,12 +106,10 @@ export const jsonCredits = z.array(
 );
 
 export const supplierAdvancedCredit = z.object({
-  supplierId: z.number(),
-  supplierName: z.string(),
-  taxId: z.string(),
-  currencyCode: z.string(),
-  availableCredit: z.string(),
-  credits: jsonCredits,
+  id: z.number(),
+  transactionNumber: z.string(),
+  transactionType: z.string(),
+  availableAmount: z.string(),
 });
 
 export const supplierAdvancedCreditSchema = z.object({

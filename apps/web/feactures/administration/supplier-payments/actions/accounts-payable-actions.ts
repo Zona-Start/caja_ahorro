@@ -1,7 +1,9 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
-import { accountPayableAllResponseSchema } from '../../accounts-payable/schemas';
-import { mapAccountPayableApiToForm } from '../utils';
+import {
+  accountPayableAllResponseSchema,
+  oneSupplierPaymentResponseApiSchema,
+} from '../schemas/account-payable-api.schema';
 
 export const getAccountsPayableAction = async (params: {
   page?: number;
@@ -10,7 +12,7 @@ export const getAccountsPayableAction = async (params: {
   search?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-  supplierIds?: number[];
+  supplierId?: number[];
   isAuthorizePayment?: string;
 }) => {
   const searchParams = new URLSearchParams({
@@ -20,13 +22,13 @@ export const getAccountsPayableAction = async (params: {
     ...(params.status && { status: params.status.join(',') }),
     ...(params.sortBy && { sortBy: params.sortBy }),
     ...(params.sortOrder && { sortOrder: params.sortOrder }),
-    ...(params.supplierIds && { supplierIds: params.supplierIds.join(',') }),
+    ...(params.supplierId && { supplierId: params.supplierId.join(',') }),
     isAuthorizePayment: (params.isAuthorizePayment ?? true).toString(),
   });
 
   const [error, response] = await safeFetchApi(
     accountPayableAllResponseSchema,
-    `/administration/accounts-payable/paginated?${searchParams}`,
+    `/administration/supplier-payments/pending?${searchParams}`,
     'GET',
   );
 
@@ -35,10 +37,8 @@ export const getAccountsPayableAction = async (params: {
     throw new Error(error.message || 'Error fetching accounts payable data');
   }
 
-  const mappedData = mapAccountPayableApiToForm(response?.data || []);
-
   return {
-    data: mappedData || [],
+    data: response?.data || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,
@@ -49,5 +49,23 @@ export const getAccountsPayableAction = async (params: {
       nextPage: null,
       previousPage: null,
     },
+  };
+};
+
+// acttion para consultar un cuenta por pagar para pagos
+export const getOneAccountsPayableAction = async (id: number) => {
+  const [error, response] = await safeFetchApi(
+    oneSupplierPaymentResponseApiSchema,
+    `/administration/supplier-payments/get-one-account-payable/${id}`,
+    'GET',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error fetching accounts payable data');
+  }
+
+  return {
+    data: response,
   };
 };

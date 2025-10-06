@@ -1,10 +1,12 @@
 'use client';
 
+import { formatCurrency } from '@/lib/formatCurrent';
 import { Badge } from '@repo/shadcn/components/ui/badge';
 import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { differenceInDays, isBefore, startOfToday } from 'date-fns';
-import { AccountPayableApi } from '../../schemas';
+import { TYPE_PAYMENTS } from '../../schemas';
+import { AccountPayableSchemaAPI } from '../../schemas/account-payable-api.schema';
 import { CellAction } from './cell-action';
 
 const DueDateCell = ({ dueDate }: { dueDate: string | Date }) => {
@@ -43,15 +45,24 @@ const getRowClass = (row: any) => {
   return isOverdue ? 'bg-red-50 dark:bg-red-900/10' : '';
 };
 
-export const pendingColumns: ColumnDef<AccountPayableApi>[] = [
+export const pendingColumns: ColumnDef<AccountPayableSchemaAPI>[] = [
   {
-    accessorKey: 'accountsPayableNumber',
-    header: 'Número de CxP',
+    accessorKey: 'reference',
+    header: 'Número de Referencia',
     cell: ({ row }) => (
-      <div className={cn('h-full w-full p-2')}>
-        {row.getValue('accountsPayableNumber')}
-      </div>
+      <div className={cn('h-full w-full p-2')}>{row.getValue('reference')}</div>
     ),
+  },
+  {
+    accessorKey: 'type',
+    header: 'Tipo',
+    cell: ({ row }) => {
+      const paymentType = row.original.type;
+      const paymenText =
+        TYPE_PAYMENTS[paymentType as keyof typeof TYPE_PAYMENTS] || paymentType;
+
+      return paymenText;
+    },
   },
   {
     accessorKey: 'supplierName',
@@ -63,21 +74,21 @@ export const pendingColumns: ColumnDef<AccountPayableApi>[] = [
     ),
   },
   {
-    accessorKey: 'dueDate',
+    accessorKey: 'date',
     header: 'Fecha de Vencimiento',
     cell: ({ row }) => (
       <div className={cn('h-full w-full p-2')}>
-        <DueDateCell dueDate={row.original.dueDate} />
+        <DueDateCell dueDate={row.original.date} />
       </div>
     ),
   },
   {
-    accessorKey: 'remainingAmount',
+    accessorKey: 'amount',
     header: 'Monto Pendiente',
     cell: ({ row }) => {
       return (
-        <div className={cn('text-right font-medium h-full w-full p-2')}>
-          {Number(row.original.remainingAmount).toFixed(2)} Bs.
+        <div className={cn(' font-medium h-full w-full p-2')}>
+          {formatCurrency(Number(row.original.amount), 'VES')}
         </div>
       );
     },
@@ -89,10 +100,35 @@ export const pendingColumns: ColumnDef<AccountPayableApi>[] = [
       const status = row.original.status;
       const statusText = status === 'EXPIRED' ? 'Vencida' : 'Pendiente';
 
+      const variant:
+        | 'default'
+        | 'destructive'
+        | 'outline'
+        | 'secondary'
+        | 'success'
+        | 'warning' = (() => {
+        switch (status) {
+          case 'EXPIRED':
+            return 'destructive';
+          default:
+            return 'secondary';
+        }
+      })();
+
       return (
-        <div className={cn('h-full w-full p-2')}>
-          <Badge variant="outline">{statusText}</Badge>
-        </div>
+        <Badge
+          variant={
+            variant as
+              | 'default'
+              | 'destructive'
+              | 'outline'
+              | 'secondary'
+              | 'success'
+              | 'danger'
+          }
+        >
+          {statusText}
+        </Badge>
       );
     },
   },

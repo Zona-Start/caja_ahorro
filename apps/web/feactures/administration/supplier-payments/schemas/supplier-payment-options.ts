@@ -40,3 +40,10 @@ export enum PaymentMethodEnum {
   MOBILE_PAYMENT = 'MOBILE_PAYMENT',
   OTHER = 'OTHER',
 }
+
+export const TYPE_PAYMENTS = {
+  ACCOUNTS_PAYABLE: 'Cuenta por Pagar',
+  ADVANCE: 'Anticipo',
+};
+
+export type TypePayments = keyof typeof TYPE_PAYMENTS;

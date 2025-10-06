@@ -27,13 +27,10 @@ import {
   PaymentMethodEnum,
 } from '../../supplier-payments/schemas';
 import { usePayAccountPayableMutation } from '../hooks';
-import {
-  PayAccountPayable,
-  payAccountPayableSchema,
-  PaymentAccountPayable,
-} from '../schemas';
+import { PayAccountPayable, payAccountPayableSchema } from '../schemas';
 
 import { AlertModal } from '@/components/modal/alert-modal';
+import { formatCurrency } from '@/lib/formatCurrent';
 import { ScrollArea } from '@repo/shadcn/scroll-area';
 import {
   Table,
@@ -45,29 +42,27 @@ import {
   TableRow,
 } from '@repo/shadcn/table';
 import { useEffect, useMemo, useState } from 'react';
-import { useAppliedTransactions } from '../../accounts-payable/hooks/use-query-payment-history';
 import { useSupplierAvailableCredit } from '../hooks/use-query-supplier-credits-available';
+import { OneSupplierPaymentSchemaAPI } from '../schemas/account-payable-api.schema';
 
 interface FormProps {
-  accountPayable: PaymentAccountPayable;
+  data: OneSupplierPaymentSchemaAPI;
   onSuccess?: () => void;
   onCancel?: () => void;
 }
 
 export function PayAccountPayableForm({
-  accountPayable,
+  data,
   onSuccess,
   onCancel,
 }: FormProps) {
+  const { account: accountPayable, note: notes } = data;
   const [isConfirmOpen, setConfirmOpen] = useState(false);
 
   const { data: bankAccounts, isLoading: isLoadingBankAccounts } =
     useBankAccountAll();
   const { data: availableCreditsData } = useSupplierAvailableCredit(
     accountPayable.supplierId,
-  );
-  const { data: appliedTransactionsData } = useAppliedTransactions(
-    accountPayable.id ?? 0,
   );
 
   const { mutate: pay, isPending } = usePayAccountPayableMutation();
@@ -77,7 +72,7 @@ export function PayAccountPayableForm({
     defaultValues: {
       supplierId: accountPayable?.supplierId,
       accountsPayableId: accountPayable.id,
-      amount: Number(accountPayable.remainingAmount),
+      amount: Number(accountPayable.remaingAmount),
       paymentMethod: PaymentMethodEnum.BANK_TRANSFER,
       transactionDate: new Date(),
       appliedCredits: [],
@@ -97,17 +92,18 @@ export function PayAccountPayableForm({
 
   const debtBreakdown = useMemo(() => {
     const invoice = {
-      document: `Factura ${accountPayable.supplierInvoice?.invoiceNumber || 'N/A'}`,
-      amount: Number(accountPayable.originalAmount),
+      document: `Factura N° ${accountPayable?.invoiceNumber || 'N/A'}`,
+      amount: Number(accountPayable.amount),
       type: 'INVOICE',
     };
-    const transactions = appliedTransactionsData?.data?.map((t: any) => ({
-      document: `Nota ${t.transactionNumber}`,
-      amount: t.direction === 'DR' ? Number(t.amount) : -Number(t.amount),
-      type: t.transactionType,
-    }));
-    return [invoice, ...(transactions || [])];
-  }, [accountPayable, appliedTransactionsData]);
+    const creditNotes =
+      notes?.map((note) => ({
+        document: `+ Nota de Débito N° ${note.referenceNote}`,
+        amount: Math.abs(Number(note.appliedAmount)), // Ensure it's negative
+        type: 'NOTE',
+      })) || [];
+    return [invoice, ...creditNotes];
+  }, [accountPayable, notes]);
 
   const totalDebt = useMemo(() => {
     return debtBreakdown.reduce((sum, item) => sum + item.amount, 0);
@@ -125,8 +121,20 @@ export function PayAccountPayableForm({
   }, [totalDebt, totalApplied, form]);
 
   const onSubmit = (data: PayAccountPayable) => {
-    const { supplierName, status, ...rest } = data;
-    pay(rest, {
+    const { supplierName, status, appliedCredits, accountsPayableId, ...rest } =
+      data;
+
+    const payload = {
+      ...rest,
+      accountPayableId: accountsPayableId,
+      creditAplied: appliedCredits?.map((credit) => ({
+        id: credit.cxpId,
+        transactionType: credit.origin,
+        appliedAmount: credit.amount,
+      })),
+    };
+
+    pay(payload, {
       onSuccess: () => {
         onSuccess?.();
         setConfirmOpen(false);
@@ -134,8 +142,14 @@ export function PayAccountPayableForm({
     });
   };
 
-  const availableDocuments =
-    availableCreditsData?.data?.flatMap((sc) => sc.credits) || [];
+  const availableDocuments = useMemo(() => {
+    return (availableCreditsData?.data || []).map((credit) => ({
+      cxpId: credit.id,
+      amount: Number(credit.availableAmount),
+      origin: credit.transactionType,
+      cxpNumber: credit.transactionNumber,
+    }));
+  }, [availableCreditsData]);
 
   const validationError = useMemo(() => {
     if (totalApplied > totalDebt)
@@ -173,56 +187,19 @@ export function PayAccountPayableForm({
         loading={isPending}
         title="Confirmar Registro de Pago"
         description="¿Está seguro de que desea registrar este pago? Esta acción no se puede deshacer."
-        // description={
-        //   <div className="text-sm space-y-2 border p-4 rounded-md">
-        //     <div className="flex justify-between font-bold text-lg">
-        //       <span>DETALLE DEL PAGO</span>
-        //     </div>
-        //     <div className="flex justify-between">
-        //       <span>Deuda total:</span>{' '}
-        //       <strong>{totalDebt.toFixed(2)} Bs.</strong>
-        //     </div>
-        //     <div className="flex justify-between">
-        //       <span>Aplicado (Anticipos/NC):</span>{' '}
-        //       <strong>{totalApplied.toFixed(2)} Bs.</strong>
-        //     </div>
-        //     <div className="flex justify-between border-t pt-2 mt-2">
-        //       <span>Pago bancario neto:</span>{' '}
-        //       <strong className="text-lg">
-        //         {bankPaymentAmount.toFixed(2)} Bs.
-        //       </strong>
-        //     </div>
-        //     <div className="flex justify-between">
-        //       <span>Cuenta Bancaria:</span>{' '}
-        //       <strong>
-        //         {
-        //           bankAccounts?.data.find(
-        //             (b) => b.id === form.getValues('bankAccountId'),
-        //           )?.accountName
-        //         }
-        //       </strong>
-        //     </div>
-        //     <div className="flex justify-between">
-        //       <span>Fecha:</span>{' '}
-        //       <strong>
-        //         {form.getValues('transactionDate').toLocaleDateString()}
-        //       </strong>
-        //     </div>
-        //     <div className="flex justify-between">
-        //       <span>Referencia:</span>{' '}
-        //       <strong>{form.getValues('bankReference')}</strong>
-        //     </div>
-        //   </div>
-        // }
       />
 
       <Form {...form}>
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!validationError) setConfirmOpen(true);
-            else alert(validationError); // Replace with a proper toast/alert
-          }}
+          onSubmit={form.handleSubmit(() => {
+            if (validationError) {
+              // Here you would show a toast
+              console.error(validationError);
+              alert(validationError); // Placeholder for toast
+            } else {
+              setConfirmOpen(true);
+            }
+          })}
           className="space-y-6"
         >
           <ScrollArea className="h-[calc(100vh-300px)] p-4">
@@ -243,7 +220,7 @@ export function PayAccountPayableForm({
                     <TableRow key={i}>
                       <TableCell>{item.document}</TableCell>
                       <TableCell className="text-right">
-                        {item.amount.toFixed(2)}
+                        {formatCurrency(item.amount, 'VES')}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -252,7 +229,7 @@ export function PayAccountPayableForm({
                   <TableRow>
                     <TableCell className="font-bold">Total a Pagar</TableCell>
                     <TableCell className="text-right font-bold">
-                      {totalDebt.toFixed(2)}
+                      {formatCurrency(totalDebt, 'VES')}
                     </TableCell>
                   </TableRow>
                 </TableFooter>
@@ -262,14 +239,15 @@ export function PayAccountPayableForm({
             {/* Available Documents */}
             <div className="p-4 border rounded-lg mb-4">
               <h3 className="font-semibold text-lg mb-2">
-                Documentos Disponibles para Aplicar
+                Créditos y Anticipos Disponibles
               </h3>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Documento</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Saldo Disponible</TableHead>
-                    <TableHead className="w-[150px]">Aplicar</TableHead>
+                    <TableHead className="w-[150px]">Monto a Aplicar</TableHead>
                     <TableHead>Restante</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -287,10 +265,11 @@ export function PayAccountPayableForm({
 
                       return (
                         <TableRow key={doc.cxpId}>
+                          <TableCell>{doc.cxpNumber}</TableCell>
+                          <TableCell>{doc.origin}</TableCell>
                           <TableCell>
-                            {doc.cxpNumber} ({doc.origin})
+                            {formatCurrency(doc.amount, 'VES')}
                           </TableCell>
-                          <TableCell>{doc.amount.toFixed(2)}</TableCell>
                           <TableCell>
                             <Input
                               type="number"
@@ -298,17 +277,26 @@ export function PayAccountPayableForm({
                               min={0}
                               defaultValue={appliedAmount}
                               onChange={(e) => {
-                                const newAmount = Number(e.target.value);
+                                let newAmount = Number(e.target.value);
+
+                                if (newAmount > doc.amount) {
+                                  newAmount = doc.amount;
+                                  e.target.value = newAmount.toString();
+                                } else if (newAmount < 0) {
+                                  newAmount = 0;
+                                  e.target.value = newAmount.toString();
+                                }
+
                                 const existingIndex = fields.findIndex(
                                   (f) => f.cxpId === doc.cxpId,
                                 );
+
                                 if (existingIndex > -1) {
                                   if (newAmount > 0) {
                                     update(existingIndex, {
-                                      ...fields[existingIndex],
-                                      cxpNumber: doc.cxpNumber,
-                                      origin: doc.origin ?? '',
                                       cxpId: doc.cxpId,
+                                      origin: doc.origin,
+                                      cxpNumber: doc.cxpNumber,
                                       amount: newAmount,
                                     });
                                   } else {
@@ -325,25 +313,27 @@ export function PayAccountPayableForm({
                               }}
                             />
                           </TableCell>
-                          <TableCell>{remaining.toFixed(2)}</TableCell>
+                          <TableCell>
+                            {formatCurrency(remaining, 'VES')}
+                          </TableCell>
                         </TableRow>
                       );
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center">
-                        No hay documentos disponibles.
+                      <TableCell colSpan={5} className="text-center">
+                        No hay créditos o anticipos disponibles.
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell colSpan={2} className="font-bold">
+                    <TableCell colSpan={3} className="font-bold">
                       Total Aplicado
                     </TableCell>
                     <TableCell className="text-right font-bold">
-                      {totalApplied.toFixed(2)}
+                      {formatCurrency(totalApplied, 'VES')}
                     </TableCell>
                     <TableCell></TableCell>
                   </TableRow>
@@ -406,7 +396,7 @@ export function PayAccountPayableForm({
                         value={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Seleccione un método" />
                           </SelectTrigger>
                         </FormControl>

@@ -1,6 +1,7 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
-import { getSupplierPaymentsAction } from '../actions/supplier-payment-actions';
 import { queryKeys } from '@/lib/queryKeys';
+import { getOneAccountsPayableAction } from '../actions/accounts-payable-actions';
+import { getSupplierPaymentsAction } from '../actions/supplier-payment-actions';
 
 /**
  * Hook para buscar/consultar los pagos realizados a proveedores
@@ -22,6 +23,20 @@ export function useSupplierPayments(
     () => getSupplierPaymentsAction(params),
     {
       enabled: !!params.status?.length && (options?.enabled ?? true),
+      ...options,
+    },
+  );
+}
+
+export function useOneSupplierPayments(
+  id: number,
+  options?: { enabled?: boolean },
+) {
+  return useSafeQuery(
+    queryKeys.supplierPayments.all(),
+    () => getOneAccountsPayableAction(id),
+    {
+      enabled: options?.enabled ?? false,
       ...options,
     },
   );

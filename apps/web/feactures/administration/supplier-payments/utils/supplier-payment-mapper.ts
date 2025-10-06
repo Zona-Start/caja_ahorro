@@ -52,3 +52,15 @@ export function mapAccountPayableApiToForm(data: any) {
     };
   });
 }
+
+////mapper en uso al consultar una cuenta para pagar
+export const castAccount = (src?: any) => ({
+  id: src?.id,
+  supplierId: Number(src?.supplierId ?? 0),
+  supplierName: src?.supplierName ?? '',
+  accountsPayableNumber: src?.accountsPayableNumber ?? '',
+  amount: Number(src?.amount ?? 0),
+  paidAmount: Number(src?.paidAmount ?? 0),
+  remainingAmount: Number(src?.remaingAmount ?? src?.amount ?? 0),
+  invoiceNumber: src?.invoiceNumber ?? '',
+});

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AccountPayable } from '../../accounts-payable/schemas';
+import { AccountPayableSchemaAPI } from '../schemas/account-payable-api.schema';
 
 interface Meta {
   page: number;
@@ -13,10 +13,10 @@ interface Meta {
 }
 
 interface AccountPayableState {
-  data: AccountPayable[];
+  data: AccountPayableSchemaAPI[];
   meta: Meta;
   isLoading: boolean;
-  setData: (data: AccountPayable[], meta: Meta) => void;
+  setData: (data: AccountPayableSchemaAPI[], meta: Meta) => void;
   setLoading: (isLoading: boolean) => void;
 }
 

@@ -87,4 +87,12 @@ export class CreateBankMovementDto {
   })
   @IsEnum(bankTransactionCategory.enumValues)
   category?: (typeof bankTransactionCategory.enumValues)[number];
+
+  @IsString()
+  @IsOptional()
+  internalRecordType?: string;
+
+  @IsInt()
+  @IsOptional()
+  internalRecordId?: number;
 }

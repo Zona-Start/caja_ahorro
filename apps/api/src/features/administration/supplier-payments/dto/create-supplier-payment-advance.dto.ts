@@ -1,65 +1,52 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  IsArray,
   IsDate,
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
 } from 'class-validator';
 
-class CreateSupplierPaymentCreditDto {
-  @IsNotEmpty()
-  @IsInt()
-  id: number;
-
-  @IsString()
-  @IsNotEmpty()
-  transactionType: string;
-
-  @IsNotEmpty()
-  @IsInt()
-  appliedAmount: number;
-}
-
-export class CreateSupplierPaymentDto {
+export class CreateSupplierPaymenAdvanceDto {
   @IsInt()
   @IsNotEmpty()
   supplierId: number;
 
-  @IsNotEmpty()
   @IsInt()
-  accountPayableId: number;
+  @IsNotEmpty()
+  transactionId: number;
 
   @IsInt()
   @IsNotEmpty()
   bankAccountId: number;
 
+  @ApiPropertyOptional({ description: ' Bank description' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   paymentDescription: string;
 
   @IsString()
   @IsNotEmpty()
-  paymentMethod: string;
+  paymentMethod: string; // Debería ser un enum
 
   @ApiPropertyOptional({ description: ' Bank bank reference' })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   bankReference: string;
 
   @ApiPropertyOptional({ description: 'Transaction date' })
   @IsDate()
   @Type(() => Date)
-  @IsNotEmpty()
+  @IsOptional()
   transactionDate: Date;
 
   @IsNumber()
   @IsNotEmpty()
   amount: number;
 
-  @IsArray()
-  @Type(() => CreateSupplierPaymentCreditDto)
-  creditAplied: CreateSupplierPaymentCreditDto[];
+  @IsString()
+  @IsOptional()
+  currencyCode?: string;
 }

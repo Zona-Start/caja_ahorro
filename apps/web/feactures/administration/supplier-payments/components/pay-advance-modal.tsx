@@ -7,21 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/components/ui/dialog';
-
-import { OneSupplierPaymentSchemaAPI } from '../schemas/account-payable-api.schema';
-import { PayAccountPayableForm } from './pay-account-payable-form';
+import { AccountPayableSchemaAPI } from '../schemas/account-payable-api.schema';
+import { PayAdvanceForm } from './pay-advance-form';
 
 interface ModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  data: OneSupplierPaymentSchemaAPI;
+  advance: AccountPayableSchemaAPI;
 }
 
-export function PayAccountPayableModal({
-  open,
-  onOpenChange,
-  data,
-}: ModalProps) {
+export function PayAdvanceModal({ open, onOpenChange, advance }: ModalProps) {
   const handleSuccess = () => {
     onOpenChange(false);
   };
@@ -34,14 +29,11 @@ export function PayAccountPayableModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
         <DialogHeader>
-          <DialogTitle>Registrar Pago</DialogTitle>
-          <DialogDescription>
-            Formulario para registrar pago de la cuenta por pagar #{' '}
-            {data.account.accountsPayableNumber}
-          </DialogDescription>
+          <DialogTitle>Registrar Pago Anticipo</DialogTitle>
+          <DialogDescription>Formulario realizar pago</DialogDescription>
         </DialogHeader>
-        <PayAccountPayableForm
-          data={data}
+        <PayAdvanceForm
+          advance={advance}
           onSuccess={handleSuccess}
           onCancel={handleCancel}
         />

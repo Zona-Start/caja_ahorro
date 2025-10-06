@@ -1,5 +1,5 @@
 {
-  "id": "93037e5f-e00e-47c0-aed4-ab5718e608cc",
+  "id": "f2f476f2-c423-4b4f-a5ac-fbf3bdce2dee",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -4395,20 +4395,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "supplier_payment_lines_related_advance_id_accounts_payable_id_fk": {
-          "name": "supplier_payment_lines_related_advance_id_accounts_payable_id_fk",
-          "tableFrom": "supplier_payment_lines",
-          "tableTo": "accounts_payable",
-          "schemaTo": "administration",
-          "columnsFrom": [
-            "related_advance_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "supplier_payment_lines_created_by_id_users_id_fk": {
           "name": "supplier_payment_lines_created_by_id_users_id_fk",
           "tableFrom": "supplier_payment_lines",
@@ -4676,6 +4662,31 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -4706,6 +4717,34 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "supplier_transaction_applications_created_by_id_users_id_fk": {
+          "name": "supplier_transaction_applications_created_by_id_users_id_fk",
+          "tableFrom": "supplier_transaction_applications",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_transaction_applications_updated_by_id_users_id_fk": {
+          "name": "supplier_transaction_applications_updated_by_id_users_id_fk",
+          "tableFrom": "supplier_transaction_applications",
+          "tableTo": "users",
+          "schemaTo": "auth",
+          "columnsFrom": [
+            "updated_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

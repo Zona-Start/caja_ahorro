@@ -87,7 +87,7 @@ export default function SupplierPaymentsTableActions({
         />
       </div>
 
-      <div className="flex items-center gap-4 flex-grow">
+      <div className="flex items-center gap-2 flex-grow">
         <DataTableSearch
           title="Buscar por referencia..."
           searchKey={searchQuery}
@@ -102,19 +102,22 @@ export default function SupplierPaymentsTableActions({
           setFilterValue={setStatusFilter}
           filterValue={statusFilter}
         />
-        <SelectSearchable
-          options={
-            suppliers?.map((s) => ({
-              value: s.id!.toString(),
-              label: s.name,
-            })) || []
-          }
-          onValueChange={(value) =>
-            setSupplierIdFilter(value ? Number(value) : null)
-          } // Handle null for clear
-          placeholder="Filtrar por proveedor"
-          defaultValue={supplierIdFilter?.toString()}
-        />
+        <div className="w-[300px]">
+          <SelectSearchable
+            options={
+              suppliers?.map((s) => ({
+                value: s.id!.toString(),
+                label: s.name,
+              })) || []
+            }
+            onValueChange={(value) =>
+              setSupplierIdFilter(value ? Number(value) : null)
+            } // Handle null for clear
+            placeholder="Filtrar por proveedor"
+            defaultValue={supplierIdFilter?.toString()}
+          />
+        </div>
+
         <div className="flex gap-2">
           {/* {tab === 'pending' && (
             <Button onClick={() => setOpenMassivePaymentModal(true)} size="sm">

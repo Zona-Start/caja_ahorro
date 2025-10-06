@@ -51,6 +51,16 @@ export class BankMovementsService {
       .values(dtoForInsert)
       .returning();
 
+    if (createBankMovementDto.category === 'INTERNAL_TRANSFER') {
+      await db.insert(internalTransactionBankLinks).values({
+        bankTransactionId: createdMovement.id,
+        internalRecordType: createBankMovementDto.internalRecordType,
+        internalRecordId: createBankMovementDto.internalRecordId,
+        linkedBy: userId,
+        createdById: userId,
+      });
+    }
+
     return createdMovement;
   }
 

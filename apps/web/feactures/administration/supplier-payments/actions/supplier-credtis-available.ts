@@ -15,27 +15,7 @@ export const supplierAvailableCreditAction = async (id: number) => {
     throw new Error(error.message || 'Error updating supplier invoice');
   }
 
-  const mapper = data?.data?.map((item: any) => {
-    const credit = item.credits.map((credit: any) => {
-      return {
-        cxpId: credit.cxpId,
-        cxpNumber: credit.cxpNumber,
-        amount: Math.abs(credit.amount),
-        origin: credit.origin,
-      };
-    });
-
-    return {
-      supplierId: item.supplierId,
-      supplierName: item.supplierName,
-      taxId: item.taxId,
-      currencyCode: item.currencyCode,
-      availableCredit: Math.abs(item.availableCredit),
-      credits: credit,
-    };
-  });
-
   return {
-    data: mapper,
+    data: data?.data || [],
   };
 };

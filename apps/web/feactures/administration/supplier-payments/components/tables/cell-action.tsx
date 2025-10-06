@@ -1,6 +1,5 @@
 'use client';
 
-import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/components/ui/button';
 import {
   Tooltip,
@@ -8,66 +7,98 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/components/ui/tooltip';
-import { DollarSign, Eye, Printer, Redo2 } from 'lucide-react';
+import { DollarSign } from 'lucide-react';
 import { useState } from 'react';
 
+import { useOneSupplierPayments } from '../../hooks';
+import { AccountPayableSchemaAPI } from '../../schemas/account-payable-api.schema';
 import { PayAccountPayableModal } from '../pay-account-payable-modal';
+import { PayAdvanceModal } from '../pay-advance-modal';
 
 interface CellActionProps {
-  data: any;
+  data: AccountPayableSchemaAPI;
   tab: 'history' | 'pending'; // Add tab prop
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data, tab }) => {
-  const [alertOpen, setAlertOpen] = useState(false);
-  const [actionToConfirm, setActionToConfirm] = useState<(() => void) | null>(
-    null,
+  //const [alertOpen, setAlertOpen] = useState(false); //usada para modal de alerta
+  const [showPayModal, setShowPayModal] = useState(false); //usado para modal formulario de pago cxp
+  const [showPayAdvanceModal, setShowPayAdvanceModal] = useState(false); //usado para modal formulario de pago advance
+  const [showAccountPayableGet, setshowAccountPayableGet] = useState(false); //usado para hace peticion get de los datos de ls cvp
+
+  // const [actionToConfirm, setActionToConfirm] = useState<(() => void) | null>(
+  //   null,
+  // );
+  // const [alertTitle, setAlertTitle] = useState('');
+  // const [alertDescription, setAlertDescription] = useState('');
+
+  // const [viewModalOpen, setViewModalOpen] = useState(false);
+
+  // const handleAction = (
+  //   action: () => void,
+  //   title: string,
+  //   description: string,
+  // ) => {
+  //   setActionToConfirm(() => action);
+  //   setAlertTitle(title);
+  //   setAlertDescription(description);
+  //   setAlertOpen(true);
+  // };
+
+  // const onConfirm = () => {
+  //   if (actionToConfirm) {
+  //     actionToConfirm();
+  //     setshowAccountPayableGet(false);
+  //   }
+  // };
+
+  const { data: supplierPaymentsData, isLoading } = useOneSupplierPayments(
+    data.id,
+    {
+      enabled: showAccountPayableGet,
+    },
   );
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertDescription, setAlertDescription] = useState('');
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
 
-  const handleAction = (
-    action: () => void,
-    title: string,
-    description: string,
-  ) => {
-    setActionToConfirm(() => action);
-    setAlertTitle(title);
-    setAlertDescription(description);
-    setAlertOpen(true);
-  };
-
-  const onConfirm = () => {
-    if (actionToConfirm) {
-      actionToConfirm();
-      setAlertOpen(false);
+  // funcion al presionar el boton pagar en pagos pendientes
+  const onPyamentPending = () => {
+    if (data.type === 'ADVANCE') {
+      setShowPayAdvanceModal(true);
+    } else {
+      setShowPayModal(true);
+      setshowAccountPayableGet(true);
     }
   };
 
   return (
     <>
-      <AlertModal
+      {/* <AlertModal
         isOpen={alertOpen}
         onClose={() => setAlertOpen(false)}
         onConfirm={onConfirm}
         title={alertTitle}
         description={alertDescription}
-      />
+      /> */}
 
-      {showPayModal && (
+      {showPayModal && !isLoading && (
         <PayAccountPayableModal
           open={showPayModal}
           onOpenChange={setShowPayModal}
-          accountPayable={data}
+          data={supplierPaymentsData?.data?.data}
+        />
+      )}
+
+      {showPayAdvanceModal && (
+        <PayAdvanceModal
+          open={showPayAdvanceModal}
+          onOpenChange={setShowPayAdvanceModal}
+          advance={data}
         />
       )}
 
       <div className="flex gap-1">
         {tab === 'history' && (
           <>
-            <TooltipProvider>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -82,9 +113,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data, tab }) => {
                   <p>Ver Detalles</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
 
-            <TooltipProvider>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -115,13 +146,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data, tab }) => {
                   <p>Reversar</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
           </>
         )}
 
         {tab === 'pending' && (
           <>
-            <TooltipProvider>
+            {/* <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -136,7 +167,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data, tab }) => {
                   <p>Ver Detalles</p>
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </TooltipProvider> */}
 
             <TooltipProvider>
               <Tooltip>
@@ -145,7 +176,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data, tab }) => {
                     variant="outline"
                     size="icon"
                     onClick={() => {
-                      setShowPayModal(true);
+                      onPyamentPending();
                     }}
                   >
                     <DollarSign className="h-4 w-4" />
