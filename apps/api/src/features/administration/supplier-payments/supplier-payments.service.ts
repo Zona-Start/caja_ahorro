@@ -272,8 +272,8 @@ export class SupplierPaymentsService {
     }
 
     const searchCondition = searchConditions.length
-      ? and(...searchConditions)
-      : undefined;
+      ? and(...searchConditions, eq(accountsPayable.isAuthorizePayment, true))
+      : eq(accountsPayable.isAuthorizePayment, true);
 
     const searchConditionAdvanceFinal = searchConditionsAdvance.length
       ? and(

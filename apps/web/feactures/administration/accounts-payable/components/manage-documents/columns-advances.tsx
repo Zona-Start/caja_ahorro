@@ -13,12 +13,15 @@ import {
   STATUS_TRANSACTIONS,
 } from '../../schemas/manage-documents.options';
 import { Advance } from '../../schemas/manage-documents.schema';
+import { AppliedTransactionModal } from './applied-transaction-modal';
 
 // TODO: Implement actions
 const CellAction = ({ row }: { row: any }) => {
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showAppliedModal, setShowAppliedModal] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const { mutate: authorizeAdvance } = useAuthorizeAdvancePaymentMutation();
+
   //funciona que llama la autorizacion de pagos
   const onConfirmAccount = () => {
     setIsUpdating(true);
@@ -31,6 +34,12 @@ const CellAction = ({ row }: { row: any }) => {
   };
   return (
     <div className="flex gap-2">
+      <AppliedTransactionModal
+        isOpen={showAppliedModal}
+        onClose={() => setShowAppliedModal(false)}
+        transactionId={row.original.id}
+        title={`Aplicaciones del Anticipo #${row.original.transactionNumber}`}
+      />
       <AlertModal
         isOpen={showAccountModal}
         onClose={() => setShowAccountModal(false)}
@@ -48,7 +57,11 @@ const CellAction = ({ row }: { row: any }) => {
           Autorizar Pago
         </Button>
       )}
-      <Button variant="outline" size="sm">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowAppliedModal(true)}
+      >
         Ver
       </Button>
     </div>

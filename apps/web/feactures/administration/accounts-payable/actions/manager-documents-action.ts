@@ -3,6 +3,7 @@
 import { safeFetchApi } from '@/lib';
 import {
   autorizeAdvanceResponseSchema,
+  getAppliedTransaccionApiSchema,
   getSupplierTransactionAdvanceApiSchema,
   getSupplierTransactionNoteCreditApiSchema,
   getSupplierTransactionNoteDebitApiSchema,
@@ -101,6 +102,22 @@ export const authorizeAdavancePaymentAction = async (id: number) => {
     autorizeAdvanceResponseSchema,
     `/administration/supplier-transactions/authorize-advance/${id}`,
     'PATCH',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error authorizing account payable');
+  }
+
+  return data;
+};
+
+//action para consultar a cuales cuentas se ha aplicado un anticipo o una nota de credito
+export const getAppliedTransactionAction = async (id: number) => {
+  const [error, data] = await safeFetchApi(
+    getAppliedTransaccionApiSchema,
+    `/administration/accounts-payable/applied-transaction/${id}`,
+    'GET',
   );
 
   if (error) {

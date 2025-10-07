@@ -1,6 +1,7 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import { queryKeys } from '@/lib/queryKeys';
 import {
+  getAppliedTransactionAction,
   getSupplierTransactionsAdvanceAction,
   getSupplierTransactionsNoteCredit,
   getSupplierTransactionsNoteDebit,
@@ -21,5 +22,15 @@ export function useSupplierTransactionsNoteCredit() {
 export function useSupplierTransactionsNoteDebit() {
   return useSafeQuery(queryKeys.supplierTransactions.noteDebit(), () =>
     getSupplierTransactionsNoteDebit(),
+  );
+}
+
+export function useAppliedTransaction(id: number | null) {
+  return useSafeQuery(
+    queryKeys.supplierTransactions.appliedTrasaction(id),
+    () => getAppliedTransactionAction(id!),
+    {
+      enabled: id !== null,
+    },
   );
 }

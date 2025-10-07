@@ -5,14 +5,28 @@ import { Button } from '@repo/shadcn/button';
 import { Badge } from '@repo/shadcn/components/ui/badge';
 import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
+import { useState } from 'react';
 import { STATUS_TRANSACTIONS } from '../../schemas/manage-documents.options';
 import { CreditNote } from '../../schemas/manage-documents.schema';
+import { AppliedTransactionModal } from './applied-transaction-modal';
 
 // TODO: Implement actions
 const CellAction = ({ row }: { row: any }) => {
+  const [showAppliedModal, setShowAppliedModal] = useState(false);
+
   return (
     <div className="flex gap-2">
-      <Button variant="outline" size="sm">
+      <AppliedTransactionModal
+        isOpen={showAppliedModal}
+        onClose={() => setShowAppliedModal(false)}
+        transactionId={row.original.id}
+        title={`Aplicaciones de la Nota de Crédito #${row.original.transactionNumber}`}
+      />
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowAppliedModal(true)}
+      >
         Ver
       </Button>
     </div>

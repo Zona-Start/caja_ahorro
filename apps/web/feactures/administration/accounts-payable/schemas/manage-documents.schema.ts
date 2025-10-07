@@ -72,3 +72,19 @@ export const getSupplierTransactionNoteDebitApiSchema = z.object({
 export const autorizeAdvanceResponseSchema = z.object({
   message: z.string(),
 });
+
+//scehama consultar por anticipo o nota de credito que cuentas se ha usado
+export const getAppliedTransaccionResponseSchema = z.object({
+  id: z.number(),
+  accounPayableRefence: z.string().nullable(),
+  amountApplied: z.string(),
+});
+
+export const getAppliedTransaccionApiSchema = z.object({
+  message: z.string(),
+  data: z.array(getAppliedTransaccionResponseSchema),
+});
+
+export type AppliedTransaction = z.infer<
+  typeof getAppliedTransaccionResponseSchema
+>;

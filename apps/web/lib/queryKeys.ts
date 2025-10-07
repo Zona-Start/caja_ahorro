@@ -143,6 +143,7 @@ export const queryKeys = {
     advances: () => ['supplier-transaction-advance'],
     noteCredit: () => ['supplier-transaction-note-credit'],
     noteDebit: () => ['supplier-transaction-note-debit'],
+    appliedTrasaction: (id: number | null) => ['supplier-transaction-applied-transaction', id],
   },
 
   // =============================================

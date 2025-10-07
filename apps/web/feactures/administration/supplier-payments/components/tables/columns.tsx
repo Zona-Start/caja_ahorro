@@ -7,7 +7,6 @@ import {
   SUPPLIER_PAYMENT_STATUS_TYPES,
   SupplierPayment,
 } from '../../schemas';
-import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<SupplierPayment>[] = [
   {
@@ -111,9 +110,9 @@ export const columns: ColumnDef<SupplierPayment>[] = [
     accessorKey: 'accountPayableNumber',
     header: 'Enlace',
   },
-  {
-    id: 'actions',
-    header: 'Acciones',
-    cell: ({ row }) => <CellAction data={row.original} tab="history" />,
-  },
+  // {
+  //   id: 'actions',
+  //   header: 'Acciones',
+  //   cell: ({ row }) => <CellAction data={row.original} tab="history" />,
+  // },
 ];

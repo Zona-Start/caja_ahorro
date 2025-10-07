@@ -61,18 +61,7 @@ export class AccountsPayableController {
     };
   }
 
-  // @Get('/report/:id')
-  // @Roles('admin')
-  // @RequirePermissions('read:account-payable')
-  // @ApiOperation({ summary: 'Generate PDF report for an account payable' })
-  // @ApiResponse({ status: 200, description: 'PDF report generated successfully.' })
-  // @Header('Content-Type', 'application/pdf')
-  // @Header('Content-Disposition', 'attachment; filename=account-payable-report.pdf')
-  // async generateReport(@Param('id') id: string) {
-  //   const pdfBuffer = await this.services.generateAccountPayableReport(+id);
-  //   return new StreamableFile(pdfBuffer);
-  // }
-
+  //endopoint paa listar las transacciones aplicadas a una cuenta por pagar (anticipos, notas credito/debito)
   @Get('/applied-transactions/:id')
   @Roles('admin')
   @RequirePermissions('read:supplier-payment')
@@ -80,6 +69,20 @@ export class AccountsPayableController {
   @ApiResponse({ status: 200, description: 'Return applied transactions.' })
   async getAppliedTransactions(@Param('id') id: string) {
     const result = await this.services.getAppliedTransactions(+id);
+    return {
+      message: 'Applied transactions fetched successfully',
+      data: result,
+    };
+  }
+
+  //endopoint paa listar segun el anticipo o nota de credito a que cuentas se han aplicado
+  @Get('/applied-transaction/:id')
+  @Roles('admin')
+  @RequirePermissions('read:applied-transaction')
+  @ApiOperation({ summary: 'Get applied transactions for an accounts payable' })
+  @ApiResponse({ status: 200, description: 'Return applied transactions.' })
+  async getAppliedTransaction(@Param('id') id: string) {
+    const result = await this.services.getAppliedTransaction(+id);
     return {
       message: 'Applied transactions fetched successfully',
       data: result,

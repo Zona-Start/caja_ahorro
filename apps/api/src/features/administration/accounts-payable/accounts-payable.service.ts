@@ -16,7 +16,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
@@ -435,233 +435,6 @@ export class AccountsPayableService {
   }
 
   ///revisar quien la usa
-  async updateBalances(
-    data: {
-      accountsPayableId: number | null;
-      amount: string | number;
-      description?: string;
-      relatedAdvanceId?: number | null;
-    }[],
-    userId: number,
-    tx?: NodePgDatabase<typeof schema>,
-  ) {
-    const db = tx || this.drizzle;
-
-    const accountsPayableIds = data
-      .map((item) => item.accountsPayableId)
-      .filter(Boolean) as number[];
-    const uniqueAccountsIds = [...new Set(accountsPayableIds)];
-
-    if (uniqueAccountsIds.length === 0) return new Map();
-
-    // Obtener las cuentas por pagar que se van a tocar
-    const accountsToUpdate = await db
-      .select({
-        id: accountsPayable.id,
-        remainingAmount: accountsPayable.remainingAmount,
-        paidAmount: accountsPayable.paidAmount,
-        supplierInvoiceId: accountsPayable.supplierInvoiceId,
-        status: accountsPayable.status,
-        accountsPayableNumber: accountsPayable.accountsPayableNumber,
-      })
-      .from(accountsPayable)
-      .where(inArray(accountsPayable.id, uniqueAccountsIds));
-
-    if (!accountsToUpdate.length) {
-      throw new NotFoundException('Cuentas por pagar no encontradas.');
-    }
-
-    const accountsMap = new Map(accountsToUpdate.map((ap) => [ap.id, ap]));
-
-    // Prepara helper maps
-    const isAdvanceById = new Map<number, boolean>();
-    for (const [id, ap] of accountsMap.entries()) {
-      isAdvanceById.set(
-        id,
-        String(ap.accountsPayableNumber).startsWith('ADV-P'),
-      );
-    }
-
-    // Map de resultados que devolvemos
-    const updates = new Map<
-      number,
-      {
-        newPaidAmount: number;
-        newRemainingAmount: number;
-        invoiceId: number | null;
-        status: string;
-        isAdvance: boolean;
-      }
-    >();
-
-    // 1) Normalizar: si el payload contiene una línea "aplicación" donde accountsPayableId apunta al anticipo
-    //    pero la intención es aplicarlo a una factura, detectamos la factura objetivo (si hay exactamente 1 factura en payload).
-    //    Si no hay coincidencia clara, esperamos que el frontend mande accountsPayableId = invoiceId y relatedAdvanceId = advanceId.
-    const invoiceLines = data.filter((d) => {
-      const ap = accountsMap.get(d.accountsPayableId as number);
-      return ap && !String(ap.accountsPayableNumber).startsWith('ADV-P');
-    });
-
-    for (const item of data) {
-      const id = item.accountsPayableId as number;
-      const account = accountsMap.get(id);
-      if (!account) continue;
-
-      const paymentAmount = Number(item.amount);
-      const currentPaid = Number(account.paidAmount) || 0;
-      const currentRemaining = Number(account.remainingAmount) || 0;
-      const isAdvance = isAdvanceById.get(id) ?? false;
-
-      // Caso: línea que aplica anticipo a factura
-      const hasRelatedAdvance = item.relatedAdvanceId != null;
-
-      // If this line is for a non-advance (invoice):
-      if (!isAdvance) {
-        // Sum any advance application amounts that are intended for this invoice.
-        // Two possible payload shapes:
-        //  A) The application is represented as a separate line that points to the invoice and has relatedAdvanceId.
-        //  B) The application is represented as a line that points to the advance (we try to infer the target invoice).
-        let totalAppliedFromAdvancesToThisInvoice = 0;
-
-        // A) same-line application to this invoice:
-        if (hasRelatedAdvance) {
-          totalAppliedFromAdvancesToThisInvoice += paymentAmount;
-        }
-
-        // B) find application lines that point to an advance but should apply to this invoice.
-        //    Heurística: application-line where accountsPayableId is an advance id and there's exactly one invoice line overall.
-        for (const possible of data) {
-          const pid = possible.accountsPayableId as number;
-          if (!pid) continue;
-          const possibleAp = accountsMap.get(pid);
-          if (!possibleAp) continue;
-          const possibleIsAdvance = String(
-            possibleAp.accountsPayableNumber,
-          ).startsWith('ADV-P');
-          if (!possibleIsAdvance) continue;
-          // possible is an advance-line; if it has relatedAdvanceId (meaning it's an application) and
-          // the frontend used the 'advance-line' style (accountsPayableId = advanceId), then we need to attribute
-          // this amount to the invoice. We only do this when we can unambiguously find the invoice target.
-          if (possible.relatedAdvanceId != null) {
-            // If this `item` is the single invoice line (or specifically the intended invoice),
-            // we add the advance amount to it. Heuristics: if there's only one invoice line in payload,
-            // consider it the target.
-            if (invoiceLines.length === 1) {
-              totalAppliedFromAdvancesToThisInvoice += Number(possible.amount);
-            }
-            // else: if there are multiple invoices, the frontend must send the application as accountsPayableId = invoiceId
-            // and relatedAdvanceId = advanceId. If not, we cannot guess — throw.
-          }
-        }
-
-        const newPaidAmount =
-          currentPaid +
-          Number(item.amount) +
-          totalAppliedFromAdvancesToThisInvoice;
-        const newRemainingAmount =
-          currentRemaining -
-          (Number(item.amount) + totalAppliedFromAdvancesToThisInvoice);
-
-        if (newRemainingAmount < 0) {
-          throw new BadRequestException(
-            'El monto del pago excede el saldo restante de la factura.',
-          );
-        }
-
-        updates.set(id, {
-          newPaidAmount,
-          newRemainingAmount,
-          invoiceId: (account.supplierInvoiceId as number) ?? null,
-          status: newRemainingAmount === 0 ? 'PAID' : 'IN_PROGRESS',
-          isAdvance: false,
-        });
-      } else {
-        // isAdvance === true (es un anticipo)
-        // Debemos ver si la línea representa:
-        //  - Pago directo del anticipo (no relatedAdvanceId) => marcar PAID, no tocar montos
-        //  - Aplicación del anticipo a una factura (relatedAdvanceId present) => reducir anticipo remaining y setear status
-        const isDirectAdvancePayment =
-          !hasRelatedAdvance && !data.some((d) => d.relatedAdvanceId === id);
-        // Explanation: if no relatedAdvanceId on this line and no other line references this advance as relatedAdvanceId,
-        // consider it a direct payment of the advance (tesorería). Otherwise it's an application.
-
-        if (isDirectAdvancePayment) {
-          // pago directo: no tocar montos, solo marcar PAID (si corresponde)
-          updates.set(id, {
-            newPaidAmount: currentPaid,
-            newRemainingAmount: currentRemaining,
-            invoiceId: (account.supplierInvoiceId as number) ?? null,
-            status: 'PAID',
-            isAdvance: true,
-          });
-        } else {
-          // Aplicación del anticipo: el payload debe indicarnos cuánto se aplica (paymentAmount).
-          // currentRemaining es negativo (modelo de anticipos), al aplicar sumamos paymentAmount.
-          const newRemainingAmount = currentRemaining + paymentAmount; // ej: -2500 + 2500 = 0
-          const newPaidAmount = currentPaid; // según tu política
-          const newStatus =
-            newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE_PARTIAL';
-
-          updates.set(id, {
-            newPaidAmount,
-            newRemainingAmount,
-            invoiceId: (account.supplierInvoiceId as number) ?? null,
-            status: newStatus,
-            isAdvance: true,
-          });
-        }
-      }
-    } // end for
-
-    return updates;
-  }
-
-  // async applyAdvance(
-  //   advanceId: number,
-  //   amountToApply: number,
-  //   userId: number,
-  //   tx?: NodePgDatabase<typeof schema>,
-  // ) {
-  //   const db = tx || this.drizzle;
-
-  //   const advance = await db.query.accountsPayable.findFirst({
-  //     where: eq(accountsPayable.id, advanceId),
-  //   });
-
-  //   if (!advance) {
-  //     throw new NotFoundException(`Advance with ID ${advanceId} not found`);
-  //   }
-
-  //   if (advance.status !== 'ADVANCE') {
-  //     throw new BadRequestException(
-  //       `Account payable ${advanceId} is not an advance.`,
-  //     );
-  //   }
-
-  //   const remainingAmount = Number(advance.remainingAmount);
-  //   // Los anticipos tienen remainingAmount negativo. Aplicar un monto lo acerca a 0.
-  //   const newRemainingAmount = remainingAmount + amountToApply;
-
-  //   if (newRemainingAmount > 0) {
-  //     throw new BadRequestException(
-  //       `Amount to apply (${amountToApply}) exceeds the remaining advance amount (${-remainingAmount}).`,
-  //     );
-  //   }
-
-  //   const newStatus = newRemainingAmount === 0 ? 'ADVANCE_APPLIED' : 'ADVANCE';
-
-  //   await db
-  //     .update(accountsPayable)
-  //     .set({
-  //       remainingAmount: newRemainingAmount.toString(),
-  //       paidAmount: '0.00',
-  //       status: newStatus,
-  //       updatedById: userId,
-  //     })
-  //     .where(eq(accountsPayable.id, advanceId));
-  // }
-
-  ///revisar quien la usa
   async findAccountsPayableBySuppliers(supplierIds: number[]) {
     //REVISAR QUIEN LO USA
     // Manejar el caso de un arreglo vacío
@@ -796,13 +569,27 @@ export class AccountsPayableService {
             schema.supplierTransactionApplications.accountsPayableId,
             accountsPayableId,
           ),
+          ne(schema.supplierTransactions.transactionType, 'PAYMENT'),
         ),
       );
   }
-}
 
-//  inArray(schema.supplierTransactions.transactionType, [
-//               'CREDIT_NOTE_APPLIED',
-//               'DEBIT_NOTE_APPLIED',
-//               'ADVANCE_APPLIED',
-//             ]),
+  async getAppliedTransaction(id: number) {
+    return this.drizzle
+      .select({
+        id: supplierTransactions.id,
+        accounPayableRefence: accountsPayable.accountsPayableNumber,
+        amountApplied: supplierTransactionApplications.appliedAmount,
+      })
+      .from(supplierTransactionApplications)
+      .leftJoin(supplierTransactions, eq(supplierTransactions.id, id))
+      .leftJoin(
+        accountsPayable,
+        eq(
+          supplierTransactionApplications.accountsPayableId,
+          accountsPayable.id,
+        ),
+      )
+      .where(eq(supplierTransactionApplications.transactionId, id));
+  }
+}
