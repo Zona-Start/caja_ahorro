@@ -11,9 +11,8 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function usePurchaseOrders(params = {}) {
-  return useSafeQuery(
-    queryKeys.purchaseOrders.all(params), 
-    () => getPurchaseOrdersAction(params)
+  return useSafeQuery(queryKeys.purchaseOrders.list(params), () =>
+    getPurchaseOrdersAction(params),
   );
 }
 

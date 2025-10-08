@@ -1,44 +1,69 @@
 import { z } from 'zod';
-import { PAYMENT_METHOD, BANK_TRANSACTION_CATEGORY, INTERNAL_LINK_STATUS } from './bank-movement-options';
+import {
+  categoryKeys,
+  internalLinkStatusKeys,
+  paymentMethodKeys,
+  reconciliationStatusKeys,
+} from './bank-movement-options';
 
-const paymentMethodEnum = z.enum(Object.keys(PAYMENT_METHOD) as [string, ...string[]]);
-const bankTransactionCategoryEnum = z.enum(Object.keys(BANK_TRANSACTION_CATEGORY) as [string, ...string[]]);
-const internalLinkStatusEnum = z.enum(Object.keys(INTERNAL_LINK_STATUS) as [string, ...string[]]);
-
-export const bankMovementApiSchema = z.object({
+// Esquema para un solo movimiento bancario, como se recibe de la API
+export const apiBankMovementSchema = z.object({
   id: z.number(),
   bankAccountId: z.number(),
-  transactionType: paymentMethodEnum,
-  transactionDate: z.string(),
-  valueDate: z.string().nullable().optional(),
+  paymentMethod: z.enum(paymentMethodKeys),
+  transactionDate: z.string(), // Las fechas vienen como strings
+  valueDate: z.string().nullable(),
   description: z.string(),
-  category: bankTransactionCategoryEnum.nullable().optional(),
-  bankReference: z.string().nullable().optional(),
-  debitAmount: z.string(),
-  creditAmount: z.string(),
-  resultingBalance: z.string().nullable().optional(),
-  internalLinkStatus: internalLinkStatusEnum,
-  note: z.string().nullable().optional(),
+  category: z.enum(categoryKeys),
+  bankReference: z.string().nullable(),
+  debitAmount: z.string().nullable(), // Los montos vienen como strings
+  creditAmount: z.string().nullable(),
+  resultingBalance: z.string().nullable(),
+  reconciliationStatus: z.enum(reconciliationStatusKeys),
+  bankReconciliationId: z.number().nullable(),
+  uploadBatchId: z.string().nullable(),
+  uploadedAt: z.string(),
+  internalLinkStatus: z.enum(internalLinkStatusKeys),
+  note: z.string().nullable(),
   createdAt: z.string(),
-  updatedAt: z.string(),
-  createdById: z.number().nullable().optional(),
-  updatedById: z.number().nullable().optional(),
+  createdById: z.number().nullable(),
+  updatedAt: z.string().nullable(),
+  updatedById: z.number().nullable(),
 });
 
-export type BankMovementApiResponse = z.infer<typeof bankMovementApiSchema>;
-
-export const bankMovementPaginationResponseSchema = z.object({
-  data: z.array(bankMovementApiSchema),
-  total: z.number(),
-  page: z.number(),
-  limit: z.number(),
-});
-
+// Esquema para la respuesta de un solo movimiento
 export const bankMovementResponseSchema = z.object({
-    data: bankMovementApiSchema,
-    message: z.string(),
+  message: z.string(),
+  data: apiBankMovementSchema,
 });
 
-export const bankMovementDeleteResponseSchema = z.object({
+// Esquema para la respuesta paginada de movimientos
+export const paginatedBankMovementsResponseSchema = z.object({
   message: z.string(),
+  data: z.array(apiBankMovementSchema),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    totalCount: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+    nextPage: z.number().nullable(),
+    previousPage: z.number().nullable(),
+  }),
+});
+
+// Esquema para un item vinculable
+export const linkableItemApiSchema = z.object({
+  id: z.number(),
+  type: z.string(),
+  amount: z.string(),
+  date: z.string().nullable(),
+  concept: z.string(),
+});
+
+// Esquema para la respuesta de la API de items vinculables
+export const linkablesResponseSchema = z.object({
+  message: z.string(),
+  data: z.array(linkableItemApiSchema),
 });

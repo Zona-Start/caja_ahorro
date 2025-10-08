@@ -11,19 +11,19 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { timestamps } from '../timestamps';
+import { timestamps } from '../../timestamps';
 import { users } from './auth';
 
 import { sql } from 'drizzle-orm';
-import { company } from './core';
 import {
   accountNatureEnum,
   accountTypeEnum,
   currencyCodeEnum,
   cycleStatusEnum,
   entryStatusEnum,
-} from './enum';
-import { accountingSchema } from './schemas';
+} from '../enum/enum';
+import { accountingSchema } from '../schemas';
+import { company } from './core';
 
 // Tabla de Plan de cuentas  Almacena las cuentas contables de la caja de ahorro.
 export const accountPlan = accountingSchema.table(

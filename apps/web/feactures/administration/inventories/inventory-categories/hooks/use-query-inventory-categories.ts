@@ -11,9 +11,8 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useInventoryCategories(params = {}) {
-  return useSafeQuery(
-    queryKeys.inventoryCategories.all(params), 
-    () => getInventoryCategories(params)
+  return useSafeQuery(queryKeys.inventoryCategories.list(params), () =>
+    getInventoryCategories(params),
   );
 }
 
@@ -22,9 +21,8 @@ export function useInventoryCategories(params = {}) {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useInventoryCategoriesAll(group: string) {
-  return useSafeQuery(
-    queryKeys.inventoryCategories.listAll(group), 
-    () => getAllInventoryCategories(group)
+  return useSafeQuery(queryKeys.inventoryCategories.listByGroup(group), () =>
+    getAllInventoryCategories(group),
   );
 }
 
@@ -33,8 +31,7 @@ export function useInventoryCategoriesAll(group: string) {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useInventoryCategoryById(id: number) {
-  return useSafeQuery(
-    queryKeys.inventoryCategories.detail(id), 
-    () => getInventoryCategoryById(id)
+  return useSafeQuery(queryKeys.inventoryCategories.detail(id), () =>
+    getInventoryCategoryById(id),
   );
 }

@@ -289,18 +289,38 @@ export enum internalLinkStatusEnum {
   NOT_APPLICABLE = 'NOT_APPLICABLE',
 }
 
-export enum bankTransactionCategory {
-  MEMBER_DUES = 'MEMBER_DUES', // Ejemplo: Cuotas de Ahorro, Aportes, etc.
-  LOAN_DISABURSEMENT = 'LOAN_DISABURSEMENT', // Ejemplo: Dinero enviado por un préstamo
-  LOAN_PAYMENT = 'LOAN_PAYMENT', // Ejemplo: Pagos recibidos de préstamos
-  MEMBER_WITHDRAWAL = 'MEMBER_WITHDRAWAL', // Ejemplo: Retiro de haberes de un socio
-  ADMINISTRATIVE_EXPENSES = 'ADMINISTRATIVE_EXPENSES', // Ejemplo: Alquiler, servicios, sueldos
-  BANK_FEES = 'BANK_FEES', // Ejemplo: Comisiones cobradas por el banco
-  INTEREST_EARNED = 'INTEREST_EARNED', // Ejemplo: Intereses generados por la cuenta
-  TAXES = 'TAXES', // Ejemplo: Pagos de impuestos
-  OTHER_INCOME = 'OTHER_INCOME',
-  OTHER_EXPENSES = 'OTHER_EXPENSES',
-  INTERNAL_TRANSFER = 'INTERNAL_TRANSFER', // Entre cuentas de la caja
+export enum BankTransactionCategory {
+  // --- Transacciones con Asociados (MEMBER) ---
+  MEMBER_CONTRIBUTION = 'MEMBER_CONTRIBUTION', // Aportes, Cuotas de Ahorro, Carga de haberes
+  MEMBER_WITHDRAWAL = 'MEMBER_WITHDRAWAL', // Retiro parcial de haberes
+  PAYROLL_SETTLEMENT = 'PAYROLL_SETTLEMENT', // Liquidación final de haberes/nómina
+
+  // --- Transacciones de Cartera (LOAN/CREDIT) ---
+  LOAN_DISBURSEMENT = 'LOAN_DISBURSEMENT', // Desembolso de un préstamo (Salida de caja)
+  LOAN_PAYMENT = 'LOAN_PAYMENT', // Pago de cuota de préstamo (Entrada a caja)
+  CREDIT_DISBURSEMENT = 'CREDIT_DISBURSEMENT', // Desembolso de un crédito (Salida de caja)
+  CREDIT_PAYMENT = 'CREDIT_PAYMENT', // Pago de cuota de crédito (Entrada a caja)
+  BATCH_DISBURSEMENT = 'BATCH_DISBURSEMENT', // Desembolso masivo (lote) de retiros, préstamos, créditos, anticipos, etc.
+
+  // --- Transacciones Operativas (ADMINISTRATIVE/SUPPLIER) ---
+  SUPPLIER_PAYMENT = 'SUPPLIER_PAYMENT', // Pago a proveedores (Reemplaza ADMINISTRATIVE_EXPENSES para egresos específicos)
+  SUPPLIER_ADVANCE_PAYMENT = 'SUPPLIER_ADVANCE_PAYMENT',
+
+  // --- Transacciones Bancarias y de Ajuste (BANK) ---
+  BANK_FEE = 'BANK_FEE', // Comisiones o cargos bancarios (Reemplaza BANK_FEES)
+  INTEREST_EARNED = 'INTEREST_EARNED', // Intereses ganados (Ingreso)
+  INTEREST_CHARGED = 'INTEREST_CHARGED', // Intereses o cargos cobrados por el banco (Gasto)
+  TAX_DEBIT = 'TAX_DEBIT', // Débito por impuestos/retenciones (Reemplaza parte de TAXES)
+  TAX_CREDIT = 'TAX_CREDIT', // Crédito por devolución de impuestos/retenciones
+  BANK_ADJUSTMENT = 'BANK_ADJUSTMENT', // Ajustes por redondeo, apertura, errores o movimientos especiales
+
+  // --- Otros Movimientos y Transferencias ---
+  INTERNAL_TRANSFER = 'INTERNAL_TRANSFER', // Transferencia entre cuentas bancarias propias de la cooperativa/caja
+  OTHER_INCOME = 'OTHER_INCOME', // Otros ingresos no clasificados (Reemplaza OTHER_INCOME)
+  OTHER_EXPENSE = 'OTHER_EXPENSE', // Otros egresos no clasificados (Reemplaza OTHER_EXPENSES)
+
+  OPENING_BANK = 'OPENING_BANK',
+  CLOSING_BANK = 'CLOSING_BANK',
 }
 
 export enum fixedAssetsInventoryStatus {
@@ -313,9 +333,9 @@ export enum fixedAssetsInventoryStatus {
 export enum productStatus {
   AVAILABLE = 'AVAILABLE', // EEl producto está disponible para la venta
   DISABLED = 'DISABLED', // El producto no está disponible para la venta ni es visible públicamente en el catálogo
-  OUT_OF_STOCK = 'OUT OF STOCK', // El producto no tiene unidades disponibles para la venta en este momento
-  COMMING_SOON = 'COMMING SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
-  ON_SALE = 'ON SALE', // en oferta
+  OUT_OF_STOCK = 'OUT_OF_STOCK', // El producto no tiene unidades disponibles para la venta en este momento
+  COMMING_SOON = 'COMMING_SOON', // El producto aún no está a la venta, pero los clientes pueden verlo y, en algunos casos, reservarlo
+  ON_SALE = 'ON_SALE', // en oferta
 }
 
 export enum categorySuppliers {

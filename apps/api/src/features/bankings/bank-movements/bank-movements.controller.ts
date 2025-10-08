@@ -1,4 +1,5 @@
 import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
+import { BankTransactionCategory } from '@/types/enum';
 import {
   Body,
   Controller,
@@ -8,48 +9,92 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
-  Patch,
   Post,
   Query,
   Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { BankMovementsService } from './bank-movements.service';
-import {
-  CreateBankMovementDto,
-  LinkToInternalRecordDto,
-  QueryBankMovementDto,
-  UpdateBankMovementDto,
-} from './dto';
+import { CreateAndReconcileDto, QueryBankMovementDto } from './dto';
+import { GetLinkablesDto } from './dto/get-linkables.dto';
+import { ReverseMovementDto } from './dto/reverse-movement.dto';
 
 @ApiTags('Banking')
 @Controller('bank-movements')
 export class BankMovementsController {
   constructor(private readonly bankMovementsService: BankMovementsService) {}
 
-  @Post()
+  /**
+   * findAll
+   * Lista movimientos con paginación y filtros por cuenta y rango de fechas.
+   * Devuelve total de registros para paginar en el front.
+   */
+  @Get()
+  @RequirePermissions('read:bank-movements')
+  @ApiOperation({ summary: 'List all bank movements' })
+  @ApiResponse({ status: 200, description: 'A list of bank movements.' })
+  async findAll(@Query() query: QueryBankMovementDto) {
+    const result = await this.bankMovementsService.findAll(query);
+
+    return {
+      message: 'Bank movements fetched successfully',
+      data: result.data,
+      meta: result.meta,
+    };
+  }
+
+  /**
+   * createAndReconcile
+   * **Crea** el movimiento bancario y **lo reconcilia en la misma transacción**.
+   * Se usa cuando el usuario ya sabe con qué documento interno va a vincular
+   *
+   */
+  @Post('create-and-reconcile')
   @RequirePermissions('create:bank-movements')
   @ApiOperation({ summary: 'Create a new bank movement' })
   @ApiResponse({
     status: 201,
     description: 'Bank movement created successfully.',
   })
-  create(
+  async createAndReconcile(
+    @Body() body: CreateAndReconcileDto,
     @Req() req: Request,
-    @Body() createBankMovementDto: CreateBankMovementDto,
   ) {
     const userId = req['user'].id;
-    return this.bankMovementsService.create(createBankMovementDto, userId);
+    const result = await this.bankMovementsService.createAndReconcile(
+      body,
+      userId,
+    );
+
+    return {
+      message: result.message,
+      data: result.movement,
+    };
   }
 
-  @Get()
-  @RequirePermissions('read:bank-movements')
-  @ApiOperation({ summary: 'List all bank movements' })
-  @ApiResponse({ status: 200, description: 'A list of bank movements.' })
-  findAll(@Query() query: QueryBankMovementDto) {
-    return this.bankMovementsService.findAll(query);
+  /**
+   * GET /bank-movements/linkables
+   * Devuelve registros internos pendientes de vincular para una categoría y
+   * montos/fechas cercanos al movimiento bancario.
+   */
+  @Get('linkables')
+  async getLinkables(@Query() dto: GetLinkablesDto) {
+    const result = await this.bankMovementsService.getLinkablesByCategory(
+      dto.category as BankTransactionCategory,
+      dto.valueDate,
+    );
+
+    return {
+      message: 'fetched successfully',
+      data: result,
+    };
   }
 
+  /**
+   * findOne
+   * Devuelve un único movimiento bancario por ID.
+   * Lanza 404 si no existe.
+   */
   @Get(':id')
   @RequirePermissions('read:bank-movements')
   @ApiOperation({ summary: 'Get a bank movement by ID' })
@@ -62,49 +107,11 @@ export class BankMovementsController {
     return this.bankMovementsService.findOne(id);
   }
 
-  @Patch(':id')
-  @RequirePermissions('update:bank-movements')
-  @ApiOperation({ summary: 'Update a bank movement' })
-  @ApiResponse({
-    status: 200,
-    description: 'Bank movement updated successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Bank movement not found.' })
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateBankMovementDto: UpdateBankMovementDto,
-  ) {
-    return this.bankMovementsService.update(id, updateBankMovementDto);
-  }
-
-  @Delete(':id')
-  @RequirePermissions('delete:bank-movements')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a bank movement' })
-  @ApiResponse({
-    status: 204,
-    description: 'Bank movement deleted successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Bank movement not found.' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.bankMovementsService.remove(id);
-  }
-
-  // Endpoints for linking
-
-  @Post(':id/link')
-  @RequirePermissions('create:bank-movement-links')
-  @ApiOperation({ summary: 'Link a bank transaction to an internal record' })
-  @ApiResponse({ status: 201, description: 'Link created successfully.' })
-  linkToInternalRecord(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() linkDto: LinkToInternalRecordDto,
-  ) {
-    // TODO: Get userId from authenticated user
-    const userId = 1; // Placeholder
-    return this.bankMovementsService.linkToInternalRecord(id, linkDto, userId);
-  }
-
+  /**
+   * unlinkFromInternalRecord
+   * Elimina el vínculo y **reversa** el estado del movimiento y del documento interno.
+   * Se usa cuando el usuario des-concilia un movimiento ya cerrado.
+   */
   @Delete(':id/unlink')
   @RequirePermissions('delete:bank-movement-links')
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -116,6 +123,11 @@ export class BankMovementsController {
     return this.bankMovementsService.unlinkFromInternalRecord(id);
   }
 
+  /**
+   * findInternalLink
+   * Devuelve el vínculo que tiene un movimiento bancario (si existe).
+   * Se usa para validar desvinculaciones o para mostrar detalle.
+   */
   @Get(':id/link')
   @RequirePermissions('read:bank-movement-links')
   @ApiOperation({
@@ -124,5 +136,20 @@ export class BankMovementsController {
   @ApiResponse({ status: 200, description: 'Link details found.' })
   findInternalLink(@Param('id', ParseIntPipe) id: number) {
     return this.bankMovementsService.findInternalLink(id);
+  }
+
+  /**
+   * POST /bank-movements/:id/reverse
+   * Crea la línea opuesta en el extracto, desvincula el original
+   * y genera asiento de reversión.
+   */
+  @Post(':id/reverse')
+  async reverse(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReverseMovementDto,
+    @Req() req: Request,
+  ) {
+    const userId = req['user'].id;
+    return this.bankMovementsService.reverse(id, dto, userId);
   }
 }

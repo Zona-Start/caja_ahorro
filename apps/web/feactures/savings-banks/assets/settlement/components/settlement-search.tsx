@@ -1,7 +1,7 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
-import { toast } from '@/components/use-toast';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
 import {
   Card,
@@ -28,6 +28,7 @@ export function SettlementSearch({
   currentExchangeRate,
   isEdit = false,
 }: SettlementSearchProps) {
+  const toast = useToastSystem();
   const {
     selectedAssociate,
     setSelectedAssociate,
@@ -74,30 +75,30 @@ export function SettlementSearch({
         const status = (error as any)?.response?.status;
 
         if (errorMessage.includes('not found') || status === 404) {
-          toast({
+          toast.info({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
         } else if (errorMessage.includes('retired')) {
-          toast({
+          toast.info({
             title: 'Asociado retirado',
             description:
               'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
           });
         } else if (errorMessage.includes('inactive')) {
-          toast({
+          toast.warning({
             title: 'Asociado Inactivo',
             description:
               'el asociado tiene un estatus de inactivo y no puede ser seleccionado.',
           });
         } else if (errorMessage.includes('no liquidation data')) {
-          toast({
+          toast.info({
             title: 'Asociado sin datos de liquidación',
             description:
               'el asociado no tiene datos para ser liquidado y no puede ser seleccionado.',
           });
         } else {
-          toast({
+          toast.error({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
@@ -107,7 +108,7 @@ export function SettlementSearch({
       } else if (submittedSearchTerm && !associateData) {
         // La búsqueda fue "exitosa" (sin error de red/servidor) pero no devolvió datos
         setSelectedAssociate(null);
-        toast({
+        toast.info({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
@@ -144,7 +145,7 @@ export function SettlementSearch({
   const handleSearch = useCallback(() => {
     const trimmedSearchTerm = searchTerm.trim();
     if (!trimmedSearchTerm) {
-      toast({
+      toast.warning({
         title: 'Campo vacío',
         description: 'Por favor, ingrese una cédula para buscar.',
       });
@@ -156,17 +157,13 @@ export function SettlementSearch({
       queryKey: ['settlement-associate-individual-by-cedula'],
       exact: false,
     });
-    
+
     // Limpiar estado previo
     setSelectedAssociate(null);
 
     setSubmittedSearchTerm(trimmedSearchTerm);
     setShouldFetch(true); // Activa la ejecución del hook
-  }, [
-    searchTerm,
-    queryClient,
-    setSelectedAssociate,
-  ]);
+  }, [searchTerm, queryClient, setSelectedAssociate]);
 
   const clearAssociate = useCallback(() => {
     clearAllLoanData();
@@ -179,11 +176,7 @@ export function SettlementSearch({
       exact: false,
     });
     queryClient.invalidateQueries({ queryKey: ['settlement-all'] });
-  }, [
-    clearAllLoanData,
-    queryClient,
-    setSelectedAssociate,
-  ]);
+  }, [clearAllLoanData, queryClient, setSelectedAssociate]);
 
   // Efecto para manejar la tecla Enter en la búsqueda
   useEffect(() => {
@@ -212,7 +205,7 @@ export function SettlementSearch({
         </CardTitle>
         {!isEdit && (
           <CardDescription>
-            Busque y seleccione el asociado para el pago del préstamo
+            Busque y seleccione el asociado para realizar la liquidación
           </CardDescription>
         )}
       </CardHeader>

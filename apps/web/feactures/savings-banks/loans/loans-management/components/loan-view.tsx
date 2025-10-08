@@ -1,10 +1,11 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   SystemConfigState,
   useSystemConfigStore,
 } from '@/store/SystemConfigStore';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -23,7 +24,7 @@ interface LoanViewProps {
 }
 
 export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
-  const { toast } = useToast();
+  const toast = useToastSystem();
   const router = useRouter();
   const [isEditActive, SetIsEditActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -240,15 +241,14 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
     setIsSubmitting(true);
     saveLoan(data, {
       onSuccess: () => {
-        toast({
+        toast.success({
           title: 'Préstamo creado con éxito',
           description: `Se ha registrado un préstamo de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.requestedAmount} para ${selectedAssociate?.associate.fullname}.`,
         });
         handleCancel();
       },
       onError: () => {
-        toast({
-          variant: 'destructive',
+        toast.error({
           title: 'Error al crear préstamo',
           description:
             'Ocurrió un error al procesar la operación. Intente nuevamente.',
@@ -266,8 +266,13 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
     setLoanSummary(null);
     setFormValues(emptyFormValues);
     setSelectedLoanType(null);
-    queryClient.removeQueries({ queryKey: ['associates-by-cedula'] });
-    queryClient.removeQueries({ queryKey: ['loan-management-id'] });
+    queryClient.removeQueries({
+      queryKey: queryKeys.loansManagement.associatesByCedulaAll(),
+      exact: false,
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.loansManagement.all(),
+    });
     router.push('/dashboard/prestamos/gestion');
   };
 

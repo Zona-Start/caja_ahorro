@@ -1,8 +1,8 @@
 'use client';
 
 import { AlertModal } from '@/components/modal/alert-modal';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
-import { toast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import {
   Tooltip,
@@ -20,6 +20,7 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const toast = useToastSystem();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const { mutate: deleteLoanPaid } = useDeleteLoanPaid();
@@ -32,8 +33,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         setOpen(false);
       } else {
         setOpen(false);
-        toast({
-          variant: 'destructive',
+        toast.error({
           title: 'No se puede anular el pago',
           description: 'El pago ya fue cancelado',
         });

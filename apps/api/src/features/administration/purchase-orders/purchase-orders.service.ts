@@ -6,7 +6,7 @@ import {
   purchaseOrders,
   services,
   suppliers,
-} from '@/database/schema/administration';
+} from '@/database/schema/tables';
 import { CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,

@@ -1,7 +1,8 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
-import { toast } from '@/components/use-toast';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { Button } from '@repo/shadcn/button';
 import {
   Card,
@@ -29,6 +30,7 @@ export function CreditPaidSearch({
   currentExchangeRate,
   isEdit = false,
 }: CreditSearchProps) {
+  const toast = useToastSystem();
   const {
     selectedAssociate,
     setSelectedAssociate,
@@ -42,7 +44,6 @@ export function CreditPaidSearch({
   const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
 
   const queryClient = useQueryClient();
-
 
   const {
     data: associateData, // Renombrar para evitar conflicto con 'data' en useEffect
@@ -75,24 +76,25 @@ export function CreditPaidSearch({
         const errorMessage = (error as any)?.message || 'Error desconocido';
         const status = (error as any)?.response?.status;
 
-       
         if (errorMessage.includes('not found') || status === 404) {
-          toast({
+          toast.info({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
-        } else if (errorMessage.includes('retired'))  {
-            toast({
-              title: 'Asociado retirado',
-              description: 'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
-            });
-        } else if (errorMessage.includes('inactive'))  {
-            toast({
-              title: 'Asociado inactivo',
-              description: 'el asociado está inactivo y no puede ser seleccionado.',
-            });
-        }  else {
-          toast({
+        } else if (errorMessage.includes('retired')) {
+          toast.warning({
+            title: 'Asociado retirado',
+            description:
+              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+          });
+        } else if (errorMessage.includes('inactive')) {
+          toast.warning({
+            title: 'Asociado inactivo',
+            description:
+              'el asociado está inactivo y no puede ser seleccionado.',
+          });
+        } else {
+          toast.error({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
@@ -102,7 +104,7 @@ export function CreditPaidSearch({
 
         if (associateData.creditTotalAmount === '0.00') {
           setSelectedAssociate(null);
-          toast({
+          toast.info({
             title: 'Pago de créditos no disponibles',
             description: `El Asociado no tiene pagos de créditos pendientes`,
           });
@@ -112,7 +114,7 @@ export function CreditPaidSearch({
       } else if (submittedSearchTerm && !associateData) {
         // La búsqueda fue "exitosa" (sin error de red/servidor) pero no devolvió datos
         setSelectedAssociate(null);
-        toast({
+        toast.info({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
@@ -152,7 +154,7 @@ export function CreditPaidSearch({
   const handleSearch = useCallback(() => {
     const trimmedSearchTerm = searchTerm.trim();
     if (!trimmedSearchTerm) {
-      toast({
+      toast.warning({
         title: 'Campo vacío',
         description: 'Por favor, ingrese una cédula para buscar.',
       });
@@ -160,7 +162,7 @@ export function CreditPaidSearch({
     }
     // Previene búsquedas repetidas con el mismo término si ya hay un resultado
     if (trimmedSearchTerm === submittedSearchTerm && selectedAssociate) {
-      toast({
+      toast.info({
         title: 'Información ya cargada',
         description: `Ya se muestran los datos para la cédula ${trimmedSearchTerm}.`,
       });
@@ -185,8 +187,8 @@ export function CreditPaidSearch({
     setShouldFetch(false);
 
     queryClient.removeQueries({
-        queryKey: ['credit-paid-associate-individual-by-cedula'],
-      });
+      queryKey: queryKeys.associatesForCreditsPaid.all(),
+    });
     // Considera remover también la genérica si tu lógica lo requiere
     // queryClient.removeQueries({ queryKey: ['associates-by-cedula'], exact: false });
   }, [
@@ -222,7 +224,7 @@ export function CreditPaidSearch({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="blue" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <User />
           </IconWrapper>
           {isEdit ? 'Datos del Asociado' : 'Busqueda de Asociado'}

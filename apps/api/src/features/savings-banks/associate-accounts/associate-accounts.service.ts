@@ -1,4 +1,4 @@
-import { associateAccounts } from '@/database/schema/savings-banks';
+import { associateAccounts } from '@/database/schema/tables/savings-banks';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';

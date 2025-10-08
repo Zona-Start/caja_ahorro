@@ -1,7 +1,7 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
-import { loanTypes as loanTypesSchema } from '@/database/schema/savings-banks';
+import { loanTypes as loanTypesSchema } from '@/database/schema/tables/savings-banks';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -36,7 +36,7 @@ export class LoanTypesService {
       .insert(loanTypesSchema)
       .values({
         ...createLoanTypeDto,
-        name: createLoanTypeDto.name.toUpperCase(),
+        name: createLoanTypeDto.name,
         interestRate: createLoanTypeDto.interestRate.toString(),
         cancellationPercentage:
           createLoanTypeDto.cancellationPercentage?.toString() ?? null,

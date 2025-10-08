@@ -1,4 +1,4 @@
-import { productServiceSuppliers } from '@/database/schema/administration';
+import { productServiceSuppliers } from '@/database/schema/tables';
 import {
   BadRequestException,
   Inject,
@@ -22,8 +22,12 @@ export class ProductServiceSuppliersService {
   async create(userId: number, data: CreateProductServiceSupplierDto) {
     const exist = await this.drizzle.query.productServiceSuppliers.findFirst({
       where: and(
-        data.productId ? eq(productServiceSuppliers.productId, data.productId) : undefined,
-        data.serviceId ? eq(productServiceSuppliers.serviceId, data.serviceId) : undefined,
+        data.productId
+          ? eq(productServiceSuppliers.productId, data.productId)
+          : undefined,
+        data.serviceId
+          ? eq(productServiceSuppliers.serviceId, data.serviceId)
+          : undefined,
         eq(productServiceSuppliers.suppliersId, data.suppliersId),
       ),
     });
@@ -38,7 +42,6 @@ export class ProductServiceSuppliersService {
       .insert(productServiceSuppliers)
       .values({
         ...data,
-        createdById: userId,
       })
       .returning();
 
@@ -65,7 +68,9 @@ export class ProductServiceSuppliersService {
       searchConditions.push(eq(productServiceSuppliers.serviceId, serviceId));
     }
     if (suppliersId) {
-      searchConditions.push(eq(productServiceSuppliers.suppliersId, suppliersId));
+      searchConditions.push(
+        eq(productServiceSuppliers.suppliersId, suppliersId),
+      );
     }
 
     const searchCondition = searchConditions.length
@@ -128,7 +133,11 @@ export class ProductServiceSuppliersService {
     return data;
   }
 
-  async update(userId: number, id: number, data: UpdateProductServiceSupplierDto) {
+  async update(
+    userId: number,
+    id: number,
+    data: UpdateProductServiceSupplierDto,
+  ) {
     const exist = await this.drizzle.query.productServiceSuppliers.findFirst({
       where: eq(productServiceSuppliers.id, id),
     });
@@ -141,7 +150,6 @@ export class ProductServiceSuppliersService {
       .update(productServiceSuppliers)
       .set({
         ...data,
-        updatedById: userId,
       })
       .where(eq(productServiceSuppliers.id, id))
       .returning();
@@ -158,7 +166,9 @@ export class ProductServiceSuppliersService {
       throw new NotFoundException('Product service supplier not found');
     }
 
-    await this.drizzle.delete(productServiceSuppliers).where(eq(productServiceSuppliers.id, id));
+    await this.drizzle
+      .delete(productServiceSuppliers)
+      .where(eq(productServiceSuppliers.id, id));
 
     return { message: 'Product service supplier removed successfully' };
   }

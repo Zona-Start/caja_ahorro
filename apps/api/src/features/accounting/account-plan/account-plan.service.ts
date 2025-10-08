@@ -1,4 +1,4 @@
-import { accountPlan } from '@/database/schema/accounting';
+import { accountPlan } from '@/database/schema/tables';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';

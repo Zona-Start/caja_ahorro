@@ -1,7 +1,7 @@
 export const GROUP_TYPES = {
-  PRODUCT: 'PRODUCTO',
-  SERVICE: 'SERVICIO',
-  FIXED_ASSET: 'BIEN O ACTIVO',
+  PRODUCT: 'Productos',
+  SERVICE: 'Servicios',
+  FIXED_ASSET: 'Bienes o Activos',
 } as const;
 
 export type GroupType = keyof typeof GROUP_TYPES;

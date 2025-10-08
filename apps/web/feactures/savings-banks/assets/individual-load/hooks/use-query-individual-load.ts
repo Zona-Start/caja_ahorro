@@ -1,4 +1,5 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { getAssociatesByCedulaAction } from '../actions/individual-load.action';
 
 export function useAssociatesByCedula(
@@ -6,12 +7,11 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['assets-individual-load-associates-by-cedula', cedula],
+    queryKeys.associatesForIndividualAssetLoad.byCedula(cedula),
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula ? options?.enabled : false,
       staleTime: 0,
-      cacheTime: 0,
       ...options,
     },
   );

@@ -1,10 +1,11 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   SystemConfigState,
   useSystemConfigStore,
 } from '@/store/SystemConfigStore';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -26,7 +27,7 @@ export function CreditPaidView({
   isEdit = false,
   initialData,
 }: CreditViewProps) {
-  // Zustand store
+  const toast = useToastSystem();
   const {
     selectedAssociate,
     setSelectedAssociate,
@@ -46,8 +47,6 @@ export function CreditPaidView({
   const [stickyTop, setStickyTop] = useState(4);
   const [currentCurrencyCode, setCurrentCurrencyCode] = useState<string>();
   const [currentExchangeRate, setCurrentExchangeRate] = useState<number>();
-
-  const { toast } = useToast();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: creditTypes } = useTypeCredits();
@@ -154,25 +153,26 @@ export function CreditPaidView({
     setIsSubmitting(true);
     saveCreditPaid(data, {
       onSuccess: () => {
-        toast({
+        toast.success({
           title: 'Pago de Crédito creado con éxito',
           description: `Se ha registrado un pago de crédito de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.amount} para ${selectedAssociate?.fullname}.`,
         });
 
         queryClient.removeQueries({
-          queryKey: ['credit-paid-associate', selectedAssociate?.cedula],
+          queryKey: queryKeys.associatesForCreditsPaid.byCedula(
+            selectedAssociate?.cedula!,
+          ),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.creditsPaid.list(),
         });
         queryClient.removeQueries({
-          queryKey: ['credit-paid'],
-        });
-        queryClient.removeQueries({
-          queryKey: ['credit-paid-associate', ''],
+          queryKey: queryKeys.associatesForCreditsPaid.all(),
         });
         handleCancel();
       },
       onError: () => {
-        toast({
-          variant: 'destructive',
+        toast.error({
           title: 'Error al guardar el pago del crédito',
           description:
             'Ocurrió un error al procesar la operación. Intente nuevamente.',

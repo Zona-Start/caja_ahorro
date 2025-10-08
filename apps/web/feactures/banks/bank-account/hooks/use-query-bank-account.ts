@@ -1,4 +1,5 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getBankAccountAction,
   getBankAccountAllAction,
@@ -7,7 +8,7 @@ import {
 
 // Hook for associates
 export function useBankAccount(params = {}) {
-  return useSafeQuery(['bank-account', params], () =>
+  return useSafeQuery(queryKeys.bankAccounts.list(params), () =>
     getBankAccountAction(params),
   );
 }
@@ -17,7 +18,7 @@ export function useBankAccountById(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['bank-account-by-id', id],
+    queryKeys.bankAccounts.detail(id),
     () => getBankAccountByIdAction(id),
     {
       enabled: id ? options?.enabled : false,
@@ -28,5 +29,7 @@ export function useBankAccountById(
 
 //hook para traer todas las cuenta de banco de la caja
 export function useBankAccountAll() {
-  return useSafeQuery(['bank-account-all'], () => getBankAccountAllAction());
+  return useSafeQuery(queryKeys.bankAccounts.listAll(), () =>
+    getBankAccountAllAction(),
+  );
 }

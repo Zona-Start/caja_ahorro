@@ -5,7 +5,7 @@ export const typeLoanSchema = z.object({
   name: z.string(),
   description: z.string().optional().nullable(),
   interestRate: z.string(),
-  termType: z.enum(['CUOTAS', 'PLAZO']),
+  termType: z.enum(['Cuotas', 'Plazos']),
   termUnits: z.number(),
   cancellationPercentage: z.string().optional().nullable(),
   loanAccountChartId: z.number(),

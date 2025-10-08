@@ -139,13 +139,6 @@ export class BankAccountsService {
       const finalBookBalance = bookBalance ? Number(bookBalance.totalDebit) : 0;
       const difference = finalBookBalance - Number(dto.lastStatementBalance);
 
-      console.log('finalBookBalance:', finalBookBalance);
-      console.log(
-        'dto.lastStatementBalance:',
-        Number(dto.lastStatementBalance),
-      );
-      console.log('Diferencia:', difference);
-
       // 3. Actualizar cuenta
       await tx
         .update(schema.bankAccounts)
@@ -162,7 +155,7 @@ export class BankAccountsService {
         .insert(schema.bankTransactions)
         .values({
           bankAccountId: dto.bankAccountId,
-          transactionType: 'OTHER',
+          paymentMethod: 'OTHER',
           transactionDate: dto.lastStatementDate,
           valueDate: dto.lastStatementDate,
           description: 'Saldo inicial extracto',
@@ -171,7 +164,7 @@ export class BankAccountsService {
           debitAmount: '0',
           resultingBalance: dto.lastStatementBalance.toString(),
           reconciliationStatus: 'PENDING',
-          bankReference: 'APERTURA',
+          bankReference: 'Apertura de Cuenta',
           uploadBatchId: 'INITIAL_RECON',
           note: 'Movimiento creado automáticamente en conciliación inicial',
           createdById: userId,

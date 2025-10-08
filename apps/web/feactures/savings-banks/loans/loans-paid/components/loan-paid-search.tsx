@@ -1,7 +1,8 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
-import { toast } from '@/components/use-toast';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { Button } from '@repo/shadcn/button';
 import {
   Card,
@@ -29,6 +30,7 @@ export function LoanPaidSearch({
   currentExchangeRate,
   isEdit = false,
 }: LoanSearchProps) {
+  const toast = useToastSystem();
   const {
     selectedAssociate,
     setSelectedAssociate,
@@ -75,27 +77,27 @@ export function LoanPaidSearch({
         const status = (error as any)?.response?.status;
 
         if (errorMessage.includes('not found') || status === 404) {
-          toast({
+          toast.info({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
           clearAssociate();
         } else if (errorMessage.includes('retired')) {
-          toast({
+          toast.warning({
             title: 'Asociado retirado',
             description:
               'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
           });
           clearAssociate();
         } else if (errorMessage.includes('inactive')) {
-          toast({
+          toast.warning({
             title: 'Asociado inactivo',
             description:
               'el asociado está inactivo y no puede ser seleccionado.',
           });
           clearAssociate();
         } else {
-          toast({
+          toast.error({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
@@ -103,7 +105,7 @@ export function LoanPaidSearch({
       } else if (associateData) {
         if (associateData.loanTotalAmount === '0.00') {
           setSelectedAssociate(null);
-          toast({
+          toast.info({
             title: 'Pago de prestamos no disponibles',
             description: `El Asociado no tiene pagos de prestamos pendientes`,
           });
@@ -113,7 +115,7 @@ export function LoanPaidSearch({
           associateData.loanStatus !== 'IN_PAYMENT'
         ) {
           setSelectedAssociate(null);
-          toast({
+          toast.info({
             title: 'Préstamo no disponible para pago',
             description: `El préstamo del asociado no ha sido desembolsado`,
           });
@@ -124,7 +126,7 @@ export function LoanPaidSearch({
       } else if (submittedSearchTerm && !associateData) {
         // La búsqueda fue "exitosa" (sin error de red/servidor) pero no devolvió datos
         setSelectedAssociate(null);
-        toast({
+        toast.info({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
@@ -165,7 +167,7 @@ export function LoanPaidSearch({
   const handleSearch = useCallback(() => {
     const trimmedSearchTerm = searchTerm.trim();
     if (!trimmedSearchTerm) {
-      toast({
+      toast.warning({
         title: 'Campo vacío',
         description: 'Por favor, ingrese una cédula para buscar.',
       });
@@ -173,7 +175,7 @@ export function LoanPaidSearch({
     }
     // Previene búsquedas repetidas con el mismo término si ya hay un resultado
     if (trimmedSearchTerm === submittedSearchTerm && selectedAssociate) {
-      toast({
+      toast.info({
         title: 'Información ya cargada',
         description: `Ya se muestran los datos para la cédula ${trimmedSearchTerm}.`,
       });
@@ -196,7 +198,7 @@ export function LoanPaidSearch({
     setSubmittedSearchTerm('');
     setShouldFetch(false);
     queryClient.removeQueries({
-      queryKey: ['loan-paid-associate-individul-by-cedula'],
+      queryKey: queryKeys.loansPaid.associateByIndividualAll(),
     });
   }, [
     clearAllLoanData,
@@ -231,7 +233,7 @@ export function LoanPaidSearch({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="blue" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <User />
           </IconWrapper>
           {isEdit ? 'Datos del Asociado' : 'Busqueda de Asociado'}

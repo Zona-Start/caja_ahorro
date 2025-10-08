@@ -1,7 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   accountForSupplierInvoiceAction,
   createSupplierInvoiceAction,
@@ -9,7 +10,6 @@ import {
   updateSupplierInvoiceAction,
 } from '../actions/supplier-invoice-actions';
 import { SupplierInvoice } from '../schemas/supplier-invoice.schema';
-import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Hook para la mutación (crear/actualizar/contabilizar) de facturas de proveedor
@@ -17,13 +17,10 @@ import { queryKeys } from '@/lib/queryKeys';
  */
 export function useSupplierInvoiceMutation() {
   const queryClient = useQueryClient();
-  let toastMessage: string;
-  const mutation = useMutation({
+  const toast = useToastSystem();
+
+  return useMutation({
     mutationFn: (data: Partial<SupplierInvoice>) => {
-      toastMessage =
-        data.status !== 'ACCOUNTED_FOR'
-          ? 'Factura de proveedor guardada exitosamente'
-          : 'Factura de proveedor contabilizada exitosamente';
       if (data.id && data.status !== 'ACCOUNTED_FOR') {
         return updateSupplierInvoiceAction(data);
       } else if (data.id && data.status === 'ACCOUNTED_FOR') {
@@ -31,63 +28,55 @@ export function useSupplierInvoiceMutation() {
       }
       return createSupplierInvoiceAction(data);
     },
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.supplierInvoices.all() 
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.supplierInvoices.all(),
       });
-      // Invalidar todos los detalles de facturas
-      queryClient.invalidateQueries({ queryKey: ['supplier-invoices-by-id'] });
+
+      if (variables.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.supplierInvoices.detail(variables.id),
+        });
+      }
+
+      const toastMessage =
+        variables.status !== 'ACCOUNTED_FOR'
+          ? 'Factura de proveedor guardada exitosamente'
+          : 'Factura de proveedor contabilizada exitosamente';
+
       toast.success(toastMessage);
     },
-    onError: (error) => {
-      if (error instanceof Error) {
-        if (error.message.includes('Invoice with number')) {
-          toast.error(
-            'Error, La factura de proveedor con ese número ya existe',
-          );
-        } else {
-          toast.error(
-            error.message ||
-              'Error al guardar la factura de proveedor, contacte al administrador',
-          );
-        }
-      }
+    onError: (error, variables) => {
+      const toastMessage =
+        variables.status !== 'ACCOUNTED_FOR'
+          ? 'Error al guardar la factura de proveedor'
+          : 'Error al contabilizar la factura de proveedor';
+      toast.error(toastMessage);
     },
   });
-
-  return mutation;
 }
 
 /**
  * Hook para anular/cancelar una factura de proveedor
  * Utiliza la fábrica centralizada de claves para invalidar queries
  */
-export function useCancelSupplierInvoice() {
+export function useDeleteSupplierInvoice() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => deleteSupplierInvoiceAction(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.supplierInvoices.all() 
+    onSuccess: (data, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.supplierInvoices.all(),
       });
-      // Invalidar todos los detalles de facturas
-      queryClient.invalidateQueries({ queryKey: ['supplier-invoices-by-id'] });
-      toast.success('Factura de proveedor anulada exitosamente');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.supplierInvoices.detail(id),
+      });
+      toast.crud.delete.success('Factura de proveedor');
     },
-    onError: (error) => {
-      if (error instanceof Error) {
-        if (error.message.includes('not found')) {
-          toast.error('Error, La factura de proveedor no existe');
-        } else {
-          toast.error(
-            error.message ||
-              'Error al anular la factura de proveedor, contacte al administrador',
-          );
-        }
-      }
+    onError: () => {
+      toast.crud.delete.error('Factura de proveedor');
     },
   });
 }

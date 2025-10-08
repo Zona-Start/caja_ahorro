@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from '@repo/shadcn/card';
 import { SelectSearchable } from '@repo/shadcn/components/ui/select-searchable';
+import { Skeleton } from '@repo/shadcn/components/ui/skeleton';
 import {
   Form,
   FormControl,
@@ -20,7 +21,7 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { Textarea } from '@repo/shadcn/textarea';
-import { Banknote, Check } from 'lucide-react';
+import { Banknote, Save } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBankAccountAll } from '../../../../banks/bank-account/hooks/use-query-bank-account';
@@ -47,6 +48,24 @@ interface SelectedItem {
   type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION';
   sourceId: number;
 }
+
+const DetailsSkeleton = () => {
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-full" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-[400px] w-full" />
+          <Skeleton className="h-[400px]  w-full" />
+          <Skeleton className="h-[400px]  w-full" />
+          <Skeleton className="h-[400px]  w-full" />
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 export function PaymentBatchForm({
   isSubmitting,
@@ -131,6 +150,10 @@ export function PaymentBatchForm({
   const handleSubmit = form.handleSubmit((data) => {
     onSubmit(data);
   });
+
+  if (isLoadingLoans || isLoadingWithdrawals || isLoadingLiquidations) {
+    return <DetailsSkeleton />;
+  }
 
   return (
     <Card>
@@ -310,7 +333,7 @@ export function PaymentBatchForm({
                   </span>
                 ) : (
                   <span className="flex items-center gap-1">
-                    <Check className="h-4 w-4" />
+                    <Save className="h-4 w-4" />
                     {isEdit ? 'Actualizar Lote' : 'Crear Lote'}
                   </span>
                 )}

@@ -1,4 +1,5 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { getAssociatesByCedulaAction } from '../actions/withdrawal-actions';
 
 export function useAssociatesByCedula(
@@ -6,7 +7,7 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['withdrawal-associate-individual', cedula], // Include cedula in query key
+    queryKeys.associatesForWithdrawal.byCedula(cedula),
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula?.trim() ? options?.enabled : false,

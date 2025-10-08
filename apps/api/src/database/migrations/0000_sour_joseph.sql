@@ -20,7 +20,7 @@ CREATE TYPE "public"."audit_action_enum" AS ENUM('INSERT', 'UPDATE', 'DELETE', '
 CREATE TYPE "public"."audit_auth_action_enum" AS ENUM('LOGIN', 'LOGOUT');--> statement-breakpoint
 CREATE TYPE "public"."associate_account_type_enum" AS ENUM('SAVINGS', 'EMPLOYER_CONTRIBUTION', 'MANDATORY_SAVINGS');--> statement-breakpoint
 CREATE TYPE "public"."associate_movement_type_enum" AS ENUM('SAVING_CONTRIBUTION', 'EMPLOYER_CONTRIBUTION', 'VOLUNTARY_SAVINGS', 'SAVING_WITHDRAWAL', 'LOAN_DISBURSEMENT_CREDIT', 'SPECIAL_LOAN_DISBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT', 'SPECIAL_CREDIT_DISBURSEMENT_CREDIT', 'LOAN_REFINANCING_DEBIT', 'LOAN_REFINANCING_CREDIT', 'LOAN_PAYMENT_DEBIT', 'COMMERCIAL_CREDIT_PAYMENT_DEBIT', 'LOAN_REIMBURSEMENT_CREDIT', 'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT', 'LOAN_OVERPAYMENT_CREDIT', 'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT', 'LOAN_PARTIAL_DISBURSEMENT_CREDIT', 'WITHDRAWAL_FEE_DEBIT', 'LOAN_INTEREST_DEBIT', 'LOAN_FEE_DEBIT', 'LOAN_ADMIN_FEE_DEBIT', 'LATE_PAYMENT_FEE_DEBIT', 'PAYMENT_REVERSAL_DEBIT', 'CREDIT_ADMIN_FEE_DEBIT', 'DIVIDEND_CREDIT', 'FEE_REIMBURSEMENT_CREDIT', 'ADJUSTMENT_CREDIT', 'ADJUSTMENT_DEBIT', 'FEE_CORRECTION_DEBIT', 'ADMIN_FEE_DEBIT', 'OTHER_DEBIT', 'FEE_DEBIT', 'OTHER_CREDIT', 'LIQUIDATION_BALANCE', 'LOAN_DISBURSEMENT_REVERSAL_DEBIT', 'SPECIAL_LOAN_DISBURSEMENT_REVERSAL_DEBIT', 'COMMERCIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', 'SPECIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT', 'LOAN_PAYMENT_REVERSAL_CREDIT', 'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT', 'SAVING_WITHDRAWAL_REVERSAL_CREDIT', 'LIQUIDATION_BALANCE_REVERSAL_CREDIT', 'ACCOUNTING_ADJUSTMENT_DEBIT', 'ACCOUNTING_ADJUSTMENT_CREDIT');--> statement-breakpoint
-CREATE TYPE "public"."bank_transaction_category" AS ENUM('OPENING_BANK', 'INITIAL_ADJUSTMENT_BANK', 'CLOSING', 'DEPOSIT', 'WITHDRAWAL', 'MEMBER_DUES', 'LOAN_DISABURSEMENT', 'LOAN_PAYMENT', 'MEMBER_WITHDRAWAL', 'ADMINISTRATIVE_EXPENSES', 'BANK_FEES', 'INTEREST_EARNED', 'TAXES', 'OTHER_INCOME', 'OTHER_EXPENSES', 'INTERNAL_TRANSFER');--> statement-breakpoint
+CREATE TYPE "public"."bank_transaction_category" AS ENUM('MEMBER_CONTRIBUTION', 'MEMBER_WITHDRAWAL', 'PAYROLL_SETTLEMENT', 'LOAN_DISBURSEMENT', 'LOAN_PAYMENT', 'CREDIT_DISBURSEMENT', 'CREDIT_PAYMENT', 'BATCH_DISBURSEMENT', 'SUPPLIER_PAYMENT', 'SUPPLIER_ADVANCE_PAYMENT', 'INTERNAL_TRANSFER', 'BANK_FEE', 'INTEREST_EARNED', 'INTEREST_CHARGED', 'BANK_ADJUSTMENT', 'TAX_DEBIT', 'TAX_CREDIT', 'OTHER_INCOME', 'OTHER_EXPENSE', 'OPENING_BANK', 'CLOSING_BANK');--> statement-breakpoint
 CREATE TYPE "public"."category-suppliers" AS ENUM('ASSETS', 'SERVICE', 'PRODUCTS', 'MATERIALS', 'FURNITURE', 'OTHERS');--> statement-breakpoint
 CREATE TYPE "public"."credit_modality_type_enum" AS ENUM('ORDINARY', 'SPECIAL_QUOTAS');--> statement-breakpoint
 CREATE TYPE "public"."credit_payment_type_enum" AS ENUM('PAYING', 'CANCELLATION');--> statement-breakpoint
@@ -654,6 +654,17 @@ CREATE TABLE "banking"."bank_accounts" (
 	CONSTRAINT "bank_accounts_account_number_unique" UNIQUE("account_number")
 );
 --> statement-breakpoint
+CREATE TABLE "banking"."bank_category_rule" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"category" "bank_transaction_category" NOT NULL,
+	"internal_table" varchar(50),
+	"record_status" varchar(20),
+	"direction" char(1) NOT NULL,
+	"default_debit_account_id" integer,
+	"default_credit_account_id" integer,
+	"auto_list" boolean DEFAULT true NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "banking"."bank_directory" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"code" varchar(10) NOT NULL,
@@ -706,11 +717,11 @@ CREATE TABLE "banking"."bank_reconciliations" (
 CREATE TABLE "banking"."bank_transactions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"bank_account_id" integer NOT NULL,
-	"transaction_type" "payment_method_enum" NOT NULL,
+	"payment_method" "payment_method_enum" NOT NULL,
 	"transaction_date" date NOT NULL,
 	"value_date" date,
 	"description" text NOT NULL,
-	"bank_transaction_category" "bank_transaction_category",
+	"bank_transaction_category" "bank_transaction_category" NOT NULL,
 	"bank_reference" varchar(100),
 	"debit_amount" numeric(20, 6) DEFAULT '0.00',
 	"credit_amount" numeric(20, 6) DEFAULT '0.00',
@@ -1293,6 +1304,7 @@ CREATE TABLE "savings_banks"."withdrawals_associates" (
 	"payment_method" "payment_method_enum",
 	"reference_code" varchar(100),
 	"status" "withdrawal_status_enum" DEFAULT 'REQUESTED' NOT NULL,
+	"bank_transaction_id" integer,
 	"commercial_house_id" integer,
 	"withdrawal_items" jsonb,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -1432,6 +1444,8 @@ ALTER TABLE "banking"."bank_accounts" ADD CONSTRAINT "bank_accounts_bank_directo
 ALTER TABLE "banking"."bank_accounts" ADD CONSTRAINT "bank_accounts_linked_chart_account_id_account_plan_id_fk" FOREIGN KEY ("linked_chart_account_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banking"."bank_accounts" ADD CONSTRAINT "bank_accounts_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banking"."bank_accounts" ADD CONSTRAINT "bank_accounts_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "banking"."bank_category_rule" ADD CONSTRAINT "bank_category_rule_default_debit_account_id_account_plan_id_fk" FOREIGN KEY ("default_debit_account_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "banking"."bank_category_rule" ADD CONSTRAINT "bank_category_rule_default_credit_account_id_account_plan_id_fk" FOREIGN KEY ("default_credit_account_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banking"."bank_directory" ADD CONSTRAINT "bank_directory_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banking"."bank_directory" ADD CONSTRAINT "bank_directory_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "banking"."bank_reconciliation_details" ADD CONSTRAINT "bank_reconciliation_details_bank_reconciliation_id_bank_reconciliations_id_fk" FOREIGN KEY ("bank_reconciliation_id") REFERENCES "banking"."bank_reconciliations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1576,6 +1590,7 @@ ALTER TABLE "savings_banks"."withdrawal_types" ADD CONSTRAINT "withdrawal_types_
 ALTER TABLE "savings_banks"."withdrawal_types" ADD CONSTRAINT "withdrawal_types_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."withdrawals_associates" ADD CONSTRAINT "withdrawals_associates_associate_account_id_associate_accounts_id_fk" FOREIGN KEY ("associate_account_id") REFERENCES "savings_banks"."associate_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."withdrawals_associates" ADD CONSTRAINT "withdrawals_associates_withdrawal_type_id_withdrawal_types_id_fk" FOREIGN KEY ("withdrawal_type_id") REFERENCES "savings_banks"."withdrawal_types"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings_banks"."withdrawals_associates" ADD CONSTRAINT "withdrawals_associates_bank_transaction_id_bank_transactions_id_fk" FOREIGN KEY ("bank_transaction_id") REFERENCES "banking"."bank_transactions"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."withdrawals_associates" ADD CONSTRAINT "withdrawals_associates_commercial_house_id_suppliers_id_fk" FOREIGN KEY ("commercial_house_id") REFERENCES "administration"."suppliers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."withdrawals_associates" ADD CONSTRAINT "withdrawals_associates_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings_banks"."withdrawals_associates" ADD CONSTRAINT "withdrawals_associates_updated_by_id_users_id_fk" FOREIGN KEY ("updated_by_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1625,6 +1640,7 @@ CREATE UNIQUE INDEX "bank_accounts_account_number_uidx" ON "banking"."bank_accou
 CREATE INDEX "bank_accounts_sb_idx" ON "banking"."bank_accounts" USING btree ("company_id");--> statement-breakpoint
 CREATE INDEX "bank_accounts_currency_idx" ON "banking"."bank_accounts" USING btree ("currency_code");--> statement-breakpoint
 CREATE INDEX "bank_accounts_chart_acc_idx" ON "banking"."bank_accounts" USING btree ("linked_chart_account_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "bcr_cat_table_uidx" ON "banking"."bank_category_rule" USING btree ("category","internal_table");--> statement-breakpoint
 CREATE INDEX "bank_directory_code_idx" ON "banking"."bank_directory" USING btree ("code");--> statement-breakpoint
 CREATE INDEX "bank_directory_name_idx" ON "banking"."bank_directory" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "bank_recon_details_recon_idx" ON "banking"."bank_reconciliation_details" USING btree ("bank_reconciliation_id");--> statement-breakpoint
@@ -1713,7 +1729,7 @@ CREATE INDEX "withdrawals_associate_account_idx" ON "savings_banks"."withdrawals
 CREATE INDEX "withdrawals_withdrawal_type_idx" ON "savings_banks"."withdrawals_associates" USING btree ("withdrawal_type_id");--> statement-breakpoint
 CREATE INDEX "withdrawals_withdrawal_date_idx" ON "savings_banks"."withdrawals_associates" USING btree ("withdrawal_date");--> statement-breakpoint
 CREATE UNIQUE INDEX "withdrawals_reference_code_uidx" ON "savings_banks"."withdrawals_associates" USING btree ("reference_code");--> statement-breakpoint
-CREATE VIEW "accounting"."account_balance" AS (
+CREATE VIEW "accounting"."accounting_balance" AS (
   SELECT
     ap.company_id AS tenant_id,
     ap.id AS account_plan_id,
@@ -1974,4 +1990,137 @@ CREATE VIEW "savings_banks"."loan_outstanding_balance" AS (
       l.associate_id,
       l.currency_code,
       l.status
+);--> statement-breakpoint
+CREATE VIEW "administration"."supplier_advances_360" AS (
+  SELECT
+    s.id                                          AS supplier_id,
+    COUNT(a.id)                                   AS advances_count,
+    COALESCE(SUM(a.amount), 0)                    AS advances_total,
+    COALESCE(SUM(a.available_amount), 0)          AS advances_available
+  FROM "administration"."suppliers" s
+  LEFT JOIN "administration"."supplier_advances" a ON a.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "administration"."supplier_ap_360" AS (
+  SELECT
+    s.id                                      AS supplier_id,
+    COUNT(ap.id)                              AS ap_count,
+    COALESCE(SUM(ap.original_amount), 0)      AS ap_original,
+    COALESCE(SUM(ap.paid_amount), 0)          AS ap_paid,
+    COALESCE(SUM(ap.remaining_amount), 0)     AS ap_remaining,
+    COALESCE(SUM(ap.remaining_amount) FILTER (WHERE ap.due_date < CURRENT_DATE), 0) AS ap_overdue
+  FROM "administration"."suppliers" s
+  LEFT JOIN "administration"."accounts_payable" ap ON ap.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "administration"."supplier_master_360" AS (
+  SELECT
+    s.id            AS supplier_id,
+    s.company_id    AS company_id,
+    s.code,
+    s.name,
+    s.tax_id,
+    s.category::text,
+    s.status::text,
+    s.contact_name,
+    s.contact_email,
+    s.contact_phone,
+    s.address,
+    st.name         AS state_name
+  FROM "administration"."suppliers" s
+  LEFT JOIN "core"."states" st ON st.id = s.state
+);--> statement-breakpoint
+CREATE VIEW "administration"."supplier_notes_360" AS (
+  SELECT
+    s.id            AS supplier_id,
+    COUNT(DISTINCT cn.id)                          AS cn_count,
+    COALESCE(SUM(cn.amount), 0)                    AS cn_amount,
+    COALESCE(SUM(cn.available_amount), 0)          AS cn_available,
+    COUNT(DISTINCT dn.id)                          AS dn_count,
+    COALESCE(SUM(dn.amount), 0)                    AS dn_amount
+  FROM "administration"."suppliers" s
+  LEFT JOIN "administration"."supplier_credit_notes" cn ON cn.supplier_id = s.id
+  LEFT JOIN "administration"."supplier_debit_notes" dn ON dn.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "administration"."supplier_payments_360" AS (
+  SELECT
+     s.id            AS supplier_id,
+    COUNT(p.id)                                AS payments_count,
+    COALESCE(SUM(p.total_amount), 0)           AS payments_total,
+    MAX(p.requested_at)                        AS last_payment_date
+  FROM "administration"."suppliers" s
+  LEFT JOIN "administration"."supplier_payments" p ON p.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "administration"."supplier_purchases_360" AS (
+  SELECT
+    s.id                                     AS supplier_id,
+    COUNT(DISTINCT po.id)                    AS po_count,
+    COUNT(DISTINCT po.id) FILTER (WHERE po.status = 'PENDING') AS po_pending,
+    COUNT(DISTINCT inv.id)                   AS invoices_count,
+    COALESCE(SUM(inv.total_amount), 0)       AS invoices_total,
+    MAX(inv.invoice_date)                    AS last_invoice_date
+  FROM "administration"."suppliers" s
+  LEFT JOIN "administration"."purchase_orders" po ON po.supplier_id = s.id
+  LEFT JOIN "administration"."supplier_invoices" inv ON inv.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "administration"."supplier_total_360" AS (
+  SELECT
+    m.*,
+    COALESCE(p.po_count, 0)             AS po_count,
+    COALESCE(p.po_pending, 0)           AS po_pending,
+    COALESCE(p.invoices_count, 0)       AS invoices_count,
+    COALESCE(p.invoices_total, 0)       AS invoices_total,
+    p.last_invoice_date,
+    COALESCE(ap.ap_count, 0)            AS ap_count,
+    COALESCE(ap.ap_original, 0)         AS ap_original,
+    COALESCE(ap.ap_paid, 0)             AS ap_paid,
+    COALESCE(ap.ap_remaining, 0)        AS ap_remaining,
+    COALESCE(ap.ap_overdue, 0)          AS ap_overdue,
+    COALESCE(adv.advances_count, 0)     AS advances_count,
+    COALESCE(adv.advances_total, 0)     AS advances_total,
+    COALESCE(adv.advances_available, 0) AS advances_available,
+    COALESCE(n.cn_count, 0)             AS cn_count,
+    COALESCE(n.cn_amount, 0)            AS cn_amount,
+    COALESCE(n.cn_available, 0)         AS cn_available,
+    COALESCE(n.dn_count, 0)             AS dn_count,
+    COALESCE(n.dn_amount, 0)            AS dn_amount,
+    COALESCE(py.payments_count, 0)      AS payments_count,
+    COALESCE(py.payments_total, 0)      AS payments_total,
+    py.last_payment_date,
+    /* saldo neto */
+    COALESCE(ap.ap_remaining, 0)
+      + COALESCE(n.dn_amount, 0)
+      - COALESCE(n.cn_available, 0)
+      - COALESCE(adv.advances_available, 0)
+      - COALESCE(py.payments_total, 0)    AS net_balance
+  FROM "administration"."supplier_master_360" m
+  LEFT JOIN "administration"."supplier_purchases_360" p ON p.supplier_id = m.supplier_id
+  LEFT JOIN "administration"."supplier_ap_360" ap ON ap.supplier_id = m.supplier_id
+  LEFT JOIN "administration"."supplier_advances_360" adv ON adv.supplier_id = m.supplier_id
+  LEFT JOIN "administration"."supplier_notes_360" n ON n.supplier_id = m.supplier_id
+  LEFT JOIN "administration"."supplier_payments_360" py ON py.supplier_id = m.supplier_id
+);--> statement-breakpoint
+CREATE VIEW "auth"."user_access_summary" AS (
+  SELECT
+  u.id AS user_id,
+  u.username,
+  u.email,
+  u.fullname,
+  COALESCE(
+    JSON_AGG(DISTINCT r.name) FILTER (WHERE r.name IS NOT NULL),
+    '[]'
+  ) AS roles,
+  COALESCE(
+    JSON_AGG(DISTINCT p.name) FILTER (WHERE p.name IS NOT NULL),
+    '[]'
+  ) AS permissions
+FROM auth.users u
+LEFT JOIN auth.user_role ur ON u.id = ur.user_id
+LEFT JOIN auth.roles r ON ur.role_id = r.id
+LEFT JOIN auth.roles_permissions rp ON r.id = rp.role_id 
+LEFT JOIN auth.permissions p ON rp.permissions_id  = p.id
+GROUP BY u.id, u.username, u.email, u.fullname
 );

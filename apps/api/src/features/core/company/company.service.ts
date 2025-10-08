@@ -1,4 +1,4 @@
-import { company } from '@/database/schema/core';
+import { company } from '@/database/schema/tables';
 import { CurrencyCodeEnum } from '@/types/enum';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';

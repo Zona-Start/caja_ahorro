@@ -62,7 +62,7 @@ export const columns: ColumnDef<InventoryMovement>[] = [
     header: 'Tipo de Item',
     cell: ({ row }) => {
       const itemType = row.original.itemType;
-      return itemType === 'PRODUCT' ? 'PRODUCTO' : 'ACTIVO FIJO';
+      return itemType === 'PRODUCT' ? 'Producto' : 'Activo Fijo';
     },
   },
   {

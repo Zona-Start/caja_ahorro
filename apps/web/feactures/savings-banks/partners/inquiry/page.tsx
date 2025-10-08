@@ -1,7 +1,7 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Heading } from '@repo/shadcn/heading';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import { useEffect, useState } from 'react';
 import { AssociateDataView } from './components/associate-data-view';
@@ -10,19 +10,16 @@ import { DetailsSkeleton } from './components/skeletons/details-skeleton';
 import { useAssociateDetails } from './hooks/use-inquiry-queries';
 
 export default function InquiryPage() {
+  const toast = useToastSystem();
   const [cedula, setCedula] = useState<string | null>(null);
 
   const { data, isLoading, isError, error } = useAssociateDetails(cedula);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (isError && cedula) {
-      toast({
-        variant: 'destructive',
+      toast.error({
         title: 'Error de Búsqueda',
-        description:
-          error?.message ||
-          'La cédula no se encuentra registrada o el asociado está inactivo.',
+        description: 'Error al buscar la cédula',
       });
     }
   }, [isError, cedula, error, toast]);

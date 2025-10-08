@@ -11,10 +11,7 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useProducts(params = {}) {
-  return useSafeQuery(
-    queryKeys.products.all(params), 
-    () => getProducts(params)
-  );
+  return useSafeQuery(queryKeys.products.list(params), () => getProducts(params));
 }
 
 /**
@@ -22,10 +19,7 @@ export function useProducts(params = {}) {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useProductsAll() {
-  return useSafeQuery(
-    queryKeys.products.listAll(), 
-    () => getProductAll()
-  );
+  return useSafeQuery(queryKeys.products.listAll(), () => getProductAll());
 }
 
 /**
@@ -33,11 +27,7 @@ export function useProductsAll() {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useProductById(id: number | null) {
-  return useSafeQuery(
-    queryKeys.products.detail(id!), 
-    () => getProductById(id!), 
-    {
-      enabled: !!id,
-    }
-  );
+  return useSafeQuery(queryKeys.products.detail(id!), () => getProductById(id!), {
+    enabled: !!id,
+  });
 }

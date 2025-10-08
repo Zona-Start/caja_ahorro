@@ -10,9 +10,8 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useFixedAsset(params = {}) {
-  return useSafeQuery(
-    queryKeys.fixedAssets.all(params), 
-    () => getFixedAsset(params)
+  return useSafeQuery(queryKeys.fixedAssets.list(params), () =>
+    getFixedAsset(params),
   );
 }
 
@@ -21,8 +20,5 @@ export function useFixedAsset(params = {}) {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useFixedAssetAll() {
-  return useSafeQuery(
-    queryKeys.fixedAssets.listAll(), 
-    () => getFixedAssetAll()
-  );
+  return useSafeQuery(queryKeys.fixedAssets.listAll(), () => getFixedAssetAll());
 }

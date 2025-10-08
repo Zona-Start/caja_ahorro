@@ -10,10 +10,10 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteSupplier } from '../../hooks/use-mutation-suppliers';
+import { useDeleteSupplierMutation } from '../../hooks/use-mutation-suppliers';
 import { Supplier } from '../../schemas/suppliers.schema';
-import { SupplierModal } from '../suppliers-modal';
 import { SupplierDetailsModal } from '../supplier-details-modal';
+import { SupplierModal } from '../suppliers-modal';
 
 interface CellActionProps {
   data: Supplier;
@@ -24,7 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const { mutate: deleteSuplier } = useDeleteSupplier();
+  const { mutate: deleteSuplier } = useDeleteSupplierMutation();
 
   const onConfirm = async () => {
     try {

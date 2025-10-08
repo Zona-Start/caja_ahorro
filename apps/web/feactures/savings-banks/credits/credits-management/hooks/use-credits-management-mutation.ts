@@ -1,7 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   aprobeCreditManagementAction,
   createCreditManagementAction,
@@ -12,60 +13,86 @@ import { CreditManagement } from '../schemas/credits-management.schema';
 // Mutation hook remains the same
 export function useCreditManagementMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (creditManagement: CreditManagement) =>
       createCreditManagementAction(creditManagement),
-    onSuccess: () => {
-      queryClient.removeQueries({
-        queryKey: ['credit-associates-individual-by-cedula'],
+    onSuccess: (_, data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditManagements.all(),
       });
-      queryClient.invalidateQueries({ queryKey: ['credit-management'] });
-      queryClient.invalidateQueries({ queryKey: ['credit-management-count'] });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.associatesForCreditManagement.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+
+      if (data?.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.creditManagements.detail(Number(data?.id)),
+        });
+      }
+
+      //toast.success('Crédito guardado exitosamente');
     },
-    onError: (error) => {
-      console.error('Error:', error);
+    onError: () => {
+      toast.error('Error al guardar el crédito');
     },
   });
-
-  return mutation;
 }
 
 export function useAprobedCreditMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (id: number) => aprobeCreditManagementAction(id),
-    onSuccess: () => {
-      queryClient.removeQueries({
-        queryKey: ['credit-associates-individual-by-cedula'],
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditManagements.all(),
       });
-      queryClient.invalidateQueries({ queryKey: ['credit-management'] });
-      queryClient.invalidateQueries({ queryKey: ['credit-management-count'] });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.associatesForCreditManagement.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditManagements.detail(id),
+      });
       toast.success('Crédito aprobado exitosamente');
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Error al aprobar el crédito');
-      console.error('Error:', error);
     },
   });
-
-  return mutation;
 }
 
-export function useDeleteCredit() {
+export function useDeleteCreditMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => deleteCreditManagementAction(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['credit-management'] });
-      queryClient.invalidateQueries({ queryKey: ['credit-management-count'] });
-      toast.success('Crédito eliminado exitosamente');
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditManagements.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.associatesForCreditManagement.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditManagements.detail(id),
+      });
+      toast.crud.delete.success('Crédito');
     },
-    onError: (error) => {
-      toast.error('Error al eliminar el crédito');
-      console.error('Error:', error);
+    onError: () => {
+      toast.crud.delete.error('Crédito');
     },
   });
 }

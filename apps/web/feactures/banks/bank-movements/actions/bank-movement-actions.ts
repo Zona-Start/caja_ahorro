@@ -1,12 +1,17 @@
 'use server';
+
+import { buildSearchParams } from '@/lib/buildSearchParams';
 import { safeFetchApi } from '@/lib/fetch.api';
+import z from 'zod';
+import {
+  bankMovementResponseSchema,
+  linkablesResponseSchema,
+  paginatedBankMovementsResponseSchema,
+} from '../schemas/bank-movement-api.schema';
+import { BankTransactionCategory } from '../schemas/bank-movement-options';
 import { BankMovement } from '../schemas/bank-movement.schema';
 
-import {
-  bankMovementDeleteResponseSchema,
-  bankMovementPaginationResponseSchema,
-  bankMovementResponseSchema,
-} from '../schemas/bank-movement-api.schema';
+const URL = '/bank-movements';
 
 export const getPaginatedBankMovementsAction = async (params: {
   page?: number;
@@ -15,41 +20,36 @@ export const getPaginatedBankMovementsAction = async (params: {
   startDate?: string;
   endDate?: string;
 }) => {
-  const searchParams = new URLSearchParams({
-    page: (params.page || 1).toString(),
-    limit: (params.limit || 10).toString(),
-    ...(params.bankAccountId && { bankAccountId: params.bankAccountId.toString() }),
-    ...(params.startDate && { startDate: params.startDate }),
-    ...(params.endDate && { endDate: params.endDate }),
-  });
+  const searchParams = buildSearchParams(params);
 
   const [error, response] = await safeFetchApi(
-    bankMovementPaginationResponseSchema,
-    `/bank-movements?${searchParams}`,
+    paginatedBankMovementsResponseSchema,
+    `${URL}?${searchParams}`,
     'GET',
   );
 
   if (error) {
     console.error('Error fetching paginated bank movements:', error);
-    throw new Error(
-      error.message || 'Error al obtener los movimientos bancarios.',
-    );
+    throw new Error('Error al obtener los movimientos bancarios.');
   }
 
-  return {
-    data: response?.data || [],
-    total: response?.total || 0,
-    page: response?.page || 1,
-    limit: response?.limit || 10,
-  };
+  return response;
 };
 
-export const createBankMovementAction = async (payload: BankMovement) => {
-  const [error, data] = await safeFetchApi(
+export const createAndReconcileMovementAction = async (
+  payload: BankMovement,
+) => {
+  const { links, ...data } = payload;
+  const trasnformdata = {
+    movement: data,
+    links,
+  };
+
+  const [error, response] = await safeFetchApi(
     bankMovementResponseSchema,
-    '/bank-movements',
+    `${URL}/create-and-reconcile`,
     'POST',
-    payload,
+    trasnformdata,
   );
 
   if (error) {
@@ -57,67 +57,80 @@ export const createBankMovementAction = async (payload: BankMovement) => {
     throw new Error(error.message || 'Error al crear el movimiento bancario.');
   }
 
-  return data;
+  return response?.data;
 };
 
-export const updateBankMovementAction = async (payload: BankMovement) => {
-  const { id, ...payloadWithoutId } = payload;
+export const getLinkablesAction = async (params: {
+  category: BankTransactionCategory;
+  valueDate: string;
+}) => {
+  const searchParams = new URLSearchParams({
+    ...(params.category && { category: params.category }),
+    ...(params.valueDate && { valueDate: params.valueDate }),
+  });
 
-  const [error, data] = await safeFetchApi(
-    bankMovementResponseSchema,
-    `/bank-movements/${id}`,
-    'PATCH',
-    payloadWithoutId,
+  //const searchParams = buildSearchParams(params);
+  const [error, response] = await safeFetchApi(
+    linkablesResponseSchema,
+    `${URL}/linkables?${searchParams}`,
+    'GET',
   );
 
   if (error) {
-    console.error('Error updating bank movement:', error);
-    throw new Error(
-      error.message || 'Error al actualizar el movimiento bancario.',
-    );
+    console.error('Error fetching linkables:', error);
+    throw new Error('Error al obtener los registros vinculables.');
   }
 
-  return data;
+  return response;
 };
 
-export const saveBankMovementAction = async (payload: BankMovement) => {
-  try {
-    if (payload.id) {
-      return await updateBankMovementAction(payload);
-    } else {
-      return await createBankMovementAction(payload);
-    }
-  } catch (error: any) {
-    throw new Error(error.message || 'Error al guardar el movimiento bancario.');
-  }
-};
-
-export const deleteBankMovementAction = async (id: number) => {
-  const [error, data] = await safeFetchApi(
-    bankMovementDeleteResponseSchema,
-    `/bank-movements/${id}`,
+export const unlinkMovementAction = async (id: number) => {
+  const [error] = await safeFetchApi(
+    z.any(), // No content expected, so any schema is fine
+    `${URL}/${id}/unlink`,
     'DELETE',
   );
 
   if (error) {
-    console.error('Error deleting bank movement:', error);
-    throw new Error(error.message || 'Error al eliminar el movimiento bancario.');
+    console.error('Error unlinking movement:', error);
+    throw new Error('Error al desvincular el movimiento.');
   }
 
-  return data;
+  return { message: 'Movimiento desvinculado con éxito' };
+};
+
+export const reverseMovementAction = async (payload: {
+  id: number;
+  reason: string;
+  valueDate: string;
+}) => {
+  const { id, ...body } = payload;
+  const [error, response] = await safeFetchApi(
+    bankMovementResponseSchema, // Assuming it returns the new reversed movement
+    `${URL}/${id}/reverse`,
+    'POST',
+    body,
+  );
+
+  if (error) {
+    console.error('Error reversing movement:', error);
+    throw new Error('Error al reversar el movimiento.');
+  }
+
+  return response?.data;
 };
 
 export const getBankMovementByIdAction = async (id: number) => {
-  const [error, data] = await safeFetchApi(
+  const [error, response] = await safeFetchApi(
     bankMovementResponseSchema,
-    `/bank-movements/${id}`,
+    `${URL}/${id}`,
     'GET',
   );
 
   if (error) {
     console.error('Error fetching bank movement:', error);
-    throw new Error(error.message || 'Error al obtener el movimiento bancario.');
+    throw new Error('Error al obtener el movimiento bancario.');
   }
 
-  return data;
+  return response?.data;
 };

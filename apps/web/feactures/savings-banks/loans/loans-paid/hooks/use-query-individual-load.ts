@@ -1,12 +1,17 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { getAssociatesByCedulaAction } from '../actions/loans-paid-actions';
 
+/**
+ * Hook para obtener asociados por cédula
+ * Utiliza la fábrica centralizada de claves para consultas
+ */
 export function useAssociatesByCedula(
   cedula: string,
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['loan-paid-associate-individul-by-cedula'], // Use a query key that includes the cedula
+    queryKeys.loansPaid.associateByIndividual(cedula),
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula?.trim() ? options?.enabled : false,

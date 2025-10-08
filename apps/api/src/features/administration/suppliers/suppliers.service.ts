@@ -1,5 +1,5 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
-import { suppliers } from '@/database/schema/administration';
+import { suppliers } from '@/database/schema/tables';
 import { statusSuppliers } from '@/types/enum';
 import {
   BadRequestException,

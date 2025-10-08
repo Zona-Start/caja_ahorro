@@ -10,7 +10,8 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteWithdrawalTypes } from '../../hooks/use-mutation-withdrawal-types';
+
+import { useDeleteWithdrawalTypesMutation } from '../../hooks/use-mutation-withdrawal-types';
 import { WithdrawalTypes } from '../../schemas/withdrawal-types.schema';
 import { WithdrawalTypesModal } from '../withdrawal-types-modal';
 
@@ -24,7 +25,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [mode, setMode] = useState(false);
 
-  const { mutate: deleteTypeLoans } = useDeleteWithdrawalTypes();
+  const { mutate: deleteTypeLoans } = useDeleteWithdrawalTypesMutation();
 
   const onConfirm = async () => {
     try {

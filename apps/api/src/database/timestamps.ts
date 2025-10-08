@@ -1,5 +1,5 @@
 import * as t from 'drizzle-orm/pg-core';
-import { users } from './schema/auth';
+import { users } from './schema/tables';
 
 export const timestamps = {
   createdAt: t.timestamp('created_at').defaultNow().notNull(),

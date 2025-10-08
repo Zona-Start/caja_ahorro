@@ -13,7 +13,7 @@ import { Eye, FileCheck, Trash } from 'lucide-react';
 import { useState } from 'react';
 import {
   useAprobedCreditMutation,
-  useDeleteCredit,
+  useDeleteCreditMutation,
 } from '../../hooks/use-credits-management-mutation';
 import { CreditManagement } from '../../schemas/credits-management.schema';
 import { CreditDetailsModal } from '../credit-details-modal';
@@ -28,7 +28,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showAprobedModal, setShowAprobedModal] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  const { mutate: deleteCredit } = useDeleteCredit();
+  const { mutate: deleteCredit } = useDeleteCreditMutation();
 
   const { mutate: aprobeCredit, isPending: isUpdating } =
     useAprobedCreditMutation();

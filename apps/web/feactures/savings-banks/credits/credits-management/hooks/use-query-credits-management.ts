@@ -1,4 +1,5 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getCreditManagementAllAction,
   getCreditManagementAllCountAction,
@@ -7,7 +8,7 @@ import {
 
 // // Hook for CreditManagementlist
 export function useQueryCreditManagement(params = {}) {
-  return useSafeQuery(['credit-management', params], () =>
+  return useSafeQuery(queryKeys.creditManagements.list(params), () =>
     getCreditManagementAllAction(params),
   );
 }
@@ -18,8 +19,8 @@ export function useQueryCreditManagementById(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['credit-management-id', id], // Use a query key that includes the ID
-    () => getCreditManagementByIdAction(id!), // Call the new action
+    queryKeys.creditManagements.detail(id!),
+    () => getCreditManagementByIdAction(id!),
     {
       enabled: id != null && (options?.enabled ?? true), // Only enabled if id is not null and options allow
       ...options,
@@ -29,8 +30,7 @@ export function useQueryCreditManagementById(
 
 // Hook for a single CreditManagement by ID
 export function useQueryCreditManagementAllCount() {
-  return useSafeQuery(
-    ['credit-management-count'], // Use a query key that includes the ID
-    () => getCreditManagementAllCountAction(), // Call the new action
+  return useSafeQuery(queryKeys.creditManagements.count(), () =>
+    getCreditManagementAllCountAction(),
   );
 }

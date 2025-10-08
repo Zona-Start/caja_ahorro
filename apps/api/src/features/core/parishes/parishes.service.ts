@@ -1,6 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
-import { municipalities, parishes } from '@/database/schema/core';
+import { municipalities, parishes } from '@/database/schema/tables';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';

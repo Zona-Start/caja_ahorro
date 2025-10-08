@@ -1,9 +1,11 @@
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
-import { bankTransactionCategory } from '@/types/enum';
+import { BankTransactionCategory, paymentMethodEnum } from '@/types/enum';
 import { Inject, Injectable } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
+import { associateAccountMovements } from 'src/database/index';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { IndividualLoadDto } from './dto/create-individual-load.dto';
 
@@ -15,26 +17,7 @@ export class IndividualLoadService {
     private readonly bankMovementsService: BankMovementsService,
   ) {}
   async create(dto: IndividualLoadDto, userId: number) {
-    console.log(dto);
-
     return this.drizzle.transaction(async (tx) => {
-      const baking = {
-        bankAccountId: dto.bankAccountId,
-        transactionDate:
-          dto.transactionDate?.toISOString() ?? new Date().toISOString(),
-        transactionType: dto.paymentMethod,
-        description: dto.description ?? 'Abono a cuenta de asociado',
-        debitAmount: 0,
-        creditAmount: dto.amount,
-        bankReference: dto.referenceNumber,
-        createdById: userId,
-        category: 'DEPOSIT' as bankTransactionCategory,
-      };
-      const bankResult = await this.bankMovementsService.create(
-        baking,
-        userId,
-        tx,
-      );
       const payload = {
         associateAccountId: dto.associateAccountId,
         movementType: dto.movementType,
@@ -42,7 +25,6 @@ export class IndividualLoadService {
         currencyCode: dto.currencyCode,
         transactionDate: dto.transactionDate,
         description: dto.description,
-        referenceId: bankResult.id.toString(),
         referenceType: 'BANK_TRANSACTION',
       };
 
@@ -51,7 +33,41 @@ export class IndividualLoadService {
         payload,
         tx,
       );
-      return result;
+      const dataBank = {
+        movement: {
+          bankAccountId: dto.bankAccountId,
+          transactionDate: dto.transactionDate ?? new Date(),
+          paymentMethod: dto.paymentMethod as paymentMethodEnum,
+          description: dto.description ?? 'Abono a cuenta de asociado',
+          bankReference: dto.referenceNumber,
+          category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
+          creditAmount: dto.amount,
+          debitAmount: 0,
+          createdById: userId,
+        },
+        links: [
+          {
+            internalRecordType: 'MEMBER_CONTRIBUTION',
+            internalRecordId: result.data.id,
+          },
+        ],
+      };
+      const bankResult = await this.bankMovementsService.createAndReconcile(
+        dataBank,
+        userId,
+        tx,
+      );
+
+      await tx
+        .update(associateAccountMovements)
+        .set({
+          referenceId: bankResult.movement.id.toString(),
+        })
+        .where(eq(associateAccountMovements.id, result.data.id));
+
+      return {
+        message: result.message,
+      };
     });
   }
 }

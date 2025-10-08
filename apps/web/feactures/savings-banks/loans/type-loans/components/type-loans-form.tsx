@@ -180,8 +180,8 @@ export function TypeLoansForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="CUOTAS">Cuotas</SelectItem>
-                      <SelectItem value="PLAZO">Plazo</SelectItem>
+                      <SelectItem value="Cuotas">Cuotas</SelectItem>
+                      <SelectItem value="Plazos">Plazos</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

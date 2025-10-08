@@ -1,13 +1,12 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   deleteAccountPlanAction,
   saveAccountPlanAction,
 } from '../actions/account-plan-actions';
-import { AccountPlan } from '../schemas/account-plan.schema';
-import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Hook para la mutación (crear/actualizar) de planes de cuentas
@@ -16,21 +15,32 @@ import { queryKeys } from '@/lib/queryKeys';
 export function useAccountPlanMutation() {
   const queryClient = useQueryClient();
 
+  const toast = useToastSystem();
+
   const mutation = useMutation({
-    mutationFn: (data: AccountPlan) => saveAccountPlanAction(data),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.accountingAccounts.all() 
+    mutationFn: saveAccountPlanAction,
+    onSuccess: (_, variables) => {
+      // 1.  Siempre invalida el total
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingAccounts.all(),
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.accountingAccounts.paginated() 
+
+      // 2.  Invalida la página actual (si hay paginación activa)
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingAccounts.paginated(),
       });
-      toast.success('Cuenta contable guardada exitosamente');
+
+      // 3.  Si editaste, invalida ese detalle
+      if (variables.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.accountingAccounts.detail(variables.id),
+        });
+      }
+      toast.crud.create.success('Cuenta contable');
     },
     onError: (error) => {
-      toast.error('Error al guardar la cuenta contable');
       console.error('Error:', error);
+      toast.crud.create.error('Cuenta contable');
     },
   });
 
@@ -43,21 +53,25 @@ export function useAccountPlanMutation() {
  */
 export function useDeleteAccountPlan() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => deleteAccountPlanAction(id),
-    onSuccess: () => {
+    mutationFn: deleteAccountPlanAction,
+    onSuccess: (_, id) => {
       // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.accountingAccounts.all() 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingAccounts.all(),
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.accountingAccounts.paginated() 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingAccounts.paginated(),
       });
-      toast.success('Cuenta contable eliminada exitosamente');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingAccounts.detail(id),
+      });
+      toast.crud.delete.success('Cuenta contable');
     },
     onError: (error) => {
-      toast.error('Error al eliminar la cuenta contable');
+      toast.crud.delete.error('Cuenta contable');
       console.error('Error:', error);
     },
   });

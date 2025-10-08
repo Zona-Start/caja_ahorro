@@ -14,7 +14,10 @@ export const creditPaymentSchema = z.object({
   amount: z.string().min(1, { message: 'Monto requerido' }), // monto cuota
   bankId: z.number().min(1, { message: 'Debe seleccionar un banco' }), // ID del banco
   paymentMethod: paymentMethodEnum,
-  transactionReference: z.string().nullable().optional(),
+  transactionReference: z
+    .string()
+    .min(1, { message: 'Referencia requerido' })
+    .nullable(),
   comment: z.string().nullable().optional(),
 });
 

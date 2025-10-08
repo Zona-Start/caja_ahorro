@@ -1,6 +1,6 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
-import { getPaginatedAccountingEntriesAction } from '../actions/accounting-entry-actions';
 import { queryKeys } from '@/lib/queryKeys';
+import { getPaginatedAccountingEntriesAction } from '../actions/accounting-entry-actions';
 
 /**
  * Hook para obtener asientos contables paginados
@@ -9,11 +9,8 @@ import { queryKeys } from '@/lib/queryKeys';
  */
 export function usePaginatedAccountingEntries(params = {}) {
   return useSafeQuery(
-    queryKeys.accountingEntries.paginated(params), 
+    queryKeys.accountingEntries.paginated(params),
     () => getPaginatedAccountingEntriesAction(params),
-    {
-      // Habilitado solo si hay parámetros válidos o está vacío
-      enabled: params !== undefined
-    }
+    { enabled: Object.keys(params).length > 0 },
   );
 }

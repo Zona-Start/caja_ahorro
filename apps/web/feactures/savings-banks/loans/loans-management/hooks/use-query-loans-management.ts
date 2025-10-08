@@ -1,36 +1,46 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getLoanManagementAllAction,
   getLoanManagementAllCountAction,
   getLoanManagementByIdAction,
-} from '../actions/loans-management-actions'; // Import the new action
+} from '../actions/loans-management-actions';
 
-// // Hook for LoanManagementlist
+/**
+ * Hook para consultar datos de los préstamos con parámetros
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useQueryLoanManagement(params = {}) {
-  return useSafeQuery(['loan-management', params], () =>
+  return useSafeQuery(queryKeys.loansManagement.list(params), () =>
     getLoanManagementAllAction(params),
   );
 }
 
-// Hook for a single LoanManagement by ID
+/**
+ * Hook para obtener un préstamo específico por ID
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useQueryLoanManagementById(
   id: number | null,
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['loan-management-id', id], // Use a query key that includes the ID
-    () => getLoanManagementByIdAction(id!), // Call the new action
+    queryKeys.loansManagement.detail(id!),
+    () => getLoanManagementByIdAction(id!),
     {
-      enabled: id != null && (options?.enabled ?? true), // Only enabled if id is not null and options allow
+      enabled: id != null && (options?.enabled ?? true),
       ...options,
     },
   );
 }
 
-// Hook for a single LoanManagement by ID
+/**
+ * Hook para obtener el conteo total de préstamos
+ * Utiliza la fábrica centralizada de claves para consistencia
+ */
 export function useQueryLoanManagementAllCount() {
   return useSafeQuery(
-    ['loan-management-count'], // Use a query key that includes the ID
-    () => getLoanManagementAllCountAction(), // Call the new action
+    queryKeys.loansManagement.count(),
+    () => getLoanManagementAllCountAction(),
   );
 }

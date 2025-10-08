@@ -1,8 +1,9 @@
 'use client';
 
 import { AlertModal } from '@/components/modal/alert-modal';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
-import { Toaster } from '@repo/shadcn/toaster';
+import { Toaster } from '@repo/shadcn/components/ui/toaster';
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +12,6 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Check, Download, Eye, FileUp, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import { downloadTxtFileAction } from '../../actions/payment-batch-actions';
 import {
   useCancelPaymentBatchMutation,
@@ -27,6 +27,7 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const toast = useToastSystem();
   const [loading, setLoading] = useState(false);
   const [openCancelModal, setOpenCancelModal] = useState(false);
   const [openUploadModal, setOpenUploadModal] = useState(false);

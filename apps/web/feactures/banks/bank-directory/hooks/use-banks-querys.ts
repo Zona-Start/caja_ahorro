@@ -1,18 +1,20 @@
 'use client';
 
+import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getBanksAction,
   getPaginatedBanksAction,
 } from '../actions/banks-actions';
-import { useSafeQuery } from '@/hooks/use-safe-query';
-
 
 // Hook for all accounts (no pagination)
 export function useBanksQuery() {
-  return useSafeQuery(['accounting_banks'], ()=> getBanksAction())
+  return useSafeQuery(queryKeys.bankDirectory.listAll(), () => getBanksAction());
 }
 
 // Hook for paginated accounts
 export function usePaginatedBanksQuery(params = {}) {
-  return useSafeQuery(['paginated_banks', params], ()=> getPaginatedBanksAction(params))
+  return useSafeQuery(queryKeys.bankDirectory.list(params), () =>
+    getPaginatedBanksAction(params),
+  );
 }

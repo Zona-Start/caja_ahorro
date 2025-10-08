@@ -10,7 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteTypeCredits } from '../../hooks/use-mutation-type-credits';
+import { useDeleteTypeCreditsMutation } from '../../hooks/use-mutation-type-credits';
 import { TypeCredit } from '../../schemas/type-credits.schema';
 import { TypeCreditsModal } from '../type-credits-modal';
 
@@ -24,7 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [mode, setMode] = useState(false);
 
-  const { mutate: deleteTypeCredits } = useDeleteTypeCredits();
+  const { mutate: deleteTypeCredits } = useDeleteTypeCreditsMutation();
 
   const onConfirm = async () => {
     try {

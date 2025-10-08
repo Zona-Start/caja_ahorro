@@ -12,8 +12,10 @@ import {
   loans,
   loanTypes,
 } from '@/database/index';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   AssociateMovementTypeEnum,
+  BankTransactionCategory,
   CurrencyCodeEnum,
   loanPaymetTypeEnum,
   LoanStatusEnum,
@@ -45,6 +47,7 @@ export class LoanPaidService {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly generateCodeService: GenerateCodeService,
+    private readonly bankMovementsService: BankMovementsService,
   ) {}
 
   // Función para recalcular el balance pendiente de un préstamo
@@ -359,7 +362,7 @@ export class LoanPaidService {
         action: 'INSERT',
         userId: Number(userId),
         area: 'PRESTAMOS',
-        description: 'PAGO PRESTAMOS',
+        description: 'Pago Prestamo',
         newData: [paylodAuditData],
       });
 
@@ -389,7 +392,7 @@ export class LoanPaidService {
         amount: amount,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: paymentDate ? paymentDate : undefined,
-        description: 'PAGO PRESTAMO',
+        description: 'Pago Prestamo',
         referenceId: String(result.insertedPaymentId),
         referenceType: 'loansPayments',
         referenceNumber: result.customReference ?? undefined,
@@ -400,6 +403,26 @@ export class LoanPaidService {
         userId,
         payloadMovementLoan,
       );
+      const dataBank = {
+        movement: {
+          bankAccountId: bankId,
+          transactionDate: paymentDate ?? new Date(),
+          paymentMethod: paymentMethod as paymentMethodEnum,
+          description: `Pago de Cuota Prestamo`,
+          bankReference: transactionReference,
+          category: 'LOAN_PAYMENT' as BankTransactionCategory,
+          creditAmount: amount,
+          debitAmount: 0,
+          createdById: userId,
+        },
+        links: [
+          {
+            internalRecordType: 'LOAN_PAYMENT',
+            internalRecordId: Number(resutAccount[0].id),
+          },
+        ],
+      };
+      await this.bankMovementsService.createAndReconcile(dataBank, userId);
 
       if (result.balanceInFavorValue > EPSILON_COMPARISON) {
         const payloadMovementLoanFavor = {
@@ -408,7 +431,7 @@ export class LoanPaidService {
           amount: result.balanceInFavorValue,
           currencyCode: 'VES' as CurrencyCodeEnum,
           transactionDate: paymentDate ? paymentDate : undefined,
-          description: 'CREDITO SOBREGIRO DE PRESTAMO',
+          description: 'Credito Sobregiro de Prestamo',
           referenceId: String(loanId),
           referenceType: 'loans',
           referenceNumber: undefined,

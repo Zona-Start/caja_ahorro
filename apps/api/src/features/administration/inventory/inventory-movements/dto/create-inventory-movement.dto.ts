@@ -1,4 +1,4 @@
-import { movementTypeInventory } from '@/database/schema/enum';
+import { movementTypeInventory } from '@/database/schema/enum/enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {

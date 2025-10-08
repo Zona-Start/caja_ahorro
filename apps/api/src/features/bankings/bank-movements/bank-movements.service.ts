@@ -1,231 +1,927 @@
+import * as schema from '@/database';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/index';
+import { AuditLogsService } from '@/features/audit/audit-logs/audit-logs.service';
+import { AssociateAccountsMovementsService } from '@/features/savings-banks/associate-accounts-movements/associate-accounts-movements.service';
 import {
-  bankTransactions,
-  internalTransactionBankLinks,
-} from '@/database/index';
+  ActionEnumAudit,
+  AssociateMovementTypeEnum,
+  BankTransactionCategory,
+  CreditStatusEnum,
+  CurrencyCodeEnum,
+  liquidationsStatusEnum,
+  LoanStatusEnum,
+  paymentSupplierStatusEnum,
+  withdrawalStatusEnum,
+} from '@/types/enum';
 import {
   ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, count, eq, gte, lte } from 'drizzle-orm';
+import { and, eq, inArray, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
+  CreateAndReconcileDto,
   CreateBankMovementDto,
-  LinkToInternalRecordDto,
   QueryBankMovementDto,
-  UpdateBankMovementDto,
+  ReconcileBankDto,
 } from './dto';
+import { ReverseMovementDto } from './dto/reverse-movement.dto';
 
 @Injectable()
 export class BankMovementsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly assocMvts: AssociateAccountsMovementsService,
+    private readonly audit: AuditLogsService,
   ) {}
 
+  /**
+   * findAll
+   * Lista movimientos con paginación y filtros por cuenta y rango de fechas.
+   * Devuelve total de registros para paginar en el front.
+   */
+  async findAll(query: QueryBankMovementDto) {
+    const {
+      page = 1,
+      limit = 10,
+      bankAccountId,
+      startDate,
+      endDate,
+      sortBy = 'id',
+      sortOrder = 'asc',
+    } = query;
+    const offset = (page - 1) * limit;
+
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${schema.bankTransactions[sortBy as keyof typeof schema.bankTransactions]} asc`
+        : sql`${schema.bankTransactions[sortBy as keyof typeof schema.bankTransactions]} desc`;
+
+    let searchConditions: SQL<unknown>[] = [];
+    if (bankAccountId) {
+      searchConditions.push(
+        eq(schema.bankTransactions.bankAccountId, bankAccountId),
+      );
+    }
+
+    if (startDate) {
+      searchConditions.push(
+        sql`${schema.bankTransactions.transactionDate} >= ${startDate}`,
+      );
+    }
+
+    if (endDate) {
+      searchConditions.push(
+        sql`${schema.bankTransactions.transactionDate} <= ${endDate}`,
+      );
+    }
+
+    const searchCondition = searchConditions.length
+      ? and(...searchConditions)
+      : undefined;
+
+    const total = await this.drizzle
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.bankTransactions)
+      .where(searchCondition);
+
+    const data = await this.drizzle
+      .select()
+      .from(schema.bankTransactions)
+      .where(searchCondition)
+      .limit(limit)
+      .orderBy(orderBy)
+      .offset(offset);
+
+    const totalCount = Number(total[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const meta = {
+      page: Number(page),
+      limit: Number(limit),
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return { data, meta };
+  }
+
+  /**
+   * createAndReconcile
+   * **Crea** el movimiento bancario y **lo reconcilia en la misma transacción**.
+   * Se usa cuando el usuario ya sabe con qué documento interno va a vincular
+   * (flujo "1 clic" desde la modal).
+   */
+  async createAndReconcile(
+    dto: CreateAndReconcileDto,
+    userId: number,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
+    return db.transaction(async (tx) => {
+      // 1.  Inserta el movimiento
+      const movement = await this.create(dto.movement, userId, tx);
+
+      if (dto.links) {
+        // 2.  Reconcilia enseguida
+        await this.reconcile(movement.id, { links: dto.links }, userId, tx);
+      }
+
+      return { movement, message: 'Created and reconciled successfully' };
+    });
+  }
+
+  /* ----------  CRUD BÁSICO  ---------- */
+  /**
+   * create
+   * Inserta un nuevo movimiento bancario (extracto) sin asiento ni vínculo.
+   * Convierte montos a string para precisión decimal y asigna usuario creador.
+   * Se puede ejecutar dentro de una transacción externa (tx opcional).
+   */
   async create(
-    createBankMovementDto: CreateBankMovementDto,
+    dto: CreateBankMovementDto,
     userId?: number,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.drizzle;
-    const dtoForInsert = {
-      ...createBankMovementDto,
-      debitAmount:
-        createBankMovementDto.debitAmount !== undefined &&
-        createBankMovementDto.debitAmount !== null
-          ? String(createBankMovementDto.debitAmount)
-          : null,
-      creditAmount:
-        createBankMovementDto.creditAmount !== undefined &&
-        createBankMovementDto.creditAmount !== null
-          ? String(createBankMovementDto.creditAmount)
-          : null,
-      createdById: userId ?? createBankMovementDto.createdById,
-    };
-
-    const [createdMovement] = await db
-      .insert(bankTransactions)
-      .values(dtoForInsert)
-      .returning();
-
-    if (createBankMovementDto.category === 'INTERNAL_TRANSFER') {
-      await db.insert(internalTransactionBankLinks).values({
-        bankTransactionId: createdMovement.id,
-        internalRecordType: createBankMovementDto.internalRecordType,
-        internalRecordId: createBankMovementDto.internalRecordId,
-        linkedBy: userId,
-        createdById: userId,
-      });
-    }
-
-    return createdMovement;
-  }
-
-  async findAll(query: QueryBankMovementDto) {
-    const { page = 1, limit = 10, bankAccountId, startDate, endDate } = query;
-    const offset = (page - 1) * limit;
-
-    const whereConditions = and(
-      bankAccountId
-        ? eq(bankTransactions.bankAccountId, bankAccountId)
-        : undefined,
-      startDate ? gte(bankTransactions.transactionDate, startDate) : undefined,
-      endDate ? lte(bankTransactions.transactionDate, endDate) : undefined,
-    );
-
-    const [total] = await this.drizzle
-      .select({ value: count() })
-      .from(bankTransactions)
-      .where(whereConditions);
-
-    const data = await this.drizzle
-      .select()
-      .from(bankTransactions)
-      .where(whereConditions)
-      .limit(limit)
-      .offset(offset);
-
-    return {
-      data,
-      total: total.value,
-      page,
-      limit,
-    };
-  }
-
-  async findOne(id: number) {
-    const [movement] = await this.drizzle
-      .select()
-      .from(bankTransactions)
-      .where(eq(bankTransactions.id, id));
-
-    if (!movement) {
-      throw new NotFoundException(`Bank movement with ID ${id} not found`);
-    }
-
-    return movement;
-  }
-
-  async update(id: number, updateBankMovementDto: UpdateBankMovementDto) {
-    const dtoForUpdate = {
-      ...updateBankMovementDto,
-      debitAmount:
-        updateBankMovementDto.debitAmount !== undefined &&
-        updateBankMovementDto.debitAmount !== null
-          ? String(updateBankMovementDto.debitAmount)
-          : null,
-      creditAmount:
-        updateBankMovementDto.creditAmount !== undefined &&
-        updateBankMovementDto.creditAmount !== null
-          ? String(updateBankMovementDto.creditAmount)
-          : null,
-    };
-
-    const [updatedMovement] = await this.drizzle
-      .update(bankTransactions)
-      .set(dtoForUpdate)
-      .where(eq(bankTransactions.id, id))
-      .returning();
-
-    if (!updatedMovement) {
-      throw new NotFoundException(`Bank movement with ID ${id} not found`);
-    }
-
-    return updatedMovement;
-  }
-
-  async remove(id: number) {
-    const [deletedMovement] = await this.drizzle
-      .delete(bankTransactions)
-      .where(eq(bankTransactions.id, id))
-      .returning();
-
-    if (!deletedMovement) {
-      throw new NotFoundException(`Bank movement with ID ${id} not found`);
-    }
-
-    return { message: `Bank movement with ID ${id} successfully deleted` };
-  }
-
-  async linkToInternalRecord(
-    bankTransactionId: number,
-    linkDto: LinkToInternalRecordDto,
-    userId: number,
-  ) {
-    await this.findOne(bankTransactionId); // Check if bank transaction exists
-
-    const existingLink = await this.drizzle
-      .select()
-      .from(internalTransactionBankLinks)
-      .where(
-        eq(internalTransactionBankLinks.bankTransactionId, bankTransactionId),
-      );
-
-    if (existingLink.length > 0) {
-      throw new ConflictException(
-        `Bank transaction with ID ${bankTransactionId} is already linked.`,
-      );
-    }
-
-    const [newLink] = await this.drizzle
-      .insert(internalTransactionBankLinks)
+    const [row] = await db
+      .insert(schema.bankTransactions)
       .values({
-        bankTransactionId,
-        internalRecordType: linkDto.internalRecordType,
-        internalRecordId: linkDto.internalRecordId,
-        linkedBy: userId,
+        ...dto,
+        transactionDate: dto.transactionDate.toISOString(),
+        category: dto.category as BankTransactionCategory,
+        debitAmount: dto.debitAmount ? String(dto.debitAmount) : null,
+        creditAmount: dto.creditAmount ? String(dto.creditAmount) : null,
+        createdById: userId ?? dto.createdById,
       })
       .returning();
-
-    await this.drizzle
-      .update(bankTransactions)
-      .set({ internalLinkStatus: 'LINKED' })
-      .where(eq(bankTransactions.id, bankTransactionId));
-
-    return newLink;
+    return row;
   }
 
-  async unlinkFromInternalRecord(bankTransactionId: number) {
-    const [deletedLink] = await this.drizzle
-      .delete(internalTransactionBankLinks)
-      .where(
-        eq(internalTransactionBankLinks.bankTransactionId, bankTransactionId),
-      )
-      .returning();
+  /**
+   * findOne
+   * Devuelve un único movimiento bancario por ID.
+   * Lanza 404 si no existe.
+   */
+  async findOne(id: number) {
+    const [row] = await this.drizzle
+      .select()
+      .from(schema.bankTransactions)
+      .where(eq(schema.bankTransactions.id, id));
 
-    if (!deletedLink) {
-      throw new NotFoundException(
-        `No link found for bank transaction with ID ${bankTransactionId}`,
+    if (!row) throw new NotFoundException(`Bank movement ${id} not found`);
+    return row;
+  }
+
+  /* ----------  VINCULACIÓN / CONCILIACIÓN  ---------- */
+
+  /**
+   * getLinkablesByCategory
+   * Devuelve registros internos que:
+   * - coinciden en monto (±2 %) y fecha (±5 días)
+   * - están en el status que la regla exige
+   * - aún no tienen bank_transaction_id
+   * - mismo sentido (entrada/salida) que el movimiento bancario
+   * El resultado es una lista corta para que el front elija o pre-seleccione.
+   */
+  async getLinkablesByCategory(
+    category: BankTransactionCategory,
+    valueDate: string,
+  ) {
+    const [rule] = await this.drizzle
+      .select()
+      .from(schema.bankCategoryRule)
+      .where(eq(schema.bankCategoryRule.category, category));
+
+    if (!rule) return [];
+
+    const { internalTable, recordStatus, direction } = rule;
+
+    const minD = new Date(valueDate);
+    minD.setDate(minD.getDate() - 5);
+    const maxD = new Date(valueDate);
+    maxD.setDate(maxD.getDate() + 5);
+
+    const queries: Record<string, () => any> = {
+      // APORTES / DEPÓSITOS (MEMBER_CONTRIBUTION)
+      associateAccountMovements: () =>
+        this.drizzle
+          .select({
+            id: schema.associateAccountMovements.id,
+            type: sql`'MEMBER_CONTRIBUTION'`.as('type'),
+            amount: schema.associateAccountMovements.amount,
+            date: schema.associateAccountMovements.transactionDate,
+            concept:
+              sql`CONCAT('Aporte Socio ',${schema.associateAccountMovements.associateAccountId})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.associateAccountMovements)
+          .where(
+            and(
+              inArray(schema.associateAccountMovements.movementType, [
+                'SAVING_CONTRIBUTION',
+                'EMPLOYER_CONTRIBUTION',
+                'VOLUNTARY_SAVINGS',
+              ]),
+              sql`${schema.associateAccountMovements.transactionDate} BETWEEN ${minD} AND ${maxD}`,
+            ),
+          ),
+
+      // RETIROS PARCIALES (MEMBER_WITHDRAWAL)
+      withdrawalsAssociates: () =>
+        this.drizzle
+          .select({
+            id: schema.withdrawalsAssociates.id,
+            type: sql`'MEMBER_WITHDRAWAL'`.as('type'),
+            amount: schema.withdrawalsAssociates.requestedAmount,
+            date: schema.withdrawalsAssociates.withdrawalDate,
+            concept:
+              sql`CONCAT('Retiro Socio ',${schema.withdrawalsAssociates.referenceCode})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.withdrawalsAssociates)
+          .where(
+            and(
+              eq(
+                schema.withdrawalsAssociates.status,
+                recordStatus as withdrawalStatusEnum,
+              ),
+              sql`DATE(${schema.withdrawalsAssociates.withdrawalDate}) BETWEEN ${minD.toISOString().split('T')[0]} AND ${maxD.toISOString().split('T')[0]}`,
+              sql`${schema.withdrawalsAssociates.bankTransactionId} IS NULL`,
+            ),
+          ),
+
+      // LIQUIDACIÓN DE HABERES (PAYROLL_SETTLEMENT)
+      liquidationsAssociates: () =>
+        this.drizzle
+          .select({
+            id: schema.liquidationsAssociates.id,
+            type: sql`'PAYROLL_SETTLEMENT'`.as('type'),
+            amount: schema.liquidationsAssociates.netLiquidationAmount,
+            date: schema.liquidationsAssociates.liquidationDate,
+            concept:
+              sql`CONCAT('Liquidación Socio ',${schema.liquidationsAssociates.customReference})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.liquidationsAssociates)
+          .where(
+            and(
+              eq(
+                schema.liquidationsAssociates.status,
+                recordStatus as liquidationsStatusEnum,
+              ),
+              sql`${schema.liquidationsAssociates.liquidationDate} BETWEEN ${minD} AND ${maxD}`,
+              sql`${schema.liquidationsAssociates.payoutTransactionId} IS NULL`,
+            ),
+          ),
+
+      // DESEMBOLSO DE PRÉSTAMO (LOAN_DISBURSEMENT)
+      loans: () =>
+        this.drizzle
+          .select({
+            id: schema.loans.id,
+            type: sql`'LOAN_DISBURSEMENT'`.as('type'),
+            amount: schema.loans.disbursedAmount,
+            date: schema.loans.disbursementDate,
+            concept:
+              sql`CONCAT('Desembolso Préstamo N° ',${schema.loans.customReference})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.loans)
+          .where(
+            and(
+              eq(schema.loans.status, recordStatus as LoanStatusEnum),
+              sql`${schema.loans.approvalDate} BETWEEN ${minD} AND ${maxD}`,
+            ),
+          ),
+
+      // PAGO DE CUOTA DE PRÉSTAMO (LOAN_PAYMENT)
+      loanPayments: () =>
+        this.drizzle
+          .select({
+            id: schema.loanPayments.id,
+            type: sql`'LOAN_PAYMENT'`.as('type'),
+            amount: schema.loanPayments.amount,
+            date: schema.loanPayments.paymentDate,
+            concept:
+              sql`CONCAT('Pago Cuota Préstamo ',${schema.loanPayments.customReference})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.loanPayments)
+          .where(
+            and(
+              sql`${schema.loanPayments.paymentDate} BETWEEN ${minD} AND ${maxD}`,
+              sql`${schema.loanPayments.bankId} IS NOT NULL`, // debe tener banco destino
+              sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.loanPayments.bankId})`,
+            ),
+          ),
+
+      // DESEMBOLSO DE CRÉDITO (CREDIT_DISBURSEMENT)
+      credits: () =>
+        this.drizzle
+          .select({
+            id: schema.credits.id,
+            type: sql`'CREDIT_DISBURSEMENT'`.as('type'),
+            amount: schema.credits.requestedAmount,
+            date: schema.credits.approvalDate,
+            concept:
+              sql`CONCAT('Desembolso Crédito ',${schema.credits.customReference})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.credits)
+          .where(
+            and(
+              eq(schema.credits.status, recordStatus as CreditStatusEnum),
+              sql`${schema.credits.approvalDate} BETWEEN ${minD} AND ${maxD}`,
+            ),
+          ),
+
+      // PAGO DE CRÉDITO (CREDIT_PAYMENT)
+      creditPayments: () =>
+        this.drizzle
+          .select({
+            id: schema.creditPayments.id,
+            type: sql`'CREDIT_PAYMENT'`.as('type'),
+            amount: schema.creditPayments.amount,
+            date: schema.creditPayments.paymentDate,
+            concept:
+              sql`CONCAT('Pago Crédito ',${schema.creditPayments.customReference})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.creditPayments)
+          .where(
+            and(
+              sql`${schema.creditPayments.paymentDate} BETWEEN ${minD} AND ${maxD}`,
+              sql`${schema.creditPayments.bankId} IS NOT NULL`,
+              sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.creditPayments.bankId})`,
+            ),
+          ),
+
+      // PAGO A PROVEEDORES (SUPPLIER_PAYMENT)
+      supplierPayments: () =>
+        this.drizzle
+          .select({
+            id: schema.supplierPaymentLines.id,
+            type: sql`'SUPPLIER_PAYMENT'`.as('type'),
+            amount: schema.supplierPaymentLines.amount,
+            date: schema.supplierPayments.bankTransactionDate,
+            concept:
+              sql`CONCAT('Prov ',${schema.suppliers.code},' - ',${schema.accountsPayable.accountsPayableNumber})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.supplierPaymentLines)
+          .innerJoin(
+            schema.supplierPayments,
+            eq(
+              schema.supplierPayments.id,
+              schema.supplierPaymentLines.supplierPaymentId,
+            ),
+          )
+          .innerJoin(
+            schema.suppliers,
+            eq(schema.suppliers.id, schema.supplierPayments.supplierId),
+          )
+          .innerJoin(
+            schema.accountsPayable,
+            eq(
+              schema.accountsPayable.id,
+              schema.supplierPaymentLines.accountsPayableId,
+            ),
+          )
+          .where(
+            and(
+              eq(
+                schema.supplierPayments.status,
+                recordStatus as paymentSupplierStatusEnum,
+              ),
+              sql`${schema.supplierPayments.bankTransactionDate} BETWEEN ${minD} AND ${maxD}`,
+              sql`${schema.supplierPayments.bankAccountId} IS NOT NULL`,
+              sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.supplierPayments.bankAccountId})`,
+            ),
+          ),
+
+      //anticipos
+      supplierAdvances: () =>
+        this.drizzle
+          .select({
+            id: schema.supplierAdvances.id,
+            type: sql`'SUPPLIER_ADVANCE'`.as('type'),
+            amount: schema.supplierAdvances.amount,
+            date: schema.supplierTransactions.bankTransactionDate,
+            concept:
+              sql`CONCAT('Anticipo Prov ',${schema.suppliers.code},' - ',${schema.supplierTransactions.transactionNumber})`.as(
+                'concept',
+              ),
+          })
+          .from(schema.supplierAdvances)
+          .innerJoin(
+            schema.supplierTransactions,
+            eq(
+              schema.supplierAdvances.transactionId,
+              schema.supplierTransactions.id,
+            ),
+          )
+          .innerJoin(
+            schema.suppliers,
+            eq(schema.suppliers.id, schema.supplierTransactions.supplierId),
+          )
+          .where(
+            and(
+              eq(schema.supplierTransactions.transactionType, 'ADVANCE'),
+              eq(schema.supplierAdvances.statusPayment, 'PAID'),
+              sql`DATE(${schema.supplierTransactions.bankTransactionDate}) BETWEEN ${minD.toISOString().split('T')[0]} AND ${maxD.toISOString().split('T')[0]}`,
+              sql`${schema.supplierTransactions.bankAccountId} IS NOT NULL`,
+              sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.supplierTransactions.bankAccountId})`,
+            ),
+          ),
+    };
+
+    if (!internalTable) return [];
+    const queryFn = queries[internalTable];
+    if (!queryFn) {
+      return [];
+    }
+    const query = queryFn(); // ✅ ejecutas la función y obtienes la query
+
+    return await query;
+  }
+
+  /**
+   * reconcile
+   * Vincula un movimiento bancario con 1 o N registros internos **en la misma transacción**:
+   * - Crea los links
+   * - Cambia status del movimiento a RECONCILED
+   * - Cierra los documentos internos (pasa a PAID/CONFIRMED)
+   * - Genera el asiento contable de forma automática
+   * Si cualquier paso falla **todo se revierte**.
+   */
+  async reconcile(
+    bankTransactionId: number,
+    dto: ReconcileBankDto,
+    userId: number,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
+    return db.transaction(async (tx) => {
+      // 1.  Lock del movimiento
+      const [mov] = await tx
+        .select()
+        .from(schema.bankTransactions)
+        .where(eq(schema.bankTransactions.id, bankTransactionId));
+
+      if (!mov) throw new NotFoundException('Bank movement not found');
+      if (mov.reconciliationStatus === 'RECONCILED')
+        throw new ConflictException('Movement already reconciled');
+
+      // 2.  Links
+      await tx.insert(schema.internalTransactionBankLinks).values(
+        dto.links.map((l) => ({
+          bankTransactionId,
+          internalRecordType: l.internalRecordType,
+          internalRecordId: l.internalRecordId,
+          linkedBy: userId,
+        })),
+      );
+
+      // 3.  Update movement
+      await tx
+        .update(schema.bankTransactions)
+        .set({
+          //reconciliationStatus: 'RECONCILED',
+          internalLinkStatus: 'LINKED',
+        })
+        .where(eq(schema.bankTransactions.id, bankTransactionId));
+
+      // 4.  Cierra documentos y genera asiento
+      for (const l of dto.links) {
+        await this.closeInternalDocument(
+          l.internalRecordType,
+          l.internalRecordId,
+          bankTransactionId,
+          mov.debitAmount ?? '0',
+          mov.creditAmount ?? '0',
+          userId,
+          tx,
+          mov,
+        );
+        //await this.createAccountingEntry(l.internalRecordType, mov, tx); //generar asiento
+      }
+
+      return { message: 'Reconciled successfully' };
+    });
+  }
+
+  /* ----------  PRIVADOS  ---------- */
+
+  /**
+   * closeInternalDocument
+   * Cambia el status de un documento interno a "pagado / confirmado" y le graba
+   * el bankTransactionId para evitar re-vinculaciones.
+   * Es usado dentro de la transacción de reconcile().
+   */
+  private async closeInternalDocument(
+    type: string,
+    id: number,
+    btId: number,
+    debitAmount: string,
+    creditAmount: string,
+    userId: number,
+    tx: NodePgDatabase<typeof schema>,
+    dataBank?: any,
+  ) {
+    //procesar retiros
+    if (type === 'MEMBER_WITHDRAWAL') {
+      const [result] = await tx
+        .select()
+        .from(schema.withdrawalsAssociates)
+        .where(eq(schema.withdrawalsAssociates.id, id));
+
+      // 2. Movimiento interno (crédito a asociado)
+      await this.assocMvts.create(userId, {
+        associateAccountId: result.associateAccountId as number,
+        movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+        amount: Number(result.requestedAmount),
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: new Date(),
+        description: `Desembolso de retiro - REF: ${result.referenceCode}`,
+        referenceId: String(btId),
+        referenceType: dataBank.category,
+        referenceNumber: dataBank.bankReference ?? undefined,
+        area: 'Retiros',
+      });
+
+      await tx
+        .update(schema.withdrawalsAssociates)
+        .set({
+          bankTransactionId: dataBank.id,
+          status: 'DISBURSED',
+        })
+        .where(eq(schema.withdrawalsAssociates.id, result.id));
+
+      // 5. Auditoría
+      await this.audit.create(
+        {
+          action: 'UPDATE' as ActionEnumAudit,
+          area: 'PRESTAMOS',
+          description: 'Desembolso de Retiro',
+          recordId: String(btId),
+          tableName: 'withdrawalsAssociates',
+          userId: Number(userId),
+        },
+        tx,
       );
     }
 
-    await this.drizzle
-      .update(bankTransactions)
-      .set({ internalLinkStatus: 'UNLINKED' })
-      .where(eq(bankTransactions.id, bankTransactionId));
+    //procesar liquidacion
+    if (type === 'PAYROLL_SETTLEMENT') {
+      const [result] = await tx
+        .select()
+        .from(schema.liquidationsAssociates)
+        .where(eq(schema.liquidationsAssociates.id, id));
 
-    return {
-      message: `Successfully unlinked bank transaction with ID ${bankTransactionId}`,
+      await tx
+        .update(schema.liquidationsAssociates)
+        .set({
+          payoutTransactionId: dataBank.id,
+          status: 'DISBURSED',
+        })
+        .where(eq(schema.liquidationsAssociates.id, result.id));
+
+      // 5. Auditoría
+      await this.audit.create(
+        {
+          action: 'UPDATE' as ActionEnumAudit,
+          area: 'LIQUIDACION',
+          description: 'Desembolso de Liquidacion',
+          recordId: String(btId),
+          tableName: 'liquidationsAssociates',
+          userId: Number(userId),
+        },
+        tx,
+      );
+    }
+
+    //desembolso de prestamos
+    if (type === 'LOAN_DISBURSEMENT') {
+      const [result] = await tx
+        .select()
+        .from(schema.loans)
+        .where(eq(schema.loans.id, id));
+
+      // 2. Movimiento interno (crédito a asociado)
+      await this.assocMvts.create(userId, {
+        associateAccountId: result.associateId as number,
+        movementType: AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT,
+        amount: Number(result.disbursedAmount),
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: new Date(),
+        description: `Desembolso de prestamo - N°: ${result.customReference}`,
+        referenceId: String(btId),
+        referenceType: dataBank.category,
+        referenceNumber: dataBank.bankReference ?? undefined,
+        area: 'PRESTAMOS',
+      });
+
+      const expanseAdministration =
+        Number(result.approvedAmount) - Number(result.disbursedAmount);
+
+      await this.assocMvts.create(userId, {
+        associateAccountId: result.associateId as number,
+        movementType: AssociateMovementTypeEnum.LOAN_ADMIN_FEE_DEBIT,
+        amount: Number(expanseAdministration),
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: new Date(),
+        description: `Comision Administrativa por Desembolso de prestamo - N°: ${result.customReference}`,
+        referenceId: String(btId),
+        referenceType: dataBank.category,
+        referenceNumber: dataBank.bankReference ?? undefined,
+        area: 'PRESTAMOS',
+      });
+
+      await tx
+        .update(schema.loans)
+        .set({
+          disbursedByUserId: userId,
+          status: 'DISBURSED',
+          updatedById: userId,
+          disbursementDate: new Date().toISOString(),
+        })
+        .where(eq(schema.loans.id, result.id));
+
+      // 5. Auditoría
+      await this.audit.create(
+        {
+          action: 'UPDATE' as ActionEnumAudit,
+          area: 'PRESTAMOS',
+          description: 'Desembolso de Prestamo',
+          recordId: String(btId),
+          tableName: 'loans',
+          userId: Number(userId),
+        },
+        tx,
+      );
+      await this.audit.create(
+        {
+          action: 'UPDATE' as ActionEnumAudit,
+          area: 'PRESTAMOS',
+          description: 'Comision Administrativa por Desembolso de Prestamo',
+          recordId: String(btId),
+          tableName: 'loans',
+          userId: Number(userId),
+        },
+        tx,
+      );
+    }
+
+    const map: Record<string, () => any> = {
+      LOAN_PAYMENT: () =>
+        tx
+          .update(schema.loanPayments)
+          .set({ status: 'DONE' })
+          .where(eq(schema.loanPayments.id, id)),
+      SUPPLIER_PAYMENT: () =>
+        tx
+          .update(schema.supplierPayments)
+          .set({ status: 'PROCESSED', processedAt: new Date().toISOString() })
+          .where(eq(schema.supplierPayments.id, id)),
+
+      CREDIT_DISBURSEMENT: () =>
+        tx
+          .update(schema.credits)
+          .set({
+            status: 'PAID',
+          })
+          .where(eq(schema.credits.id, id)),
     };
+
+    if (map[type]) await map[type]();
   }
 
+  /**
+   * createAccountingEntry
+   * Genera el asiento contable (doble partida) a partir de la regla de categoría.
+   * Se ejecuta dentro de la transacción de reconcile().
+   */
+  // private async createAccountingEntry(
+  //   type: string,
+  //   mov: typeof schema.bankTransactions.$inferSelect,
+  //   tx: NodePgDatabase<typeof schema>,
+  // ) {
+  //   const [rule] = await tx
+  //     .select()
+  //     .from(schema.bankCategoryRule)
+  //     .where(eq(schema.bankCategoryRule.category, mov.category!));
+
+  //   if (!rule || !rule.defaultDebitAccountId || !rule.defaultCreditAccountId)
+  //     return;
+
+  //   const [entry] = await tx
+  //     .insert(schema.accountingEntries)
+  //     .values({
+  //       companyId: mov.companyId,
+  //       entryDate: mov.transactionDate,
+  //       concept: `Auto ${mov.category} #${mov.id}`,
+  //       totalDebit: mov.debitAmount,
+  //       totalCredit: mov.creditAmount,
+  //       status: 'POSTED',
+  //     })
+  //     .returning();
+
+  //   await tx.insert(schema.accountingEntryItems).values([
+  //     {
+  //       entryId: entry.id,
+  //       row: 1,
+  //       chartAccountId: rule.defaultDebitAccountId,
+  //       debit: mov.debitAmount,
+  //       credit: '0',
+  //     },
+  //     {
+  //       entryId: entry.id,
+  //       row: 2,
+  //       chartAccountId: rule.defaultCreditAccountId,
+  //       debit: '0',
+  //       credit: mov.creditAmount,
+  //     },
+  //   ]);
+  // }
+
+  /* ----------  UTILIDADES  ---------- */
+
+  /**
+   * findInternalLink
+   * Devuelve el vínculo que tiene un movimiento bancario (si existe).
+   * Se usa para validar desvinculaciones o para mostrar detalle.
+   */
   async findInternalLink(bankTransactionId: number) {
     const [link] = await this.drizzle
       .select()
-      .from(internalTransactionBankLinks)
+      .from(schema.internalTransactionBankLinks)
       .where(
-        eq(internalTransactionBankLinks.bankTransactionId, bankTransactionId),
+        eq(
+          schema.internalTransactionBankLinks.bankTransactionId,
+          bankTransactionId,
+        ),
       );
 
-    if (!link) {
+    if (!link)
       throw new NotFoundException(
-        `No link found for bank transaction with ID ${bankTransactionId}`,
+        `No link found for bank transaction ${bankTransactionId}`,
       );
-    }
-
     return link;
+  }
+
+  /**
+   * unlinkFromInternalRecord
+   * Elimina el vínculo y **reversa** el estado del movimiento y del documento interno.
+   * Se usa cuando el usuario des-concilia un movimiento ya cerrado.
+   */
+  async unlinkFromInternalRecord(
+    bankTransactionId: number,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.drizzle;
+    const [link] = await db
+      .delete(schema.internalTransactionBankLinks)
+      .where(
+        eq(
+          schema.internalTransactionBankLinks.bankTransactionId,
+          bankTransactionId,
+        ),
+      )
+      .returning();
+
+    if (!link)
+      throw new NotFoundException(
+        `No link found for bank transaction ${bankTransactionId}`,
+      );
+
+    await db
+      .update(schema.bankTransactions)
+      .set({ reconciliationStatus: 'PENDING', internalLinkStatus: 'UNLINKED' })
+      .where(eq(schema.bankTransactions.id, bankTransactionId));
+
+    return { message: 'Unlinked successfully' };
+  }
+
+  /**
+   * reverse
+   * Crea una línea opuesta en el extracto, desvincula el movimiento original
+   * y genera el asiento de reversión.
+   * Todo ocurre en una transacción.
+   */
+  async reverse(
+    bankTransactionId: number,
+    dto: ReverseMovementDto,
+    userId: number,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      // 1.  Lee el movimiento original
+      const [orig] = await tx
+        .select()
+        .from(schema.bankTransactions)
+        .where(eq(schema.bankTransactions.id, bankTransactionId))
+        .for('update');
+
+      if (!orig) throw new NotFoundException('Bank movement not found');
+      if (orig.reconciliationStatus !== 'RECONCILED')
+        throw new ConflictException(
+          'Only reconciled movements can be reversed',
+        );
+
+      // 2.  Crea la línea opuesta (nota de crédito o débito)
+      const [rev] = await tx
+        .insert(schema.bankTransactions)
+        .values({
+          bankAccountId: Number(orig.bankAccountId),
+          transactionType: 'BANK_TRANSFER', // mismo medio
+          transactionDate: dto.valueDate,
+          valueDate: dto.valueDate,
+          description: `Reversa de ${orig.description}`,
+          category: orig.category as BankTransactionCategory, // misma categoría contable
+          bankReference: `${orig.bankReference}-R`, // misma ref + sufijo
+          debitAmount: orig.creditAmount, // invierte signo
+          creditAmount: orig.debitAmount,
+          note: dto.reason ?? 'Reversión usuario',
+          source: 'USER_REVERSAL',
+          createdById: userId,
+        })
+        .returning();
+
+      // 3.  Desvincula el original (reabre documento interno)
+      await this.unlinkFromInternalRecord(bankTransactionId, tx);
+
+      // 4.  Genera asiento de reversión
+      //await this.createReversalEntry(orig, rev, tx);
+
+      return {
+        originalId: bankTransactionId,
+        reversalId: rev.id,
+        message: 'Movement reversed successfully',
+      };
+    });
+  }
+
+  /**
+   * createReversalEntry
+   * Genera el asiento contable que **revierte** el original:
+   * - Si el original fue un débito → reversa creditando la misma cuenta.
+   * - Si fue un crédito → reversa debitando la misma cuenta.
+   */
+  private async createReversalEntry(
+    orig: typeof schema.bankTransactions.$inferSelect,
+    rev: typeof schema.bankTransactions.$inferSelect,
+    tx: NodePgDatabase<typeof schema>,
+  ) {
+    const [rule] = await tx
+      .select()
+      .from(schema.bankCategoryRule)
+      .where(eq(schema.bankCategoryRule.category, orig.category!));
+
+    if (!rule || !rule.defaultDebitAccountId || !rule.defaultCreditAccountId)
+      return;
+
+    const [entry] = await tx
+      .insert(schema.accountingEntries)
+      .values({
+        companyId: 1,
+        accountingCycleId: 1,
+        entryDate: rev.transactionDate,
+        description: `Reversal of ${orig.category as BankTransactionCategory} #${orig.id}`,
+        originReferenceId: orig.id,
+        originType: 'BANK_TRANSACTION',
+        status: 'POSTED',
+        postedAt: new Date().toISOString(),
+        currencyCode: 'VES',
+      })
+      .returning();
+
+    await tx.insert(schema.accountingEntryDetails).values([
+      {
+        accountingEntryId: Number(entry.id),
+        accountPlanId: rule.defaultDebitAccountId,
+        debit: rev.debitAmount?.toString(),
+        credit: '0',
+      },
+      {
+        accountingEntryId: entry.id,
+        accountPlanId: rule.defaultCreditAccountId,
+        debit: '0',
+        credit: rev.creditAmount?.toString(),
+      },
+    ]);
   }
 }

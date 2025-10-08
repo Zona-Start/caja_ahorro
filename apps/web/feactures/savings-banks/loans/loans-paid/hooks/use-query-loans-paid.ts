@@ -1,10 +1,15 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { getLoanPaidAllAction } from '../actions/loans-paid-actions';
 
-// // Hook for LoanManagementlist
+/**
+ * Hook para obtener la lista de pagos de préstamos con parámetros
+ * Utiliza la fábrica centralizada de claves para consultas
+ */
 export function useQueryLoanPaid(params = {}) {
-  return useSafeQuery(['loan-paid', params], () =>
-    getLoanPaidAllAction(params),
+  return useSafeQuery(
+    queryKeys.loansPaid.list(params),
+    () => getLoanPaidAllAction(params),
   );
 }
 

@@ -11,9 +11,8 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useSupplierInvoices(params = {}) {
-  return useSafeQuery(
-    queryKeys.supplierInvoices.all(params), 
-    () => getSupplierInvoicesAction(params)
+  return useSafeQuery(queryKeys.supplierInvoices.list(params), () =>
+    getSupplierInvoicesAction(params),
   );
 }
 

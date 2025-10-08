@@ -22,8 +22,7 @@ export function useInventoryMovements(
     documentNumber?: string;
   } = {},
 ) {
-  return useSafeQuery(
-    queryKeys.inventoryMovements.all(params), 
-    () => getInventoryMovements(params)
+  return useSafeQuery(queryKeys.inventoryMovements.list(params), () =>
+    getInventoryMovements(params),
   );
 }

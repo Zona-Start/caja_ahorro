@@ -1,6 +1,7 @@
 'use client';
 
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getAssociateDetailsAction,
   getCreditsAction,
@@ -12,7 +13,7 @@ import {
 
 export function useAssociateDetails(cedula: string | null) {
   return useSafeQuery(
-    ['associate-details', cedula],
+    queryKeys.inquiry.associateDetails(cedula),
     () => getAssociateDetailsAction(cedula!),
     {
       enabled: !!cedula,
@@ -26,7 +27,7 @@ export function useHaberesMovements(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['haberes-movements', associateId],
+    queryKeys.inquiry.haberesMovements(associateId),
     () => getHaberesMovementsAction(associateId!),
     {
       enabled: !!associateId && (options?.enabled ?? false),
@@ -39,7 +40,7 @@ export function useWithdrawals(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['withdrawals', associateId],
+    queryKeys.inquiry.withdrawals(associateId),
     () => getWithdrawalsAction(associateId!),
     {
       enabled: !!associateId && (options?.enabled ?? false),
@@ -52,7 +53,7 @@ export function useTransactionHistory(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['transaction-history', associateId],
+    queryKeys.inquiry.transactionHistory(associateId),
     () => getTransactionHistoryAction(associateId!),
     {
       enabled: !!associateId && (options?.enabled ?? false),
@@ -64,8 +65,8 @@ export function useLoans(
   associateId: number | null,
   options?: { enabled?: boolean },
 ) {
-  return useSafeQuery([
-    'loans', associateId],
+  return useSafeQuery(
+    queryKeys.inquiry.loans(associateId),
     () => getLoansAction(associateId!),
     {
       enabled: !!associateId && (options?.enabled ?? false),
@@ -77,8 +78,8 @@ export function useCredits(
   associateId: number | null,
   options?: { enabled?: boolean },
 ) {
-  return useSafeQuery([
-    'credits', associateId],
+  return useSafeQuery(
+    queryKeys.inquiry.credits(associateId),
     () => getCreditsAction(associateId!),
     {
       enabled: !!associateId && (options?.enabled ?? false),

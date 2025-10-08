@@ -1,9 +1,9 @@
 'use client';
 
 import { AlertModal } from '@/components/modal/alert-modal';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
 import { Toaster } from '@repo/shadcn/components/ui/toaster';
-import { toast } from '@repo/shadcn/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +27,7 @@ export const CellAction: React.FC<CellActionProps> = ({
   data,
   dataDetails,
 }) => {
+  const toast = useToastSystem();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -46,8 +47,7 @@ export const CellAction: React.FC<CellActionProps> = ({
   };
 
   const showNotAllowedToast = (description: string) => {
-    toast({
-      variant: 'destructive',
+    toast.warning({
       title: 'Acción no permitida',
       description: description,
     });

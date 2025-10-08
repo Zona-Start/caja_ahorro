@@ -13,7 +13,7 @@ import { Eye, FileCheck, Trash } from 'lucide-react';
 import { useState } from 'react';
 import {
   useAprobeWithdrawalMutation,
-  useDeleteWithdrawal,
+  useDeleteWithdrawalMutation,
 } from '../../hooks/use-withdrawal-mutation';
 import { WithdrawalPaymentApi } from '../../schemas/withdrawal-api-response';
 import { WithdrawalDetailsModal } from '../withdrawal-details-modal';
@@ -28,7 +28,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showAprobedModal, setShowAprobedModal] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
-  const { mutate: deleteWithdrawal } = useDeleteWithdrawal();
+  const { mutate: deleteWithdrawal } = useDeleteWithdrawalMutation();
 
   const { mutate: aprobeMutation, isPending: isUpdating } =
     useAprobeWithdrawalMutation();

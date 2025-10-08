@@ -1,74 +1,70 @@
 'use client';
 
 import { AlertModal } from '@/components/modal/alert-modal';
-import { Button } from '@repo/shadcn/button';
+import { Button } from '@repo/shadcn/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/components/ui/tooltip';
-import { Edit, Link, Trash } from 'lucide-react';
+import { Eye, Link2Off, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteBankMovement } from '../../hooks/use-mutation-bank-movement';
-import { BankMovementApiResponse } from '../../schemas/bank-movement-api.schema';
-import { BankMovementModal } from '../bank-movement-modal';
+import { useReverseMovement } from '../../hooks/use-reverse-movement';
+import { useUnlinkMovement } from '../../hooks/use-unlink-movement';
+import { BankMovementColumn } from './columns';
 
 interface CellActionProps {
-  data: BankMovementApiResponse;
+  data: BankMovementColumn;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const [alertOpen, setAlertOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [action, setAction] = useState<'unlink' | 'reverse' | null>(null);
 
-  const { mutate: deleteMovement, isPending: isDeleting } = useDeleteBankMovement();
+  const { mutate: unlinkMovement, isPending: isUnlinking } =
+    useUnlinkMovement();
+  const { mutate: reverseMovement, isPending: isReversing } =
+    useReverseMovement();
 
-  const onConfirmDelete = () => {
-    deleteMovement(data.id, {
-        onSuccess: () => setAlertOpen(false)
-    });
+  const onConfirm = () => {
+    if (action === 'unlink') {
+      unlinkMovement(data.id);
+    } else if (action === 'reverse') {
+      // For reversing, we might need a more complex modal to get reason and date
+      // For now, using a simple confirmation and placeholder values
+      reverseMovement({
+        id: data.id,
+        reason: 'Reversión por error',
+        valueDate: new Date().toISOString(),
+      });
+    }
+    setOpen(false);
   };
 
   return (
     <>
       <AlertModal
-        isOpen={alertOpen}
-        onClose={() => setAlertOpen(false)}
-        onConfirm={onConfirmDelete}
-        loading={isDeleting}
-        title="Eliminar Movimiento"
-        description="¿Está seguro? Esta acción es irreversible."
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        onConfirm={onConfirm}
+        loading={isUnlinking || isReversing}
+        title={`¿Estás seguro de ${action === 'unlink' ? 'desvincular' : 'reversar'} este movimiento?`}
+        description="Esta acción no se puede deshacer."
       />
-      <BankMovementModal
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        defaultValues={{
-            ...data,
-            transactionDate: new Date(data.transactionDate),
-            movementType: parseFloat(data.debitAmount) > 0 ? 'EXIT' : 'ENTRY',
-            amount: parseFloat(data.debitAmount || data.creditAmount || '0'),
-        }}
-      />
-
       <div className="flex gap-1">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setEditOpen(true)}
-              >
-                <Edit className="h-4 w-4" />
+              <Button variant="outline" size="icon">
+                <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Editar</p>
+              <p>Ver</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -76,14 +72,16 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  // Link logic here
+                  setAction('unlink');
+                  setOpen(true);
                 }}
+                disabled={data.internalLinkStatus !== 'LINKED'}
               >
-                <Link className="h-4 w-4" />
+                <Link2Off className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Vincular</p>
+              <p>Desvincular</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -95,14 +93,16 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 onClick={() => {
-                  setAlertOpen(true);
+                  setAction('reverse');
+                  setOpen(true);
                 }}
+                disabled={data.reconciliationStatus !== 'RECONCILED'}
               >
-                <Trash className="h-4 w-4" />
+                <RotateCcw className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Eliminar</p>
+              <p>Reversar</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

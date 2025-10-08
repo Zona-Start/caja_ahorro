@@ -10,7 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteService } from '../../hooks/use-mutation-service';
+import { useDeleteServiceMutation } from '../../hooks/use-mutation-service';
 import { Service } from '../../schemas/service.schema';
 import ServiceDetailsModal from '../service-details-modal';
 import ServiceModal from '../service-modal';
@@ -25,7 +25,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
-  const { mutate: deleteService } = useDeleteService();
+  const { mutate: deleteService } = useDeleteServiceMutation();
 
   const onConfirm = async () => {
     try {

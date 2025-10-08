@@ -4,6 +4,7 @@ import { envs } from 'src/common/config/envs';
 import * as schema from '../index';
 import { seedAccountPlan } from './accounting-plans_nuevo';
 import { seedAdminRolePermission } from './admin-role-permission.seed';
+import { seedBankCategoryRule } from './bankCategoryRule';
 import { seedBankDirectory } from './banks-directory';
 import { seedCategories } from './categorys';
 import { seedCompany } from './company';
@@ -42,6 +43,7 @@ async function main() {
     await seedLocalities(db);
     await seedCompany(db);
     await seedBankDirectory(db); // Assuming this function is defined in the same file or imported correctly
+    await seedBankCategoryRule(db);
     await seedExchangeRate(db); // Assuming this function is defined in the same file or imported correctly
     await seedFirstAccountingCycle(db);
     await seedAccountPlan(db); // Assuming this function is defined in the same file or imported correctly

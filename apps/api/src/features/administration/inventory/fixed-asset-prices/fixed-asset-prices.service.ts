@@ -1,4 +1,4 @@
-import { fixedAssetsPrices } from '@/database/schema/administration';
+import { fixedAssetsPrices } from '@/database/schema/tables';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';

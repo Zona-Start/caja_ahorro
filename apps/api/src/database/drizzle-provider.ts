@@ -1,8 +1,8 @@
 import { Provider } from '@nestjs/common';
 import { drizzle, NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as schema from './index';
 import { envs } from 'src/common/config/envs';
+import * as schema from './index';
 
 export const DRIZZLE_PROVIDER = 'DRIZZLE_PROVIDER';
 
@@ -17,6 +17,6 @@ export const DrizzleProvider: Provider = {
         envs.node_env === 'production' ? { rejectUnauthorized: false } : false,
     });
 
-    return drizzle(pool, { schema }) as DrizzleDatabase;
+    return drizzle(pool, { schema /**logger: true **/ }) as DrizzleDatabase;
   },
 };

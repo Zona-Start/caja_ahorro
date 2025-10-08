@@ -3,7 +3,7 @@ import {
   fixedAssets,
   purchaseOrderItems,
   supplierInvoiceItems,
-} from '@/database/schema/administration';
+} from '@/database/schema/tables';
 import { fixedAssetsInventoryStatus } from '@/types/enum';
 import {
   BadRequestException,

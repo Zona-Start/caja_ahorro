@@ -2,7 +2,15 @@ import { Public } from '@/common/decorators';
 import { RefreshTokenDto } from '@/features/auth/dto/refresh-token.dto';
 import { SignInUserDto } from '@/features/auth/dto/signIn-user.dto';
 import { SignOutUserDto } from '@/features/auth/dto/signOut-user.dto';
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseIntPipe,
+  Post,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -37,5 +45,11 @@ export class AuthController {
   //@RequirePermissions('auth:refresh-token')
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     return await this.authService.refreshToken(refreshTokenDto);
+  }
+
+  @HttpCode(200)
+  @Get('/me-access/:id')
+  async access(@Param('id', ParseIntPipe) id: number) {
+    return await this.authService.access(id);
   }
 }

@@ -1,11 +1,14 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
-import { inventoryMovements } from '@/database/schema/administration';
+import {
+  fixedAssets,
+  inventoryMovements,
+  products,
+} from '@/database/schema/tables';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { fixedAssets, products } from 'src/database/schema/administration';
 import { CreateInventoryMovementDto } from './dto/create-inventory-movement.dto';
 import { FilterInventoryMovementDto } from './dto/filter-inventory-movement.dto';
 
@@ -79,6 +82,23 @@ export class InventoryMovementsService {
               : 'INV-AJU';
         const referenceId =
           await this.generateCodeService.generateNextReference(type);
+
+        if (item.itemType === 'PRODUCT') {
+          if (
+            movementType === 'IN' ||
+            movementType === 'ADJUST_IN' ||
+            movementType === 'COMMIT'
+          ) {
+            await tx
+              .update(products)
+              .set({
+                status: 'AVAILABLE',
+                updatedById: userId,
+              })
+              .where(eq(products.id, item.itemId));
+          }
+        }
+
         const newMovement = await tx
           .insert(inventoryMovements)
           .values({

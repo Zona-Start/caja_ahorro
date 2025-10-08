@@ -1,14 +1,19 @@
-import { bankTransactionCategory, paymentMethodEnum } from '@/database';
+import { BankTransactionCategory, paymentMethodEnum } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
-  IsDateString,
+  ArrayMinSize,
+  IsArray,
+  IsDate,
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNotEmptyObject,
   IsNumber,
   IsOptional,
   IsString,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateBankMovementDto {
@@ -24,25 +29,9 @@ export class CreateBankMovementDto {
     description: 'The date of the transaction.',
     example: '2024-07-15',
   })
-  @IsDateString()
+  @IsDate()
   @IsNotEmpty()
-  transactionDate: string;
-
-  @ApiProperty({
-    description: 'Transaction Type',
-    enum: paymentMethodEnum.enumValues,
-  })
-  @IsEnum(paymentMethodEnum.enumValues)
-  @IsNotEmpty()
-  transactionType: (typeof paymentMethodEnum.enumValues)[number];
-
-  @ApiProperty({
-    description: 'The description of the transaction.',
-    example: 'Payment for services',
-  })
-  @IsString()
-  @IsNotEmpty()
-  description: string;
+  transactionDate: Date;
 
   @ApiProperty({
     description: 'The debit amount of the transaction.',
@@ -65,6 +54,21 @@ export class CreateBankMovementDto {
   creditAmount?: number;
 
   @ApiProperty({
+    description: 'bank category',
+    enum: BankTransactionCategory,
+  })
+  @IsEnum(BankTransactionCategory)
+  category?: BankTransactionCategory;
+
+  @ApiProperty({
+    description: 'Payment Method',
+    enum: paymentMethodEnum,
+  })
+  @IsEnum(paymentMethodEnum)
+  @IsNotEmpty()
+  paymentMethod: paymentMethodEnum;
+
+  @ApiProperty({
     description: 'The bank reference for the transaction.',
     example: 'REF123456',
     required: false,
@@ -74,25 +78,45 @@ export class CreateBankMovementDto {
   bankReference?: string;
 
   @ApiProperty({
+    description: 'The description of the transaction.',
+    example: 'Payment for services',
+  })
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+
+  @ApiProperty({
     description: 'Create for user id.',
     required: false,
   })
   @IsInt()
   @IsOptional()
   createdById?: number;
+}
 
-  @ApiProperty({
-    description: 'bank category',
-    enum: bankTransactionCategory.enumValues,
-  })
-  @IsEnum(bankTransactionCategory.enumValues)
-  category?: (typeof bankTransactionCategory.enumValues)[number];
-
+export class LinkItemDto {
   @IsString()
-  @IsOptional()
-  internalRecordType?: string;
+  internalRecordType: string;
+  @IsNumber()
+  internalRecordId: number;
+}
 
-  @IsInt()
+export class CreateAndReconcileDto {
+  @IsNotEmptyObject()
+  @ValidateNested()
+  movement: CreateBankMovementDto;
+
+  @IsArray()
   @IsOptional()
-  internalRecordId?: number;
+  @ValidateNested({ each: true })
+  @Type(() => LinkItemDto)
+  links?: LinkItemDto[];
+}
+
+export class ReconcileBankDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => LinkItemDto)
+  links: LinkItemDto[];
 }

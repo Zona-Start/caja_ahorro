@@ -1,7 +1,7 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
-import { creditsTypes as creditsTypesSchema } from '@/database/schema/savings-banks';
+import { creditsTypes as creditsTypesSchema } from '@/database/schema/tables/savings-banks';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -34,7 +34,7 @@ export class CreditTypesService {
       .insert(creditsTypesSchema)
       .values({
         ...dto,
-        name: dto.name.toUpperCase(),
+        name: dto.name,
         interestRate: dto.interestRate.toString(),
         cancellationPercentage: dto.cancellationPercentage?.toString() ?? null,
         maxCreditAmount: dto?.maxCreditAmount?.toString() ?? null,

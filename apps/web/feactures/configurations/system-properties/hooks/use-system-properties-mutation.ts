@@ -1,25 +1,26 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { saveSettingSystemAction } from '../actions/system-properties-actions';
 import { SettingSystem } from '../schemas/system-properties.schema';
-
-export const SETTING_SYSTEM_KEY = ['setting-system'];
 
 // Mutation hook remains the same
 export function useSettingSystemMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   const mutation = useMutation({
     mutationFn: (data: SettingSystem) => saveSettingSystemAction(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SETTING_SYSTEM_KEY });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.systemProperties.all(),
+      });
       toast.success('Propiedad del sistema guardada exitosamente');
     },
     onError: (error) => {
       toast.error('Error al actualizar la propiedad del sistema');
-      console.error('Error:', error);
     },
   });
 

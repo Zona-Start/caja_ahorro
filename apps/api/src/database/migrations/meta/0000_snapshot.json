@@ -1,5 +1,5 @@
 {
-  "id": "f2f476f2-c423-4b4f-a5ac-fbf3bdce2dee",
+  "id": "f4235d8b-c086-4c73-9681-107cfc123d46",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -6179,6 +6179,120 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "banking.bank_category_rule": {
+      "name": "bank_category_rule",
+      "schema": "banking",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "bank_transaction_category",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "internal_table": {
+          "name": "internal_table",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "record_status": {
+          "name": "record_status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direction": {
+          "name": "direction",
+          "type": "char(1)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_debit_account_id": {
+          "name": "default_debit_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "default_credit_account_id": {
+          "name": "default_credit_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "auto_list": {
+          "name": "auto_list",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {
+        "bcr_cat_table_uidx": {
+          "name": "bcr_cat_table_uidx",
+          "columns": [
+            {
+              "expression": "category",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "internal_table",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bank_category_rule_default_debit_account_id_account_plan_id_fk": {
+          "name": "bank_category_rule_default_debit_account_id_account_plan_id_fk",
+          "tableFrom": "bank_category_rule",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "default_debit_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "bank_category_rule_default_credit_account_id_account_plan_id_fk": {
+          "name": "bank_category_rule_default_credit_account_id_account_plan_id_fk",
+          "tableFrom": "bank_category_rule",
+          "tableTo": "account_plan",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "default_credit_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "banking.bank_directory": {
       "name": "bank_directory",
       "schema": "banking",
@@ -6786,8 +6900,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "transaction_type": {
-          "name": "transaction_type",
+        "payment_method": {
+          "name": "payment_method",
           "type": "payment_method_enum",
           "typeSchema": "public",
           "primaryKey": false,
@@ -6816,7 +6930,7 @@
           "type": "bank_transaction_category",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "bank_reference": {
           "name": "bank_reference",
@@ -13457,6 +13571,12 @@
           "notNull": true,
           "default": "'REQUESTED'"
         },
+        "bank_transaction_id": {
+          "name": "bank_transaction_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "commercial_house_id": {
           "name": "commercial_house_id",
           "type": "integer",
@@ -13584,6 +13704,20 @@
             "id"
           ],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "withdrawals_associates_bank_transaction_id_bank_transactions_id_fk": {
+          "name": "withdrawals_associates_bank_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "withdrawals_associates",
+          "tableTo": "bank_transactions",
+          "schemaTo": "banking",
+          "columnsFrom": [
+            "bank_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "withdrawals_associates_commercial_house_id_suppliers_id_fk": {
@@ -13752,22 +13886,27 @@
       "name": "bank_transaction_category",
       "schema": "public",
       "values": [
-        "OPENING_BANK",
-        "INITIAL_ADJUSTMENT_BANK",
-        "CLOSING",
-        "DEPOSIT",
-        "WITHDRAWAL",
-        "MEMBER_DUES",
-        "LOAN_DISABURSEMENT",
-        "LOAN_PAYMENT",
+        "MEMBER_CONTRIBUTION",
         "MEMBER_WITHDRAWAL",
-        "ADMINISTRATIVE_EXPENSES",
-        "BANK_FEES",
+        "PAYROLL_SETTLEMENT",
+        "LOAN_DISBURSEMENT",
+        "LOAN_PAYMENT",
+        "CREDIT_DISBURSEMENT",
+        "CREDIT_PAYMENT",
+        "BATCH_DISBURSEMENT",
+        "SUPPLIER_PAYMENT",
+        "SUPPLIER_ADVANCE_PAYMENT",
+        "INTERNAL_TRANSFER",
+        "BANK_FEE",
         "INTEREST_EARNED",
-        "TAXES",
+        "INTEREST_CHARGED",
+        "BANK_ADJUSTMENT",
+        "TAX_DEBIT",
+        "TAX_CREDIT",
         "OTHER_INCOME",
-        "OTHER_EXPENSES",
-        "INTERNAL_TRANSFER"
+        "OTHER_EXPENSE",
+        "OPENING_BANK",
+        "CLOSING_BANK"
       ]
     },
     "public.category-suppliers": {
@@ -14180,7 +14319,7 @@
   "roles": {},
   "policies": {},
   "views": {
-    "accounting.account_balance": {
+    "accounting.accounting_balance": {
       "columns": {
         "tenant_id": {
           "name": "tenant_id",
@@ -14232,7 +14371,7 @@
         }
       },
       "definition": "\n  SELECT\n    ap.company_id AS tenant_id,\n    ap.id AS account_plan_id,\n    ap.code AS account_code,\n    ap.name AS account_name,\n    COALESCE(ae.currency_code, 'VES') AS currency_code,\n    COALESCE(SUM(aed.debit), 0) AS total_debit,\n    COALESCE(SUM(aed.credit), 0) AS total_credit,\n    CASE \n      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)\n      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)\n      ELSE 0\n    END AS balance\n  FROM \"accounting\".\"account_plan\" ap\n  LEFT JOIN \"accounting\".\"accounting_entry_details\" aed \n    ON aed.account_plan_id = ap.id\n  LEFT JOIN \"accounting\".\"accounting_entries\" ae\n    ON ae.id = aed.accounting_entry_id\n   AND ae.company_id  = ap.company_id \n   AND ae.status = 'POSTED'\n  GROUP BY ap.company_id, ap.id, ap.code, ap.name, ap.nature, COALESCE(ae.currency_code, 'VES')\n",
-      "name": "account_balance",
+      "name": "accounting_balance",
       "schema": "accounting",
       "isExisting": false,
       "materialized": false
@@ -14585,6 +14724,546 @@
       "definition": "\n  SELECT\n      l.id AS loan_id,\n      l.associate_id,\n      l.currency_code,\n      l.status AS loan_status,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) AS total_principal_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS total_interest_pending,\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.principal_amount ELSE 0 END) +\n      SUM(CASE WHEN las.payment_status IN ('PENDING'::payment_status_enum, 'PARTIAL'::payment_status_enum) THEN las.interest_amount ELSE 0 END) AS outstanding_total_balance\n  FROM\n      \"savings_banks\".\"loans\" l\n  JOIN\n      \"savings_banks\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE\n      l.status IN ('DISBURSED'::loan_status_enum, 'IN_PAYMENT'::loan_status_enum, 'OVERDUE'::loan_status_enum)\n  GROUP BY\n      l.id,\n      l.associate_id,\n      l.currency_code,\n      l.status\n",
       "name": "loan_outstanding_balance",
       "schema": "savings_banks",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_advances_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_count": {
+          "name": "advances_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_total": {
+          "name": "advances_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_available": {
+          "name": "advances_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    s.id                                          AS supplier_id,\n    COUNT(a.id)                                   AS advances_count,\n    COALESCE(SUM(a.amount), 0)                    AS advances_total,\n    COALESCE(SUM(a.available_amount), 0)          AS advances_available\n  FROM \"administration\".\"suppliers\" s\n  LEFT JOIN \"administration\".\"supplier_advances\" a ON a.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_advances_360",
+      "schema": "administration",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_ap_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_count": {
+          "name": "ap_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_original": {
+          "name": "ap_original",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_paid": {
+          "name": "ap_paid",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_remaining": {
+          "name": "ap_remaining",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_overdue": {
+          "name": "ap_overdue",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    s.id                                      AS supplier_id,\n    COUNT(ap.id)                              AS ap_count,\n    COALESCE(SUM(ap.original_amount), 0)      AS ap_original,\n    COALESCE(SUM(ap.paid_amount), 0)          AS ap_paid,\n    COALESCE(SUM(ap.remaining_amount), 0)     AS ap_remaining,\n    COALESCE(SUM(ap.remaining_amount) FILTER (WHERE ap.due_date < CURRENT_DATE), 0) AS ap_overdue\n  FROM \"administration\".\"suppliers\" s\n  LEFT JOIN \"administration\".\"accounts_payable\" ap ON ap.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_ap_360",
+      "schema": "administration",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_master_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_name": {
+          "name": "state_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n    s.id            AS supplier_id,\n    s.company_id    AS company_id,\n    s.code,\n    s.name,\n    s.tax_id,\n    s.category::text,\n    s.status::text,\n    s.contact_name,\n    s.contact_email,\n    s.contact_phone,\n    s.address,\n    st.name         AS state_name\n  FROM \"administration\".\"suppliers\" s\n  LEFT JOIN \"core\".\"states\" st ON st.id = s.state\n",
+      "name": "supplier_master_360",
+      "schema": "administration",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_notes_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_count": {
+          "name": "cn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_amount": {
+          "name": "cn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_available": {
+          "name": "cn_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_count": {
+          "name": "dn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_amount": {
+          "name": "dn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    s.id            AS supplier_id,\n    COUNT(DISTINCT cn.id)                          AS cn_count,\n    COALESCE(SUM(cn.amount), 0)                    AS cn_amount,\n    COALESCE(SUM(cn.available_amount), 0)          AS cn_available,\n    COUNT(DISTINCT dn.id)                          AS dn_count,\n    COALESCE(SUM(dn.amount), 0)                    AS dn_amount\n  FROM \"administration\".\"suppliers\" s\n  LEFT JOIN \"administration\".\"supplier_credit_notes\" cn ON cn.supplier_id = s.id\n  LEFT JOIN \"administration\".\"supplier_debit_notes\" dn ON dn.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_notes_360",
+      "schema": "administration",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_payments_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_count": {
+          "name": "payments_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_total": {
+          "name": "payments_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_payment_date": {
+          "name": "last_payment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n     s.id            AS supplier_id,\n    COUNT(p.id)                                AS payments_count,\n    COALESCE(SUM(p.total_amount), 0)           AS payments_total,\n    MAX(p.requested_at)                        AS last_payment_date\n  FROM \"administration\".\"suppliers\" s\n  LEFT JOIN \"administration\".\"supplier_payments\" p ON p.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_payments_360",
+      "schema": "administration",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_purchases_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "po_count": {
+          "name": "po_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "po_pending": {
+          "name": "po_pending",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_count": {
+          "name": "invoices_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_total": {
+          "name": "invoices_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_invoice_date": {
+          "name": "last_invoice_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n    s.id                                     AS supplier_id,\n    COUNT(DISTINCT po.id)                    AS po_count,\n    COUNT(DISTINCT po.id) FILTER (WHERE po.status = 'PENDING') AS po_pending,\n    COUNT(DISTINCT inv.id)                   AS invoices_count,\n    COALESCE(SUM(inv.total_amount), 0)       AS invoices_total,\n    MAX(inv.invoice_date)                    AS last_invoice_date\n  FROM \"administration\".\"suppliers\" s\n  LEFT JOIN \"administration\".\"purchase_orders\" po ON po.supplier_id = s.id\n  LEFT JOIN \"administration\".\"supplier_invoices\" inv ON inv.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_purchases_360",
+      "schema": "administration",
+      "isExisting": false,
+      "materialized": false
+    },
+    "administration.supplier_total_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_id": {
+          "name": "company_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_name": {
+          "name": "state_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "po_count": {
+          "name": "po_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "po_pending": {
+          "name": "po_pending",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_count": {
+          "name": "invoices_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_total": {
+          "name": "invoices_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_invoice_date": {
+          "name": "last_invoice_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ap_count": {
+          "name": "ap_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_original": {
+          "name": "ap_original",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_paid": {
+          "name": "ap_paid",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_remaining": {
+          "name": "ap_remaining",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_overdue": {
+          "name": "ap_overdue",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_count": {
+          "name": "advances_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_total": {
+          "name": "advances_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_available": {
+          "name": "advances_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_count": {
+          "name": "cn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_amount": {
+          "name": "cn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_available": {
+          "name": "cn_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_count": {
+          "name": "dn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_amount": {
+          "name": "dn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_count": {
+          "name": "payments_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_total": {
+          "name": "payments_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_payment_date": {
+          "name": "last_payment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "net_balance": {
+          "name": "net_balance",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    m.*,\n    COALESCE(p.po_count, 0)             AS po_count,\n    COALESCE(p.po_pending, 0)           AS po_pending,\n    COALESCE(p.invoices_count, 0)       AS invoices_count,\n    COALESCE(p.invoices_total, 0)       AS invoices_total,\n    p.last_invoice_date,\n    COALESCE(ap.ap_count, 0)            AS ap_count,\n    COALESCE(ap.ap_original, 0)         AS ap_original,\n    COALESCE(ap.ap_paid, 0)             AS ap_paid,\n    COALESCE(ap.ap_remaining, 0)        AS ap_remaining,\n    COALESCE(ap.ap_overdue, 0)          AS ap_overdue,\n    COALESCE(adv.advances_count, 0)     AS advances_count,\n    COALESCE(adv.advances_total, 0)     AS advances_total,\n    COALESCE(adv.advances_available, 0) AS advances_available,\n    COALESCE(n.cn_count, 0)             AS cn_count,\n    COALESCE(n.cn_amount, 0)            AS cn_amount,\n    COALESCE(n.cn_available, 0)         AS cn_available,\n    COALESCE(n.dn_count, 0)             AS dn_count,\n    COALESCE(n.dn_amount, 0)            AS dn_amount,\n    COALESCE(py.payments_count, 0)      AS payments_count,\n    COALESCE(py.payments_total, 0)      AS payments_total,\n    py.last_payment_date,\n    /* saldo neto */\n    COALESCE(ap.ap_remaining, 0)\n      + COALESCE(n.dn_amount, 0)\n      - COALESCE(n.cn_available, 0)\n      - COALESCE(adv.advances_available, 0)\n      - COALESCE(py.payments_total, 0)    AS net_balance\n  FROM \"administration\".\"supplier_master_360\" m\n  LEFT JOIN \"administration\".\"supplier_purchases_360\" p ON p.supplier_id = m.supplier_id\n  LEFT JOIN \"administration\".\"supplier_ap_360\" ap ON ap.supplier_id = m.supplier_id\n  LEFT JOIN \"administration\".\"supplier_advances_360\" adv ON adv.supplier_id = m.supplier_id\n  LEFT JOIN \"administration\".\"supplier_notes_360\" n ON n.supplier_id = m.supplier_id\n  LEFT JOIN \"administration\".\"supplier_payments_360\" py ON py.supplier_id = m.supplier_id\n",
+      "name": "supplier_total_360",
+      "schema": "administration",
+      "isExisting": false,
+      "materialized": false
+    },
+    "auth.user_access_summary": {
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fullname": {
+          "name": "fullname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roles": {
+          "name": "roles",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "permissions": {
+          "name": "permissions",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n  u.id AS user_id,\n  u.username,\n  u.email,\n  u.fullname,\n  COALESCE(\n    JSON_AGG(DISTINCT r.name) FILTER (WHERE r.name IS NOT NULL),\n    '[]'\n  ) AS roles,\n  COALESCE(\n    JSON_AGG(DISTINCT p.name) FILTER (WHERE p.name IS NOT NULL),\n    '[]'\n  ) AS permissions\nFROM auth.users u\nLEFT JOIN auth.user_role ur ON u.id = ur.user_id\nLEFT JOIN auth.roles r ON ur.role_id = r.id\nLEFT JOIN auth.roles_permissions rp ON r.id = rp.role_id \nLEFT JOIN auth.permissions p ON rp.permissions_id  = p.id\nGROUP BY u.id, u.username, u.email, u.fullname\n",
+      "name": "user_access_summary",
+      "schema": "auth",
       "isExisting": false,
       "materialized": false
     }

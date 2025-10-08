@@ -11,8 +11,10 @@ import {
   credits,
   creditsTypes,
 } from '@/database/index';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   AssociateMovementTypeEnum,
+  BankTransactionCategory,
   CreditStatusEnum,
   CurrencyCodeEnum,
   loanPaymetTypeEnum,
@@ -43,6 +45,7 @@ export class CreditPaidService {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly generateCodeService: GenerateCodeService,
+    private readonly bankMovementsService: BankMovementsService,
   ) {}
 
   // calculate balance pending
@@ -336,7 +339,7 @@ export class CreditPaidService {
         action: 'INSERT',
         userId: Number(userId),
         area: 'CREDITOS',
-        description: 'PAGO CREDITOS',
+        description: `Pago de Crédito`,
         newData: [paylodAuditData],
       });
 
@@ -369,7 +372,7 @@ export class CreditPaidService {
         amount: amount,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: paymentDate ? paymentDate : undefined,
-        description: 'PAGO CREDITO',
+        description: 'Pago Crédito',
         referenceId: String(result.insertedPaymentId),
         referenceType: 'creditPayments',
         referenceNumber: result.customReference ?? undefined,
@@ -380,6 +383,27 @@ export class CreditPaidService {
         userId,
         payloadMovementLoan,
       );
+
+      const dataBank = {
+        movement: {
+          bankAccountId: Number(bankId),
+          transactionDate: paymentDate ?? new Date(),
+          paymentMethod: paymentMethod as paymentMethodEnum,
+          description: `Pago de Cuota Crédito`,
+          bankReference: transactionReference,
+          category: 'CREDIT_PAYMENT' as BankTransactionCategory,
+          creditAmount: amount,
+          debitAmount: 0,
+          createdById: userId,
+        },
+        links: [
+          {
+            internalRecordType: 'CREDIT_PAYMENT',
+            internalRecordId: Number(resutAccount[0].id),
+          },
+        ],
+      };
+      await this.bankMovementsService.createAndReconcile(dataBank, userId);
 
       if (result.balanceInFavorValue !== 0) {
         const payloadMovementLoan = {

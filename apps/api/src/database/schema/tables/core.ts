@@ -10,10 +10,10 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { timestamps, timestampsShort } from '../timestamps';
+import { timestamps, timestampsShort } from '../../timestamps';
+import * as enums from '../enum/enum'; // Importa tus enums
+import { coreSchema } from '../schemas';
 import { accountPlan } from './accounting';
-import * as enums from './enum'; // Importa tus enums
-import { coreSchema } from './schemas';
 
 //Información general de la Compañia.
 export const company = coreSchema.table(

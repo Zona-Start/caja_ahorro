@@ -1,10 +1,10 @@
 import { sql } from 'drizzle-orm';
 import * as t from 'drizzle-orm/pg-core';
 import { index } from 'drizzle-orm/pg-core';
-import { timestampsShort } from '../timestamps';
+import { timestampsShort } from '../../timestamps';
+import { actionEnumAudit } from '../enum/enum';
+import { auditSchema, coreSchema } from '../schemas';
 import { users } from './auth';
-import { actionEnumAudit } from './enum';
-import { auditSchema, coreSchema } from './schemas';
 
 // Tabla de Logs de Actividad
 export const activityLogsSystem = coreSchema.table(

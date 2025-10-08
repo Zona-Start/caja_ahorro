@@ -1,8 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   authorizeAccountPayableAction,
   createAdvancePaymentAction,
@@ -19,18 +19,27 @@ import { PayAccountPayable } from '../schemas/pay-account-payable.schema';
  */
 export function useAuthorizeAccountPayableMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => authorizeAccountPayableAction(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.accountsPayable.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.detail(id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.paymentHistory(id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.appliedTransactions(id),
       });
       toast.success('Cuenta por pagar autorizado pago exitosamente');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al autorizar la cuenta por pagar');
+      toast.error('Error al autorizar la cuenta por pagar');
     },
   });
 }
@@ -41,18 +50,32 @@ export function useAuthorizeAccountPayableMutation() {
  */
 export function usePayAccountPayableMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (data: PayAccountPayable) => payAccountPayableAction(data),
-    onSuccess: () => {
+    onSuccess: (_, data) => {
       // ✅ Invalidación robusta usando la fábrica de claves
       queryClient.invalidateQueries({
         queryKey: queryKeys.accountsPayable.all(),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.detail(data.accountsPayableId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.paymentHistory(
+          data.accountsPayableId,
+        ),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.appliedTransactions(
+          data.accountsPayableId,
+        ),
+      });
       toast.success('Pago procesado exitosamente');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al procesar el pago');
+      toast.error('Error al procesar el pago');
     },
   });
 }
@@ -63,6 +86,7 @@ export function usePayAccountPayableMutation() {
  */
 export function useAdvancePaymentMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (data: AdvancePayment) => createAdvancePaymentAction(data),
@@ -71,10 +95,13 @@ export function useAdvancePaymentMutation() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.accountsPayable.all(),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.supplierTransactions.advances(),
+      });
       toast.success('Anticipo registrado exitosamente');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al registrar el anticipo');
+      toast.error('Error al registrar el anticipo');
     },
   });
 }
@@ -85,22 +112,29 @@ export function useAdvancePaymentMutation() {
  */
 export function useDeleteAccountPayable() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => deleteAccountPayableAction(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.accountsPayable.all(),
       });
-      // No se usa queryKeys.accountsPayable.detail(id) porque la clave original era diferente
-      queryClient.invalidateQueries({ queryKey: ['accounts-payable-by-id'] });
-      toast.success('Cuenta por pagar eliminada exitosamente');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.detail(id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.paymentHistory(id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountsPayable.appliedTransactions(id),
+      });
+      toast.crud.delete.success('Cuenta por pagar');
     },
     onError: (error) => {
       if (error instanceof Error) {
         if (error.message.includes('not found')) {
-          toast.error('Error, La cuenta por pagar no existe');
+          toast.crud.delete.error('Cuenta por pagar no existe');
         } else {
           toast.error(
             'Error al eliminar la cuenta por pagar, contacte al administrador',
@@ -117,6 +151,7 @@ export function useDeleteAccountPayable() {
  */
 export function useAuthorizeAdvancePaymentMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => authorizeAdavancePaymentAction(id),
@@ -128,7 +163,7 @@ export function useAuthorizeAdvancePaymentMutation() {
       toast.success('Anticipo autorizado a pagar exitosamente');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al autorizar el pago del anticipo');
+      toast.error('Error al autorizar el pago del anticipo');
     },
   });
 }

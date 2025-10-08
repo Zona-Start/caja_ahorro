@@ -1,8 +1,8 @@
 'use client';
 
 import { AlertModal } from '@/components/modal/alert-modal';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import {
   Tooltip,
@@ -13,7 +13,7 @@ import {
 import { Trash } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useDeleteCreditPaid } from '../../hooks/use-credits-paid-mutation';
+import { useDeleteCreditPaidMutation } from '../../hooks/use-credits-paid-mutation';
 import { CreditPaymentApi } from '../../schemas/credits-paid-api-response';
 
 interface CellActionProps {
@@ -23,9 +23,9 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const { mutate: deleteCreditPaid } = useDeleteCreditPaid();
+  const { mutate: deleteCreditPaid } = useDeleteCreditPaidMutation();
   const router = useRouter();
-  const { toast } = useToast();
+  const toast = useToastSystem();
 
   const onConfirm = async () => {
     try {

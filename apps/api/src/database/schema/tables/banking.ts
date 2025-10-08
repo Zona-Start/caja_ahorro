@@ -1,5 +1,6 @@
 import {
   boolean,
+  char,
   date,
   index,
   integer,
@@ -10,14 +11,7 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { timestamps } from '../timestamps';
-import {
-  accountingEntries,
-  accountingEntryDetails,
-  accountPlan,
-} from './accounting';
-import { users } from './auth';
-import { company } from './core';
+import { timestamps } from '../../timestamps';
 import {
   bankTransactionCategory,
   currencyCodeEnum,
@@ -25,8 +19,15 @@ import {
   paymentMethodEnum,
   reconciliationItemStatusEnum,
   reconciliationStatusEnum,
-} from './enum';
-import { bankingSchema } from './schemas';
+} from '../enum/enum';
+import { bankingSchema } from '../schemas';
+import {
+  accountingEntries,
+  accountingEntryDetails,
+  accountPlan,
+} from './accounting';
+import { users } from './auth';
+import { company } from './core';
 
 //Directorio de entidades bancarias.
 export const bankDirectory = bankingSchema.table(
@@ -100,11 +101,11 @@ export const bankTransactions = bankingSchema.table(
     bankAccountId: integer('bank_account_id')
       .notNull()
       .references(() => bankAccounts.id, { onDelete: 'cascade' }),
-    transactionType: paymentMethodEnum('transaction_type').notNull(),
+    paymentMethod: paymentMethodEnum('payment_method').notNull(),
     transactionDate: date('transaction_date').notNull(), // Fecha del movimiento según extracto
     valueDate: date('value_date'), // Fecha valor
     description: text('description').notNull(),
-    category: bankTransactionCategory('bank_transaction_category'), //Campo para la Categoría del Movimiento
+    category: bankTransactionCategory('bank_transaction_category').notNull(), //Campo para la Categoría del Movimiento
     bankReference: varchar('bank_reference', { length: 100 }), // Referencia única del banco para este movimiento
     debitAmount: numeric('debit_amount', { precision: 20, scale: 6 }).default(
       '0.00',
@@ -174,6 +175,32 @@ export const internalTransactionBankLinks = bankingSchema.table(
     internalRecordIdx: index('int_trans_links_internal_record_idx').on(
       table.internalRecordType,
       table.internalRecordId,
+    ),
+  }),
+);
+
+export const bankCategoryRule = bankingSchema.table(
+  'bank_category_rule',
+  {
+    id: serial('id').primaryKey(),
+    category: bankTransactionCategory('category').notNull(),
+    internalTable: varchar('internal_table', { length: 50 }), // nombre tabla interna
+    recordStatus: varchar('record_status', { length: 20 }), // status que debe tener
+    direction: char('direction', { length: 1 }).notNull().$type<'I' | 'O'>(), // I=entrada banco, O=salida
+    defaultDebitAccountId: integer('default_debit_account_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ),
+    defaultCreditAccountId: integer('default_credit_account_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ),
+    autoList: boolean('auto_list').default(true).notNull(), // ¿la muestra en la modal de vinculación?
+  },
+  (table) => ({
+    uniqueCatTable: uniqueIndex('bcr_cat_table_uidx').on(
+      table.category,
+      table.internalTable,
     ),
   }),
 );

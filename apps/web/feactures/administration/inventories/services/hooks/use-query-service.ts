@@ -7,10 +7,7 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useServices(params = {}) {
-  return useSafeQuery(
-    queryKeys.services.all(params), 
-    () => getServices(params)
-  );
+  return useSafeQuery(queryKeys.services.list(params), () => getServices(params));
 }
 
 /**
@@ -18,8 +15,5 @@ export function useServices(params = {}) {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useServicesAll() {
-  return useSafeQuery(
-    queryKeys.services.listAll(), 
-    () => getServiceAll()
-  );
+  return useSafeQuery(queryKeys.services.listAll(), () => getServiceAll());
 }

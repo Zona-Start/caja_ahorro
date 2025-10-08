@@ -1,8 +1,8 @@
 'use client';
 import { AlertModal } from '@/components/modal/alert-modal';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
 import { Toaster } from '@repo/shadcn/components/ui/toaster';
-import { toast } from '@repo/shadcn/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +24,7 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data, dataApi }) => {
+  const toast = useToastSystem();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -58,8 +59,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data, dataApi }) => {
   };
 
   const handleActionRestriction = (action: string) => {
-    toast({
-      variant: 'destructive',
+    toast.error({
       title: `Acción no permitida`,
       description: `No se puede ${action} una cuenta por pagar con estatus '${data.status}'.`,
     });

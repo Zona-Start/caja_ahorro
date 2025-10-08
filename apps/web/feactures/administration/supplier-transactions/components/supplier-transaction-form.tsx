@@ -13,6 +13,7 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
+import { ScrollArea } from '@repo/shadcn/scroll-area';
 import {
   Select,
   SelectContent,
@@ -20,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { ScrollArea } from '@repo/shadcn/scroll-area';
 import { useForm } from 'react-hook-form';
 import { useAccountPayableBySupplier } from '../../accounts-payable/hooks/use-query-account-payable';
 import { useSupplierTransactionMutation } from '../hooks/use-mutation-supplier-transaction';
@@ -28,8 +28,8 @@ import {
   PAYMENT_METHODS,
   PaymentMethodEnum,
   SUPPLIER_TRANSACTION_STATUS_TYPES,
-  SupplierTransactionStatusEnum,
   SUPPLIER_TRANSACTION_TYPES,
+  SupplierTransactionStatusEnum,
   SupplierTransactionTypeEnum,
 } from '../schemas/supplier-transaction-options';
 import {
@@ -50,20 +50,23 @@ export function SupplierTransactionForm({
   defaultValues,
   readOnly = false,
 }: FormProps) {
-  const { mutate: saveSupplierTransaction, isPending: isSaving } = useSupplierTransactionMutation();
+  const { mutate: saveSupplierTransaction, isPending: isSaving } =
+    useSupplierTransactionMutation();
 
   const form = useForm<SupplierTransaction>({
     resolver: zodResolver(supplierTransactionSchema),
     defaultValues: {
       id: defaultValues?.id,
       accountsPayableId: defaultValues?.accountsPayableId,
-      transactionType: defaultValues?.transactionType || SupplierTransactionTypeEnum.PAYMENT,
+      transactionType:
+        defaultValues?.transactionType || SupplierTransactionTypeEnum.PAYMENT,
       transactionDate: defaultValues?.transactionDate
         ? new Date(defaultValues.transactionDate)
         : new Date(),
       amount: defaultValues?.amount || 0,
       currencyCode: defaultValues?.currencyCode || 'USD',
-      paymentMethod: defaultValues?.paymentMethod || PaymentMethodEnum.BANK_TRANSFER,
+      paymentMethod:
+        defaultValues?.paymentMethod || PaymentMethodEnum.BANK_TRANSFER,
       reference: defaultValues?.reference || '',
       status: defaultValues?.status || SupplierTransactionStatusEnum.ACTIVE,
     },
@@ -72,9 +75,12 @@ export function SupplierTransactionForm({
 
   const accountsPayableId = form.watch('accountsPayableId');
 
-  const { data: accountsPayable } = useAccountPayableBySupplier(accountsPayableId, {
-    enabled: accountsPayableId !== undefined,
-  });
+  const { data: accountsPayable } = useAccountPayableBySupplier(
+    accountsPayableId,
+    {
+      enabled: accountsPayableId !== undefined,
+    },
+  );
 
   const onSubmit = async (data: SupplierTransaction) => {
     saveSupplierTransaction(data, {
@@ -85,7 +91,8 @@ export function SupplierTransactionForm({
       onError: (error) => {
         form.setError('root', {
           type: 'manual',
-          message: error.message || 'Error al guardar la transacción de proveedor',
+          message:
+            error.message || 'Error al guardar la transacción de proveedor',
         });
       },
     });
@@ -143,11 +150,13 @@ export function SupplierTransactionForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px]">
-                      {Object.entries(SUPPLIER_TRANSACTION_TYPES).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
+                      {Object.entries(SUPPLIER_TRANSACTION_TYPES).map(
+                        ([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -264,11 +273,13 @@ export function SupplierTransactionForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px]">
-                      {Object.entries(SUPPLIER_TRANSACTION_STATUS_TYPES).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
-                        </SelectItem>
-                      ))}
+                      {Object.entries(SUPPLIER_TRANSACTION_STATUS_TYPES).map(
+                        ([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

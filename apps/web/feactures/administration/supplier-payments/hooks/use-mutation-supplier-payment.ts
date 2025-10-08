@@ -1,8 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   payAccountPayableAction,
   payAdvanceAction,
@@ -16,11 +16,11 @@ import { PayAccountPayableHookAction, PayAdvance } from '../schemas';
  */
 export function useReversePaymentMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (data: { paymentIds: number[] }) => reversePaymentsAction(data),
     onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
       queryClient.invalidateQueries({
         queryKey: queryKeys.supplierPayments.all(),
       });
@@ -29,12 +29,10 @@ export function useReversePaymentMutation() {
       });
       toast.success('Pagos reversados exitosamente');
     },
-    onError: (error) => {
-      toast.error(error.message || 'Error al reversar los pagos');
+    onError: () => {
+      toast.error('Error al reversar los pagos');
     },
   });
-
-  return mutation;
 }
 
 /**
@@ -43,12 +41,12 @@ export function useReversePaymentMutation() {
  */
 export function usePayAccountPayableMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (data: PayAccountPayableHookAction) =>
       payAccountPayableAction(data),
     onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
       queryClient.invalidateQueries({
         queryKey: queryKeys.accountsPayable.all(),
       });
@@ -56,22 +54,23 @@ export function usePayAccountPayableMutation() {
         queryKey: queryKeys.supplierPayments.all(),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.supplierTransactions.advances(),
+        queryKey: queryKeys.supplierTransactions.all(),
       });
       toast.success('Pago procesado exitosamente');
     },
-    onError: (error) => {
-      toast.error(error.message || 'Error al procesar el pago');
+    onError: () => {
+      toast.error('Error al procesar el pago');
     },
   });
 }
 
 export function usePayAdvanceMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
   return useMutation({
     mutationFn: (data: PayAdvance) => payAdvanceAction(data),
     onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
       queryClient.invalidateQueries({
         queryKey: queryKeys.accountsPayable.all(),
       });
@@ -79,12 +78,12 @@ export function usePayAdvanceMutation() {
         queryKey: queryKeys.supplierPayments.all(),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.supplierTransactions.advances(),
+        queryKey: queryKeys.supplierTransactions.all(),
       });
       toast.success('Pago procesado exitosamente');
     },
-    onError: (error) => {
-      toast.error(error.message || 'Error al procesar el pago');
+    onError: () => {
+      toast.error('Error al procesar el pago');
     },
   });
 }

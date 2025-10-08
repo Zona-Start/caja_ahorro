@@ -2,6 +2,7 @@ import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
+  BankTransactionCategory,
   paymentAccountsPayableEnum,
   paymentMethodEnum,
   paymentSupplierStatusEnum,
@@ -735,24 +736,26 @@ export class SupplierPaymentsService {
       }
 
       // 1) Crear movimiento bancario (solo si hay efectivo saliente)
-      await this.bankMovementsService.create(
-        {
+      const dataBank = {
+        movement: {
           bankAccountId: Number(dto.bankAccountId),
-          transactionDate:
-            dto.transactionDate.toISOString() || new Date().toISOString(),
+          transactionDate: dto.transactionDate ?? new Date(),
+          paymentMethod: dto.paymentMethod as paymentMethodEnum,
           description: dto.paymentDescription ?? 'Pago proveedor',
-          debitAmount: dto.amount, // <--- usar solo efectivo saliente
-          creditAmount: 0,
           bankReference: dto?.bankReference ?? undefined,
-          transactionType: dto.paymentMethod as paymentMethodEnum,
-          category: 'INTERNAL_TRANSFER',
+          category: 'SUPPLIER_PAYMENT' as BankTransactionCategory,
+          creditAmount: 0,
+          debitAmount: dto.amount, //,
           createdById: userId,
-          internalRecordType: 'PAYMENT_SUPPLIER',
-          internalRecordId: newPayment.id,
         },
-        userId,
-        tx,
-      );
+        links: [
+          {
+            internalRecordType: 'SUPPLIER_PAYMENT',
+            internalRecordId: newTransaction.id,
+          },
+        ],
+      };
+      await this.bankMovementsService.createAndReconcile(dataBank, userId, tx);
 
       /** Actualizar la cuenta por pagar ***/
 

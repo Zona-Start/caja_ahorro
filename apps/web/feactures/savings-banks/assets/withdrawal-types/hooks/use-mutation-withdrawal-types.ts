@@ -1,7 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   deleteWithdrawalTypesAction,
   saveWithdrawalTypesAction,
@@ -11,33 +12,46 @@ import { WithdrawalTypes } from '../schemas/withdrawal-types.schema';
 // Mutation hook
 export function useWithdrawalTypesMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (data: WithdrawalTypes) => saveWithdrawalTypesAction(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['withdrawal-types'] });
-      toast.success('Tipo de Rétiro guardado exitosamente');
+    onSuccess: (_, data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.withdrawalTypes.all(),
+      });
+
+      if (data?.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.withdrawalTypes.detail(data.id),
+        });
+      }
+
+      toast.success('Tipo de Retiro guardado exitosamente');
     },
-    onError: (error) => {
-      toast.error('Error al guardar el tipo de rétiro');
-      console.error('Error:', error);
+    onError: () => {
+      toast.error('Error al guardar el tipo de retiro');
     },
   });
-
-  return mutation;
 }
 
-export function useDeleteWithdrawalTypes() {
+export function useDeleteWithdrawalTypesMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
   return useMutation({
     mutationFn: (id: number) => deleteWithdrawalTypesAction(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['withdrawal-types'] });
-      toast.success('Tipo de Rétiro eliminado exitosamente');
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.withdrawalTypes.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.withdrawalTypes.detail(id),
+      });
+      toast.crud.delete.success('Tipo de Retiro');
     },
-    onError: (error) => {
-      toast.error('Error al eliminar el tipo de rétiro');
-      console.error('Error:', error);
+    onError: () => {
+      toast.crud.delete.error('Tipo de Retiro');
     },
   });
 }

@@ -49,10 +49,10 @@ export class AssociateAccountsMovementsService {
     userId: number,
     createAssociateAccountsMovementDto: CreateAssociateAccountsMovementDto,
     tx?: NodePgDatabase<typeof schema>,
-  ): Promise<{ message: string }> {
+  ) {
     const db = tx ?? this.drizzle;
     try {
-      return await this.drizzle.transaction(async (tx) => {
+      return await db.transaction(async (tx) => {
         const {
           associateAccountId,
           movementType,
@@ -126,8 +126,6 @@ export class AssociateAccountsMovementsService {
               : movementType === 'VOLUNTARY_SAVINGS'
                 ? 'Aporte Voluntario'
                 : description;
-
-        console.log(description);
 
         const [newMovement] = await tx
           .insert(associateAccountMovements)

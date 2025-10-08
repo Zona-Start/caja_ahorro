@@ -1,7 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   deleteBankAccountAction,
   saveBankAccountAction,
@@ -11,36 +12,53 @@ import { BankAccount } from '../schemas/bank-account.schema';
 // Mutation hook remains the same
 export function useBankAccountMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (bankAccount: BankAccount) =>
       saveBankAccountAction(bankAccount),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bank-account'] });
-      queryClient.invalidateQueries({ queryKey: ['bank-account-by-id'] });
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.list(),
+      });
+
+      if (data?.data) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.bankAccounts.detail(data.data.id),
+        });
+      }
+
       toast.success('Cuenta Bancaria guardada exitosamente');
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Error al guardar la cuenta bancaria');
-      console.error('Error:', error);
     },
   });
-
-  return mutation;
 }
 
-export function useDeleteBankAccount() {
+export function useDeleteBankAccountMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => deleteBankAccountAction(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bank-account'] });
-      toast.success('Cuenta Bancaria eliminada exitosamente');
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.list(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.detail(id),
+      });
+      toast.crud.delete.success('Cuenta Bancaria');
     },
-    onError: (error) => {
-      toast.error('Error al eliminar la cuenta bancaria');
-      console.error('Error:', error);
+    onError: () => {
+      toast.crud.delete.error('Cuenta Bancaria');
     },
   });
 }

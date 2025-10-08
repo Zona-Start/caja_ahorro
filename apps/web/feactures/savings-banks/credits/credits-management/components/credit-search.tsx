@@ -1,7 +1,8 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
-import { toast } from '@/components/use-toast';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -38,6 +39,7 @@ export function CreditSearch({
   currentExchangeRate,
   isEdit = false,
 }: CreditSearchProps) {
+  const toast = useToastSystem();
   const [searchTerm, setSearchTerm] = useState('');
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
   const [shouldFetch, setShouldFetch] = useState(false);
@@ -79,24 +81,24 @@ export function CreditSearch({
         const status = (error as any)?.response?.status;
 
         if (errorMessage.includes('not found') || status === 404) {
-          toast({
+          toast.info({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
         } else if (errorMessage.includes('retired')) {
-          toast({
+          toast.info({
             title: 'Asociado retirado',
             description:
               'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
           });
         } else if (errorMessage.includes('inactive')) {
-          toast({
+          toast.warning({
             title: 'Asociado inactivo',
             description:
               'el asociado está inactivo y no puede ser seleccionado.',
           });
         } else {
-          toast({
+          toast.error({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
@@ -107,7 +109,7 @@ export function CreditSearch({
       } else if (submittedSearchTerm && !data) {
         setSearchResults(null); // Actualiza los resultados con los datos del servidor
         onSelectAssociate(null);
-        toast({
+        toast.info({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
@@ -137,7 +139,7 @@ export function CreditSearch({
   const handleSearch = useCallback(() => {
     const trimmedSearchTerm = searchTerm.trim();
     if (!trimmedSearchTerm) {
-      toast({
+      toast.warning({
         title: 'Campo vacío',
         description: 'Por favor, ingrese una cédula para buscar.',
       });
@@ -146,7 +148,7 @@ export function CreditSearch({
 
     // Limpiar caché y estado antes de nueva búsqueda
     queryClient.removeQueries({
-      queryKey: ['credit-associates-individual-by-cedula'],
+      queryKey: queryKeys.associatesForCreditManagement.all(),
       exact: false,
     });
 
@@ -165,7 +167,7 @@ export function CreditSearch({
     setShouldFetch(false);
     // Remove the generic query key as well, just in case
     queryClient.removeQueries({
-      queryKey: ['credit-associates-individual-by-cedula'],
+      queryKey: queryKeys.associatesForCreditManagement.all(),
       exact: false,
     });
     // No need for setTimeout to re-enable fetch immediately

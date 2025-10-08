@@ -1,17 +1,17 @@
 import { z } from 'zod';
 
 export const CREDIT_PAYMENT_TYPES = {
-  PAYING: 'ABONA A CREDITO',
-  CANCELLATION: 'CANCELA CREDITO',
+  PAYING: 'Abona a Crédito',
+  CANCELLATION: 'Cancela Crédito',
 } as const;
 
 export const PAYMENT_METHOD = {
-  CASH: 'EFECTIVO',
-  BANK_TRANSFER: 'TRANSFERENCIA BANCARIA',
-  CHECK: 'CHEQUE',
-  DEPOSIT: 'DEPÓSITO',
-  MOBILE_PAYMENT: 'PAGO_MÓVIL',
-  OTHER: 'OTRO',
+  CASH: 'Efectivo',
+  BANK_TRANSFER: 'Trasnferencia Bancaria',
+  CHECK: 'Cheque',
+  DEPOSIT: 'Depósito',
+  MOBILE_PAYMENT: 'Pago Móvil',
+  OTHER: 'Otro',
 } as const;
 
 export type LoanPaymentTypes = keyof typeof CREDIT_PAYMENT_TYPES;

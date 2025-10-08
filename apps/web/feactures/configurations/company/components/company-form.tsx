@@ -13,6 +13,8 @@ import {
 import { Input } from '@repo/shadcn/input';
 import { Label } from '@repo/shadcn/label';
 // import { Edit, Loader2, Save, X } from 'lucide-react';
+import { IconWrapper } from '@/components/icon-wrapper';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import {
   Building2,
   Edit,
@@ -24,10 +26,6 @@ import {
   User,
   X,
 } from 'lucide-react';
-
-import { IconWrapper } from '@/components/icon-wrapper';
-
-import { toast } from '@/components/use-toast';
 import React from 'react';
 import { z } from 'zod';
 import { useCompany, useCompanyMutation } from '../hooks/use-company';
@@ -95,6 +93,7 @@ const Field = React.memo(
 );
 
 export function CompanyForm() {
+  const toast = useToastSystem();
   const { setCompany } = useCompanyStore();
   const { data: CompanyData, isLoading: isLoadingData } = useCompany();
   const { mutate: saveCompany, isPending: isSaving } = useCompanyMutation();
@@ -146,12 +145,12 @@ export function CompanyForm() {
       onSubmit(validatedData); // Envía los datos validados
     } catch (error) {
       if (error instanceof z.ZodError) {
-        toast({
+        toast.error({
           title: 'Error de validación',
           description: 'Verifique los campos resaltados en rojo.',
         });
       } else {
-        toast({
+        toast.error({
           title: 'Error',
           description: 'Ocurrió un error inesperado.',
         });
@@ -170,7 +169,7 @@ export function CompanyForm() {
     // Omitir los campos createdAt y updatedAt
     saveCompany(data, {
       onSuccess: () => {
-        toast({
+        toast.success({
           title: 'Datos actualizados',
           description:
             'Los datos de la empresa han sido actualizados correctamente.',
@@ -179,7 +178,7 @@ export function CompanyForm() {
         setCompany(data);
       },
       onError: (error: Error) => {
-        toast({
+        toast.error({
           title: 'Error actualizando',
           description: error.message,
         });

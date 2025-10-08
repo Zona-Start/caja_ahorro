@@ -1,12 +1,11 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
 import {
   SystemConfigState,
   useSystemConfigStore,
 } from '@/store/SystemConfigStore';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
-import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useSettlementMutation } from '../hooks/use-settlement-mutation';
@@ -40,9 +39,8 @@ export function SettlementView({ isEdit = false, initialData }: LoanViewProps) {
   const [currentCurrencyCode, setCurrentCurrencyCode] = useState<string>();
   const [currentExchangeRate, setCurrentExchangeRate] = useState<number>();
 
-  const { toast } = useToast();
+  const toast = useToastSystem();
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { mutate: saveSettlement } = useSettlementMutation();
 
   // Refs
@@ -96,19 +94,11 @@ export function SettlementView({ isEdit = false, initialData }: LoanViewProps) {
     setIsSubmitting(true);
     saveSettlement(data, {
       onSuccess: () => {
-        toast({
-          title: 'Liquidación procesada con éxito',
+        toast.success({
+          title: 'Solicitud de Liquidación procesada con éxito',
           description: `Se ha registrado la liquidación para ${selectedAssociate?.fullname}.`,
         });
         handleCancel();
-      },
-      onError: () => {
-        toast({
-          variant: 'destructive',
-          title: 'Error al guardar al procesar la liquidación',
-          description:
-            'Ocurrió un error al procesar la operación. Intente nuevamente.',
-        });
       },
     });
   };
@@ -127,12 +117,10 @@ export function SettlementView({ isEdit = false, initialData }: LoanViewProps) {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          {isEdit ? 'Actualización de Retiro' : 'Creación Retiro'}
+          Liquidación de Haberes
         </h1>
         <p className="text-muted-foreground">
-          Complete el formulario para{' '}
-          {isEdit ? 'actualizar un retiro' : 'crear un nuevo retiro'} haberes
-          para un asociado
+          Complete el formulario para liquidar un asociado
         </p>
       </div>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

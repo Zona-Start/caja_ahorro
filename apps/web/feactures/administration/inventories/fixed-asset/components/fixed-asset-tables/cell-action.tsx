@@ -10,7 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteFixedAsset } from '../../hooks/use-mutation-fixed-asset';
+import { useDeleteFixedAssetMutation } from '../../hooks/use-mutation-fixed-asset';
 import { FixedAsset } from '../../schemas/fixed-asset.schema';
 import FixedAssetDetailsModal from '../fixed-asset-details-modal';
 import FixedAssetModal from '../fixed-asset-modal';
@@ -25,7 +25,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
 
-  const { mutate: deleteFixedAsset } = useDeleteFixedAsset();
+  const { mutate: deleteFixedAsset } = useDeleteFixedAssetMutation();
 
   const onConfirm = async () => {
     try {

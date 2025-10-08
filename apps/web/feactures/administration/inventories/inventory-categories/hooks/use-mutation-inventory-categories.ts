@@ -1,11 +1,13 @@
+'use client';
+
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   deleteInventoryCategory,
   saveInventoryCategoryAction,
 } from '../actions/inventory-categories-actions';
 import { InventoryCategory } from '../schemas/inventory-category.schema';
-import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Hook para la mutación (crear/actualizar) de categorías de inventario
@@ -13,59 +15,50 @@ import { queryKeys } from '@/lib/queryKeys';
  */
 export function useInventoryCategoryMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
-    mutationFn: (data: InventoryCategory) =>
-      saveInventoryCategoryAction(data),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.inventoryCategories.all() 
+  return useMutation({
+    mutationFn: (data: InventoryCategory) => saveInventoryCategoryAction(data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inventoryCategories.all(),
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.inventoryCategories.listAll() 
-      });
-      toast.success('Categoria de Inventario guardada exitosamente');
+
+      if (data?.data) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.inventoryCategories.detail(data.data.id),
+        });
+      }
+
+      toast.success('Categoría de inventario guardada exitosamente');
     },
-    onError: (error) => {
-      toast.error('Error al guardar la categoria');
-      console.error('Error:', error);
+    onError: () => {
+      toast.error('Error al guardar la categoría de inventario');
     },
   });
-
-  return mutation;
 }
 
 /**
  * Hook para eliminar una categoría de inventario
  * Utiliza la fábrica centralizada de claves para invalidar queries
  */
-export function useDeleteInventoryCategory() {
+export function useDeleteInventoryCategoryMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
   return useMutation({
     mutationFn: (id: number) => deleteInventoryCategory(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.inventoryCategories.all() 
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inventoryCategories.all(),
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.inventoryCategories.listAll() 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.inventoryCategories.detail(id),
       });
-      toast.success('Categoria eliminada exitosamente');
+      toast.crud.delete.success('Categoría de inventario');
     },
-    onError: (error) => {
-      if (error instanceof Error) {
-        if (error.message === 'Category not found') {
-          toast.error('Error, Categoria no encontrada');
-        } else if (
-          error.message === 'Cannot be deleted, Product Category is in use'
-        ) {
-          toast.error('Error, Categoria en uso  no se puede eliminar');
-        } else {
-          toast.error('Error al eliminar la Categoria');
-        }
-      }
+    onError: () => {
+      toast.crud.delete.error('Categoría de inventario');
     },
   });
 }

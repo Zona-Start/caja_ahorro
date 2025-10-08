@@ -10,9 +10,8 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useSupplierTransactions(params = {}) {
-  return useSafeQuery(
-    queryKeys.supplierTransactions.all(params), 
-    () => getSupplierTransactionsAction(params)
+  return useSafeQuery(queryKeys.supplierTransactions.list(params), () =>
+    getSupplierTransactionsAction(params),
   );
 }
 

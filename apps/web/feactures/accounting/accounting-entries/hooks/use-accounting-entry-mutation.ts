@@ -1,25 +1,16 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import {
-  saveAccountingEntryAction,
-  deleteAccountingEntryAction,
-  submitAccountingEntryAction,
-  postAccountingEntryAction,
-  cancelAccountingEntryAction,
-} from '../actions/accounting-entry-actions';
-import { AccountingEntry } from '../schemas/accounting-entry.schema';
 import { queryKeys } from '@/lib/queryKeys';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-/**
- * Función helper para invalidar todas las queries relacionadas con asientos contables
- * Utiliza la fábrica centralizada de claves para garantizar consistencia
- */
-const invalidateQueries = (queryClient: any) => {
-  queryClient.invalidateQueries({ queryKey: queryKeys.accountingEntries.all() });
-  queryClient.invalidateQueries({ queryKey: queryKeys.accountingEntries.paginated() });
-};
+import { useToastSystem } from '@/hooks/use-toast-system';
+import {
+  cancelAccountingEntryAction,
+  deleteAccountingEntryAction,
+  postAccountingEntryAction,
+  saveAccountingEntryAction,
+  submitAccountingEntryAction,
+} from '../actions/accounting-entry-actions';
 
 /**
  * Hook para la mutación (crear/actualizar) de asientos contables
@@ -27,15 +18,26 @@ const invalidateQueries = (queryClient: any) => {
  */
 export function useAccountingEntryMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
   return useMutation({
-    mutationFn: (data: AccountingEntry) => saveAccountingEntryAction(data),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando helper centralizado
-      invalidateQueries(queryClient);
-      toast.success('Asiento contable guardado exitosamente');
+    mutationFn: saveAccountingEntryAction,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.paginated(),
+      });
+
+      if (variables.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.accountingEntries.detail(variables.id),
+        });
+      }
+      toast.crud.create.success('Asiento contable');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al guardar el asiento contable');
+      toast.crud.create.error('Asiento contable');
     },
   });
 }
@@ -46,15 +48,20 @@ export function useAccountingEntryMutation() {
  */
 export function useDeleteAccountingEntry() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
   return useMutation({
-    mutationFn: (id: number) => deleteAccountingEntryAction(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando helper centralizado
-      invalidateQueries(queryClient);
-      toast.success('Asiento contable eliminado exitosamente');
+    mutationFn: deleteAccountingEntryAction,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.paginated(),
+      });
+      toast.crud.delete.success('Asiento contable');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al eliminar el asiento contable');
+      toast.crud.delete.error('Asiento contable');
     },
   });
 }
@@ -65,15 +72,20 @@ export function useDeleteAccountingEntry() {
  */
 export function useSubmitAccountingEntry() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
   return useMutation({
-    mutationFn: (id: number) => submitAccountingEntryAction(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando helper centralizado
-      invalidateQueries(queryClient);
+    mutationFn: submitAccountingEntryAction,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.paginated(),
+      });
       toast.success('Asiento contable enviado para aprobación');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al enviar el asiento contable');
+      toast.error('Error al enviar el asiento contable');
     },
   });
 }
@@ -84,15 +96,20 @@ export function useSubmitAccountingEntry() {
  */
 export function usePostAccountingEntry() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
   return useMutation({
-    mutationFn: (id: number) => postAccountingEntryAction(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando helper centralizado
-      invalidateQueries(queryClient);
+    mutationFn: postAccountingEntryAction,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.paginated(),
+      });
       toast.success('Asiento contable contabilizado exitosamente');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al contabilizar el asiento');
+      toast.error('Error al contabilizar el asiento');
     },
   });
 }
@@ -103,15 +120,20 @@ export function usePostAccountingEntry() {
  */
 export function useCancelAccountingEntry() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
   return useMutation({
     mutationFn: (id: number) => cancelAccountingEntryAction(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando helper centralizado
-      invalidateQueries(queryClient);
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.paginated(),
+      });
       toast.success('Asiento contable anulado exitosamente');
     },
     onError: (error) => {
-      toast.error(error.message || 'Error al anular el asiento contable');
+      toast.error('Error al anular el asiento contable');
     },
   });
 }

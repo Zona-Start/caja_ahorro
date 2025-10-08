@@ -1,11 +1,13 @@
+'use client';
+
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   deleteService,
   saveServiceAction,
 } from '../actions/service-actions';
 import { Service } from '../schemas/service.schema';
-import { queryKeys } from '@/lib/queryKeys';
 
 /**
  * Hook para la mutación (crear/actualizar) de servicios
@@ -13,54 +15,50 @@ import { queryKeys } from '@/lib/queryKeys';
  */
 export function useServiceMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (data: Service) => saveServiceAction(data),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.services.all() 
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.services.all(),
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.services.listAll() 
-      });
+
+      if (data?.data) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.services.detail(data.data.id),
+        });
+      }
+
       toast.success('Servicio guardado exitosamente');
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Error al guardar el servicio');
-      console.error('Error:', error);
     },
   });
-
-  return mutation;
 }
 
 /**
  * Hook para eliminar un servicio
  * Utiliza la fábrica centralizada de claves para invalidar queries
  */
-export function useDeleteService() {
+export function useDeleteServiceMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
   return useMutation({
     mutationFn: (id: number) => deleteService(id),
-    onSuccess: () => {
-      // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.services.all() 
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.services.all(),
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.services.listAll() 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.services.detail(id),
       });
-      toast.success('Servicio eliminado exitosamente');
+      toast.crud.delete.success('Servicio');
     },
-    onError: (error) => {
-      if (error instanceof Error) {
-        if (error.message === 'Service not found') {
-          toast.error('Error, Servicio no encontrado');
-        } else {
-          toast.error('Error al eliminar el servicio');
-        }
-      }
+    onError: () => {
+      toast.crud.delete.error('Servicio');
     },
   });
 }

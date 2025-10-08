@@ -454,7 +454,7 @@ export class CreditManagementService {
             userId,
             {
               movementType: 'OUT',
-              description: `SALIDA PRODUCTO POR CREDITO ASOCIADO N° ${credit[0].customReference}`,
+              description: `Salida de producto por credito asociado N° ${credit[0].customReference}`,
               documentType: 'VENTA',
               documentNumber: credit[0].customReference ?? undefined,
               items: [
@@ -481,7 +481,7 @@ export class CreditManagementService {
           amount: Number(requestedAmount),
           currencyCode: currencyCode as CurrencyCodeEnum,
           transactionDate: new Date(),
-          description: 'CREDITO APROBADO',
+          description: 'Crédito Aprobado',
           referenceId: String(id),
           referenceType: 'credits',
           referenceNumber: customReference,
@@ -493,7 +493,7 @@ export class CreditManagementService {
             amount: installmentAmount,
             currencyCode: currencyCode as CurrencyCodeEnum,
             transactionDate: new Date(),
-            description: 'GASTOS ADMINISTRATIVOS',
+            description: `Gastos Administrativos por Crédito N°${customReference}`,
             referenceId: String(id),
             referenceType: 'credits',
             referenceNumber: customReference,
@@ -507,7 +507,7 @@ export class CreditManagementService {
         action: 'UPDATE',
         userId,
         area: 'CREDITOS',
-        description: 'CREDITO APROBADO',
+        description: `Crédito Aprobado N°${customReference}`,
       });
 
       return credit[0];

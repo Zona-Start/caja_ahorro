@@ -19,7 +19,7 @@ export function useAccountsPayable(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    queryKeys.accountsPayable.all(params),
+    queryKeys.accountsPayable.list(params),
     () => getAccountsPayableAction(params),
     {
       ...options,

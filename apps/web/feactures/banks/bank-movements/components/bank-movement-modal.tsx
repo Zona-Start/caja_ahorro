@@ -32,7 +32,7 @@ export function BankMovementModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] z-50 ">
+      <DialogContent className="sm:max-w-[800px] z-50">
         <DialogHeader>
           <DialogTitle>
             {defaultValues?.id

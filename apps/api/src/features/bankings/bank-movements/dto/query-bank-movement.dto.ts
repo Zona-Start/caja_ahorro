@@ -1,30 +1,9 @@
+import { PaginationDto } from '@/common/dto/pagination.dto';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt, Min, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsDateString, IsInt, IsOptional } from 'class-validator';
 
-export class QueryBankMovementDto {
-  @ApiPropertyOptional({
-    description: 'Page number for pagination',
-    default: 1,
-    type: Number,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  page?: number = 1;
-
-  @ApiPropertyOptional({
-    description: 'Number of items per page',
-    default: 10,
-    type: Number,
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Type(() => Number)
-  limit?: number = 10;
-
+export class QueryBankMovementDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'The ID of the bank account to filter movements.',
     example: 1,

@@ -3,7 +3,8 @@
 import { AlertModal } from '@/components/modal/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import { Toaster } from '@repo/shadcn/components/ui/toaster';
-import { toast } from '@repo/shadcn/hooks/use-toast';
+
+import { useToastSystem } from '@/hooks/use-toast-system';
 import {
   Tooltip,
   TooltipContent,
@@ -13,7 +14,7 @@ import {
 import { Edit, Eye, FileCheck, Trash } from 'lucide-react';
 import { useState } from 'react';
 import {
-  useCancelSupplierInvoice,
+  useDeleteSupplierInvoice,
   useSupplierInvoiceMutation,
 } from '../../hooks/use-mutation-supplier-invoice';
 import { SupplierInvoiceStatusEnum } from '../../schemas/supplier-invoice-options';
@@ -26,13 +27,14 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const toast = useToastSystem();
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showAccountModal, setShowAccountModal] = useState(false);
 
   const { mutate: cancelSupplierInvoice, isPending: isCancelling } =
-    useCancelSupplierInvoice();
+    useDeleteSupplierInvoice();
   const { mutate: updateInvoice, isPending: isUpdating } =
     useSupplierInvoiceMutation();
 
@@ -60,8 +62,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const showNotAllowedToast = (description: string) => {
-    toast({
-      variant: 'destructive',
+    toast.warning({
       title: 'Acción no permitida',
       description: description,
     });
@@ -118,9 +119,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
 
       {showDetailsModal && (
         <SupplierInvoiceDetailsModal
-            open={showDetailsModal}
-            onOpenChange={setShowDetailsModal}
-            invoice={data}
+          open={showDetailsModal}
+          onOpenChange={setShowDetailsModal}
+          invoice={data}
         />
       )}
 

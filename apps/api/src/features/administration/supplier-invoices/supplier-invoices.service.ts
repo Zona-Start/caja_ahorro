@@ -5,7 +5,7 @@ import {
   supplierInvoiceItems,
   supplierInvoices,
   suppliers,
-} from '@/database/schema/administration';
+} from '@/database/schema/tables';
 import { priceTypeEnum } from '@/types/enum';
 import {
   BadRequestException,

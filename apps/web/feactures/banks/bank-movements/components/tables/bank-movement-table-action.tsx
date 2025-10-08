@@ -1,13 +1,13 @@
 'use client';
 
 import { Button } from '@repo/shadcn/components/ui/button';
+import { CustomCalendar } from '@repo/shadcn/custom-calendar';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useBankAccountAll } from '../../../bank-account/hooks/use-query-bank-account';
 import { BankMovementModal } from '../bank-movement-modal';
 import { useBankMovementTableFilters } from './use-bank-movement-table-filters';
-import { CustomCalendar } from '@repo/shadcn/custom-calendar';
 
 export default function BankMovementTableAction() {
   const [open, setOpen] = useState(false);
@@ -22,7 +22,7 @@ export default function BankMovementTableAction() {
 
   const { data: bankAccounts } = useBankAccountAll();
 
-  const bankAccountOptions = 
+  const bankAccountOptions =
     bankAccounts?.data?.map((acc) => ({
       value: acc.id!.toString(),
       label: `${acc.accountName} - ${acc.accountNumber}`,
@@ -40,16 +40,24 @@ export default function BankMovementTableAction() {
           }
           filterValue={bankAccountId?.toString() ?? ''}
         />
-        <CustomCalendar
+        <div className="w-[200px]">
+          <CustomCalendar
             value={startDate ? new Date(startDate) : null}
-            onChange={(date) => setStartDate(date?.toISOString().split('T')[0] || null)}
+            onChange={(date) =>
+              setStartDate(date?.toISOString().split('T')[0] || null)
+            }
             placeholder="Fecha de inicio"
-        />
-        <CustomCalendar
+          />
+        </div>
+        <div className="w-[200px]">
+          <CustomCalendar
             value={endDate ? new Date(endDate) : null}
-            onChange={(date) => setEndDate(date?.toISOString().split('T')[0] || null)}
+            onChange={(date) =>
+              setEndDate(date?.toISOString().split('T')[0] || null)
+            }
             placeholder="Fecha de fin"
-        />
+          />
+        </div>
       </div>
       <Button onClick={() => setOpen(true)} size="sm">
         <Plus className="mr-2 h-4 w-4" /> Crear Movimiento

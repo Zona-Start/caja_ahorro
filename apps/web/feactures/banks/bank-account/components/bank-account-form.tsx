@@ -39,10 +39,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBankAccountMutation } from '../hooks/use-mutation-bank-account';
 import { ACCOUNT_TYPES } from '../schemas/bank-account-options';
-import {
-  BankAccount,
-  bankAccountSchema,
-} from '../schemas/bank-account.schema';
+import { BankAccount, bankAccountSchema } from '../schemas/bank-account.schema';
 
 interface BankAccountFormProps {
   onSuccess?: () => void;
@@ -94,7 +91,8 @@ export function BankAccountForm({
       linkedChartAccountId: defaultValues?.linkedChartAccountId,
       isActive: defaultValues?.isActive ?? true,
       openingEntryPosted: defaultValues?.openingEntryPosted || false,
-      openingConciliationPosted: defaultValues?.openingConciliationPosted || false,
+      openingConciliationPosted:
+        defaultValues?.openingConciliationPosted || false,
     },
     mode: 'onChange',
   });
@@ -111,9 +109,7 @@ export function BankAccountForm({
     const dataToSave = {
       ...data,
       currentBalance: showInitialBalances ? data.currentBalance : 0,
-      lastStatementBalance: showInitialBalances
-        ? data.lastStatementBalance
-        : 0,
+      lastStatementBalance: showInitialBalances ? data.lastStatementBalance : 0,
       lastStatementDate: showInitialBalances ? data.lastStatementDate : null,
       openingDate: showInitialBalances ? data.openingDate : null,
       openingEntryPosted:
@@ -278,9 +274,7 @@ export function BankAccountForm({
           </div>
 
           <div className="border p-4 rounded-md">
-            <h3 className="text-lg font-semibold mb-4">
-              Información contable
-            </h3>
+            <h3 className="text-lg font-semibold mb-4">Información contable</h3>
             <FormField
               control={form.control}
               name="linkedChartAccountId"
@@ -314,9 +308,7 @@ export function BankAccountForm({
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg">
                   <div className="space-y-0.5">
-                    <FormLabel>
-                      ¿Desea registrar saldos iniciales?
-                    </FormLabel>
+                    <FormLabel>¿Desea registrar saldos iniciales?</FormLabel>
                     <FormDescription>
                       Si se activa, podrá registrar los saldos iniciales de la
                       cuenta.
@@ -348,8 +340,14 @@ export function BankAccountForm({
                             onChange={(date) => field.onChange(date)}
                             onBlur={field.onBlur}
                             placeholder="Seleccione la fecha"
-                            disabled={readOnly || (isEditMode && openingEntryPosted)}
-                            className={(readOnly || (isEditMode && openingEntryPosted)) ? 'bg-muted' : ''}
+                            disabled={
+                              readOnly || (isEditMode && openingEntryPosted)
+                            }
+                            className={
+                              readOnly || (isEditMode && openingEntryPosted)
+                                ? 'bg-muted'
+                                : ''
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -385,15 +383,21 @@ export function BankAccountForm({
                             onChange={(e) =>
                               field.onChange(Number(e.target.value))
                             }
-                            disabled={readOnly || (isEditMode && openingEntryPosted)}
-                            className={(readOnly || (isEditMode && openingEntryPosted)) ? 'bg-muted' : ''}
+                            disabled={
+                              readOnly || (isEditMode && openingEntryPosted)
+                            }
+                            className={
+                              readOnly || (isEditMode && openingEntryPosted)
+                                ? 'bg-muted'
+                                : ''
+                            }
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <FormField
+                  {/* <FormField
                     control={form.control}
                     name="lastStatementBalance"
                     render={({ field }) => (
@@ -460,7 +464,7 @@ export function BankAccountForm({
                         className="bg-muted"
                       />
                     </FormControl>
-                  </FormItem>
+                  </FormItem> */}
                 </div>
 
                 {isEditMode && openingConciliationPosted && (

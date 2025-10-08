@@ -1,9 +1,9 @@
 'use client';
 
 import { AlertModal } from '@/components/modal/alert-modal';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
 import { Toaster } from '@repo/shadcn/components/ui/toaster';
-import { toast } from '@repo/shadcn/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -21,6 +21,7 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const toast = useToastSystem();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -43,8 +44,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     if (data.status === 'ACTIVE') {
       setShowEditModal(true);
     } else {
-      toast({
-        variant: 'destructive',
+      toast.warning({
         title: 'No se puede editar',
         description: `Solo se puede editar si su estatus es activa`,
       });
@@ -52,8 +52,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const onDeleteMessage = async () => {
-    toast({
-      variant: 'destructive',
+    toast.warning({
       title: 'No se puede eliminar la transacción',
       description: `Solo se puede eliminar si su estatus es activa`,
     });

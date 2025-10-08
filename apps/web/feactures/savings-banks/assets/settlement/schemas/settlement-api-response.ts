@@ -11,6 +11,7 @@ export const settlementApiSchema = z.object({
   netLiquidationAmount: z.string(),
   associateCedula: z.string(),
   associateFullname: z.string(),
+  status: z.string(),
 });
 
 // Tipo inferido
@@ -42,5 +43,9 @@ export const liquidationResponseSchema = z.object({
 export const settlementMutationSchema = z.object({
   message: z.string().optional(),
   liquidation: liquidationResponseSchema,
-  netAmount: z.number(),
+});
+
+export const approveSettlementResponseSchema = z.object({
+  message: z.string(),
+  liquidationId: z.number(),
 });

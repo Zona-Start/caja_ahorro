@@ -1,4 +1,4 @@
-import { supplierTransactions } from '@/database/schema/administration';
+import { supplierTransactions } from '@/database/schema/tables';
 import {
   BadRequestException,
   Inject,

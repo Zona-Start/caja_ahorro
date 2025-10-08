@@ -1,4 +1,7 @@
-import { associateAccounts, associates } from '@/database/schema/savings-banks';
+import {
+  associateAccounts,
+  associates,
+} from '@/database/schema/tables/savings-banks';
 import { associateHaberesBalance } from '@/database/schema/views';
 import {
   AssociateMovementTypeEnum,
@@ -129,7 +132,7 @@ export class AssociatesService {
           amount: createAssociateDto.baseSalary * 0.1,
           currencyCode: 'VES' as CurrencyCodeEnum,
           transactionDate: createAssociateDto.dateAdmission,
-          description: 'APERTURA CUENTA',
+          description: 'Apertura de Cuenta',
           referenceId: undefined,
           referenceType: undefined,
           referenceNumber: undefined,

@@ -12,7 +12,7 @@ import {
 import { Edit, Eye, Loader2, Trash } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useProductById } from '../../hooks';
-import { useDeleteProduct } from '../../hooks/use-mutation-product';
+import { useDeleteProductMutation } from '../../hooks/use-mutation-product';
 import { Product } from '../../schemas/product.schema';
 import {
   mapProductApiToDetails,
@@ -37,7 +37,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     useState<Partial<ProductDetails> | null>(null);
   const [productIdToFetch, setProductIdToFetch] = useState<number | null>(null);
 
-  const { mutate: deleteProduct } = useDeleteProduct();
+  const { mutate: deleteProduct } = useDeleteProductMutation();
 
   const { data: fetchedProductData, isFetching: isProductFetching } =
     useProductById(productIdToFetch);

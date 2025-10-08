@@ -1,7 +1,11 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import { associateLiquidationResponseSchema } from '../schemas/individual-settlement-api-schema';
-import { settlementApiResponseSchema, settlementMutationSchema } from '../schemas/settlement-api-response';
+import {
+  approveSettlementResponseSchema,
+  settlementApiResponseSchema,
+  settlementMutationSchema,
+} from '../schemas/settlement-api-response';
 import { Settlement } from '../schemas/settlement.schema';
 
 export const getAssociatesByCedulaAction = async (cedula: string) => {
@@ -28,7 +32,6 @@ export const getSettlementAction = async (params: {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }) => {
-
   const searchParams = new URLSearchParams({
     page: (params.page || 1).toString(),
     limit: (params.limit || 10).toString(),
@@ -100,7 +103,7 @@ export const createSettlementAction = async (settlement: Settlement) => {
 
   const [error, data] = await safeFetchApi(
     settlementMutationSchema,
-    '/savings-banks/settlement-associate',
+    '/savings-banks/settlement-associate/request',
     'POST',
     payload,
   );
@@ -108,6 +111,21 @@ export const createSettlementAction = async (settlement: Settlement) => {
   if (error) {
     console.error('Error:', error);
     throw new Error(error.message || 'Error create withdrawal Management');
+  }
+
+  return data;
+};
+
+export const approveSettlementAction = async (id: number) => {
+  const [error, data] = await safeFetchApi(
+    approveSettlementResponseSchema,
+    `/savings-banks/settlement-associate/${id}/approve`,
+    'POST',
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || `Error approving settlement with ID ${id}`);
   }
 
   return data;

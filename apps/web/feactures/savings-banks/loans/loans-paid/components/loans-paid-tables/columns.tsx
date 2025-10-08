@@ -8,7 +8,6 @@ import {
   PAYMENT_METHOD,
   PAYMENT_STATUS,
 } from '../../schemas/loans-paid-options';
-import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<LoanPaymentApi>[] = [
   {
@@ -58,9 +57,9 @@ export const columns: ColumnDef<LoanPaymentApi>[] = [
       return PAYMENT_STATUS[paymentStatusKey] || '';
     },
   },
-  {
-    id: 'actions',
-    header: 'Acciones',
-    cell: ({ row }) => <CellAction data={row.original} />,
-  },
+  // {
+  //   id: 'actions',
+  //   header: 'Acciones',
+  //   cell: ({ row }) => <CellAction data={row.original} />,
+  // },
 ];

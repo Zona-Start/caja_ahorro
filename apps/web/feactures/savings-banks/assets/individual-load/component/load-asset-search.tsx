@@ -1,8 +1,9 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
-import { toast } from '@/components/use-toast';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { formatCurrency } from '@/lib/formatCurrent';
+import { queryKeys } from '@/lib/queryKeys';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -33,6 +34,7 @@ export function LoadAssetsSearch({
   shouldClearSearch,
   onClearSearch,
 }: LoadAssetsSearchProps) {
+  const toast = useToastSystem();
   const [searchTerm, setSearchTerm] = useState(''); // Controla el valor del input
   const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
   const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
@@ -69,18 +71,18 @@ export function LoadAssetsSearch({
         // Manejo del error
         const errorMessage = error.message || 'Error desconocido';
         if (errorMessage.includes('not found')) {
-          toast({
+          toast.info({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${searchTerm}.`,
           });
         } else if (errorMessage.includes('retired')) {
-          toast({
+          toast.info({
             title: 'Asociado retirado',
             description:
               'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
           });
         } else {
-          toast({
+          toast.error({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
@@ -91,7 +93,7 @@ export function LoadAssetsSearch({
       } else {
         setSearchResults(null); // Actualiza los resultados con los datos del servidor
         onSelectAssociate(null);
-        toast({
+        toast.info({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
@@ -121,7 +123,7 @@ export function LoadAssetsSearch({
   const handleSearch = useCallback(() => {
     const trimmedSearchTerm = searchTerm.trim();
     if (!trimmedSearchTerm) {
-      toast({
+      toast.warning({
         title: 'Campo vacío',
         description: 'Por favor, ingrese una cédula para buscar.',
       });
@@ -130,10 +132,10 @@ export function LoadAssetsSearch({
 
     // Limpiar caché y estado antes de nueva búsqueda
     queryClient.removeQueries({
-      queryKey: ['assets-individual-load-associates-by-cedula'],
+      queryKey: queryKeys.associatesForIndividualAssetLoad.all(),
       exact: false,
     });
-    
+
     // Limpiar estado previo
     setSearchResults(null);
     onSelectAssociate(null);
@@ -145,7 +147,7 @@ export function LoadAssetsSearch({
   // Función para limpiar la selección de asociado
   const clearAssociate = useCallback(() => {
     queryClient.removeQueries({
-      queryKey: ['assets-individual-load-associates-by-cedula'],
+      queryKey: queryKeys.associatesForIndividualAssetLoad.all(),
       exact: false,
     });
     onSelectAssociate(null);

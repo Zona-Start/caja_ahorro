@@ -1,10 +1,11 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   SystemConfigState,
   useSystemConfigStore,
 } from '@/store/SystemConfigStore';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -23,7 +24,7 @@ interface CreditViewProps {
 }
 
 export function CreditView({ isEdit = false, initialData }: CreditViewProps) {
-  const { toast } = useToast();
+  const toast = useToastSystem();
   const router = useRouter();
   const [isEditActive, SetIsEditActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -245,20 +246,19 @@ export function CreditView({ isEdit = false, initialData }: CreditViewProps) {
 
     saveLoan(data, {
       onSuccess: () => {
-        toast({
+        toast.success({
           title: `${isEdit ? 'Crédito actualizado' : 'Crédito creado'} con éxito`,
           description: `Se ha ${isEdit ? 'actualizado' : 'registrado'}  un crédito de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.requestedAmount} para ${selectedAssociate?.associate.fullname}.`,
         });
         handleCancel();
       },
-      onError: () => {
-        toast({
-          variant: 'destructive',
-          title: 'Error en la operación',
-          description:
-            'Ocurrió un error al procesar la operación. Intente nuevamente.',
-        });
-      },
+      // onError: () => {
+      //   toast.error({
+      //     title: 'Error en la operación',
+      //     description:
+      //       'Ocurrió un error al procesar la operación. Intente nuevamente.',
+      //   });
+      // },
     });
   };
 
@@ -271,8 +271,10 @@ export function CreditView({ isEdit = false, initialData }: CreditViewProps) {
     setCreditSummary(null);
     setFormValues(emptyFormValues);
     setSelectedCreditType(null);
-    queryClient.removeQueries({ queryKey: ['associates-by-cedula'] });
-    queryClient.removeQueries({ queryKey: ['credit-management-id'] });
+    queryClient.removeQueries({
+      queryKey: queryKeys.associatesForCreditManagement.all(),
+    });
+    queryClient.removeQueries({ queryKey: queryKeys.creditManagements.all() });
     router.push('/dashboard/creditos/gestion');
   };
 

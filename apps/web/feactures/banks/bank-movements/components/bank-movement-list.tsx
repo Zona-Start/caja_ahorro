@@ -2,8 +2,8 @@
 
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
+import { useGetBankMovements } from '../hooks/use-get-bank-movements';
 import { columns } from './tables/columns';
-import { usePaginatedBankMovements } from '../hooks/use-query-bank-movement';
 
 interface BankMovementListProps {
   initialPage: number;
@@ -28,7 +28,7 @@ export default function BankMovementList({
     ...(initialEndDate && { endDate: initialEndDate }),
   };
 
-  const { data, isLoading } = usePaginatedBankMovements(filters);
+  const { data, isLoading } = useGetBankMovements(filters);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={8} rowCount={initialLimit} />;
@@ -38,7 +38,7 @@ export default function BankMovementList({
     <DataTable
       columns={columns}
       data={data?.data || []}
-      totalItems={data?.total || 0}
+      totalItems={data?.meta.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

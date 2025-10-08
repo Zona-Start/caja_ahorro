@@ -1,9 +1,9 @@
 'use client';
 
 import { AlertModal } from '@/components/modal/alert-modal';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
 import { Toaster } from '@repo/shadcn/components/ui/toaster';
-import { toast } from '@repo/shadcn/hooks/use-toast';
 import {
   Tooltip,
   TooltipContent,
@@ -15,14 +15,15 @@ import { useState } from 'react';
 import { useDeleteAssociate } from '../../hooks/use-associate-mutation';
 import { useAssociatesById } from '../../hooks/use-query-associates';
 import { AssociatesMutate } from '../../schemas/associates.schema';
-import { AssociatesModal } from '../associates-modal';
 import { AssociateViewModal } from '../associate-view-modal';
+import { AssociatesModal } from '../associates-modal';
 
 interface CellActionProps {
   data: AssociatesMutate;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const toast = useToastSystem();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -45,16 +46,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       setLoading(false);
     }
   };
-
+  const allowedStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
   const handleEdit = () => {
-    const allowedStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
-
     if (allowedStatuses.includes(data.status)) {
       setAssociateId(data.id!);
       setShowEditModal(true);
     } else {
-      toast({
-        variant: 'destructive',
+      toast.warning({
         title: 'No se puede editar el asociado',
         description: 'El estatus del asociado no permite modificación',
       });
@@ -149,7 +147,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={handleEdit}>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleEdit}
+                disabled={!allowedStatuses.includes(data.status)}
+              >
                 <Edit className="h-4 w-4" />
               </Button>
             </TooltipTrigger>

@@ -1,7 +1,7 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
-import { toast } from '@/components/use-toast';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { formatCurrency } from '@/lib/formatCurrent';
 import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { Button } from '@repo/shadcn/button';
@@ -55,6 +55,7 @@ export function WithdrawalSearch({
   currentExchangeRate,
   isEdit = false,
 }: WithdrawalSearchProps) {
+  const toast = useToastSystem();
   const {
     selectedAssociate,
     setSelectedAssociate,
@@ -104,24 +105,24 @@ export function WithdrawalSearch({
         const status = (error as any)?.response?.status;
 
         if (errorMessage.includes('not found') || status === 404) {
-          toast({
+          toast.info({
             title: 'Asociado no encontrado',
             description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
         } else if (errorMessage.includes('retired')) {
-          toast({
+          toast.info({
             title: 'Asociado retirado',
             description:
               'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
           });
         } else if (errorMessage.includes('inactive')) {
-          toast({
+          toast.warning({
             title: `Asociado inactivo`,
             description:
               'el asociado está inactivo y no puede ser seleccionado.',
           });
         } else {
-          toast({
+          toast.error({
             title: 'Error realizando la búsqueda',
             description: 'Conctate con el administrador del sistema.',
           });
@@ -132,7 +133,7 @@ export function WithdrawalSearch({
           associateData.withdrawalStatus === 'REQUESTED' ||
           associateData.withdrawalStatus === 'PENDING_DISBURSEMENT_BANK_BATCH'
         ) {
-          toast({
+          toast.warning({
             title: `No se puede realizar retiros para ${associateData.fullname}`,
             description: `Debe desembolsar el ultimo retiro realizado`,
           });
@@ -152,7 +153,7 @@ export function WithdrawalSearch({
           );
           //setEnabledTime(BlockedTime);
           if (!BlockedTime) {
-            toast({
+            toast.warning({
               title: `No se puede realizar retiros para ${associateData.fullname}`,
               description: `Tiene menos de 6 meses último retiro`,
             });
@@ -167,7 +168,7 @@ export function WithdrawalSearch({
         // La búsqueda fue "exitosa" (sin error de red/servidor) pero no devolvió datos
         setSelectedAssociate(null);
         setEnabledTime(true);
-        toast({
+        toast.info({
           title: 'Información no disponible',
           description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
         });
@@ -208,7 +209,7 @@ export function WithdrawalSearch({
   const handleSearch = useCallback(() => {
     const trimmedSearchTerm = searchTerm.trim();
     if (!trimmedSearchTerm) {
-      toast({
+      toast.warning({
         title: 'Campo vacío',
         description: 'Por favor, ingrese una cédula para buscar.',
       });

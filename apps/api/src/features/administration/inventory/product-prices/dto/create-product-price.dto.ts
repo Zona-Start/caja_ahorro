@@ -1,4 +1,4 @@
-import { priceTypeEnum } from '@/database/schema/enum';
+import { priceTypeEnum } from '@/database/schema/enum/enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {

@@ -12,9 +12,8 @@ import { queryKeys } from '@/lib/queryKeys';
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useSuppliers(params = {}) {
-  return useSafeQuery(
-    queryKeys.suppliers.all(params), 
-    () => getSupplierAction(params)
+  return useSafeQuery(queryKeys.suppliers.list(params), () =>
+    getSupplierAction(params),
   );
 }
 
@@ -23,14 +22,10 @@ export function useSuppliers(params = {}) {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useSupplierById(id: number, options?: { enabled?: boolean }) {
-  return useSafeQuery(
-    queryKeys.suppliers.detail(id), 
-    () => getSupplierByIdAction(id), 
-    {
-      enabled: id ? options?.enabled : false,
-      ...options,
-    }
-  );
+  return useSafeQuery(queryKeys.suppliers.detail(id), () => getSupplierByIdAction(id), {
+    enabled: id ? options?.enabled : false,
+    ...options,
+  });
 }
 
 /**
@@ -38,10 +33,7 @@ export function useSupplierById(id: number, options?: { enabled?: boolean }) {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useSupplierCount() {
-  return useSafeQuery(
-    queryKeys.suppliers.count(), 
-    () => getSupplierCountAction()
-  );
+  return useSafeQuery(queryKeys.suppliers.count(), () => getSupplierCountAction());
 }
 
 /**
@@ -49,8 +41,5 @@ export function useSupplierCount() {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useSupplierAll() {
-  return useSafeQuery(
-    queryKeys.suppliers.listAll(), 
-    () => getSupplierAllAction()
-  );
+  return useSafeQuery(queryKeys.suppliers.listAll(), () => getSupplierAllAction());
 }

@@ -1,10 +1,10 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
 import {
   SystemConfigState,
   useSystemConfigStore,
 } from '@/store/SystemConfigStore';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -41,7 +41,7 @@ export function WithdrawalView({ isEdit = false, initialData }: LoanViewProps) {
   const [currentCurrencyCode, setCurrentCurrencyCode] = useState<string>();
   const [currentExchangeRate, setCurrentExchangeRate] = useState<number>();
 
-  const { toast } = useToast();
+  const toast = useToastSystem();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { mutate: saveWithdrawal } = useWithdrawalMutation();
@@ -97,7 +97,7 @@ export function WithdrawalView({ isEdit = false, initialData }: LoanViewProps) {
     setIsSubmitting(true);
     saveWithdrawal(data, {
       onSuccess: () => {
-        toast({
+        toast.success({
           title: 'Retiro creado con éxito',
           description: `Se ha registrado un pago de retiro de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.requestedAmount} para ${selectedAssociate?.fullname}.`,
         });
@@ -114,14 +114,6 @@ export function WithdrawalView({ isEdit = false, initialData }: LoanViewProps) {
           queryKey: ['withdrawal'],
         });
         handleCancel();
-      },
-      onError: () => {
-        toast({
-          variant: 'destructive',
-          title: 'Error al guardar el retiro',
-          description:
-            'Ocurrió un error al procesar la operación. Intente nuevamente.',
-        });
       },
     });
   };

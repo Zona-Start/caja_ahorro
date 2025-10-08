@@ -1,9 +1,10 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { getCreditPaidAllAction } from '../actions/credits-paid-actions';
 
 // // Hook for CreditManagementlist
 export function useQueryCreditPaid(params = {}) {
-  return useSafeQuery(['credit-paid', params], () =>
+  return useSafeQuery(queryKeys.creditsPaid.list(params), () =>
     getCreditPaidAllAction(params),
   );
 }

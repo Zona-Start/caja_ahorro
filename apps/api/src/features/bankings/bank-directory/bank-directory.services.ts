@@ -1,10 +1,10 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
+import { bankDirectory } from '@/database/schema/tables';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { bankDirectory } from '../../../database/schema/banking';
 import { CreateBankDirectoryDto } from './dto/create-bank-directory.dto';
 import { UpdateBankDirectoryDto } from './dto/update-bank-directory.dto';
 import { BankDirectory } from './entities/bank-directory.entity';

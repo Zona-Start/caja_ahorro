@@ -3,6 +3,7 @@ import {
   date,
   decimal,
   integer,
+  json,
   numeric,
   primaryKey,
   serial,
@@ -11,12 +12,31 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import {
+  accountingSchema,
+  administrationSchema,
+  authSchema,
+  bankingSchema,
+  inventorySchema,
+  savingsBanksSchema,
+} from './schemas';
+import {
   accountingEntries,
   accountingEntryDetails,
   accountPlan,
-} from './accounting';
-import { inventoryMovements } from './administration';
-import { bankAccounts, bankTransactions } from './banking';
+} from './tables/accounting';
+import {
+  accountsPayable,
+  inventoryMovements,
+  purchaseOrders,
+  supplierAdvances,
+  supplierCreditNotes,
+  supplierDebitNotes,
+  supplierInvoices,
+  supplierPayments,
+  suppliers,
+} from './tables/administration';
+import { bankAccounts, bankTransactions } from './tables/banking';
+import { states } from './tables/core';
 import {
   associateAccountMovements,
   associateAccounts,
@@ -24,13 +44,7 @@ import {
   credits,
   loanAmortizationSchedule,
   loans,
-} from './savings-banks';
-import {
-  accountingSchema,
-  bankingSchema,
-  inventorySchema,
-  savingsBanksSchema,
-} from './schemas';
+} from './tables/savings-banks';
 
 export const associateAccountBalances = savingsBanksSchema
   .view('associate_account_balances', {
@@ -334,33 +348,7 @@ export const inventoryAvailability = inventorySchema.view(
   GROUP BY item_id, item_type
 `);
 
-// export const accountingBalance = accountingSchema.view('account_balance', {
-//   accountPlanId: integer('account_plan_id').notNull(),
-//   accountCode: text('account_code').notNull(),
-//   accountName: text('account_name').notNull(),
-//   currencyCode: text('currency_code').notNull(),
-//   totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
-//   totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
-//   balance: numeric('balance', { precision: 20, scale: 6 }).notNull(),
-// }).as(sql`
-//   SELECT
-//     ap.id AS account_plan_id,
-//     ap.code AS account_code,
-//     ap.name AS account_name,
-//     COALESCE(ae.currency_code, 'VES') AS currency_code,
-//     COALESCE(SUM(aed.debit), 0) AS total_debit,
-//     COALESCE(SUM(aed.credit), 0) AS total_credit,
-//     COALESCE(SUM(aed.debit - aed.credit), 0) AS balance
-//   FROM ${accountPlan} ap
-//   LEFT JOIN ${accountingEntryDetails} aed
-//     ON aed.account_plan_id = ap.id
-//   LEFT JOIN ${accountingEntries} ae
-//     ON ae.id = aed.accounting_entry_id
-//    AND ae.status = 'POSTED'
-//   GROUP BY ap.id, ap.code, ap.name, COALESCE(ae.currency_code, 'VES')
-// `);
-
-export const accountingBalance = accountingSchema.view('account_balance', {
+export const accountingBalance = accountingSchema.view('accounting_balance', {
   tenantId: integer('tenant_id').notNull(),
   accountPlanId: integer('account_plan_id').notNull(),
   accountCode: text('account_code').notNull(),
@@ -470,4 +458,303 @@ export const accountingBalanceByBank = accountingSchema.view(
         AND ae.status = 'POSTED'
   GROUP BY ap.company_id, ba.id, ap.id, ap.code, ap.name, ap.nature,
            COALESCE(ae.currency_code, ba.currency_code)
+`);
+
+//vista rol-permiso usuario
+export const userAccessSummary = authSchema.view('user_access_summary', {
+  userId: integer('user_id').notNull(),
+  username: text('username').notNull(),
+  email: text('email').notNull(),
+  fullname: text('fullname').notNull(),
+  roles: json('roles').$type<string[]>().notNull(),
+  permissions: json('permissions').$type<string[]>().notNull(),
+}).as(sql`
+  SELECT
+  u.id AS user_id,
+  u.username,
+  u.email,
+  u.fullname,
+  COALESCE(
+    JSON_AGG(DISTINCT r.name) FILTER (WHERE r.name IS NOT NULL),
+    '[]'
+  ) AS roles,
+  COALESCE(
+    JSON_AGG(DISTINCT p.name) FILTER (WHERE p.name IS NOT NULL),
+    '[]'
+  ) AS permissions
+FROM auth.users u
+LEFT JOIN auth.user_role ur ON u.id = ur.user_id
+LEFT JOIN auth.roles r ON ur.role_id = r.id
+LEFT JOIN auth.roles_permissions rp ON r.id = rp.role_id 
+LEFT JOIN auth.permissions p ON rp.permissions_id  = p.id
+GROUP BY u.id, u.username, u.email, u.fullname
+`);
+
+//proveedores vistas
+// administrationSchema/views/supplierMaster360.ts
+export const supplierMaster360 = administrationSchema.view(
+  'supplier_master_360',
+  {
+    supplierId: integer('supplier_id').notNull(),
+    companyId: integer('company_id').notNull(),
+    code: varchar('code', { length: 50 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    taxId: varchar('tax_id', { length: 50 }).notNull(),
+    category: text('category').notNull(),
+    status: text('status').notNull(),
+    contactName: varchar('contact_name', { length: 255 }),
+    contactEmail: varchar('contact_email', { length: 255 }),
+    contactPhone: varchar('contact_phone', { length: 50 }),
+    address: text('address'),
+    stateName: varchar('state_name', { length: 100 }),
+  },
+).as(sql`
+  SELECT
+    s.id            AS supplier_id,
+    s.company_id    AS company_id,
+    s.code,
+    s.name,
+    s.tax_id,
+    s.category::text,
+    s.status::text,
+    s.contact_name,
+    s.contact_email,
+    s.contact_phone,
+    s.address,
+    st.name         AS state_name
+  FROM ${suppliers} s
+  LEFT JOIN ${states} st ON st.id = s.state
+`);
+
+//ordes de compra y facturas
+export const supplierPurchases360 = administrationSchema.view(
+  'supplier_purchases_360',
+  {
+    supplierId: integer('supplier_id').notNull(),
+    purchaseOrdersCount: integer('po_count').notNull(),
+    purchaseOrdersPending: integer('po_pending').notNull(),
+    invoicesCount: integer('invoices_count').notNull(),
+    invoicesTotal: numeric('invoices_total', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    lastInvoiceDate: date('last_invoice_date'),
+  },
+).as(sql`
+  SELECT
+    s.id                                     AS supplier_id,
+    COUNT(DISTINCT po.id)                    AS po_count,
+    COUNT(DISTINCT po.id) FILTER (WHERE po.status = 'PENDING') AS po_pending,
+    COUNT(DISTINCT inv.id)                   AS invoices_count,
+    COALESCE(SUM(inv.total_amount), 0)       AS invoices_total,
+    MAX(inv.invoice_date)                    AS last_invoice_date
+  FROM ${suppliers} s
+  LEFT JOIN ${purchaseOrders} po ON po.supplier_id = s.id
+  LEFT JOIN ${supplierInvoices} inv ON inv.supplier_id = s.id
+  GROUP BY s.id
+`);
+
+//cuentas por pagar
+export const supplierAp360 = administrationSchema.view('supplier_ap_360', {
+  supplierId: integer('supplier_id').notNull(),
+  apCount: integer('ap_count').notNull(),
+  apTotalOriginal: numeric('ap_original', {
+    precision: 18,
+    scale: 2,
+  }).notNull(),
+  apTotalPaid: numeric('ap_paid', { precision: 18, scale: 2 }).notNull(),
+  apTotalRemaining: numeric('ap_remaining', {
+    precision: 18,
+    scale: 2,
+  }).notNull(),
+  apOverdue: numeric('ap_overdue', { precision: 18, scale: 2 }).notNull(),
+}).as(sql`
+  SELECT
+    s.id                                      AS supplier_id,
+    COUNT(ap.id)                              AS ap_count,
+    COALESCE(SUM(ap.original_amount), 0)      AS ap_original,
+    COALESCE(SUM(ap.paid_amount), 0)          AS ap_paid,
+    COALESCE(SUM(ap.remaining_amount), 0)     AS ap_remaining,
+    COALESCE(SUM(ap.remaining_amount) FILTER (WHERE ap.due_date < CURRENT_DATE), 0) AS ap_overdue
+  FROM ${suppliers} s
+  LEFT JOIN ${accountsPayable} ap ON ap.supplier_id = s.id
+  GROUP BY s.id
+`);
+
+//advances
+export const supplierAdvances360 = administrationSchema.view(
+  'supplier_advances_360',
+  {
+    supplierId: integer('supplier_id').notNull(),
+    advancesCount: integer('advances_count').notNull(),
+    advancesTotal: numeric('advances_total', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    advancesAvailable: numeric('advances_available', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+  },
+).as(sql`
+  SELECT
+    s.id                                          AS supplier_id,
+    COUNT(a.id)                                   AS advances_count,
+    COALESCE(SUM(a.amount), 0)                    AS advances_total,
+    COALESCE(SUM(a.available_amount), 0)          AS advances_available
+  FROM ${suppliers} s
+  LEFT JOIN ${supplierAdvances} a ON a.supplier_id = s.id
+  GROUP BY s.id
+`);
+
+//notas de credito / debito
+export const supplierNotes360 = administrationSchema.view(
+  'supplier_notes_360',
+  {
+    supplierId: integer('supplier_id').notNull(),
+    creditNotesCount: integer('cn_count').notNull(),
+    creditNotesAmount: numeric('cn_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    creditNotesAvailable: numeric('cn_available', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    debitNotesCount: integer('dn_count').notNull(),
+    debitNotesAmount: numeric('dn_amount', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+  },
+).as(sql`
+  SELECT
+    s.id            AS supplier_id,
+    COUNT(DISTINCT cn.id)                          AS cn_count,
+    COALESCE(SUM(cn.amount), 0)                    AS cn_amount,
+    COALESCE(SUM(cn.available_amount), 0)          AS cn_available,
+    COUNT(DISTINCT dn.id)                          AS dn_count,
+    COALESCE(SUM(dn.amount), 0)                    AS dn_amount
+  FROM ${suppliers} s
+  LEFT JOIN ${supplierCreditNotes} cn ON cn.supplier_id = s.id
+  LEFT JOIN ${supplierDebitNotes} dn ON dn.supplier_id = s.id
+  GROUP BY s.id
+`);
+
+//pagos
+export const supplierPayments360 = administrationSchema.view(
+  'supplier_payments_360',
+  {
+    supplierId: integer('supplier_id').notNull(),
+    paymentsCount: integer('payments_count').notNull(),
+    paymentsTotal: numeric('payments_total', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    lastPaymentDate: date('last_payment_date'),
+  },
+).as(sql`
+  SELECT
+     s.id            AS supplier_id,
+    COUNT(p.id)                                AS payments_count,
+    COALESCE(SUM(p.total_amount), 0)           AS payments_total,
+    MAX(p.requested_at)                        AS last_payment_date
+  FROM ${suppliers} s
+  LEFT JOIN ${supplierPayments} p ON p.supplier_id = s.id
+  GROUP BY s.id
+`);
+
+//todas las vista unidas
+export const supplierTotal360 = administrationSchema.view(
+  'supplier_total_360',
+  {
+    supplierId: integer('supplier_id').notNull(),
+    companyId: integer('company_id').notNull(),
+    code: varchar('code', { length: 50 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    taxId: varchar('tax_id', { length: 50 }).notNull(),
+    category: text('category').notNull(),
+    status: text('status').notNull(),
+    contactName: varchar('contact_name', { length: 255 }),
+    contactEmail: varchar('contact_email', { length: 255 }),
+    contactPhone: varchar('contact_phone', { length: 50 }),
+    address: text('address'),
+    stateName: varchar('state_name', { length: 100 }),
+
+    poCount: integer('po_count').notNull(),
+    poPending: integer('po_pending').notNull(),
+    invoicesCount: integer('invoices_count').notNull(),
+    invoicesTotal: numeric('invoices_total', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    lastInvoiceDate: date('last_invoice_date'),
+
+    apCount: integer('ap_count').notNull(),
+    apOriginal: numeric('ap_original', { precision: 18, scale: 2 }).notNull(),
+    apPaid: numeric('ap_paid', { precision: 18, scale: 2 }).notNull(),
+    apRemaining: numeric('ap_remaining', { precision: 18, scale: 2 }).notNull(),
+    apOverdue: numeric('ap_overdue', { precision: 18, scale: 2 }).notNull(),
+
+    advancesCount: integer('advances_count').notNull(),
+    advancesTotal: numeric('advances_total', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    advancesAvailable: numeric('advances_available', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+
+    cnCount: integer('cn_count').notNull(),
+    cnAmount: numeric('cn_amount', { precision: 18, scale: 2 }).notNull(),
+    cnAvailable: numeric('cn_available', { precision: 18, scale: 2 }).notNull(),
+    dnCount: integer('dn_count').notNull(),
+    dnAmount: numeric('dn_amount', { precision: 18, scale: 2 }).notNull(),
+
+    paymentsCount: integer('payments_count').notNull(),
+    paymentsTotal: numeric('payments_total', {
+      precision: 18,
+      scale: 2,
+    }).notNull(),
+    lastPaymentDate: date('last_payment_date'),
+
+    netBalance: numeric('net_balance', { precision: 18, scale: 2 }).notNull(), // AP + DN - CN - Advances - Payments
+  },
+).as(sql`
+  SELECT
+    m.*,
+    COALESCE(p.po_count, 0)             AS po_count,
+    COALESCE(p.po_pending, 0)           AS po_pending,
+    COALESCE(p.invoices_count, 0)       AS invoices_count,
+    COALESCE(p.invoices_total, 0)       AS invoices_total,
+    p.last_invoice_date,
+    COALESCE(ap.ap_count, 0)            AS ap_count,
+    COALESCE(ap.ap_original, 0)         AS ap_original,
+    COALESCE(ap.ap_paid, 0)             AS ap_paid,
+    COALESCE(ap.ap_remaining, 0)        AS ap_remaining,
+    COALESCE(ap.ap_overdue, 0)          AS ap_overdue,
+    COALESCE(adv.advances_count, 0)     AS advances_count,
+    COALESCE(adv.advances_total, 0)     AS advances_total,
+    COALESCE(adv.advances_available, 0) AS advances_available,
+    COALESCE(n.cn_count, 0)             AS cn_count,
+    COALESCE(n.cn_amount, 0)            AS cn_amount,
+    COALESCE(n.cn_available, 0)         AS cn_available,
+    COALESCE(n.dn_count, 0)             AS dn_count,
+    COALESCE(n.dn_amount, 0)            AS dn_amount,
+    COALESCE(py.payments_count, 0)      AS payments_count,
+    COALESCE(py.payments_total, 0)      AS payments_total,
+    py.last_payment_date,
+    /* saldo neto */
+    COALESCE(ap.ap_remaining, 0)
+      + COALESCE(n.dn_amount, 0)
+      - COALESCE(n.cn_available, 0)
+      - COALESCE(adv.advances_available, 0)
+      - COALESCE(py.payments_total, 0)    AS net_balance
+  FROM ${supplierMaster360} m
+  LEFT JOIN ${supplierPurchases360} p ON p.supplier_id = m.supplier_id
+  LEFT JOIN ${supplierAp360} ap ON ap.supplier_id = m.supplier_id
+  LEFT JOIN ${supplierAdvances360} adv ON adv.supplier_id = m.supplier_id
+  LEFT JOIN ${supplierNotes360} n ON n.supplier_id = m.supplier_id
+  LEFT JOIN ${supplierPayments360} py ON py.supplier_id = m.supplier_id
 `);

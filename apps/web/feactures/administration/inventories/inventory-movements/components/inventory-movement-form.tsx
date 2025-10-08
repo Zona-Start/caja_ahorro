@@ -313,8 +313,8 @@ export default function InventoryMovementForm({
                         <SelectValue placeholder="Selecciona tipo de ítem" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PRODUCT">PRODUCTO</SelectItem>
-                        <SelectItem value="FIXED_ASSET">ACTIVO FIJO</SelectItem>
+                        <SelectItem value="PRODUCT">Producto</SelectItem>
+                        <SelectItem value="FIXED_ASSET">Activo Fijo</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

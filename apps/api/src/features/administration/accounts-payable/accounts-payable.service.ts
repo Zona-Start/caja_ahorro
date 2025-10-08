@@ -8,7 +8,7 @@ import {
   suppliers,
   supplierTransactionApplications,
   supplierTransactions,
-} from '@/database/schema/administration';
+} from '@/database/schema/tables';
 import { paymentAccountsPayableEnum } from '@/types/enum';
 import {
   BadRequestException,
@@ -81,8 +81,6 @@ export class AccountsPayableService {
         createdById: userId,
       })
       .returning();
-
-    console.log('newAccountPayable', newAccountPayable);
 
     return newAccountPayable[0];
   }

@@ -20,8 +20,6 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
 };
 
 export const saveIndividualLoadAction = async (payload: LoadAssest) => {
-  console.log('Payload Action:', payload);
-
   const [error, data] = await safeFetchApi(
     loadAssestApiResponseSchema,
     '/savings-banks/individual-load',
@@ -34,5 +32,5 @@ export const saveIndividualLoadAction = async (payload: LoadAssest) => {
     throw new Error(error.message || 'Error create associate');
   }
 
-  return data;
+  return data?.message;
 };

@@ -3,7 +3,7 @@ import {
   purchaseOrderItems,
   services,
   supplierInvoiceItems,
-} from '@/database/schema/administration';
+} from '@/database/schema/tables';
 import {
   BadRequestException,
   Inject,

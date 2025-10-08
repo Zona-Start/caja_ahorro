@@ -34,8 +34,8 @@ export class SettlementAssociateService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
-    private readonly loanPaidService: LoanPaidService, // ¡Inyecta LoanPaidService!
-    private readonly creditPaidService: CreditPaidService, // ¡Inyecta LoanPaidService!
+    private readonly loanPaidService: LoanPaidService,
+    private readonly creditPaidService: CreditPaidService,
     private readonly generateCodeService: GenerateCodeService,
   ) {}
 
@@ -86,22 +86,140 @@ export class SettlementAssociateService {
     };
   }
 
-  //--- Método principal para procesar la liquidación ---
+  /**
+   * @description Crea una SOLICITUD de liquidación para un asociado.
+   * Esta operación solo registra la solicitud y la deja en estado 'REQUESTED'.
+   * La aprobación y el procesamiento se realizan en el método `approve`.
+   * @param dto - Datos para la solicitud de liquidación.
+   * @param userId - ID del usuario que crea la solicitud.
+   * @returns El registro de la liquidación creada.
+   */
   async create(dto: CreateSettlementAssociateDto, userId: number) {
     const {
-      associateId, //ide asociado
-      netLiquidationAmount, // El monto neto final (lo que se paga/se debe)
-      totalOutstandingCreditsAtLiquidation, // Deuda de créditos en el momento de la liquidación
-      totalOutstandingLoansAtLiquidation, // Deuda de prestamos en el momento de la liquidación
-      totalSavingsBalanceAtLiquidation, // Saldo de ahorros en el momento de la liquidación
-      liquidationDate, // Fecha en que se procesó la liquidación
-      notes, // Campo para cualquier nota relevante de la liquidación
-      paymentMethod,
-      beneficiary, // Beneficiario de la liquidación (opcional)
+      associateId,
+      netLiquidationAmount,
+      totalOutstandingCreditsAtLiquidation,
+      totalOutstandingLoansAtLiquidation,
+      totalSavingsBalanceAtLiquidation,
+      liquidationDate,
+      notes,
+      beneficiary,
     } = dto;
 
     return this.db.transaction(async (tx) => {
-      // 1. Obtener información del asociado y validar su existencia y estado
+      // 1. Validar que el asociado exista y esté activo
+      const [associate] = await tx
+        .select({
+          id: associates.id,
+          cedula: associates.cedula,
+          status: associates.status,
+        })
+        .from(associates)
+        .where(eq(associates.id, associateId));
+
+      if (!associate?.id) {
+        throw new NotFoundException(`Asociado no encontrado.`);
+      }
+
+      if (associate.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          `El asociado con cédula '${associate.cedula}' no está activo para ser liquidado (estado actual: ${associate.status}).`,
+        );
+      }
+
+      // 2. Verificar si ya existe una solicitud pendiente para este asociado
+      const [existingLiquidation] = await tx
+        .select()
+        .from(liquidationsAssociates)
+        .where(
+          and(
+            eq(liquidationsAssociates.associateId, associateId),
+            eq(liquidationsAssociates.status, 'REQUESTED'),
+          ),
+        );
+
+      if (existingLiquidation) {
+        throw new BadRequestException(
+          `Ya existe una solicitud de liquidación pendiente para este asociado.`,
+        );
+      }
+
+      // 3. Generar una referencia única para la liquidación
+      const reference = await this.generateCodeService.generateNextReference(
+        'RH-LIQ',
+        tx,
+      );
+
+      // 4. Guardar el registro de la liquidación con estado 'REQUESTED'
+      const [newLiquidationRequest] = await tx
+        .insert(liquidationsAssociates)
+        .values({
+          associateId: associateId,
+          liquidationDate: liquidationDate,
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          totalSavingsBalanceAtLiquidation: totalSavingsBalanceAtLiquidation,
+          totalOutstandingLoansAtLiquidation:
+            totalOutstandingLoansAtLiquidation,
+          totalOutstandingCreditsAtLiquidation:
+            totalOutstandingCreditsAtLiquidation,
+          netLiquidationAmount: netLiquidationAmount,
+          status: 'REQUESTED', // Estado inicial de la solicitud
+          notes: notes,
+          createdById: Number(userId),
+          customReference: reference,
+          beneficiary: beneficiary ? beneficiary : null,
+        })
+        .returning({
+          id: liquidationsAssociates.id,
+          customReference: liquidationsAssociates.customReference,
+        });
+
+      // 5. Registrar la acción en el log de auditoría
+      await tx.insert(auditLogs).values({
+        userId: userId,
+        action: 'INSERT',
+        tableName: 'liquidationsAssociates',
+        recordId: newLiquidationRequest.id.toString(),
+        description: `Solicitud de Liquidación de Asociado`,
+        area: 'Liquidacion',
+        newData: [{ ...dto, status: 'REQUESTED', customReference: reference }],
+      });
+
+      return {
+        message: `Solicitud de liquidación creada exitosamente.`,
+        liquidation: newLiquidationRequest,
+      };
+    });
+  }
+
+  /**
+   * @description Aprueba y procesa una solicitud de liquidación existente.
+   * Realiza la compensación de deudas, actualiza estados y genera movimientos contables.
+   * @param liquidationId - ID de la liquidación a aprobar.
+   * @param userId - ID del usuario que aprueba la liquidación.
+   * @returns Un mensaje de éxito con el resultado de la operación.
+   */
+  async approve(liquidationId: number, userId: number) {
+    return this.db.transaction(async (tx) => {
+      // 1. Obtener la liquidación y validar su estado
+      const [liquidation] = await tx
+        .select()
+        .from(liquidationsAssociates)
+        .where(eq(liquidationsAssociates.id, liquidationId));
+
+      if (!liquidation) {
+        throw new NotFoundException(
+          `Solicitud de liquidación con ID ${liquidationId} no encontrada.`,
+        );
+      }
+
+      if (liquidation.status !== 'REQUESTED') {
+        throw new BadRequestException(
+          `La liquidación no está en estado 'SOLICITADO'. Estado actual: ${liquidation.status}.`,
+        );
+      }
+
+      // 2. Obtener información del asociado
       const [associate] = await tx
         .select({
           id: associates.id,
@@ -115,197 +233,140 @@ export class SettlementAssociateService {
           associateAccounts,
           eq(associateAccounts.associateId, associates.id),
         )
-        .where(eq(associates.id, associateId));
+        .where(eq(associates.id, liquidation.associateId));
 
       if (!associate?.id) {
-        throw new NotFoundException(`Asociado no encontrado.`);
-      }
-
-      if (associate.status !== 'ACTIVE') {
-        throw new BadRequestException(
-          `El asociado con cédula '${associate.cedula}' no está activo para ser liquidado (estado actual: ${associate.status}).`,
+        throw new NotFoundException(
+          `Asociado no encontrado para esta liquidación.`,
         );
       }
 
-      // 2. Compensación de Deudas (Préstamos y Créditos)
-      // Usamos el LoanPaidService para gestionar los pagos de préstamos.
-      // --- 2.1 Procesar Créditos Pendientes (asume un CreditPaidService similar) ---
-      if (totalOutstandingCreditsAtLiquidation !== 0) {
+      const {
+        totalOutstandingCreditsAtLiquidation,
+        totalOutstandingLoansAtLiquidation,
+        netLiquidationAmount,
+        liquidationDate,
+      } = liquidation;
+
+      // 3. Compensación de Deudas (Créditos y Préstamos)
+      // NOTA: Se asume 'SETTLEMENT' como método de pago para estas transacciones internas.
+      if (Number(totalOutstandingCreditsAtLiquidation) > 0) {
         const credits = await this.creditPaidService.findOneRequest(
           associate.cedula,
         );
-
         try {
-          const dataCredit = {
-            amount: totalOutstandingCreditsAtLiquidation,
-            bankId: undefined,
-            creditId: credits?.creditId,
-            paymentDate: liquidationDate!,
-            paymentMethod: paymentMethod as paymentMethodEnum,
-            paymentType: 'CANCELLATION' as creditPaymetTypeEnum,
-            comment: 'PAGO CREDITOS POR LIQUIDACION ASOCIADO',
-            transactionReference: '',
-          };
-          await this.creditPaidService.create(dataCredit, userId);
-        } catch (error) {
-          console.error(
-            `Error al pagar credito ${credits.creditId} durante liquidación:`,
-            error,
+          await this.creditPaidService.create(
+            {
+              amount: Number(totalOutstandingCreditsAtLiquidation),
+              creditId: credits?.creditId,
+              paymentDate: new Date(),
+              paymentMethod: 'BANK_TRANSFER' as paymentMethodEnum,
+              paymentType: 'PAYING' as creditPaymetTypeEnum,
+              comment: 'Pago de Crédito por liquidación de asociado',
+              transactionReference: '',
+              bankId: undefined,
+            },
+            userId,
           );
-          // Decide si esto debe abortar la liquidación o continuar
+        } catch (error) {
           throw new InternalServerErrorException(
-            `No se pudo compensar el credito ${credits.creditId} durante la liquidación.`,
+            `No se pudo compensar el crédito durante la liquidación.`,
           );
         }
       }
 
-      // --- 2.2 Procesar Préstamos Pendientes ---
-      if (totalOutstandingLoansAtLiquidation !== 0) {
+      if (Number(totalOutstandingLoansAtLiquidation) > 0) {
         const loans = await this.loanPaidService.findOneRequest(
           associate.cedula,
         );
-
         try {
-          const dataLoan = {
-            amount: totalOutstandingLoansAtLiquidation,
-            bankId: undefined,
-            loanId: loans.loanId,
-            paymentDate: liquidationDate!,
-            paymentMethod: paymentMethod as paymentMethodEnum,
-            paymentType: 'CANCELLATION' as loanPaymetTypeEnum,
-            comment: 'PAGO PRESTAMO POR LIQUIDACION ASOCIADO',
-
-            transactionReference: '',
-          };
-
-          await this.loanPaidService.create(dataLoan, userId);
-        } catch (error) {
-          console.error(
-            `Error al pagar prestamo ${loans.id} durante liquidación:`,
-            error,
+          await this.loanPaidService.create(
+            {
+              amount: Number(totalOutstandingLoansAtLiquidation),
+              loanId: loans.loanId,
+              paymentDate: new Date(),
+              paymentMethod: 'BANK_TRANSFER' as paymentMethodEnum,
+              paymentType: 'PAYING' as loanPaymetTypeEnum,
+              comment: 'Pago de préstamo por liquidación de asociado',
+              transactionReference: '',
+              bankId: undefined,
+            },
+            userId,
           );
-          // Decide si esto debe abortar la liquidación o continuar
+        } catch (error) {
           throw new InternalServerErrorException(
-            `No se pudo compensar el prestamo ${loans.id} durante la liquidación.`,
+            `No se pudo compensar el préstamo durante la liquidación.`,
           );
         }
       }
 
-      const reference =
-        await this.generateCodeService.generateNextReference('RH-LIQ');
-
-      // 3. Guardar el registro de la liquidación en la nueva tabla 'liquidations'
-      const [newLiquidation] = await this.db
-        .insert(liquidationsAssociates)
-        .values({
-          associateId: associateId,
-          liquidationDate: liquidationDate,
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          totalSavingsBalanceAtLiquidation: totalSavingsBalanceAtLiquidation,
-          totalOutstandingLoansAtLiquidation:
-            totalOutstandingLoansAtLiquidation,
-          totalOutstandingCreditsAtLiquidation:
-            totalOutstandingCreditsAtLiquidation,
-          netLiquidationAmount: netLiquidationAmount,
-          status: 'PROCESSED',
-          notes: notes,
-          createdById: Number(userId),
-          customReference: reference,
-          beneficiary: beneficiary ? beneficiary : null,
-        })
-        .returning({
-          id: liquidationsAssociates.id,
-          customReference: liquidationsAssociates.customReference,
-        });
-
-      // 4. Registrar el movimiento final en la cuenta del asociado (si hay un monto neto positivo)
-      // Si el monto de liquidación es positivo, significa que el asociado recibe dinero.
-      if (netLiquidationAmount > 0) {
+      // 4. Registrar el movimiento de retiro final si el neto es positivo
+      if (Number(netLiquidationAmount) > 0) {
         try {
-          const payloadMovementLoan = {
+          await this.associateAccountsMovementsService.create(userId, {
             associateAccountId: Number(associate.associateAccountId),
             movementType: 'LIQUIDATION_BALANCE' as AssociateMovementTypeEnum,
-            amount: netLiquidationAmount,
+            amount: Number(netLiquidationAmount),
             currencyCode: 'VES' as CurrencyCodeEnum,
-            transactionDate: liquidationDate ? liquidationDate : undefined,
-            description: 'LIQUIDACION DE HABERES',
-            referenceId: String(newLiquidation.id),
+            transactionDate: new Date(),
+            description: 'Liquidacion total de Haberes',
+            referenceId: String(liquidation.id),
             referenceType: 'liquidationsAssociates',
-            referenceNumber: newLiquidation.customReference ?? undefined,
+            referenceNumber: liquidation.customReference ?? undefined,
             area: 'LIQUIDACION',
-          };
-          await this.associateAccountsMovementsService.create(
-            userId,
-            payloadMovementLoan,
-          );
+          });
         } catch (error) {
-          console.error(
-            `Error al generar el movimiento de la liquidacion`,
-            error,
-          );
-          // Decide si esto debe abortar la liquidación o continuar
           throw new InternalServerErrorException(
-            `Error al generar el movimiento de la liquidacion`,
+            `Error al generar el movimiento de la liquidacion.`,
           );
         }
       }
-      // Si `netLiquidationAmount` es cero o negativo, no hay retiro final positivo.
-      // La cuenta se cerrará y cualquier deuda restante se manejará por las actualizaciones
-      // de estado de los préstamos/créditos o políticas de cartera.
 
-      // 5. Actualizar el estado del asociado a "retirado" y registrar la fecha de egreso
+      // 5. Actualizar estado del asociado a "RETIRED"
       await tx
         .update(associates)
         .set({
-          status: 'RETIRED', // O 'INACTIVE', según tu enum `statusEnum`
-          dateGraduation: (liquidationDate ?? new Date()).toISOString(),
+          status: 'RETIRED',
+          dateGraduation: new Date().toISOString(),
           updatedAt: new Date(),
+          updatedById: userId,
         })
         .where(eq(associates.id, associate.id));
 
-      // // 6. Actualizar el estado de las cuentas del asociado a "cerrado"
+      // 6. Actualizar estado de la cuenta del asociado a "ARCHIVED"
       await tx
         .update(associateAccounts)
         .set({
-          status: 'ARCHIVED', // O 'INACTIVE'
-          closingDate: (liquidationDate ?? new Date()).toISOString(),
+          status: 'ARCHIVED',
+          closingDate: new Date().toISOString(),
           updatedAt: new Date(),
+          updatedById: userId,
         })
         .where(eq(associateAccounts.associateId, associate.id));
 
-      // 8. (Opcional) Registrar en el log de auditoría
+      // 7. Actualizar estado de la liquidación a "PROCESSED"
+      await tx
+        .update(liquidationsAssociates)
+        .set({
+          status: 'PROCESSED',
+          updatedById: userId,
+        })
+        .where(eq(liquidationsAssociates.id, liquidationId));
+
+      // 8. Registrar la aprobación en el log de auditoría
       await tx.insert(auditLogs).values({
         userId: userId,
-        action: 'PROCESS',
+        action: 'UPDATE',
         tableName: 'liquidationsAssociates',
-        recordId: newLiquidation.id.toString(),
-        description: `LIQUIDACION DE ASOCIADO`,
-        area: 'RETIROS',
-        newData: [
-          {
-            associateId: associateId,
-            liquidationDate: liquidationDate,
-            currencyCode: 'VES' as CurrencyCodeEnum,
-            totalSavingsBalanceAtLiquidation: totalSavingsBalanceAtLiquidation,
-            totalOutstandingLoansAtLiquidation:
-              totalOutstandingLoansAtLiquidation,
-            totalOutstandingCreditsAtLiquidation:
-              totalOutstandingCreditsAtLiquidation,
-            netLiquidationAmount: netLiquidationAmount,
-            status: 'PROCESSED',
-            notes: notes,
-            createdById: Number(userId),
-            customReference: reference,
-            beneficiary: beneficiary ? beneficiary : null,
-          },
-        ],
+        recordId: liquidationId.toString(),
+        description: `Procesamiento y Aprobación de Liquidación de Asociado`,
+        area: 'Liquidacion',
+        newData: [{ ...liquidation, status: 'PROCESSED' }],
       });
 
-      // Si todo el proceso dentro de la transacción se completa, se confirma.
       return {
-        message: `Liquidación procesada exitosamente para asociado '${associate.fullname}'.`,
-        liquidation: newLiquidation,
-        netAmount: netLiquidationAmount,
+        message: `Liquidación procesada exitosamente para el asociado '${associate.fullname}'.`,
+        liquidationId: liquidation.id,
       };
     });
   }
@@ -367,6 +428,7 @@ export class SettlementAssociateService {
         netLiquidationAmount: liquidationsAssociates.netLiquidationAmount,
         associateCedula: associates.cedula,
         associateFullname: associates.fullname,
+        status: liquidationsAssociates.status,
       })
       .from(liquidationsAssociates)
       .where(searchCondition)
@@ -424,7 +486,7 @@ export class SettlementAssociateService {
         associates,
         eq(associates.id, liquidationsAssociates.associateId),
       )
-      .where(eq(liquidationsAssociates.status, 'REQUESTED'));
+      .where(eq(liquidationsAssociates.status, 'PROCESSED'));
 
     return {
       data: result,

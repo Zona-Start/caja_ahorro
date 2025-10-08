@@ -27,7 +27,7 @@ import crypto from 'crypto';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
-import { sessions, users } from 'src/database/index';
+import { sessions, userAccessSummary, users } from 'src/database/index';
 import { Session } from './interfaces/session.interface';
 
 @Injectable()
@@ -298,5 +298,12 @@ export class AuthService {
       refresh_token: tokensNew.refresh_token,
       refresh_expire_in: decodeRefresh.exp,
     };
+  }
+
+  async access(id: number) {
+    return await this.drizzle
+      .select()
+      .from(userAccessSummary)
+      .where(eq(userAccessSummary.userId, id));
   }
 }

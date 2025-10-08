@@ -1,3 +1,4 @@
+import { queryKeys } from '@/lib/queryKeys';
 import {
   getCurrencyAction,
   getExchangeRateAction,
@@ -7,13 +8,17 @@ import { useSafeQuery } from './use-safe-query';
 
 // Hook for paginated setting sytem data
 export function useSettingsSystemConfig() {
-  return useSafeQuery(['setting-system'], () => getSettingSytemAllAction());
+  return useSafeQuery(queryKeys.settingsSystem.all(), () =>
+    getSettingSytemAllAction(),
+  );
 }
 
 export function useCurrenciesConfig() {
-  return useSafeQuery(['currencies'], () => getCurrencyAction());
+  return useSafeQuery(queryKeys.currencies.all(), () => getCurrencyAction());
 }
 
 export function useExchangeRateConfig() {
-  return useSafeQuery(['exchange-rate'], () => getExchangeRateAction());
+  return useSafeQuery(queryKeys.exchangeRate.all(), () =>
+    getExchangeRateAction(),
+  );
 }

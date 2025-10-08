@@ -173,7 +173,7 @@ export function CreditPaidForm({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper color="purple" className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <Banknote />
           </IconWrapper>
           Datos del Pago
@@ -330,7 +330,7 @@ export function CreditPaidForm({
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder="Ingrese el número de referencia (opcional)"
+                        placeholder="Ingrese el número de referencia"
                         value={field.value ?? ''}
                         disabled={!selectedAssociate || isSubmitting}
                       />

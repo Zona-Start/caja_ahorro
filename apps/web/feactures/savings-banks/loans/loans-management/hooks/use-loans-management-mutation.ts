@@ -1,7 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   aprobeLoanManagementAction,
   createLoanManagementAction,
@@ -9,19 +10,29 @@ import {
 } from '../actions/loans-management-actions';
 import { LoanManagement } from '../schemas/loans-management.schema';
 
-// Mutation hook remains the same
+/**
+ * Hook para crear un nuevo préstamo
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useLoanManagementMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   const mutation = useMutation({
     mutationFn: (loanManagement: LoanManagement) =>
       createLoanManagementAction(loanManagement),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['loan-management'] });
-      queryClient.removeQueries({ queryKey: ['loans-associates-by-cedula'] });
-      queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.loansManagement.all() 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.loansManagement.count() 
+      });
+      toast.success('Préstamo creado exitosamente');
     },
     onError: (error) => {
+      toast.error('Error al crear el préstamo, contacte al administrador');
       console.error('Error:', error);
     },
   });
@@ -29,21 +40,31 @@ export function useLoanManagementMutation() {
   return mutation;
 }
 
+/**
+ * Hook para aprobar un préstamo
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useAprobedLoanMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   const mutation = useMutation({
     mutationFn: (id: number) => aprobeLoanManagementAction(id),
-    onSuccess: () => {
-      queryClient.removeQueries({
-        queryKey: ['loan-associates-individual-by-cedula'],
+    onSuccess: (_, id) => {
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.all()
       });
-      queryClient.invalidateQueries({ queryKey: ['loan-management'] });
-      queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
-      toast.success('Prestamo aprobado exitosamente');
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.detail(id)
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.count()
+      });
+      toast.success('Préstamo aprobado exitosamente');
     },
     onError: (error) => {
-      toast.error('Error al aprobar el prestamo, contacte el administrador');
+      toast.error('Error al aprobar el préstamo, contacte al administrador');
       console.error('Error:', error);
     },
   });
@@ -51,18 +72,31 @@ export function useAprobedLoanMutation() {
   return mutation;
 }
 
+/**
+ * Hook para eliminar un préstamo
+ * Utiliza la fábrica centralizada de claves para invalidar queries
+ */
 export function useDeleteLoan() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => deleteLoanManagementAction(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['loan-management'] });
-      queryClient.invalidateQueries({ queryKey: ['loan-management-count'] });
-      toast.success('Prestamo cancelado exitosamente');
+    onSuccess: (_, id) => {
+      // ✅ Invalidación robusta usando la fábrica de claves
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.all()
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.detail(id)
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.count()
+      });
+      toast.success('Préstamo cancelado exitosamente');
     },
     onError: (error) => {
-      toast.error('Error al cancelar el prestamo');
+      toast.error('Error al cancelar el préstamo, contacte al administrador');
       console.error('Error:', error);
     },
   });

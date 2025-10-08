@@ -19,7 +19,7 @@ export function useSupplierPayments(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    queryKeys.supplierPayments.all(params),
+    queryKeys.supplierPayments.list(params),
     () => getSupplierPaymentsAction(params),
     {
       enabled: !!params.status?.length && (options?.enabled ?? true),
@@ -33,7 +33,7 @@ export function useOneSupplierPayments(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    queryKeys.supplierPayments.all(),
+    queryKeys.supplierPayments.detail(id),
     () => getOneAccountsPayableAction(id),
     {
       enabled: options?.enabled ?? false,

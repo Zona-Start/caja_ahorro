@@ -11,18 +11,7 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { timestamps } from '../timestamps';
-import { accountPlan } from './accounting';
-import { suppliers } from './administration';
-import { users } from './auth';
-import { bankDirectory } from './banking';
-import {
-  categoryType,
-  company,
-  exchangeRates,
-  states,
-  typePayrolls,
-} from './core';
+import { timestamps } from '../../timestamps';
 import {
   associateMovementTypeEnum,
   creditModalityTypeEnum,
@@ -42,8 +31,19 @@ import {
   paymentStatusEnum,
   statusEnum,
   withdrawalStatusEnum,
-} from './enum';
-import { savingsBanksSchema } from './schemas';
+} from '../enum/enum';
+import { savingsBanksSchema } from '../schemas';
+import { accountPlan } from './accounting';
+import { suppliers } from './administration';
+import { users } from './auth';
+import { bankDirectory, bankTransactions } from './banking';
+import {
+  categoryType,
+  company,
+  exchangeRates,
+  states,
+  typePayrolls,
+} from './core';
 
 // Tabla de los asociados. Almacena la información de los asociados de la caja de ahorro.
 export const associates = savingsBanksSchema.table(
@@ -284,6 +284,9 @@ export const withdrawalsAssociates = savingsBanksSchema.table(
     paymentMethod: paymentMethodEnum('payment_method'), // Ej: 'Transferencia', 'Cheque', 'Efectivo'
     referenceCode: varchar('reference_code', { length: 100 }).unique(), // Código de referencia único generado por el backend
     status: withdrawalStatusEnum('status').default('REQUESTED').notNull(),
+    bankTransactionId: integer('bank_transaction_id').references(
+      () => bankTransactions.id,
+    ),
     commercialHouseId: integer('commercial_house_id').references(
       () => suppliers.id,
       { onDelete: 'set null' },

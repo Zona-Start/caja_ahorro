@@ -1,5 +1,5 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
-import { products } from '@/database/schema/administration';
+import { products } from '@/database/schema/tables';
 import { priceTypeEnum, productStatus, unitOfMeasureEnum } from '@/types/enum';
 import {
   BadRequestException,

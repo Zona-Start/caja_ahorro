@@ -1,10 +1,11 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import {
   SystemConfigState,
   useSystemConfigStore,
 } from '@/store/SystemConfigStore';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
 import { Toaster } from '@repo/shadcn/toaster';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -23,7 +24,7 @@ interface LoanViewProps {
 }
 
 export function LoanPaidView({ isEdit = false, initialData }: LoanViewProps) {
-  // Zustand store
+  const toast = useToastSystem();
   const {
     selectedAssociate,
     setSelectedAssociate,
@@ -44,8 +45,6 @@ export function LoanPaidView({ isEdit = false, initialData }: LoanViewProps) {
   const [stickyTop, setStickyTop] = useState(4);
   const [currentCurrencyCode, setCurrentCurrencyCode] = useState<string>();
   const [currentExchangeRate, setCurrentExchangeRate] = useState<number>();
-
-  const { toast } = useToast();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: loanTypes } = useTypeLoans();
@@ -152,31 +151,31 @@ export function LoanPaidView({ isEdit = false, initialData }: LoanViewProps) {
     setIsSubmitting(true);
     saveLoanPaid(data, {
       onSuccess: () => {
-        toast({
+        toast.success({
           title: 'Pago de Préstamo creado con éxito',
           description: `Se ha registrado un pago de préstamo de  ${currentCurrencyCode === 'VES' ? 'Bs ' : '$ '} ${data.amount} para ${selectedAssociate?.fullname}.`,
         });
         queryClient.invalidateQueries({
-          queryKey: ['loan-paid-associate', selectedAssociate?.cedula],
+          queryKey: queryKeys.loansPaid.associateByIndividual(
+            selectedAssociate?.cedula!,
+          ),
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.loansPaid.all(),
         });
         queryClient.invalidateQueries({
-          queryKey: ['loan-paid'],
+          queryKey: queryKeys.loansManagement.all(),
         });
+
         queryClient.invalidateQueries({
-          queryKey: ['loan-paid-associate', ''],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['loan-management'],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['loan-management-count'],
+          queryKey: queryKeys.loansManagement.list(),
         });
 
         handleCancel();
       },
       onError: () => {
-        toast({
-          variant: 'destructive',
+        toast.error({
           title: 'Error al guardar el pago del préstamo',
           description:
             'Ocurrió un error al procesar la operación. Intente nuevamente.',

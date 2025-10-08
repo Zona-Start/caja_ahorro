@@ -10,7 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Eye, Scale, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteBankAccount } from '../../hooks/use-mutation-bank-account';
+import { useDeleteBankAccountMutation } from '../../hooks/use-mutation-bank-account';
 import { BankAccount } from '../../schemas/bank-account.schema';
 import { BankAccountDetailsModal } from '../bank-account-details-modal';
 import { BankAccountModal } from '../bank-account-modal';
@@ -26,7 +26,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
-  const { mutate: deleteBankAccount } = useDeleteBankAccount();
+  const { mutate: deleteBankAccount } = useDeleteBankAccountMutation();
   const [bankAccountId, setBankAccountId] = useState<number | null>(null);
 
   const onConfirm = async () => {

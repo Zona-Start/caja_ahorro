@@ -1,4 +1,5 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { getAssociatesByCedulaAction } from '../actions/credits-management-actions';
 
 export function useAssociatesByCedula(
@@ -6,7 +7,7 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['credit-associates-individual-by-cedula', cedula],
+    queryKeys.associatesForCreditManagement.byCedula(cedula),
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula ? options?.enabled : false,

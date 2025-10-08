@@ -1,47 +1,55 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { deleteBankAction, saveBankAction } from '../actions/banks-actions';
 import { Banks } from '../schemas/banks.schema';
-
-export const BANKS_KEY = ['accounting_banks'];
-export const PAGINATED_BANKS_KEY = ['paginated_banks'];
 
 // Mutation hook mutation insert or update
 export function useBankMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (data: Banks) => saveBankAction(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BANKS_KEY });
-      queryClient.invalidateQueries({ queryKey: PAGINATED_BANKS_KEY });
+    onSuccess: (_, data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankDirectory.all(),
+      });
+
+      if (data?.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.bankDirectory.detail(data.id),
+        });
+      }
+
       toast.success('Banco guardado exitosamente');
     },
-    onError: (error) => {
+    onError: () => {
       toast.error('Error al guardar el banco');
-      console.error('Error:', error);
     },
   });
-
-  return mutation;
 }
 
 // Mutation hook delete
-export function useDeleteBank() {
+export function useDeleteBankMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => deleteBankAction(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BANKS_KEY });
-      queryClient.invalidateQueries({ queryKey: PAGINATED_BANKS_KEY });
-      toast.success('Banco eliminado exitosamente');
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankDirectory.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankDirectory.detail(id),
+      });
+      toast.crud.delete.success('Banco');
     },
-    onError: (error) => {
-      toast.error('Error al eliminar el banco');
-      console.error('Error:', error);
+    onError: () => {
+      toast.crud.delete.error('Banco');
     },
   });
 }

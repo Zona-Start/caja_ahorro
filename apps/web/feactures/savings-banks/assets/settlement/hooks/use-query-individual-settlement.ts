@@ -1,4 +1,5 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
+import { queryKeys } from '@/lib/queryKeys';
 import { getAssociatesByCedulaAction } from '../actions/settlement-actions';
 
 export function useAssociatesByCedula(
@@ -6,12 +7,11 @@ export function useAssociatesByCedula(
   options?: { enabled?: boolean },
 ) {
   return useSafeQuery(
-    ['settlement-associate-individual-by-cedula', cedula], // Include cedula in query key
+    queryKeys.associatesForSettlement.byCedula(cedula),
     () => getAssociatesByCedulaAction(cedula),
     {
       enabled: cedula?.trim() ? options?.enabled : false,
       staleTime: 0,
-      cacheTime: 0,
       refetchOnMount: false,
       ...options,
     },

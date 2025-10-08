@@ -10,7 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Eye, Trash } from 'lucide-react'; // Added Eye icon
 import { useState } from 'react';
-import { useDeleteInventoryMovement } from '../../hooks/use-mutation-inventory-movement';
+import { useDeleteInventoryMovementMutation } from '../../hooks/use-mutation-inventory-movement';
 import { InventoryMovement } from '../../schemas/inventory-movement.schema';
 import InventoryMovementModal from '../inventory-movement-modal'; // Re-import InventoryMovementModal
 
@@ -22,9 +22,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false); // New state for view modal
-  const [selectedMovementData, setSelectedMovementData] = useState<InventoryMovement | null>(null); // State to hold data for view modal
+  const [selectedMovementData, setSelectedMovementData] =
+    useState<InventoryMovement | null>(null); // State to hold data for view modal
 
-  const { mutate: deleteInventoryMovement } = useDeleteInventoryMovement();
+  const { mutate: deleteInventoryMovement } =
+    useDeleteInventoryMovementMutation();
 
   const onConfirm = async () => {
     try {

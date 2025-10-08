@@ -9,8 +9,7 @@ import {
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { timestamps } from '../timestamps';
-import { company, states } from './core';
+import { timestamps } from '../../timestamps';
 import {
   categorySuppliers,
   currencyCodeEnum,
@@ -28,12 +27,11 @@ import {
   supplierInvoicesPaymentEnum,
   supplierTransactionsTypeEnum,
   unitOfMeasureEnum,
-} from './enum';
-
-import { relations } from 'drizzle-orm';
+} from '../enum/enum';
+import { administrationSchema, inventorySchema } from '../schemas';
 import { accountPlan } from './accounting';
 import { bankAccounts } from './banking';
-import { administrationSchema, inventorySchema } from './schemas';
+import { company, states } from './core';
 
 // tabla proveedores
 export const suppliers = administrationSchema.table(
@@ -686,159 +684,3 @@ export const inventoryMovements = inventorySchema.table('inventory_movements', {
   notes: text('notes'),
   ...timestamps,
 });
-
-/* ---------- 1.  RELACIONES DE CATEGORÍAS ---------- */
-export const inventoriesCategoriesRelations = relations(
-  inventoriesCategories,
-  ({ many }) => ({
-    products: many(products),
-    fixedAssets: many(fixedAssets),
-    services: many(services),
-  }),
-);
-
-/* ---------- 2.  RELACIONES DE PRODUCTOS ---------- */
-export const productsRelations = relations(products, ({ one, many }) => ({
-  category: one(inventoriesCategories, {
-    fields: [products.categoryId],
-    references: [inventoriesCategories.id],
-  }),
-  prices: many(productPrices),
-  suppliers: many(productServiceSuppliers),
-  movements: many(inventoryMovements),
-}));
-
-/* ---------- 3.  RELACIONES DE PRECIOS (productos) ---------- */
-export const productPricesRelations = relations(productPrices, ({ one }) => ({
-  product: one(products, {
-    fields: [productPrices.productId],
-    references: [products.id],
-  }),
-  supplier: one(suppliers, {
-    fields: [productPrices.suppliersId],
-    references: [suppliers.id],
-  }),
-}));
-
-/* ---------- 4.  RELACIONES DE SERVICIOS ---------- */
-export const servicesRelations = relations(services, ({ one, many }) => ({
-  category: one(inventoriesCategories, {
-    fields: [services.categoryId],
-    references: [inventoriesCategories.id],
-  }),
-  prices: many(servicePrices),
-  suppliers: many(productServiceSuppliers),
-}));
-
-/* ---------- 5.  RELACIONES DE PRECIOS (servicios) ---------- */
-export const servicePricesRelations = relations(servicePrices, ({ one }) => ({
-  service: one(services, {
-    fields: [servicePrices.serviceId],
-    references: [services.id],
-  }),
-  supplier: one(suppliers, {
-    fields: [servicePrices.suppliersId],
-    references: [suppliers.id],
-  }),
-}));
-
-/* ---------- 6.  RELACIONES DE ACTIVOS FIJOS ---------- */
-export const fixedAssetsRelations = relations(fixedAssets, ({ one, many }) => ({
-  category: one(inventoriesCategories, {
-    fields: [fixedAssets.categoryId],
-    references: [inventoriesCategories.id],
-  }),
-  prices: many(fixedAssetsPrices),
-  suppliers: many(productServiceSuppliers),
-  movements: many(inventoryMovements),
-}));
-
-/* ---------- 7.  RELACIONES DE PRECIOS (activos fijos) ---------- */
-export const fixedAssetsPricesRelations = relations(
-  fixedAssetsPrices,
-  ({ one }) => ({
-    fixedAsset: one(fixedAssets, {
-      fields: [fixedAssetsPrices.fixedAssetsId],
-      references: [fixedAssets.id],
-    }),
-    supplier: one(suppliers, {
-      fields: [fixedAssetsPrices.suppliersId],
-      references: [suppliers.id],
-    }),
-  }),
-);
-
-/* ---------- 8.  RELACIONES DEL PUENTE product_service_suppliers ---------- */
-export const productServiceSuppliersRelations = relations(
-  productServiceSuppliers,
-  ({ one }) => ({
-    product: one(products, {
-      fields: [productServiceSuppliers.productId],
-      references: [products.id],
-    }),
-    service: one(services, {
-      fields: [productServiceSuppliers.serviceId],
-      references: [services.id],
-    }),
-    fixedAsset: one(fixedAssets, {
-      fields: [productServiceSuppliers.fixedAssetsId],
-      references: [fixedAssets.id],
-    }),
-    supplier: one(suppliers, {
-      fields: [productServiceSuppliers.suppliersId],
-      references: [suppliers.id],
-    }),
-  }),
-);
-
-/* ---------- 9.  RELACIONES DE PROVEEDORES ---------- */
-export const suppliersRelations = relations(suppliers, ({ many }) => ({
-  productLinks: many(productServiceSuppliers),
-  productPrices: many(productPrices),
-  servicePrices: many(servicePrices),
-  fixedAssetsPrices: many(fixedAssetsPrices),
-}));
-
-/* ---------- 10.  RELACIONES DE MOVIMIENTOS DE INVENTARIO (polimórficas) ---------- */
-export const inventoryMovementsRelations = relations(
-  inventoryMovements,
-  ({ one }) => ({
-    /* Relación condicional según itemType */
-    product: one(products, {
-      fields: [inventoryMovements.itemId],
-      references: [products.id],
-      relationName: 'productMovements',
-    }),
-    fixedAsset: one(fixedAssets, {
-      fields: [inventoryMovements.itemId],
-      references: [fixedAssets.id],
-      relationName: 'fixedAssetMovements',
-    }),
-  }),
-);
-
-export const supplierPaymentsRelations = relations(
-  supplierPayments,
-  ({ one, many }) => ({
-    supplier: one(suppliers, {
-      fields: [supplierPayments.supplierId],
-      references: [suppliers.id],
-    }),
-    lines: many(supplierPaymentLines),
-    //batchFile: one(/* tu tabla lote */),
-  }),
-);
-
-export const supplierPaymentLinesRelations = relations(
-  supplierPaymentLines,
-  ({ one }) => ({
-    payment: one(supplierPayments, {
-      fields: [supplierPaymentLines.supplierPaymentId],
-      references: [supplierPayments.id],
-    }),
-    accountsPayable: one(accountsPayable, {
-      fields: [supplierPaymentLines.accountsPayableId],
-      references: [accountsPayable.id],
-    }),
-  }),
-);

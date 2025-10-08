@@ -8,6 +8,7 @@ import { SettingsSystemService } from '@/features/core/settings-system/settings-
 import {
   ActionEnumAudit,
   AssociateMovementTypeEnum,
+  BankTransactionCategory,
   CurrencyCodeEnum,
   paymentBatchItemStatus,
   paymentBatchItemType,
@@ -383,21 +384,27 @@ export class PaymentBatchesService {
           allRejected = false;
 
           // 1. Movimiento de banco (egreso)
-          await this.bankMvts.create(
-            {
+
+          const dataBank = {
+            movement: {
               bankAccountId: Number(batch.bankId),
-              transactionDate: new Date(dto.processedAt).toISOString(),
+              transactionDate: new Date(dto.processedAt),
+              paymentMethod: paymentMethodEnum.BANK_TRANSFER,
               description: `PAGO POR LOTE ${batchId}`,
-              debitAmount: Number(it.amount), // <--- usar solo efectivo saliente
-              creditAmount: 0,
               bankReference: dto.bankReference ?? undefined,
-              transactionType: paymentMethodEnum.BANK_TRANSFER,
-              category: 'INTERNAL_TRANSFER',
+              category: 'BATCH_DISBURSEMENT' as BankTransactionCategory,
+              creditAmount: 0,
+              debitAmount: Number(it.amount),
               createdById: userId,
             },
-            userId,
-            tx,
-          );
+            links: [
+              {
+                internalRecordType: 'BATCH_DISBURSEMENT',
+                internalRecordId: res.itemId,
+              },
+            ],
+          };
+          await this.bankMvts.createAndReconcile(dataBank, userId, tx);
 
           // 2. Movimiento interno (crédito a asociado)
           await this.assocMvts.create(userId, {

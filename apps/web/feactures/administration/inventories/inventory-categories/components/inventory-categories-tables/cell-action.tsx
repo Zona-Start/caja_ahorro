@@ -10,7 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteInventoryCategory } from '../../hooks/use-mutation-inventory-categories';
+import { useDeleteInventoryCategoryMutation } from '../../hooks/use-mutation-inventory-categories';
 import { InventoryCategorySchemaAPI } from '../../schemas/inventory-category-api.schema';
 import InventoryCategoriesModal from '../inventory-categories-modal';
 
@@ -24,7 +24,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [mode, setMode] = useState(false);
 
-  const { mutate: deleteInventoryCategory } = useDeleteInventoryCategory();
+  const { mutate: deleteInventoryCategory } =
+    useDeleteInventoryCategoryMutation();
 
   const onConfirm = async () => {
     try {

@@ -7,7 +7,6 @@ import {
   CREDIT_PAYMENT_TYPES,
   PAYMENT_METHOD,
 } from '../../schemas/credits-paid-options';
-import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<CreditPaymentApi>[] = [
   {
@@ -56,9 +55,9 @@ export const columns: ColumnDef<CreditPaymentApi>[] = [
     accessorKey: 'associatesFullname',
     header: 'Nombre y Apellido Asociado',
   },
-  {
-    id: 'actions',
-    header: 'Acciones',
-    cell: ({ row }) => <CellAction data={row.original} />,
-  },
+  // {
+  //   id: 'actions',
+  //   header: 'Acciones',
+  //   cell: ({ row }) => <CellAction data={row.original} />,
+  // },
 ];

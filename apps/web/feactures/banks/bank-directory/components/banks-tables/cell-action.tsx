@@ -10,7 +10,7 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { useDeleteBank } from '../../hooks/use-banks-mutation';
+import { useDeleteBankMutation } from '../../hooks/use-banks-mutation';
 import { Banks } from '../../schemas/banks.schema';
 import { BanksModal } from '../banks-modal';
 
@@ -23,7 +23,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const { mutate: deleteBank } = useDeleteBank();
+  const { mutate: deleteBank } = useDeleteBankMutation();
 
   const onConfirm = async () => {
     try {

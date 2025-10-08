@@ -3,7 +3,7 @@ import {
   invoiceSuppliersStatusEnum,
   purchaseOrderTypeEnum,
   supplierInvoicesPaymentEnum,
-} from '@/database/schema/enum';
+} from '@/database/schema/enum/enum';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {

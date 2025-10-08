@@ -1,6 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
-import { categoryType } from '@/database/schema/core';
+import { categoryType } from '@/database/schema/tables';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';

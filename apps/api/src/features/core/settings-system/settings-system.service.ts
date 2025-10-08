@@ -1,4 +1,4 @@
-import { systemSettings } from '@/database/schema/core';
+import { systemSettings } from '@/database/schema/tables';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';

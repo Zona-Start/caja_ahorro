@@ -1,7 +1,8 @@
 'use client';
 
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import {
   deleteCreditPaidAction,
   saveCreditPaidAction,
@@ -11,33 +12,58 @@ import { CreditPaid } from '../schemas/credits-paid.schema';
 // Mutation hook remains the same
 export function useCreditPaidMutation() {
   const queryClient = useQueryClient();
-  const mutation = useMutation({
+  const toast = useToastSystem();
+
+  return useMutation({
     mutationFn: (creditPaid: CreditPaid) => saveCreditPaidAction(creditPaid),
-    onSuccess: () => {
-      queryClient.removeQueries({
-        queryKey: ['credit-paid-associate-individual-by-cedula'],
+    onSuccess: (_, data) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditsPaid.all(),
       });
       queryClient.invalidateQueries({
-        queryKey: ['credit-paid'],
+        queryKey: queryKeys.associatesForCreditsPaid.all(),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+
+      if (data?.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.creditsPaid.detail(data.id),
+        });
+      }
+
+      toast.success('Pago de Crédito guardado exitosamente');
+    },
+    onError: () => {
+      toast.error('Error al guardar el pago del crédito');
     },
   });
-
-  return mutation;
 }
 
-export function useDeleteCreditPaid() {
+export function useDeleteCreditPaidMutation() {
   const queryClient = useQueryClient();
+  const toast = useToastSystem();
 
   return useMutation({
     mutationFn: (id: number) => deleteCreditPaidAction(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['credit-paid-associate'] });
-      toast.success('Pago de Crédito eliminado exitosamente');
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditsPaid.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.associatesForCreditsPaid.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.creditsPaid.detail(id),
+      });
+      toast.crud.delete.success('Pago de Crédito');
     },
-    onError: (error) => {
-      toast.error('Error al eliminar el pago del crédito');
-      console.error('Error:', error);
+    onError: () => {
+      toast.crud.delete.error('Pago de Crédito');
     },
   });
 }
