@@ -78,25 +78,29 @@ export class AuthService {
 
   //Generate Tokens
   async generateTokens(user: User): Promise<AuthTokensInterface> {
+    // 1. Extraer y asegurar los tipos de las variables de entorno
+    const accessTokenSecret: string = envs.access_token_secret as string;
+    const accessTokenExp: string = envs.access_token_expiration;
+    const refreshTokenSecret: string = envs.refresh_token_secret as string;
+    const refreshTokenExp: string = envs.refresh_token_expiration;
+
+    const payload = {
+      sub: Number(user.id),
+      username: user.username,
+    };
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(
+        payload, // Usamos el payload tipado
         {
-          sub: Number(user.id),
-          username: user.username,
-        },
-        {
-          secret: envs.access_token_secret as string,
-          expiresIn: envs.access_token_expiration,
+          secret: accessTokenSecret, // Usamos la variable local (string)
+          expiresIn: accessTokenExp,
         },
       ),
       this.jwtService.signAsync(
+        payload, // Usamos el payload tipado
         {
-          sub: Number(user.id),
-          username: user.username,
-        },
-        {
-          secret: envs.refresh_token_secret as string,
-          expiresIn: envs.refresh_token_expiration,
+          secret: refreshTokenSecret, // Usamos la variable local (string)
+          expiresIn: refreshTokenExp,
         },
       ),
     ]);

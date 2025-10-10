@@ -12,8 +12,8 @@ export const bootstrap = async (app: NestExpressApplication) => {
   });
   app.enableCors({
     credentials: true,
-    //origin: envs.allow_cors_url,
-    origin: ['*'],
+    origin: envs.allow_cors_url,
+    //origin: ['*'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   });
   app.useLogger(logger);
