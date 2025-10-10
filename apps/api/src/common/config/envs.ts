@@ -14,7 +14,6 @@ interface EnvVars {
   MAIL_HOST: string;
   MAIL_USERNAME: string;
   MAIL_PASSWORD: string;
-
 }
 
 const envsSchema = joi
@@ -33,6 +32,13 @@ const envsSchema = joi
     MAIL_PASSWORD: joi.string(),
   })
   .unknown(true);
+
+console.log('📦 process.env desde Railway:', {
+  ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET,
+  ACCESS_TOKEN_EXPIRATION: process.env.ACCESS_TOKEN_EXPIRATION,
+  REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
+  REFRESH_TOKEN_EXPIRATION: process.env.REFRESH_TOKEN_EXPIRATION,
+});
 
 const { error, value } = envsSchema.validate(process.env);
 
@@ -53,6 +59,6 @@ export const envs = {
   refresh_token_secret: envVars.REFRESH_TOKEN_SECRET,
   refresh_token_expiration: envVars.REFRESH_TOKEN_EXPIRATION,
   mail_host: envVars.MAIL_HOST,
-  mail_username: envVars.MAIL_USERNAME, 
-  mail_password: envVars.MAIL_PASSWORD
+  mail_username: envVars.MAIL_USERNAME,
+  mail_password: envVars.MAIL_PASSWORD,
 };
