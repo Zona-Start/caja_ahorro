@@ -85,7 +85,7 @@ export class AuthService {
     const refreshTokenExp: string = envs.refresh_token_expiration;
 
     const payload = {
-      sub: Number(user.id),
+      sub: String(user.id), // ✅ ahora es string
       username: user.username,
     };
     const [access_token, refresh_token] = await Promise.all([

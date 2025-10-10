@@ -8,17 +8,18 @@ import { LoggerModule as PinoModule } from 'nestjs-pino';
     PinoModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService<Env>) => ({
-        pinoHttp: {
-          quietReqLogger: false, // Cambiar a false para ver los logs de request
-          quietResLogger: false, // Cambiar a false para ver los logs de response
-          level: 'debug', // Asegura que se logueen errores
-          transport: {
-            target:
-              config.get('NODE_ENV') !== 'production' ? 'pino-pretty' : '',
+      useFactory: (config: ConfigService<Env>) => {
+        const isDev = config.get('NODE_ENV') !== 'production';
+
+        return {
+          pinoHttp: {
+            quietReqLogger: false,
+            quietResLogger: false,
+            level: 'debug',
+            ...(isDev && { transport: { target: 'pino-pretty' } }),
           },
-        },
-      }),
+        };
+      },
     }),
   ],
 })
