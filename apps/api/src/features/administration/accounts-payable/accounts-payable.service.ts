@@ -289,7 +289,7 @@ export class AccountsPayableService {
           amount: dto.amount.toString(),
           currencyCode: 'VES',
           status: 'ACTIVE',
-          observations: dto.observations ?? `ANTICIPO A PROVEEDOR`,
+          observations: dto.observations ?? `Anticipo a proveedor`,
           createdById: userId,
         })
         .returning({
@@ -366,8 +366,8 @@ export class AccountsPayableService {
           status: dto.transactionType === 'DEBIT_NOTE' ? 'APPLIED' : 'ACTIVE',
           observations:
             (dto.observations ?? dto.transactionType === 'CREDIT_NOTE')
-              ? `NOTA DE CRÉDITO A PROVEEDOR`
-              : `NOTA DE DÉDITO A PROVEEDOR`,
+              ? `Nota de crédito a proveedor`
+              : `Nota de débito a proveedor`,
           createdById: userId,
         })
         .returning({

@@ -79,7 +79,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data, tab }) => {
         description={alertDescription}
       /> */}
 
-      {showPayModal && !isLoading && (
+      {showPayModal && !isLoading && supplierPaymentsData?.data?.data && (
         <PayAccountPayableModal
           open={showPayModal}
           onOpenChange={setShowPayModal}

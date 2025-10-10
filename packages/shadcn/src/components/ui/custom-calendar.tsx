@@ -47,6 +47,15 @@ export interface CustomCalendarProps {
   ref?: React.Ref<HTMLButtonElement>;
 }
 
+const toDate = (
+  value: Date | string | number | null | undefined,
+): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date;
+};
+
 export const CustomCalendar = forwardRef<
   HTMLButtonElement,
   CustomCalendarProps
@@ -64,28 +73,30 @@ export const CustomCalendar = forwardRef<
       name,
       id,
       required = false,
-      minDate, // <-- nueva prop
+      minDate,
       ...props
     },
     ref,
   ) => {
-    const [date, setDate] = useState<Date | null>(value || null);
+    const dateValue = toDate(value);
+
+    const [date, setDate] = useState<Date | null>(dateValue);
     const [isOpen, setIsOpen] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(
-      value?.getMonth() ?? new Date().getMonth(),
+      dateValue?.getMonth() ?? new Date().getMonth(),
     );
     const [currentYear, setCurrentYear] = useState(
-      value?.getFullYear() ?? new Date().getFullYear(),
+      dateValue?.getFullYear() ?? new Date().getFullYear(),
     );
 
     const buttonRef = useRef<HTMLButtonElement>(null);
 
-    // Actualizar el estado interno cuando cambia el valor externo
     useEffect(() => {
-      if (value) {
-        setDate(value);
-        setCurrentMonth(value.getMonth());
-        setCurrentYear(value.getFullYear());
+      const convertedDate = toDate(value);
+      if (convertedDate) {
+        setDate(convertedDate);
+        setCurrentMonth(convertedDate.getMonth());
+        setCurrentYear(convertedDate.getFullYear());
       } else {
         setDate(null);
       }
@@ -199,6 +210,15 @@ export const CustomCalendar = forwardRef<
       }
     };
 
+    const isDateDisabled = (day: Date) => {
+      if (!minDate) return false;
+      const minDateTime = new Date(minDate);
+      minDateTime.setHours(0, 0, 0, 0);
+      const dayTime = new Date(day);
+      dayTime.setHours(0, 0, 0, 0);
+      return dayTime < minDateTime;
+    };
+
     return (
       <Popover
         open={isOpen && !disabled}
@@ -206,7 +226,7 @@ export const CustomCalendar = forwardRef<
       >
         <PopoverTrigger asChild>
           <Button
-            ref={(node) => {
+            ref={(node: any) => {
               // Pasar la ref al botón
               if (typeof ref === 'function') {
                 ref(node);
@@ -296,10 +316,11 @@ export const CustomCalendar = forwardRef<
                           isToday(day) && 'bg-accent text-accent-foreground',
                           isSelected(day) &&
                             'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground',
-                          minDate && day < new Date(minDate.setHours(0,0,0,0)) && 'opacity-40 pointer-events-none' // deshabilita días menores a minDate
+                          isDateDisabled(day) &&
+                            'opacity-40 pointer-events-none',
                         )}
                         onClick={() => handleSelectDay(day)}
-                        disabled={minDate && day < new Date(minDate.setHours(0,0,0,0))}
+                        disabled={isDateDisabled(day)}
                       >
                         {day.getDate()}
                       </Button>

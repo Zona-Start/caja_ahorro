@@ -1,4 +1,4 @@
-import { products } from '@/database/schema/administration';
+import { products } from '@/database';
 import { InferInsertModel } from 'drizzle-orm';
 
 export type Product = InferInsertModel<typeof products>;

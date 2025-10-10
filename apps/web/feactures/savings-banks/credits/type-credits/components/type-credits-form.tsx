@@ -54,7 +54,7 @@ export function TypeCreditsForm({
       interestRate: defaultValues?.interestRate
         ? String(defaultValues.interestRate)
         : '0', // Ajuste aquí
-      termType: defaultValues?.termType || 'CUOTAS',
+      termType: defaultValues?.termType || 'Cuotas',
       termUnits: defaultValues?.termUnits
         ? String(defaultValues.termUnits)
         : '0', // Ajuste aquí

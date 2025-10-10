@@ -46,8 +46,15 @@ export const getPaginatedAccountingEntriesAction = async (params: {
     );
   }
 
+  const trasnform = response?.data.map((item: any) => {
+    return {
+      ...item,
+      entryDate: new Date(item.entryDate),
+    };
+  });
+
   return {
-    data: response?.data || [],
+    data: trasnform || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,

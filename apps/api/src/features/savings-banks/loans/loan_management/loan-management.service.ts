@@ -1309,6 +1309,7 @@ export class LoanManagementService {
   async findAllByAssociate(associateId: number) {
     const results = await this.db
       .select({
+        id: loans.id,
         loanType: loanTypes.name,
         interestRate: loanTypes.interestRate,
         loanAmount: loans.requestedAmount,
@@ -1360,6 +1361,91 @@ export class LoanManagementService {
     return {
       message: 'Loans fetched successfully.',
       data: loansWithProgress,
+    };
+  }
+
+  async findLoanDetails(id: number) {
+    const [loan] = await this.db
+      .select({
+        id: loans.id,
+        associateId: loans.associateId,
+        companyId: loans.companyId,
+        loanTypeId: loans.loanTypeId,
+        loanModality: loans.loanModality,
+        requestDate: loans.requestDate,
+        approvalDate: loans.approvalDate,
+        disbursementDate: loans.disbursementDate,
+        requestedAmount: loans.requestedAmount,
+        approvedAmount: loans.approvedAmount,
+        disbursedAmount: loans.disbursedAmount,
+        startDate: loans.startDate,
+        endDate: loans.endDate,
+        totalInterest: loans.totalInterest,
+        installmentAmount: loans.installmentAmount,
+        totalPayable: loans.totalPayable,
+        expensesAmount: loans.expensesAmount,
+        overdraftAmount: loans.overdraftAmount,
+        previousLoanId: loans.previousLoanId,
+        paymentMethod: loans.paymentMethod,
+        disbursementAccountId: loans.disbursementAccountId,
+        status: loans.status,
+        rejectionReason: loans.rejectionReason,
+        approvedByUserId: loans.approvedByUserId,
+        disbursedByUserId: loans.disbursedByUserId,
+        notes: loans.notes,
+        customReference: loans.customReference,
+        currencyCode: loans.currencyCode,
+        exchangeRateId: loans.exchangeRateId,
+        balanceInFavor: loans.balanceInFavor,
+        createdAt: loans.createdAt,
+        updatedAt: loans.updatedAt,
+        createdById: loans.createdById,
+        updatedById: loans.updatedById,
+        associateName: associates.fullname,
+        associateCedula: associates.cedula,
+        loanTypeName: loanTypes.name,
+      })
+      .from(loans)
+      .where(eq(loans.id, id))
+      .leftJoin(associates, eq(loans.associateId, associates.id))
+      .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id));
+
+    if (!loan) {
+      throw new NotFoundException('Loan not found');
+    }
+
+    const amortizationSchedule = await this.db
+      .select()
+      .from(loanAmortizationSchedule)
+      .where(eq(loanAmortizationSchedule.loanId, id))
+      .orderBy(loanAmortizationSchedule.installmentNumber);
+
+    const statusHistory = await this.db
+      .select()
+      .from(loanStatusHistory)
+      .where(eq(loanStatusHistory.loanId, id))
+      .orderBy(desc(loanStatusHistory.changedAt));
+
+    const totalPaid = amortizationSchedule
+      .filter((item) => item.paymentStatus === 'PAID')
+      .reduce((acc, item) => acc + parseFloat(item.paidAmount || '0'), 0);
+
+    const totalPending = Number(loan.totalPayable || 0) - Number(totalPaid);
+
+    return {
+      loan,
+      amortizationSchedule,
+      statusHistory,
+      summary: {
+        totalPaid,
+        totalPending,
+        paidInstallments: amortizationSchedule.filter(
+          (item) => item.paymentStatus === 'PAID',
+        ).length,
+        pendingInstallments: amortizationSchedule.filter(
+          (item) => item.paymentStatus === 'PENDING',
+        ).length,
+      },
     };
   }
 }

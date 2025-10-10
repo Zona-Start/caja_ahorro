@@ -22,6 +22,19 @@ import { usePathname } from 'next/navigation';
 import { IconWrapper } from './icon-wrapper';
 import { Icons } from './icons';
 
+type NavItem = {
+  title: string;
+  url: string;
+  icon?: keyof typeof Icons;
+  colorIcons?: string;
+  isActive?: boolean;
+  items?: {
+    title: string;
+    url: string;
+    icon?: keyof typeof Icons;
+  }[];
+};
+
 export function NavMain({
   titleGroup,
   items,
@@ -43,10 +56,10 @@ export function NavMain({
   const pathname = usePathname();
 
   // Helper function to check if any child is active
-  const isParentActive = (item: any) => {
+  const isParentActive = (item: NavItem) => {
     if (pathname === item.url && item.url !== '#') return true;
     return (
-      item.items?.some((subItem: any) => pathname === subItem.url) || false
+      item.items?.some((subItem: NavItem) => pathname === subItem.url) || false
     );
   };
 
@@ -58,7 +71,7 @@ export function NavMain({
           const Icon = item.icon ? Icons[item.icon] : Icons.logo;
           const isActive = isParentActive(item);
           const hasActiveChild =
-            item.items?.some((subItem: any) => pathname === subItem.url) ||
+            item.items?.some((subItem: NavItem) => pathname === subItem.url) ||
             false;
 
           return item?.items && item?.items?.length > 0 ? (
@@ -132,8 +145,8 @@ export function NavMain({
                 className={cn(
                   'group/menu-item',
                   'text-gray-900 dark:text-gray-100',
-                  '!hover:text-blue-600 !hover:bg-blue-50',
-                  'dark:hover:text-blue-400 dark:hover:bg-blue-950/50',
+                  'hover:!text-blue-600 hover:!bg-blue-100',
+                  'dark:hover:!text-blue-400 dark:hover:!bg-blue-950/50',
                   isActive && [
                     '!text-blue-600 !bg-blue-100 !font-medium',
                     'dark:!text-blue-400 dark:!bg-blue-950/50',

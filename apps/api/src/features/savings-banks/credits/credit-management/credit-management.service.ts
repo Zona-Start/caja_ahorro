@@ -12,6 +12,7 @@ import {
   creditsTypes,
   exchangeRates,
   loans,
+  products,
   systemSettings,
 } from '@/database/index';
 import { associateHaberesBalance } from '@/database/schema/views';
@@ -879,6 +880,7 @@ export class CreditManagementService {
   async findAllByAssociate(associateId: number) {
     const results = await this.db
       .select({
+        id: credits.id,
         creditType: creditsTypes.name,
         interestRate: creditsTypes.interestRate,
         creditAmount: credits.requestedAmount,
@@ -932,6 +934,76 @@ export class CreditManagementService {
     return {
       message: 'Credits fetched successfully.',
       data: creditsWithProgress,
+    };
+  }
+
+  async findCreditDetails(id: number) {
+    const [credit] = await this.db
+      .select({
+        ...credits,
+        associateName: associates.fullname,
+        associateCedula: associates.cedula,
+        creditTypeName: creditsTypes.name,
+      })
+      .from(credits)
+      .where(eq(credits.id, id))
+      .leftJoin(associates, eq(credits.associateId, associates.id))
+      .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id));
+
+    if (!credit) {
+      throw new NotFoundException('Credit not found');
+    }
+
+    const amortizationSchedule = await this.db
+      .select()
+      .from(creditAmortizationSchedule)
+      .where(eq(creditAmortizationSchedule.creditId, id))
+      .orderBy(creditAmortizationSchedule.installmentNumber);
+
+    const statusHistory = await this.db
+      .select()
+      .from(creditStatusHistory)
+      .where(eq(creditStatusHistory.creditId, id))
+      .orderBy(desc(creditStatusHistory.changedAt));
+
+    const items = await this.db
+      .select({
+        id: schema.creditItemSales.id,
+        creditId: schema.creditItemSales.creditId,
+        itemType: schema.creditItemSales.itemType,
+        itemId: schema.creditItemSales.itemId,
+        quantity: schema.creditItemSales.quantity,
+        agreedSellingPrice: schema.creditItemSales.agreedSellingPrice,
+        saleDate: schema.creditItemSales.saleDate,
+        deliveryStatus: schema.creditItemSales.deliveryStatus,
+        days: schema.creditItemSales.days,
+        itemName: products.name,
+      })
+      .from(schema.creditItemSales)
+      .leftJoin(products, eq(products.id, schema.creditItemSales.itemId))
+      .where(eq(schema.creditItemSales.creditId, id));
+
+    const totalPaid = amortizationSchedule
+      .filter((item) => item.paymentStatus === 'PAID')
+      .reduce((acc, item) => acc + parseFloat(item.paidAmount || '0'), 0);
+
+    const totalPending = Number(credit.totalPayable || '0') - totalPaid;
+
+    return {
+      credit,
+      amortizationSchedule,
+      statusHistory,
+      items,
+      summary: {
+        totalPaid,
+        totalPending,
+        paidInstallments: amortizationSchedule.filter(
+          (item) => item.paymentStatus === 'PAID',
+        ).length,
+        pendingInstallments: amortizationSchedule.filter(
+          (item) => item.paymentStatus === 'PENDING',
+        ).length,
+      },
     };
   }
 }

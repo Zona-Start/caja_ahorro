@@ -125,3 +125,40 @@ export const PAYMENT_METHOD_TYPES = {
   OTHER: 'Otro',
   MOBILE_PAYMENT: 'Pago Móvil',
 } as const;
+
+export const ASSOCIATE_STATUS_TYPES = {
+  ACTIVE: 'Activo',
+  INACTIVE: 'inactivo',
+  SUSPENDED: 'Suspendido',
+  LOCKED: 'Bloqueado',
+  RETIRED: 'Retirado',
+  ARCHIVED: 'Archivado',
+} as const;
+
+export const PAYMENT_LOAN_STATUS = {
+  PENDING: 'Pendiente',
+  PAID: 'Pagado',
+  OVERDUE: 'Vencido',
+  PARTIAL: 'Parcial',
+  CANCELED: 'Cancelado',
+} as const;
+
+export const CREDIT_SATUS = {
+  REQUESTED: 'Solicitado',
+  APPROVED: 'Aprobado',
+  IN_PAYMENT: 'En Pago',
+  PAID: 'Pagado',
+} as const;
+
+export const WITHDRAWAL_SATUS = {
+  REQUESTED: 'Solicitado',
+  APPROVED: 'Aprobado',
+  REJECTED: 'Rechazado',
+  REVERSED: 'Reversado',
+  CANCELLED: 'Cancelado',
+  PENDING_DISBURSEMENT_BANK_BATCH: 'Pendiente por Lote',
+  DISBURSED: 'Desembolsado',
+  DISBURSEMENT_FAILED: 'Desembolso Fallido',
+  DISBURSED_REVERSED: 'Desembolso Reversado',
+  ADJUSTED: 'Ajustado',
+} as const;

@@ -155,14 +155,18 @@ export class SettlementAssociateService {
         .insert(liquidationsAssociates)
         .values({
           associateId: associateId,
-          liquidationDate: liquidationDate,
+          liquidationDate: liquidationDate?.toISOString(),
           currencyCode: 'VES' as CurrencyCodeEnum,
-          totalSavingsBalanceAtLiquidation: totalSavingsBalanceAtLiquidation,
-          totalOutstandingLoansAtLiquidation:
+          totalSavingsBalanceAtLiquidation: String(
+            totalSavingsBalanceAtLiquidation,
+          ),
+          totalOutstandingLoansAtLiquidation: String(
             totalOutstandingLoansAtLiquidation,
-          totalOutstandingCreditsAtLiquidation:
+          ),
+          totalOutstandingCreditsAtLiquidation: String(
             totalOutstandingCreditsAtLiquidation,
-          netLiquidationAmount: netLiquidationAmount,
+          ),
+          netLiquidationAmount: String(netLiquidationAmount),
           status: 'REQUESTED', // Estado inicial de la solicitud
           notes: notes,
           createdById: Number(userId),

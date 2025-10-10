@@ -84,7 +84,7 @@ export function LoanSummary({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {selectedAssociate?.loanAmortization.map((cuota) => (
+                {selectedAssociate?.loanAmortization?.map((cuota) => (
                   <TableRow
                     key={cuota.quotaNumber}
                     className={

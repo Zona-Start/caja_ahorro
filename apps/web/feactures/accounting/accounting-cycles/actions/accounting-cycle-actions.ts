@@ -1,5 +1,6 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
+import { CycleStatusEnum } from '../schemas/accounting-cycle-options';
 import {
   accountingCycleListResponseSchema,
   accountingCyclePaginationResponseSchema,
@@ -52,8 +53,18 @@ export const getPaginatedAccountingCyclesAction = async (params: {
     );
   }
 
+  const transform = response?.data.map((item: any) => {
+    return {
+      ...item,
+      status: item.status as CycleStatusEnum,
+      startDate: new Date(item.startDate),
+      endDate: new Date(item.endDate),
+      closedAt: item.closedAt ? new Date(item.closedAt) : null,
+    };
+  });
+
   return {
-    data: response?.data || [],
+    data: transform || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,

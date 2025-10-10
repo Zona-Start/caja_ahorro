@@ -309,7 +309,7 @@ export class AccountingEntriesService {
   ): Promise<AccountingEntry> {
     const existing = await this.findOne(id);
     if (existing.status !== entryStatusEnum.DRAFT)
-      throw new BadRequestException('Solo se puede editar en BORRADOR.');
+      throw new BadRequestException('Solo se puede editar en Borrador.');
 
     // Si no envía details, mantén los existentes; si envía, úsalos
     /* ---------- normaliza SIEMPRE un array válido ---------- */
@@ -374,7 +374,7 @@ export class AccountingEntriesService {
   async remove(id: number): Promise<{ message: string }> {
     const existing = await this.findOne(id);
     if (existing.status !== entryStatusEnum.DRAFT)
-      throw new BadRequestException('Solo se puede eliminar en BORRADOR.');
+      throw new BadRequestException('Solo se puede eliminar en Borrador.');
     await this.drizzle
       .delete(schema.accountingEntries)
       .where(eq(schema.accountingEntries.id, id));
@@ -385,7 +385,7 @@ export class AccountingEntriesService {
   async submitEntry(userId: number, id: number): Promise<AccountingEntry> {
     const existing = await this.findOne(id);
     if (existing.status !== entryStatusEnum.DRAFT)
-      throw new BadRequestException('Solo se puede someter en BORRADOR.');
+      throw new BadRequestException('Solo se puede someter en Borrador.');
 
     // ❗ Garantiza array
     if (!existing.details?.length)
@@ -421,7 +421,7 @@ export class AccountingEntriesService {
   async postEntry(userId: number, id: number): Promise<AccountingEntry> {
     const existing = await this.findOne(id);
     if (existing.status !== entryStatusEnum.PENDING)
-      throw new BadRequestException('Solo se puede contabilizar en PENDIENTE.');
+      throw new BadRequestException('Solo se puede contabilizar en Pendiente.');
 
     const cycle = await this.accountingCyclesService.findOne(
       existing.accountingCycleId,

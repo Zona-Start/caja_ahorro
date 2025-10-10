@@ -5,10 +5,10 @@ import { ColumnDef } from '@tanstack/react-table';
 import {
   PAYMENT_METHOD_TYPES,
   SUPPLIER_PAYMENT_STATUS_TYPES,
-  SupplierPayment,
 } from '../../schemas';
+import { SupplierPaymentRow } from '../../types/table';
 
-export const columns: ColumnDef<SupplierPayment>[] = [
+export const columns: ColumnDef<SupplierPaymentRow>[] = [
   {
     accessorKey: 'paymentNumber',
     header: 'Número',
@@ -17,7 +17,9 @@ export const columns: ColumnDef<SupplierPayment>[] = [
     accessorKey: 'requestedAt',
     header: 'Fecha',
     cell: ({ row }) => {
-      const date = new Date(row.original.requestedAt);
+      const date = row.original.requestedAt
+        ? new Date(row.original.requestedAt)
+        : new Date();
       return date.toLocaleDateString();
     },
   },

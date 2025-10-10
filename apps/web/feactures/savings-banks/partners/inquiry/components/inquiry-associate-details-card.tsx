@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { Badge } from '@repo/shadcn/components/ui/badge';
 import { Label } from '@repo/shadcn/components/ui/label';
 import { User } from 'lucide-react';
+import { ASSOCIATE_STATUS_TYPES } from '../schemas/inquiry-options';
 import { AssociateDetails } from '../schemas/inquiry-schema';
 
 interface InquiryAssociateDetailsCardProps {
@@ -29,6 +30,35 @@ export function InquiryAssociateDetailsCard({
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('es-VE');
   };
+
+  const status = associate.status;
+  const statusText =
+    ASSOCIATE_STATUS_TYPES[status as keyof typeof ASSOCIATE_STATUS_TYPES] ||
+    status;
+  const statusVariant:
+    | 'default'
+    | 'destructive'
+    | 'outline'
+    | 'secondary'
+    | 'success'
+    | 'warning' = (() => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'success';
+      case 'INACTIVE':
+        return 'secondary';
+      case 'SUSPENDED':
+        return 'warning';
+      case 'LOCKED':
+        return 'destructive';
+      case 'RETIRED':
+        return 'default';
+      case 'ARCHIVED':
+        return 'outline';
+      default:
+        return 'default';
+    }
+  })();
 
   return (
     <Card>
@@ -94,7 +124,12 @@ export function InquiryAssociateDetailsCard({
             <Label className="text-sm font-medium text-muted-foreground">
               Estado
             </Label>
-            <div className="mt-1">{associate.status}</div>
+            <div className="mt-1">
+              {' '}
+              <Badge className="text-sm" variant={statusVariant as any}>
+                {statusText}
+              </Badge>
+            </div>
           </div>
           <div>
             <Label className="text-sm font-medium text-muted-foreground">

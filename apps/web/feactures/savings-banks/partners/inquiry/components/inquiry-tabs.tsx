@@ -2,18 +2,12 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/shadcn/tabs';
 import { useState } from 'react';
-import {
-  useCredits,
-  useLoans,
-  useTransactionHistory,
-  useWithdrawals,
-} from '../hooks/use-inquiry-queries';
 import { AssociateDetails } from '../schemas/inquiry-schema';
+import { CreditsTab } from './credits/credits-tab';
 import { HaberesTab } from './haberes/haberes-tab';
-import { CreditsTab } from './tabs/credits-tab';
-import { TransactionHistoryTab } from './tabs/history-tab';
-import { LoansTab } from './tabs/loans-tab';
-import { WithdrawalsTab } from './tabs/withdrawals-tab';
+import { HistoryTab } from './history/history-tab';
+import { LoansTab } from './loans/loans-tab';
+import { WithdrawalsTab } from './withdrawals/withdrawals-tab';
 
 interface InquiryTabsProps {
   associate: AssociateDetails;
@@ -21,34 +15,6 @@ interface InquiryTabsProps {
 
 export function InquiryTabs({ associate }: InquiryTabsProps) {
   const [activeTab, setActiveTab] = useState('haberes');
-
-  // const {
-  //   data: haberesData,
-  //   isLoading: haberesLoading,
-  //   isError: haberesIsError,
-  // } = useHaberesMovements(associate.id, { enabled: activeTab === 'haberes' });
-  const {
-    data: withdrawalsData,
-    isLoading: withdrawalsLoading,
-    isError: withdrawalsIsError,
-  } = useWithdrawals(associate.id, { enabled: activeTab === 'retiros' });
-  const {
-    data: historyData,
-    isLoading: historyLoading,
-    isError: historyIsError,
-  } = useTransactionHistory(associate.id, {
-    enabled: activeTab === 'historial',
-  });
-  const {
-    data: loansData,
-    isLoading: loansLoading,
-    isError: loansIsError,
-  } = useLoans(associate.id, { enabled: activeTab === 'prestamos' });
-  const {
-    data: creditsData,
-    isLoading: creditsLoading,
-    isError: creditsIsError,
-  } = useCredits(associate.id, { enabled: activeTab === 'creditos' });
 
   return (
     <div className="w-full  h-[80vh] flex flex-col">
@@ -115,39 +81,19 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="haberes" className="flex-1 flex flex-col mt-4">
-          <HaberesTab
-            id={associate.id}
-            // isLoading={haberesLoading}
-            // isError={haberesIsError}
-          />
+          <HaberesTab id={associate.id} />
         </TabsContent>
-        <TabsContent value="retiros">
-          <WithdrawalsTab
-            data={withdrawalsData!}
-            isLoading={withdrawalsLoading}
-            isError={withdrawalsIsError}
-          />
+        <TabsContent value="retiros" className="flex-1 flex flex-col mt-4">
+          <WithdrawalsTab id={associate.id} />
         </TabsContent>
-        <TabsContent value="historial">
-          <TransactionHistoryTab
-            data={historyData!}
-            isLoading={historyLoading}
-            isError={historyIsError}
-          />
+        <TabsContent value="historial" className="flex-1 flex flex-col mt-4">
+          <HistoryTab id={associate.id} />
         </TabsContent>
-        <TabsContent value="prestamos">
-          <LoansTab
-            data={loansData!}
-            isLoading={loansLoading}
-            isError={loansIsError}
-          />
+        <TabsContent value="prestamos" className="flex-1 flex flex-col mt-4">
+          <LoansTab id={associate.id} />
         </TabsContent>
-        <TabsContent value="creditos">
-          <CreditsTab
-            data={creditsData!}
-            isLoading={creditsLoading}
-            isError={creditsIsError}
-          />
+        <TabsContent value="creditos" className="flex-1 flex flex-col mt-4">
+          <CreditsTab id={associate.id} />
         </TabsContent>
       </Tabs>
     </div>

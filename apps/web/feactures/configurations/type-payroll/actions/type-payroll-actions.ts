@@ -50,8 +50,17 @@ export const getTypePayrollPaginatedAction = async (params: {
     throw new Error(error.message || 'An unknown error occurred');
   }
 
+  const trasnform = response?.data.map((item: any) => {
+    return {
+      ...item,
+      deferredDate: item.deferredDate
+        ? new Date(item.deferredDate)
+        : new Date(),
+    };
+  });
+
   return {
-    data: response?.data,
+    data: trasnform,
     meta: response?.meta || {
       page: 1,
       limit: 10,

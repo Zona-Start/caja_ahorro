@@ -25,7 +25,7 @@ export const paymentBatchApiSchema = z.object({
   status: z.string(),
   recordCount: z.number(),
   totalAmount: z.string(), // Numeric as string from backend
-  currencyCode: currencyCodeEnum,
+  currencyCode: z.enum(currencyCodeEnum),
   paymentBatchReference: z.string(),
   bankId: z.number(),
   bankFileName: z.string().nullable().optional(),
@@ -40,7 +40,7 @@ export const paymentBatchApiSchema = z.object({
       id: z.number(),
       name: z.string(),
       accountNumber: z.string(),
-      currencyCode: currencyCodeEnum,
+      currencyCode: z.enum(currencyCodeEnum),
     })
     .optional(),
 });

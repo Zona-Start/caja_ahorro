@@ -12,16 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import { CreditManagementDetails } from '../schemas/credit-management-details';
 import {
   CREDIT_MODALITY,
   ESTATUS_TYPES,
 } from '../schemas/credits-management-options';
+import { CreditManagement } from '../schemas/credits-management.schema';
 
 interface CreditDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  credit: CreditManagementDetails | null;
+  credit: CreditManagement | null;
 }
 
 const DetailItem = ({
@@ -122,14 +122,14 @@ export function CreditDetailsModal({
                   <Badge variant={statusVariant as any}>{statusLabel}</Badge>
                 }
               />
-              <DetailItem
+              {/* <DetailItem
                 label="Tasa de Interés Anual"
                 value={`${credit.creditTypeInterestRate}%`}
               />
               <DetailItem
                 label="Plazo"
                 value={`${credit.creditTypeTermUnits} meses`}
-              />
+              /> */}
               <DetailItem
                 label="Fecha de Solicitud"
                 value={formatDate(credit.requestDate).toString()}

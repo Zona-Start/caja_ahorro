@@ -76,6 +76,15 @@ export class CreditManagementController {
     return this.creditManagementService.findOne(+id);
   }
 
+  @Get(':id/details')
+  @RequirePermissions('read:credit-management')
+  @ApiOperation({ summary: 'Get credit details by ID' })
+  @ApiResponse({ status: 200, description: 'Return credit details.' })
+  @ApiResponse({ status: 404, description: 'Credit not found.' })
+  findCreditDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.creditManagementService.findCreditDetails(id);
+  }
+
   // @Patch(':id')
   // @RequirePermissions('update:credit-management')
   // @ApiOperation({ summary: 'Update an credit ' })

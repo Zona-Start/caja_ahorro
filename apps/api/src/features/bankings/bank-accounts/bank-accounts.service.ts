@@ -150,14 +150,16 @@ export class BankAccountsService {
         })
         .where(eq(schema.bankAccounts.id, dto.bankAccountId));
 
-      // 4. Movimiento bancario inicial (siempre)
+      // 4. Movimiento bancario inicial (siempre)}
+      // 2. Comprueba el tipo que INFIERE Drizzle
+
       const [openingTx] = await tx
         .insert(schema.bankTransactions)
         .values({
           bankAccountId: dto.bankAccountId,
           paymentMethod: 'OTHER',
-          transactionDate: dto.lastStatementDate,
-          valueDate: dto.lastStatementDate,
+          transactionDate: dto.lastStatementDate.toISOString(),
+          valueDate: dto.lastStatementDate.toISOString(),
           description: 'Saldo inicial extracto',
           category: 'OPENING_BANK',
           creditAmount: dto.lastStatementBalance.toString(),

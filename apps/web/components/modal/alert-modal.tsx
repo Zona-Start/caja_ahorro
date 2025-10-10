@@ -11,7 +11,7 @@ interface AlertModalProps {
   onConfirm?: () => void;
   loading?: boolean;
 }
-
+/* eslint-disable react/prop-types */
 export const AlertModal: React.FC<AlertModalProps> = ({
   title = 'Are you sure?',
   description = 'This action cannot be undone.',

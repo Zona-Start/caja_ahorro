@@ -1,10 +1,10 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
+import { accountPlanListApiResponseSchema } from '../schemas/account-plan-api';
 import { ACCOUNT_LEVELS, ACCOUNT_TYPES } from '../schemas/account-plan-options';
 import {
   AccountPlan,
   accountPlanDeleteResponseSchema,
-  accountPlanListResponseSchema,
   accountPlanPaginationResponseSchema,
   accountPlanResponseSchema,
 } from '../schemas/account-plan.schema';
@@ -43,7 +43,7 @@ const transformAccountPlanData = async (accounts: AccountPlan[]) => {
 
 export const getAccountPlansAction = async () => {
   const [error, data] = await safeFetchApi(
-    accountPlanListResponseSchema,
+    accountPlanListApiResponseSchema,
     '/account-plan',
     'GET',
   );

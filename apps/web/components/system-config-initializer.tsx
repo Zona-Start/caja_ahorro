@@ -20,21 +20,18 @@ function SystemConfigInitializer() {
   const {
     data: settingsData,
     isLoading: isSettingsLoading,
-    isError: isSettingsError,
     error: settingsError,
   } = useSettingsSystemConfig();
 
   const {
     data: currenciesData,
     isLoading: isCurrenciesLoading,
-    isError: isCurrenciesError,
     error: currenciesError,
   } = useCurrenciesConfig();
 
   const {
     data: exchangeRatesData,
     isLoading: isExchangeRatesLoading,
-    isError: isExchangeRatesError,
     error: exchangeRatesError,
   } = useExchangeRateConfig();
 

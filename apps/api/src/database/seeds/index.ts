@@ -2,7 +2,6 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { envs } from 'src/common/config/envs';
 import * as schema from '../index';
-import { seedAccountPlan } from './accounting-plans_nuevo';
 import { seedAdminRolePermission } from './admin-role-permission.seed';
 import { seedBankCategoryRule } from './bankCategoryRule';
 import { seedBankDirectory } from './banks-directory';
@@ -18,6 +17,7 @@ import { seedLocalities } from './localities';
 import { seedMunicipalites } from './municipalities';
 import { seedParishes } from './parishes';
 import { seedPermissions } from './permissions.seed';
+import { seedAllAccountPlanData } from './semill_accounting';
 import { seedStates } from './states';
 import { seedSystemSetting } from './system-settings';
 import { seedUserAdmin } from './user-admin-roles.seed';
@@ -46,7 +46,7 @@ async function main() {
     await seedBankCategoryRule(db);
     await seedExchangeRate(db); // Assuming this function is defined in the same file or imported correctly
     await seedFirstAccountingCycle(db);
-    await seedAccountPlan(db); // Assuming this function is defined in the same file or imported correctly
+    await seedAllAccountPlanData(db);
     await seedCategories(db); // Assuming this function is defined in the same file or imported correctly
     await seedAccountingConfiguration(db); // Assuming this function is defined in the same file or imported correctly
 

@@ -1,4 +1,4 @@
-import { inventoriesCategories } from '@/database/schema/administration';
+import { inventoriesCategories } from '@/database';
 import { InferInsertModel } from 'drizzle-orm';
 
 export type InventoriesCategories = InferInsertModel<

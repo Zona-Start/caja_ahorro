@@ -10,7 +10,7 @@ export const typeLoanSchema = z.object({
       message: 'Debe ser un número mayor o igual a 1',
     })
     .default('1'),
-  termType: z.enum(['CUOTAS', 'PLAZO']),
+  termType: z.enum(['Cuotas', 'Plazos']),
   termUnits: z
     .string({ message: 'Requerido' })
     .refine((val) => !isNaN(Number(val)) && Number(val) >= 1, {

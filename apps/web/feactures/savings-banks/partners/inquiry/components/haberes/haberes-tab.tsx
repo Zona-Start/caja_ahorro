@@ -45,16 +45,11 @@ export function HaberesTab({ id }: HaberesTabProps) {
       />
     );
 
-  if (!haberesData || haberesData?.data.length === 0)
-    return (
-      <AuxiliarComponents text="No hay movimientos de haberes para mostrar." />
-    );
-
   return (
     <DataTable
       columns={columns}
       data={haberesData?.data || []}
-      totalItems={haberesData?.data.length} // Asegúrate que tu API devuelva este valor
+      totalItems={haberesData?.data.length || 0} // Asegúrate que tu API devuelva este valor
     />
   );
 }

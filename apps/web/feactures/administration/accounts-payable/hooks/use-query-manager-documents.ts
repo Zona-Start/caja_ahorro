@@ -27,7 +27,7 @@ export function useSupplierTransactionsNoteDebit() {
 
 export function useAppliedTransaction(id: number | null) {
   return useSafeQuery(
-    queryKeys.supplierTransactions.appliedTrasaction(id),
+    queryKeys.supplierTransactions.appliedTransaction(id),
     () => getAppliedTransactionAction(id!),
     {
       enabled: id !== null,

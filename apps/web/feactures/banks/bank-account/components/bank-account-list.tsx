@@ -35,11 +35,11 @@ export default function BankAccountList({
 
   const { data, isLoading } = useBankAccount(filters);
 
-  const { 
-    setTotalBookBalanceBs, 
-    setTotalStatementBalanceBs, 
-    setTotalBookBalanceUsd, 
-    setTotalStatementBalanceUsd 
+  const {
+    setTotalBookBalanceBs,
+    setTotalStatementBalanceBs,
+    setTotalBookBalanceUsd,
+    setTotalStatementBalanceUsd,
   } = useBankAccountStore();
 
   useEffect(() => {
@@ -67,7 +67,13 @@ export default function BankAccountList({
       setTotalBookBalanceUsd(totalBookUsd);
       setTotalStatementBalanceUsd(totalStatementUsd);
     }
-  }, [data, setTotalBookBalanceBs, setTotalStatementBalanceBs, setTotalBookBalanceUsd, setTotalStatementBalanceUsd]);
+  }, [
+    data,
+    setTotalBookBalanceBs,
+    setTotalStatementBalanceBs,
+    setTotalBookBalanceUsd,
+    setTotalStatementBalanceUsd,
+  ]);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={6} rowCount={initialLimit} />;
@@ -78,7 +84,7 @@ export default function BankAccountList({
       columns={columns}
       data={(data?.data || []).map((item) => ({
         ...item,
-        accountName: item.accountName ?? undefined,
+        accountName: item.accountName ? item.accountName : 'No Disponible',
         currencyCode: item.currencyCode as 'VES' | 'USD',
         lastStatementDate: item.lastStatementDate
           ? new Date(item.lastStatementDate)

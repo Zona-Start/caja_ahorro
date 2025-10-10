@@ -6,10 +6,6 @@ import { SessionProvider, SessionProviderProps } from 'next-auth/react';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { ReactNode } from 'react';
 
-type ProvidersProps = {
-  children: ReactNode;
-};
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

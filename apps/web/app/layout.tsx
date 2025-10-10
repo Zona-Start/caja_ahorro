@@ -17,8 +17,10 @@ const GeistMono = localFont({
   variable: '--font-geist-mono',
 });
 
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
 export const metadata = {
-  metadataBase: new URL('https://turbo-npn.onrender.com'),
+  metadataBase: new URL(BASE_URL),
   title: {
     default: 'Caja de Ahorro',
     template: '%s | Caja de Ahorro',
@@ -27,13 +29,13 @@ export const metadata = {
     type: 'website',
     title: 'Caja de Ahorro',
     description: 'Sistema integral para cajas de ahorro',
-    url: 'https://turbo-npn.onrender.com',
+    url: BASE_URL,
     images: [
       {
-        url: '/og-bg.png',
+        url: '/logo.png',
         width: 1200,
         height: 628,
-        alt: 'Turbo NPN Logo',
+        alt: 'Caja Ahorro Logo',
       },
     ],
   },

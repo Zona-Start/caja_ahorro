@@ -4,14 +4,8 @@ const TypePayrollApiSchema = z.object({
   id: z.number().optional(),
   code: z.string(),
   description: z.string(),
-  deferredDate: z
-    .string()
-    .transform((str) => (str ? new Date(str) : null))
-    .nullable(),
-  dateCanceled: z
-    .string()
-    .transform((str) => (str ? new Date(str) : null))
-    .nullable(),
+  deferredDate: z.string().nullable(),
+  dateCanceled: z.string().nullable(),
   deferredNumber: z.number().nullable(),
   numberCanceled: z.number().nullable(),
   group: z.string(),

@@ -80,22 +80,14 @@ export class LoanManagementController {
     return this.loanManagementService.findAllByAssociate(+associateId);
   }
 
-  // @Patch(':id')
-  // @RequirePermissions('update:loan-management')
-  // @ApiOperation({ summary: 'Update an Loan ' })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'Loan  updated successfully.',
-  // })
-  // @ApiResponse({ status: 404, description: 'Loan  not found.' })
-  // update(
-  //   @Req() req: Request,
-  //   @Param('id') id: string,
-  //   @Body() updateLoanDto: UpdateLoanDto,
-  // ) {
-  //   const userdId = req['user'].id;
-  //   return this.loanManagementService.update(+id, updateLoanDto, userdId);
-  // }
+  @Get(':id/details')
+  @RequirePermissions('read:loan-management')
+  @ApiOperation({ summary: 'Get loan details by ID' })
+  @ApiResponse({ status: 200, description: 'Return loan details.' })
+  @ApiResponse({ status: 404, description: 'Loan not found.' })
+  findLoanDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.loanManagementService.findLoanDetails(id);
+  }
 
   @Patch('approve/:id')
   async approve(@Param('id', ParseIntPipe) id: number, @Req() req: Request) {

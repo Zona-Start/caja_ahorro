@@ -1,4 +1,4 @@
-import { services } from '@/database/schema/administration';
+import { services } from '@/database';
 import { InferInsertModel } from 'drizzle-orm';
 
 export type Service = InferInsertModel<typeof services>;

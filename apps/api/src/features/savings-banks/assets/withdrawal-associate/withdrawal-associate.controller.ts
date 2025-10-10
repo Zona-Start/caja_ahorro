@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -61,9 +62,21 @@ export class WithdrawalAssociateController {
   @Get('by-associate/:associateId')
   @RequirePermissions('read:withdrawals-by-associate')
   @ApiOperation({ summary: 'Get all withdrawals for an associate' })
-  @ApiResponse({ status: 200, description: 'Return all withdrawals for the associate.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all withdrawals for the associate.',
+  })
   findAllByAssociate(@Param('associateId') associateId: string) {
     return this.service.findAllByAssociate(+associateId);
+  }
+
+  @Get(':id/details')
+  @RequirePermissions('read:withdrawal-associate')
+  @ApiOperation({ summary: 'Get withdrawal details by ID' })
+  @ApiResponse({ status: 200, description: 'Return withdrawal details.' })
+  @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
+  findWithdrawalDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findWithdrawalDetails(id);
   }
 
   @Patch(':id/approve')

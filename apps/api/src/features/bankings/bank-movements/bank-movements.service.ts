@@ -564,6 +564,26 @@ export class BankMovementsService {
         area: 'Retiros',
       });
 
+      if (Number(result?.administrativeFee) !== 0) {
+        const cal =
+          (Number(result.requestedAmount) * Number(result.administrativeFee)) /
+          100;
+        const expanseAdministration = Number(result.requestedAmount) - cal;
+
+        await this.assocMvts.create(userId, {
+          associateAccountId: result.associateAccountId as number,
+          movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
+          amount: Number(expanseAdministration),
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: new Date(),
+          description: `Gasto Administrativo por Desembolso de retiro - REF: ${result.referenceCode}`,
+          referenceId: String(btId),
+          referenceType: dataBank.category,
+          referenceNumber: dataBank.bankReference ?? undefined,
+          area: 'Retiros',
+        });
+      }
+
       await tx
         .update(schema.withdrawalsAssociates)
         .set({
@@ -622,6 +642,11 @@ export class BankMovementsService {
         .from(schema.loans)
         .where(eq(schema.loans.id, id));
 
+      const [loanType] = await tx
+        .select()
+        .from(schema.loanTypes)
+        .where(eq(schema.loanTypes.id, result.loanTypeId));
+
       // 2. Movimiento interno (crédito a asociado)
       await this.assocMvts.create(userId, {
         associateAccountId: result.associateId as number,
@@ -630,22 +655,6 @@ export class BankMovementsService {
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: new Date(),
         description: `Desembolso de prestamo - N°: ${result.customReference}`,
-        referenceId: String(btId),
-        referenceType: dataBank.category,
-        referenceNumber: dataBank.bankReference ?? undefined,
-        area: 'PRESTAMOS',
-      });
-
-      const expanseAdministration =
-        Number(result.approvedAmount) - Number(result.disbursedAmount);
-
-      await this.assocMvts.create(userId, {
-        associateAccountId: result.associateId as number,
-        movementType: AssociateMovementTypeEnum.LOAN_ADMIN_FEE_DEBIT,
-        amount: Number(expanseAdministration),
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: new Date(),
-        description: `Comision Administrativa por Desembolso de prestamo - N°: ${result.customReference}`,
         referenceId: String(btId),
         referenceType: dataBank.category,
         referenceNumber: dataBank.bankReference ?? undefined,
@@ -674,17 +683,36 @@ export class BankMovementsService {
         },
         tx,
       );
-      await this.audit.create(
-        {
-          action: 'UPDATE' as ActionEnumAudit,
+
+      if (Number(loanType.administrativeExpensePercentage) > 0) {
+        const expanseAdministration =
+          Number(result.approvedAmount) - Number(result.disbursedAmount);
+
+        await this.assocMvts.create(userId, {
+          associateAccountId: result.associateId as number,
+          movementType: AssociateMovementTypeEnum.LOAN_ADMIN_FEE_DEBIT,
+          amount: Number(expanseAdministration),
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: new Date(),
+          description: `Comision Administrativa por Desembolso de prestamo - N°: ${result.customReference}`,
+          referenceId: String(btId),
+          referenceType: dataBank.category,
+          referenceNumber: dataBank.bankReference ?? undefined,
           area: 'PRESTAMOS',
-          description: 'Comision Administrativa por Desembolso de Prestamo',
-          recordId: String(btId),
-          tableName: 'loans',
-          userId: Number(userId),
-        },
-        tx,
-      );
+        });
+
+        await this.audit.create(
+          {
+            action: 'UPDATE' as ActionEnumAudit,
+            area: 'PRESTAMOS',
+            description: 'Comision Administrativa por Desembolso de Prestamo',
+            recordId: String(btId),
+            tableName: 'loans',
+            userId: Number(userId),
+          },
+          tx,
+        );
+      }
     }
 
     const map: Record<string, () => any> = {
@@ -847,7 +875,6 @@ export class BankMovementsService {
         .insert(schema.bankTransactions)
         .values({
           bankAccountId: Number(orig.bankAccountId),
-          transactionType: 'BANK_TRANSFER', // mismo medio
           transactionDate: dto.valueDate,
           valueDate: dto.valueDate,
           description: `Reversa de ${orig.description}`,
@@ -856,8 +883,8 @@ export class BankMovementsService {
           debitAmount: orig.creditAmount, // invierte signo
           creditAmount: orig.debitAmount,
           note: dto.reason ?? 'Reversión usuario',
-          source: 'USER_REVERSAL',
           createdById: userId,
+          paymentMethod: orig.paymentMethod,
         })
         .returning();
 
@@ -901,10 +928,10 @@ export class BankMovementsService {
         accountingCycleId: 1,
         entryDate: rev.transactionDate,
         description: `Reversal of ${orig.category as BankTransactionCategory} #${orig.id}`,
-        originReferenceId: orig.id,
+        originReferenceId: String(orig.id),
         originType: 'BANK_TRANSACTION',
         status: 'POSTED',
-        postedAt: new Date().toISOString(),
+        postedAt: new Date(),
         currencyCode: 'VES',
       })
       .returning();

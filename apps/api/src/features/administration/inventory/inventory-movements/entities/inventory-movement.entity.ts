@@ -1,4 +1,4 @@
-import { inventoryMovements } from '@/database/schema/administration';
+import { inventoryMovements } from '@/database';
 import { InferInsertModel } from 'drizzle-orm';
 
 export type InventoryMovement = InferInsertModel<typeof inventoryMovements>;

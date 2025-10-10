@@ -17,7 +17,7 @@ const Error = ({ error, reset }: { error: Error; reset: () => void }) => {
   return (
     <div className="w-full flex flex-col min-h-dvh gap-9 items-center justify-center">
       <p className="font-semibold">
-        Oh no, something went wrong... maybe refresh?
+        Oh no, algo salió mal... ¿Quieres actualizar?
       </p>
       <Button
         onClick={() => {
@@ -27,7 +27,7 @@ const Error = ({ error, reset }: { error: Error; reset: () => void }) => {
           });
         }}
       >
-        Try Again
+        Intentar otra vez
         <RotateCw className={cn('size-5', isPending && 'animate-spin')} />
       </Button>
     </div>

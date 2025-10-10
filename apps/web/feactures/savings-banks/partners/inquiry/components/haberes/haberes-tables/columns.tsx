@@ -4,7 +4,6 @@ import { formatCurrency } from '@/lib/formatCurrent';
 import { ColumnDef } from '@tanstack/react-table';
 import { HaberesData } from '../../../schemas/haberes-schema';
 import { MOVEMENT_TYPES } from '../../../schemas/inquiry-options';
-import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<HaberesData>[] = [
   {
@@ -41,9 +40,9 @@ export const columns: ColumnDef<HaberesData>[] = [
       return monto || 0;
     },
   },
-  {
-    id: 'actions',
-    header: 'Acciones',
-    cell: ({ row }) => <CellAction data={row.original} />,
-  },
+  // {
+  //   id: 'actions',
+  //   header: 'Acciones',
+  //   cell: ({ row }) => <CellAction data={row.original} />,
+  // },
 ];

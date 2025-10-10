@@ -149,8 +149,6 @@ export const getAccountPayableReportAction = async (id: number) => {
     null, // No schema needed for binary data
     `/administration/accounts-payable/report/${id}`,
     'GET',
-    null, // No body
-    // 'arraybuffer', // Expect binary data
   );
 
   if (error) {

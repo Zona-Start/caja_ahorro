@@ -31,7 +31,7 @@ interface FormProps {
 
 export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
   const { mutate: reversePayment, isPending } = useReversePaymentMutation();
-  const { data: suppliers, isLoading: isLoadingSuppliers } = useSupplierAll();
+  const { data: suppliers } = useSupplierAll();
 
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
 
@@ -44,8 +44,7 @@ export function ReversePaymentForm({ onSuccess, onCancel }: FormProps) {
 
   const { data: supplierPayments, isLoading: isLoadingSupplierPayments } =
     useSupplierPayments({
-      supplierIds: actualSupplierIds,
-      status: 'PROCESSED',
+      status: ['PROCESSED'],
     });
 
   const form = useForm<ReversePayment>({

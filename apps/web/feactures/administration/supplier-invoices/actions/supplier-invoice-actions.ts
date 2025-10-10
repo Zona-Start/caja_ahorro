@@ -59,8 +59,16 @@ export const getSupplierInvoicesAction = async (params: {
     throw new Error(error.message || 'Error fetching supplier invoices data');
   }
 
+  const transform = response?.data.map((item: any) => {
+    return {
+      ...item,
+      dueDate: new Date(item.dueDate),
+      createdAt: new Date(item.createdAt),
+    };
+  });
+
   return {
-    data: response?.data || [],
+    data: transform || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,

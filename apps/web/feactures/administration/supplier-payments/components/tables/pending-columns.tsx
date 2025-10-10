@@ -6,7 +6,7 @@ import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { differenceInDays, isBefore, startOfToday } from 'date-fns';
 import { TYPE_PAYMENTS } from '../../schemas';
-import { AccountPayableSchemaAPI } from '../../schemas/account-payable-api.schema';
+import { SupplierPaymentRow } from '../../types/table';
 import { CellAction } from './cell-action';
 
 const DueDateCell = ({ dueDate }: { dueDate: string | Date }) => {
@@ -45,7 +45,7 @@ const getRowClass = (row: any) => {
   return isOverdue ? 'bg-red-50 dark:bg-red-900/10' : '';
 };
 
-export const pendingColumns: ColumnDef<AccountPayableSchemaAPI>[] = [
+export const pendingColumns: ColumnDef<SupplierPaymentRow>[] = [
   {
     accessorKey: 'reference',
     header: 'Número de Referencia',

@@ -1,4 +1,4 @@
-import { servicePrices } from '@/database/schema/administration';
+import { servicePrices } from '@/database';
 import { InferInsertModel } from 'drizzle-orm';
 
 export type ServicePrice = InferInsertModel<typeof servicePrices>;

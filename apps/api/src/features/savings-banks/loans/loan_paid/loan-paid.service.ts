@@ -254,10 +254,10 @@ export class LoanPaidService {
       const [insertedPayment] = await tx
         .insert(loanPayments)
         .values({
-          loanId: String(loanId),
+          loanId: loanId,
           paymentDate,
           paymentType,
-          amount: amount,
+          amount: String(amount),
           balancePending: String(newBalancePending.toFixed(6)),
           bankId:
             bankId !== undefined && bankId !== null
@@ -277,10 +277,10 @@ export class LoanPaidService {
 
       for (const installment of paidInstallmentDetails) {
         await tx.insert(loanPaymentsDetails).values({
-          loanPaymentId: String(insertedPayment.id),
-          installmentId: String(installment.id),
+          loanPaymentId: insertedPayment.id,
+          installmentId: installment.id,
           amount: String(installment.amount),
-          createdById: String(userId),
+          createdById: userId,
         });
 
         await tx
@@ -307,7 +307,7 @@ export class LoanPaidService {
           partialInstallment.paidAmount - partialInstallment.originalPaidAmount;
 
         await tx.insert(loanPaymentsDetails).values({
-          loanPaymentId: String(insertedPayment.id),
+          loanPaymentId: insertedPayment.id,
           installmentId: partialInstallment.id,
           amount: String(amountAppliedToPartial.toFixed(6)),
           createdById: Number(userId),
@@ -405,7 +405,7 @@ export class LoanPaidService {
       );
       const dataBank = {
         movement: {
-          bankAccountId: bankId,
+          bankAccountId: Number(bankId),
           transactionDate: paymentDate ?? new Date(),
           paymentMethod: paymentMethod as paymentMethodEnum,
           description: `Pago de Cuota Prestamo`,

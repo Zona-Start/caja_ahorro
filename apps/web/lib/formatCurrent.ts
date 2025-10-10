@@ -13,9 +13,9 @@ export const formatCurrency = (value: number, currency: 'VES' | 'USD') => {
   return formatted;
 };
 
-export const formatNumber = (value: any) => {
+export const formatNumber = (value: string | number) => {
   // 1. Limpia cualquier caracter que no sea un número o un punto.
-  let cleanValue = value.replace(/[^\d.]/g, '');
+  const cleanValue = String(value).replace(/[^\d.]/g, '');
 
   // 2. Encuentra la posición del punto decimal.
   const decimalPointIndex = cleanValue.indexOf('.');

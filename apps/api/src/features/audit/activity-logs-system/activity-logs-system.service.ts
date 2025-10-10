@@ -1,6 +1,7 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import { activityLogsSystem } from '@/database/index';
+import { ActionEnumAudit } from '@/types/enum';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -42,7 +43,7 @@ export class ActivityLogsSystemService {
       .insert(activityLogsSystem)
       .values({
         userId: createActivityLogsSystemDto.userId,
-        type: createActivityLogsSystemDto.type,
+        type: createActivityLogsSystemDto.type as ActionEnumAudit,
         description: createActivityLogsSystemDto.description,
         timestamp: createActivityLogsSystemDto.timestamp,
       })
@@ -66,7 +67,7 @@ export class ActivityLogsSystemService {
       .update(activityLogsSystem)
       .set({
         userId: updateActivityLogsSystemDto.userId,
-        type: updateActivityLogsSystemDto.type,
+        type: updateActivityLogsSystemDto.type as ActionEnumAudit,
         description: updateActivityLogsSystemDto.description,
         timestamp: updateActivityLogsSystemDto.timestamp,
       })

@@ -5,8 +5,6 @@ import { CredentialsSignin, NextAuthConfig, Session, User } from 'next-auth';
 import { DefaultJWT, JWT } from 'next-auth/jwt';
 import CredentialProvider from 'next-auth/providers/credentials';
 
-let isRefreshing = false; // Bandera para evitar múltiples solicitudes de refresco
-
 const authConfig: NextAuthConfig = {
   providers: [
     CredentialProvider({
@@ -107,7 +105,7 @@ const authConfig: NextAuthConfig = {
             refresh_expire_in: res.tokens.refresh_expire_in,
           };
         }
-      } catch (error) {
+      } catch {
         // En caso de error inesperado, también forzamos el logout
         return null;
       }

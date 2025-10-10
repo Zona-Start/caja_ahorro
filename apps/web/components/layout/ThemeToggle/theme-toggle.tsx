@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
 type CompProps = {};
-export default function ThemeToggle({}: CompProps) {
+export default function ThemeToggle() {
   const { setTheme } = useTheme();
   return (
     <DropdownMenu>

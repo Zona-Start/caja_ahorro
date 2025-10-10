@@ -201,8 +201,8 @@ export enum ActionEnumAudit {
   INSERT = 'INSERT',
   UPDATE = 'UPDATE',
   DELETE = 'DELETE',
+  REVERSED = 'REVERSED',
   CANCELED = 'CANCELED',
-  PROCESS = 'PROCESS',
   PROCESS_EXECUTION = 'PROCESS_EXECUTION', // Más descriptivo: ejecución de un proceso (TXT, importación, etc.)
   DATA_IMPORT = 'DATA_IMPORT',
   CONFIGURATION_CHANGE = 'CONFIGURATION_CHANGE', // Nuevo: Cambios en configuraciones críticas

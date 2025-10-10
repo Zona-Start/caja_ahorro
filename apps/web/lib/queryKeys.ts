@@ -19,12 +19,12 @@ export const queryKeys = {
   accountingAccounts: {
     _def: ['accounting_accounts'],
     all: () => [...queryKeys.accountingAccounts._def],
-    list: (filters?: Record<string, any>) => [
+    list: (filters?: Record<string, unknown>) => [
       ...queryKeys.accountingAccounts._def,
       'list',
       filters,
     ],
-    paginated: (params?: Record<string, any>) => [
+    paginated: (params?: Record<string, unknown>) => [
       ...queryKeys.accountingAccounts._def,
       'paginated',
       params,
@@ -42,12 +42,12 @@ export const queryKeys = {
   accountingCycles: {
     _def: ['accounting_cycles'],
     all: () => [...queryKeys.accountingCycles._def],
-    list: (filters?: Record<string, any>) => [
+    list: (filters?: Record<string, unknown>) => [
       ...queryKeys.accountingCycles._def,
       'list',
       filters,
     ],
-    paginated: (params?: Record<string, any>) => [
+    paginated: (params?: Record<string, unknown>) => [
       ...queryKeys.accountingCycles._def,
       'paginated',
       params,
@@ -61,12 +61,12 @@ export const queryKeys = {
   accountingEntries: {
     _def: ['accounting_entries'],
     all: () => [...queryKeys.accountingEntries._def],
-    list: (filters?: Record<string, any>) => [
+    list: (filters?: Record<string, unknown>) => [
       ...queryKeys.accountingEntries._def,
       'list',
       filters,
     ],
-    paginated: (params?: Record<string, any>) => [
+    paginated: (params?: Record<string, unknown>) => [
       ...queryKeys.accountingEntries._def,
       'paginated',
       params,
@@ -125,7 +125,7 @@ export const queryKeys = {
 
     detail: (id: number) => [...queryKeys.purchaseOrders._def, 'detail', id],
 
-    forInvoice: (params?: Record<string, any>) => [
+    forInvoice: (params?: Record<string, unknown>) => [
       ...queryKeys.purchaseOrders._def,
       'for-invoice',
       params,
@@ -770,6 +770,24 @@ export const queryKeys = {
       ...queryKeys.inquiry._def,
       'credits',
       associateId,
+    ],
+
+    loanDetails: (loanId: number | null) => [
+      ...queryKeys.inquiry._def,
+      'loan-details',
+      loanId,
+    ],
+
+    creditDetails: (creditId: number | null) => [
+      ...queryKeys.inquiry._def,
+      'credit-details',
+      creditId,
+    ],
+
+    withdrawalDetails: (withdrawalId: number | null) => [
+      ...queryKeys.inquiry._def,
+      'withdrawal-details',
+      withdrawalId,
     ],
   },
 

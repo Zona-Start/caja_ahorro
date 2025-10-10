@@ -212,7 +212,7 @@ export class WithdrawalAssociateService {
           amount: Number(withdrawal.requestedAmount),
           currencyCode: CurrencyCodeEnum.VES,
           transactionDate: new Date(),
-          description: `RETIRO DE HABERES POR BIENES - REF: ${withdrawal.referenceCode}`,
+          description: `Retiro de Haberes por Bienes Ref: ${withdrawal.referenceCode}`,
           referenceId: String(withdrawal.id),
           referenceType: 'withdrawalsAssociates',
           referenceNumber: withdrawal.referenceCode ?? undefined,
@@ -226,7 +226,7 @@ export class WithdrawalAssociateService {
             amount: administrativeFee,
             currencyCode: CurrencyCodeEnum.VES,
             transactionDate: new Date(),
-            description: `GASTO ADMINISTRATIVO POR RETIRO DE BIENES - REF: ${withdrawal.referenceCode}`,
+            description: `Gasto Administrativo por retiro de bienes Ref: ${withdrawal.referenceCode}`,
             referenceId: String(withdrawal.id),
             referenceType: 'withdrawalsAssociates',
             referenceNumber: withdrawal.referenceCode ?? undefined,
@@ -253,7 +253,7 @@ export class WithdrawalAssociateService {
           action: 'UPDATE',
           userId: userId,
           area: 'HABERES',
-          description: `RETIRO DE HABERES POR BIENES DESEMBOLSADOS.`,
+          description: `Retiro de haberes por bienes desembolsados.`,
           newData: [updated],
           previousData: [withdrawal],
         });
@@ -265,7 +265,7 @@ export class WithdrawalAssociateService {
                 userId,
                 {
                   movementType: 'OUT',
-                  description: `SALIDA PRODUCTO POR RETIRO DE HABERES N° ${withdrawal.referenceCode}`,
+                  description: `Salida Producto por retiro de haberes Ref: ${withdrawal.referenceCode}`,
                   documentType: 'VENTA',
                   documentNumber: withdrawal.referenceCode ?? undefined,
                   items: [
@@ -519,6 +519,7 @@ export class WithdrawalAssociateService {
 
     const withdrawals = await this.db
       .select({
+        id: withdrawalsAssociates.id,
         withdrawalDate: withdrawalsAssociates.withdrawalDate,
         description: withdrawalTypes.description,
         amount: withdrawalsAssociates.requestedAmount,
@@ -639,6 +640,86 @@ export class WithdrawalAssociateService {
 
     return {
       data: result,
+    };
+  }
+
+  async findWithdrawalDetails(id: number) {
+    type WithdrawalItem = {
+      days: number | null;
+      itemId: number;
+      itemType: 'PRODUCT' | 'SERVICE' | 'OTHER';
+      quantity: number;
+      itemDescription: string | null;
+      agreedSellingPrice: number;
+      itemName: string | null;
+    };
+    const [withdrawal] = await this.db
+      .select({
+        id: withdrawalsAssociates.id,
+        associateAccountId: withdrawalsAssociates.associateAccountId,
+        withdrawalTypeId: withdrawalsAssociates.withdrawalTypeId,
+        withdrawalDate: withdrawalsAssociates.withdrawalDate,
+        requestedAmount: withdrawalsAssociates.requestedAmount,
+        administrativeFee: withdrawalsAssociates.administrativeFee,
+        disbursedAmount: withdrawalsAssociates.disbursedAmount,
+        paymentMethod: withdrawalsAssociates.paymentMethod,
+        referenceCode: withdrawalsAssociates.referenceCode,
+        status: withdrawalsAssociates.status,
+        commercialHouseId: withdrawalsAssociates.commercialHouseId,
+        withdrawalItems: withdrawalsAssociates.withdrawalItems,
+        associateName: schema.associates.fullname,
+        associateCedula: schema.associates.cedula,
+        withdrawalTypeName: schema.withdrawalTypes.description,
+      })
+      .from(withdrawalsAssociates)
+      .where(eq(withdrawalsAssociates.id, id))
+      .leftJoin(
+        schema.associateAccounts,
+        eq(
+          withdrawalsAssociates.associateAccountId,
+          schema.associateAccounts.id,
+        ),
+      )
+      .leftJoin(
+        schema.associates,
+        eq(schema.associateAccounts.associateId, schema.associates.id),
+      )
+      .leftJoin(
+        schema.withdrawalTypes,
+        eq(withdrawalsAssociates.withdrawalTypeId, schema.withdrawalTypes.id),
+      );
+
+    if (!withdrawal) {
+      throw new NotFoundException('Withdrawal not found');
+    }
+
+    let items: WithdrawalItem[] = [];
+    if (
+      withdrawal.withdrawalItems &&
+      Array.isArray(withdrawal.withdrawalItems)
+    ) {
+      for (const item of withdrawal.withdrawalItems as WithdrawalItem[]) {
+        if (item.itemType === 'PRODUCT') {
+          const [product] = await this.db
+            .select()
+            .from(schema.products)
+            .where(eq(schema.products.id, item.itemId));
+          items.push({ ...item, itemName: product?.name });
+        } else if (item.itemType === 'SERVICE') {
+          const [service] = await this.db
+            .select()
+            .from(schema.services)
+            .where(eq(schema.services.id, item.itemId));
+          items.push({ ...item, itemName: service?.name });
+        } else {
+          items.push({ ...item, itemName: item.itemDescription });
+        }
+      }
+    }
+
+    return {
+      withdrawal,
+      items,
     };
   }
 }

@@ -15,7 +15,7 @@ export const createPaymentBatchSchema = z.object({
       required_error: 'ID de cuenta bancaria requerido',
     })
     .min(1, 'ID de cuenta bancaria requerido'),
-  currencyCode: currencyCodeEnum,
+  currencyCode: z.enum(currencyCodeEnum),
   description: z.string().optional(),
   items: z
     .array(createPaymentBatchItemSchema)
@@ -41,7 +41,7 @@ export const confirmPaymentBatchSchema = z.object({
 export const filterPaymentBatchSchema = z.object({
   page: z.number().default(1),
   limit: z.number().default(10),
-  status: paymentBatchStatusEnum.optional(),
+  status: z.enum(paymentBatchStatusEnum).optional(),
   search: z.string().optional(),
   sortBy: z.string().optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),

@@ -232,10 +232,10 @@ export class CreditPaidService {
       const [insertedPayment] = await tx
         .insert(creditPayments)
         .values({
-          creditId: String(creditId),
+          creditId: creditId,
           paymentDate,
           paymentType,
-          amount: amount,
+          amount: String(amount),
           balancePending: String(newBalancePending.toFixed(6)), // Guarda el nuevo saldo pendiente
           bankId:
             bankId !== undefined && bankId !== null
@@ -256,10 +256,10 @@ export class CreditPaidService {
       for (const installment of paidInstallmentDetails) {
         // Registra el detalle del pago para esta cuota
         await tx.insert(creditPaymentsDetails).values({
-          creditPaymentId: String(insertedPayment.id),
-          installmentId: String(installment.id),
+          creditPaymentId: insertedPayment.id,
+          installmentId: installment.id,
           amount: String(installment.amount),
-          createdById: String(userId),
+          createdById: userId,
         });
 
         // Actualiza el estado de la cuota en la tabla de amortización a 'PAID'
@@ -290,7 +290,7 @@ export class CreditPaidService {
 
         // Registra el detalle del pago parcial para esta cuota
         await tx.insert(creditPaymentsDetails).values({
-          creditPaymentId: String(insertedPayment.id),
+          creditPaymentId: insertedPayment.id,
           installmentId: partialInstallment.id,
           amount: String(amountAppliedToPartial.toFixed(6)),
           createdById: Number(userId),

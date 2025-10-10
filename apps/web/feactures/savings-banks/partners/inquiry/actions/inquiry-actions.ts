@@ -2,12 +2,45 @@
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
   associateDetailsResponseSchema,
+  creditDetailsResponseSchema,
   creditsResponseSchema,
   haberesMovementsResponseSchema,
+  loanDetailsResponseSchema,
   loansResponseSchema,
   transactionHistoryResponseSchema,
+  withdrawalDetailsResponseSchema,
   withdrawalsResponseSchema,
 } from '../schemas/inquiry-schema';
+
+export const getWithdrawalDetailsAction = async (withdrawalId: number) => {
+  const [error, response] = await safeFetchApi(
+    withdrawalDetailsResponseSchema,
+    `/savings-banks/withdrawal-associate/${withdrawalId}/details`,
+    'GET',
+  );
+  if (error) throw new Error(error.message || 'Error fetching withdrawal details');
+  return response;
+};
+
+export const getCreditDetailsAction = async (creditId: number) => {
+  const [error, response] = await safeFetchApi(
+    creditDetailsResponseSchema,
+    `/credit/${creditId}/details`,
+    'GET',
+  );
+  if (error) throw new Error(error.message || 'Error fetching credit details');
+  return response;
+};
+
+export const getLoanDetailsAction = async (loanId: number) => {
+  const [error, response] = await safeFetchApi(
+    loanDetailsResponseSchema,
+    `/loan/${loanId}/details`,
+    'GET',
+  );
+  if (error) throw new Error(error.message || 'Error fetching loan details');
+  return response;
+};
 
 export const getAssociateDetailsAction = async (cedula: string) => {
   const [error, response] = await safeFetchApi(

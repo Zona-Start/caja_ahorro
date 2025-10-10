@@ -47,20 +47,8 @@ export const getPaymentBatchesAction = async (filters: FilterPaymentBatch) => {
     throw new Error(error.message || 'Error fetching payment batches');
   }
 
-  const tableData =
-    response?.data?.map((item: any) => ({
-      id: item.id,
-      description: item.description,
-      paymentBatchReference: item.paymentBatchReference,
-      status: item.status,
-      totalAmount: item.totalAmount,
-      recordCount: item.recordCount,
-      currencyCode: item.currencyCode,
-      createdAt: item.createdAt.split('T')[0],
-    })) || [];
-
   return {
-    data: tableData || [],
+    data: response?.data || [],
     meta: response?.meta || {
       page: 1,
       limit: 10,
