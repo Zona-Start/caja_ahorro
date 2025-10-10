@@ -13,6 +13,7 @@ import {
 import RefreshTokenInterface from '@/features/auth/interfaces/refresh-token.interface';
 import { MailService } from '@/features/mail/mail.service';
 import { User } from '@/features/users/entities/user.entity';
+import { JwtPayload } from '@/types/jwt';
 import {
   HttpException,
   HttpStatus,
@@ -77,21 +78,17 @@ export class AuthService {
   }
 
   //Generate Tokens
-  //Generate Tokens
   async generateTokens(user: User): Promise<AuthTokensInterface> {
-    // 1. Extraer y asegurar los tipos de las variables de entorno
-    const accessTokenSecret: string = envs.access_token_secret as string;
-    const accessTokenExp: string = envs.access_token_expiration;
-    const refreshTokenSecret: string = envs.refresh_token_secret as string;
-    const refreshTokenExp: string = envs.refresh_token_expiration;
+    const accessTokenSecret = envs.access_token_secret as string;
+    const accessTokenExp = envs.access_token_expiration;
+    const refreshTokenSecret = envs.refresh_token_secret as string;
+    const refreshTokenExp = envs.refresh_token_expiration;
 
-    // 2. Payload con tipos correctos
-    const payload = {
-      sub: Number(user?.id), // ✅ number
-      username: user.username, // ✅ string
+    const payload: JwtPayload = {
+      sub: Number(user?.id),
+      username: user.username ?? '', // ✅ string forzado
     };
 
-    // 3. Generar tokens
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: accessTokenSecret,
