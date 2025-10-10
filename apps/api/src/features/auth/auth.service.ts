@@ -85,7 +85,7 @@ export class AuthService {
           username: user.username,
         },
         {
-          secret: envs.access_token_secret,
+          secret: envs.access_token_secret as string,
           expiresIn: envs.access_token_expiration,
         },
       ),
@@ -95,7 +95,7 @@ export class AuthService {
           username: user.username,
         },
         {
-          secret: envs.refresh_token_secret,
+          secret: envs.refresh_token_secret as string,
           expiresIn: envs.refresh_token_expiration,
         },
       ),
