@@ -10,6 +10,7 @@ export const size = {
 };
 
 export const contentType = 'image/png';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export default async function Image() {
   return new ImageResponse(
@@ -30,8 +31,8 @@ export default async function Image() {
         }}
       >
         <img
-          src={`http://localhost:3000/og-logo.png`}
-          alt="opengraph logo"
+          src={BASE_URL}
+          alt="Caja Ahorro logo"
           style={{
             width: '400px',
             height: '400px',
