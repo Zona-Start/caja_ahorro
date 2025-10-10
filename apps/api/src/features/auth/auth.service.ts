@@ -77,17 +77,10 @@ export class AuthService {
   }
 
   async generateTokens(user: User): Promise<AuthTokensInterface> {
-    const accessTokenSecret = envs.access_token_secret?.trim();
-    const accessTokenExp = envs.access_token_expiration?.trim();
-    const refreshTokenSecret = envs.refresh_token_secret?.trim();
-    const refreshTokenExp = envs.refresh_token_expiration?.trim();
-
-    console.log('JWT ENV VARS:', {
-      ACCESS_TOKEN_SECRET: envs.access_token_secret,
-      ACCESS_TOKEN_EXPIRATION: envs.access_token_expiration,
-      REFRESH_TOKEN_SECRET: envs.refresh_token_secret,
-      REFRESH_TOKEN_EXPIRATION: envs.refresh_token_expiration,
-    });
+    const accessTokenSecret = envs.access_token_secret ?? '';
+    const accessTokenExp = envs.access_token_expiration ?? '';
+    const refreshTokenSecret = envs.refresh_token_secret ?? '';
+    const refreshTokenExp = envs.refresh_token_expiration ?? '';
 
     if (
       !accessTokenSecret ||
