@@ -13,7 +13,6 @@ import {
 import RefreshTokenInterface from '@/features/auth/interfaces/refresh-token.interface';
 import { MailService } from '@/features/mail/mail.service';
 import { User } from '@/features/users/entities/user.entity';
-import { JwtPayload } from '@/types/jwt';
 import {
   HttpException,
   HttpStatus,
@@ -77,16 +76,36 @@ export class AuthService {
     }
   }
 
-  //Generate Tokens
   async generateTokens(user: User): Promise<AuthTokensInterface> {
-    const accessTokenSecret = envs.access_token_secret as string;
-    const accessTokenExp = envs.access_token_expiration;
-    const refreshTokenSecret = envs.refresh_token_secret as string;
-    const refreshTokenExp = envs.refresh_token_expiration;
+    const accessTokenSecret = envs.access_token_secret?.trim();
+    const accessTokenExp = envs.access_token_expiration?.trim();
+    const refreshTokenSecret = envs.refresh_token_secret?.trim();
+    const refreshTokenExp = envs.refresh_token_expiration?.trim();
+
+    console.log('JWT ENV VARS:', {
+      ACCESS_TOKEN_SECRET: envs.access_token_secret,
+      ACCESS_TOKEN_EXPIRATION: envs.access_token_expiration,
+      REFRESH_TOKEN_SECRET: envs.refresh_token_secret,
+      REFRESH_TOKEN_EXPIRATION: envs.refresh_token_expiration,
+    });
+
+    if (
+      !accessTokenSecret ||
+      !accessTokenExp ||
+      !refreshTokenSecret ||
+      !refreshTokenExp
+    ) {
+      throw new Error('JWT environment variables are missing or invalid');
+    }
+
+    interface JwtPayload {
+      sub: number;
+      username: string;
+    }
 
     const payload: JwtPayload = {
       sub: Number(user?.id),
-      username: user.username ?? '', // ✅ string forzado
+      username: user.username ?? '',
     };
 
     const [access_token, refresh_token] = await Promise.all([
