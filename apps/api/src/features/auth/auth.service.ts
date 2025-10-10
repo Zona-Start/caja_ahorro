@@ -81,7 +81,7 @@ export class AuthService {
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(
         {
-          sub: user.id,
+          sub: Number(user.id),
           username: user.username,
         },
         {
@@ -91,7 +91,7 @@ export class AuthService {
       ),
       this.jwtService.signAsync(
         {
-          sub: user.id,
+          sub: Number(user.id),
           username: user.username,
         },
         {
