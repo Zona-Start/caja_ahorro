@@ -77,6 +77,7 @@ export class AuthService {
   }
 
   //Generate Tokens
+  //Generate Tokens
   async generateTokens(user: User): Promise<AuthTokensInterface> {
     // 1. Extraer y asegurar los tipos de las variables de entorno
     const accessTokenSecret: string = envs.access_token_secret as string;
@@ -84,31 +85,25 @@ export class AuthService {
     const refreshTokenSecret: string = envs.refresh_token_secret as string;
     const refreshTokenExp: string = envs.refresh_token_expiration;
 
+    // 2. Payload con tipos correctos
     const payload = {
-      sub: String(user.id), // ✅ ahora es string
-      username: user.username,
+      sub: Number(user?.id), // ✅ number
+      username: user.username, // ✅ string
     };
+
+    // 3. Generar tokens
     const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(
-        payload, // Usamos el payload tipado
-        {
-          secret: accessTokenSecret, // Usamos la variable local (string)
-          expiresIn: accessTokenExp,
-        },
-      ),
-      this.jwtService.signAsync(
-        payload, // Usamos el payload tipado
-        {
-          secret: refreshTokenSecret, // Usamos la variable local (string)
-          expiresIn: refreshTokenExp,
-        },
-      ),
+      this.jwtService.signAsync(payload, {
+        secret: accessTokenSecret,
+        expiresIn: accessTokenExp,
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: refreshTokenSecret,
+        expiresIn: refreshTokenExp,
+      }),
     ]);
 
-    return {
-      access_token,
-      refresh_token,
-    };
+    return { access_token, refresh_token };
   }
 
   //Generate OTP Code For Email Confirmation
