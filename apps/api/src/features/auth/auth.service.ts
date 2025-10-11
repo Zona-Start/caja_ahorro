@@ -22,7 +22,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions  } from '@nestjs/jwt';
 import crypto from 'crypto';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -101,16 +101,17 @@ export class AuthService {
       username: user.username ?? '',
     };
 
-    const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: accessTokenSecret,
-        expiresIn: accessTokenExp as string, // ✅ cast explícito
-      }),
-      this.jwtService.signAsync(payload, {
-        secret: refreshTokenSecret,
-        expiresIn: refreshTokenExp as string, // ✅ cast explícito
-      }),
-    ]);
+   const [access_token, refresh_token] = await Promise.all([
+  this.jwtService.signAsync(payload, {
+    secret: accessTokenSecret,
+    expiresIn: accessTokenExp,
+  } as JwtSignOptions),
+
+  this.jwtService.signAsync(payload, {
+    secret: refreshTokenSecret,
+    expiresIn: refreshTokenExp,
+  } as JwtSignOptions),
+]);
 
     return { access_token, refresh_token };
   }
