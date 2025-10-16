@@ -75,7 +75,7 @@ export function WithdrawalDetailsModal({
 
           {data && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">
                     Referencia
@@ -127,9 +127,12 @@ export function WithdrawalDetailsModal({
                     {PAYMENT_METHOD_TYPES[
                       data.withdrawal
                         .paymentMethod as keyof typeof PAYMENT_METHOD_TYPES
-                    ] ?? data.withdrawal.paymentMethod}
+                    ] ?? 'N/A'}
                   </div>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">
                     Monto Solicitado:
@@ -137,6 +140,28 @@ export function WithdrawalDetailsModal({
                   <p className="text-lg">
                     {formatCurrency(
                       Number(data.withdrawal.requestedAmount),
+                      'VES',
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Gasto Administrativo:
+                  </Label>
+                  <p className="text-lg">
+                    {formatCurrency(
+                      Number(data.withdrawal.administrativeFee),
+                      'VES',
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">
+                    Monto Retirado:
+                  </Label>
+                  <p className="text-lg">
+                    {formatCurrency(
+                      Number(data.withdrawal.disbursedAmount),
                       'VES',
                     )}
                   </p>

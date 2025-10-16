@@ -523,6 +523,8 @@ export class WithdrawalAssociateService {
         withdrawalDate: withdrawalsAssociates.withdrawalDate,
         description: withdrawalTypes.description,
         amount: withdrawalsAssociates.requestedAmount,
+        disbursedAmount: withdrawalsAssociates.disbursedAmount,
+        administrativeFee: withdrawalsAssociates.administrativeFee,
         paymentMethod: withdrawalsAssociates.paymentMethod,
         status: withdrawalsAssociates.status,
       })
@@ -544,7 +546,11 @@ export class WithdrawalAssociateService {
     const formattedWithdrawals = withdrawals.map((w) => ({
       ...w,
       amount: parseFloat(w.amount).toFixed(2),
+      disbursedAmount: parseFloat(w.disbursedAmount ?? '0').toFixed(2),
+      administrativeFee: parseFloat(w.administrativeFee ?? '0').toFixed(2),
     }));
+
+    console.log(formattedWithdrawals);
 
     return {
       message: 'Withdrawals fetched successfully.',

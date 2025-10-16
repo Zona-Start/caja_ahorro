@@ -140,7 +140,7 @@ export function WithdrawalSearch({
           clearAssociate();
         } else if (associateData.withdrawalStatus === 'DISBURSED') {
           const findTime = generalConfig.filter(
-            (item) => item.key === 'tiempo_retiro',
+            (item) => item.key === 'TIEMPO_RETIRO',
           );
 
           const withdrawalDate = associateData?.withdrawalDate

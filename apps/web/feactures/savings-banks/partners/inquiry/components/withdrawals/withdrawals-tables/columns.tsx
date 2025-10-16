@@ -5,10 +5,7 @@ import { Badge } from '@repo/shadcn/components/ui/badge';
 import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { z } from 'zod';
-import {
-  PAYMENT_METHOD_TYPES,
-  WITHDRAWAL_STATUS_TYPES,
-} from '../../../schemas/inquiry-options';
+import { WITHDRAWAL_STATUS_TYPES } from '../../../schemas/inquiry-options';
 import { withdrawalsResponseSchema } from '../../../schemas/inquiry-schema';
 import { CellAction } from './cell-action';
 
@@ -27,21 +24,35 @@ export const columns: ColumnDef<Withdrawal>[] = [
   },
   {
     accessorKey: 'amount',
-    header: 'Monto',
+    header: 'Solicitado',
     cell: ({ row }) => formatCurrency(Number(row.original.amount), 'VES'),
   },
+
   {
-    accessorKey: 'paymentMethod',
-    header: 'Método de Pago',
-    cell: ({ row }) => {
-      const paymentMethod = row.original.paymentMethod;
-      return (
-        PAYMENT_METHOD_TYPES[
-          paymentMethod as keyof typeof PAYMENT_METHOD_TYPES
-        ] || paymentMethod
-      );
-    },
+    accessorKey: 'administrativeFee',
+    header: 'Gasto Administrativo',
+    cell: ({ row }) =>
+      formatCurrency(Number(row.original.administrativeFee), 'VES'),
   },
+
+  {
+    accessorKey: 'disbursedAmount',
+    header: 'Retirado',
+    cell: ({ row }) =>
+      formatCurrency(Number(row.original.disbursedAmount), 'VES'),
+  },
+  // {
+  //   accessorKey: 'paymentMethod',
+  //   header: 'Método de Pago',
+  //   cell: ({ row }) => {
+  //     const paymentMethod = row.original.paymentMethod;
+  //     return (
+  //       PAYMENT_METHOD_TYPES[
+  //         paymentMethod as keyof typeof PAYMENT_METHOD_TYPES
+  //       ] || paymentMethod
+  //     );
+  //   },
+  // },
   {
     accessorKey: 'status',
     header: 'Estatus',

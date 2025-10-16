@@ -15,6 +15,13 @@
       "when": 1760032848943,
       "tag": "0001_function-calculate-associate-liquidation",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1760455377378,
+      "tag": "0002_messy_mad_thinker",
+      "breakpoints": true
     }
   ]
 }

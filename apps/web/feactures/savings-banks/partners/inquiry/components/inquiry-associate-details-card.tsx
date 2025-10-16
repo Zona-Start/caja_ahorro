@@ -112,7 +112,7 @@ export function InquiryAssociateDetailsCard({
             <Label className="text-sm font-medium text-muted-foreground">
               Localidad
             </Label>
-            <div className="mt-1">{associate.locality}</div>
+            <div className="mt-1">{associate.locality ?? 'N/A'}</div>
           </div>
           <div>
             <Label className="text-sm font-medium text-muted-foreground">

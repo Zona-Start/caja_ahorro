@@ -160,7 +160,7 @@ export const associateAccountMovements = savingsBanksSchema.table(
     description: text('description'),
     referenceId: text('reference_id'), // ID de la operación origen
     referenceType: varchar('reference_type', { length: 50 }), // Tipo de operación origen (tabla de donde es la referencia id)
-    referenceNumber: varchar('reference_number', { length: 20 }).notNull(),
+    referenceNumber: varchar('reference_number', { length: 20 }),
     exchangeRateId: integer('exchange_rate_id').references(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades

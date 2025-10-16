@@ -4,8 +4,8 @@ export const loadAssociate = z.object({
   id: z.number(),
   cedula: z.string(),
   fullname: z.string(),
-  phone: z.string(),
-  email: z.string(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
   dateAdmission: z.string(),
   isPayrollCredit: z.boolean(),
   associateAccountId: z.number(),
@@ -18,7 +18,7 @@ export const loadAssociate = z.object({
 export const loadAssociateApiResponseSchema = z.object({
   associate: loadAssociate,
   totalLoans: z.number(),
-  totalCredits: z.number()
+  totalCredits: z.number(),
 });
 
 export type AssociatesLoan = z.infer<typeof loadAssociateApiResponseSchema>;

@@ -43,6 +43,8 @@ export const withdrawalSchema = z.object({
   withdrawalDate: z.string(),
   description: z.string().nullable(),
   amount: z.string(),
+  disbursedAmount: z.string().optional().nullable(),
+  administrativeFee: z.string().optional().nullable(),
   paymentMethod: z.string().nullable(),
   status: z.string(),
 });

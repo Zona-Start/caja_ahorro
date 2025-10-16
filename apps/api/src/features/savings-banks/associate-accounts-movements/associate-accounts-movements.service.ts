@@ -1,4 +1,4 @@
-import { generateUniqueReference } from '@/common/utils/reference';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import {
   associateAccountBalanceHistory,
@@ -23,6 +23,7 @@ import { UpdateAssociateAccountsMovementDto } from './dto/update-associate-accou
 export class AssociateAccountsMovementsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly generateCodeService: GenerateCodeService,
   ) {}
 
   private async getExchangeRate(code: CurrencyCodeEnum, date: Date) {
@@ -106,7 +107,13 @@ export class AssociateAccountsMovementsService {
             `Cuenta de asociado con ID ${associateAccountId} no encontrada.`,
           );
         }
-        const reference = referenceNumber ?? generateUniqueReference();
+        //const reference = referenceNumber ?? generateUniqueReference();
+
+        // 3. Generar una referencia única para la liquidación
+        const reference = await this.generateCodeService.generateNextReference(
+          'MS',
+          tx,
+        );
 
         const exchangeRate =
           currencyCode !== 'VES'

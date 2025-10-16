@@ -157,9 +157,9 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
-        key: 'RH-ABO-2025',
+        key: 'MS-2025',
         value: '0',
-        description: 'Último consecutivo Abono Movimiento Haberes 2025',
+        description: 'Último consecutivo  Movimiento Asociados 2025',
         group: 'DOCUMENTS',
         createdById: 1,
         updatedById: 1,

@@ -5,8 +5,8 @@ export const settlementAssociate = z.object({
   fullname: z.string(),
   cedula: z.string(),
   admission_date: z.string(), // Mantener como string si el backend lo envía así (ej. "YYYY-MM-DD")
-  phone: z.string(),
-  email: z.string().email(), // Añadir validación de email
+  phone: z.string().nullable(),
+  email: z.string().email().nullable(), // Añadir validación de email
   is_payroll_credit: z.boolean(),
   associate_account_id: z.number(),
   account_number: z.string(),
