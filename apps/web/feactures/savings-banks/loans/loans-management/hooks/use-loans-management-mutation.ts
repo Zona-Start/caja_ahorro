@@ -23,13 +23,13 @@ export function useLoanManagementMutation() {
       createLoanManagementAction(loanManagement),
     onSuccess: () => {
       // ✅ Invalidación robusta usando la fábrica de claves
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.loansManagement.all() 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.all(),
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.loansManagement.count() 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.count(),
       });
-      toast.success('Préstamo creado exitosamente');
+      //toast.success('Préstamo creado exitosamente');
     },
     onError: (error) => {
       toast.error('Error al crear el préstamo, contacte al administrador');
@@ -53,13 +53,13 @@ export function useAprobedLoanMutation() {
     onSuccess: (_, id) => {
       // ✅ Invalidación robusta usando la fábrica de claves
       queryClient.invalidateQueries({
-        queryKey: queryKeys.loansManagement.all()
+        queryKey: queryKeys.loansManagement.all(),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.loansManagement.detail(id)
+        queryKey: queryKeys.loansManagement.detail(id),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.loansManagement.count()
+        queryKey: queryKeys.loansManagement.count(),
       });
       toast.success('Préstamo aprobado exitosamente');
     },
@@ -85,13 +85,13 @@ export function useDeleteLoan() {
     onSuccess: (_, id) => {
       // ✅ Invalidación robusta usando la fábrica de claves
       queryClient.invalidateQueries({
-        queryKey: queryKeys.loansManagement.all()
+        queryKey: queryKeys.loansManagement.all(),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.loansManagement.detail(id)
+        queryKey: queryKeys.loansManagement.detail(id),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.loansManagement.count()
+        queryKey: queryKeys.loansManagement.count(),
       });
       toast.success('Préstamo cancelado exitosamente');
     },

@@ -8,9 +8,9 @@ import { columns } from './haberes-tables/columns';
 
 interface HaberesTabProps {
   id: number;
-  //data: HaberesData[];
-  // isLoading: boolean;
-  // isError: boolean;
+  page: number;
+  setPage: (page: number) => void;
+  limit: number;
 }
 
 const AuxiliarComponents = ({
@@ -29,12 +29,15 @@ const AuxiliarComponents = ({
   );
 };
 
-export function HaberesTab({ id }: HaberesTabProps) {
+export function HaberesTab({ id, page, setPage, limit }: HaberesTabProps) {
   const {
     data: haberesData,
     isLoading: haberesLoading,
     isError: haberesIsError,
-  } = useHaberesMovements(id, { enabled: Boolean(id) });
+  } = useHaberesMovements(
+    { associateId: id, page, limit },
+    { enabled: Boolean(id) },
+  );
 
   if (haberesLoading) return <DataTableSkeleton columnCount={4} />;
   if (haberesIsError)
@@ -49,7 +52,8 @@ export function HaberesTab({ id }: HaberesTabProps) {
     <DataTable
       columns={columns}
       data={haberesData?.data || []}
-      totalItems={haberesData?.data.length || 0} // Asegúrate que tu API devuelva este valor
+      totalItems={haberesData?.meta?.totalCount || 0}
+      pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );
 }

@@ -29,4 +29,16 @@ export const accountPlanApiResponseSchema = z.object({
 export const accountPlanListApiResponseSchema = z.object({
   message: z.string(),
   data: z.array(accountPlanApiResponseSchema),
+  meta: z
+    .object({
+      page: z.number(),
+      limit: z.number(),
+      totalCount: z.number(),
+      totalPages: z.number(),
+      hasNextPage: z.boolean(),
+      hasPreviousPage: z.boolean(),
+      nextPage: z.number().nullable(),
+      previousPage: z.number().nullable(),
+    })
+    .optional(),
 });

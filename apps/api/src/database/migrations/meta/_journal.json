@@ -22,6 +22,13 @@
       "when": 1760455377378,
       "tag": "0002_messy_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1760896788130,
+      "tag": "0003_complete_snowbird",
+      "breakpoints": true
     }
   ]
 }

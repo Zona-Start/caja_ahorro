@@ -1,6 +1,6 @@
 'use client';
 import { IconWrapper } from '@/components/icon-wrapper';
-import { useBanksQuery } from '@/feactures/banks/bank-directory/hooks/use-banks-querys';
+import { useBankAccountAll } from '@/feactures/banks/bank-account/hooks/use-query-bank-account';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -61,7 +61,9 @@ export function CreditPaidForm({
 }: CreditFormProps) {
   const { selectedAssociate, creditSummary } = useCreditPaidStore();
 
-  const { data: Banks } = useBanksQuery();
+  const { data: bankAccountsData, isLoading: isLoadingBankAccounts } =
+    useBankAccountAll();
+  const bankAccounts = bankAccountsData?.data || [];
   const [isCancellation, setIsCancellation] = useState(false);
 
   const form = useForm<z.infer<typeof creditPaymentSchema>>({
@@ -243,19 +245,18 @@ export function CreditPaidForm({
                 name="bankId"
                 render={({ field }) => (
                   <FormItem className="w-full col-span-2">
-                    <FormLabel>Banco</FormLabel>
+                    <FormLabel>Banco Receptor</FormLabel>
                     <SelectSearchable
-                      options={
-                        Banks?.data?.map((item: any) => ({
-                          value: item.id!.toString(),
-                          label: `${item.code} - ${item.name}`,
-                        })) || []
-                      }
+                      options={bankAccounts?.map((acc) => ({
+                        value: String(acc.id),
+                        label: `${acc.accountName} (${acc.accountNumber})`,
+                      }))}
                       onValueChange={(value) => field.onChange(Number(value))}
-                      placeholder="Selecciona un banco"
-                      defaultValue={String(field.value)}
+                      placeholder="Seleccione una cuenta bancaria"
+                      defaultValue={String(field.value) || ''}
                       disabled={!selectedAssociate || isSubmitting}
                     />
+
                     <FormMessage />
                   </FormItem>
                 )}

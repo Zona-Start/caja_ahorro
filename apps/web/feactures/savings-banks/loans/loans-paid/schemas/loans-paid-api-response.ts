@@ -9,7 +9,7 @@ export const loanPaymentApiSchema = z.object({
   paymentStatus: z.string(),
   paymentMethod: z.string(),
   bankName: z.string().nullable(),
-  transactionReference: z.string(),
+  transactionReference: z.string().nullable(),
   amount: z.string(),
   balancePending: z.string(),
   associateCedula: z.string(),

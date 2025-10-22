@@ -66,8 +66,16 @@ export class WithdrawalAssociateController {
     status: 200,
     description: 'Return all withdrawals for the associate.',
   })
-  findAllByAssociate(@Param('associateId') associateId: string) {
-    return this.service.findAllByAssociate(+associateId);
+  async findAllByAssociate(
+    @Param('associateId') associateId: string,
+    @Query() filtersDto: FilterWithdrawalAssociateDto,
+  ) {
+    const result = await this.service.findAllByAssociate(+associateId, filtersDto);
+    return {
+      message: 'Withdrawals fetched successfully.',
+      data: result.data,
+      meta: result.meta,
+    };
   }
 
   @Get(':id/details')

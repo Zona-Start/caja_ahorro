@@ -13,10 +13,11 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { CreateAssociateAccountsMovementDto } from './dto/create-associate-accounts-movement.dto';
+import { FilterMovementsDto } from './dto/filter-movements.dto';
 import { UpdateAssociateAccountsMovementDto } from './dto/update-associate-accounts-movement.dto';
 
 @Injectable()
@@ -233,7 +234,12 @@ export class AssociateAccountsMovementsService {
     return `This action updates a #${id} associateAccountsMovement`;
   }
 
-  async findAllHaberesByAssociate(associateId: number) {
+  async findAllHaberesByAssociate(
+    associateId: number,
+    filtersDto: FilterMovementsDto,
+  ) {
+    const { page = 1, limit = 10 } = filtersDto;
+
     // 1. Find the associate's account(s)
     const accounts = await this.drizzle.query.associateAccounts.findMany({
       where: eq(schema.associateAccounts.associateId, associateId),
@@ -244,8 +250,13 @@ export class AssociateAccountsMovementsService {
 
     if (!accounts.length) {
       return {
-        message: `No accounts found for associate with ID ${associateId}`,
         data: [],
+        meta: {
+          totalCount: 0,
+          page: 1,
+          limit,
+          totalPages: 0,
+        },
       };
     }
 
@@ -259,7 +270,21 @@ export class AssociateAccountsMovementsService {
       'DIVIDEND_CREDIT',
     ] as const;
 
-    // 3. Query the movements
+    // 3. Create the base query condition
+    const whereCondition = and(
+      inArray(associateAccountMovements.associateAccountId, accountIds),
+      inArray(associateAccountMovements.movementType, [...haberesTypes]),
+    );
+
+    // 4. Execute Count Query
+    const totalCountResult = await this.drizzle
+      .select({ count: sql<number>`count(*)` })
+      .from(associateAccountMovements)
+      .where(whereCondition);
+
+    const totalCount = totalCountResult[0].count;
+
+    // 5. Execute Data Query with pagination
     const movements = await this.drizzle
       .select({
         fecha: associateAccountMovements.transactionDate,
@@ -268,33 +293,34 @@ export class AssociateAccountsMovementsService {
         monto: associateAccountMovements.amount,
       })
       .from(associateAccountMovements)
-      .where(
-        and(
-          inArray(associateAccountMovements.associateAccountId, accountIds),
-          inArray(associateAccountMovements.movementType, [...haberesTypes]),
-        ),
-      )
-      .orderBy(desc(associateAccountMovements.transactionDate));
-
-    if (!movements.length) {
-      return {
-        message: 'No haberes movements found for this associate.',
-        data: [],
-      };
-    }
+      .where(whereCondition)
+      .orderBy(desc(associateAccountMovements.transactionDate))
+      .limit(limit)
+      .offset((page - 1) * limit);
 
     const formattedMovements = movements.map((m) => ({
       ...m,
       monto: parseFloat(m.monto).toFixed(2),
     }));
 
+    // 6. Construct and return paginated response
     return {
-      message: 'Haberes movements fetched successfully.',
       data: formattedMovements,
+      meta: {
+        totalCount: Number(totalCount),
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 
-  async findAllByAssociate(associateId: number) {
+  async findAllByAssociate(
+    associateId: number,
+    filtersDto: FilterMovementsDto,
+  ) {
+    const { page = 1, limit = 10 } = filtersDto;
+
     // 1. Find the associate's account(s)
     const accounts = await this.drizzle.query.associateAccounts.findMany({
       where: eq(schema.associateAccounts.associateId, associateId),
@@ -305,14 +331,31 @@ export class AssociateAccountsMovementsService {
 
     if (!accounts.length) {
       return {
-        message: `No accounts found for associate with ID ${associateId}`,
         data: [],
+        meta: {
+          totalCount: 0,
+          page: 1,
+          limit,
+          totalPages: 0,
+        },
       };
     }
 
     const accountIds = accounts.map((acc) => acc.id);
 
+    const whereCondition = inArray(
+      associateAccountMovements.associateAccountId,
+      accountIds,
+    );
+
     // 2. Query all movements for those accounts
+    const totalCountResult = await this.drizzle
+      .select({ total: sql<number>`count(*)` })
+      .from(associateAccountMovements)
+      .where(whereCondition);
+
+    const totalCount = Number(totalCountResult[0].total);
+
     const movements = await this.drizzle
       .select({
         tipo: associateAccountMovements.movementType,
@@ -322,15 +365,10 @@ export class AssociateAccountsMovementsService {
         numeroReferencia: associateAccountMovements.referenceNumber,
       })
       .from(associateAccountMovements)
-      .where(inArray(associateAccountMovements.associateAccountId, accountIds))
-      .orderBy(desc(associateAccountMovements.transactionDate));
-
-    if (!movements.length) {
-      return {
-        message: 'No transaction history found for this associate.',
-        data: [],
-      };
-    }
+      .where(whereCondition)
+      .orderBy(desc(associateAccountMovements.transactionDate))
+      .limit(limit)
+      .offset((page - 1) * limit);
 
     const formattedMovements = movements.map((m) => ({
       ...m,
@@ -338,8 +376,13 @@ export class AssociateAccountsMovementsService {
     }));
 
     return {
-      message: 'Transaction history fetched successfully.',
       data: formattedMovements,
+      meta: {
+        totalCount: Number(totalCount),
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 }

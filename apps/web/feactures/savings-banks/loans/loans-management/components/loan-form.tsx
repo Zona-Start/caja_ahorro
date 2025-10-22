@@ -36,7 +36,6 @@ import * as z from 'zod';
 import { useTypeLoans } from '../../type-loans/hooks/use-query-type-loans';
 import { AssociatesLoan } from '../schemas/individual-load-api-schema'; // Ensure this import exists
 import {
-  ESTATUS_TYPES,
   lOAN_MODALITY,
   PAYMENT_METHOD,
 } from '../schemas/loans-management-options';
@@ -85,12 +84,12 @@ export function LoanForm({
               ? new Date(initialData.startDate)
               : new Date(),
             endDate: initialData?.endDate,
-            termMonths: initialData?.termMonths,
+            termUnits: initialData?.termMonths, // I'll use termMonths from initialData
+            termType: initialData?.termType ?? 'Plazos', // It won't exist, so default
             status: initialData?.status,
             paymentMethod: initialData?.paymentMethod,
             disbursementAccountId: initialData?.disbursementAccountId,
             interestRate: initialData?.interestRate,
-            installmentsCount: initialData?.termMonths,
             expensesAmount: initialData?.expensesAmount,
             overdraftAmount: String(
               parseInt(initialData?.overdraftAmount).toFixed(2),
@@ -105,12 +104,12 @@ export function LoanForm({
             requestedAmount: '',
             startDate: new Date(),
             endDate: '',
-            termMonths: '',
+            termUnits: '',
+            termType: 'Plazos',
             status: 'REQUESTED',
             paymentMethod: '',
             disbursementAccountId: undefined,
             interestRate: '',
-            installmentsCount: '',
             expensesAmount: '',
             overdraftAmount: null,
             notes: '',
@@ -134,12 +133,12 @@ export function LoanForm({
           ? new Date(initialData.startDate)
           : new Date(),
         endDate: initialData?.endDate,
-        termMonths: initialData?.termMonths,
+        termUnits: initialData?.termMonths,
+        termType: initialData?.termType ?? 'Plazos',
         status: initialData?.status,
         paymentMethod: initialData?.paymentMethod,
         disbursementAccountId: initialData?.disbursementAccountId,
         interestRate: initialData?.interestRate,
-        installmentsCount: initialData?.termMonths,
         expensesAmount: initialData?.expensesAmount,
         overdraftAmount: String(
           parseInt(initialData?.overdraftAmount).toFixed(2),
@@ -150,7 +149,6 @@ export function LoanForm({
   }, [isEdit, initialData]);
 
   const { data: loanTypes } = useTypeLoans();
-
 
   // Determine if the associate is blocked
   const isAssociateBlocked =
@@ -173,12 +171,12 @@ export function LoanForm({
         requestedAmount: '',
         startDate: new Date(),
         endDate: '',
-        termMonths: '',
         status: 'REQUESTED',
         paymentMethod: '',
         disbursementAccountId: undefined,
         interestRate: '',
-        installmentsCount: '',
+        termUnits: '',
+        termType: 'Plazos',
         expensesAmount: '',
         overdraftAmount: null,
         notes: '',
@@ -198,28 +196,35 @@ export function LoanForm({
           'interestRate',
           parseInt(loanType.interestRate).toString(),
         );
-        form.setValue('termMonths', String(Math.floor(loanType.termUnits)));
-        form.setValue('installmentsCount', loanType.termUnits.toString());
+        form.setValue('termUnits', loanType.termUnits.toString());
+        form.setValue('termType', loanType.termType || 'Plazos'); // Use from loanType or fallback
         form.setValue(
           'expensesAmount',
           parseInt(loanType?.administrativeExpensePercentage ?? '0').toString(),
         );
       }
     }
-  }, [form.watch('loanTypeId'), form]);
+  }, [form.watch('loanTypeId'), form, loanTypes]);
 
   // Sincronizar para que la fecha de finalización se calcule automáticamente
   useEffect(() => {
     const subscription = form.watch((values, { name, type }) => {
-      // Solo recalcula si cambian startDate o termMonths
-      if (name === 'startDate' || name === 'termMonths') {
-        const { startDate, termMonths } = values;
-        if (startDate && termMonths) {
+      // Solo recalcula si cambian startDate, termUnits o termType
+      if (name === 'startDate' || name === 'termUnits' || name === 'termType') {
+        const { startDate, termUnits, termType } = values;
+        if (startDate && termUnits && termType) {
           const start = new Date(startDate as string | Date);
-          const monthsToAdd = parseInt(termMonths as string);
-          if (!isNaN(start.getTime()) && !isNaN(monthsToAdd)) {
+          const units = parseInt(termUnits as string);
+          if (!isNaN(start.getTime()) && !isNaN(units)) {
             const newDate = new Date(start);
-            newDate.setMonth(newDate.getMonth() + monthsToAdd);
+            if (termType === 'Plazos') {
+              // Each unit is 15 days.
+              newDate.setDate(newDate.getDate() + units * 15);
+            } else {
+              // 'Cuotas'
+              // Each unit is a month.
+              newDate.setMonth(newDate.getMonth() + units);
+            }
             const calculatedEndDate = newDate.toISOString().split('T')[0];
             // Solo actualiza si el valor realmente cambió
             if (form.getValues('endDate') !== calculatedEndDate) {
@@ -278,7 +283,7 @@ export function LoanForm({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper  className="w-8 h-8">
+          <IconWrapper className="w-8 h-8">
             <CreditCard />
           </IconWrapper>
           Datos del Préstamo
@@ -427,6 +432,81 @@ export function LoanForm({
                     </FormItem>
                   )}
                 />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <FormField
+                    control={form.control}
+                    name="interestRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tasa de Interés Anual (%)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Ej: 12"
+                            {...field}
+                            disabled={
+                              !selectedAssociate ||
+                              isSubmitting ||
+                              isAssociateBlocked
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="termUnits"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cantidad de Plazos</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Ej: 12"
+                            {...field}
+                            disabled={
+                              !selectedAssociate ||
+                              isSubmitting ||
+                              isAssociateBlocked
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="termType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Plazo</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={
+                            !selectedAssociate ||
+                            isSubmitting ||
+                            isAssociateBlocked
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Seleccione el tipo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Plazos">Plazos</SelectItem>
+                            <SelectItem value="Cuotas">Cuotas</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <FormField
                     control={form.control}
@@ -657,7 +737,7 @@ export function LoanForm({
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Cuota Mensual
+                        Monto Cuota Pagar
                       </p>
                       <p className="text-lg font-medium">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}

@@ -180,6 +180,9 @@ export const createLoanManagementAction = async (
     disbursementAccountId: Number(payloadWithoutId.disbursementAccountId),
     status: payloadWithoutId.status,
     notes: payloadWithoutId.notes,
+    interestRate: Number(payloadWithoutId.interestRate),
+    termUnits: Number(payloadWithoutId.termUnits),
+    termType: payloadWithoutId.termType,
   };
 
   const [error, data] = await safeFetchApi(

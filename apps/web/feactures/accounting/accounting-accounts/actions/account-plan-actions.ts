@@ -5,7 +5,6 @@ import { ACCOUNT_LEVELS, ACCOUNT_TYPES } from '../schemas/account-plan-options';
 import {
   AccountPlan,
   accountPlanDeleteResponseSchema,
-  accountPlanPaginationResponseSchema,
   accountPlanResponseSchema,
 } from '../schemas/account-plan.schema';
 
@@ -90,7 +89,7 @@ export const getPaginatedAccountPlansAction = async (params: {
   });
 
   const [error, response] = await safeFetchApi(
-    accountPlanPaginationResponseSchema,
+    accountPlanListApiResponseSchema,
     `/account-plan/pagination?${searchParams}`,
     'GET',
   );

@@ -24,6 +24,12 @@ export const associateDetailsResponseSchema = z.object({
   data: associateDetailsSchema,
 });
 
+const metaSchema = z.object({
+  totalCount: z.number(),
+  page: z.number(),
+  limit: z.number(),
+});
+
 // Esquema para los movimientos de haberes (GET /haberes/by-associate/:associateId)
 export const haberesMovementSchema = z.object({
   fecha: z.string(),
@@ -35,6 +41,7 @@ export const haberesMovementSchema = z.object({
 export const haberesMovementsResponseSchema = z.object({
   message: z.string(),
   data: z.array(haberesMovementSchema),
+  meta: metaSchema,
 });
 
 // Esquema para los retiros (GET /by-associate/:associateId)
@@ -52,6 +59,7 @@ export const withdrawalSchema = z.object({
 export const withdrawalsResponseSchema = z.object({
   message: z.string(),
   data: z.array(withdrawalSchema),
+  meta: metaSchema,
 });
 
 // Esquema para el historial de transacciones (GET /history/by-associate/:associateId)
@@ -66,6 +74,7 @@ export const transactionHistorySchema = z.object({
 export const transactionHistoryResponseSchema = z.object({
   message: z.string(),
   data: z.array(transactionHistorySchema),
+  meta: metaSchema,
 });
 
 // Esquema para los préstamos (GET /by-associate/:associateId)
@@ -85,6 +94,7 @@ export const loanSchema = z.object({
 export const loansResponseSchema = z.object({
   message: z.string(),
   data: z.array(loanSchema),
+  meta: metaSchema,
 });
 
 // Esquema para los créditos (GET /by-associate/:associateId)
@@ -104,6 +114,7 @@ export const creditSchema = z.object({
 export const creditsResponseSchema = z.object({
   message: z.string(),
   data: z.array(creditSchema),
+  meta: metaSchema,
 });
 
 // Esquema para los detalles de un préstamo (GET /loan/:id/details)

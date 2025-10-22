@@ -8,6 +8,9 @@ import { columns } from './history-tables/columns';
 
 interface HistoryTabProps {
   id: number;
+  page: number;
+  setPage: (page: number) => void;
+  limit: number;
 }
 
 const AuxiliarComponents = ({
@@ -26,12 +29,15 @@ const AuxiliarComponents = ({
   );
 };
 
-export function HistoryTab({ id }: HistoryTabProps) {
+export function HistoryTab({ id, page, setPage, limit }: HistoryTabProps) {
   const {
     data: historyData,
     isLoading: historyLoading,
     isError: historyIsError,
-  } = useTransactionHistory(id, { enabled: Boolean(id) });
+  } = useTransactionHistory(
+    { associateId: id, page, limit },
+    { enabled: Boolean(id) },
+  );
 
   if (historyLoading) return <DataTableSkeleton columnCount={5} />;
   if (historyIsError)
@@ -46,7 +52,18 @@ export function HistoryTab({ id }: HistoryTabProps) {
     <DataTable
       columns={columns}
       data={historyData?.data || []}
-      totalItems={historyData?.data.length || 0}
+      totalItems={historyData?.meta?.totalCount || 0}
+      manualPagination={{
+        pageIndex: page - 1,
+        pageSize: limit,
+      }}
+      onPaginationChange={(updater) => {
+        if (typeof updater === 'function') {
+          const newPage = updater({ pageIndex: page - 1, pageSize: limit });
+          setPage(newPage.pageIndex + 1);
+        }
+      }}
+      pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );
 }

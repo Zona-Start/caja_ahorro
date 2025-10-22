@@ -40,7 +40,7 @@ export function useLoanPaidMutation() {
         });
       }
 
-      toast.success('Pago de Préstamo guardado exitosamente');
+      //toast.success('Pago de Préstamo guardado exitosamente');
     },
     onError: (error) => {
       toast.error(

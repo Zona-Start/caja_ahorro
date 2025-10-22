@@ -443,6 +443,12 @@ export const loans = savingsBanksSchema.table(
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
     ),
     balanceInFavor: numeric('balance_in_favor', { precision: 20, scale: 6 }), // balance a favor si aplica
+    interestRate: numeric('interest_rate', {
+      precision: 5,
+      scale: 2,
+    }), // Tasa de interés
+    termType: varchar('term_type', { length: 20 }), // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
+    termUnits: integer('term_units'), // Número de cuotas o duración del plazo)
     ...timestamps, // created_at y updated_at
   },
   (table) => ({

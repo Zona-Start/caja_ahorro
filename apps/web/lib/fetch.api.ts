@@ -153,8 +153,12 @@ export const safeFetchApi = async <T>(
     const parsed = schema.safeParse(response.data);
     if (!parsed.success) {
       console.error('Validation Error Details:', {
-        errors: parsed.error.errors,
+        errors: {
+          errors: parsed?.error.errors,
+          path: parsed?.error.errors[0]?.path,
+        },
         receivedData: response.data,
+        data: response.data.data,
       });
       return [
         {

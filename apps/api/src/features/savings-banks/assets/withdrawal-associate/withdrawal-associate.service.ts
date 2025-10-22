@@ -499,7 +499,12 @@ export class WithdrawalAssociateService {
     };
   }
 
-  async findAllByAssociate(associateId: number) {
+  async findAllByAssociate(
+    associateId: number,
+    filtersDto: FilterWithdrawalAssociateDto,
+  ) {
+    const { page = 1, limit = 10 } = filtersDto;
+
     // First, find the associate's account(s)
     const accounts = await this.db.query.associateAccounts.findMany({
       where: eq(schema.associateAccounts.associateId, associateId),
@@ -510,12 +515,29 @@ export class WithdrawalAssociateService {
 
     if (!accounts.length) {
       return {
-        message: `No accounts found for associate with ID ${associateId}`,
         data: [],
+        meta: {
+          totalCount: 0,
+          page: 1,
+          limit,
+          totalPages: 0,
+        },
       };
     }
 
     const accountIds = accounts.map((acc) => acc.id);
+
+    const whereCondition = inArray(
+      withdrawalsAssociates.associateAccountId,
+      accountIds,
+    );
+
+    const totalCountResult = await this.db
+      .select({ total: sql<number>`count(*)` })
+      .from(withdrawalsAssociates)
+      .where(whereCondition);
+
+    const totalCount = Number(totalCountResult[0].total);
 
     const withdrawals = await this.db
       .select({
@@ -533,15 +555,10 @@ export class WithdrawalAssociateService {
         withdrawalTypes,
         eq(withdrawalsAssociates.withdrawalTypeId, withdrawalTypes.id),
       )
-      .where(inArray(withdrawalsAssociates.associateAccountId, accountIds))
-      .orderBy(desc(withdrawalsAssociates.withdrawalDate));
-
-    if (!withdrawals.length) {
-      return {
-        message: 'No withdrawals found for this associate.',
-        data: [],
-      };
-    }
+      .where(whereCondition)
+      .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+      .limit(limit)
+      .offset((page - 1) * limit);
 
     const formattedWithdrawals = withdrawals.map((w) => ({
       ...w,
@@ -550,11 +567,14 @@ export class WithdrawalAssociateService {
       administrativeFee: parseFloat(w.administrativeFee ?? '0').toFixed(2),
     }));
 
-    console.log(formattedWithdrawals);
-
     return {
-      message: 'Withdrawals fetched successfully.',
       data: formattedWithdrawals,
+      meta: {
+        totalCount: Number(totalCount),
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
   }
 

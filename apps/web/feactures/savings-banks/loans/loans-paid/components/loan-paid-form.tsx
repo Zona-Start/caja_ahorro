@@ -1,6 +1,6 @@
 'use client';
 import { IconWrapper } from '@/components/icon-wrapper';
-import { useBanksQuery } from '@/feactures/banks/bank-directory/hooks/use-banks-querys';
+import { useBankAccountAll } from '@/feactures/banks/bank-account/hooks/use-query-bank-account';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -61,7 +61,9 @@ export function LoanPaidForm({
 }: LoanFormProps) {
   const { selectedAssociate, loanSummary } = useLoansPaidStore();
 
-  const { data: Banks } = useBanksQuery();
+  const { data: bankAccountsData, isLoading: isLoadingBankAccounts } =
+    useBankAccountAll();
+  const bankAccounts = bankAccountsData?.data || [];
   const [isCancellation, setIsCancellation] = useState(false);
 
   const form = useForm<z.infer<typeof loanPaymentSchema>>({
@@ -141,7 +143,6 @@ export function LoanPaidForm({
       //const calculatedAmount = calculateAmount();
       const calculatedAmount = selectedAssociate.loanTotalAmount;
 
-     
       // Evita ciclos si el valor ya es el correcto
       if (amount !== calculatedAmount) {
         form.setValue(
@@ -149,7 +150,6 @@ export function LoanPaidForm({
           calculatedAmount != null ? String(calculatedAmount) : '',
           { shouldValidate: true },
         );
-        
       }
 
       setIsCancellation(true);
@@ -246,19 +246,18 @@ export function LoanPaidForm({
                 name="bankId"
                 render={({ field }) => (
                   <FormItem className="w-full col-span-2">
-                    <FormLabel>Banco</FormLabel>
+                    <FormLabel>Banco Receptor</FormLabel>
                     <SelectSearchable
-                      options={
-                        Banks?.data?.map((item: any) => ({
-                          value: item.id!.toString(),
-                          label: `${item.code} - ${item.name}`,
-                        })) || []
-                      }
+                      options={bankAccounts?.map((acc) => ({
+                        value: String(acc.id),
+                        label: `${acc.accountName} (${acc.accountNumber})`,
+                      }))}
                       onValueChange={(value) => field.onChange(Number(value))}
-                      placeholder="Selecciona un banco"
-                      defaultValue={String(field.value)}
+                      placeholder="Seleccione una cuenta bancaria"
+                      defaultValue={String(field.value) || ''}
                       disabled={!selectedAssociate || isSubmitting}
                     />
+
                     <FormMessage />
                   </FormItem>
                 )}

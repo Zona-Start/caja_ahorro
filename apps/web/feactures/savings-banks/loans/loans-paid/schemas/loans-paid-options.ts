@@ -1,22 +1,22 @@
 import { z } from 'zod';
 
 export const LOAN_PAYMENT_TYPES = {
-  PAYING: 'ABONA A PRESTAMO',
-  CANCELLATION: 'CANCELA PRESTAMO',
+  PAYING: 'Abona a Préstamo',
+  CANCELLATION: 'Cancela Préstamo',
 } as const;
 
 export const PAYMENT_METHOD = {
-  CASH: 'EFECTIVO',
-  BANK_TRANSFER: 'TRANSFERENCIA BANCARIA',
-  CHECK: 'CHEQUE',
-  DEPOSIT: 'DEPÓSITO',
-  MOBILE_PAYMENT: 'PAGO_MÓVIL',
-  OTHER: 'OTRO',
+  CASH: 'Efectivo',
+  BANK_TRANSFER: 'Transferencia Bancaria',
+  CHECK: 'Cheque',
+  DEPOSIT: 'Depósito',
+  MOBILE_PAYMENT: 'Pago Móvil',
+  OTHER: 'Otro',
 } as const;
 
 export const PAYMENT_STATUS = {
-  DONE: 'REALIZADO',
-  CANCELED: 'CANCELADO',
+  DONE: 'Realizado',
+  CANCELED: 'Cancelado',
 } as const;
 
 export type LoanPaymentTypes = keyof typeof LOAN_PAYMENT_TYPES;

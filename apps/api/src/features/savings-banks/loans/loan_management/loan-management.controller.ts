@@ -1,5 +1,6 @@
 import { Roles } from '@/common/decorators';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import { PaginationDto } from '@/common/dto/pagination.dto';
 import {
   Body,
   Controller,
@@ -68,7 +69,6 @@ export class LoanManagementController {
   findOneEdit(@Param('id') id: string) {
     return this.loanManagementService.findRequestByEdit(+id);
   }
-
   @Get('by-associate/:associateId')
   @RequirePermissions('read:loans-by-associate')
   @ApiOperation({ summary: 'Get all loans for a specific associate' })
@@ -76,8 +76,19 @@ export class LoanManagementController {
     status: 200,
     description: 'Return all loans for the associate.',
   })
-  findAllByAssociate(@Param('associateId') associateId: string) {
-    return this.loanManagementService.findAllByAssociate(+associateId);
+  async findAllByAssociate(
+    @Param('associateId') associateId: string,
+    @Query() filtersDto: PaginationDto,
+  ) {
+    const result = await this.loanManagementService.findAllByAssociate(
+      +associateId,
+      filtersDto,
+    );
+    return {
+      message: 'loans fetched successfully.',
+      data: result.data,
+      meta: result.meta,
+    };
   }
 
   @Get(':id/details')

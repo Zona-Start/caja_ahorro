@@ -8,6 +8,9 @@ import { columns } from './loans-tables/columns';
 
 interface LoansTabProps {
   id: number;
+  page: number;
+  setPage: (page: number) => void;
+  limit: number;
 }
 
 const AuxiliarComponents = ({
@@ -26,12 +29,12 @@ const AuxiliarComponents = ({
   );
 };
 
-export function LoansTab({ id }: LoansTabProps) {
+export function LoansTab({ id, page, setPage, limit }: LoansTabProps) {
   const {
     data: loansData,
     isLoading: loansLoading,
     isError: loansIsError,
-  } = useLoans(id, { enabled: Boolean(id) });
+  } = useLoans({ associateId: id, page, limit }, { enabled: Boolean(id) });
 
   if (loansLoading) return <DataTableSkeleton columnCount={6} />;
   if (loansIsError)
@@ -46,7 +49,8 @@ export function LoansTab({ id }: LoansTabProps) {
     <DataTable
       columns={columns}
       data={loansData?.data || []}
-      totalItems={loansData?.data.length || 0}
+      totalItems={loansData?.meta?.totalCount || 0}
+      pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );
 }

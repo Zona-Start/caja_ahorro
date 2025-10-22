@@ -34,9 +34,11 @@ export const loanManagementSchema = z.object({
   }),
   status: z.string().optional(),
   notes: z.string().optional(),
-  termMonths: z.string(),
-  interestRate: z.string(),
-  installmentsCount: z.string(),
+  termUnits: z.string().min(1, { message: 'La cantidad de plazos es requerida' }),
+  interestRate: z.string().min(1, { message: 'La tasa de interés es requerida' }),
+  termType: z.string({
+    required_error: 'Por favor seleccione el tipo de plazo',
+  }),
 
   disbursedAmount: z.string().optional(),
   totalInterest: z.string().optional(),

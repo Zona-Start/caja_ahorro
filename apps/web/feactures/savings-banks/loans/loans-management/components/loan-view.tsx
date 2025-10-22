@@ -88,12 +88,12 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
         requestedAmount: initialData?.requestedAmount,
         startDate: initialData?.startDate,
         endDate: initialData?.endDate,
-        termMonths: initialData?.termMonths,
+        termUnits: initialData?.termMonths,
+        termType: initialData?.termType ?? 'Plazos',
         status: initialData?.status,
         paymentMethod: initialData?.paymentMethod,
         disbursementAccountId: initialData?.disbursementAccountId,
         interestRate: initialData?.interestRate,
-        installmentsCount: initialData?.termMonths,
         expensesAmount: initialData?.expensesAmount,
         overdraftAmount: initialData?.overdraftAmount,
         notes: initialData?.notes,
@@ -163,12 +163,12 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
     requestedAmount: '',
     startDate: new Date(),
     endDate: '',
-    termMonths: '',
+    termUnits: '',
+    termType: '',
     status: 'REQUESTED',
     paymentMethod: '',
     disbursementAccountId: undefined,
     interestRate: '',
-    installmentsCount: '',
     expensesAmount: '',
     overdraftAmount: null,
     notes: '',
@@ -190,36 +190,42 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
       }
 
       // Calcular resumen del préstamo
-      const amount = Number.parseFloat(values.requestedAmount || '0'); //monto soclitado
-      const term = Number.parseInt(values.termMonths || '0'); //plazos
-      const rate = Number.parseFloat(values.interestRate || '0'); //interes anuales
-      const installments = Number.parseInt(values.installmentsCount || '0'); //cuotas
-      const expenses = Number.parseFloat(values.expensesAmount || '0'); //porcentaje de gastos
+      const amount = Number.parseFloat(values.requestedAmount || '0');
+      const term = Number.parseInt(values.termUnits || '0');
+      const rate = Number.parseFloat(values.interestRate || '0');
+      const expenses = Number.parseFloat(values.expensesAmount || '0');
+      const termType = values.termType;
 
-      if (amount > 0 && term > 0 && rate > 0 && installments > 0) {
-        // Cálculo simple de interés (en la práctica se usaría una fórmula más compleja)
+      if (amount > 0 && term > 0 && rate > 0 && termType) {
+        const annualRate = rate / 100;
+        let durationInYears = 0;
+        if (termType === 'Cuotas') {
+          durationInYears = term / 12;
+        } else {
+          // Plazos
+          durationInYears = term / 24; // 24 plazos in a year
+        }
 
-        const percentageInterest = (amount * rate) / 100; // Porcentaje de cuota
-        // const percentageExpenses = (amount * expenses) / 100; // Porcentaje de gastos
-        let totalQuota = 0;
-        let totalInterest = 0;
-        let installmentAmount = 0;
-        let totalPayable = 0;
-        let totalDisbursement = 0;
+        const totalInterestValue = amount * annualRate;
+        const totalPayableValue = amount + totalInterestValue;
+        const totalQuotaValue = totalPayableValue / term;
+        const installmentAmountValue = (amount * expenses) / 100;
+        const totalDisbursementValue = amount - installmentAmountValue;
+
+        let totalQuota = totalQuotaValue;
+        let totalInterest = totalInterestValue;
+        let installmentAmount = installmentAmountValue;
+        let totalPayable = totalPayableValue;
+        let totalDisbursement = totalDisbursementValue;
+
         const exchangeRate = Number(currentExchangeRate);
 
         if (currentCurrencyCode === 'USD' && currentExchangeRate) {
-          totalQuota = (amount + percentageInterest) / term / exchangeRate;
-          totalInterest = (amount * rate) / 100 / exchangeRate;
-          installmentAmount = (amount * expenses) / 100 / exchangeRate;
-          totalPayable = (amount + totalInterest) / exchangeRate;
-          totalDisbursement = (amount - installmentAmount) / exchangeRate;
-        } else {
-          totalQuota = (amount + percentageInterest) / term;
-          totalInterest = (amount * rate) / 100;
-          installmentAmount = (amount * expenses) / 100;
-          totalPayable = amount + totalInterest;
-          totalDisbursement = amount - installmentAmount;
+          totalQuota /= exchangeRate;
+          totalInterest /= exchangeRate;
+          installmentAmount /= exchangeRate;
+          totalPayable /= exchangeRate;
+          totalDisbursement /= exchangeRate;
         }
 
         setLoanSummary({

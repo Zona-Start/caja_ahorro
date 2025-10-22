@@ -67,4 +67,16 @@ export class CreateLoanDto {
   @IsString()
   @IsOptional()
   notes?: string; // Observaciones
+
+  @IsNumber()
+  @IsOptional()
+  interestRate?: number; // Tasa de interés
+
+  @IsString()
+  @IsOptional()
+  termType?: string; // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
+
+  @IsInt()
+  @IsOptional()
+  termUnits?: number; // Número de cuotas o duración del plazo)
 }

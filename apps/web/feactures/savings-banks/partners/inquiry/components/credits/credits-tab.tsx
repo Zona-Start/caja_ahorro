@@ -8,6 +8,9 @@ import { columns } from './credits-tables/columns';
 
 interface CreditsTabProps {
   id: number;
+  page: number;
+  setPage: (page: number) => void;
+  limit: number;
 }
 
 const AuxiliarComponents = ({
@@ -26,12 +29,12 @@ const AuxiliarComponents = ({
   );
 };
 
-export function CreditsTab({ id }: CreditsTabProps) {
+export function CreditsTab({ id, page, setPage, limit }: CreditsTabProps) {
   const {
     data: creditsData,
     isLoading: creditsLoading,
     isError: creditsIsError,
-  } = useCredits(id, { enabled: Boolean(id) });
+  } = useCredits({ associateId: id, page, limit }, { enabled: Boolean(id) });
 
   if (creditsLoading) return <DataTableSkeleton columnCount={6} />;
   if (creditsIsError)
@@ -46,7 +49,8 @@ export function CreditsTab({ id }: CreditsTabProps) {
     <DataTable
       columns={columns}
       data={creditsData?.data || []}
-      totalItems={creditsData?.data.length || 0}
+      totalItems={creditsData?.meta?.totalCount || 0}
+      pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );
 }
