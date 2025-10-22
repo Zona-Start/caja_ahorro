@@ -144,6 +144,8 @@ export const getLoanManagementAllAction = async (params: {
       totalInterest: item.totalInterest,
       totalPayable: item.totalPayable,
       approvalDate: item.approvalDate,
+      termType: item.termType,
+      termUnits: item.termUnits,
     })) || [];
 
   return {

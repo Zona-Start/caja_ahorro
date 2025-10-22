@@ -278,6 +278,7 @@ export function AssociatesForm({
                   <FormControl>
                     <Input
                       {...field}
+                      value={field.value ?? ''}
                       disabled={readOnly}
                       className={readOnly ? 'bg-muted' : ''}
                     />
@@ -297,6 +298,7 @@ export function AssociatesForm({
                     <Input
                       type="email"
                       {...field}
+                      value={field.value ?? ''}
                       disabled={readOnly}
                       className={readOnly ? 'bg-muted' : ''}
                     />

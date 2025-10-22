@@ -36,6 +36,9 @@ export const LoanManagementGetResponseSchema = z.object({
   customReference: z.string().nullable(),
   currencyCode: z.string(),
   exchangeRateId: z.number().nullable(),
+  termType: z.string().nullable(),
+  termUnits: z.number().nullable(),
+  interestRate: z.string().nullable(),
 });
 
 //schema response query pagination

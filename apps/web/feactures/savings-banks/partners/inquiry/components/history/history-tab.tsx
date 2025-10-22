@@ -53,16 +53,6 @@ export function HistoryTab({ id, page, setPage, limit }: HistoryTabProps) {
       columns={columns}
       data={historyData?.data || []}
       totalItems={historyData?.meta?.totalCount || 0}
-      manualPagination={{
-        pageIndex: page - 1,
-        pageSize: limit,
-      }}
-      onPaginationChange={(updater) => {
-        if (typeof updater === 'function') {
-          const newPage = updater({ pageIndex: page - 1, pageSize: limit });
-          setPage(newPage.pageIndex + 1);
-        }
-      }}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

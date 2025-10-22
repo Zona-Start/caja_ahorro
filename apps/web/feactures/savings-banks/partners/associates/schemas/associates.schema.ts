@@ -64,14 +64,15 @@ export const AssociateMutationSchema = z.object({
     'ARCHIVED',
   ]),
   isPayrollCredit: z.boolean(),
-  localityId: z.number({ message: 'El Estado es requerido' }),
+  localityId: z.number({ message: 'El Estado es requerido' }).nullable(),
   phone: z
     .string()
     .regex(/^[0-9]+$/, 'El teléfono solo puede contener números')
     .min(10, 'El teléfono no puede tener menos de 10 dígitos')
-    .max(11, 'El teléfono no puede tener más de 11 dígitos'),
+    .max(11, 'El teléfono no puede tener más de 11 dígitos')
+    .nullable(),
 
-  email: z.string().email('El correo electrónico no es válido'),
+  email: z.string().email('El correo electrónico no es válido').nullable(),
   payrollTypeId: z
     .number({ message: 'El tipo de nomina es requerido' })
     .optional(),

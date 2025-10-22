@@ -859,6 +859,9 @@ export class LoanManagementService {
         customReference: loans.customReference,
         currencyCode: loans.currencyCode,
         exchangeRateId: loans.exchangeRateId,
+        termType: loans.termType,
+        termUnits: loans.termUnits,
+        interestRate: loans.interestRate,
       })
       .from(loans)
       .where(searchCondition)
@@ -1431,6 +1434,7 @@ export class LoanManagementService {
           or(
             eq(loans.status, LoanStatusEnum.APPROVED),
             eq(loans.status, LoanStatusEnum.DISBURSED),
+            eq(loans.status, LoanStatusEnum.IN_PAYMENT),
           ),
         ),
       );

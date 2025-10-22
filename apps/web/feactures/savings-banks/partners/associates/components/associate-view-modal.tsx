@@ -137,7 +137,7 @@ export function AssociateViewModal({
                 />
                 <DataRow
                   label="Ubicación (Estado)"
-                  value={findStateLabel(associateData?.localityId)}
+                  value={findStateLabel(associateData?.localityId || undefined)}
                 />
               </CardContent>
             </Card>
