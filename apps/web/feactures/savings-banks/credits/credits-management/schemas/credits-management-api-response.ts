@@ -33,6 +33,9 @@ export const CreditManagementGetResponseSchema = z.object({
   currencyCode: z.string().nullable(),
   exchangeRateId: z.number().nullable(),
   invoiceNumber: z.string().nullable(),
+  termType: z.string().nullable(),
+  termUnits: z.number().nullable(),
+  interestRate: z.string().nullable(),
 });
 
 //schema response query pagination

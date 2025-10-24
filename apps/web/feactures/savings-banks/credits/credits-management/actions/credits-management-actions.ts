@@ -142,6 +142,8 @@ export const getCreditManagementAllAction = async (params: {
         item.creditTypeAdministrativeExpensePercentage,
       creditTypeTermUnits: item.creditTypeTermUnits,
       invoiceNumber: item.invoiceNumber,
+      termType: item.termType,
+      termUnits: item.termUnits,
     })) || [];
 
   return {
@@ -181,6 +183,9 @@ export const createCreditManagementAction = async (
     commercialHouseId: payloadWithoutId.commercialHouseId,
     creditItems: payloadWithoutId.creditItems,
     useCommercialHouse: payloadWithoutId.useCommercialHouse,
+    interestRate: Number(payloadWithoutId.interestRate),
+    termUnits: Number(payloadWithoutId.termUnits),
+    termType: payloadWithoutId.termType,
   };
 
   const [error, data] = await safeFetchApi(

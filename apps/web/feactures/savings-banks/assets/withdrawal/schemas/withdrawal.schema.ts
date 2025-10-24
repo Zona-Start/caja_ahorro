@@ -15,10 +15,11 @@ export const withdrawalSchema = z.object({
       z.object({
         productId: z.string(),
         quantity: z.number().min(1, 'La cantidad debe ser al menos 1'),
+        price: z.coerce.number().min(0, 'El precio no puede ser negativo'),
       }),
     )
     .optional(),
-    items: z
+  items: z
     .array(
       z.object({
         description: z.string().min(1, 'La descripción es requerida'),

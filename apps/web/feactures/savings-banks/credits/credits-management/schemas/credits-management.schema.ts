@@ -21,7 +21,9 @@ export const creditManagementSchema = z.object({
     message: 'Por favor ingrese el monto del crédito',
   }), //monto credito
   termMonths: z.string(), //plazos
-  interestRate: z.string(), //interes
+  interestRate: z
+    .string()
+    .min(1, { message: 'La tasa de interés es requerida' }),
   startDate: z.date({
     required_error: 'Por favor seleccione la fecha de inicio',
   }), //fecha inicio
@@ -66,6 +68,12 @@ export const creditManagementSchema = z.object({
     )
     .optional(),
   useCommercialHouse: z.boolean().optional(),
+  termType: z.string({
+    required_error: 'Por favor seleccione el tipo de plazo',
+  }),
+  termUnits: z
+    .string()
+    .min(1, { message: 'La cantidad de plazos es requerida' }),
 });
 
 export type CreditManagement = z.infer<typeof creditManagementSchema>;

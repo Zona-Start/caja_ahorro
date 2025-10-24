@@ -49,9 +49,11 @@ export default function AssociatesTableAction() {
           filterValue={payrollFilter}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar socio
-      </Button>
+      <div className="flex gap-2">
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar socio
+        </Button>
+      </div>
 
       <AssociatesModal open={open} onOpenChange={setOpen} />
     </div>

@@ -23,6 +23,7 @@ import { RolePermissionsModule } from './features/role-permissions/role-permissi
 import { RolesModule } from './features/roles/roles.module';
 import { SavingsBanksFeatureModule } from './features/savings-banks/savings-banks.module';
 import { UserRolesModule } from './features/user-roles/user-roles.module';
+import { ReportsModule } from './features/reports/reports.module';
 
 @Module({
   providers: [
@@ -68,6 +69,7 @@ import { UserRolesModule } from './features/user-roles/user-roles.module';
     AccountingModule,
     BankingsModule,
     AdministrationFeaturesModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

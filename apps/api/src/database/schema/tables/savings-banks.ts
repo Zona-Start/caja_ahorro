@@ -348,7 +348,7 @@ export const loanTypes = savingsBanksSchema.table(
     maxLoanAmount: numeric('max_loan_amount', { precision: 20, scale: 6 }), // Monto máximo permitido para el préstamo
     minLoanAmount: numeric('min_loan_amount', { precision: 20, scale: 6 }), // Monto mínimo permitido para el préstamo
     payrollTypeId: integer('payroll_type_id').references(
-      () => categoryType.id,
+      () => typePayrolls.id,
       {
         onDelete: 'set null',
       },
@@ -623,7 +623,7 @@ export const creditsTypes = savingsBanksSchema.table(
     maxCreditAmount: numeric('max_credit_amount', { precision: 20, scale: 6 }), // Monto máximo permitido para el credito
     minCreditAmount: numeric('min_credit_amount', { precision: 20, scale: 6 }), // Monto mínimo permitido para el credito
     payrollTypeId: integer('payroll_type_id').references(
-      () => categoryType.id,
+      () => typePayrolls.id,
       {
         onDelete: 'set null',
       },
@@ -713,6 +713,12 @@ export const credits = savingsBanksSchema.table(
     balanceInFavor: numeric('balance_in_favor', { precision: 20, scale: 6 }), // balance a favor si aplica
     commercialHouseId: integer('commercial_house_id'),
     invoiceNumber: varchar('invoice_number', { length: 50 }),
+    interestRate: numeric('interest_rate', {
+      precision: 5,
+      scale: 2,
+    }), // Tasa de interés
+    termType: varchar('term_type', { length: 20 }), // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
+    termUnits: integer('term_units'), // Número de cuotas o duración del plazo)
     ...timestamps, // created_at y updated_at
   },
   (table) => ({
@@ -808,6 +814,7 @@ export const creditPayments = savingsBanksSchema.table(
     transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
     comment: text('comment'),
     customReference: varchar('custom_reference', { length: 50 }), // Nro. solicitud personalizado
+    status: paymentStatus('payment_status').default('DONE').notNull(),
     ...timestamps,
   },
   (table) => ({

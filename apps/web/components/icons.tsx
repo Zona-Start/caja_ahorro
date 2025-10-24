@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BetweenHorizonalStart,
+  ChartColumnBig,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -105,6 +106,7 @@ export const Icons = {
   store: Store,
   container: Container,
   squareX: SquareX,
+  chartColumnBig: ChartColumnBig,
   gitHub: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

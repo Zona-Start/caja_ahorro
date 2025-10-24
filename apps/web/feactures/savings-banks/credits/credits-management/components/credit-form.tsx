@@ -104,7 +104,6 @@ export function CreditForm({
             endDate: initialData?.endDate,
             termMonths: initialData?.termMonths,
             status: initialData?.status,
-            interestRate: initialData?.interestRate,
             installmentsCount: initialData?.termMonths,
             expensesAmount: initialData?.expensesAmount,
             overdraftAmount: initialData?.overdraftAmount,
@@ -114,6 +113,9 @@ export function CreditForm({
             products: initialData?.products || [],
             items: initialData?.items || [],
             useCommercialHouse: initialData?.useCommercialHouse || false,
+            interestRate: initialData?.interestRate,
+            termType: initialData?.termType ?? 'Plazos',
+            termUnits: initialData?.termUnits,
           }
         : {
             id: '0',
@@ -135,6 +137,8 @@ export function CreditForm({
             products: [],
             items: [],
             useCommercialHouse: false,
+            termUnits: '',
+            termType: 'Plazos',
           },
   });
 
@@ -281,37 +285,55 @@ export function CreditForm({
 
   useEffect(() => {
     if (creditTypeId) {
-      const creditType = creditTypes?.data?.find(
-        (lt) => lt.id === Number(creditTypeId),
-      );
-      if (creditType) {
-        setValue('interestRate', parseInt(creditType.interestRate).toString());
-        setValue('termMonths', String(Math.floor(creditType.termUnits)));
-        setValue('installmentsCount', creditType.termUnits.toString());
-        setValue(
-          'expensesAmount',
-          parseInt(
-            creditType?.administrativeExpensePercentage ?? '0',
-          ).toString(),
+      const creditTypeId = form.watch('creditTypeId');
+      if (creditTypeId) {
+        const creditType = creditTypes?.data?.find(
+          (lt) => lt.id === Number(creditTypeId),
         );
-      }
-    }
-  }, [creditTypeId, creditTypes, setValue]);
-
-  useEffect(() => {
-    if (startDateValue && termMonthsValue) {
-      const start = new Date(startDateValue as string | Date);
-      const monthsToAdd = parseInt(termMonthsValue as string);
-      if (!isNaN(start.getTime()) && !isNaN(monthsToAdd)) {
-        const newDate = new Date(start);
-        newDate.setMonth(newDate.getMonth() + monthsToAdd);
-        const calculatedEndDate = newDate.toISOString().split('T')[0];
-        if (getValues('endDate') !== calculatedEndDate) {
-          setValue('endDate', calculatedEndDate, { shouldDirty: true });
+        if (creditType) {
+          setValue(
+            'interestRate',
+            parseInt(creditType.interestRate).toString(),
+          );
+          setValue('termMonths', String(Math.floor(creditType.termUnits)));
+          form.setValue('termUnits', creditType.termUnits.toString());
+          form.setValue('termType', creditType.termType || 'Plazos'); // Use from loanType or fallback
+          setValue('installmentsCount', creditType.termUnits.toString());
+          setValue(
+            'expensesAmount',
+            parseInt(
+              creditType?.administrativeExpensePercentage ?? '0',
+            ).toString(),
+          );
         }
       }
     }
-  }, [startDateValue, termMonthsValue, setValue, getValues]);
+  }, [form.watch('creditTypeId'), creditTypes, form]);
+
+  useEffect(() => {
+    const subscription = form.watch((values, { name, type }) => {
+      if (name === 'startDate' || name === 'termUnits' || name === 'termType') {
+        const { startDate, termUnits, termType } = values;
+        if (startDate && termUnits && termType) {
+          const start = new Date(startDate as string | Date);
+          const units = parseInt(termUnits as string);
+          if (!isNaN(start.getTime()) && !isNaN(units)) {
+            const newDate = new Date(start);
+            if (termType === 'Plazos') {
+              newDate.setDate(newDate.getDate() + units * 15);
+            } else {
+              newDate.setMonth(newDate.getMonth() + units);
+            }
+            const calculatedEndDate = newDate.toISOString().split('T')[0];
+            if (getValues('endDate') !== calculatedEndDate) {
+              setValue('endDate', calculatedEndDate, { shouldDirty: true });
+            }
+          }
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form, getValues, setValue]);
 
   useEffect(() => {
     const subscription = watch((value) => onFormChange(value));
@@ -511,7 +533,7 @@ export function CreditForm({
                           isSubmitting ||
                           isAssociateBlocked
                         }
-                        minDate={new Date()}
+                        //minDate={new Date()}
                       />
                     </FormControl>
                     <FormMessage />
@@ -534,6 +556,7 @@ export function CreditForm({
                   </FormItem>
                 )}
               />
+
               {/* <FormField
                 control={control}
                 name="status"
@@ -984,6 +1007,79 @@ export function CreditForm({
                 )}
               />
             </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="interestRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tasa de Interés Anual (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Ej: 12"
+                        {...field}
+                        disabled={
+                          !selectedAssociate ||
+                          isSubmitting ||
+                          isAssociateBlocked
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="termUnits"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cantidad de Plazos</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Ej: 12"
+                        {...field}
+                        disabled={
+                          !selectedAssociate ||
+                          isSubmitting ||
+                          isAssociateBlocked
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="termType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Plazo</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={
+                        !selectedAssociate || isSubmitting || isAssociateBlocked
+                      }
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Seleccione el tipo" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Plazos">Plazos</SelectItem>
+                        <SelectItem value="Cuotas">Cuotas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={control}
@@ -1017,7 +1113,7 @@ export function CreditForm({
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Cuota Mensual
+                        Cuota a Pagar
                       </p>
                       <p className="text-lg font-medium">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}

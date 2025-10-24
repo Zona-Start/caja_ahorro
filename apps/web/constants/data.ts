@@ -191,6 +191,20 @@ export const savingBankItems: NavItem[] = [
       },
     ], // No child items
   },
+  {
+    title: 'Reportes',
+    url: '#', // Placeholder as there is no direct link for the parent
+    icon: 'chartColumnBig',
+    colorIcons: 'orange',
+    isActive: false,
+    items: [
+      {
+        title: 'Centro Reportes Socios',
+        url: '/dashboard/reportes/socios',
+        shortcut: ['m', 'm'],
+      },
+    ],
+  },
 ];
 
 export const AccountingItems: NavItem[] = [

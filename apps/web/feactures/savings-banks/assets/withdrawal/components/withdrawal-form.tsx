@@ -185,23 +185,22 @@ export function WithdrawalForm({
 
   useEffect(() => {
     if (!showProductSelection) return;
+
     const totalCost = (watchedProducts || []).reduce((acc, p) => {
       const quantity = Number(p?.quantity) || 0;
+      const rawPrice = Number(p?.price); // convierte a número
+      const price = Number.isNaN(rawPrice) ? 0 : Number(rawPrice.toFixed(2)); // redondea solo si es número
       if (p?.productId && quantity > 0) {
-        const productDetails = availableProducts.find(
-          (prod) => prod.id === Number(p.productId),
-        );
-        if (productDetails) {
-          return acc + Number(productDetails.productPrice) * quantity;
-        }
+        return acc + price * quantity;
       }
       return acc;
     }, 0);
+
     const rounded = totalCost.toFixed(2);
     if (form.getValues('requestedAmount') !== rounded) {
       form.setValue('requestedAmount', rounded, { shouldValidate: true });
     }
-  }, [watchedProducts, showProductSelection, availableProducts, form]);
+  }, [watchedProducts, showProductSelection, form]);
 
   useEffect(() => {
     if (!showCommercialItems) return;
@@ -251,21 +250,14 @@ export function WithdrawalForm({
   const handleSubmit = form.handleSubmit((data) => {
     let withdrawalItems: any[] = [];
     if (showProductSelection) {
-      withdrawalItems = (data.products || []).map((p: any) => {
-        const productDetails = availableProducts.find(
-          (prod) => prod.id === Number(p.productId),
-        );
-        return {
-          itemType: 'PRODUCT',
-          itemDescription: null,
-          itemId: Number(p.productId),
-          quantity: p.quantity,
-          agreedSellingPrice: productDetails
-            ? Number(productDetails.productPrice)
-            : 0,
-          days: null,
-        };
-      });
+      withdrawalItems = (data.products || []).map((p: any) => ({
+        itemType: 'PRODUCT',
+        itemDescription: null,
+        itemId: Number(p.productId),
+        quantity: p.quantity,
+        agreedSellingPrice: Number(p.price),
+        days: null,
+      }));
     } else if (showCommercialItems) {
       withdrawalItems = (data.items || []).map((item: any) => {
         const day = daysType?.data?.find((d) => d.id === Number(item.days));
@@ -283,7 +275,9 @@ export function WithdrawalForm({
     const dataToSubmit = {
       ...data,
       withdrawalItems,
-      commercialHouseId: showCommercialHouseDropdown ? commercialHouseId : null,
+      commercialHouseId: showCommercialHouseDropdown
+        ? Number(commercialHouseId)
+        : null,
     };
 
     delete dataToSubmit.products;
@@ -389,7 +383,9 @@ export function WithdrawalForm({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => append({ productId: '', quantity: 1 })}
+                    onClick={() =>
+                      append({ productId: '', quantity: 1, price: 0.0 })
+                    }
                     disabled={!selectedAssociate || isSubmitting || hasBlocks}
                   >
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -408,15 +404,15 @@ export function WithdrawalForm({
                       </TableHeader>
                       <TableBody>
                         {fields.map((field, index) => {
-                          const product = availableProducts.find(
-                            (p) =>
-                              p.id ===
-                              Number(form.watch(`products.${index}.productId`)),
+                          const productId = form.watch(
+                            `products.${index}.productId`,
                           );
                           const quantity =
                             form.watch(`products.${index}.quantity`) || 0;
-                          const subtotal =
-                            Number(product?.productPrice || 0) * quantity;
+                          const price =
+                            form.watch(`products.${index}.price`) || '0';
+                          const subtotal = Number(price) * quantity;
+
                           return (
                             <TableRow key={field.id}>
                               <TableCell>
@@ -426,7 +422,22 @@ export function WithdrawalForm({
                                   render={({ field }) => (
                                     <FormItem>
                                       <Select
-                                        onValueChange={field.onChange}
+                                        onValueChange={(value) => {
+                                          field.onChange(value);
+                                          const product =
+                                            availableProducts.find(
+                                              (p) => p.id === Number(value),
+                                            );
+                                          form.setValue(
+                                            `products.${index}.price`,
+                                            Number(
+                                              (
+                                                Number(product?.productPrice) ||
+                                                0
+                                              ).toFixed(2),
+                                            ),
+                                          );
+                                        }}
                                         value={field.value}
                                       >
                                         <FormControl>
@@ -467,8 +478,21 @@ export function WithdrawalForm({
                                   )}
                                 />
                               </TableCell>
-                              <TableCell className="text-right">
-                                {Number(product?.productPrice || 0).toFixed(2)}
+                              <TableCell className="min-w-[120px]">
+                                <FormField
+                                  control={form.control}
+                                  name={`products.${index}.price`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        {...field}
+                                      />
+                                    </FormItem>
+                                  )}
+                                />
                               </TableCell>
                               <TableCell className="text-right">
                                 {subtotal.toFixed(2)}

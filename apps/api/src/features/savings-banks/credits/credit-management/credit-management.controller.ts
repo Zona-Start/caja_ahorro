@@ -1,5 +1,6 @@
 import { Roles } from '@/common/decorators';
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import { PaginationDto } from '@/common/dto/pagination.dto';
 import {
   Body,
   Controller,
@@ -66,9 +67,24 @@ export class CreditManagementController {
   @Get('by-associate/:associateId')
   @RequirePermissions('read:credits-by-associate')
   @ApiOperation({ summary: 'Get all credits for a specific associate' })
-  @ApiResponse({ status: 200, description: 'Return all credits for the associate.' })
-  findAllByAssociate(@Param('associateId') associateId: string) {
-    return this.creditManagementService.findAllByAssociate(+associateId);
+  @ApiResponse({
+    status: 200,
+    description: 'Return all credits for the associate.',
+  })
+  async findAllByAssociate(
+    @Param('associateId') associateId: string,
+    @Query() filtersDto: PaginationDto,
+  ) {
+    const result = await this.creditManagementService.findAllByAssociate(
+      +associateId,
+      filtersDto,
+    );
+
+    return {
+      message: 'Credits fetched successfully.',
+      data: result.data,
+      meta: result.meta,
+    };
   }
 
   @Get(':id')

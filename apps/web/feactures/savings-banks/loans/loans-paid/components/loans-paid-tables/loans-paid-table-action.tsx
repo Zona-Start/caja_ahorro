@@ -49,13 +49,13 @@ export default function LoansPaidTableAction() {
           setFilterValue={setTypeFilter}
           filterValue={typeFilter}
         />
-        <DataTableFilterBox
+        {/* <DataTableFilterBox
           filterKey="type"
           title="Tipo de Banco"
           options={BANK_DIRECTORY_OPTIONS}
           setFilterValue={setBankFilter}
           filterValue={bankFilter}
-        />
+        /> */}
         <DataTableFilterBox
           filterKey="modality"
           title="Metodo"

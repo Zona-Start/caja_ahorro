@@ -466,6 +466,7 @@ export class WithdrawalAssociateService {
           or(
             eq(loans.status, LoanStatusEnum.APPROVED),
             eq(loans.status, LoanStatusEnum.DISBURSED),
+            eq(loans.status, LoanStatusEnum.IN_PAYMENT),
           ),
         ),
       );
@@ -476,7 +477,10 @@ export class WithdrawalAssociateService {
       .where(
         and(
           eq(credits.associateId, result[0].id),
-          eq(credits.status, CreditStatusEnum.APPROVED),
+          or(
+            eq(credits.status, CreditStatusEnum.APPROVED),
+            eq(credits.status, CreditStatusEnum.IN_PAYMENT),
+          ),
         ),
       );
 

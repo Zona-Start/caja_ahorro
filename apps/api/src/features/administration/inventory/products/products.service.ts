@@ -111,6 +111,33 @@ export class ProductsService {
   }
 
   async findAllProductByCredit() {
+    // const rows = await this.drizzle
+    //   .select({
+    //     id: products.id,
+    //     name: products.name,
+    //     productPrice: schema.productPrices.finalPrice,
+    //     availableQuantity: inventoryAvailability.availableQuantity,
+    //   })
+    //   .from(products)
+    //   .leftJoin(
+    //     schema.productPrices,
+    //     eq(schema.productPrices.productId, products.id),
+    //   )
+    //   .leftJoin(
+    //     inventoryAvailability,
+    //     and(
+    //       eq(inventoryAvailability.itemId, products.id),
+    //       eq(inventoryAvailability.itemType, 'PRODUCT'),
+    //     ),
+    //   )
+    //   .where(
+    //     and(
+    //       eq(products.status, 'AVAILABLE'),
+    //       eq(schema.productPrices.isActive, true),
+    //       gt(inventoryAvailability.availableQuantity, 0),
+    //     ),
+    //   );
+
     const rows = await this.drizzle
       .select({
         id: products.id,
@@ -121,7 +148,10 @@ export class ProductsService {
       .from(products)
       .leftJoin(
         schema.productPrices,
-        eq(schema.productPrices.productId, products.id),
+        and(
+          eq(schema.productPrices.productId, products.id),
+          eq(schema.productPrices.isActive, true), // <-- aquí, no en WHERE
+        ),
       )
       .leftJoin(
         inventoryAvailability,
@@ -133,7 +163,6 @@ export class ProductsService {
       .where(
         and(
           eq(products.status, 'AVAILABLE'),
-          eq(schema.productPrices.isActive, true),
           gt(inventoryAvailability.availableQuantity, 0),
         ),
       );

@@ -8,17 +8,17 @@ import { ThrottlerModule } from '@nestjs/throttler';
         {
           name: 'short',
           ttl: 1000, // 1 sec
-          limit: 5,
+          limit: 10,
         },
         {
           name: 'medium',
           ttl: 10000, // 10 sec
-          limit: 10,
+          limit: 20,
         },
         {
           name: 'long',
           ttl: 60000, // 1 min
-          limit: 20,
+          limit: 30,
         },
       ],
       errorMessage: 'Too many requests, please try again later.',

@@ -191,9 +191,9 @@ export function CreditView({ isEdit = false, initialData }: CreditViewProps) {
 
       // Calcular resumen del préstamo
       const amount = Number.parseFloat(values.requestedAmount || '0'); //monto soclitado
-      const term = Number.parseInt(values.termMonths || '0'); //plazos
+      const term = Number.parseInt(values.termUnits || '0'); //plazos
       const rate = Number.parseFloat(values.interestRate || '0'); //interes anuales
-      const installments = Number.parseInt(values.installmentsCount || '0'); //cuotas
+      const installments = Number.parseInt(values.termUnits || '0'); //cuotas
       const expenses = Number.parseFloat(values.expensesAmount || '0'); //porcentaje de gastos
 
       if (amount > 0 && term > 0 && rate > 0 && installments > 0) {

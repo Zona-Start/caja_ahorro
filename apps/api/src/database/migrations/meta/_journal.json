@@ -29,6 +29,27 @@
       "when": 1760896788130,
       "tag": "0003_complete_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1761228206787,
+      "tag": "0004_clean_mister_fear",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1761253225464,
+      "tag": "0005_clumsy_ultimatum",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1761266779321,
+      "tag": "0006_needy_colleen_wing",
+      "breakpoints": true
     }
   ]
 }

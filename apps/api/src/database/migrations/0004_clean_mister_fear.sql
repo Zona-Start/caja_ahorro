@@ -1,0 +1,1 @@
+ALTER TABLE "savings_banks"."credit_payments" ADD COLUMN "payment_status" "payment_status" DEFAULT 'DONE' NOT NULL;
