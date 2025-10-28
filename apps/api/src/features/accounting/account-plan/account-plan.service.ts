@@ -1,4 +1,4 @@
-import { accountPlan } from '@/database/schema/tables';
+import { accountPlan, auditLogs } from '@/database/schema/tables';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -43,6 +43,17 @@ export class AccountPlanService {
       })
       .values(createAccountPlanDto)
       .returning();
+
+    // Registra el log auditoria
+    await this.drizzle.insert(auditLogs).values({
+      tableName: 'accountPlan',
+      recordId: String(result[0].id),
+      action: 'INSERT',
+      userId: Number(userdId),
+      area: 'CONTABLE',
+      description: 'Creación de Plan de Cuenta',
+      newData: [result[0]],
+    });
 
     return result[0];
   }
@@ -186,10 +197,21 @@ export class AccountPlanService {
       .where(eq(accountPlan.id, id))
       .returning();
 
+    // Registra el log auditoria
+    await this.drizzle.insert(auditLogs).values({
+      tableName: 'accountPlan',
+      recordId: String(result[0].id),
+      action: 'UPDATE',
+      userId: Number(userdId),
+      area: 'CONTABLE',
+      description: 'Actualizacion de Plan de Cuenta',
+      newData: [result[0]],
+    });
+
     return result[0];
   }
 
-  async remove(id: number) {
+  async remove(id: number, userdId: number) {
     const existingAccountPlan = await this.findOne(id);
     if (!existingAccountPlan) {
       throw new NotFoundException(
@@ -198,6 +220,17 @@ export class AccountPlanService {
     }
 
     await this.drizzle.delete(accountPlan).where(eq(accountPlan.id, id));
+
+    // Registra el log auditoria
+    await this.drizzle.insert(auditLogs).values({
+      tableName: 'accountPlan',
+      recordId: String(id),
+      action: 'DELETE',
+      userId: Number(userdId),
+      area: 'CONTABLE',
+      description: 'Eliminacion de Plan de Cuenta',
+      newData: [id],
+    });
 
     return { message: 'Account Plan deleted successfully' };
   }

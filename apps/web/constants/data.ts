@@ -225,11 +225,11 @@ export const AccountingItems: NavItem[] = [
         url: '/dashboard/contabilidad/ciclos-contables',
         shortcut: ['m', 'm'],
       },
-      // {
-      //   title: 'Cuentas de Asociados',
-      //   shortcut: ['l', 'l'],
-      //   url: '#',
-      // },
+      {
+        title: 'Configuraciones Contables',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/contabilidad/configuraciones-contables',
+      },
     ],
   },
   {

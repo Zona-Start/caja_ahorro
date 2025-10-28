@@ -60,14 +60,14 @@ export class BankAccountsService {
           eq(schema.accountingConfiguration.companyId, bankAccount.companyId),
           eq(
             schema.accountingConfiguration.operationType,
-            'INITIAL_BALANCE_BANK',
+            'SALDO_INICIAL_BANCO',
           ),
         ),
       );
 
     if (!adjConfig) {
       throw new BadRequestException(
-        'No se ha configurado un ajustes de balance inicial para cuentas (INITIAL_BALANCE_BANK).',
+        'No se ha configurado un ajustes de balance inicial para cuentas (SALDO_INICIAL_BANCO).',
       );
     }
 
@@ -247,7 +247,7 @@ export class BankAccountsService {
             eq(schema.accountingConfiguration.companyId, bankAccount.companyId),
             eq(
               schema.accountingConfiguration.operationType,
-              'BANK_RECONCILIATION_ADJUSTMENT',
+              'AJUSTE_RECONCILIACION_BANCARIA',
             ),
           ),
         );

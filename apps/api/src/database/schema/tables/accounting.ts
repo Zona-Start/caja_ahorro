@@ -8,6 +8,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core';
@@ -18,6 +19,7 @@ import { sql } from 'drizzle-orm';
 import {
   accountNatureEnum,
   accountTypeEnum,
+  closingTypeEnum,
   currencyCodeEnum,
   cycleStatusEnum,
   entryStatusEnum,
@@ -154,6 +156,36 @@ export const accountingEntryDetails = accountingSchema.table(
     ), // Asegurar no negativos
     entryIdx: index('acct_entry_details_entry_idx').on(table.accountingEntryId),
     accountIdx: index('acct_entry_details_account_idx').on(table.accountPlanId),
+  }),
+);
+
+export const accountingClosings = accountingSchema.table(
+  'accounting_closings',
+  {
+    id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, { onDelete: 'cascade' }),
+    cycleId: integer('cycle_id')
+      .notNull()
+      .references(() => accountingCycles.id, { onDelete: 'restrict' }),
+    closingType: closingTypeEnum('closing_type').notNull(),
+    period: date('period').notNull(), //primer día del mes o del año que se cierra
+    closedAt: timestamp('closed_at').notNull().defaultNow(),
+    closedBy: integer('closed_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+  },
+  (table) => ({
+    // un mismo company / periodo / tipo solo puede cerrarse una vez
+    uniquePeriod: unique('accounting_closings_unique_period').on(
+      table.companyId,
+      table.period,
+      table.closingType,
+    ),
+    // índices típicos
+    companyIdx: index('accounting_closings_company_idx').on(table.companyId),
+    periodIdx: index('accounting_closings_period_idx').on(table.period),
   }),
 );
 

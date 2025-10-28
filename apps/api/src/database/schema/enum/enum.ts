@@ -450,3 +450,5 @@ export const paymentBatchItemType = pgEnum('payment_batch_item_type', [
   'WITHDRAWAL',
   'LIQUIDATION',
 ]);
+
+export const closingTypeEnum = pgEnum('closing_type', ['MONTH', 'YEAR']);

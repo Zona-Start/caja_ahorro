@@ -460,3 +460,8 @@ export enum paymentBatchItemStatus {
   PROCESSED = 'PROCESSED', // procesado exitosamente
   REJECTED = 'REJECTED', // rechazado por el banco
 }
+
+export enum closingTypeEnum {
+  MONTH = 'MONTH',
+  YEAR = 'YEAR',
+}

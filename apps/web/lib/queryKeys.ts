@@ -75,6 +75,29 @@ export const queryKeys = {
   },
 
   // =============================================
+  // ACCOUNTING CONFIGURATIONS (Configuraciones Contables)
+  // =============================================
+  accountingConfigurations: {
+    _def: ['accounting_configurations'],
+    all: () => [...queryKeys.accountingConfigurations._def],
+    list: (filters?: Record<string, unknown>) => [
+      ...queryKeys.accountingConfigurations._def,
+      'list',
+      filters,
+    ],
+    paginated: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingConfigurations._def,
+      'paginated',
+      params,
+    ],
+    detail: (id: number) => [
+      ...queryKeys.accountingConfigurations._def,
+      'detail',
+      id,
+    ],
+  },
+
+  // =============================================
   // ADMINISTRATION MODULE - ACCOUNTS PAYABLE
   // =============================================
   accountsPayable: {

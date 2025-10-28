@@ -111,7 +111,8 @@ export class AccountPlanController {
     description: 'Account plan deleted successfully.',
   })
   @ApiResponse({ status: 404, description: 'Account plan not found.' })
-  async remove(@Param('id') id: string) {
-    return await this.accountPlanService.remove(+id);
+  async remove(@Param('id') id: string, @Req() req: Request) {
+    const userId = req['user'].id;
+    return await this.accountPlanService.remove(+id, userId);
   }
 }
