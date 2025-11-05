@@ -19,7 +19,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, inArray, SQL, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   CreateAndReconcileDto,
@@ -27,6 +27,7 @@ import {
   QueryBankMovementDto,
   ReconcileBankDto,
 } from './dto';
+import { GetLinkablesDto } from './dto/get-linkables.dto';
 import { ReverseMovementDto } from './dto/reverse-movement.dto';
 
 @Injectable()
@@ -190,23 +191,30 @@ export class BankMovementsService {
    * - mismo sentido (entrada/salida) que el movimiento bancario
    * El resultado es una lista corta para que el front elija o pre-seleccione.
    */
-  async getLinkablesByCategory(
-    category: BankTransactionCategory,
-    valueDate: string,
-  ) {
+
+  async getLinkablesByCategory(dto: GetLinkablesDto) {
+    const { category, q, page = 1, limit = 10, startDate, endDate } = dto;
+    const offset = (page - 1) * limit;
+
     const [rule] = await this.drizzle
       .select()
       .from(schema.bankCategoryRule)
       .where(eq(schema.bankCategoryRule.category, category));
 
-    if (!rule) return [];
+    const emptyMeta = {
+      page: Number(page),
+      limit: Number(limit),
+      totalCount: 0,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      nextPage: null,
+      previousPage: null,
+    };
 
-    const { internalTable, recordStatus, direction } = rule;
+    if (!rule) return { data: [], meta: emptyMeta };
 
-    const minD = new Date(valueDate);
-    minD.setDate(minD.getDate() - 5);
-    const maxD = new Date(valueDate);
-    maxD.setDate(maxD.getDate() + 5);
+    const { internalTable, recordStatus } = rule;
 
     const queries: Record<string, () => any> = {
       // APORTES / DEPÓSITOS (MEMBER_CONTRIBUTION)
@@ -223,6 +231,13 @@ export class BankMovementsService {
               ),
           })
           .from(schema.associateAccountMovements)
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.associateAccountMovements.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
               inArray(schema.associateAccountMovements.movementType, [
@@ -230,7 +245,10 @@ export class BankMovementsService {
                 'EMPLOYER_CONTRIBUTION',
                 'VOLUNTARY_SAVINGS',
               ]),
-              sql`${schema.associateAccountMovements.transactionDate} BETWEEN ${minD} AND ${maxD}`,
+              startDate && endDate
+                ? sql`${schema.associateAccountMovements.transactionDate} BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -248,14 +266,24 @@ export class BankMovementsService {
               ),
           })
           .from(schema.withdrawalsAssociates)
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.withdrawalsAssociates.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
               eq(
                 schema.withdrawalsAssociates.status,
                 recordStatus as withdrawalStatusEnum,
               ),
-              sql`DATE(${schema.withdrawalsAssociates.withdrawalDate}) BETWEEN ${minD.toISOString().split('T')[0]} AND ${maxD.toISOString().split('T')[0]}`,
+              startDate && endDate
+                ? sql`DATE(${schema.withdrawalsAssociates.withdrawalDate}) BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
               sql`${schema.withdrawalsAssociates.bankTransactionId} IS NULL`,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -273,14 +301,24 @@ export class BankMovementsService {
               ),
           })
           .from(schema.liquidationsAssociates)
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.liquidationsAssociates.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
               eq(
                 schema.liquidationsAssociates.status,
                 recordStatus as liquidationsStatusEnum,
               ),
-              sql`${schema.liquidationsAssociates.liquidationDate} BETWEEN ${minD} AND ${maxD}`,
+              startDate && endDate
+                ? sql`${schema.liquidationsAssociates.liquidationDate} BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
               sql`${schema.liquidationsAssociates.payoutTransactionId} IS NULL`,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -298,10 +336,20 @@ export class BankMovementsService {
               ),
           })
           .from(schema.loans)
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.loans.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
               eq(schema.loans.status, recordStatus as LoanStatusEnum),
-              sql`${schema.loans.approvalDate} BETWEEN ${minD} AND ${maxD}`,
+              startDate && endDate
+                ? sql`${schema.loans.approvalDate} BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -319,11 +367,21 @@ export class BankMovementsService {
               ),
           })
           .from(schema.loanPayments)
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.loanPayments.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
-              sql`${schema.loanPayments.paymentDate} BETWEEN ${minD} AND ${maxD}`,
+              startDate && endDate
+                ? sql`${schema.loanPayments.paymentDate} BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
               sql`${schema.loanPayments.bankId} IS NOT NULL`, // debe tener banco destino
               sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.loanPayments.bankId})`,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -341,10 +399,20 @@ export class BankMovementsService {
               ),
           })
           .from(schema.credits)
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.credits.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
               eq(schema.credits.status, recordStatus as CreditStatusEnum),
-              sql`${schema.credits.approvalDate} BETWEEN ${minD} AND ${maxD}`,
+              startDate && endDate
+                ? sql`${schema.credits.approvalDate} BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -362,11 +430,21 @@ export class BankMovementsService {
               ),
           })
           .from(schema.creditPayments)
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.creditPayments.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
-              sql`${schema.creditPayments.paymentDate} BETWEEN ${minD} AND ${maxD}`,
+              startDate && endDate
+                ? sql`${schema.creditPayments.paymentDate} BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
               sql`${schema.creditPayments.bankId} IS NOT NULL`,
               sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.creditPayments.bankId})`,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -402,15 +480,25 @@ export class BankMovementsService {
               schema.supplierPaymentLines.accountsPayableId,
             ),
           )
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.supplierPaymentLines.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
               eq(
                 schema.supplierPayments.status,
                 recordStatus as paymentSupplierStatusEnum,
               ),
-              sql`${schema.supplierPayments.bankTransactionDate} BETWEEN ${minD} AND ${maxD}`,
+              startDate && endDate
+                ? sql`${schema.supplierPayments.bankTransactionDate} BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
               sql`${schema.supplierPayments.bankAccountId} IS NOT NULL`,
               sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.supplierPayments.bankAccountId})`,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
 
@@ -439,25 +527,70 @@ export class BankMovementsService {
             schema.suppliers,
             eq(schema.suppliers.id, schema.supplierTransactions.supplierId),
           )
+          .leftJoin(
+            schema.internalTransactionBankLinks,
+            eq(
+              schema.supplierAdvances.id,
+              schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
           .where(
             and(
               eq(schema.supplierTransactions.transactionType, 'ADVANCE'),
               eq(schema.supplierAdvances.statusPayment, 'PAID'),
-              sql`DATE(${schema.supplierTransactions.bankTransactionDate}) BETWEEN ${minD.toISOString().split('T')[0]} AND ${maxD.toISOString().split('T')[0]}`,
+              startDate && endDate
+                ? sql`DATE(${schema.supplierTransactions.bankTransactionDate}) BETWEEN ${startDate} AND ${endDate}`
+                : undefined,
               sql`${schema.supplierTransactions.bankAccountId} IS NOT NULL`,
               sql`NOT EXISTS (SELECT 1 FROM ${schema.bankTransactions} bt WHERE bt.id = ${schema.supplierTransactions.bankAccountId})`,
+              isNull(schema.internalTransactionBankLinks.internalRecordId),
             ),
           ),
     };
 
-    if (!internalTable) return [];
+    if (!internalTable) return { data: [], meta: emptyMeta };
     const queryFn = queries[internalTable];
     if (!queryFn) {
-      return [];
+      return { data: [], meta: emptyMeta };
     }
-    const query = queryFn(); // ✅ ejecutas la función y obtienes la query
 
-    return await query;
+    const baseQuery = queryFn();
+    const cte = baseQuery.as('linkable_items');
+
+    const filterCondition = q
+      ? sql`"concept" ILIKE ${`%${q}%`} OR "amount"::text ILIKE ${`%${q}%`} OR "date"::text ILIKE ${`%${q}%`}`
+      : undefined;
+
+    const totalQuery = this.drizzle
+      .select({ count: sql<number>`count(*)` })
+      .from(cte)
+      .where(filterCondition);
+
+    const dataQuery = this.drizzle
+      .select()
+      .from(cte)
+      .where(filterCondition)
+      .limit(limit)
+      .offset(offset);
+
+    const [totalResult] = await totalQuery;
+    const data = await dataQuery;
+
+    const totalCount = Number(totalResult.count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const meta = {
+      page: Number(page),
+      limit: Number(limit),
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return { data, meta };
   }
 
   /**

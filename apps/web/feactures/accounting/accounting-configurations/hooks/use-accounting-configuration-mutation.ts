@@ -10,9 +10,7 @@ import {
 
 export function useAccountingConfigurationMutation() {
   const queryClient = useQueryClient();
-
   const toast = useToastSystem();
-
   const mutation = useMutation({
     mutationFn: saveAccountingConfigurationAction,
     onSuccess: (_, variables) => {

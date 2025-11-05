@@ -5,8 +5,8 @@ import { safeFetchApi } from '@/lib/fetch.api';
 import z from 'zod';
 import {
   bankMovementResponseSchema,
-  linkablesResponseSchema,
   paginatedBankMovementsResponseSchema,
+  paginatedLinkablesResponseSchema,
 } from '../schemas/bank-movement-api.schema';
 import { BankTransactionCategory } from '../schemas/bank-movement-options';
 import { BankMovement } from '../schemas/bank-movement.schema';
@@ -62,16 +62,23 @@ export const createAndReconcileMovementAction = async (
 
 export const getLinkablesAction = async (params: {
   category: BankTransactionCategory;
-  valueDate: string;
+  q?: string;
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
 }) => {
   const searchParams = new URLSearchParams({
     ...(params.category && { category: params.category }),
-    ...(params.valueDate && { valueDate: params.valueDate }),
+    ...(params.startDate && { startDate: params.startDate }),
+    ...(params.endDate && { endDate: params.endDate }),
+    ...(params.q && { q: params.q }),
+    ...(params.page && { page: params.page.toString() }),
+    ...(params.limit && { limit: params.limit.toString() }),
   });
 
-  //const searchParams = buildSearchParams(params);
   const [error, response] = await safeFetchApi(
-    linkablesResponseSchema,
+    paginatedLinkablesResponseSchema,
     `${URL}/linkables?${searchParams}`,
     'GET',
   );

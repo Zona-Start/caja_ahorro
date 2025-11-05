@@ -5,11 +5,15 @@ import { BankTransactionCategory } from '../schemas/bank-movement-options';
 
 export const useGetLinkables = (params: {
   category: BankTransactionCategory;
-  valueDate: string;
+  q?: string;
+  page?: number;
+  limit?: number;
+  startDate?: string;
+  endDate?: string;
   enabled?: boolean;
 }) => {
   return useSafeQuery(
-    queryKeys.linkables.byParams(params),
+    queryKeys.linkables.list(params),
     () => getLinkablesAction(params),
     {
       enabled: params.enabled, // Controla si la consulta se ejecuta automáticamente

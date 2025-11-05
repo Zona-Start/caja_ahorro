@@ -42,7 +42,7 @@ export class AccountPlanController {
     return { message: 'Account plan created successfully', data };
   }
 
-  @Get()
+  @Get('all')
   @RequirePermissions('read:account-plans')
   @ApiOperation({
     summary: 'Get all account plans',

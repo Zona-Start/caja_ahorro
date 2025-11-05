@@ -59,10 +59,8 @@ export class AccountPlanService {
   }
 
   async findAll() {
-    return await this.drizzle
-      .select()
-      .from(accountPlan)
-      .where(eq(accountPlan.allowsMovements, true));
+    return await this.drizzle.select().from(accountPlan);
+    //.where(eq(accountPlan.allowsMovements, true));
   }
 
   async findAllByPagination(

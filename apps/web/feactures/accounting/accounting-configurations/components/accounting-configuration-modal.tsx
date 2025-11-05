@@ -38,7 +38,7 @@ export function AccountingConfigurationModal({
         }
       }}
     >
-      <DialogContent className="sm:max-w-[600px] z-50 ">
+      <DialogContent className="sm:max-w-[800px] z-50 ">
         <DialogHeader>
           <DialogTitle>
             {defaultValues?.id
@@ -47,7 +47,8 @@ export function AccountingConfigurationModal({
           </DialogTitle>
           <DialogDescription>
             Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} la configuración contable
+            {defaultValues?.id ? 'actualizar' : 'crear'} la configuración
+            contable
           </DialogDescription>
         </DialogHeader>
         <AccountingConfigurationForm

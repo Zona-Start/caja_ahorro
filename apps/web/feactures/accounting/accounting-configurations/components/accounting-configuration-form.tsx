@@ -40,8 +40,8 @@ export function AccountingConfigurationForm({
 }: AccountingConfigurationFormProps) {
   const { mutate: saveAccountingConfiguration, isPending: isSaving } =
     useAccountingConfigurationMutation();
-
-  const { data: accountingAccounts } = useAccountingAccounts();
+  const { data: accountingAccounts, isLoading: isLoadingAccounts } =
+    useAccountingAccounts();
 
   const form = useForm<AccountingConfiguration>({
     resolver: zodResolver(accountingConfigurationSchema),
@@ -53,7 +53,7 @@ export function AccountingConfigurationForm({
       debitAccountId: defaultValues?.debitAccountId || null,
       creditAccountId: defaultValues?.creditAccountId || null,
       contraAccountId: defaultValues?.contraAccountId || null,
-      isActive: defaultValues?.isActive || true,
+      isActive: defaultValues?.isActive ?? true,
     },
     mode: 'onChange',
   });
@@ -89,7 +89,11 @@ export function AccountingConfigurationForm({
               <FormItem>
                 <FormLabel>Tipo de Operación</FormLabel>
                 <FormControl>
-                  <Input placeholder="LOAN_DISBURSEMENT_VES" {...field} />
+                  <Input
+                    placeholder="PRESTAMO_DESEMBOLSO"
+                    {...field}
+                    disabled={defaultValues?.id ? true : false}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -119,19 +123,26 @@ export function AccountingConfigurationForm({
             render={({ field }) => (
               <FormItem className="w-full">
                 <FormLabel>Cuenta de Débito</FormLabel>
-                {accountingAccounts?.data && (
-                  <SelectSearchable
-                    options={accountingAccounts.data.map((account) => ({
-                      value: account.id!.toString(),
-                      label: `${account.code} - ${account.name}`,
-                    }))}
-                    onValueChange={(value) =>
-                      field.onChange(value === 'null' ? null : Number(value))
-                    }
-                    placeholder="Selecciona una cuenta"
-                    defaultValue={field.value?.toString() || 'null'}
-                  />
-                )}
+                <FormControl>
+                  {isLoadingAccounts ? (
+                    <Input placeholder="Cargando cuentas..." disabled />
+                  ) : (
+                    <SelectSearchable
+                      key={field.value}
+                      options={
+                        accountingAccounts?.data?.map((account) => ({
+                          value: account.id!.toString(),
+                          label: `${account.code} - ${account.name}`,
+                        })) ?? []
+                      }
+                      onValueChange={(value) => {
+                        field.onChange(value === 'null' ? null : Number(value));
+                      }}
+                      placeholder="Selecciona una cuenta"
+                      defaultValue={field.value?.toString() ?? 'null'}
+                    />
+                  )}
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -143,19 +154,25 @@ export function AccountingConfigurationForm({
             render={({ field }) => (
               <FormItem className="w-full">
                 <FormLabel>Cuenta de Crédito</FormLabel>
-                {accountingAccounts?.data && (
-                  <SelectSearchable
-                    options={accountingAccounts.data.map((account) => ({
-                      value: account.id!.toString(),
-                      label: `${account.code} - ${account.name}`,
-                    }))}
-                    onValueChange={(value) =>
-                      field.onChange(value === 'null' ? null : Number(value))
-                    }
-                    placeholder="Selecciona una cuenta"
-                    defaultValue={field.value?.toString() || 'null'}
-                  />
-                )}
+                <FormControl>
+                  {isLoadingAccounts ? (
+                    <Input placeholder="Cargando cuentas..." disabled />
+                  ) : (
+                    <SelectSearchable
+                      options={
+                        accountingAccounts?.data?.map((account) => ({
+                          value: account.id!.toString(),
+                          label: `${account.code} - ${account.name}`,
+                        })) ?? []
+                      }
+                      onValueChange={(value) =>
+                        field.onChange(value === 'null' ? null : Number(value))
+                      }
+                      placeholder="Selecciona una cuenta"
+                      defaultValue={field.value?.toString() || 'null'}
+                    />
+                  )}
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -167,19 +184,25 @@ export function AccountingConfigurationForm({
             render={({ field }) => (
               <FormItem className="w-full">
                 <FormLabel>Contra Cuenta</FormLabel>
-                {accountingAccounts?.data && (
-                  <SelectSearchable
-                    options={accountingAccounts.data.map((account) => ({
-                      value: account.id!.toString(),
-                      label: `${account.code} - ${account.name}`,
-                    }))}
-                    onValueChange={(value) =>
-                      field.onChange(value === 'null' ? null : Number(value))
-                    }
-                    placeholder="Selecciona una cuenta"
-                    defaultValue={field.value?.toString() || 'null'}
-                  />
-                )}
+                <FormControl>
+                  {isLoadingAccounts ? (
+                    <Input placeholder="Cargando cuentas..." disabled />
+                  ) : (
+                    <SelectSearchable
+                      options={
+                        accountingAccounts?.data?.map((account) => ({
+                          value: account.id!.toString(),
+                          label: `${account.code} - ${account.name}`,
+                        })) ?? []
+                      }
+                      onValueChange={(value) =>
+                        field.onChange(value === 'null' ? null : Number(value))
+                      }
+                      placeholder="Selecciona una cuenta"
+                      defaultValue={field.value?.toString() || 'null'}
+                    />
+                  )}
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

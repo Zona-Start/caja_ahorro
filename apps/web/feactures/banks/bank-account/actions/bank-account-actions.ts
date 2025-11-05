@@ -51,6 +51,8 @@ export const getBankAccountAction = async (params: {
     'GET',
   );
 
+  console.log(response?.data);
+
   if (error) {
     console.error('Error:', error);
     throw new Error(error.message || 'Error fetching bank account data');

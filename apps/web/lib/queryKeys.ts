@@ -424,6 +424,12 @@ export const queryKeys = {
       'by-params',
       params,
     ],
+
+    list: (params?: Record<string, unknown>) => [
+      ...queryKeys.linkables._def,
+      'list',
+      params,
+    ],
   },
 
   // =============================================

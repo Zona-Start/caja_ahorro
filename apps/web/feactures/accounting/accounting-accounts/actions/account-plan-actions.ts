@@ -1,49 +1,16 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import { accountPlanListApiResponseSchema } from '../schemas/account-plan-api';
-import { ACCOUNT_LEVELS, ACCOUNT_TYPES } from '../schemas/account-plan-options';
 import {
   AccountPlan,
   accountPlanDeleteResponseSchema,
   accountPlanResponseSchema,
 } from '../schemas/account-plan.schema';
 
-const transformAccountPlanData = async (accounts: AccountPlan[]) => {
-  const transformedAccounts = await Promise.all(
-    accounts.map(async (account) => {
-      // Get parent account info if exists
-      let parentAccountCode = 'Ninguno';
-      if (account.parentAccountId !== null) {
-        const [error, parentData] = await safeFetchApi(
-          accountPlanResponseSchema,
-          `/account-plan/${account.parentAccountId}`,
-          'GET',
-        );
-        if (!error && parentData) {
-          parentAccountCode = parentData.data.code;
-        }
-      }
-
-      return {
-        ...account,
-        typeLabel:
-          ACCOUNT_TYPES[account.accountType as keyof typeof ACCOUNT_TYPES] ||
-          account.accountType,
-        levelLabel:
-          ACCOUNT_LEVELS[account.level as keyof typeof ACCOUNT_LEVELS] ||
-          account.level,
-        parentAccountCode,
-      };
-    }),
-  );
-
-  return transformedAccounts;
-};
-
 export const getAccountPlansAction = async () => {
   const [error, data] = await safeFetchApi(
     accountPlanListApiResponseSchema,
-    '/account-plan',
+    '/account-plan/all',
     'GET',
   );
 
@@ -52,8 +19,7 @@ export const getAccountPlansAction = async () => {
     throw new Error(error.message || 'Error fetching all account plans');
   }
 
-  const transformedData = await transformAccountPlanData(data?.data || []);
-  return { ...data, data: transformedData };
+  return { ...data, data: data?.data };
 };
 
 export const getPaginatedAccountPlansAction = async (params: {
@@ -99,10 +65,8 @@ export const getPaginatedAccountPlansAction = async (params: {
     throw new Error(error.message || 'Error fetching paginated account plans');
   }
 
-  const transformedData = await transformAccountPlanData(response?.data || []);
-
   return {
-    data: transformedData,
+    data: response?.data,
     meta: response?.meta || {
       page: 1,
       limit: 10,

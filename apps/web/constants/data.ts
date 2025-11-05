@@ -209,7 +209,7 @@ export const savingBankItems: NavItem[] = [
 
 export const AccountingItems: NavItem[] = [
   {
-    title: 'Catálogos',
+    title: 'Maestros Contables',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'swatchBook',
     colorIcons: 'cyan',
@@ -226,7 +226,7 @@ export const AccountingItems: NavItem[] = [
         shortcut: ['m', 'm'],
       },
       {
-        title: 'Configuraciones Contables',
+        title: 'Reglas Contables',
         shortcut: ['l', 'l'],
         url: '/dashboard/contabilidad/configuraciones-contables',
       },

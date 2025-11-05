@@ -79,14 +79,12 @@ export class BankMovementsController {
    */
   @Get('linkables')
   async getLinkables(@Query() dto: GetLinkablesDto) {
-    const result = await this.bankMovementsService.getLinkablesByCategory(
-      dto.category as BankTransactionCategory,
-      dto.valueDate,
-    );
+    const result = await this.bankMovementsService.getLinkablesByCategory(dto);
 
     return {
       message: 'fetched successfully',
-      data: result,
+      data: result.data,
+      meta: result.meta,
     };
   }
 

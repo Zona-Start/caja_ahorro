@@ -67,3 +67,19 @@ export const linkablesResponseSchema = z.object({
   message: z.string(),
   data: z.array(linkableItemApiSchema),
 });
+
+// Esquema para la respuesta paginada de items vinculables
+export const paginatedLinkablesResponseSchema = z.object({
+  message: z.string(),
+  data: z.array(linkableItemApiSchema),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    totalCount: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+    nextPage: z.number().nullable(),
+    previousPage: z.number().nullable(),
+  }),
+});

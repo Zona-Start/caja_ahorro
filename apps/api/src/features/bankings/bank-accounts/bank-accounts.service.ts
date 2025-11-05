@@ -62,6 +62,7 @@ export class BankAccountsService {
             schema.accountingConfiguration.operationType,
             'SALDO_INICIAL_BANCO',
           ),
+          eq(schema.accountingConfiguration.isActive, true),
         ),
       );
 
@@ -249,6 +250,7 @@ export class BankAccountsService {
               schema.accountingConfiguration.operationType,
               'AJUSTE_RECONCILIACION_BANCARIA',
             ),
+            eq(schema.accountingConfiguration.isActive, true),
           ),
         );
 

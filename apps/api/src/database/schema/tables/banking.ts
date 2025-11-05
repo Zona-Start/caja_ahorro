@@ -152,8 +152,7 @@ export const internalTransactionBankLinks = bankingSchema.table(
     id: serial('id').primaryKey(),
     bankTransactionId: integer('bank_transaction_id')
       .notNull()
-      .references(() => bankTransactions.id, { onDelete: 'cascade' })
-      .unique(), // One internal link per bank transaction
+      .references(() => bankTransactions.id, { onDelete: 'cascade' }),
 
     // Polymorphic Relationship for Internal Records
     internalRecordType: varchar('internal_record_type', {

@@ -10,7 +10,7 @@ import {
  * Utiliza la fábrica centralizada de claves para consistencia
  */
 export function useAccountingAccounts() {
-  return useSafeQuery(queryKeys.accountingAccounts.all(), () =>
+  return useSafeQuery(queryKeys.accountingAccounts.list(), () =>
     getAccountPlansAction(),
   );
 }

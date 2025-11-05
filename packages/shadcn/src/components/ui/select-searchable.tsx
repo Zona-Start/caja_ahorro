@@ -11,6 +11,7 @@ function SelectSearchable({
   onValueChange,
   placeholder,
   defaultValue,
+  value,
   disabled,
   enableNoneOption = false,
   error,
@@ -19,6 +20,7 @@ function SelectSearchable({
   onValueChange: (value: string | null) => void;
   placeholder?: string;
   defaultValue?: string;
+  value?: string;
   disabled?: boolean;
   enableNoneOption?: boolean;
   error?: string;
@@ -37,6 +39,7 @@ function SelectSearchable({
     <SelectPrimitive.Root
       onValueChange={(value) => onValueChange(value === 'null' ? null : value)}
       defaultValue={defaultValue}
+      value={value}
       disabled={disabled}
       onOpenChange={(open) => {
         if (open) {

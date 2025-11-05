@@ -25,6 +25,10 @@ export function useBankAccountMutation() {
         queryKey: queryKeys.bankAccounts.list(),
       });
 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.listAll(),
+      });
+
       if (data?.data) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.bankAccounts.detail(data.data.id),

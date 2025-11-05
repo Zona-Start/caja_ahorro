@@ -7,8 +7,8 @@ export function AccountingConfigurationHeader() {
     <>
       <div className="flex items-start justify-between">
         <Heading
-          title="Configuraciones Contables"
-          description="Gestiona las configuraciones contables del sistema"
+          title="Reglas Contables"
+          description="Gestiona las reglas contables del sistema"
         />
       </div>
     </>
