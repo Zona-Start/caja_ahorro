@@ -802,7 +802,7 @@ export function SupplierInvoiceForm({
                               <FormLabel>Cuenta Contable</FormLabel>
                               <SelectSearchable
                                 options={
-                                  accountingAccounts?.data.map(
+                                  accountingAccounts?.data?.map(
                                     (account: any) => ({
                                       value: account.id!.toString(),
                                       label: `${account.code} - ${account.name}`,
@@ -848,7 +848,7 @@ export function SupplierInvoiceForm({
                             <FormLabel>Cuenta Contable</FormLabel>
                             <SelectSearchable
                               options={
-                                accountingAccounts?.data.map(
+                                accountingAccounts?.data?.map(
                                   (account: any) => ({
                                     value: account.id!.toString(),
                                     label: `${account.code} - ${account.name}`,
