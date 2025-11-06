@@ -74,7 +74,14 @@ export function WithdrawalSummary({
   const availability = balance * 0.8;
   const maxRecommended = availability * 0.9;
 
-  const hasBlocks = selectedAssociate?.isPayrollCredit === true;
+  const hasBlocks =
+    selectedAssociate?.totalLoansAssociate !== 0
+      ? true
+      : selectedAssociate?.totalCreditsAssociate !== 0
+        ? true
+        : selectedAssociate?.isPayrollCredit
+          ? true
+          : false;
 
   return (
     <div className="space-y-6">
@@ -91,11 +98,13 @@ export function WithdrawalSummary({
                     : 'outline'
               }
             >
-              {hasBlocks
-                ? 'Bloqueado'
-                : !enabledTime
+              {selectedAssociate?.isPayrollCredit
+                ? 'Alerta'
+                : hasBlocks
                   ? 'Bloqueado'
-                  : 'Sin Bloqueos'}
+                  : !enabledTime
+                    ? 'Bloqueado'
+                    : 'Sin Bloqueos'}
             </Badge>
           </div>
           <CardDescription>

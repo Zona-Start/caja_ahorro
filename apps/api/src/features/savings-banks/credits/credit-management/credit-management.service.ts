@@ -284,9 +284,10 @@ export class CreditManagementService {
       .where(eq(creditsTypes.id, creditTypeId));
     const finalDate = this.addMonthsToDate(
       startDate,
-      creditType.termUnits,
+      termUnits ?? creditType.termUnits,
       (termType ?? 'Plazos') as 'Cuotas' | 'Plazos',
     );
+
     const newCredit = await this.db.transaction(async (tx) => {
       const [ins] = await tx
         .insert(credits)
@@ -467,12 +468,7 @@ export class CreditManagementService {
       totalPayable =
         Number(requestedAmount) + totalInterest + installmentAmount;
     }
-    const safeStart = startDate ? new Date(startDate) : new Date();
-    const finalDate = this.addMonthsToDate(
-      safeStart,
-      term,
-      (termType ?? 'Plazos') as 'Cuotas' | 'Plazos',
-    );
+
     const customReference =
       await this.generateCodeService.generateNextReference('CRE');
 
@@ -485,7 +481,6 @@ export class CreditManagementService {
           approvalDate: new Date().toISOString(),
           customReference: customReference,
           approvedByUserId: userId,
-          endDate: finalDate.toISOString(),
           totalInterest: String(totalInterest.toFixed(6)),
           installmentAmount:
             termType === 'Plazos'
@@ -514,11 +509,13 @@ export class CreditManagementService {
         comment: 'CREDIT APPROVED',
       });
 
+      const startDateAsDate = startDate ? new Date(startDate) : new Date();
+
       const schedule = this.generateAmortizationSchedule(
         Number(requestedAmount),
         term,
         annualInterestRate,
-        new Date(),
+        startDateAsDate,
         id,
         userId,
         (termType ? termType : 'Plazos') as 'Plazos' | 'Cuotas',
@@ -611,7 +608,7 @@ export class CreditManagementService {
       searchType = '',
       search = '',
       sortBy = 'id',
-      sortOrder = 'asc',
+      sortOrder = 'desc',
       status = '',
       type = 0,
       modality = '',

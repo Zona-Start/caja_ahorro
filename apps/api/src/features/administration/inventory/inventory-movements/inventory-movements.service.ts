@@ -142,7 +142,7 @@ export class InventoryMovementsService {
       limit = 10,
       search = '',
       sortBy = 'id',
-      sortOrder = 'asc',
+      sortOrder = 'desc',
       itemId,
       itemType,
       movementType,

@@ -314,7 +314,7 @@ export class WithdrawalAssociateService {
       limit = 10,
       search = '',
       sortBy = 'id',
-      sortOrder = 'asc',
+      sortOrder = 'desc',
       type = '',
       status = '',
     } = paginationDto || {};

@@ -271,7 +271,12 @@ export const associateHaberesBalance = savingsBanksSchema.view(
                   'OTHER_DEBIT'::associate_movement_type_enum,
                   'FEE_DEBIT'::associate_movement_type_enum,
                   'LIQUIDATION_BALANCE'::associate_movement_type_enum,
-                  'ACCOUNTING_ADJUSTMENT_DEBIT'::associate_movement_type_enum
+                  'ACCOUNTING_ADJUSTMENT_DEBIT'::associate_movement_type_enum,
+                  'LIQUIDATION_LOAN_PAYMENT_DEBIT'::associate_movement_type_enum,
+                  'LIQUIDATION_CREDIT_PAYMENT_DEBIT'::associate_movement_type_enum,
+                  'LIQUIDATION_COMMERCIAL_CREDIT_PAYMENT_DEBIT'::associate_movement_type_enum,
+                  'LIQUIDATION_SPECIAL_LOAN_PAYMENT_DEBIT'::associate_movement_type_enum,
+                  'LIQUIDATION_SPECIAL_CREDIT_PAYMENT_DEBIT'::associate_movement_type_enum
               ]) THEN -${associateAccountMovements.amount}
               ELSE 0
           END

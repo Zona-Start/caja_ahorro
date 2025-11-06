@@ -39,7 +39,7 @@ export function useWithdrawalMutation() {
 
       //toast.success('Retiro guardado exitosamente');
     },
-    onError: () => {
+    onError: (error) => {
       toast.error('Error al guardar el retiro');
     },
   });

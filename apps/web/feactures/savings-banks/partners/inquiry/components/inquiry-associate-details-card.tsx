@@ -148,6 +148,15 @@ export function InquiryAssociateDetailsCard({
               </div>
             </div>
           )}
+          {statusText === 'Retirado' && (
+            <div className="col-span-2">
+              <div className="mt-4">
+                <Badge className="bg-red-700 text-white text-xl font-semibold">
+                  ASOCIADO LIQUIDADO
+                </Badge>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

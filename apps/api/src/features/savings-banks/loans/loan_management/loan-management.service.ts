@@ -569,7 +569,7 @@ export class LoanManagementService {
       searchType = '',
       search = '',
       sortBy = 'id',
-      sortOrder = 'asc',
+      sortOrder = 'desc',
       status = '',
       type = 0,
       modality = '',

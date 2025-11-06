@@ -151,7 +151,7 @@ export function WithdrawalSearch({
             Number(findTime[0]?.value),
             withdrawalDate,
           );
-          //setEnabledTime(BlockedTime);
+          setEnabledTime(BlockedTime);
           if (!BlockedTime) {
             toast.warning({
               title: `No se puede realizar retiros para ${associateData.fullname}`,
@@ -371,11 +371,10 @@ export function WithdrawalSearch({
                   <Badge
                     className={`text-white text-lg bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700`}
                   >
-                    Bloqueado{' '}
                     {selectedAssociate?.isPayrollCredit &&
                     selectedAssociate?.isPayrollCredit
-                      ? 'posee un credinomina activo'
-                      : 'posee un préstamo o crédito sin cancelar'}
+                      ? 'Alerta!! posee un credinomina activo'
+                      : 'Bloqueado posee un préstamo o crédito sin cancelar'}
                   </Badge>
                 </div>
               )}

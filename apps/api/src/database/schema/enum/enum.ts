@@ -169,6 +169,13 @@ export const associateMovementTypeEnum = pgEnum(
     // Ajustes Contables Específicos (para ajustes que no son reversiones directas de un tipo específico)
     'ACCOUNTING_ADJUSTMENT_DEBIT', // Nuevo: Ajuste contable general (Débito)
     'ACCOUNTING_ADJUSTMENT_CREDIT', // Nuevo: Ajuste contable general (Crédito)
+
+    //  Pagos de préstamos y créditos durante liquidación (Débitos a la cuenta de ahorro)
+    'LIQUIDATION_LOAN_PAYMENT_DEBIT', // Pago de préstamo regular durante liquidación
+    'LIQUIDATION_CREDIT_PAYMENT_DEBIT', // Pago de crédito  durante liquidación
+    'LIQUIDATION_COMMERCIAL_CREDIT_PAYMENT_DEBIT', // Pago de crédito comercial durante liquidación
+    'LIQUIDATION_SPECIAL_LOAN_PAYMENT_DEBIT', // Pago de préstamo especial durante liquidación
+    'LIQUIDATION_SPECIAL_CREDIT_PAYMENT_DEBIT', // Pago de crédito especial durante liquidación
   ],
 );
 

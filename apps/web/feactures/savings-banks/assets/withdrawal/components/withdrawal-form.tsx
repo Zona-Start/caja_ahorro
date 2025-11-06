@@ -296,9 +296,7 @@ export function WithdrawalForm({
       ? true
       : selectedAssociate?.totalCreditsAssociate !== 0
         ? true
-        : selectedAssociate?.isPayrollCredit
-          ? true
-          : false;
+        : false;
 
   return (
     <Card>

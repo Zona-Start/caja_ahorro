@@ -115,6 +115,16 @@ export const MOVEMENT_TYPES = {
   // Ajustes Contables Específicos
   ACCOUNTING_ADJUSTMENT_DEBIT: 'Ajuste Contable (Débito)',
   ACCOUNTING_ADJUSTMENT_CREDIT: 'Ajuste Contable (Crédito)',
+
+  //  Pagos de préstamos y créditos durante liquidación (Débitos a la cuenta de ahorro)
+  LIQUIDATION_LOAN_PAYMENT_DEBIT: 'Pago de préstamo durante liquidación',
+  LIQUIDATION_CREDIT_PAYMENT_DEBIT: 'Pago de crédito durante liquidación', // Pago de préstamo regular durante liquidación
+  LIQUIDATION_COMMERCIAL_CREDIT_PAYMENT_DEBIT:
+    'Pago de crédito comercial durante liquidación', // Pago de crédito comercial durante liquidación
+  LIQUIDATION_SPECIAL_LOAN_PAYMENT_DEBIT:
+    'Pago de préstamo especial durante liquidación', // Pago de préstamo especial durante liquidación
+  LIQUIDATION_SPECIAL_CREDIT_PAYMENT_DEBIT:
+    'Pago de crédito especial durante liquidación', // Pago de crédito especial durante liquidación
 } as const;
 
 export const PAYMENT_METHOD_TYPES = {
