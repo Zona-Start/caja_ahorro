@@ -220,3 +220,53 @@ export const accountingConfiguration = accountingSchema.table(
     ), // Configuración única por caja y tipo de operación
   }),
 );
+
+export const accountBalances = accountingSchema.table(
+  'account_balances',
+  {
+    id: serial('id').primaryKey(),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => company.id, { onDelete: 'cascade' }),
+    accountPlanId: integer('account_plan_id')
+      .notNull()
+      .references(() => accountPlan.id, { onDelete: 'cascade' }),
+    accountingCyclesId: integer('accounting_cycles_id') // puede ser el anual o el mensual
+      .notNull()
+      .references(() => accountingCycles.id, { onDelete: 'cascade' }),
+
+    // Este es el campo para tu "CARGA INICIAL"
+    // Es el saldo con el que la cuenta *inicia* el período.
+    initialBalance: numeric('initial_balance', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0.00'),
+
+    // Suma de todos los `debit` de `accountingEntryDetails`
+    // para esta cuenta *durante* este ciclo.
+    debitBalance: numeric('debit_balance', { precision: 20, scale: 6 }).default(
+      '0',
+    ),
+    // Suma de todos los `credit` de `accountingEntryDetails`
+    // para esta cuenta *durante* este ciclo.
+    creditBalance: numeric('credit_balance', {
+      precision: 20,
+      scale: 6,
+    }).default('0'),
+    // Saldo final calculado al momento del cierre.
+    // (Ej: initialBalance + totalDebit - totalCredit)
+    finalBalance: numeric('final_balance', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0.00'),
+    ...timestamps,
+  },
+  (table) => ({
+    // un registro por cuenta y ciclo
+    uniqueAccountCycle: unique('account_balances_unique').on(
+      table.companyId,
+      table.accountPlanId,
+      table.accountingCyclesId,
+    ),
+    cycleIdx: index('account_balances_cycle_idx').on(table.accountingCyclesId),
+    accountIdx: index('account_balances_plan_idx').on(table.accountPlanId),
+  }),
+);
