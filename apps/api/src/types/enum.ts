@@ -52,7 +52,7 @@ export enum AccountNatureEnum {
 export enum CycleStatusEnum {
   OPEN = 'OPEN',
   CLOSED = 'CLOSED',
-  CLOSING = 'CLOSING',
+  PENDING = 'PENDING',
 }
 
 // Enum Estado Préstamo

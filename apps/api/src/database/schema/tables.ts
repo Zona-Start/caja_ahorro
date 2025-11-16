@@ -1,4 +1,5 @@
 export {
+  accountBalances,
   accountPlan,
   accountingConfiguration,
   accountingCycles,

@@ -21,10 +21,7 @@ import {
 } from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
 import { useAccountingCycleMutation } from '../hooks/use-accounting-cycle-mutation';
-import {
-  CYCLE_STATUS_OPTIONS,
-  CycleStatusEnum,
-} from '../schemas/accounting-cycle-options';
+import { CycleStatusEnum } from '../schemas/accounting-cycle-options';
 import {
   AccountingCycle,
   accountingCycleSchema,
@@ -66,12 +63,6 @@ export function AccountingCycleForm({
       onSuccess: () => {
         form.reset();
         onSuccess?.();
-      },
-      onError: () => {
-        form.setError('root', {
-          type: 'manual',
-          message: 'Error al guardar el ciclo contable',
-        });
       },
     });
   };
@@ -137,36 +128,39 @@ export function AccountingCycleForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem className="w-full">
-                <FormLabel>Estado</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={!!defaultValues?.id}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecciona estado" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="w-full min-w-[200px]">
-                    {Object.entries(CYCLE_STATUS_OPTIONS).map(
-                      ([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {defaultValues?.id && (
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem className="w-full">
+                  <FormLabel>Estado</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona estado" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="w-full min-w-[200px]">
+                      <SelectItem value="OPEN">Abierto</SelectItem>
+                      <SelectItem value="PENDING">Pendiente</SelectItem>
+                      {/* {Object.entries(CYCLE_STATUS_OPTIONS).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )} */}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         <div className="flex justify-end gap-4">

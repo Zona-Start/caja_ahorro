@@ -40,5 +40,8 @@ export async function seedPermissions(db: NodePgDatabase<typeof schema>) {
   await db.insert(permissions).values({ name: 'auth:sign-out', createdById: 1, updatedById: 1 }).onConflictDoNothing();
   await db.insert(permissions).values({ name: 'auth:refresh-token', createdById: 1, updatedById: 1 }).onConflictDoNothing();
 
+  // Initial Balance permissions
+  await db.insert(permissions).values({ name: 'create:initial-balance', createdById: 1, updatedById: 1 }).onConflictDoNothing();
+
   console.log('Permissions seeded successfully');
 }

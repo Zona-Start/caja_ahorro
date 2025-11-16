@@ -1,10 +1,9 @@
-
 'use client';
 
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
-import { columns } from './tables/columns';
 import { usePaginatedAccountingCycles } from '../hooks/use-query-accounting-cycle';
+import { columns } from './tables/columns';
 
 interface AccountingCycleListProps {
   initialPage: number;

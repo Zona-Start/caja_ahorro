@@ -1,6 +1,22 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  and,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lte,
+  ne,
+  or,
+  sql,
+  SQL,
+} from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { CreateAccountingCycleDto } from './dto/create-accounting-cycle.dto';
@@ -34,35 +50,134 @@ export class AccountingCyclesService {
     return existingCycle;
   }
 
+  // async create(
+  //   userdId: number,
+  //   createAccountingCycleDto: CreateAccountingCycleDto,
+  // ): Promise<AccountingCycle> {
+  //   const existingCycle = await this.getAccountingCycleForDate(
+  //     createAccountingCycleDto.startDate,
+  //     createAccountingCycleDto.endDate,
+  //   );
+  //   if (existingCycle[0]?.status === 'OPEN') {
+  //     throw new NotFoundException(`There is an open accounting cycle`);
+  //   }
+
+  //   const newCycle = await this.drizzle
+  //     .insert(schema.accountingCycles)
+  //     .values({
+  //       companyId: createAccountingCycleDto.companyId,
+  //       startDate: createAccountingCycleDto.startDate
+  //         .toISOString()
+  //         .split('T')[0],
+  //       endDate: createAccountingCycleDto.endDate.toISOString().split('T')[0],
+  //       status: 'OPEN',
+  //       description: createAccountingCycleDto.description,
+  //       createdById: userdId,
+  //     })
+  //     .returning();
+  //   return {
+  //     ...newCycle[0],
+  //     startDate: new Date(newCycle[0].startDate),
+  //     endDate: new Date(newCycle[0].endDate),
+  //   } as AccountingCycle;
+  // }
+
   async create(
-    userdId: number,
-    createAccountingCycleDto: CreateAccountingCycleDto,
+    userId: number,
+    dto: CreateAccountingCycleDto,
+    opts?: { forceStatus?: 'OPEN' | 'PENDING' },
   ): Promise<AccountingCycle> {
-    const existingCycle = await this.getAccountingCycleForDate(
-      createAccountingCycleDto.startDate,
-      createAccountingCycleDto.endDate,
-    );
-    if (existingCycle[0]?.status === 'OPEN') {
-      throw new NotFoundException(`There is an open accounting cycle`);
+    /* 0. Validar solapamiento con ciclos OPEN o PENDING */
+    const overlapping = await this.drizzle
+      .select({ id: schema.accountingCycles.id })
+      .from(schema.accountingCycles)
+      .where(
+        and(
+          eq(schema.accountingCycles.companyId, dto.companyId),
+          inArray(schema.accountingCycles.status, ['OPEN', 'PENDING']),
+          or(
+            /* a) empieza dentro del nuevo rango */
+            and(
+              gte(
+                schema.accountingCycles.startDate,
+                dto.startDate.toISOString().split('T')[0],
+              ),
+              lte(
+                schema.accountingCycles.startDate,
+                dto.endDate.toISOString().split('T')[0],
+              ),
+            ),
+            /* b) termina dentro del nuevo rango */
+            and(
+              gte(
+                schema.accountingCycles.endDate,
+                dto.startDate.toISOString().split('T')[0],
+              ),
+              lte(
+                schema.accountingCycles.endDate,
+                dto.endDate.toISOString().split('T')[0],
+              ),
+            ),
+            /* c) envuelve completamente al nuevo rango */
+            and(
+              lte(
+                schema.accountingCycles.startDate,
+                dto.startDate.toISOString().split('T')[0],
+              ),
+              gte(
+                schema.accountingCycles.endDate,
+                dto.endDate.toISOString().split('T')[0],
+              ),
+            ),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (overlapping.length) {
+      throw new ConflictException(
+        'A cycle with OPEN or PENDING status already exists in the given date range.',
+      );
     }
 
-    const newCycle = await this.drizzle
+    /* 1. ¿Hay algún ciclo OPEN ahora? */
+    const openNow = await this.drizzle
+      .select({ id: schema.accountingCycles.id })
+      .from(schema.accountingCycles)
+      .where(
+        and(
+          eq(schema.accountingCycles.companyId, dto.companyId),
+          eq(schema.accountingCycles.status, 'OPEN'),
+        ),
+      )
+      .limit(1);
+
+    /* 2. Determinar status */
+    const requested = opts?.forceStatus;
+    const status: 'OPEN' | 'PENDING' =
+      requested ?? (openNow.length ? 'PENDING' : 'OPEN');
+
+    if (status === 'OPEN' && openNow.length) {
+      throw new ConflictException('An OPEN cycle already exists.');
+    }
+
+    /* 3. Crear el ciclo */
+    const [raw] = await this.drizzle
       .insert(schema.accountingCycles)
       .values({
-        companyId: createAccountingCycleDto.companyId,
-        startDate: createAccountingCycleDto.startDate
-          .toISOString()
-          .split('T')[0],
-        endDate: createAccountingCycleDto.endDate.toISOString().split('T')[0],
-        status: 'OPEN',
-        description: createAccountingCycleDto.description,
-        createdById: userdId,
+        companyId: dto.companyId,
+        startDate: dto.startDate.toISOString().split('T')[0],
+        endDate: dto.endDate.toISOString().split('T')[0],
+        status,
+        description: dto.description,
+        createdById: userId,
       })
       .returning();
+
     return {
-      ...newCycle[0],
-      startDate: new Date(newCycle[0].startDate),
-      endDate: new Date(newCycle[0].endDate),
+      ...raw,
+      startDate: new Date(raw.startDate),
+      endDate: new Date(raw.endDate),
     } as AccountingCycle;
   }
 
@@ -191,35 +306,86 @@ export class AccountingCyclesService {
     return result[0];
   }
 
-  async update(
-    userId: number,
-    id: number,
-    updateAccountingCycleDto: UpdateAccountingCycleDto,
-  ) {
-    const existingAccountPlan = await this.findOne(id);
+  async update(userId: number, id: number, dto: UpdateAccountingCycleDto) {
+    /* 0. Asegurar que existe */
+    const current = await this.findOne(id);
+    if (!current) {
+      throw new NotFoundException(`Accounting cycle with ID ${id} not found`);
+    }
 
-    if (!existingAccountPlan) {
-      throw new NotFoundException(
-        `Update Account Plan with ID ${id} not found`,
+    const toISO = (d?: Date) => d?.toISOString().split('T')[0];
+
+    const startStr = toISO(dto.startDate) ?? current.startDate;
+    const endStr = toISO(dto.endDate) ?? current.endDate;
+
+    /* 1. Solapamiento con otros ciclos (OPEN o PENDING) */
+    const overlap = await this.drizzle
+      .select({ id: schema.accountingCycles.id })
+      .from(schema.accountingCycles)
+      .where(
+        and(
+          eq(schema.accountingCycles.companyId, current.companyId),
+          inArray(schema.accountingCycles.status, ['OPEN', 'PENDING']),
+          ne(schema.accountingCycles.id, id), // excepto él mismo
+          or(
+            and(
+              gte(schema.accountingCycles.startDate, startStr),
+              lte(schema.accountingCycles.startDate, endStr),
+            ),
+            and(
+              gte(schema.accountingCycles.endDate, startStr),
+              lte(schema.accountingCycles.endDate, endStr),
+            ),
+            and(
+              lte(schema.accountingCycles.startDate, startStr),
+              gte(schema.accountingCycles.endDate, endStr),
+            ),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (overlap.length) {
+      throw new ConflictException(
+        'Another cycle (OPEN or PENDING) already overlaps the requested date range.',
       );
     }
 
-    const result = await this.drizzle
+    /* 2. Un solo OPEN */
+    const targetStatus = dto.status ?? current.status;
+    if (targetStatus === 'OPEN') {
+      const otherOpen = await this.drizzle
+        .select({ id: schema.accountingCycles.id })
+        .from(schema.accountingCycles)
+        .where(
+          and(
+            eq(schema.accountingCycles.companyId, current.companyId),
+            eq(schema.accountingCycles.status, 'OPEN'),
+            ne(schema.accountingCycles.id, id),
+          ),
+        )
+        .limit(1);
+
+      if (otherOpen.length) {
+        throw new ConflictException('An OPEN cycle already exists.');
+      }
+    }
+
+    /* 3. Actualizar */
+    const [updated] = await this.drizzle
       .update(schema.accountingCycles)
       .set({
-        companyId: updateAccountingCycleDto.companyId,
-        startDate: updateAccountingCycleDto?.startDate
-          ?.toISOString()
-          .split('T')[0],
-        endDate: updateAccountingCycleDto?.endDate?.toISOString().split('T')[0],
-        status: updateAccountingCycleDto.status,
-        description: updateAccountingCycleDto.description,
+        companyId: dto.companyId ?? current.companyId,
+        startDate: startStr,
+        endDate: endStr,
+        status: targetStatus,
+        description: dto.description ?? current.description,
         updatedById: userId,
       })
       .where(eq(schema.accountingCycles.id, id))
       .returning();
 
-    return result[0];
+    return updated;
   }
 
   async close(userId: number, id: number) {

@@ -52,6 +52,7 @@ export const cycleStatusEnum = pgEnum('cycle_status_enum', [
   'OPEN',
   'CLOSED',
   'CLOSING',
+  'PENDING',
 ]);
 
 // Enum Estado Préstamo

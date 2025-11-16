@@ -30,8 +30,8 @@ export class CreateAccountingCycleDto {
     enumName: 'CycleStatusEnum',
   })
   @IsEnum(CycleStatusEnum)
-  @IsNotEmpty()
-  status: CycleStatusEnum;
+  @IsOptional()
+  status?: CycleStatusEnum;
 
   @ApiProperty({ description: 'description: Cycle Accouting January 2025' })
   @IsString()

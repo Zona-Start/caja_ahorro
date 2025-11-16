@@ -53,15 +53,21 @@ export const getPaginatedAccountingCyclesAction = async (params: {
     );
   }
 
-  const transform = response?.data.map((item: any) => {
-    return {
-      ...item,
-      status: item.status as CycleStatusEnum,
-      startDate: new Date(item.startDate),
-      endDate: new Date(item.endDate),
-      closedAt: item.closedAt ? new Date(item.closedAt) : null,
-    };
-  });
+  const toLocalDate = (iso: string): Date => {
+    const [y, m, d] = iso
+      .slice(0, 10)
+      .split('-')
+      .map((n) => Number(n)) as [number, number, number];
+    return new Date(y, m - 1, d); // ahora sí, todos number
+  };
+
+  const transform = response?.data.map((item: any) => ({
+    ...item,
+    status: item.status as CycleStatusEnum,
+    startDate: toLocalDate(item.startDate),
+    endDate: toLocalDate(item.endDate),
+    closedAt: item.closedAt ? toLocalDate(item.closedAt) : null,
+  }));
 
   return {
     data: transform || [],
@@ -79,7 +85,7 @@ export const getPaginatedAccountingCyclesAction = async (params: {
 };
 
 export const createAccountingCycleAction = async (payload: AccountingCycle) => {
-  const { id, ...payloadWithoutId } = payload;
+  const { id, status, ...payloadWithoutId } = payload;
 
   const [error, data] = await safeFetchApi(
     accountingCycleResponseSchema,

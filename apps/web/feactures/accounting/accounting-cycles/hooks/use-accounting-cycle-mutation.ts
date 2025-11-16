@@ -38,8 +38,24 @@ export function useAccountingCycleMutation() {
       toast.crud.create.success('Ciclo contable');
     },
     onError: (error) => {
-      toast.crud.create.error('Ciclo contable');
-      console.error('Error:', error);
+      if (
+        error instanceof Error &&
+        error.message ===
+          'A cycle with OPEN or PENDING status already exists in the given date range.'
+      ) {
+        toast.crud.create.error(
+          'Ya existe un ciclo contable abierto en ese período.',
+        );
+        return;
+      } else if (
+        error instanceof Error &&
+        error.message === 'An OPEN cycle already exists.'
+      ) {
+        toast.crud.update.error('Ya existe un ciclo ABIERTO.');
+      } else {
+        toast.error('Error, Contacte al Administrador');
+        console.error('Nuevo Error:', error.message);
+      }
     },
   });
 
