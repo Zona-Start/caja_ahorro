@@ -16,7 +16,7 @@ export const accountPlanApiResponseSchema = z.object({
     'MEMORANDUM',
   ]),
   nature: z.enum(['DEBIT', 'CREDIT']).optional(),
-  level: z.number(),
+  level: z.number().nullable(),
   allowsMovements: z.boolean(),
   isActive: z.boolean(),
   parentAccountId: z.number().nullable(),
@@ -25,6 +25,10 @@ export const accountPlanApiResponseSchema = z.object({
   createdById: z.number().optional(),
   updateById: z.number().optional(),
 });
+
+export type AccountPlanApiResponse = z.infer<
+  typeof accountPlanApiResponseSchema
+>;
 
 export const accountPlanListApiResponseSchema = z.object({
   message: z.string(),

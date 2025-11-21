@@ -1,14 +1,14 @@
 'use client';
 
 import { ColumnDef } from '@tanstack/react-table';
+import { AccountPlanApiResponse } from '../../schemas/account-plan-api';
 import {
   ACCOUNT_LEVELS,
   ACCOUNT_TYPES,
 } from '../../schemas/account-plan-options';
-import { AccountPlan } from '../../schemas/account-plan.schema';
 import { CellAction } from './cell-action';
 
-export const columns: ColumnDef<AccountPlan>[] = [
+export const columns: ColumnDef<AccountPlanApiResponse>[] = [
   {
     accessorKey: 'code',
     header: 'Código',

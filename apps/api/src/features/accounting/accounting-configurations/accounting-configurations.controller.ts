@@ -20,7 +20,9 @@ import { UpdateAccountingConfigurationDto } from './dto/update-accounting-config
 @ApiTags('accounting-configurations')
 @Controller('accounting-configurations')
 export class AccountingConfigurationsController {
-  constructor(private readonly accountingConfigurationsService: AccountingConfigurationsService) {}
+  constructor(
+    private readonly accountingConfigurationsService: AccountingConfigurationsService,
+  ) {}
 
   @Post()
   @Roles('superadmin', 'admin')
@@ -47,7 +49,10 @@ export class AccountingConfigurationsController {
   @ApiOperation({
     summary: 'Get all accounting configurations',
   })
-  @ApiResponse({ status: 200, description: 'Return all accounting configurations.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all accounting configurations.',
+  })
   async findAll() {
     const data = await this.accountingConfigurationsService.findAll();
     return { message: 'Accounting configurations fetched successfully', data };
@@ -58,10 +63,17 @@ export class AccountingConfigurationsController {
   @ApiOperation({
     summary: 'Get all accounting configurations with pagination and filters',
   })
-  @ApiResponse({ status: 200, description: 'Return paginated accounting configurations .' })
-  async findAllByPagination(@Query() paginationDto: FilterAccountingConfigurationDto) {
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated accounting configurations .',
+  })
+  async findAllByPagination(
+    @Query() paginationDto: FilterAccountingConfigurationDto,
+  ) {
     const result =
-      await this.accountingConfigurationsService.findAllByPagination(paginationDto);
+      await this.accountingConfigurationsService.findAllByPagination(
+        paginationDto,
+      );
     return {
       message: 'accounting configurations fetched successfully',
       data: result.data,
@@ -72,8 +84,14 @@ export class AccountingConfigurationsController {
   @Get(':id')
   @RequirePermissions('read:accounting-configuration')
   @ApiOperation({ summary: 'Get an accounting configuration by ID' })
-  @ApiResponse({ status: 200, description: 'Return the accounting configuration.' })
-  @ApiResponse({ status: 404, description: 'Accounting configuration not found.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return the accounting configuration.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Accounting configuration not found.',
+  })
   async findOne(@Param('id') id: string) {
     const data = await this.accountingConfigurationsService.findOne(+id);
     return { message: 'Accounting configuration fetched successfully', data };
@@ -87,7 +105,10 @@ export class AccountingConfigurationsController {
     status: 200,
     description: 'Accounting configuration updated successfully.',
   })
-  @ApiResponse({ status: 404, description: 'Accounting configuration not found.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Accounting configuration not found.',
+  })
   async update(
     @Req() req: Request,
     @Param('id') id: string,
@@ -110,8 +131,12 @@ export class AccountingConfigurationsController {
     status: 200,
     description: 'Accounting configuration deleted successfully.',
   })
-  @ApiResponse({ status: 404, description: 'Accounting configuration not found.' })
-  async remove(@Param('id') id: string) {
-    return await this.accountingConfigurationsService.remove(+id);
+  @ApiResponse({
+    status: 404,
+    description: 'Accounting configuration not found.',
+  })
+  async remove(@Param('id') id: string, @Req() req: Request) {
+    const userId = req['user'].id;
+    return await this.accountingConfigurationsService.remove(+id, userId);
   }
 }

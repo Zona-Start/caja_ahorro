@@ -244,11 +244,11 @@ export const AccountingItems: NavItem[] = [
         url: '/dashboard/contabilidad/operaciones/asientos-contables',
         shortcut: ['m', 'm'],
       },
-      // {
-      //   title: 'Libro Diario',
-      //   shortcut: ['l', 'l'],
-      //   url: '#',
-      // },
+      {
+        title: 'Saldos Contables',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/contabilidad/operaciones/saldos-contables',
+      },
       // {
       //   title: 'Libro Mayor',
       //   shortcut: ['l', 'l'],

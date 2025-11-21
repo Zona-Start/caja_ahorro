@@ -48,6 +48,7 @@ export function AccountingConfigurationForm({
     defaultValues: {
       id: defaultValues?.id,
       companyId: defaultValues?.companyId || 1,
+      key: defaultValues?.key || '',
       operationType: defaultValues?.operationType || '',
       descriptionTemplate: defaultValues?.descriptionTemplate || '',
       debitAccountId: defaultValues?.debitAccountId || null,
@@ -84,13 +85,29 @@ export function AccountingConfigurationForm({
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
+            name="key"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Key de Operación</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    disabled={defaultValues?.id ? true : false}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="operationType"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Tipo de Operación</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="PRESTAMO_DESEMBOLSO"
+                    placeholder="PRESTAMO DESEMBOLSO"
                     {...field}
                     disabled={defaultValues?.id ? true : false}
                   />

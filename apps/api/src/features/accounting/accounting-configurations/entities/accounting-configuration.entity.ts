@@ -8,6 +8,9 @@ export class AccountingConfiguration {
   companyId: number;
 
   @ApiProperty()
+  key: string;
+
+  @ApiProperty()
   operationType: string;
 
   @ApiProperty({ required: false })

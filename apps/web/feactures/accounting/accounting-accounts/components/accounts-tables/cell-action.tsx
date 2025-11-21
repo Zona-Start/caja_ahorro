@@ -10,19 +10,19 @@ import {
 } from '@repo/shadcn/tooltip';
 import { Edit, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { AccountPlan } from '../../schemas/account-plan.schema';
 import { useDeleteAccountPlan } from '../../hooks/use-account-plan-mutation';
+import { AccountPlanApiResponse } from '../../schemas/account-plan-api';
 import { AccountPlanModal } from '../account-plan-modal';
 
 interface CellActionProps {
-  data: AccountPlan;
+  data: AccountPlanApiResponse;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  
+
   const { mutate: deleteAccount } = useDeleteAccountPlan();
 
   const onConfirm = async () => {
@@ -48,8 +48,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         description="Esta acción no se puede deshacer."
       />
 
-      <AccountPlanModal 
-        open={showEditModal} 
+      <AccountPlanModal
+        open={showEditModal}
         onOpenChange={setShowEditModal}
         defaultValues={data}
       />
@@ -58,8 +58,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="icon"
                 onClick={() => setShowEditModal(true)}
               >

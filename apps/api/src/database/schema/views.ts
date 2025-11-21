@@ -763,3 +763,5 @@ export const supplierTotal360 = administrationSchema.view(
   LEFT JOIN ${supplierNotes360} n ON n.supplier_id = m.supplier_id
   LEFT JOIN ${supplierPayments360} py ON py.supplier_id = m.supplier_id
 `);
+
+export * from './views';

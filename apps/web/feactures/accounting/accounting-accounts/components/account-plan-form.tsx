@@ -78,7 +78,7 @@ export function AccountPlanForm({
         (account) => account.id === formData.parentAccountId,
       );
 
-      if (parentAccount && parentAccount.level >= formData.level) {
+      if (parentAccount && (parentAccount.level ?? 0) >= formData.level) {
         form.setError('parentAccountId', {
           type: 'manual',
           message: 'La cuenta padre debe ser de un nivel inferior',

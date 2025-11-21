@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const accountingConfigurationSchema = z.object({
   id: z.number().optional(),
   companyId: z.number(),
+  key: z.string().min(1, 'La clave es requerida'),
   operationType: z.string().min(1, 'El tipo de operación es requerido'),
   descriptionTemplate: z.string().optional(),
   debitAccountId: z.number().optional().nullable(),
@@ -11,4 +12,6 @@ export const accountingConfigurationSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export type AccountingConfiguration = z.infer<typeof accountingConfigurationSchema>;
+export type AccountingConfiguration = z.infer<
+  typeof accountingConfigurationSchema
+>;

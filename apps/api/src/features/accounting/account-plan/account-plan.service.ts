@@ -1,5 +1,8 @@
-import { accountPlan, auditLogs } from '@/database/schema/tables';
+import { accountPlan } from '@/database/schema/tables';
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { ActionEnumAudit } from '@/types/enum';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -13,6 +16,7 @@ import { AccountPlan } from './entities/account-plan.entity';
 export class AccountPlanService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findAccountPlanByCode(code: string) {
@@ -45,15 +49,18 @@ export class AccountPlanService {
       .returning();
 
     // Registra el log auditoria
-    await this.drizzle.insert(auditLogs).values({
-      tableName: 'accountPlan',
-      recordId: String(result[0].id),
-      action: 'INSERT',
-      userId: Number(userdId),
-      area: 'CONTABLE',
-      description: 'Creación de Plan de Cuenta',
-      newData: [result[0]],
-    });
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountPlan',
+        recordId: String(result[0].id),
+        action: ActionEnumAudit.INSERT,
+        userId: Number(userdId),
+        area: 'CONTABLE',
+        description: 'Creación de Plan de Cuenta',
+        newData: [result[0]],
+      }),
+    );
 
     return result[0];
   }
@@ -196,15 +203,18 @@ export class AccountPlanService {
       .returning();
 
     // Registra el log auditoria
-    await this.drizzle.insert(auditLogs).values({
-      tableName: 'accountPlan',
-      recordId: String(result[0].id),
-      action: 'UPDATE',
-      userId: Number(userdId),
-      area: 'CONTABLE',
-      description: 'Actualizacion de Plan de Cuenta',
-      newData: [result[0]],
-    });
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountPlan',
+        recordId: String(result[0].id),
+        action: ActionEnumAudit.UPDATE,
+        userId: Number(userdId),
+        area: 'CONTABLE',
+        description: 'Actualizacion de Plan de Cuenta',
+        newData: [result[0]],
+      }),
+    );
 
     return result[0];
   }
@@ -220,15 +230,18 @@ export class AccountPlanService {
     await this.drizzle.delete(accountPlan).where(eq(accountPlan.id, id));
 
     // Registra el log auditoria
-    await this.drizzle.insert(auditLogs).values({
-      tableName: 'accountPlan',
-      recordId: String(id),
-      action: 'DELETE',
-      userId: Number(userdId),
-      area: 'CONTABLE',
-      description: 'Eliminacion de Plan de Cuenta',
-      newData: [id],
-    });
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountPlan',
+        recordId: String(id),
+        action: ActionEnumAudit.DELETE,
+        userId: Number(userdId),
+        area: 'CONTABLE',
+        description: 'Eliminacion de Plan de Cuenta',
+        newData: [id],
+      }),
+    );
 
     return { message: 'Account Plan deleted successfully' };
   }

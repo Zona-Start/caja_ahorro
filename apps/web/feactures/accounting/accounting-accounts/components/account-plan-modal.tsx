@@ -7,13 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
+import { AccountPlanApiResponse } from '../schemas/account-plan-api';
 import { AccountPlan } from '../schemas/account-plan.schema';
 import { AccountPlanForm } from './account-plan-form';
 
 interface AccountPlanModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultValues?: Partial<AccountPlan>;
+  defaultValues?: Partial<AccountPlanApiResponse>;
 }
 
 export function AccountPlanModal({
@@ -53,7 +54,7 @@ export function AccountPlanModal({
         <AccountPlanForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
-          defaultValues={defaultValues}
+          defaultValues={defaultValues as unknown as Partial<AccountPlan>}
         />
       </DialogContent>
     </Dialog>

@@ -1,28 +1,38 @@
 import { accountingConfiguration } from '@/database/schema/tables';
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { ActionEnumAudit } from '@/types/enum';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { UpdateAccountingConfigurationDto } from './dto/update-accounting-configuration.dto';
 import { CreateAccountingConfigurationDto } from './dto/create-accounting-configuration.dto';
 import { FilterAccountingConfigurationDto } from './dto/filter-accounting-configuration.dto';
+import { UpdateAccountingConfigurationDto } from './dto/update-accounting-configuration.dto';
 import { AccountingConfiguration } from './entities/accounting-configuration.entity';
 
 @Injectable()
 export class AccountingConfigurationsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async create(userdId: number, createAccountingConfigurationDto: CreateAccountingConfigurationDto) {
+  async create(
+    userdId: number,
+    createAccountingConfigurationDto: CreateAccountingConfigurationDto,
+  ) {
     const exists = await this.drizzle
       .select()
       .from(accountingConfiguration)
       .where(
         and(
-          eq(accountingConfiguration.companyId, createAccountingConfigurationDto.companyId),
-          eq(accountingConfiguration.operationType, createAccountingConfigurationDto.operationType),
+          eq(
+            accountingConfiguration.companyId,
+            createAccountingConfigurationDto.companyId,
+          ),
+          eq(accountingConfiguration.key, createAccountingConfigurationDto.key),
         ),
       );
 
@@ -32,10 +42,31 @@ export class AccountingConfigurationsService {
     const result = await this.drizzle
       .insert(accountingConfiguration)
       .values({
-        ...createAccountingConfigurationDto,
+        companyId: createAccountingConfigurationDto.companyId,
+        key: createAccountingConfigurationDto.key,
+        operationType: createAccountingConfigurationDto.operationType,
+        descriptionTemplate:
+          createAccountingConfigurationDto.descriptionTemplate,
+        debitAccountId: createAccountingConfigurationDto.debitAccountId,
+        creditAccountId: createAccountingConfigurationDto.creditAccountId,
+        contraAccountId: createAccountingConfigurationDto.contraAccountId,
+        isActive: createAccountingConfigurationDto.isActive,
         createdById: userdId,
       })
       .returning();
+
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountingConfiguration',
+        recordId: String(result[0].id),
+        action: ActionEnumAudit.INSERT,
+        userId: Number(userdId),
+        area: 'CONTABLE',
+        description: 'Creación de Configuración Contable',
+        newData: [result[0]],
+      }),
+    );
 
     return result[0];
   }
@@ -60,7 +91,9 @@ export class AccountingConfigurationsService {
     let searchConditions: SQL<unknown>[] = [];
 
     if (search) {
-        searchConditions.push(ilike(accountingConfiguration.operationType, `%${search}%`));
+      searchConditions.push(
+        ilike(accountingConfiguration.operationType, `%${search}%`),
+      );
     }
 
     const searchCondition = searchConditions.length
@@ -112,7 +145,9 @@ export class AccountingConfigurationsService {
       .where(eq(accountingConfiguration.id, id));
 
     if (!result.length) {
-      throw new NotFoundException(`Accounting Configuration with ID ${id} not found`);
+      throw new NotFoundException(
+        `Accounting Configuration with ID ${id} not found`,
+      );
     }
 
     return result[0];
@@ -140,10 +175,23 @@ export class AccountingConfigurationsService {
       .where(eq(accountingConfiguration.id, id))
       .returning();
 
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountingConfiguration',
+        recordId: String(result[0].id),
+        action: ActionEnumAudit.UPDATE,
+        userId: Number(userdId),
+        area: 'CONTABLE',
+        description: 'Actualización de Configuración Contable',
+        newData: [result[0]],
+        previousData: [existing],
+      }),
+    );
+
     return result[0];
   }
-
-  async remove(id: number) {
+  async remove(id: number, userId: number) {
     const existing = await this.findOne(id);
     if (!existing) {
       throw new NotFoundException(
@@ -151,7 +199,23 @@ export class AccountingConfigurationsService {
       );
     }
 
-    await this.drizzle.delete(accountingConfiguration).where(eq(accountingConfiguration.id, id));
+    await this.drizzle
+      .delete(accountingConfiguration)
+      .where(eq(accountingConfiguration.id, id));
+
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountingConfiguration',
+        recordId: String(id),
+        action: ActionEnumAudit.DELETE,
+        userId: Number(userId),
+        area: 'CONTABLE',
+        description: 'Eliminación de Configuración Contable',
+        newData: [id],
+        previousData: [existing],
+      }),
+    );
 
     return { message: 'Accounting Configuration deleted successfully' };
   }

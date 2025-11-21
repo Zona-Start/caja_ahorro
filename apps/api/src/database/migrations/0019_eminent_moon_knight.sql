@@ -1,0 +1,1 @@
+ALTER TABLE "accounting"."accounting_configuration" ADD COLUMN "key" varchar(100) NOT NULL;

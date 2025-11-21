@@ -13,6 +13,12 @@ export class CreateAccountingConfigurationDto {
   @IsInt()
   companyId: number;
 
+  @ApiProperty({ description: 'Key' })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  key: string;
+
   @ApiProperty({ description: 'Operation type' })
   @IsString()
   @IsNotEmpty()

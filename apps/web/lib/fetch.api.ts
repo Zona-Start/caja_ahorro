@@ -1,11 +1,15 @@
 'use server';
 import { env } from '@/lib/env';
-import type { InternalAxiosRequestConfig } from 'axios';
+import type { AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import axios, { AxiosError } from 'axios';
 import { z } from 'zod';
 
 /* ---------- 1. Tipo para el body de la petición ---------- */
-type JsonBody = Record<string, unknown> | Record<string, unknown>[] | undefined;
+type JsonBody =
+  | Record<string, unknown>
+  | Record<string, unknown>[]
+  | FormData
+  | undefined;
 
 /* ---------- 2. Tipo para el resultado de safeFetchApi ---------- */
 type FetchError = {
@@ -44,9 +48,21 @@ export const safeFetchApi = async <T>(
   url: string,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   body?: JsonBody,
+  config?: AxiosRequestConfig,
 ): Promise<[FetchError | null, T | null]> => {
   try {
-    const response = await fetchApi({ method, url, data: body });
+    const isFormData = body instanceof FormData;
+
+    const response = await fetchApi({
+      method,
+      url,
+      data: body,
+      ...config,
+      headers: {
+        ...config?.headers,
+        ...(isFormData ? { 'Content-Type': undefined } : {}),
+      },
+    });
 
     if (!schema) return [null, response.data as T];
 

@@ -98,6 +98,29 @@ export const queryKeys = {
   },
 
   // =============================================
+  // ACCOUNTING BALANCES (Balances Contables)
+  // =============================================
+  accountingBalances: {
+    _def: ['accounting_balances'],
+    all: () => [...queryKeys.accountingBalances._def],
+    list: (filters?: Record<string, unknown>) => [
+      ...queryKeys.accountingBalances._def,
+      'list',
+      filters,
+    ],
+    paginated: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingBalances._def,
+      'paginated',
+      params,
+    ],
+    detail: (id: number) => [
+      ...queryKeys.accountingBalances._def,
+      'detail',
+      id,
+    ],
+  },
+
+  // =============================================
   // ADMINISTRATION MODULE - ACCOUNTS PAYABLE
   // =============================================
   accountsPayable: {

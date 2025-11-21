@@ -1,10 +1,13 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { ActionEnumAudit } from '@/types/enum';
 import {
   ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   and,
   eq,
@@ -28,6 +31,7 @@ import { AccountingCycle } from './entities/accounting-cycle.entity';
 export class AccountingCyclesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async getAccountingCycleForDate(startDate: Date, endDate: Date) {
@@ -49,38 +53,6 @@ export class AccountingCyclesService {
 
     return existingCycle;
   }
-
-  // async create(
-  //   userdId: number,
-  //   createAccountingCycleDto: CreateAccountingCycleDto,
-  // ): Promise<AccountingCycle> {
-  //   const existingCycle = await this.getAccountingCycleForDate(
-  //     createAccountingCycleDto.startDate,
-  //     createAccountingCycleDto.endDate,
-  //   );
-  //   if (existingCycle[0]?.status === 'OPEN') {
-  //     throw new NotFoundException(`There is an open accounting cycle`);
-  //   }
-
-  //   const newCycle = await this.drizzle
-  //     .insert(schema.accountingCycles)
-  //     .values({
-  //       companyId: createAccountingCycleDto.companyId,
-  //       startDate: createAccountingCycleDto.startDate
-  //         .toISOString()
-  //         .split('T')[0],
-  //       endDate: createAccountingCycleDto.endDate.toISOString().split('T')[0],
-  //       status: 'OPEN',
-  //       description: createAccountingCycleDto.description,
-  //       createdById: userdId,
-  //     })
-  //     .returning();
-  //   return {
-  //     ...newCycle[0],
-  //     startDate: new Date(newCycle[0].startDate),
-  //     endDate: new Date(newCycle[0].endDate),
-  //   } as AccountingCycle;
-  // }
 
   async create(
     userId: number,
@@ -174,6 +146,19 @@ export class AccountingCyclesService {
       })
       .returning();
 
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountingCycles',
+        recordId: String(raw.id),
+        action: ActionEnumAudit.INSERT,
+        userId: Number(userId),
+        area: 'CONTABLE',
+        description: 'Creación de Ciclo Contable',
+        newData: [raw],
+      }),
+    );
+
     return {
       ...raw,
       startDate: new Date(raw.startDate),
@@ -182,10 +167,7 @@ export class AccountingCyclesService {
   }
 
   async findAll() {
-    return await this.drizzle
-      .select()
-      .from(schema.accountingCycles)
-      .where(eq(schema.accountingCycles.status, 'OPEN'));
+    return await this.drizzle.select().from(schema.accountingCycles);
   }
 
   async findAllPaginated(
@@ -385,6 +367,20 @@ export class AccountingCyclesService {
       .where(eq(schema.accountingCycles.id, id))
       .returning();
 
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountingCycles',
+        recordId: String(updated.id),
+        action: ActionEnumAudit.UPDATE,
+        userId: Number(userId),
+        area: 'CONTABLE',
+        description: 'Actualización de Ciclo Contable',
+        newData: [updated],
+        previousData: [current],
+      }),
+    );
+
     return updated;
   }
 
@@ -407,6 +403,21 @@ export class AccountingCyclesService {
       })
       .where(eq(schema.accountingCycles.id, id))
       .returning();
+
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        tableName: 'accountingCycles',
+        recordId: String(result[0].id),
+        action: ActionEnumAudit.UPDATE, // Closing is an update
+        userId: Number(userId),
+        area: 'CONTABLE',
+        description: 'Cierre de Ciclo Contable',
+        newData: [result[0]],
+        previousData: [existingAccountPlan],
+      }),
+    );
+
     return result[0];
   }
 }

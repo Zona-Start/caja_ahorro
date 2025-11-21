@@ -459,4 +459,9 @@ export const paymentBatchItemType = pgEnum('payment_batch_item_type', [
   'LIQUIDATION',
 ]);
 
-export const closingTypeEnum = pgEnum('closing_type', ['MONTH', 'YEAR']);
+export const closingTypeEnum = pgEnum('closing_type', ['QUARTERLY', 'ANNUAL ']);
+export const closingStatusEnum = pgEnum('closing_status', [
+  'SUCCESS',
+  'FAILED',
+  'MANUAL_REVERTED',
+]);

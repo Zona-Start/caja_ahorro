@@ -19,6 +19,7 @@ import { sql } from 'drizzle-orm';
 import {
   accountNatureEnum,
   accountTypeEnum,
+  closingStatusEnum,
   closingTypeEnum,
   currencyCodeEnum,
   cycleStatusEnum,
@@ -162,22 +163,34 @@ export const accountingEntryDetails = accountingSchema.table(
 export const accountingClosings = accountingSchema.table(
   'accounting_closings',
   {
+    /* ---------- obligatorios ---------- */
     id: serial('id').primaryKey(),
     companyId: integer('company_id')
       .notNull()
       .references(() => company.id, { onDelete: 'cascade' }),
-    cycleId: integer('cycle_id')
+    accountingCycleId: integer('accounting_cycle_id') // FK → accountingCycles
       .notNull()
       .references(() => accountingCycles.id, { onDelete: 'restrict' }),
-    closingType: closingTypeEnum('closing_type').notNull(),
-    period: date('period').notNull(), //primer día del mes o del año que se cierra
-    closedAt: timestamp('closed_at').notNull().defaultNow(),
-    closedBy: integer('closed_by')
+    closingType: closingTypeEnum('closing_type').notNull(), // ANNUAL | QUARTERLY
+    period: date('period').notNull(), // 1er día del período que se cierra
+    closingTimestamp: timestamp('closing_timestamp') // CUÁNDO (con hh:mm:ss)
+      .notNull()
+      .defaultNow(),
+    userId: integer('user_id') // QUIÉN lo ejecutó (Auth)
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),
+    status: closingStatusEnum('status') // SUCCESS | FAILED | MANUAL_REVERTED
+      .notNull()
+      .default('SUCCESS'),
+
+    /* ---------- opcionales ---------- */
+    notes: text('notes'), // comentarios del contador
+    processedEntryId: integer('processed_entry_id') // FK al asiento de cierre (anual)
+      .references(() => accountingEntries.id, { onDelete: 'set null' }),
+    errorDetails: text('error_details'), // stack-trace o mensaje si FAILED
   },
   (table) => ({
-    // un mismo company / periodo / tipo solo puede cerrarse una vez
+    // regla de negocio: un mismo company / periodo / tipo solo puede cerrarse una vez
     uniquePeriod: unique('accounting_closings_unique_period').on(
       table.companyId,
       table.period,
@@ -197,6 +210,7 @@ export const accountingConfiguration = accountingSchema.table(
     companyId: integer('company_id')
       .notNull()
       .references(() => company.id, { onDelete: 'cascade' }),
+    key: varchar('key', { length: 100 }).notNull(),
     operationType: varchar('operation_type', { length: 100 }).notNull(), //Ej: LOAN_DISBURSEMENT_VES, SAVING_CONTRIBUTION_USD, INTEREST_ACCRUAL
     descriptionTemplate: text('description_template'), //Plantilla para descripción del asiento. Ej: "Desembolso Préstamo #{loanId}
     debitAccountId: integer('debit_account_id').references(

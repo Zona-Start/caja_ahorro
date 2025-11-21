@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm';
 import {
+  accountBalances,
   accountingConfiguration,
   accountingCycles,
   accountingEntries,
@@ -177,8 +178,6 @@ export const productServiceSuppliersRelations = relations(
     }),
   }),
 );
-
-
 
 /* ---------- 10.  RELACIONES DE MOVIMIENTOS DE INVENTARIO (polimórficas) ---------- */
 export const inventoryMovementsRelations = relations(
@@ -546,6 +545,27 @@ export const accountingConfigurationRelations = relations(
       fields: [accountingConfiguration.contraAccountId],
       references: [accountPlan.id],
       relationName: 'contraAccountConfigs',
+    }),
+  }),
+);
+
+/* -------------------------------------------------
+   RELACIONES: accountBalances
+-------------------------------------------------- */
+export const accountBalancesRelations = relations(
+  accountBalances,
+  ({ one }) => ({
+    accountPlan: one(accountPlan, {
+      fields: [accountBalances.accountPlanId],
+      references: [accountPlan.id],
+    }),
+    accountingCycle: one(accountingCycles, {
+      fields: [accountBalances.accountingCyclesId],
+      references: [accountingCycles.id],
+    }),
+    company: one(company, {
+      fields: [accountBalances.companyId],
+      references: [company.id],
     }),
   }),
 );

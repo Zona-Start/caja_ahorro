@@ -8,6 +8,7 @@ import { UsersModule } from '@/features/users/users.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { DrizzleModule } from './database/drizzle.module';
@@ -19,11 +20,11 @@ import { BankingsModule } from './features/bankings/bankings.module';
 import { CoreModule } from './features/core/core.module';
 import { MailModule } from './features/mail/mail.module';
 import { PermissionsModule } from './features/permissions/permissions.module';
+import { ReportsModule } from './features/reports/reports.module';
 import { RolePermissionsModule } from './features/role-permissions/role-permissions.module';
 import { RolesModule } from './features/roles/roles.module';
 import { SavingsBanksFeatureModule } from './features/savings-banks/savings-banks.module';
 import { UserRolesModule } from './features/user-roles/user-roles.module';
-import { ReportsModule } from './features/reports/reports.module';
 
 @Module({
   providers: [
@@ -70,6 +71,7 @@ import { ReportsModule } from './features/reports/reports.module';
     BankingsModule,
     AdministrationFeaturesModule,
     ReportsModule,
+    EventEmitterModule.forRoot(),
   ],
 })
 export class AppModule {}

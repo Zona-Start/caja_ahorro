@@ -1,0 +1,1 @@
+CREATE TYPE "public"."closing_type" AS ENUM('QUARTERLY', 'ANNUAL ');
