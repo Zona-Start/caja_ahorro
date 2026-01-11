@@ -1,6 +1,5 @@
 export {
   accountPlanRelations,
-  accountingConfigurationRelations,
   accountingCyclesRelations,
   accountingEntriesRelations,
   accountingEntryDetailsRelations,
