@@ -1,10 +1,10 @@
 'use client';
 
-import { searchParams } from '@/feactures/accounting/accounting-configurations/utils/searchparams';
+import { searchParams } from '@/feactures/accounting/accounting-rules/utils/searchparams';
 import { useQueryState } from 'nuqs';
 import { useCallback, useMemo } from 'react';
 
-export function useAccountingConfigurationTableFilters() {
+export function useAccountingRuleTableFilters() {
   const [searchQuery, setSearchQuery] = useQueryState(
     'q',
     searchParams.q

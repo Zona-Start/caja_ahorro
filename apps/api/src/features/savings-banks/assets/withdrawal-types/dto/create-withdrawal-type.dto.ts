@@ -27,15 +27,15 @@ export class CreateWithdrawalTypeDto {
   @Max(100)
   withdrawalPercentage?: number;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  accountDebit?: number;
+  // @IsOptional()
+  // @Type(() => Number)
+  // @IsInt()
+  // accountDebit?: number;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  expenseAccount?: number;
+  // @IsOptional()
+  // @Type(() => Number)
+  // @IsInt()
+  // expenseAccount?: number;
 
   @IsOptional()
   @Type(() => Number)

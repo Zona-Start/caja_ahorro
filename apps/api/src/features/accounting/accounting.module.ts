@@ -4,6 +4,7 @@ import { AccountingBalanceModule } from './accounting-balances/accounting-balanc
 import { AccountingConfigurationsModule } from './accounting-configurations/accounting-configurations.module';
 import { AccountingCyclesModule } from './accounting-cycles/accounting-cycles.module';
 import { AccountingEntriesModule } from './accounting-entries/accounting-entries.module';
+import { AccountingRulesModule } from './accounting-rules/accounting-rules.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AccountingEntriesModule } from './accounting-entries/accounting-entries
     AccountingEntriesModule,
     AccountingConfigurationsModule,
     AccountingBalanceModule,
+    AccountingRulesModule,
   ],
   exports: [AccountPlanModule, AccountingEntriesModule],
 })

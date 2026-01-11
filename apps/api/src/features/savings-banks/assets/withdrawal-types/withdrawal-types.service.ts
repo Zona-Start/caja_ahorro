@@ -40,8 +40,8 @@ export class WithdrawalTypesService {
       .insert(withdrawalTypes)
       .values({
         description: createWithdrawalTypeDto.description,
-        accountDebit: createWithdrawalTypeDto.accountDebit,
-        expenseAccount: createWithdrawalTypeDto.expenseAccount,
+        // accountDebit: createWithdrawalTypeDto.accountDebit,
+        // expenseAccount: createWithdrawalTypeDto.expenseAccount,
         withdrawalLimitQuantity:
           createWithdrawalTypeDto.withdrawalLimitQuantity,
         minimumAntiquityDays: createWithdrawalTypeDto.minimumAntiquityDays,
@@ -117,8 +117,8 @@ export class WithdrawalTypesService {
         id: withdrawalTypes.id,
         description: withdrawalTypes.description,
         withdrawalPercentage: withdrawalTypes.withdrawalPercentage,
-        accountDebit: withdrawalTypes.accountDebit,
-        expenseAccount: withdrawalTypes.expenseAccount,
+        // accountDebit: withdrawalTypes.accountDebit,
+        // expenseAccount: withdrawalTypes.expenseAccount,
         administrativeFeePercentage:
           withdrawalTypes.administrativeFeePercentage,
         withdrawalLimitQuantity: withdrawalTypes.withdrawalLimitQuantity,
@@ -158,8 +158,8 @@ export class WithdrawalTypesService {
         id: withdrawalTypes.id,
         description: withdrawalTypes.description,
         withdrawalPercentage: withdrawalTypes.withdrawalPercentage,
-        accountDebit: withdrawalTypes.accountDebit,
-        expenseAccount: withdrawalTypes.expenseAccount,
+        // accountDebit: withdrawalTypes.accountDebit,
+        // expenseAccount: withdrawalTypes.expenseAccount,
         administrativeFeePercentage:
           withdrawalTypes.administrativeFeePercentage,
         withdrawalLimitQuantity: withdrawalTypes.withdrawalLimitQuantity,

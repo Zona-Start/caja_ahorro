@@ -8,27 +8,28 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Edit, Trash } from 'lucide-react';
+import { Edit, Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
-import { AccountingConfiguration } from '../../schemas/accounting-configuration.schema';
-import { useDeleteAccountingConfiguration } from '../../hooks/use-accounting-configuration-mutation';
-import { AccountingConfigurationModal } from '../accounting-configuration-modal';
+import { useDeleteAccountingRule } from '../../hooks/use-accounting-rules-mutation';
+import { AccountingRule } from '../../schemas/accounting-rule.schema';
+import { AccountingRuleModal } from '../accounting-rule-modal';
 
 interface CellActionProps {
-  data: AccountingConfiguration;
+  data: AccountingRule;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
 
-  const { mutate: deleteAccount } = useDeleteAccountingConfiguration();
+  const { mutate: deleteRule } = useDeleteAccountingRule();
 
   const onConfirm = async () => {
     try {
       setLoading(true);
-      deleteAccount(data.id!);
+      deleteRule(data.id!);
       setOpen(false);
     } catch (error) {
       console.error('Error:', error);
@@ -44,17 +45,41 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setOpen(false)}
         onConfirm={onConfirm}
         loading={loading}
-        title="¿Estás seguro que desea eliminar esta configuración contable?"
-        description="Esta acción no se puede deshacer."
+        title="¿Estás seguro que desea eliminar esta regla?"
+        description="Esta acción eliminará la regla y sus detalles asociados."
       />
 
-      <AccountingConfigurationModal
+      <AccountingRuleModal
         open={showEditModal}
         onOpenChange={setShowEditModal}
         defaultValues={data}
       />
 
+      <AccountingRuleModal
+        open={showViewModal}
+        onOpenChange={setShowViewModal}
+        defaultValues={data}
+        readOnly={true}
+      />
+
       <div className="flex gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowViewModal(true)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>VerDetalle</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

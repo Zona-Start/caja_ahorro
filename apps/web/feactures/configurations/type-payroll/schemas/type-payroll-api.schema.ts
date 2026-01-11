@@ -10,9 +10,9 @@ const TypePayrollApiSchema = z.object({
   numberCanceled: z.number().nullable(),
   group: z.string(),
   metadata: z.any().nullable(),
-  associatedAccount: z.number().nullable(),
-  employerAccount: z.number().nullable(),
-  loanAccount: z.number().nullable(),
+  // associatedAccount: z.number().nullable(),
+  // employerAccount: z.number().nullable(),
+  // loanAccount: z.number().nullable(),
 });
 
 // Response schemas for the API create, update

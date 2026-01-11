@@ -327,12 +327,13 @@ export const loanTypes = savingsBanksSchema.table(
       precision: 5,
       scale: 2,
     }), // Porcentaje de cancelación anticipada (si aplica)
-    loanAccountChartId: integer('loan_account_chart_id')
-      .references(() => accountPlan.id, { onDelete: 'set null' })
-      .notNull(), // Cuenta contable para los préstamos otorgados
-    interestEarnedAccountChartId: integer('interest_earned_account_chart_id')
-      .references(() => accountPlan.id, { onDelete: 'set null' })
-      .notNull(), // Cuenta contable para los intereses ganados
+    loanAccountChartId: integer('loan_account_chart_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ), // Cuenta contable para los préstamos otorgados
+    interestEarnedAccountChartId: integer(
+      'interest_earned_account_chart_id',
+    ).references(() => accountPlan.id, { onDelete: 'set null' }), // Cuenta contable para los intereses ganados
     specialQuotaAccountChartId: integer(
       'special_quota_account_chart_id',
     ).references(() => accountPlan.id, { onDelete: 'set null' }), // Cuenta contable para las cuotas especiales (opcional)
@@ -602,12 +603,13 @@ export const creditsTypes = savingsBanksSchema.table(
       precision: 5,
       scale: 2,
     }), // Porcentaje de cancelación anticipada (si aplica)
-    creditAccountChartId: integer('credit_account_chart_id')
-      .references(() => accountPlan.id, { onDelete: 'set null' })
-      .notNull(), // Cuenta contable para los credito otorgados
-    interestEarnedAccountChartId: integer('interest_earned_account_chart_id')
-      .references(() => accountPlan.id, { onDelete: 'set null' })
-      .notNull(), // Cuenta contable para los intereses ganados
+    creditAccountChartId: integer('credit_account_chart_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ), // Cuenta contable para los credito otorgados
+    interestEarnedAccountChartId: integer(
+      'interest_earned_account_chart_id',
+    ).references(() => accountPlan.id, { onDelete: 'set null' }), // Cuenta contable para los intereses ganados
     specialQuotaAccountChartId: integer(
       'special_quota_account_chart_id',
     ).references(() => accountPlan.id, { onDelete: 'set null' }), // Cuenta contable para las cuotas especiales (opcional)

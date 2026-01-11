@@ -64,9 +64,9 @@ export class TypePayrollService {
         numberCanceled: typePayrolls.numberCanceled,
         group: typePayrolls.group,
         metadata: typePayrolls.metadata,
-        associatedAccount: typePayrolls.associatedAccount,
-        employerAccount: typePayrolls.employerAccount,
-        loanAccount: typePayrolls.loanAccount,
+        // associatedAccount: typePayrolls.associatedAccount,
+        // employerAccount: typePayrolls.employerAccount,
+        // loanAccount: typePayrolls.loanAccount,
       })
       .from(typePayrolls);
   }
@@ -83,9 +83,9 @@ export class TypePayrollService {
         numberCanceled: typePayrolls.numberCanceled,
         group: typePayrolls.group,
         metadata: typePayrolls.metadata,
-        associatedAccount: typePayrolls.associatedAccount,
-        employerAccount: typePayrolls.employerAccount,
-        loanAccount: typePayrolls.loanAccount,
+        // associatedAccount: typePayrolls.associatedAccount,
+        // employerAccount: typePayrolls.employerAccount,
+        // loanAccount: typePayrolls.loanAccount,
       })
       .from(typePayrolls)
       .where(eq(typePayrolls.id, id));
@@ -146,9 +146,9 @@ export class TypePayrollService {
         numberCanceled: typePayrolls.numberCanceled,
         group: typePayrolls.group,
         metadata: typePayrolls.metadata,
-        associatedAccount: typePayrolls.associatedAccount,
-        employerAccount: typePayrolls.employerAccount,
-        loanAccount: typePayrolls.loanAccount,
+        // associatedAccount: typePayrolls.associatedAccount,
+        // employerAccount: typePayrolls.employerAccount,
+        // loanAccount: typePayrolls.loanAccount,
       })
       .from(typePayrolls)
       .where(searchCondition)
@@ -212,9 +212,9 @@ export class TypePayrollService {
         numberCanceled: typePayrolls.numberCanceled,
         group: typePayrolls.group,
         metadata: typePayrolls.metadata,
-        associatedAccount: typePayrolls.associatedAccount,
-        employerAccount: typePayrolls.employerAccount,
-        loanAccount: typePayrolls.loanAccount,
+        // associatedAccount: typePayrolls.associatedAccount,
+        // employerAccount: typePayrolls.employerAccount,
+        // loanAccount: typePayrolls.loanAccount,
       });
 
     const transformData = result.map((item: any) => {

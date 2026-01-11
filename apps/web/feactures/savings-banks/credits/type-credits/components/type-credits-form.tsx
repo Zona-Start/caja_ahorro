@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { Switch } from '@repo/shadcn/switch';
 import { useForm } from 'react-hook-form';
 import { useTypeCreditsMutation } from '../hooks/use-mutation-type-credits';
@@ -59,10 +58,10 @@ export function TypeCreditsForm({
         ? String(defaultValues.termUnits)
         : '0', // Ajuste aquí
       cancellationPercentage: defaultValues?.cancellationPercentage || '0',
-      creditAccountChartId: defaultValues?.creditAccountChartId,
-      interestEarnedAccountChartId: defaultValues?.interestEarnedAccountChartId,
-      specialQuotaAccountChartId: defaultValues?.specialQuotaAccountChartId,
-      expenseAccountChartId: defaultValues?.expenseAccountChartId,
+      // creditAccountChartId: defaultValues?.creditAccountChartId,
+      // interestEarnedAccountChartId: defaultValues?.interestEarnedAccountChartId,
+      // specialQuotaAccountChartId: defaultValues?.specialQuotaAccountChartId,
+      // expenseAccountChartId: defaultValues?.expenseAccountChartId,
       specialQuotaNumber: defaultValues?.specialQuotaNumber || '0',
       specialQuotaPercentage: defaultValues?.specialQuotaPercentage || '0',
       maxCreditAmount: defaultValues?.maxCreditAmount || '0',
@@ -230,7 +229,7 @@ export function TypeCreditsForm({
               )}
             />
 
-            <FormField
+            {/* <FormField
               control={form.control}
               name="creditAccountChartId"
               render={({ field }) => (
@@ -331,7 +330,7 @@ export function TypeCreditsForm({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
 
             <FormField
               control={form.control}

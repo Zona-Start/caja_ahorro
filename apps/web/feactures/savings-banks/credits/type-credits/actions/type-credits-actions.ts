@@ -125,7 +125,7 @@ export const deleteTypeCreditsAction = async (id: number) => {
 export const getTypeCreditsByIdAction = async (id: number) => {
   const [error, data] = await safeFetchApi(
     typeCreditApiResponseSchema,
-    `/savings-banks/loan-types/${id}`,
+    `/savings-banks/credit-types/${id}`,
     'GET',
   );
 

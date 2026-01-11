@@ -90,11 +90,21 @@ export const queryKeys = {
       'paginated',
       params,
     ],
-    detail: (id: number) => [
-      ...queryKeys.accountingConfigurations._def,
-      'detail',
-      id,
+    detail: (id: number) => [id],
+  },
+
+  // =============================================
+  // ACCOUNTING RULES (Reglas Contables)
+  // =============================================
+  accountingRules: {
+    _def: ['accounting_rules'],
+    all: () => [...queryKeys.accountingRules._def],
+    list: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingRules._def,
+      'list',
+      params,
     ],
+    detail: (id: number) => [...queryKeys.accountingRules._def, 'detail', id],
   },
 
   // =============================================

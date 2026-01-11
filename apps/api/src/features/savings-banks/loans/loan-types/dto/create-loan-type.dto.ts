@@ -35,21 +35,21 @@ export class CreateLoanTypeDto {
   @IsOptional()
   cancellationPercentage?: number;
 
-  @IsNumber()
-  @IsNotEmpty()
-  loanAccountChartId: number;
+  // @IsNumber()
+  // @IsNotEmpty()
+  // loanAccountChartId: number;
 
-  @IsNumber()
-  @IsNotEmpty()
-  interestEarnedAccountChartId: number;
+  // @IsNumber()
+  // @IsNotEmpty()
+  // interestEarnedAccountChartId: number;
 
-  @IsNumber()
-  @IsOptional()
-  specialQuotaAccountChartId?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // specialQuotaAccountChartId?: number;
 
-  @IsNumber()
-  @IsOptional()
-  expenseAccountChartId?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // expenseAccountChartId?: number;
 
   @IsNumber()
   @Min(0)

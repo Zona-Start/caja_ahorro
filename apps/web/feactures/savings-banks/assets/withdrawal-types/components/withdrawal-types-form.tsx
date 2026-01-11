@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
 import { useWithdrawalTypesMutation } from '../hooks/use-mutation-withdrawal-types';
 import {
@@ -53,8 +52,8 @@ export function WithdrawalTypesForm({
       id: defaultValues?.id,
       description: defaultValues?.description || '',
       withdrawalPercentage: defaultValues?.withdrawalPercentage || '',
-      accountDebit: defaultValues?.accountDebit || undefined,
-      expenseAccount: defaultValues?.expenseAccount || undefined,
+      // accountDebit: defaultValues?.accountDebit || undefined,
+      // expenseAccount: defaultValues?.expenseAccount || undefined,
       administrativeFeePercentage:
         defaultValues?.administrativeFeePercentage || '',
       withdrawalFrequencyRelation: defaultValues?.withdrawalFrequencyRelation,
@@ -127,7 +126,7 @@ export function WithdrawalTypesForm({
             )}
           />
 
-          <FormField
+          {/* <FormField
             control={form.control}
             name="accountDebit"
             render={({ field }) => (
@@ -175,7 +174,7 @@ export function WithdrawalTypesForm({
                 <FormMessage />
               </FormItem>
             )}
-          />
+          /> */}
 
           <FormField
             control={form.control}

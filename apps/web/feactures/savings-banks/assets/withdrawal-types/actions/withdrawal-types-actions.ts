@@ -52,8 +52,8 @@ export const getWithdrawalTypesAction = async (params: {
   const parsedData =
     response?.data?.map((item) => ({
       ...item,
-      accountDebit: Number(item.accountDebit ?? 0),
-      expenseAccount: Number(item.expenseAccount ?? 0),
+      // accountDebit: Number(item.accountDebit ?? 0),
+      // expenseAccount: Number(item.expenseAccount ?? 0),
       withdrawalLimitQuantity:
         item.withdrawalLimitQuantity !== undefined &&
         item.withdrawalLimitQuantity !== null

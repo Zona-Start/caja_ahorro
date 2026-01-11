@@ -225,10 +225,15 @@ export const AccountingItems: NavItem[] = [
         url: '/dashboard/contabilidad/ciclos-contables',
         shortcut: ['m', 'm'],
       },
+      // {
+      //   title: 'Reglas Contables',
+      //   shortcut: ['l', 'l'],
+      //   url: '/dashboard/contabilidad/configuraciones-contables',
+      // },
       {
         title: 'Reglas Contables',
         shortcut: ['l', 'l'],
-        url: '/dashboard/contabilidad/configuraciones-contables',
+        url: '/dashboard/contabilidad/reglas-contables',
       },
     ],
   },

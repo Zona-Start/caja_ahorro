@@ -33,15 +33,28 @@ export class CreditTypesService {
     const [creditType] = await this.drizzle
       .insert(creditsTypesSchema)
       .values({
-        ...dto,
-        name: dto.name,
+        name: dto.name.toUpperCase(),
+        description: dto.description || null,
         interestRate: dto.interestRate.toString(),
+        termType: dto.termType,
+        termUnits: dto.termUnits,
         cancellationPercentage: dto.cancellationPercentage?.toString() ?? null,
-        maxCreditAmount: dto?.maxCreditAmount?.toString() ?? null,
+        // creditAccountChartId: dto.creditAccountChartId,
+        // interestEarnedAccountChartId: dto.interestEarnedAccountChartId,
+        // specialQuotaAccountChartId: dto.specialQuotaAccountChartId || null,
+        // expenseAccountChartId: dto.expenseAccountChartId || null,
+        specialQuotaNumber: dto.specialQuotaNumber ?? 0,
+        specialQuotaPercentage: dto.specialQuotaPercentage?.toString() ?? '0',
+        maxCreditAmount: dto.maxCreditAmount?.toString() ?? null,
         minCreditAmount: dto.minCreditAmount?.toString() ?? null,
-        specialQuotaPercentage: dto.specialQuotaPercentage?.toString() ?? null,
+        payrollTypeId: dto.payrollTypeId || null,
         administrativeExpensePercentage:
-          dto.administrativeExpensePercentage?.toString() ?? null,
+          dto.administrativeExpensePercentage?.toString() ?? '0',
+        minimumSeniorityMonths: dto.minimumSeniorityMonths ?? 0,
+        acceptsDebitBalance: dto.acceptsDebitBalance ?? false,
+        acceptsGuarantors: dto.acceptsGuarantors ?? false,
+        acceptsAvailability: dto.acceptsAvailability ?? false,
+        acceptsRefinancing: dto.acceptsRefinancing ?? false,
         createdById: userId,
       })
       .returning();
@@ -130,12 +143,12 @@ export class CreditTypesService {
         ...dto,
         name: dto.name?.toUpperCase(),
         interestRate: dto.interestRate?.toString(),
-        cancellationPercentage: dto.cancellationPercentage?.toString() ?? null,
-        maxCreditAmount: dto.maxCreditAmount?.toString() ?? null,
-        minCreditAmount: dto.minCreditAmount?.toString() ?? null,
-        specialQuotaPercentage: dto.specialQuotaPercentage?.toString() ?? null,
+        cancellationPercentage: dto.cancellationPercentage?.toString(),
+        maxCreditAmount: dto.maxCreditAmount?.toString(),
+        minCreditAmount: dto.minCreditAmount?.toString(),
+        specialQuotaPercentage: dto.specialQuotaPercentage?.toString(),
         administrativeExpensePercentage:
-          dto.administrativeExpensePercentage?.toString() ?? null,
+          dto.administrativeExpensePercentage?.toString(),
         updatedById: userId,
       })
       .where(eq(schema.creditsTypes.id, id))

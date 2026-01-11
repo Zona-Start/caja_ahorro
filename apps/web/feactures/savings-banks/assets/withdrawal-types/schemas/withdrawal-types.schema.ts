@@ -6,8 +6,8 @@ export const withdrawalTypesSchema = z.object({
   withdrawalPercentage: z
     .string()
     .min(1, { message: 'Porcentaje es requerido' }),
-  accountDebit: z.number({ message: 'Requerido' }).min(1),
-  expenseAccount: z.number({ message: 'Requerido' }).min(1),
+  // accountDebit: z.number({ message: 'Requerido' }).min(1),
+  // expenseAccount: z.number({ message: 'Requerido' }).min(1),
   administrativeFeePercentage: z
     .string()
     .min(1, { message: 'Porcentaje es requerido' }),

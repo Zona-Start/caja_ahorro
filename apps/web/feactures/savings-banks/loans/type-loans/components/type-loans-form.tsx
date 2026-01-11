@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { Switch } from '@repo/shadcn/switch';
 import { useForm } from 'react-hook-form';
 import { useTypeLoansMutation } from '../hooks/use-mutation-type-loans';
@@ -58,10 +57,10 @@ export function TypeLoansForm({
         ? String(defaultValues.termUnits)
         : '0', // Ajuste aquí
       cancellationPercentage: defaultValues?.cancellationPercentage || '0',
-      loanAccountChartId: defaultValues?.loanAccountChartId,
-      interestEarnedAccountChartId: defaultValues?.interestEarnedAccountChartId,
-      specialQuotaAccountChartId: defaultValues?.specialQuotaAccountChartId,
-      expenseAccountChartId: defaultValues?.expenseAccountChartId,
+      // loanAccountChartId: defaultValues?.loanAccountChartId,
+      // interestEarnedAccountChartId: defaultValues?.interestEarnedAccountChartId,
+      // specialQuotaAccountChartId: defaultValues?.specialQuotaAccountChartId,
+      // expenseAccountChartId: defaultValues?.expenseAccountChartId,
       specialQuotaNumber: defaultValues?.specialQuotaNumber || '0',
       specialQuotaPercentage: defaultValues?.specialQuotaPercentage || '0',
       maxLoanAmount: defaultValues?.maxLoanAmount || '0',
@@ -229,7 +228,7 @@ export function TypeLoansForm({
               )}
             />
 
-            <FormField
+            {/* <FormField
               control={form.control}
               name="loanAccountChartId"
               render={({ field }) => (
@@ -330,7 +329,7 @@ export function TypeLoansForm({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
 
             <FormField
               control={form.control}

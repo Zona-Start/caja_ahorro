@@ -1,7 +1,6 @@
 import { relations } from 'drizzle-orm';
 import {
   accountBalances,
-  accountingConfiguration,
   accountingCycles,
   accountingEntries,
   accountingEntryDetails,
@@ -74,6 +73,7 @@ import {
   withdrawalsAssociates,
   withdrawalTypes,
 } from '../tables';
+import { accountingRuleDetails, accountingRules } from '../tables/accounting';
 
 /* ---------- 1.  RELACIONES DE CATEGORÍAS ---------- */
 export const inventoriesCategoriesRelations = relations(
@@ -457,15 +457,6 @@ export const accountPlanRelations = relations(accountPlan, ({ one, many }) => ({
     relationName: 'subAccounts',
   }),
   entryDetails: many(accountingEntryDetails),
-  debitConfigs: many(accountingConfiguration, {
-    relationName: 'debitAccountConfigs',
-  }),
-  creditConfigs: many(accountingConfiguration, {
-    relationName: 'creditAccountConfigs',
-  }),
-  contraConfigs: many(accountingConfiguration, {
-    relationName: 'contraAccountConfigs',
-  }),
 }));
 
 /* -------------------------------------------------
@@ -522,29 +513,25 @@ export const accountingEntryDetailsRelations = relations(
 );
 
 /* -------------------------------------------------
-   RELACIONES: accountingConfiguration
+   RELACIONES: accountingRules
 -------------------------------------------------- */
-export const accountingConfigurationRelations = relations(
-  accountingConfiguration,
+export const accountingRulesRelations = relations(
+  accountingRules,
+  ({ many }) => ({
+    details: many(accountingRuleDetails),
+  }),
+);
+
+export const accountingRuleDetailsRelations = relations(
+  accountingRuleDetails,
   ({ one }) => ({
-    company: one(company, {
-      fields: [accountingConfiguration.companyId],
-      references: [company.id],
+    rule: one(accountingRules, {
+      fields: [accountingRuleDetails.ruleId],
+      references: [accountingRules.id],
     }),
-    debitAccount: one(accountPlan, {
-      fields: [accountingConfiguration.debitAccountId],
+    account: one(accountPlan, {
+      fields: [accountingRuleDetails.accountPlanId],
       references: [accountPlan.id],
-      relationName: 'debitAccountConfigs',
-    }),
-    creditAccount: one(accountPlan, {
-      fields: [accountingConfiguration.creditAccountId],
-      references: [accountPlan.id],
-      relationName: 'creditAccountConfigs',
-    }),
-    contraAccount: one(accountPlan, {
-      fields: [accountingConfiguration.contraAccountId],
-      references: [accountPlan.id],
-      relationName: 'contraAccountConfigs',
     }),
   }),
 );

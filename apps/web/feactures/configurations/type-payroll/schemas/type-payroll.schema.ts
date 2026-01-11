@@ -14,9 +14,9 @@ export const typePayrollSchema = z.object({
   numberCanceled: z.number().nullable(),
   group: z.string().min(1, { message: 'campo requerido' }),
   metadata: z.any().nullable(),
-  associatedAccount: z.number().nullable(),
-  employerAccount: z.number().nullable(),
-  loanAccount: z.number().nullable(),
+  // associatedAccount: z.number().nullable(),
+  // employerAccount: z.number().nullable(),
+  // loanAccount: z.number().nullable(),
 });
 
 export type TypePayrolls = z.infer<typeof typePayrollSchema>;

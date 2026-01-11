@@ -27,10 +27,10 @@ export const typeCreditSchema = z.object({
     )
     .nullable()
     .optional(),
-  creditAccountChartId: z.number({ message: 'Requerido' }).min(1),
-  interestEarnedAccountChartId: z.number({ message: 'Requerido' }).min(1),
-  specialQuotaAccountChartId: z.number().optional().nullable(),
-  expenseAccountChartId: z.number().optional().nullable(),
+  // creditAccountChartId: z.number({ message: 'Requerido' }).min(1),
+  // interestEarnedAccountChartId: z.number({ message: 'Requerido' }).min(1),
+  // specialQuotaAccountChartId: z.number().optional().nullable(),
+  // expenseAccountChartId: z.number().optional().nullable(),
   specialQuotaNumber: z
     .string()
     .refine(

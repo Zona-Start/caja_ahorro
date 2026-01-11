@@ -4,16 +4,16 @@ import { Button } from '@repo/shadcn/components/ui/button';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { useAccountingConfigurationTableFilters } from '../../hooks/use-accounting-configuration-table-filters';
-import { AccountingConfigurationModal } from '../accounting-configuration-modal';
+import { useAccountingRuleTableFilters } from '../../hooks/use-accounting-rules-table-filters';
+import { AccountingRuleModal } from '../accounting-rule-modal';
 
-export default function AccountingConfigurationTableAction() {
+export default function AccountingRuleTableAction() {
   const [open, setOpen] = useState(false);
   const { searchQuery, setPage, setSearchQuery } =
-    useAccountingConfigurationTableFilters();
+    useAccountingRuleTableFilters();
 
   return (
-    <div className="flex items-center justify-between mt-4 ">
+    <div className="flex items-center justify-between mt-4">
       <div className="flex items-center gap-4 flex-grow">
         <DataTableSearch
           title="Buscar por tipo de operación"
@@ -24,10 +24,10 @@ export default function AccountingConfigurationTableAction() {
         />
       </div>
       <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Configuración
+        <Plus className="mr-2 h-4 w-4" /> Agregar Regla
       </Button>
 
-      <AccountingConfigurationModal open={open} onOpenChange={setOpen} />
+      <AccountingRuleModal open={open} onOpenChange={setOpen} />
     </div>
   );
 }

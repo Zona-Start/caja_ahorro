@@ -40,17 +40,17 @@ export class CreateTypePayrollDto {
   @IsArray()
   metadata: any; // Opciones extra en formato JSON si es necesario
 
-  @IsNumber()
-  @IsOptional()
-  associatedAccount?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // associatedAccount?: number;
 
-  @IsNumber()
-  @IsOptional()
-  employerAccount?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // employerAccount?: number;
 
-  @IsNumber()
-  @IsOptional()
-  loanAccount?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // loanAccount?: number;
 
   @IsNumber()
   @IsOptional()

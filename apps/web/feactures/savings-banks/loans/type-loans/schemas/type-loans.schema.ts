@@ -27,10 +27,10 @@ export const typeLoanSchema = z.object({
     )
     .nullable()
     .optional(),
-  loanAccountChartId: z.number({ message: 'Requerido' }).min(1),
-  interestEarnedAccountChartId: z.number({ message: 'Requerido' }).min(1),
-  specialQuotaAccountChartId: z.number().optional().nullable(),
-  expenseAccountChartId: z.number().optional().nullable(),
+  // loanAccountChartId: z.number({ message: 'Requerido' }).min(1),
+  // interestEarnedAccountChartId: z.number({ message: 'Requerido' }).min(1),
+  // specialQuotaAccountChartId: z.number().optional().nullable(),
+  // expenseAccountChartId: z.number().optional().nullable(),
   specialQuotaNumber: z
     .string()
     .refine(

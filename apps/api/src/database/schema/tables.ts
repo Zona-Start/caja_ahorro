@@ -5,6 +5,8 @@ export {
   accountingCycles,
   accountingEntries,
   accountingEntryDetails,
+  accountingRuleDetails,
+  accountingRules,
 } from './tables/accounting';
 export { activityLogsSystem, auditLogs } from './tables/activity_logs';
 export {

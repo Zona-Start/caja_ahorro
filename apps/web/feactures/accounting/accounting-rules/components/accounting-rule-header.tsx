@@ -2,13 +2,13 @@
 
 import { Heading } from '@repo/shadcn/heading';
 
-export function AccountingConfigurationHeader() {
+export function AccountingRuleHeader() {
   return (
     <>
       <div className="flex items-start justify-between">
         <Heading
           title="Reglas Contables"
-          description="Gestiona las reglas contables del sistema"
+          description="Gestiona las reglas de contabilización automática"
         />
       </div>
     </>

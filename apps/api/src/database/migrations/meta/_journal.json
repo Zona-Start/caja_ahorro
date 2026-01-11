@@ -141,6 +141,27 @@
       "when": 1763586597900,
       "tag": "0019_eminent_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1768057303971,
+      "tag": "0020_dazzling_smasher",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1768092988957,
+      "tag": "0021_solid_zaladane",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1768099366254,
+      "tag": "0022_freezing_silvermane",
+      "breakpoints": true
     }
   ]
 }

@@ -35,21 +35,21 @@ export class CreateCreditTypeDto {
   @IsOptional()
   cancellationPercentage?: number;
 
-  @IsNumber()
-  @IsNotEmpty()
-  creditAccountChartId: number;
+  // @IsNumber()
+  // @IsOptional()
+  // creditAccountChartId?: number;
 
-  @IsNumber()
-  @IsNotEmpty()
-  interestEarnedAccountChartId: number;
+  // @IsNumber()
+  // @IsOptional()
+  // interestEarnedAccountChartId?: number;
 
-  @IsNumber()
-  @IsOptional()
-  specialQuotaAccountChartId?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // specialQuotaAccountChartId?: number;
 
-  @IsNumber()
-  @IsOptional()
-  expenseAccountChartId?: number;
+  // @IsNumber()
+  // @IsOptional()
+  // expenseAccountChartId?: number;
 
   @IsNumber()
   @Min(0)

@@ -6,10 +6,10 @@ export class LoanType {
   termType: 'CUOTAS' | 'PLAZO';
   termUnits: number;
   cancellationPercentage?: number;
-  loanAccountChartId: number;
-  interestEarnedAccountChartId: number;
-  specialQuotaAccountChartId?: number;
-  expenseAccountChartId?: number;
+  // loanAccountChartId: number;
+  // interestEarnedAccountChartId: number;
+  // specialQuotaAccountChartId?: number;
+  // expenseAccountChartId?: number;
   specialQuotaNumber?: number;
   specialQuotaPercentage?: number;
   maxLoanAmount?: number;

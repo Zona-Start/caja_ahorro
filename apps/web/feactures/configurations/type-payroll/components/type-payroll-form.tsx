@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTypePayrollMutation } from '../hooks/use-mutation-type-payroll';
@@ -62,9 +61,9 @@ export function TypePayrollForm({
       dateCanceled: defaultValues?.dateCanceled || null,
       deferredNumber: defaultValues?.deferredNumber || null,
       numberCanceled: defaultValues?.numberCanceled || null,
-      associatedAccount: defaultValues?.associatedAccount || null,
-      employerAccount: defaultValues?.employerAccount || null,
-      loanAccount: defaultValues?.loanAccount || null,
+      // associatedAccount: defaultValues?.associatedAccount || null,
+      // employerAccount: defaultValues?.employerAccount || null,
+      // loanAccount: defaultValues?.loanAccount || null,
       group: defaultValues?.group || 'ASSETS',
       metadata: defaultValues?.metadata || null,
     },
@@ -96,13 +95,13 @@ export function TypePayrollForm({
         : null,
       deferredNumber: data.deferredNumber ? Number(data.deferredNumber) : null,
       numberCanceled: data.numberCanceled ? Number(data.numberCanceled) : null,
-      associatedAccount: data.associatedAccount
-        ? Number(data.associatedAccount)
-        : null,
-      employerAccount: data.employerAccount
-        ? Number(data.employerAccount)
-        : null,
-      loanAccount: data.loanAccount ? Number(data.loanAccount) : null,
+      // associatedAccount: data.associatedAccount
+      //   ? Number(data.associatedAccount)
+      //   : null,
+      // employerAccount: data.employerAccount
+      //   ? Number(data.employerAccount)
+      //   : null,
+      // loanAccount: data.loanAccount ? Number(data.loanAccount) : null,
       metadata: null,
     } as TypePayrolls;
 
@@ -264,7 +263,7 @@ export function TypePayrollForm({
             )}
           />
 
-          <FormField
+          {/* <FormField
             control={form.control}
             name="associatedAccount"
             render={({ field }) => (
@@ -337,7 +336,7 @@ export function TypePayrollForm({
                 <FormMessage />
               </FormItem>
             )}
-          />
+          /> */}
 
           <FormField
             control={form.control}

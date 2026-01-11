@@ -284,3 +284,32 @@ export const accountBalances = accountingSchema.table(
     accountIdx: index('account_balances_plan_idx').on(table.accountPlanId),
   }),
 );
+
+////REGLAS DE ASIENTOS AUTOMÁTICOS////
+// 1. Definición de la Regla (El Evento)
+export const accountingRules = accountingSchema.table('accounting_rules', {
+  id: serial('id').primaryKey(),
+  companyId: integer('company_id')
+    .notNull()
+    .references(() => company.id),
+  category: varchar('category', { length: 50 }).notNull().default('ACCOUNTING'), // SAVINGS_BANK, ADMINISTRATIVE, BANKING, ACCOUNTING, INVENTORY
+  operationType: varchar('operation_type').notNull(), // Ej: PAYROLL_CONCEPT, LOAN_APP
+  referenceId: integer('reference_id'), // ID del Concepto, Tipo de Préstamo, etc.
+  description: text('description'),
+  isActive: boolean('is_active').default(true),
+});
+
+// 2. Detalle de la Regla (Los Asientos automáticos)
+export const accountingRuleDetails = accountingSchema.table(
+  'accounting_rule_details',
+  {
+    id: serial('id').primaryKey(),
+    ruleId: integer('rule_id').references(() => accountingRules.id),
+    accountRole: varchar('account_role'), // Ej: 'ASOCIADO_CUENTA', 'PATRONO_CUENTA', 'INTERES_CUENTA'
+    movementType: varchar('movement_type', {
+      enum: ['DEBIT', 'CREDIT'],
+    }).notNull(),
+    formula: text('formula'), // Opcional: para calcular montos (ej: "total * 0.05")
+    accountPlanId: integer('account_plan_id').references(() => accountPlan.id),
+  },
+);
