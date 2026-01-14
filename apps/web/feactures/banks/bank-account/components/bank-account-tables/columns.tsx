@@ -90,31 +90,31 @@ export const columns: ColumnDef<BankAccount>[] = [
       return <span>{formatCurrency(balance, 'VES')}</span>;
     },
   },
-  {
-    accessorKey: 'lastStatementBalance',
-    header: () => (
-      <div className="flex items-center gap-1">
-        Saldo extracto
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Último valor reportado por el banco.</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-    ),
-    cell: ({ row }) => {
-      const balance = row.original.lastStatementBalance;
-      if (!balance) {
-        return <span className="text-muted-foreground">—</span>;
-      }
-      return <span>{formatCurrency(balance, 'VES')}</span>;
-    },
-  },
+  // {
+  //   accessorKey: 'lastStatementBalance',
+  //   header: () => (
+  //     <div className="flex items-center gap-1">
+  //       Saldo extracto
+  //       <TooltipProvider>
+  //         <Tooltip>
+  //           <TooltipTrigger asChild>
+  //             <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+  //           </TooltipTrigger>
+  //           <TooltipContent>
+  //             <p>Último valor reportado por el banco.</p>
+  //           </TooltipContent>
+  //         </Tooltip>
+  //       </TooltipProvider>
+  //     </div>
+  //   ),
+  //   cell: ({ row }) => {
+  //     const balance = row.original.lastStatementBalance;
+  //     if (!balance) {
+  //       return <span className="text-muted-foreground">—</span>;
+  //     }
+  //     return <span>{formatCurrency(balance, 'VES')}</span>;
+  //   },
+  // },
   {
     id: 'difference',
     header: 'Diferencia',

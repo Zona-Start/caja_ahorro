@@ -22,7 +22,6 @@ import {
   Calendar,
   CreditCard,
   DollarSign,
-  FileText,
   Hash,
   HelpCircle,
   Landmark,
@@ -102,14 +101,14 @@ export function BankAccountDetailsModal({
   const currencyInfo = getCurrencyInfo(bankAccount.currencyCode);
 
   const bookBalance = Number(bankAccount.currentBalance) || 0;
-  const bankBalance = Number(bankAccount.lastStatementBalance) || 0;
-  const difference = bankBalance - bookBalance;
+  // const bankBalance = Number(bankAccount.lastStatementBalance) || 0;
+  // const difference = bankBalance - bookBalance;
 
   const getDifferenceColor = () => {
-    if (difference === 0) return 'text-green-600';
-    if (bookBalance === 0) return 'text-gray-500';
-    const percentageDiff = Math.abs((difference / bookBalance) * 100);
-    if (percentageDiff > 1) return 'text-red-600';
+    // if (difference === 0) return 'text-green-600';
+    // if (bookBalance === 0) return 'text-gray-500';
+    // const percentageDiff = Math.abs((difference / bookBalance) * 100);
+    // if (percentageDiff > 1) return 'text-red-600';
     return 'text-orange-500';
   };
 
@@ -206,16 +205,6 @@ export function BankAccountDetailsModal({
                     {bankAccount.openingEntryPosted ? 'Sí' : 'No'}
                   </p>
                 </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
-                    <Hash className="h-4 w-4" />
-                    Conciliacion incial
-                  </div>
-                  <p className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-neutral-800 px-2 py-1 rounded">
-                    {bankAccount.openingConciliationPosted ? 'Sí' : 'No'}
-                  </p>
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -263,7 +252,7 @@ export function BankAccountDetailsModal({
                     {bookBalance ? formatCurrency(bookBalance, 'VES') : '—'}
                   </p>
                 </div>
-                <div className="space-y-1">
+                {/* <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
                     Saldo extracto
                     <TooltipProvider>
@@ -280,8 +269,8 @@ export function BankAccountDetailsModal({
                   <p className="text-lg font-semibold text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-neutral-800 px-3 py-2 rounded">
                     {bankBalance ? formatCurrency(bankBalance, 'VES') : '—'}
                   </p>
-                </div>
-                <div className="space-y-1">
+                </div> */}
+                {/* <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
                     Diferencia
                   </div>
@@ -290,7 +279,7 @@ export function BankAccountDetailsModal({
                   >
                     {formatCurrency(difference, 'VES')}
                   </p>
-                </div>
+                </div> */}
               </div>
             </CardContent>
           </Card>
@@ -314,7 +303,7 @@ export function BankAccountDetailsModal({
                     {formatDate(bankAccount.openingDate)}
                   </p>
                 </div>
-                <div className="space-y-1">
+                {/* <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-400">
                     <FileText className="h-4 w-4" />
                     Fecha Último Estado
@@ -322,7 +311,7 @@ export function BankAccountDetailsModal({
                   <p className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-neutral-800 px-2 py-1 rounded">
                     {formatDate(bankAccount.lastStatementDate)}
                   </p>
-                </div>
+                </div> */}
               </div>
             </CardContent>
           </Card>

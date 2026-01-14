@@ -29,11 +29,11 @@ export function useBankAccountMutation() {
         queryKey: queryKeys.bankAccounts.listAll(),
       });
 
-      if (data?.data) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.bankAccounts.detail(data.data.id),
-        });
-      }
+      // if (data?.message) {
+      //   queryClient.invalidateQueries({
+      //     queryKey: queryKeys.bankAccounts.detail(data.data.id),
+      //   });
+      // }
 
       toast.success('Cuenta Bancaria guardada exitosamente');
     },
