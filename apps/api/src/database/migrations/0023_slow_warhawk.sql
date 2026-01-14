@@ -1,0 +1,3 @@
+ALTER TABLE "banking"."bank_accounts" ADD COLUMN "rule_account_id" integer;--> statement-breakpoint
+ALTER TABLE "banking"."bank_accounts" ADD CONSTRAINT "bank_accounts_rule_account_id_accounting_rules_id_fk" FOREIGN KEY ("rule_account_id") REFERENCES "accounting"."accounting_rules"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "banking"."bank_accounts" DROP COLUMN "opening_conciliation_posted";

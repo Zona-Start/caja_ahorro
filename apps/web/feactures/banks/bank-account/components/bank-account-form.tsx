@@ -1,6 +1,7 @@
 'use client';
 
 import { useAccountingAccounts } from '@/feactures/accounting/accounting-accounts/hooks/use-query-account-plan';
+import { useAccountingRules } from '@/feactures/accounting/accounting-rules/hooks/use-query-accounting-rules';
 import { useBanksQuery } from '@/feactures/banks/bank-directory/hooks/use-banks-querys';
 import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -59,12 +60,13 @@ export function BankAccountForm({
   const { data: Banks } = useBanksQuery();
   const { currencies } = useSystemConfigStore();
   const { data: AccoutingAccountsPlans } = useAccountingAccounts();
+  const { data: accountingRules } = useAccountingRules(1); // Default companyId 1
 
   const [selectedAccountType, setSelectedAccountType] = useState(
     defaultValues?.accountType || 'CORRIENTE',
   );
   const [showInitialBalances, setShowInitialBalances] = useState(
-    !!defaultValues?.currentBalance || !!defaultValues?.lastStatementBalance,
+    !!defaultValues?.currentBalance,
   );
   const [openingEntryOption, setOpeningEntryOption] = useState(
     defaultValues?.openingEntryPosted ? 'generate' : 'reference',
@@ -84,36 +86,29 @@ export function BankAccountForm({
         ? new Date(defaultValues.openingDate)
         : undefined,
       currentBalance: Number(defaultValues?.currentBalance) || 0.0,
-      lastStatementBalance: Number(defaultValues?.lastStatementBalance) || 0.0,
-      lastStatementDate: defaultValues?.lastStatementDate
-        ? new Date(defaultValues.lastStatementDate)
-        : undefined,
       linkedChartAccountId: defaultValues?.linkedChartAccountId,
       isActive: defaultValues?.isActive ?? true,
       openingEntryPosted: defaultValues?.openingEntryPosted || false,
-      openingConciliationPosted:
-        defaultValues?.openingConciliationPosted || false,
     },
     mode: 'onChange',
   });
 
   const currentBalance = form.watch('currentBalance') || 0;
-  const lastStatementBalance = form.watch('lastStatementBalance') || 0;
-  const difference = currentBalance - lastStatementBalance;
 
   const isEditMode = !!defaultValues?.id;
   const openingEntryPosted = form.watch('openingEntryPosted');
-  const openingConciliationPosted = form.watch('openingConciliationPosted');
 
   const onSubmit = async (data: BankAccount) => {
     const dataToSave = {
       ...data,
       currentBalance: showInitialBalances ? data.currentBalance : 0,
-      lastStatementBalance: showInitialBalances ? data.lastStatementBalance : 0,
-      lastStatementDate: showInitialBalances ? data.lastStatementDate : null,
       openingDate: showInitialBalances ? data.openingDate : null,
       openingEntryPosted:
         showInitialBalances && openingEntryOption === 'generate',
+      accountingRuleId:
+        showInitialBalances && openingEntryOption === 'generate'
+          ? data.accountingRuleId
+          : null,
     };
 
     saveBankAccount(dataToSave, {
@@ -293,7 +288,7 @@ export function BankAccountForm({
                     }
                     placeholder="Selecciona cuenta contable"
                     defaultValue={field.value?.toString() || 'null'}
-                    disabled={readOnly}
+                    disabled={readOnly || (isEditMode && openingEntryPosted)}
                   />
                   <FormMessage />
                 </FormItem>
@@ -467,42 +462,19 @@ export function BankAccountForm({
                   </FormItem> */}
                 </div>
 
-                {isEditMode && openingConciliationPosted && (
-                  <div className="mt-4 border p-4 rounded-md bg-muted/40">
-                    <h4 className="font-semibold mb-2 text-center">
-                      Conciliación Inicial Creada
-                    </h4>
-                  </div>
-                )}
-
                 {isEditMode && openingEntryPosted ? (
                   <div className="mt-4 border p-4 rounded-md bg-muted/40">
                     <h4 className="font-semibold mb-2">
                       Asiento de Apertura Creado
                     </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Débito:</span>
-                        <span>
-                          {
-                            AccoutingAccountsPlans?.data?.find(
-                              (acc) =>
-                                acc.id ===
-                                form.getValues('linkedChartAccountId'),
-                            )?.name
-                          }
-                        </span>
-                        <span>{currentBalance.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Crédito:</span>
-                        <span>Cuenta de Capital (Apertura)</span>
-                        <span>{currentBalance.toFixed(2)}</span>
-                      </div>
+                    <div className="space-y-2 text-sm text-muted-foreground">
+                      <p>
+                        Esta cuenta ya tiene un asiento de apertura registrado.
+                      </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="pt-4">
+                  <div className="pt-4 space-y-4">
                     <RadioGroup
                       value={openingEntryOption}
                       onValueChange={setOpeningEntryOption}
@@ -517,34 +489,56 @@ export function BankAccountForm({
                         <Label htmlFor="r3">Grabar sólo referencia</Label>
                       </div>
                     </RadioGroup>
-                  </div>
-                )}
 
-                {openingEntryOption === 'generate' && !openingEntryPosted && (
-                  <div className="mt-4 border p-4 rounded-md bg-muted/40">
-                    <h4 className="font-semibold mb-2">
-                      Preview del Asiento de Apertura
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Débito:</span>
-                        <span>
-                          {
-                            AccoutingAccountsPlans?.data?.find(
-                              (acc) =>
-                                acc.id ===
-                                form.getValues('linkedChartAccountId'),
-                            )?.name
-                          }
-                        </span>
-                        <span>{currentBalance.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Crédito:</span>
-                        <span>Cuenta de Capital (Apertura)</span>
-                        <span>{currentBalance.toFixed(2)}</span>
-                      </div>
-                    </div>
+                    {openingEntryOption === 'generate' && (
+                      <FormField
+                        control={form.control}
+                        name="accountingRuleId"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <FormLabel>Regla Contable *</FormLabel>
+                            <SelectSearchable
+                              options={
+                                (accountingRules || [])
+                                  .filter(
+                                    (rule: any) =>
+                                      rule.category === 'BANKING' &&
+                                      rule.operationType ===
+                                        'BANK_INITIAL_BALANCE',
+                                  )
+                                  .map((rule: any) => {
+                                    const detail = rule.details?.find(
+                                      (d: any) =>
+                                        d.accountRole ===
+                                        'INITIAL_BALANCE_CAPITAL',
+                                    );
+                                    const accountName =
+                                      AccoutingAccountsPlans?.data?.find(
+                                        (acc) =>
+                                          acc.id === detail?.accountPlanId,
+                                      )?.name || 'Sin cuenta';
+                                    return {
+                                      value: rule.id!.toString(),
+                                      label: `${rule.description} (${accountName})`,
+                                    };
+                                  }) || []
+                              }
+                              onValueChange={(value) =>
+                                field.onChange(Number(value))
+                              }
+                              placeholder="Selecciona regla contable"
+                              defaultValue={field.value?.toString() || ''}
+                              disabled={readOnly}
+                            />
+                            <FormDescription>
+                              Seleccione la regla que define la cuenta de
+                              contrapartida.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </div>
                 )}
               </div>

@@ -19,7 +19,6 @@ import { CreateAccountingEntryDto } from '../../accounting/accounting-entries/dt
 import { SettingsSystemService } from '../../core/settings-system/settings-system.service';
 import { CreateBankAccountDto } from './dto/create-bank-account.dto';
 import { FilterBankAccountDto } from './dto/filter-bank-account.dto';
-import { InitialReconciliationDto } from './dto/initial-reconciliation.dto';
 import { UpdateBankAccountDto } from './dto/update-bank-account.dto';
 
 @Injectable()
@@ -34,8 +33,12 @@ export class BankAccountsService {
   private async _createOpeningEntry(
     tx: NodePgDatabase<typeof schema>,
     userId: number,
-    bankAccount: any, // Debería ser un tipo más específico
+    bankAccount: any,
+    currentBalance: number,
+    accountingRuleId: number,
+    openingDate?: string,
   ) {
+    // 1. Buscar ciclo contable abierto
     const [openCycle] = await tx
       .select()
       .from(schema.accountingCycles)
@@ -52,57 +55,74 @@ export class BankAccountsService {
       );
     }
 
-    const [adjConfig] = await tx
+    // 2. Buscar la regla contable por ID
+    const [accountingRule] = await tx
       .select()
-      .from(schema.accountingConfiguration)
-      .where(
-        and(
-          eq(schema.accountingConfiguration.companyId, bankAccount.companyId),
-          eq(
-            schema.accountingConfiguration.operationType,
-            'SALDO_INICIAL_BANCO',
-          ),
-          eq(schema.accountingConfiguration.isActive, true),
-        ),
-      );
+      .from(schema.accountingRules)
+      .where(eq(schema.accountingRules.id, accountingRuleId));
 
-    if (!adjConfig) {
+    if (!accountingRule) {
       throw new BadRequestException(
-        'No se ha configurado un ajustes de balance inicial para cuentas (SALDO_INICIAL_BANCO).',
+        `No se encontró la regla contable con ID ${accountingRuleId}.`,
       );
     }
 
-    // const capitalAccountSetting = await this.settingsSystemService.findKey(
-    //   'CAPITAL_ACCOUNT_ID',
-    // );
-    // if (!capitalAccountSetting || !capitalAccountSetting.value) {
-    //   throw new BadRequestException(
-    //     'No se ha configurado la cuenta de contrapartida para la apertura de bancos (CAPITAL_ACCOUNT_ID).',
-    //   );
-    // }
+    // Validar que la regla sea de la categoría correcta
+    if (accountingRule.category !== 'BANKING') {
+      throw new BadRequestException(
+        'La regla contable seleccionada no es de la categoría BANKING.',
+      );
+    }
 
-    const capitalAccountId = Number(adjConfig.creditAccountId);
+    if (accountingRule.operationType !== 'BANK_INITIAL_BALANCE') {
+      throw new BadRequestException(
+        'La regla contable seleccionada no es para BANK_INITIAL_BALANCE.',
+      );
+    }
 
+    if (!accountingRule.isActive) {
+      throw new BadRequestException(
+        'La regla contable seleccionada no está activa.',
+      );
+    }
+
+    // 3. Buscar el detalle de la regla con accountRole = 'INITIAL_BALANCE_CAPITAL'
+    const [ruleDetail] = await tx
+      .select()
+      .from(schema.accountingRuleDetails)
+      .where(eq(schema.accountingRuleDetails.ruleId, accountingRule.id));
+
+    if (!ruleDetail || !ruleDetail.accountPlanId) {
+      throw new BadRequestException(
+        'No se encontró la cuenta contable de contrapartida (INITIAL_BALANCE_CAPITAL) en la regla de apertura bancaria.',
+      );
+    }
+
+    const capitalAccountId = ruleDetail.accountPlanId;
+
+    // 4. Crear el asiento contable
     const entryDto: CreateAccountingEntryDto = {
       companyId: bankAccount.companyId,
       accountingCycleId: openCycle.id,
-      entryDate: new Date(bankAccount.openingDate || Date.now()),
-      description: `Apertura de cuenta bancaria: ${bankAccount.accountName}`,
+      entryDate: openingDate
+        ? new Date(openingDate)
+        : new Date(bankAccount.openingDate || Date.now()),
+      description: `Apertura de cuenta bancaria: ${bankAccount.accountName || bankAccount.accountNumber}`,
       currencyCode: bankAccount.currencyCode as CurrencyCodeEnum,
       originType: 'BANK_ACCOUNT',
       originReferenceId: bankAccount.id.toString(),
       details: [
         {
-          accountPlanId: bankAccount.linkedChartAccountId,
-          debit: Number(bankAccount.currentBalance),
+          accountPlanId: bankAccount.linkedChartAccountId, // DEBIT: Cuenta bancaria
+          debit: currentBalance,
           credit: 0,
           description: 'Saldo inicial en banco',
         },
         {
-          accountPlanId: capitalAccountId,
+          accountPlanId: capitalAccountId, // CREDIT: Cuenta de contrapartida
           debit: 0,
-          credit: Number(bankAccount.currentBalance),
-          description: 'Capital/Apertura de cuenta',
+          credit: currentBalance,
+          description: 'Contrapartida apertura de cuenta',
         },
       ],
     };
@@ -113,269 +133,8 @@ export class BankAccountsService {
       await this.accountingEntriesService.submitEntry(userId, res.id);
       await this.accountingEntriesService.postEntry(userId, res.id);
     }
-  }
 
-  async initialReconciliation(userId: number, dto: InitialReconciliationDto) {
-    return this.drizzle.transaction(async (tx) => {
-      // 1. Buscar cuenta bancaria
-      const [bankAccount] = await tx
-        .select()
-        .from(schema.bankAccounts)
-        .where(eq(schema.bankAccounts.id, dto.bankAccountId));
-
-      if (!bankAccount) {
-        throw new NotFoundException(
-          `Cuenta bancaria con ID ${dto.bankAccountId} no encontrada.`,
-        );
-      }
-
-      // 2. Saldo según libros
-      const [bookBalance] = await tx
-        .select()
-        .from(schema.accountingBalanceByBank)
-        .where(
-          eq(schema.accountingBalanceByBank.bankAccountId, bankAccount.id),
-        );
-
-      const finalBookBalance = bookBalance ? Number(bookBalance.totalDebit) : 0;
-      const difference = finalBookBalance - Number(dto.lastStatementBalance);
-
-      // 3. Actualizar cuenta
-      await tx
-        .update(schema.bankAccounts)
-        .set({
-          lastStatementBalance: dto.lastStatementBalance.toString(),
-          lastStatementDate: dto.lastStatementDate.toISOString().split('T')[0],
-          openingConciliationPosted: true,
-          updatedById: userId,
-        })
-        .where(eq(schema.bankAccounts.id, dto.bankAccountId));
-
-      // 4. Movimiento bancario inicial (siempre)}
-      // 2. Comprueba el tipo que INFIERE Drizzle
-
-      const [openingTx] = await tx
-        .insert(schema.bankTransactions)
-        .values({
-          bankAccountId: dto.bankAccountId,
-          paymentMethod: 'OTHER',
-          transactionDate: dto.lastStatementDate.toISOString(),
-          valueDate: dto.lastStatementDate.toISOString(),
-          description: 'Saldo inicial extracto',
-          category: 'OPENING_BANK',
-          creditAmount: dto.lastStatementBalance.toString(),
-          debitAmount: '0',
-          resultingBalance: dto.lastStatementBalance.toString(),
-          reconciliationStatus: 'PENDING',
-          bankReference: 'Apertura de Cuenta',
-          uploadBatchId: 'INITIAL_RECON',
-          note: 'Movimiento creado automáticamente en conciliación inicial',
-          createdById: userId,
-          internalLinkStatus: 'NOT_APPLICABLE',
-        })
-        .returning();
-
-      let adjustmentEntryId: number | null = null;
-      let bookBalanceAfter = finalBookBalance;
-
-      // 5. CASO A: Sin ajuste → dejar diferencia pendiente
-      if (!dto.createAdjustment) {
-        // Conciliación con diferencia abierta
-        if (difference === 0) {
-          await tx
-            .update(schema.bankTransactions)
-            .set({ reconciliationStatus: 'RECONCILED', updatedById: userId })
-            .where(eq(schema.bankTransactions.id, openingTx.id));
-        }
-        const [recon] = await tx
-          .insert(schema.bankReconciliations)
-          .values({
-            bankAccountId: dto.bankAccountId,
-            statementDate: dto.lastStatementDate.toISOString(),
-            statementEndingBalance: dto.lastStatementBalance.toString(),
-            bookBalanceBefore: finalBookBalance.toString(),
-            bookBalanceAfter: finalBookBalance.toString(),
-            difference: difference.toString(),
-            reconciliationDate: dto.reconciliationDate,
-            status: difference === 0 ? 'COMPLETED' : 'PENDING',
-            preparedByUserId: userId,
-            notes:
-              difference === 0
-                ? 'Conciliación inicial rápida (ya cuadrada)'
-                : 'Conciliación inicial rápida - diferencia pendiente',
-            createdById: userId,
-          })
-          .returning();
-
-        // Relacionar movimiento opening
-        await tx.insert(schema.bankReconciliationDetails).values({
-          bankReconciliationId: recon.id,
-          adjustmentType: 'OPENING_BALANCE',
-          adjustmentAmount: '0',
-          description: 'Saldo inicial extracto',
-          isBookAdjustment: false,
-          bankTransactionId: openingTx.id,
-          createdById: userId,
-        });
-
-        return { reconciliationId: recon.id, difference, status: recon.status };
-      }
-
-      // 6. CASO B: Con ajuste → cerrar en 0
-      // 6-a. Buscar ciclo abierto
-      const [cycle] = await tx
-        .select()
-        .from(schema.accountingCycles)
-        .where(
-          and(
-            eq(schema.accountingCycles.companyId, bankAccount.companyId),
-            eq(schema.accountingCycles.status, 'OPEN'),
-          ),
-        );
-
-      if (!cycle) {
-        throw new BadRequestException(
-          'No hay ciclo contable abierto para crear el ajuste.',
-        );
-      }
-
-      // 6-b. Configuración de contra-cuenta
-      const [adjConfig] = await tx
-        .select()
-        .from(schema.accountingConfiguration)
-        .where(
-          and(
-            eq(schema.accountingConfiguration.companyId, bankAccount.companyId),
-            eq(
-              schema.accountingConfiguration.operationType,
-              'AJUSTE_RECONCILIACION_BANCARIA',
-            ),
-            eq(schema.accountingConfiguration.isActive, true),
-          ),
-        );
-
-      if (!adjConfig?.contraAccountId) {
-        throw new BadRequestException(
-          'No se ha configurado contra cuenta para ajustes de conciliación.',
-        );
-      }
-
-      // 6-c. Armar asiento de ajuste
-      const adjustmentAmount = Math.abs(difference);
-      const isPositiveDiff = difference > 0; // libro > banco
-      const debitAccountId = isPositiveDiff
-        ? adjConfig.contraAccountId
-        : bankAccount.linkedChartAccountId;
-      const creditAccountId = isPositiveDiff
-        ? bankAccount.linkedChartAccountId
-        : adjConfig.contraAccountId;
-
-      const entryDto: CreateAccountingEntryDto = {
-        companyId: bankAccount.companyId,
-        accountingCycleId: cycle.id,
-        entryDate: dto.reconciliationDate,
-        description: `Ajuste por conciliación inicial - Cta. ${bankAccount.accountName}`,
-        currencyCode: bankAccount.currencyCode as CurrencyCodeEnum,
-        originType: 'BANK_RECONCILIATION_INITIAL_ADJUSTMENT',
-        details: [
-          {
-            accountPlanId: debitAccountId,
-            debit: adjustmentAmount,
-            credit: 0,
-            description: 'Ajuste por conciliación inicial',
-          },
-          {
-            accountPlanId: creditAccountId,
-            debit: 0,
-            credit: adjustmentAmount,
-            description: 'Ajuste por conciliación inicial',
-          },
-        ],
-      };
-
-      // 6-d. Crear y postear asiento
-      const newEntry = await this.accountingEntriesService.create(
-        userId,
-        entryDto,
-      );
-      await this.accountingEntriesService.submitEntry(userId, newEntry.id!);
-      await this.accountingEntriesService.postEntry(userId, newEntry.id!);
-      adjustmentEntryId = newEntry.id!;
-      bookBalanceAfter = dto.lastStatementBalance;
-
-      // 6-e. Crear movimiento bancario de ajuste (opcional pero útil)
-      // const [adjustTx] = await tx
-      //   .insert(schema.bankTransactions)
-      //   .values({
-      //     bankAccountId: dto.bankAccountId,
-      //     transactionType: 'INITIAL_ADJUSTMENT_BANK',
-      //     transactionDate: dto.reconciliationDate,
-      //     valueDate: dto.reconciliationDate,
-      //     description: 'Ajuste por conciliación inicial',
-      //     creditAmount: isPositiveDiff ? adjustmentAmount.toString() : '0',
-      //     debitAmount: isPositiveDiff ? '0' : adjustmentAmount.toString(),
-      //     resultingBalance: dto.lastStatementBalance.toString(),
-      //     reconciliationStatus: 'ADJUSTMENT',
-      //     bankReference: 'AJUSTE_INICIAL',
-      //     uploadBatchId: 'INITIAL_ADJUST',
-      //     note: 'Movimiento de ajuste creado automáticamente en conciliación inicial',
-      //     createdById: userId,
-      //   })
-      //   .returning();
-
-      // 6-f. Conciliación CERRADA en 0
-      const [recon] = await tx
-        .insert(schema.bankReconciliations)
-        .values({
-          bankAccountId: dto.bankAccountId,
-          statementDate: dto.lastStatementDate.toISOString(),
-          statementEndingBalance: dto.lastStatementBalance.toString(),
-          bookBalanceBefore: finalBookBalance.toString(),
-          bookBalanceAfter: bookBalanceAfter.toString(),
-          difference: '0',
-          reconciliationDate: dto.reconciliationDate,
-          status: 'COMPLETED',
-          preparedByUserId: userId,
-          notes: 'Conciliación inicial completa (cerrada en 0)',
-        })
-        .returning();
-
-      // 6-g. Detalles de conciliación
-      const details = [
-        {
-          bankReconciliationId: recon.id,
-          adjustmentType: 'OPENING_BALANCE',
-          adjustmentAmount: '0',
-          description: 'Saldo inicial extracto',
-          isBookAdjustment: false,
-          bankTransactionId: openingTx.id,
-        },
-        // {
-        //   bankReconciliationId: recon.id,
-        //   adjustmentType: 'BOOK_ADJUSTMENT',
-        //   adjustmentAmount: adjustmentAmount.toString(),
-        //   description: 'Ajuste por conciliación inicial',
-        //   isBookAdjustment: true,
-        //   adjustmentEntryId: adjustmentEntryId,
-        //   bankTransactionId: adjustTx.id,
-        // },
-      ];
-
-      await tx.insert(schema.bankReconciliationDetails).values(details);
-
-      // 6-h. ACTUALIZAR resulting_balance del movimiento opening
-      await tx
-        .update(schema.bankTransactions)
-        .set({ resultingBalance: dto.lastStatementBalance.toString() })
-        .where(eq(schema.bankTransactions.id, openingTx.id));
-
-      return {
-        reconciliationId: recon.id,
-        difference: 0,
-        status: 'COMPLETED',
-        adjustmentEntryId,
-      };
-    });
+    return res;
   }
 
   async findAll() {
@@ -475,8 +234,6 @@ export class BankAccountsService {
         linkedChartAccountId: schema.bankAccounts.linkedChartAccountId,
         isActive: schema.bankAccounts.isActive,
         openingEntryPosted: schema.bankAccounts.openingEntryPosted,
-        openingConciliationPosted:
-          schema.bankAccounts.openingConciliationPosted,
         currentBalance: accountingBalanceByBank.balance,
         lastStatementBalance: bankStatementBalance.currentStatementBalance,
       })
@@ -538,30 +295,36 @@ export class BankAccountsService {
         .where(eq(schema.bankAccounts.accountNumber, data.accountNumber));
 
       if (existingAccount.length) {
-        throw new Error(
-          `Bank Account with account number ${data.accountNumber} already exists`,
+        throw new BadRequestException(
+          `La cuenta bancaria con número ${data.accountNumber} ya existe`,
         );
       }
+
       const currenciesCode = await tx
         .select()
         .from(currencies)
         .where(eq(currencies.id, Number(data.currencyCode)));
 
+      if (!currenciesCode.length) {
+        throw new BadRequestException(
+          `No se encontró la moneda con ID ${data.currencyCode}`,
+        );
+      }
+
       const formatData = {
-        ...data,
+        companyId: data.companyId,
+        bankDirectoryId: data.bankDirectoryId,
+        accountNumber: data.accountNumber,
+        accountName: data.accountName,
+        accountType: data.accountType,
         currencyCode: currenciesCode[0].code,
         openingDate: data.openingDate
           ? new Date(data.openingDate).toISOString().split('T')[0]
           : null,
-        currentBalance: data.currentBalance
-          ? (data.currentBalance ?? 0).toString()
-          : null,
-        lastStatementBalance: data.lastStatementBalance?.toString() ?? null,
-        lastStatementDate: data.lastStatementDate
-          ? new Date(data.lastStatementDate).toISOString().split('T')[0]
-          : null,
+        linkedChartAccountId: data.linkedChartAccountId,
+        isActive: data.isActive ?? true,
+        openingEntryPosted: false,
         createdById: userId,
-        openingEntryPosted: data.openingEntryPosted ?? false,
       };
 
       const [newBankAccount] = await tx
@@ -569,8 +332,38 @@ export class BankAccountsService {
         .values(formatData)
         .returning();
 
-      if (data.openingEntryPosted) {
-        await this._createOpeningEntry(tx, userId, newBankAccount);
+      // Si se solicita generar el asiento de apertura
+      if (
+        data.openingEntryPosted &&
+        data.currentBalance &&
+        data.currentBalance > 0
+      ) {
+        if (!data.accountingRuleId) {
+          throw new BadRequestException(
+            'Debe seleccionar una regla contable para generar el asiento de apertura.',
+          );
+        }
+
+        await this._createOpeningEntry(
+          tx,
+          userId,
+          newBankAccount,
+          data.currentBalance,
+          data.accountingRuleId,
+          data.openingDate
+            ? new Date(data.openingDate).toISOString()
+            : undefined,
+        );
+
+        // Marcar que ya se generó el asiento de apertura
+        await tx
+          .update(schema.bankAccounts)
+          .set({
+            openingEntryPosted: true,
+            currentBalance: String(data.currentBalance),
+            ruleAccountId: data.accountingRuleId,
+          })
+          .where(eq(schema.bankAccounts.id, newBankAccount.id));
       }
 
       return newBankAccount;
@@ -588,25 +381,37 @@ export class BankAccountsService {
         throw new NotFoundException(`Bank Account with ID ${id} not found`);
       }
 
+      // No permitir cambios si ya se generó el asiento de apertura
+      if (existing.openingEntryPosted && data.openingEntryPosted) {
+        throw new BadRequestException(
+          'No se puede generar el asiento de apertura porque ya fue generado previamente.',
+        );
+      }
+
       const currenciesCode = await tx
         .select()
         .from(currencies)
         .where(eq(currencies.id, Number(data.currencyCode)));
 
-      const formatData = {
-        ...data,
-        currencyCode: currenciesCode[0].code,
-        openingDate: data.openingDate
-          ? new Date(data.openingDate).toISOString()
-          : null,
-        currentBalance: (data.currentBalance ?? 0).toString(),
-        lastStatementBalance: data.lastStatementBalance?.toString() ?? null,
-        lastStatementDate: data.lastStatementDate
-          ? new Date(data.lastStatementDate).toISOString()
-          : null,
+      const formatData: any = {
+        bankDirectoryId: data.bankDirectoryId,
+        accountNumber: data.accountNumber,
+        accountName: data.accountName,
+        accountType: data.accountType,
+        linkedChartAccountId: data.linkedChartAccountId,
+        isActive: data.isActive,
         updatedById: userId,
-        openingEntryPosted: data.openingEntryPosted ?? false,
       };
+
+      if (data.currencyCode && currenciesCode.length) {
+        formatData.currencyCode = currenciesCode[0].code;
+      }
+
+      if (data.openingDate) {
+        formatData.openingDate = new Date(data.openingDate)
+          .toISOString()
+          .split('T')[0];
+      }
 
       const [updatedBankAccount] = await tx
         .update(schema.bankAccounts)
@@ -614,8 +419,34 @@ export class BankAccountsService {
         .where(eq(schema.bankAccounts.id, id))
         .returning();
 
-      if (data.openingEntryPosted && !existing.openingEntryPosted) {
-        await this._createOpeningEntry(tx, userId, updatedBankAccount);
+      // Si se solicita generar el asiento de apertura y no se ha generado antes
+      if (
+        data.openingEntryPosted &&
+        !existing.openingEntryPosted &&
+        data.currentBalance &&
+        data.currentBalance > 0
+      ) {
+        if (!data.accountingRuleId) {
+          throw new BadRequestException(
+            'Debe seleccionar una regla contable para generar el asiento de apertura.',
+          );
+        }
+
+        await this._createOpeningEntry(
+          tx,
+          userId,
+          updatedBankAccount,
+          data.currentBalance,
+          data.accountingRuleId,
+          data.openingDate
+            ? new Date(data.openingDate).toISOString()
+            : undefined,
+        );
+
+        await tx
+          .update(schema.bankAccounts)
+          .set({ openingEntryPosted: true })
+          .where(eq(schema.bankAccounts.id, id));
       }
 
       return updatedBankAccount;
@@ -634,5 +465,69 @@ export class BankAccountsService {
       .where(eq(schema.bankAccounts.id, id));
 
     return { message: 'Bank Account deleted successfully' };
+  }
+
+  async generateOpeningEntry(
+    id: number,
+    userId: number,
+    currentBalance: number,
+    accountingRuleId: number,
+    openingDate: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(schema.bankAccounts)
+        .where(eq(schema.bankAccounts.id, id));
+
+      if (!existing) {
+        throw new NotFoundException(`Bank Account with ID ${id} not found`);
+      }
+
+      if (existing.openingEntryPosted) {
+        throw new BadRequestException(
+          'El asiento de apertura ya fue generado para esta cuenta.',
+        );
+      }
+
+      if (!currentBalance || currentBalance <= 0) {
+        throw new BadRequestException(
+          'El saldo inicial debe ser mayor a cero.',
+        );
+      }
+
+      if (!accountingRuleId) {
+        throw new BadRequestException(
+          'Debe seleccionar una regla contable para generar el asiento de apertura.',
+        );
+      }
+
+      if (!openingDate) {
+        throw new BadRequestException(
+          'Debe seleccionar una fecha para el asiento de apertura.',
+        );
+      }
+
+      await this._createOpeningEntry(
+        tx,
+        userId,
+        existing,
+        currentBalance,
+        accountingRuleId,
+        openingDate,
+      );
+
+      await tx
+        .update(schema.bankAccounts)
+        .set({
+          openingEntryPosted: true,
+          currentBalance: String(currentBalance),
+          openingDate: openingDate,
+          ruleAccountId: accountingRuleId,
+        })
+        .where(eq(schema.bankAccounts.id, id));
+
+      return { message: 'Asiento de apertura generado exitosamente' };
+    });
   }
 }

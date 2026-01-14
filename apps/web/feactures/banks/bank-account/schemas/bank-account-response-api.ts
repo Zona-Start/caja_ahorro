@@ -41,7 +41,7 @@ export const bankAccountResponseAllSchema = z.object({
 // Response schemas for the API by Create, Update, QuerryOne
 export const bankAccountResponseOneSchema = z.object({
   message: z.string(),
-  data: bankAccountApiSchema,
+  // data: bankAccountApiSchema,
 });
 
 //schema response delete mutation

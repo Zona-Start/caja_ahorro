@@ -51,8 +51,6 @@ export const getBankAccountAction = async (params: {
     'GET',
   );
 
-  console.log(response?.data);
-
   if (error) {
     console.error('Error:', error);
     throw new Error(error.message || 'Error fetching bank account data');
@@ -148,4 +146,27 @@ export const saveBankAccountAction = async (bankAccount: BankAccount) => {
   } catch (error: any) {
     throw new Error(error.message || 'Error saving associate data');
   }
+};
+
+export const generateOpeningEntryAction = async (
+  id: number,
+  payload: {
+    currentBalance: number;
+    accountingRuleId: number;
+    openingDate: string;
+  },
+) => {
+  const [error, data] = await safeFetchApi(
+    bankAccountResponseOneSchema, // Usamos este para validar que devuelve algo coherente
+    `/bakings/bank-accounts/generate-opening-entry/${id}`,
+    'POST',
+    payload,
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(error.message || 'Error generating opening entry');
+  }
+
+  return data;
 };

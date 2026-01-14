@@ -154,6 +154,14 @@ export function AccountingRuleForm({
             value: 'CONTRIBUTION_INCOME_PAYROLL',
             label: 'Ingreso por Aportes (Nómina)',
           },
+          {
+            value: 'BANK_INITIAL_BALANCE',
+            label: 'Carga de Saldo Inicial',
+          },
+          {
+            value: 'BANK_FEE',
+            label: 'Comisión por Cuenta',
+          },
           { value: 'OTHER_BANKING', label: 'Otros' },
         ];
       case 'ACCOUNTING':
@@ -165,7 +173,7 @@ export function AccountingRuleForm({
           { value: 'EXCHANGE_DIFFERENCE', label: 'Diferencia de Cambio' },
           { value: 'ASSET_DEPRECIATION', label: 'Depreciación de Activos' },
           { value: 'EXPENSE_AMORTIZATION', label: 'Amortización de Gastos' },
-          { value: 'OTHER_ACCOUNTING', label: 'Otros' },
+          { value: 'MANUAL_ADJUSTMENT', label: 'Ajuste Manual' },
         ];
       case 'INVENTORY':
         return [
@@ -221,6 +229,77 @@ export function AccountingRuleForm({
         return [];
     }
   }, [operationType, withdrawalTypes, loanTypes, creditTypes, payrollTypes]);
+
+  const roleOptions = useMemo(() => {
+    switch (category) {
+      case 'SAVINGS_BANK':
+        return [
+          { value: 'ASSOCIATED_ACCOUNT', label: 'Cuenta Asociado' },
+          { value: 'EMPLOYER_ACCOUNT', label: 'Cuenta Patrono' },
+          { value: 'LOAN_ACCOUNT', label: 'Cuenta Préstamo' },
+          {
+            value: 'CREDIT_ACCOUNT',
+            label: 'Cuenta Crédito',
+          },
+          {
+            value: 'WITHDRAWAL_ACCOUNT',
+            label: 'Cuenta Retiro',
+          },
+          { value: 'INTEREST_EARNED', label: 'Intereses Ganados' },
+          { value: 'SPECIAL_QUOTAS', label: 'Cuotas Especiales' },
+          { value: 'EXPENSE', label: 'Gasto' },
+          { value: 'ASSOCIATED_EARNINGS', label: 'Haberes Asociados' },
+          { value: 'LOAN_RECEIVABLE', label: 'Prestamos por Cobrar' },
+          { value: 'INTEREST_OVERDUE', label: 'Intereses Vencido' },
+          { value: 'CASH_SAVINGS_ACCOUNT', label: 'Caja Ahorro Efetivo' },
+        ];
+      case 'ADMINISTRATIVE':
+        return [
+          { value: 'PURCHASE_VAT', label: 'Iva Compra' },
+          { value: 'SUPPLIER_CONTROL', label: 'Proveedor Control' },
+          { value: 'GASTO_OPERATIVO', label: 'Gasto Operativo' },
+        ];
+      case 'BANKING':
+        return [
+          { value: 'SOURCE_BANK', label: 'Banco Origen' },
+          { value: 'DESTINATION_BANK', label: 'Banco Destino' },
+          { value: 'GENERAL_COUNTERPART', label: 'Contra Partida General' },
+          { value: 'INITIAL_BALANCE_CAPITAL', label: 'Saldo Inicial Capital' },
+        ];
+      case 'INVENTORY':
+        return [
+          { value: 'INV_ACTIVO', label: 'Activo' },
+          { value: 'INV_TRANSIT_PAYABLE', label: 'Transito Pagar' },
+          { value: 'INV_AJUSTE_GASTO', label: 'Ajuste Gasto' },
+          { value: 'INV_COSTO_VENTA', label: 'Costo Venta' },
+          { value: 'INV_ORIGEN', label: 'Origen' },
+          { value: 'INV_DESTINO', label: 'Destino' },
+        ];
+      case 'ACCOUNTING':
+        return [
+          {
+            value: 'CONT_FISCAL_YEAR_RESULT',
+            label: 'Resultado Ejercicio',
+          },
+          { value: 'CONT_CUENTA_CIERRE', label: 'Cuenta Cierre' },
+          { value: 'CONT_DIF_CAMBIO_GASTO', label: 'Diferencia Cambio Gasto' },
+          {
+            value: 'CONT_DIF_CAMBIO_INGRESO',
+            label: 'Diferencia Cambio Ingreso',
+          },
+          {
+            value: 'CONT_FOREIGN_CURRENCY_ASSET',
+            label: 'Activo Moneda Extranjera',
+          },
+          { value: 'CONT_ACCUMULATED_DEP', label: 'Dep Acumulada' },
+          { value: 'CONT_DEP_GASTO', label: 'Dep Gasto' },
+          { value: 'CONT_AMORT_GASTO', label: 'Amort Gasto' },
+          { value: 'CONT_ACTIVO_DIFERIDO', label: 'Activo Diferido' },
+        ];
+      default:
+        return [];
+    }
+  }, [category]);
 
   const requiresReference = [
     'PAYROLL_CONCEPT',
@@ -466,14 +545,24 @@ export function AccountingRuleForm({
                 render={({ field }) => (
                   <FormItem className="flex-1">
                     <FormLabel>Rol de Cuenta</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Ej. CAJA_PRINCIPAL"
-                        {...field}
-                        value={field.value || ''}
-                        disabled={readOnly}
-                      />
-                    </FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || ''}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione Rol" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {roleOptions.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            {role.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

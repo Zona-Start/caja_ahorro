@@ -1,9 +1,7 @@
-import { CurrencyCodeEnum } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDate,
-  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -44,8 +42,8 @@ export class CreateBankAccountDto {
 
   @ApiProperty({ description: 'Código de moneda de la cuenta bancaria' })
   @IsNotEmpty()
-  @IsEnum(CurrencyCodeEnum)
-  currencyCode: CurrencyCodeEnum;
+  @IsNumber()
+  currencyCode: number;
 
   @ApiProperty({ description: 'Fecha de apertura de la cuenta bancaria' })
   @IsDate()
@@ -57,16 +55,6 @@ export class CreateBankAccountDto {
   @IsOptional()
   currentBalance?: number;
 
-  @ApiProperty({ description: 'Saldo del último extracto cargado' })
-  @IsNumber()
-  @IsOptional()
-  lastStatementBalance?: number;
-
-  @ApiProperty({ description: 'Fecha del último extracto cargado' })
-  @IsDate()
-  @IsOptional()
-  lastStatementDate?: Date;
-
   @ApiProperty({ description: 'ID de la cuenta contable vinculada' })
   @IsNotEmpty()
   @IsNumber()
@@ -74,10 +62,19 @@ export class CreateBankAccountDto {
 
   @ApiProperty({ description: 'Estado activo de la cuenta bancaria' })
   @IsBoolean()
-  is_active: boolean;
+  @IsOptional()
+  isActive?: boolean;
 
   @ApiProperty({
-    description: 'Indica si se ha registrado la entrada de apertura',
+    description: 'ID de la regla contable para el asiento de apertura',
+    required: false,
+  })
+  @IsNumber()
+  @IsOptional()
+  accountingRuleId?: number;
+
+  @ApiProperty({
+    description: 'Indica si se debe generar el asiento de apertura',
   })
   @IsBoolean()
   @IsOptional()

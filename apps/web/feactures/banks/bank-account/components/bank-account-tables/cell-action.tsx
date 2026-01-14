@@ -14,7 +14,7 @@ import { useDeleteBankAccountMutation } from '../../hooks/use-mutation-bank-acco
 import { BankAccount } from '../../schemas/bank-account.schema';
 import { BankAccountDetailsModal } from '../bank-account-details-modal';
 import { BankAccountModal } from '../bank-account-modal';
-import { InitialReconciliationModal } from '../initial-reconciliation-modal';
+import { GenerateOpeningEntryModal } from '../generate-opening-entry-modal';
 
 interface CellActionProps {
   data: BankAccount;
@@ -25,7 +25,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
+  const [showOpeningEntryModal, setShowOpeningEntryModal] = useState(false);
   const { mutate: deleteBankAccount } = useDeleteBankAccountMutation();
   const [bankAccountId, setBankAccountId] = useState<number | null>(null);
 
@@ -80,9 +80,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         bankAccount={data}
       />
 
-      <InitialReconciliationModal
-        open={showReconciliationModal}
-        onOpenChange={setShowReconciliationModal}
+      <GenerateOpeningEntryModal
+        open={showOpeningEntryModal}
+        onOpenChange={setShowOpeningEntryModal}
         bankAccount={data}
       />
 
@@ -125,16 +125,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setShowReconciliationModal(true)}
-                disabled={
-                  !data.openingEntryPosted || data.openingConciliationPosted
-                }
+                onClick={() => setShowOpeningEntryModal(true)}
+                disabled={!!data.openingEntryPosted}
               >
                 <Scale className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Conciliación Inicial</p>
+              <p>Generar Asiento Inicial</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

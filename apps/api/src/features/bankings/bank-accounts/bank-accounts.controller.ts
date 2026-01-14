@@ -13,32 +13,36 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { BankAccountsService } from './bank-accounts.service';
+import { CreateBankAccountDto } from './dto/create-bank-account.dto';
 import { FilterBankAccountDto } from './dto/filter-bank-account.dto';
-
-import { InitialReconciliationDto } from './dto/initial-reconciliation.dto';
+import { GenerateOpeningEntryDto } from './dto/generate-opening-entry.dto';
+import { UpdateBankAccountDto } from './dto/update-bank-account.dto';
 
 @Controller('bakings/bank-accounts')
 export class BankAccountsController {
   constructor(private readonly bankAccountsService: BankAccountsService) {}
 
-  @Post('/initial-reconciliation')
+  @Post('/generate-opening-entry/:id')
   @Roles('admin')
-  @RequirePermissions('create:bank-reconciliation') // Assuming this permission
-  @ApiOperation({ summary: 'Perform initial bank reconciliation' })
+  @RequirePermissions('create:bank-accounts')
+  @ApiOperation({ summary: 'Generate opening entry for existing bank account' })
   @ApiResponse({
     status: 200,
-    description: 'Initial reconciliation performed successfully.',
+    description: 'Opening entry generated successfully.',
   })
-  async initialReconciliation(
+  async generateOpeningEntry(
     @Req() req: Request,
-    @Body() initialReconciliationDto: InitialReconciliationDto,
+    @Param('id') id: string,
+    @Body() generateOpeningEntryDto: GenerateOpeningEntryDto,
   ) {
     const userId = req['user'].id;
-    const data = await this.bankAccountsService.initialReconciliation(
+    return await this.bankAccountsService.generateOpeningEntry(
+      +id,
       userId,
-      initialReconciliationDto,
+      generateOpeningEntryDto.currentBalance,
+      generateOpeningEntryDto.accountingRuleId,
+      generateOpeningEntryDto.openingDate,
     );
-    return { message: 'Initial reconciliation successful', data };
   }
 
   @Post()
@@ -49,7 +53,10 @@ export class BankAccountsController {
     status: 201,
     description: 'Bank account created successfully.',
   })
-  async create(@Req() req: Request, @Body() createBankAccountDto: any) {
+  async create(
+    @Req() req: Request,
+    @Body() createBankAccountDto: CreateBankAccountDto,
+  ) {
     const userId = req['user'].id;
     const data = await this.bankAccountsService.create(
       userId,
@@ -110,7 +117,7 @@ export class BankAccountsController {
   async update(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() updateBankAccountDto: any,
+    @Body() updateBankAccountDto: UpdateBankAccountDto,
   ) {
     const userId = req['user'].id;
     const data = await this.bankAccountsService.update(
