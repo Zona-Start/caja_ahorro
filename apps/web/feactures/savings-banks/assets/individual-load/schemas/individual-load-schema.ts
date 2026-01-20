@@ -28,9 +28,10 @@ export const formSchema = z.object({
   }),
   description: z.string().min(1, 'Debe indicar una descripción'),
   bankAccountId: z.number().optional(),
-  paymentMethod: z.string().min(1, 'Debe seleccionar un método de pago'),
+  paymentMethod: z.string().optional(),
   referenceNumber: z.string().optional(),
   exchangeRateId: z.number().optional(),
+  includeBankingDetails: z.boolean().default(false).optional(),
 });
 
 export type LoadAssest = z.infer<typeof formSchema>;

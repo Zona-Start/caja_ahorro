@@ -2,7 +2,7 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import { Inject, Injectable, StreamableFile } from '@nestjs/common';
 import { format } from 'date-fns';
-import { and, eq, gte, lte } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, or } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as Excel from 'exceljs';
 import { PassThrough } from 'stream';
@@ -36,7 +36,7 @@ export class ReportsAssociatedDebtsService {
         updatedAt: schema.loans.updatedAt,
       })
       .from(schema.loans)
-      .leftJoin(
+     .innerJoin( 
         schema.associates,
         eq(schema.loans.associateId, schema.associates.id),
       )
@@ -52,10 +52,16 @@ export class ReportsAssociatedDebtsService {
         schema.typePayrolls,
         eq(schema.loanTypes.payrollTypeId, schema.typePayrolls.id),
       )
-      .where(
-        and(
-          gte(schema.loans.requestDate, start.toISOString()),
-          lte(schema.loans.requestDate, end.toISOString()),
+       .where(
+        or(
+          // Caso 1: Deuda viva (Desembolsado o En Pago) -> INCLUSION
+          inArray(schema.loans.status, ['DISBURSED', 'IN_PAYMENT']),
+          // Caso 2: Deuda recién pagada en este rango -> EXCLUSION
+          and(
+            eq(schema.loans.status, 'PAID'),
+            gte(schema.loans.updatedAt, start),
+            lte(schema.loans.updatedAt, end),
+          ),
         ),
       );
   }
@@ -74,7 +80,7 @@ export class ReportsAssociatedDebtsService {
         updatedAt: schema.credits.updatedAt,
       })
       .from(schema.credits)
-      .leftJoin(
+      .innerJoin(
         schema.associates,
         eq(schema.credits.associateId, schema.associates.id),
       )
@@ -91,30 +97,48 @@ export class ReportsAssociatedDebtsService {
         eq(schema.creditsTypes.payrollTypeId, schema.typePayrolls.id),
       )
       .where(
-        and(
-          gte(schema.credits.requestDate, start.toISOString()),
-          lte(schema.credits.requestDate, end.toISOString()),
+        or(
+          inArray(schema.credits.status, ['APPROVED', 'IN_PAYMENT']),
+          and(
+            eq(schema.credits.status, 'PAID'),
+            gte(schema.credits.updatedAt, start),
+            lte(schema.credits.updatedAt, end),
+          ),
         ),
       );
   }
 
   private classifyRow(row: any, startDate: Date, endDate: Date): ClassifiedRow {
-    const isPaid = row.status === 'PAID';
-    const paidInRange =
-      isPaid &&
-      row.updatedAt &&
-      new Date(row.updatedAt) >= startDate &&
-      new Date(row.updatedAt) <= endDate;
+    const status = row.status;
+    // Aseguramos que la fecha sea un objeto Date válido para comparación
+    const updatedAt = row.updatedAt ? new Date(row.updatedAt) : null; 
 
-    return {
-      ...row,
+    // Si está PAGADO y la fecha de pago está en el rango solicitado -> EXCLUSIÓN
+    if (status === 'PAID' && updatedAt && updatedAt >= startDate && updatedAt <= endDate) {
+      return { 
+        ...row, 
+        debtAmount: Number(row.debtAmount ?? 0),
+        installmentAmount: Number(row.installmentAmount ?? 0),
+        inclusionExclusion: 'EXCLUSION' 
+      };
+    }
+
+    // Si está DESEMBOLSADO o EN PAGO -> INCLUSIÓN (debe descontarse)
+    if (status === 'DISBURSED' || status === 'IN_PAYMENT') {
+      return { 
+        ...row, 
+        debtAmount: Number(row.debtAmount ?? 0),
+        installmentAmount: Number(row.installmentAmount ?? 0),
+        inclusionExclusion: 'INCLUSION' 
+      };
+    }
+
+    // Otros estados (APROBADO, RECHAZADO, PAID antiguo) no se incluyen en el reporte de nómina
+    return { 
+      ...row, 
       debtAmount: Number(row.debtAmount ?? 0),
       installmentAmount: Number(row.installmentAmount ?? 0),
-      inclusionExclusion: isPaid
-        ? paidInRange
-          ? 'EXCLUSION'
-          : 'FUERA_DE_RANGO'
-        : 'INCLUSION',
+      inclusionExclusion: 'FUERA_DE_RANGO' 
     };
   }
 
@@ -193,6 +217,9 @@ export class ReportsAssociatedDebtsService {
     const classified = [...loansData, ...creditsData]
       .map((row) => this.classifyRow(row, startDate, endDate))
       .filter((r) => r.inclusionExclusion !== 'FUERA_DE_RANGO');
+
+    // 3. Ordenar: Mostrar primero las exclusiones para que el analista las procese primero.
+    classified.sort((a, b) => a.inclusionExclusion.localeCompare(b.inclusionExclusion));
 
     // 3. Crear stream de Excel
     const stream = new PassThrough();

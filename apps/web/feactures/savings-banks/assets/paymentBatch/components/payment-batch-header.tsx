@@ -7,8 +7,8 @@ export function PaymentBatchHeader() {
     <>
       <div className="flex items-start justify-between mb-2">
         <Heading
-          title="Gestión de Lotes de Pago"
-          description="Administra la creación, confirmación y anulación de lotes de pago."
+          title="Lote de Pago"
+          description="Gestiona los lotes de pago de los Asociados"
         />
       </div>
     </>

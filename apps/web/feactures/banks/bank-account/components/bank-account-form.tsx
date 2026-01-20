@@ -125,6 +125,8 @@ export function BankAccountForm({
     });
   };
 
+  const accountingRuleId = form.watch('accountingRuleId');
+
   return (
     <Form {...form}>
       <ScrollArea className="h-[calc(100vh-200px)]">
@@ -551,7 +553,15 @@ export function BankAccountForm({
                 {readOnly ? 'Cerrar' : 'Cancelar'}
               </Button>
               {!readOnly && (
-                <Button type="submit" disabled={isSaving}>
+                <Button
+                  type="submit"
+                  disabled={
+                    isSaving ||
+                    (showInitialBalances &&
+                      openingEntryOption === 'generate' &&
+                      !accountingRuleId)
+                  }
+                >
                   {isSaving ? 'Guardando...' : 'Guardar'}
                 </Button>
               )}

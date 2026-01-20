@@ -43,6 +43,6 @@ export class IndividualLoadDto {
   bankAccountId: number;
 
   @IsEnum(paymentMethodEnum.enumValues)
-  @IsNotEmpty()
+  @IsOptional()
   paymentMethod: (typeof paymentMethodEnum.enumValues)[number];
 }
