@@ -51,6 +51,17 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
+        key: 'ASIENTOS_AUTOMATICOS',
+        value: 'SI',
+        description: 'Asientos Automaticos',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
         key: 'UTILIDAD-PRODUCTO',
         value: '25',
         description: 'UTILIDAD PRODUCTO',

@@ -7,9 +7,8 @@ export async function fetchApiFile(
   method: 'GET' | 'POST' = 'GET',
   body?: Record<string, unknown>,
 ) {
-  const { auth } = await import('@/lib/auth');
-  const session = await auth();
-  const token = session?.access_token;
+  const { getValidAccessToken } = await import('@/lib/auth-token');
+  const token = await getValidAccessToken();
 
   const headers: HeadersInit = token
     ? { Authorization: `Bearer ${token}` }

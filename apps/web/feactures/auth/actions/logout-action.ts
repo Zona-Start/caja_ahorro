@@ -1,6 +1,7 @@
 'use server';
 
 import { safeFetchApi } from '@/lib';
+import { cookies } from 'next/headers';
 import { logoutResponseSchema } from '../schemas/logout';
 
 export const logoutAction = async (user_id: string) => {
@@ -21,4 +22,6 @@ export const logoutAction = async (user_id: string) => {
       message: error.message,
     };
   }
+
+  (await cookies()).delete('refresh_token');
 };

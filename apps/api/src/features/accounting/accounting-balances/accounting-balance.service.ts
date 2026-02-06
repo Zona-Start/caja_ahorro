@@ -529,38 +529,44 @@ export class AccountingBalanceService {
         const result = revenueSum - expenseSum; // Profit if positive
 
         // Find Equity Account for Result
-        const config = await tx.query.accountingConfiguration.findFirst({
-          where: eq(
-            schema.accountingConfiguration.operationType,
-            'FISCAL_YEAR_RESULT',
-          ),
-        });
+        const [config] = await tx
+          .select()
+          .from(schema.accountingRules)
+          .where(eq(schema.accountingRules.operationType, 'FISCAL_YEAR_RESULT'))
+          .innerJoin(
+            schema.accountingRuleDetails,
+            eq(schema.accountingRuleDetails.ruleId, schema.accountingRules.id),
+          );
 
-        if (!config || !config.creditAccountId) {
+        if (!config.accounting_rules) {
           // Fallback or error. For now, error.
           throw new BadRequestException(
             'FISCAL_YEAR_RESULT account not configured.',
           );
         }
-        const equityAccountId = config.creditAccountId;
+        const equityAccountId = config.accounting_rule_details;
 
         // Register Result
         if (result > 0) {
           // Profit: Credit Equity
-          details.push({
-            accountPlanId: equityAccountId,
-            debit: '0',
-            credit: String(result),
-            description: 'Utilidad del Ejercicio',
-          });
+          if (equityAccountId.movementType === 'CREDIT') {
+            details.push({
+              accountPlanId: Number(equityAccountId.accountPlanId),
+              debit: '0',
+              credit: String(result),
+              description: 'Utilidad del Ejercicio',
+            });
+          }
         } else if (result < 0) {
           // Loss: Debit Equity
-          details.push({
-            accountPlanId: equityAccountId,
-            debit: String(Math.abs(result)),
-            credit: '0',
-            description: 'Pérdida del Ejercicio',
-          });
+          if (equityAccountId.movementType === 'DEBIT') {
+            details.push({
+              accountPlanId: Number(equityAccountId.accountPlanId),
+              debit: String(Math.abs(result)),
+              credit: '0',
+              description: 'Pérdida del Ejercicio',
+            });
+          }
         }
 
         if (details.length > 0) {

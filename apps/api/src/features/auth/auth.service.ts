@@ -22,9 +22,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService, JwtSignOptions  } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import crypto from 'crypto';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { sessions, userAccessSummary, users } from 'src/database/index';
@@ -101,17 +101,17 @@ export class AuthService {
       username: user.username ?? '',
     };
 
-   const [access_token, refresh_token] = await Promise.all([
-  this.jwtService.signAsync(payload, {
-    secret: accessTokenSecret,
-    expiresIn: accessTokenExp,
-  } as JwtSignOptions),
+    const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync(payload, {
+        secret: accessTokenSecret,
+        expiresIn: accessTokenExp,
+      } as JwtSignOptions),
 
-  this.jwtService.signAsync(payload, {
-    secret: refreshTokenSecret,
-    expiresIn: refreshTokenExp,
-  } as JwtSignOptions),
-]);
+      this.jwtService.signAsync(payload, {
+        secret: refreshTokenSecret,
+        expiresIn: refreshTokenExp,
+      } as JwtSignOptions),
+    ]);
 
     return { access_token, refresh_token };
   }
@@ -268,45 +268,120 @@ export class AuthService {
   }
 
   //Refresh User Access Token
+  // ... imports previos
+
+  //Refresh User Access Token
   async refreshToken(dto: RefreshTokenDto): Promise<RefreshTokenInterface> {
-    const { userId, refreshToken } = dto;
+    const { refreshToken } = dto;
 
-    const verify = await this.jwtService.verifyAsync(refreshToken, {
-      secret: envs.refresh_token_secret,
-    });
+    // 1. Validar firma del token (Crypto check)
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: envs.refresh_token_secret,
+      });
+    } catch (e) {
+      throw new UnauthorizedException('Invalid Refresh Token Signature');
+    }
 
-    if (!verify) throw new UnauthorizedException('Invalid Refresh Token');
+    const userId = Number(payload.sub); // Es más seguro usar el ID del token que el del DTO
 
-    const session = await this.drizzle
+    // 2. Buscar la sesión por UserID (SIN filtrar por token todavía)
+    // Esto es clave: traemos la sesión para ver qué está pasando
+    const [currentSession] = await this.drizzle
       .select()
       .from(sessions)
-      .where(
-        and(
-          eq(sessions.userId, userId) &&
-            eq(sessions.sessionToken, dto.refreshToken),
-        ),
+      .where(eq(sessions.userId, userId));
+
+    if (!currentSession) throw new NotFoundException('Session not found');
+
+    // CONFIGURACIÓN: Tiempo de gracia en milisegundos (ej: 15 segundos)
+    const GRACE_PERIOD_MS = 15000;
+
+    // -------------------------------------------------------------------
+    // ESCENARIO A: Rotación Normal (El token coincide con el actual)
+    // -------------------------------------------------------------------
+    if (currentSession.sessionToken === refreshToken) {
+      const user = await this.findUserById(userId);
+      if (!user) throw new NotFoundException('User not found');
+
+      // Generar nuevos tokens (A -> B)
+      const tokensNew = await this.generateTokens(user);
+      const decodeAccess = this.decodeToken(tokensNew.access_token);
+      const decodeRefresh = this.decodeToken(tokensNew.refresh_token);
+
+      // Actualizamos DB guardando el token "viejo" como "previous"
+      await this.drizzle
+        .update(sessions)
+        .set({
+          sessionToken: tokensNew.refresh_token, // Nuevo (B)
+          previousSessionToken: refreshToken, // Viejo (A)
+          lastRotatedAt: new Date(), // Marca de tiempo
+          expiresAt: decodeRefresh.exp,
+        })
+        .where(eq(sessions.userId, userId));
+
+      return {
+        access_token: tokensNew.access_token,
+        access_expire_in: decodeAccess.exp,
+        refresh_token: tokensNew.refresh_token,
+        refresh_expire_in: decodeRefresh.exp,
+      };
+    }
+
+    // -------------------------------------------------------------------
+    // ESCENARIO B: Periodo de Gracia (Condición de Carrera)
+    // -------------------------------------------------------------------
+    // El token no coincide con el actual, ¿pero coincide con el anterior?
+    const isPreviousToken =
+      currentSession.previousSessionToken === refreshToken;
+
+    // Calculamos cuánto tiempo ha pasado desde la rotación
+    const timeSinceRotation = currentSession.lastRotatedAt
+      ? Date.now() - new Date(currentSession.lastRotatedAt).getTime()
+      : Infinity;
+
+    if (isPreviousToken && timeSinceRotation < GRACE_PERIOD_MS) {
+      // ¡Es una condición de carrera! El usuario envió 'A' pero ya rotamos a 'B'.
+      // Le devolvemos 'B' (el actual en DB) para que se sincronice.
+
+      const user = await this.findUserById(userId);
+
+      if (!user) throw new NotFoundException('User not found');
+
+      // Generamos un access token nuevo fresco (barato)
+      const accessTokenPayload = { sub: user.id, username: user.username };
+      const newAccessToken = await this.jwtService.signAsync(
+        accessTokenPayload,
+        {
+          secret: envs.access_token_secret,
+          expiresIn: envs.access_token_expiration,
+        } as JwtSignOptions,
       );
+      const decodeAccess = this.decodeToken(newAccessToken);
 
-    if (session.length === 0) throw new NotFoundException('session not found');
-    const user = await this.findUserById(dto.userId);
-    if (!user) throw new NotFoundException('User not found');
-    const tokensNew = await this.generateTokens(user);
-    const decodeAccess = this.decodeToken(tokensNew.access_token);
-    const decodeRefresh = this.decodeToken(tokensNew.refresh_token);
-    await this.drizzle
-      .update(sessions)
-      .set({
-        sessionToken: tokensNew.refresh_token,
-        expiresAt: decodeRefresh.exp,
-      })
-      .where(eq(sessions.userId, dto.userId));
+      // IMPORTANTE: Devolvemos el refresh token QUE YA ESTÁ EN LA BASE DE DATOS
+      // No generamos uno nuevo para no romper la cadena de la otra petición que ganó.
+      return {
+        access_token: newAccessToken,
+        access_expire_in: decodeAccess.exp,
+        refresh_token: currentSession.sessionToken!, // Devolvemos el token 'B'
+        refresh_expire_in: currentSession.expiresAt as number,
+      };
+    }
 
-    return {
-      access_token: tokensNew.access_token,
-      access_expire_in: decodeAccess.exp,
-      refresh_token: tokensNew.refresh_token,
-      refresh_expire_in: decodeRefresh.exp,
-    };
+    // -------------------------------------------------------------------
+    // ESCENARIO C: Robo de Token (Reuse Detection)
+    // -------------------------------------------------------------------
+    // Si el token no es el actual, ni el anterior válido... ALGUIEN LO ROBÓ.
+    // O el usuario está intentando reusar un token muy viejo.
+
+    // Medida de seguridad: Borrar todas las sesiones del usuario
+    await this.drizzle.delete(sessions).where(eq(sessions.userId, userId));
+
+    throw new UnauthorizedException(
+      'Refresh token reuse detected. Access revoked.',
+    );
   }
 
   async access(id: number) {

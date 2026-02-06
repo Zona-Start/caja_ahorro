@@ -98,23 +98,31 @@ export function SettingSystemForm({
               <FormItem>
                 <FormLabel>Valor</FormLabel>
                 <FormControl>
-                  {form.getValues('key') === 'MONEDA' ? (
+                  {form.getValues('key') === 'MONEDA' ||
+                  form.getValues('key') === 'ASIENTOS_AUTOMATICOS' ? (
                     <Select
                       onValueChange={(value) => field.onChange(value)}
                       value={field.value}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Seleccione una moneda" />
+                        <SelectValue placeholder="Seleccione una opción" />
                       </SelectTrigger>
                       <SelectContent>
-                        {currencies.map((currency) => (
-                          <SelectItem
-                            key={currency.id}
-                            value={currency.id.toString()}
-                          >
-                            {currency.name}
-                          </SelectItem>
-                        ))}
+                        {form.getValues('key') === 'MONEDA' ? (
+                          currencies.map((currency) => (
+                            <SelectItem
+                              key={currency.id}
+                              value={currency.id.toString()}
+                            >
+                              {currency.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <>
+                            <SelectItem value="SI">SI</SelectItem>
+                            <SelectItem value="NO">NO</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                   ) : (

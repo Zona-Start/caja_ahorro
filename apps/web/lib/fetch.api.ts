@@ -28,9 +28,8 @@ const fetchApi = axios.create({
 fetchApi.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      const { auth } = await import('@/lib/auth');
-      const session = await auth();
-      const token = session?.access_token;
+      const { getValidAccessToken } = await import('@/lib/auth-token');
+      const token = await getValidAccessToken();
 
       if (token) {
         config.headers.set('Authorization', `Bearer ${token}`);

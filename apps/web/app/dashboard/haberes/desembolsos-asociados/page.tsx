@@ -10,7 +10,7 @@ import {
 import { SearchParams } from 'nuqs/server';
 
 export const metadata = {
-  title: 'Dashboard: Gestion de Retiros Haberes',
+  title: 'Dashboard: Gestion de Desembolsos Haberes',
 };
 
 type pageProps = {

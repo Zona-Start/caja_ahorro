@@ -127,6 +127,8 @@ export const sessions = authSchema.table(
       .notNull(),
     sessionToken: t.text('session_token').notNull(),
     expiresAt: t.integer('expires_at').notNull(),
+    previousSessionToken: t.varchar('previous_session_token'),
+    lastRotatedAt: t.timestamp('last_rotated_at'),
     ...timestampsShort,
   },
   (sessions) => ({

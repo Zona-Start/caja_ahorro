@@ -56,7 +56,7 @@ export const savingBankItems: NavItem[] = [
         url: '/dashboard/haberes/liquidacion',
       },
       {
-        title: 'Desembolsos',
+        title: 'Desembolsos por lotes',
         shortcut: ['l', 'l'],
         url: '/dashboard/haberes/desembolsos-asociados',
       },
@@ -158,7 +158,7 @@ export const savingBankItems: NavItem[] = [
     ], // No child items
   },
   {
-    title: 'Administrativa',
+    title: 'Compras',
     url: '#',
     icon: 'receiptText',
     shortcut: ['s', 's'],

@@ -4,8 +4,6 @@ declare module 'next-auth' {
   interface Session extends DefaultSession {
     access_token: string;
     access_expire_in: number;
-    refresh_token: string;
-    refresh_expire_in: number;
     user: {
       id: number;
       username: string;
@@ -29,8 +27,6 @@ declare module 'next-auth' {
     }>;
     access_token: string;
     access_expire_in: number;
-    refresh_token: string;
-    refresh_expire_in: number;
   }
 }
 
@@ -46,7 +42,5 @@ declare module 'next-auth/jwt' {
     }>;
     access_token: string;
     access_expire_in: number;
-    refresh_token: string;
-    refresh_expire_in: number;
   }
 }

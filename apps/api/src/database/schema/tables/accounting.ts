@@ -202,38 +202,38 @@ export const accountingClosings = accountingSchema.table(
   }),
 );
 
-//Parametrización de asientos contables por tipo de operación.
-export const accountingConfiguration = accountingSchema.table(
-  'accounting_configuration',
-  {
-    id: serial('id').primaryKey(),
-    companyId: integer('company_id')
-      .notNull()
-      .references(() => company.id, { onDelete: 'cascade' }),
-    key: varchar('key', { length: 100 }).notNull(),
-    operationType: varchar('operation_type', { length: 100 }).notNull(), //Ej: LOAN_DISBURSEMENT_VES, SAVING_CONTRIBUTION_USD, INTEREST_ACCRUAL
-    descriptionTemplate: text('description_template'), //Plantilla para descripción del asiento. Ej: "Desembolso Préstamo #{loanId}
-    debitAccountId: integer('debit_account_id').references(
-      () => accountPlan.id,
-      { onDelete: 'restrict' },
-    ),
-    creditAccountId: integer('credit_account_id').references(
-      () => accountPlan.id,
-      { onDelete: 'restrict' },
-    ),
-    contraAccountId: integer('contra_account_id').references(
-      () => accountPlan.id, //contra partida para ajustes
-    ),
-    isActive: boolean('is_active').default(true),
-    ...timestamps,
-  },
-  (table) => ({
-    savingsBankOperationIdx: uniqueIndex('acct_config_sb_op_type_uidx').on(
-      table.companyId,
-      table.operationType,
-    ), // Configuración única por caja y tipo de operación
-  }),
-);
+// //Parametrización de asientos contables por tipo de operación.
+// export const accountingConfiguration = accountingSchema.table(
+//   'accounting_configuration',
+//   {
+//     id: serial('id').primaryKey(),
+//     companyId: integer('company_id')
+//       .notNull()
+//       .references(() => company.id, { onDelete: 'cascade' }),
+//     key: varchar('key', { length: 100 }).notNull(),
+//     operationType: varchar('operation_type', { length: 100 }).notNull(), //Ej: LOAN_DISBURSEMENT_VES, SAVING_CONTRIBUTION_USD, INTEREST_ACCRUAL
+//     descriptionTemplate: text('description_template'), //Plantilla para descripción del asiento. Ej: "Desembolso Préstamo #{loanId}
+//     debitAccountId: integer('debit_account_id').references(
+//       () => accountPlan.id,
+//       { onDelete: 'restrict' },
+//     ),
+//     creditAccountId: integer('credit_account_id').references(
+//       () => accountPlan.id,
+//       { onDelete: 'restrict' },
+//     ),
+//     contraAccountId: integer('contra_account_id').references(
+//       () => accountPlan.id, //contra partida para ajustes
+//     ),
+//     isActive: boolean('is_active').default(true),
+//     ...timestamps,
+//   },
+//   (table) => ({
+//     savingsBankOperationIdx: uniqueIndex('acct_config_sb_op_type_uidx').on(
+//       table.companyId,
+//       table.operationType,
+//     ), // Configuración única por caja y tipo de operación
+//   }),
+// );
 
 export const accountBalances = accountingSchema.table(
   'account_balances',
