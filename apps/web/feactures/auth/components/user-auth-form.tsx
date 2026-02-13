@@ -147,7 +147,7 @@ export default function UserAuthForm() {
           <Toaster />
         </form>
       </Form>
-      <div className="relative hidden bg-muted md:block border-muted border-2 rounded-lg overflow-hidden">
+      <div className="relative hidden bg-white md:block border-muted border-2 rounded-lg overflow-hidden">
         <img
           src="/logo.png"
           alt="Image"

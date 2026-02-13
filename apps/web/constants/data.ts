@@ -249,37 +249,16 @@ export const AccountingItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/contabilidad/operaciones/saldos-contables',
       },
-      // {
-      //   title: 'Libro Mayor',
-      //   shortcut: ['l', 'l'],
-      //   url: '#',
-      // },
     ],
   },
-  // {
-  //   title: 'Estados Financieros',
-  //   url: '#', // Placeholder as there is no direct link for the parent
-  //   icon: 'fileChartLine',
-  //   isActive: false,
-  //   colorIcons: 'emerald',
-  //   items: [
-  //     {
-  //       title: 'Balance Comprobación',
-  //       shortcut: ['l', 'l'],
-  //       url: '#',
-  //     },
-  //     {
-  //       title: 'Balance general',
-  //       shortcut: ['l', 'l'],
-  //       url: '#',
-  //     },
-  //     {
-  //       title: 'Estado de Resultados',
-  //       shortcut: ['l', 'l'],
-  //       url: '#',
-  //     },
-  //   ],
-  // },
+  {
+    title: 'Reportes Contables',
+    url: '/dashboard/contabilidad/reportes',
+    icon: 'fileChartLine',
+    isActive: false,
+    colorIcons: 'emerald',
+    items: [],
+  },
   // {
   //   title: 'Gestión Asociados',
   //   url: '#', // Placeholder as there is no direct link for the parent

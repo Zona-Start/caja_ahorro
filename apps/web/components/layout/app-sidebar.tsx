@@ -22,7 +22,7 @@ import Image from 'next/image';
 import * as React from 'react';
 
 export const company = {
-  name: 'Caprebicentenario',
+  name: 'CapreBDT',
   logo: GalleryVerticalEnd,
 };
 
@@ -31,8 +31,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex gap-2 py-2 text-sidebar-accent-foreground">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg  text-sidebar-primary-foreground">
-            <Image src="/logo.png" alt="logo" width={40} height={40} priority />
+          <div className="flex aspect-square size-11 items-center justify-center rounded-lg  text-sidebar-primary-foreground">
+            <Image
+              src="/logo_sidebar.png"
+              alt="logo"
+              width={64}
+              height={64}
+              priority
+            />
           </div>
           <div className="grid flex-1 text-left text-md leading-tight">
             <span className="truncate font-semibold mt-2">{company.name}</span>

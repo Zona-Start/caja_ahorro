@@ -131,6 +131,38 @@ export const queryKeys = {
   },
 
   // =============================================
+  // ACCOUNTING REPORTS (Reportes Contables)
+  // =============================================
+  accountingReports: {
+    _def: ['accounting_reports'],
+    journalBook: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingReports._def,
+      'journal-book',
+      params,
+    ],
+    generalLedger: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingReports._def,
+      'general-ledger',
+      params,
+    ],
+    trialBalance: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingReports._def,
+      'trial-balance',
+      params,
+    ],
+    balanceSheet: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingReports._def,
+      'balance-sheet',
+      params,
+    ],
+    incomeStatement: (params?: Record<string, unknown>) => [
+      ...queryKeys.accountingReports._def,
+      'income-statement',
+      params,
+    ],
+  },
+
+  // =============================================
   // ADMINISTRATION MODULE - ACCOUNTS PAYABLE
   // =============================================
   accountsPayable: {

@@ -29,6 +29,7 @@ import { Plus, Trash } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useAccountingRuleMutation } from '../hooks/use-accounting-rules-mutation';
+import { useAccountingRules } from '../hooks/use-query-accounting-rules';
 import {
   AccountingRule,
   accountingRuleSchema,
@@ -49,6 +50,7 @@ export function AccountingRuleForm({
 }: AccountingRuleFormProps) {
   const { mutate: saveAccountingRule, isPending: isSaving } =
     useAccountingRuleMutation();
+  const { data: accountingRules } = useAccountingRules(1);
   const { data: accountingAccounts, isLoading: isLoadingAccounts } =
     useAccountingAccounts();
 
@@ -193,42 +195,102 @@ export function AccountingRuleForm({
     }
   }, [category]);
 
+  // Filter operation options based on existing rules
+  const filteredOperationOptions = useMemo(() => {
+    if (!accountingRules) return operationOptions;
+
+    // Types that allow multiple rules (based on reference)
+    const allowMultiple = [
+      'PAYROLL_CONCEPT',
+      'WITHDRAWAL_TYPE',
+      'LOAN_TYPE',
+      'CREDIT_TYPE',
+      'SAVINGS_UPLOAD',
+    ];
+
+    return operationOptions.filter((op) => {
+      // If currently selected, always show
+      if (defaultValues?.operationType === op.value) return true;
+
+      // Check if rule exists
+      const existingRule = accountingRules.find(
+        (rule) => rule.operationType === op.value,
+      );
+
+      // If exists and DOES NOT allow multiple, filter out
+      if (existingRule && !allowMultiple.includes(op.value)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [accountingRules, operationOptions, defaultValues]);
+
   const referenceOptions = useMemo(() => {
+    // 1. Get other rules (exclude current if editing by ID)
+    // If defaultValues.id is present, we exclude that rule from the "used" check.
+    const otherRules = accountingRules?.filter(
+      (r) => r.id !== defaultValues?.id,
+    );
+
+    // 2. Get used references for current operationType from OTHER rules
+    const usedReferences =
+      otherRules
+        ?.filter((r) => r.operationType === operationType)
+        .map((r) => r.referenceId) || [];
+
+    let options: { label: string; value: string }[] = [];
+
     switch (operationType) {
+      case 'SAVINGS_UPLOAD':
+        options = [
+          { value: '1', label: 'Aporte Empleador' },
+          { value: '2', label: 'Aporte Asociado' },
+        ];
+        break;
       case 'PAYROLL_CONCEPT':
-        return (
+        options =
           payrollTypes?.data?.map((p) => ({
             label: p.description,
             value: p.id!.toString(),
-          })) || []
-        );
+          })) || [];
+        break;
       case 'WITHDRAWAL_TYPE':
-        // withdrawalTypes hook returns paginated response { data: [...] } if using paginated hook?
-        // Let's check the hook implementation. useWithdrawalTypes(params) returns paginated list.
-        return (
+        options =
           withdrawalTypes?.data?.map((w: any) => ({
             label: w.description,
             value: w.id.toString(),
-          })) || []
-        );
+          })) || [];
+        break;
       case 'LOAN_TYPE':
-        return (
+        options =
           loanTypes?.data?.map((l) => ({
             label: l.name,
             value: l.id!.toString(),
-          })) || []
-        );
+          })) || [];
+        break;
       case 'CREDIT_TYPE':
-        return (
+        options =
           creditTypes?.data?.map((c) => ({
             label: c.name,
             value: c.id!.toString(),
-          })) || []
-        );
+          })) || [];
+        break;
       default:
         return [];
     }
-  }, [operationType, withdrawalTypes, loanTypes, creditTypes, payrollTypes]);
+
+    // 3. Filter output options
+    return options.filter((opt) => !usedReferences.includes(Number(opt.value)));
+  }, [
+    operationType,
+    withdrawalTypes,
+    loanTypes,
+    creditTypes,
+    payrollTypes,
+    accountingRules,
+    defaultValues,
+  ]);
 
   const roleOptions = useMemo(() => {
     switch (category) {
@@ -306,6 +368,7 @@ export function AccountingRuleForm({
     'WITHDRAWAL_TYPE',
     'LOAN_TYPE',
     'CREDIT_TYPE',
+    'SAVINGS_UPLOAD',
   ].includes(operationType);
   const showReviewMessage =
     operationType === 'PAYROLL_CONCEPT' &&
@@ -374,7 +437,7 @@ export function AccountingRuleForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Tipo de Operación</FormLabel>
-                {operationOptions.length > 0 ? (
+                {filteredOperationOptions.length > 0 ? (
                   <Select
                     onValueChange={field.onChange}
                     value={field.value}
@@ -386,7 +449,7 @@ export function AccountingRuleForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {operationOptions.map((op) => (
+                      {filteredOperationOptions.map((op) => (
                         <SelectItem key={op.value} value={op.value}>
                           {op.label}
                         </SelectItem>
