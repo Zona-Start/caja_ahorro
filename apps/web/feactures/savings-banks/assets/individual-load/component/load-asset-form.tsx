@@ -3,7 +3,6 @@
 import { IconWrapper } from '@/components/icon-wrapper';
 import { AlertModal } from '@/components/modal/alert-modal';
 import { useBankAccountAll } from '@/feactures/banks/bank-account/hooks/use-query-bank-account';
-import { useSystemConfigStore } from '@/store/SystemConfigStore';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -32,34 +31,32 @@ import {
 } from '@repo/shadcn/select';
 import { Switch } from '@repo/shadcn/switch';
 import { Textarea } from '@repo/shadcn/textarea';
-import { Check, Loader2, PlusCircle } from 'lucide-react';
+import { Check, Coins, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Associates } from '../schemas/individual-load-api-schema';
 import { ASSOCIATE_MOVEMENT_TYPES } from '../schemas/individual-load-options';
 import { formSchema, LoadAssest } from '../schemas/individual-load-schema';
+import { useIndividualLoadStore } from '../store/individual-load-store';
 
 interface LoadAssetsFormProps {
-  selectedAssociate: Associates | null;
   isSubmitting: boolean;
   onSubmit: (data: any) => void;
 }
 
 const PAYMENT_METHODS = {
-  CASH: 'Efectivo',
   BANK_TRANSFER: 'Transferencia bancaria',
-  CHECK: 'Cheque',
-  DEPOSIT: 'Depósito',
   MOBILE_PAYMENT: 'Pago Móvil',
+  DEPOSIT: 'Depósito',
+  CHECK: 'Cheque',
+  CASH: 'Efectivo',
   OTHER: 'Otro',
 };
 
 export function LoadAssetsForm({
-  selectedAssociate,
   isSubmitting,
   onSubmit,
 }: LoadAssetsFormProps) {
-  const { currencies } = useSystemConfigStore();
+  const { selectedAssociate, errors } = useIndividualLoadStore();
   const { data: bankAccountsData } = useBankAccountAll();
   const bankAccounts = bankAccountsData?.data || [];
   const [isConfirmOpen, setConfirmOpen] = useState(false);
@@ -70,16 +67,13 @@ export function LoadAssetsForm({
       associateAccountId: 0,
       movementType: 'SAVING_CONTRIBUTION',
       amount: 0,
-      currencyCode: 'VES',
       transactionDate: new Date(),
       description: '',
       paymentMethod: 'BANK_TRANSFER',
       referenceNumber: '',
-      includeBankingDetails: false,
+      includeBankingDetails: false, // Por defecto activo para mejores prácticas
     },
   });
-
-  const [selectedGroup, setSelectedGroup] = useState('SAVING_CONTRIBUTION');
 
   useEffect(() => {
     if (selectedAssociate) {
@@ -88,7 +82,17 @@ export function LoadAssetsForm({
         selectedAssociate.associateAccountsId,
       );
     } else {
-      form.setValue('associateAccountId', undefined);
+      // Limpiar todo el formulario si no hay asociado
+      form.reset({
+        associateAccountId: 0,
+        movementType: 'SAVING_CONTRIBUTION',
+        amount: 0,
+        transactionDate: new Date(),
+        description: '',
+        paymentMethod: 'BANK_TRANSFER',
+        referenceNumber: '',
+        includeBankingDetails: false,
+      });
     }
   }, [selectedAssociate, form]);
 
@@ -97,29 +101,18 @@ export function LoadAssetsForm({
 
     const dataTransform = {
       ...rest,
-      movementType: selectedGroup,
       bankAccountId: includeBankingDetails ? rest.bankAccountId : undefined,
       paymentMethod: includeBankingDetails ? rest.paymentMethod : undefined,
       referenceNumber: includeBankingDetails ? rest.referenceNumber : undefined,
     };
-    onSubmit(dataTransform);
 
-    form.reset({
-      associateAccountId: 0,
-      movementType: 'SAVING_CONTRIBUTION',
-      amount: 0,
-      currencyCode: 'VES',
-      transactionDate: new Date(),
-      description: '',
-      paymentMethod: 'BANK_TRANSFER',
-      referenceNumber: '',
-      includeBankingDetails: false,
-    });
+    onSubmit(dataTransform);
     setConfirmOpen(false);
   });
 
-  const paymentMethod = form.watch('paymentMethod');
   const includeBankingDetails = form.watch('includeBankingDetails');
+  const hasRestrictions = errors.length > 0;
+  const isFormDisabled = !selectedAssociate || isSubmitting || hasRestrictions;
 
   return (
     <>
@@ -128,19 +121,19 @@ export function LoadAssetsForm({
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleSubmit}
         loading={isSubmitting}
-        title="¿Está seguro que desea registrar el movimiento?"
-        description="Esta acción no se puede deshacer."
+        title="Confirmar Depósito"
+        description="¿Está seguro que desea registrar este movimiento de haberes? Esta operación generará un asiento contable automático."
       />
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-primary">
             <IconWrapper className="w-8 h-8">
-              <PlusCircle />
+              <Coins />
             </IconWrapper>
-            Datos del Depósito
+            Detalles de la Carga
           </CardTitle>
           <CardDescription>
-            Complete la información para registrar el depósito
+            Defina el monto y los conceptos de la carga individual
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -150,7 +143,7 @@ export function LoadAssetsForm({
                 e.preventDefault();
                 setConfirmOpen(true);
               }}
-              className="space-y-4"
+              className="space-y-6"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -160,16 +153,15 @@ export function LoadAssetsForm({
                     <FormItem>
                       <FormLabel>Tipo de Movimiento</FormLabel>
                       <Select
-                        onValueChange={(value) => {
-                          setSelectedGroup(value);
-                          field.onChange(value);
-                        }}
+                        onValueChange={field.onChange}
                         value={field.value}
-                        disabled={!selectedAssociate || isSubmitting}
+                        disabled={isFormDisabled}
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Seleccione un tipo" />
-                        </SelectTrigger>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccione tipo" />
+                          </SelectTrigger>
+                        </FormControl>
                         <SelectContent>
                           {Object.entries(ASSOCIATE_MOVEMENT_TYPES).map(
                             ([value, label]) => (
@@ -184,79 +176,19 @@ export function LoadAssetsForm({
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={form.control}
                   name="transactionDate"
                   render={({ field }) => (
-                    <FormItem className="w-full">
-                      <FormLabel>Fecha del Movimiento</FormLabel>
+                    <FormItem>
+                      <FormLabel>Fecha de Valor</FormLabel>
                       <FormControl>
                         <CustomCalendar
                           value={field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
-                          placeholder="Seleccione la fecha"
-                          disabled={!selectedAssociate || isSubmitting}
-                          className={!selectedAssociate ? 'bg-muted' : ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="currencyCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Moneda</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        disabled={!selectedAssociate || isSubmitting}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccione una moneda" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem
-                              key={currency.code}
-                              value={currency.code}
-                            >
-                              {currency.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Monto</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={field.value ?? ''}
-                          onChange={(e) =>
-                            field.onChange(
-                              e.target.value === ''
-                                ? 0
-                                : Number(e.target.value),
-                            )
-                          }
-                          disabled={!selectedAssociate || isSubmitting}
+                          disabled={isFormDisabled}
                         />
                       </FormControl>
                       <FormMessage />
@@ -265,18 +197,51 @@ export function LoadAssetsForm({
                 />
               </div>
 
-               <FormField
+              <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-primary font-bold">
+                        Monto del Depósito (VES)
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
+                            Bs.
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="pl-10 text-xl font-black h-12"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) =>
+                              field.onChange(Number(e.target.value))
+                            }
+                            disabled={isFormDisabled}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
                 control={form.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descripción</FormLabel>
+                    <FormLabel>Concepto / Observación</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Detalles adicionales sobre el movimiento..."
+                        placeholder="Ej. Depósito voluntario correspondiente al mes..."
                         className="resize-none"
                         {...field}
-                        disabled={!selectedAssociate || isSubmitting}
+                        disabled={isFormDisabled}
                       />
                     </FormControl>
                     <FormMessage />
@@ -284,50 +249,49 @@ export function LoadAssetsForm({
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="includeBankingDetails"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Datos Bancarios
-                      </FormLabel>
-                      <CardDescription>
-                        Indique si desea registrar los datos bancarios del
-                        depósito
-                      </CardDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={!selectedAssociate || isSubmitting}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
+                <FormField
+                  control={form.control}
+                  name="includeBankingDetails"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between">
+                      <div className="space-y-0.5">
+                        <FormLabel>Datos Bancarios</FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Vincular con movimiento en cuenta bancaria
+                        </p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={isFormDisabled}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
-              {includeBankingDetails && (
-                <>
-                  {paymentMethod !== 'CASH' && (
+                {includeBankingDetails && (
+                  <div className="space-y-4 pt-4 animate-in slide-in-from-top-2 duration-300">
                     <FormField
                       control={form.control}
                       name="bankAccountId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Cuenta Bancaria de la Caja que recibe el dinero</FormLabel>
+                          <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
+                            Cuenta Receptora
+                          </FormLabel>
                           <Select
                             onValueChange={(value) =>
                               field.onChange(Number(value))
                             }
                             value={String(field.value)}
-                            disabled={!selectedAssociate || isSubmitting}
+                            disabled={isFormDisabled}
                           >
                             <FormControl>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Seleccione una cuenta" />
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccione cuenta bancaria" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -336,7 +300,8 @@ export function LoadAssetsForm({
                                   key={account.id}
                                   value={String(account.id)}
                                 >
-                                  {account.accountName} ({account.accountNumber})
+                                  {account.accountName} -{' '}
+                                  {account.accountNumber.slice(-4)}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -345,77 +310,76 @@ export function LoadAssetsForm({
                         </FormItem>
                       )}
                     />
-                  )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="paymentMethod"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Método de Pago</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
-                            disabled={!selectedAssociate || isSubmitting}
-                          >
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="paymentMethod"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
+                              Referencia / Pago
+                            </FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                              disabled={isFormDisabled}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Object.entries(PAYMENT_METHODS).map(
+                                  ([k, v]) => (
+                                    <SelectItem key={k} value={k}>
+                                      {v}
+                                    </SelectItem>
+                                  ),
+                                )}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="referenceNumber"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col justify-end">
                             <FormControl>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Seleccione un método" />
-                              </SelectTrigger>
+                              <Input
+                                placeholder="Nro. Referencia"
+                                {...field}
+                                disabled={isFormDisabled}
+                              />
                             </FormControl>
-                            <SelectContent>
-                              {Object.entries(PAYMENT_METHODS).map(
-                                ([key, label]) => (
-                                  <SelectItem key={key} value={key}>
-                                    {label}
-                                  </SelectItem>
-                                ),
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="referenceNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Número de Referencia</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Ingrese la referencia"
-                              {...field}
-                              disabled={!selectedAssociate || isSubmitting}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
-                </>
-              )}
-
-             
+                )}
+              </div>
 
               <Button
                 type="submit"
-                className="w-full"
-                disabled={!selectedAssociate || isSubmitting}
+                className="w-full h-12 text-lg font-bold"
+                disabled={isFormDisabled}
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Procesando...
                   </>
                 ) : (
                   <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Registrar Movimiento
+                    <Check className="mr-2 h-5 w-5" />
+                    Confirmar Carga
                   </>
                 )}
               </Button>

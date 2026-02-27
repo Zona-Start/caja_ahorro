@@ -1,6 +1,7 @@
 'use server';
 import { safeFetchApi } from '@/lib/fetch.api';
 import {
+  AssociatesBulkUploadResponseSchema,
   AssociatesDeleteResponseSchema,
   AssociatesResponseAllSchema,
   AssociatesResponseOneSchema,
@@ -166,5 +167,45 @@ export const saveAssociateAction = async (
     }
   } catch (error: any) {
     throw new Error(error.message || 'Error saving associate data');
+  }
+};
+
+// ─── Carga Masiva ─────────────────────────────────────────────────────────────
+
+/**
+ * Sube un archivo Excel al backend para procesamiento de carga masiva.
+ * Solo acepta archivos .xlsx / .xls.
+ */
+export const bulkUploadAssociatesAction = async (formData: FormData) => {
+  const [error, data] = await safeFetchApi(
+    AssociatesBulkUploadResponseSchema,
+    '/savings-banks/associates/bulk-upload',
+    'POST',
+    formData,
+  );
+
+  if (error) {
+    console.error('Error bulk upload:', error);
+    throw new Error(error.message || 'Error en la carga masiva de asociados');
+  }
+
+  return data;
+};
+
+export const downloadAssociatesTemplateAction = async (): Promise<string> => {
+  const { fetchApi } = await import('@/lib/fetch.api');
+  try {
+    const response = await fetchApi.get(
+      '/savings-banks/associates/bulk-upload/template',
+      {
+        responseType: 'arraybuffer',
+      },
+    );
+
+    // Devolver el buffer como base64 para que pueda viajar por Server Actions sin perder compatibilidad
+    return Buffer.from(response.data as ArrayBuffer).toString('base64');
+  } catch (error: any) {
+    console.error('Error downloading template:', error);
+    throw new Error('Error al descargar el template');
   }
 };

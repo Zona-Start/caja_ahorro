@@ -7,6 +7,7 @@ import { useTypeCredits } from '@/feactures/savings-banks/credits/type-credits/h
 import { useTypeLoans } from '@/feactures/savings-banks/loans/type-loans/hooks/use-query-type-loans';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
+import { Switch } from '@repo/shadcn/components/ui/switch';
 import {
   Form,
   FormControl,
@@ -70,7 +71,12 @@ export function AccountingRuleForm({
       description: defaultValues?.description || '',
       referenceId: defaultValues?.referenceId || null,
       isActive: defaultValues?.isActive ?? true,
-      details: defaultValues?.details || [],
+      details:
+        defaultValues?.details?.map((d) => ({
+          ...d,
+          isAuxiliary: d.isAuxiliary ?? false,
+          isAuxiliarySupplier: d.isAuxiliarySupplier ?? false,
+        })) || [],
     },
     mode: 'onChange',
   });
@@ -494,7 +500,6 @@ export function AccountingRuleForm({
                       No se encontraron tipos configurados.
                     </p>
                   )}
-                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -561,6 +566,8 @@ export function AccountingRuleForm({
                   accountRole: null,
                   formula: null,
                   accountPlanId: null,
+                  isAuxiliary: false,
+                  isAuxiliarySupplier: false,
                 })
               }
             >
@@ -663,6 +670,40 @@ export function AccountingRuleForm({
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name={`details.${index}.isAuxiliary`}
+                render={({ field }) => (
+                  <FormItem className="flex flex-col items-center justify-end space-y-2 pb-2">
+                    <FormLabel className="text-xs">Aux. Socio</FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={readOnly}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {/* <FormField
+                control={form.control}
+                name={`details.${index}.isAuxiliarySupplier`}
+                render={({ field }) => (
+                  <FormItem className="flex flex-col items-center justify-end space-y-2 pb-2">
+                    <FormLabel className="text-xs">Aux. Prov.</FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={readOnly}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              /> */}
 
               {!readOnly && (
                 <Button

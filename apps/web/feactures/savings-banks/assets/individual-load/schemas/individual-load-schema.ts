@@ -22,7 +22,6 @@ export const formSchema = z.object({
     .number()
     .positive('El monto debe ser positivo')
     .min(0.01, 'El monto debe ser mayor a 0'),
-  currencyCode: z.string().min(1, 'Debe seleccionar una moneda'),
   transactionDate: z.date({
     required_error: 'Debe seleccionar una fecha',
   }),
@@ -30,7 +29,6 @@ export const formSchema = z.object({
   bankAccountId: z.number().optional(),
   paymentMethod: z.string().optional(),
   referenceNumber: z.string().optional(),
-  exchangeRateId: z.number().optional(),
   includeBankingDetails: z.boolean().default(false).optional(),
 });
 

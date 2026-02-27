@@ -1,5 +1,5 @@
 import { paymentMethodEnum } from '@/database';
-import { AssociateMovementTypeEnum, CurrencyCodeEnum } from '@/types/enum';
+import { AssociateMovementTypeEnum } from '@/types/enum';
 import {
   IsDate,
   IsEnum,
@@ -23,12 +23,8 @@ export class IndividualLoadDto {
   amount: number;
 
   @IsNotEmpty()
-  @IsEnum(CurrencyCodeEnum)
-  currencyCode: CurrencyCodeEnum;
-
-  @IsOptional()
   @IsDate()
-  transactionDate?: Date; // Si no se proporciona, se usará el valor por defecto de la base de datos
+  transactionDate: Date; // Si no se proporciona, se usará el valor por defecto de la base de datos
 
   @IsOptional()
   @IsString()
@@ -38,11 +34,11 @@ export class IndividualLoadDto {
   @IsString()
   referenceNumber?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  bankAccountId: number;
+  bankAccountId?: number;
 
   @IsEnum(paymentMethodEnum.enumValues)
   @IsOptional()
-  paymentMethod: (typeof paymentMethodEnum.enumValues)[number];
+  paymentMethod?: (typeof paymentMethodEnum.enumValues)[number];
 }

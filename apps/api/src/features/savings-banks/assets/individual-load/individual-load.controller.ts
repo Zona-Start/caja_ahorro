@@ -1,6 +1,18 @@
 import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { IndividualLoadDto } from './dto/create-individual-load.dto';
 import { IndividualLoadService } from './individual-load.service';
 
@@ -23,5 +35,33 @@ export class IndividualLoadController {
   create(@Req() req: Request, @Body() individualLoadDto: IndividualLoadDto) {
     const userdId = req['user'].id;
     return this.individualLoadService.create(individualLoadDto, userdId);
+  }
+
+  @Get('template-bulk')
+  @ApiOperation({ summary: 'Download template for bulk load' })
+  async getTemplateBulk(@Res() res: Response) {
+    const buffer = await this.individualLoadService.generateTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':
+        'attachment; filename="plantilla_carga_masiva.xlsx"',
+    });
+    res.end(buffer);
+  }
+
+  @Post('bulk')
+  @RequirePermissions('create:individual-load')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Upload excel file for bulk load' })
+  async createBulk(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('El archivo es requerido');
+    }
+    const userId = req['user'].id;
+    return this.individualLoadService.createBulk(file.buffer, userId);
   }
 }

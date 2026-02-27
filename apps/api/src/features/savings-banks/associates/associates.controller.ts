@@ -10,8 +10,21 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Response } from 'express';
+import { memoryStorage } from 'multer';
 import { AssociatesService } from './associates.service';
 import { CreateAssociateAccountsDto } from './dto/create-associate-accounts.dto';
 import { CreateAssociateDto } from './dto/create-associate.dto';
@@ -40,6 +53,71 @@ export class AssociatesController {
     return { message: 'Associate created successfully', data };
   }
 
+  // ─── Carga Masiva ───────────────────────────────────────────────────────────
+
+  @Post('bulk-upload')
+  @Roles('admin')
+  @RequirePermissions('create:associate')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (_req, file, cb) => {
+        const isExcel =
+          file.mimetype ===
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+          file.mimetype === 'application/vnd.ms-excel' ||
+          file.originalname.endsWith('.xlsx') ||
+          file.originalname.endsWith('.xls');
+        if (!isExcel) {
+          return cb(
+            new Error('Solo se permiten archivos Excel (.xlsx, .xls)'),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiOperation({ summary: 'Carga masiva de asociados desde un archivo Excel' })
+  @ApiResponse({ status: 201, description: 'Carga masiva procesada.' })
+  async bulkUpload(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const userId = req['user'].id;
+    const result = await this.associatesService.bulkUpload(userId, file.buffer);
+    return {
+      message: 'Carga masiva procesada exitosamente',
+      data: result,
+    };
+  }
+
+  @Get('bulk-upload/template')
+  @Roles('admin')
+  @RequirePermissions('read:associates')
+  @ApiOperation({ summary: 'Descargar template Excel para carga masiva' })
+  async downloadTemplate(@Res() res: Response) {
+    const buffer = await this.associatesService.generateTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="template_asociados.xlsx"',
+      'Content-Length': buffer.length,
+    });
+    res.send(buffer);
+  }
+
+  // ─── Consultas ───────────────────────────────────────────────────────────────
+
   @Get()
   @Roles('admin')
   @RequirePermissions('read:associates')
@@ -55,7 +133,6 @@ export class AssociatesController {
     };
   }
 
-  
   @Get('cedula/:cedula')
   @RequirePermissions('read:associate-by-cedula')
   @ApiOperation({ summary: 'Get an associate by cedula' })
@@ -72,7 +149,8 @@ export class AssociatesController {
   @ApiResponse({ status: 200, description: 'Return the associate details.' })
   @ApiResponse({ status: 404, description: 'Associate not found.' })
   async getAssociateDetailsByCedula(@Param('cedula') cedula: string) {
-    const data = await this.associatesService.getAssociateDetailsByCedula(cedula);
+    const data =
+      await this.associatesService.getAssociateDetailsByCedula(cedula);
     return { message: 'Associate details fetched successfully', data };
   }
 
@@ -87,7 +165,7 @@ export class AssociatesController {
     return { message: 'Associate fetched successfully', data };
   }
 
-
+  // ─── Mutaciones ──────────────────────────────────────────────────────────────
 
   @Patch(':id')
   @Roles('admin')
@@ -119,7 +197,8 @@ export class AssociatesController {
     return await this.associatesService.remove(+id);
   }
 
-  // Associate Accounts
+  // ─── Associate Accounts ──────────────────────────────────────────────────────
+
   @Get('/:id/accounts')
   @Roles('admin')
   @RequirePermissions('read:associate-account')

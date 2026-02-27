@@ -1,0 +1,3 @@
+ALTER TABLE "accounting"."accounting_rule_details" ADD COLUMN "is_auxiliary_supplier" boolean DEFAULT false;--> statement-breakpoint
+ALTER TABLE "banking"."bank_transactions" ADD COLUMN "accounting_entry_id" integer;--> statement-breakpoint
+ALTER TABLE "banking"."bank_transactions" ADD CONSTRAINT "bank_transactions_accounting_entry_id_accounting_entries_id_fk" FOREIGN KEY ("accounting_entry_id") REFERENCES "accounting"."accounting_entries"("id") ON DELETE set null ON UPDATE no action;

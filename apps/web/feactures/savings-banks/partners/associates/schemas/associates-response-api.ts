@@ -55,3 +55,13 @@ export const AssociatesResponseOneSchema = z.object({
 export const AssociatesDeleteResponseSchema = z.object({
   message: z.string(),
 });
+
+// Schema para la respuesta de carga masiva
+export const AssociatesBulkUploadResponseSchema = z.object({
+  message: z.string(),
+  data: z.object({
+    total: z.number(),
+    inserted: z.number(),
+    skipped: z.number(),
+  }),
+});

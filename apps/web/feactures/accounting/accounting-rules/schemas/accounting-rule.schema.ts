@@ -5,6 +5,8 @@ export const accountingRuleDetailSchema = z.object({
   ruleId: z.number().optional(),
   accountRole: z.string().nullable().optional(),
   movementType: z.enum(['DEBIT', 'CREDIT']),
+  isAuxiliary: z.boolean().optional().default(false),
+  isAuxiliarySupplier: z.boolean().optional().default(false),
   formula: z.string().nullable().optional(),
   accountPlanId: z.number().nullable(),
 });

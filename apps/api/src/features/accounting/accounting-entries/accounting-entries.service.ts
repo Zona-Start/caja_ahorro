@@ -28,99 +28,6 @@ export class AccountingEntriesService {
     private readonly accountPlanService: AccountPlanService,
   ) {}
 
-  /* ---------- Validaciones comunes ---------- */
-  private async validateAccountingEntry(dto: CreateAccountingEntryDto) {
-    const { companyId, accountingCycleId, entryDate, details } = dto;
-
-    const cycle = await this.accountingCyclesService.findOne(accountingCycleId);
-    if (!cycle || cycle.status !== 'OPEN')
-      throw new BadRequestException('El ciclo contable debe estar abierto.');
-
-    const ed = new Date(entryDate);
-    if (ed < new Date(cycle.startDate) || ed > new Date(cycle.endDate))
-      throw new BadRequestException(
-        'La fecha del asiento está fuera del ciclo.',
-      );
-
-    if (!details?.length || details.length < 2)
-      throw new BadRequestException(
-        'El asiento debe tener al menos dos líneas.',
-      );
-
-    const ids = details.map((d) => d.accountPlanId);
-    const accounts = await this.drizzle
-      .select()
-      .from(schema.accountPlan)
-      .where(inArray(schema.accountPlan.id, ids));
-
-    const map = new Map(accounts.map((a) => [a.id, a]));
-    let totalDebit = 0;
-    let totalCredit = 0;
-
-    for (const d of details) {
-      const acc = map.get(d.accountPlanId);
-      if (!acc)
-        throw new BadRequestException(`Cuenta ${d.accountPlanId} no existe.`);
-      if (!acc.allowsMovements)
-        throw new BadRequestException(
-          `Cuenta ${acc.code} no admite movimientos.`,
-        );
-
-      const deb = Number(d.debit);
-      const cr = Number(d.credit);
-      if ((deb > 0 && cr > 0) || (deb === 0 && cr === 0))
-        throw new BadRequestException(
-          'Cada línea debe tener débito O crédito.',
-        );
-
-      totalDebit += deb;
-      totalCredit += cr;
-    }
-
-    if (totalDebit !== totalCredit)
-      throw new BadRequestException('El asiento no está cuadrado.');
-    if (totalDebit === 0)
-      throw new BadRequestException('El asiento no puede ser cero.');
-  }
-
-  /* ---------- Crear ---------- */
-  async create(
-    userId: number,
-    dto: CreateAccountingEntryDto,
-  ): Promise<AccountingEntry> {
-    await this.validateAccountingEntry(dto);
-
-    return this.drizzle.transaction(async (tx) => {
-      const [entry] = await tx
-        .insert(schema.accountingEntries)
-        .values({
-          ...dto,
-          entryDate: dto.entryDate.toISOString().split('T')[0],
-          status: 'DRAFT',
-          createdById: userId,
-        })
-        .returning();
-
-      const details = dto.details.map((d) => ({
-        ...d,
-        accountingEntryId: entry.id,
-        debit: d.debit.toString(),
-        credit: d.credit.toString(),
-        createdById: userId,
-      }));
-
-      await tx.insert(schema.accountingEntryDetails).values(details);
-
-      const entryFormat = {
-        ...entry,
-        entryDate: new Date(entry.entryDate), // Convert to Date
-        postedAt: entry.postedAt ? new Date(entry.postedAt) : null, // Convert to Date if exists
-      };
-
-      return { ...entryFormat, details } as AccountingEntry;
-    });
-  }
-
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
   async findAllPaginated(dto: FilterAccountingEntryDto) {
     const {
@@ -338,7 +245,12 @@ export class AccountingEntriesService {
       currencyCode: dto.currencyCode || existing.currencyCode,
       details,
     };
-    await this.validateAccountingEntry(merged);
+    await this.validateAccountingEntry(
+      merged.companyId,
+      merged.accountingCycleId,
+      merged.entryDate,
+      merged.details,
+    );
 
     return this.drizzle.transaction(async (tx) => {
       await tx
@@ -381,6 +293,271 @@ export class AccountingEntriesService {
     return { message: 'Asiento eliminado exitosamente.' };
   }
 
+  /* ---------- Validaciones comunes ---------- */
+  private async findActiveCycle(companyId: number, date: Date) {
+    const cycle = await this.drizzle.query.accountingCycles.findFirst({
+      where: and(
+        eq(schema.accountingCycles.companyId, companyId),
+        eq(schema.accountingCycles.status, 'OPEN'),
+        lte(
+          schema.accountingCycles.startDate,
+          date.toISOString().split('T')[0],
+        ),
+        gte(schema.accountingCycles.endDate, date.toISOString().split('T')[0]),
+      ),
+    });
+
+    if (!cycle) {
+      throw new BadRequestException(
+        'No se encontró un ciclo contable abierto para la fecha indicada.',
+      );
+    }
+    return cycle;
+  }
+
+  private async validateAccountingEntry(
+    companyId: number,
+    accountingCycleId: number,
+    entryDate: Date,
+    details: CreateAccountingEntryDetailDto[],
+  ) {
+    const cycle = await this.accountingCyclesService.findOne(accountingCycleId);
+    if (!cycle || cycle.status !== 'OPEN')
+      throw new BadRequestException('El ciclo contable debe estar abierto.');
+
+    const ed = new Date(entryDate);
+    if (ed < new Date(cycle.startDate) || ed > new Date(cycle.endDate))
+      throw new BadRequestException(
+        'La fecha del asiento está fuera del ciclo.',
+      );
+
+    if (!details?.length || details.length < 2)
+      throw new BadRequestException(
+        'El asiento debe tener al menos dos líneas.',
+      );
+
+    const ids = details.map((d) => d.accountPlanId);
+    const accounts = await this.drizzle
+      .select()
+      .from(schema.accountPlan)
+      .where(inArray(schema.accountPlan.id, ids));
+
+    const map = new Map(accounts.map((a) => [a.id, a]));
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    for (const d of details) {
+      const acc = map.get(d.accountPlanId);
+      if (!acc)
+        throw new BadRequestException(`Cuenta ${d.accountPlanId} no existe.`);
+      if (!acc.allowsMovements)
+        throw new BadRequestException(
+          `Cuenta ${acc.code} no admite movimientos.`,
+        );
+
+      const deb = Number(d.debit);
+      const cr = Number(d.credit);
+      if ((deb > 0 && cr > 0) || (deb === 0 && cr === 0))
+        throw new BadRequestException(
+          'Cada línea debe tener débito O crédito.',
+        );
+
+      totalDebit += deb;
+      totalCredit += cr;
+    }
+
+    // Usar una epsilon para comparaciones de punto flotante si es necesario,
+    // pero aquí estamos con Numbers. Lo ideal es usar un redondeo a 2 o 6 decimales.
+    if (Math.abs(totalDebit - totalCredit) > 0.000001)
+      throw new BadRequestException('El asiento no está cuadrado.');
+    if (totalDebit === 0)
+      throw new BadRequestException('El asiento no puede ser cero.');
+  }
+
+  /* ---------- Crear ---------- */
+  async create(
+    userId: number,
+    dto: CreateAccountingEntryDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<AccountingEntry> {
+    await this.validateAccountingEntry(
+      dto.companyId,
+      dto.accountingCycleId,
+      dto.entryDate,
+      dto.details,
+    );
+
+    const db = tx ?? this.drizzle;
+
+    return db.transaction(async (tx) => {
+      const [entry] = await tx
+        .insert(schema.accountingEntries)
+        .values({
+          ...dto,
+          entryDate: dto.entryDate.toISOString().split('T')[0],
+          status: 'DRAFT',
+          createdById: userId,
+        })
+        .returning();
+
+      const details = dto.details.map((d) => ({
+        ...d,
+        accountingEntryId: entry.id,
+        debit: d.debit.toString(),
+        credit: d.credit.toString(),
+        createdById: userId,
+      }));
+
+      await tx.insert(schema.accountingEntryDetails).values(details);
+
+      const entryFormat = {
+        ...entry,
+        entryDate: new Date(entry.entryDate), // Convert to Date
+        postedAt: entry.postedAt ? new Date(entry.postedAt) : null, // Convert to Date if exists
+      };
+
+      return { ...entryFormat, details } as AccountingEntry;
+    });
+  }
+
+  /* ---------- Crear Asiento Automático ---------- */
+  async createAutomaticEntry(
+    userId: number,
+    params: {
+      companyId: number;
+      category: string;
+      operationType: string;
+      referenceId?: number;
+      description: string;
+      entryDate: Date;
+      currencyCode: CurrencyCodeEnum;
+      originReferenceId?: string;
+      originType?: string;
+      items: {
+        associateId?: number;
+        supplierId?: number;
+        amounts: Record<string, number>; // accountRole -> amount
+        description?: string;
+      }[];
+    },
+    tx?: NodePgDatabase<typeof schema>, // Aceptar transacción de Drizzle
+  ): Promise<AccountingEntry | null> {
+    const db = tx ?? this.drizzle;
+    // 1. Verificar si los asientos automáticos están habilitados
+    const [setting] = await db
+      .select()
+      .from(schema.systemSettings)
+      .where(eq(schema.systemSettings.key, 'ASIENTOS_AUTOMATICOS'));
+
+    if (!setting || setting.value !== 'SI') {
+      // Si no está habilitado, no hacemos nada (o podríamos loguear)
+      return null;
+    }
+
+    // 2. Buscar la regla contable
+    const rows = await db
+      .select()
+      .from(schema.accountingRules)
+      .leftJoin(
+        schema.accountingRuleDetails,
+        eq(schema.accountingRules.id, schema.accountingRuleDetails.ruleId),
+      )
+      .where(
+        and(
+          eq(schema.accountingRules.companyId, params.companyId),
+          eq(schema.accountingRules.category, params.category),
+          eq(schema.accountingRules.operationType, params.operationType),
+          params.referenceId
+            ? eq(schema.accountingRules.referenceId, params.referenceId)
+            : undefined, // Ignora el filtro si no hay un referenceId específico
+          eq(schema.accountingRules.isActive, true),
+        ),
+      );
+
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        `No existe una regla contable configurada para: ${params.category} / ${params.operationType}${params.referenceId ? ` (Ref: ${params.referenceId})` : ''}`,
+      );
+    }
+
+    // 3. Validar ciclo contable
+    const cycle = await this.findActiveCycle(
+      params.companyId,
+      params.entryDate,
+    );
+
+    // 4. Preparar los detalles del asiento basados en los items y la regla
+    const detailsDraft: CreateAccountingEntryDetailDto[] = [];
+    const rule = rows[0].accounting_rules;
+
+    const ruleDetails = rows
+      .map((row) => row.accounting_rule_details)
+      .filter((detail) => detail !== null); // Filtramos por si la regla existe pero no tiene detalles
+
+    for (const item of params.items) {
+      for (const ruleDetail of ruleDetails) {
+        if (!ruleDetail?.accountRole) continue;
+        const amount = item.amounts[ruleDetail.accountRole];
+        if (amount === undefined || amount === 0) continue;
+
+        const isDebit = ruleDetail.movementType === 'DEBIT';
+
+        detailsDraft.push({
+          accountPlanId: ruleDetail.accountPlanId,
+          debit: isDebit ? amount : 0,
+          credit: !isDebit ? amount : 0,
+          description: item.description || params.description,
+          associateId: ruleDetail.isAuxiliary ? item.associateId : undefined,
+          supplierId: ruleDetail.isAuxiliarySupplier
+            ? item.supplierId
+            : undefined,
+        } as any);
+      }
+    }
+
+    // 5. Validar partida doble y otros
+    await this.validateAccountingEntry(
+      params.companyId,
+      cycle.id,
+      params.entryDate,
+      detailsDraft,
+    );
+
+    // 6. Ejecutar inserción (usando transacción externa si existe)
+    const [entry] = await db
+      .insert(schema.accountingEntries)
+      .values({
+        companyId: params.companyId,
+        accountingCycleId: cycle.id,
+        entryDate: params.entryDate.toISOString().split('T')[0],
+        description: params.description,
+        originReferenceId: params.originReferenceId,
+        originType: params.originType || params.operationType,
+        currencyCode: params.currencyCode,
+        status: 'POSTED',
+        postedAt: new Date(),
+        createdById: userId,
+      })
+      .returning();
+
+    const details = detailsDraft.map((d) => ({
+      ...d,
+      accountingEntryId: entry.id,
+      debit: d.debit.toString(),
+      credit: d.credit.toString(),
+      createdById: userId,
+    }));
+
+    await db.insert(schema.accountingEntryDetails).values(details);
+
+    return {
+      ...entry,
+      entryDate: new Date(entry.entryDate),
+      postedAt: entry.postedAt ? new Date(entry.postedAt) : null,
+      details,
+    } as AccountingEntry;
+  }
+
   /* ---------- Pasar a PENDIENTE ---------- */
   async submitEntry(userId: number, id: number): Promise<AccountingEntry> {
     const existing = await this.findOne(id);
@@ -407,7 +584,12 @@ export class AccountingEntriesService {
         description: d.description,
       })),
     };
-    await this.validateAccountingEntry(toValidate);
+    await this.validateAccountingEntry(
+      toValidate.companyId,
+      toValidate.accountingCycleId,
+      toValidate.entryDate,
+      toValidate.details,
+    );
 
     await this.drizzle
       .update(schema.accountingEntries)
@@ -511,7 +693,12 @@ export class AccountingEntriesService {
     balanced: boolean;
     lines: number;
   }> {
-    await this.validateAccountingEntry(dto); // lanza si hay error
+    await this.validateAccountingEntry(
+      dto.companyId,
+      dto.accountingCycleId,
+      dto.entryDate,
+      dto.details,
+    ); // lanza si hay error
     const totals = dto.details.reduce(
       (acc, l) => {
         acc.debit += Number(l.debit);

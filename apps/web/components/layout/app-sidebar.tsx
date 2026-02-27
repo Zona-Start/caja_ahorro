@@ -52,7 +52,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           items={AccountingItems}
         />
         <BankMain titleGroup={'Gestón Bancaria'} items={BankItems} />
-        <ConfigMain titleGroup={'Utilidades'} items={ConfigItems} />
+        <ConfigMain titleGroup={'Configuraciones'} items={ConfigItems} />
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarRail />

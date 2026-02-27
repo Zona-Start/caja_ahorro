@@ -14,11 +14,14 @@ import {
   DatabaseBackup,
   File,
   FileChartLine,
+  FileDigit,
   FileText,
+  Gift,
   HandCoins,
   HandPlatter,
   Handshake,
   HelpCircle,
+  IdCard,
   Image,
   Landmark,
   Laptop,
@@ -30,6 +33,7 @@ import {
   LucideShoppingBag,
   Moon,
   MoreVertical,
+  PiggyBank,
   Pizza,
   Plus,
   ReceiptText,
@@ -107,6 +111,10 @@ export const Icons = {
   container: Container,
   squareX: SquareX,
   chartColumnBig: ChartColumnBig,
+  fileDigit: FileDigit,
+  idCard: IdCard,
+  piggyBank: PiggyBank,
+  gift: Gift,
   gitHub: ({ ...props }: LucideProps) => (
     <svg
       aria-hidden="true"

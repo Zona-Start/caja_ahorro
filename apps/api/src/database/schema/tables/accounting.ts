@@ -19,14 +19,14 @@ import { sql } from 'drizzle-orm';
 import {
   accountNatureEnum,
   accountTypeEnum,
-  closingStatusEnum,
-  closingTypeEnum,
   currencyCodeEnum,
   cycleStatusEnum,
   entryStatusEnum,
 } from '../enum/enum';
 import { accountingSchema } from '../schemas';
+import { suppliers } from './administration';
 import { company } from './core';
+import { associates } from './savings-banks';
 
 // Tabla de Plan de cuentas  Almacena las cuentas contables de la caja de ahorro.
 export const accountPlan = accountingSchema.table(
@@ -137,6 +137,12 @@ export const accountingEntryDetails = accountingSchema.table(
     accountPlanId: integer('account_plan_id')
       .notNull()
       .references(() => accountPlan.id, { onDelete: 'restrict' }), // No borrar cuenta si tiene movimientos
+    associateId: integer('associate_id').references(() => associates.id, {
+      onDelete: 'restrict',
+    }),
+    supplierId: integer('supplier_id').references(() => suppliers.id, {
+      onDelete: 'restrict', // No puedes borrar un proveedor si tiene asientos
+    }),
     debit: numeric('debit', { precision: 20, scale: 6 })
       .notNull()
       .default('0.00'),
@@ -155,85 +161,14 @@ export const accountingEntryDetails = accountingSchema.table(
       'amount_positive_check',
       sql`${table.debit} >= 0 AND ${table.credit} >= 0`,
     ), // Asegurar no negativos
+    checkOnlyOneAuxiliary: check(
+      'only_one_auxiliary_check', //Un detalle del asiento no puede ser de un socio Y de un proveedor al mismo tiempo.
+      sql`(${table.associateId} IS NULL OR ${table.supplierId} IS NULL)`,
+    ),
     entryIdx: index('acct_entry_details_entry_idx').on(table.accountingEntryId),
     accountIdx: index('acct_entry_details_account_idx').on(table.accountPlanId),
   }),
 );
-
-export const accountingClosings = accountingSchema.table(
-  'accounting_closings',
-  {
-    /* ---------- obligatorios ---------- */
-    id: serial('id').primaryKey(),
-    companyId: integer('company_id')
-      .notNull()
-      .references(() => company.id, { onDelete: 'cascade' }),
-    accountingCycleId: integer('accounting_cycle_id') // FK → accountingCycles
-      .notNull()
-      .references(() => accountingCycles.id, { onDelete: 'restrict' }),
-    closingType: closingTypeEnum('closing_type').notNull(), // ANNUAL | QUARTERLY
-    period: date('period').notNull(), // 1er día del período que se cierra
-    closingTimestamp: timestamp('closing_timestamp') // CUÁNDO (con hh:mm:ss)
-      .notNull()
-      .defaultNow(),
-    userId: integer('user_id') // QUIÉN lo ejecutó (Auth)
-      .notNull()
-      .references(() => users.id, { onDelete: 'restrict' }),
-    status: closingStatusEnum('status') // SUCCESS | FAILED | MANUAL_REVERTED
-      .notNull()
-      .default('SUCCESS'),
-
-    /* ---------- opcionales ---------- */
-    notes: text('notes'), // comentarios del contador
-    processedEntryId: integer('processed_entry_id') // FK al asiento de cierre (anual)
-      .references(() => accountingEntries.id, { onDelete: 'set null' }),
-    errorDetails: text('error_details'), // stack-trace o mensaje si FAILED
-  },
-  (table) => ({
-    // regla de negocio: un mismo company / periodo / tipo solo puede cerrarse una vez
-    uniquePeriod: unique('accounting_closings_unique_period').on(
-      table.companyId,
-      table.period,
-      table.closingType,
-    ),
-    // índices típicos
-    companyIdx: index('accounting_closings_company_idx').on(table.companyId),
-    periodIdx: index('accounting_closings_period_idx').on(table.period),
-  }),
-);
-
-// //Parametrización de asientos contables por tipo de operación.
-// export const accountingConfiguration = accountingSchema.table(
-//   'accounting_configuration',
-//   {
-//     id: serial('id').primaryKey(),
-//     companyId: integer('company_id')
-//       .notNull()
-//       .references(() => company.id, { onDelete: 'cascade' }),
-//     key: varchar('key', { length: 100 }).notNull(),
-//     operationType: varchar('operation_type', { length: 100 }).notNull(), //Ej: LOAN_DISBURSEMENT_VES, SAVING_CONTRIBUTION_USD, INTEREST_ACCRUAL
-//     descriptionTemplate: text('description_template'), //Plantilla para descripción del asiento. Ej: "Desembolso Préstamo #{loanId}
-//     debitAccountId: integer('debit_account_id').references(
-//       () => accountPlan.id,
-//       { onDelete: 'restrict' },
-//     ),
-//     creditAccountId: integer('credit_account_id').references(
-//       () => accountPlan.id,
-//       { onDelete: 'restrict' },
-//     ),
-//     contraAccountId: integer('contra_account_id').references(
-//       () => accountPlan.id, //contra partida para ajustes
-//     ),
-//     isActive: boolean('is_active').default(true),
-//     ...timestamps,
-//   },
-//   (table) => ({
-//     savingsBankOperationIdx: uniqueIndex('acct_config_sb_op_type_uidx').on(
-//       table.companyId,
-//       table.operationType,
-//     ), // Configuración única por caja y tipo de operación
-//   }),
-// );
 
 export const accountBalances = accountingSchema.table(
   'account_balances',
@@ -309,6 +244,8 @@ export const accountingRuleDetails = accountingSchema.table(
     movementType: varchar('movement_type', {
       enum: ['DEBIT', 'CREDIT'],
     }).notNull(),
+    isAuxiliary: boolean('is_auxiliary').default(false),
+    isAuxiliarySupplier: boolean('is_auxiliary_supplier').default(false),
     formula: text('formula'), // Opcional: para calcular montos (ej: "total * 0.05")
     accountPlanId: integer('account_plan_id').references(() => accountPlan.id),
   },

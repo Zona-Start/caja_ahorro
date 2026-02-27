@@ -50,6 +50,16 @@ export class CreateAccountingRuleDetailDto {
   @IsOptional()
   @IsInt()
   accountPlanId?: number;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isAuxiliary?: boolean;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isAuxiliarySupplier?: boolean;
 }
 
 export class CreateAccountingRuleDto {

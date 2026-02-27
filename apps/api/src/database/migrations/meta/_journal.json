@@ -176,6 +176,20 @@
       "when": 1770337136235,
       "tag": "0024_mature_omega_red",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1772069299415,
+      "tag": "0025_low_jackal",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1772122025807,
+      "tag": "0026_swift_tempest",
+      "breakpoints": true
     }
   ]
 }

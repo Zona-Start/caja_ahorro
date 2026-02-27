@@ -34,3 +34,35 @@ export const saveIndividualLoadAction = async (payload: LoadAssest) => {
 
   return data?.message;
 };
+
+export const downloadTemplateIndividualLoadAction = async () => {
+  const [error, data] = await safeFetchApi(
+    null,
+    '/savings-banks/individual-load/template-bulk',
+    'GET',
+    undefined,
+    { responseType: 'arraybuffer' },
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Error al descargar la plantilla');
+  }
+
+  // Convert arraybuffer to base64
+  return Buffer.from(data as any, 'binary').toString('base64');
+};
+
+export const bulkUploadIndividualLoadAction = async (formData: FormData) => {
+  const [error, data] = await safeFetchApi(
+    null,
+    '/savings-banks/individual-load/bulk',
+    'POST',
+    formData,
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Error en la carga masiva');
+  }
+
+  return data;
+};

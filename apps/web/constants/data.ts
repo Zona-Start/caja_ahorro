@@ -20,11 +20,6 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/socios/estado-cuenta',
       },
-      {
-        title: 'Tipos de Asociados',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/socios/tipo-asociados',
-      },
     ], // No child items
   },
   {
@@ -60,12 +55,7 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/haberes/desembolsos-asociados',
       },
-      {
-        title: 'Tipos de Rétiros',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/haberes/retiros/tipo-retiros',
-      },
-    ], // No child items
+    ],
   },
 
   {
@@ -82,20 +72,10 @@ export const savingBankItems: NavItem[] = [
         shortcut: ['m', 'm'],
       },
       {
-        title: 'Tipos Prestamos',
-        shortcut: ['l', 'l'],
-        url: '/dashboard/prestamos/tipo-prestamos',
-      },
-      {
         title: 'Gestión de Pagos',
         shortcut: ['l', 'l'],
         url: '/dashboard/prestamos/pagos',
       },
-      // {
-      //   title: 'Reintegros',
-      //   shortcut: ['l', 'l'],
-      //   url: '#',
-      // },
     ],
   },
   {
@@ -109,11 +89,6 @@ export const savingBankItems: NavItem[] = [
       {
         title: 'Gestion de Créditos',
         url: '/dashboard/creditos/gestion',
-        shortcut: ['m', 'm'],
-      },
-      {
-        title: 'Tipos de Créditos',
-        url: '/dashboard/creditos/tipo-creditos',
         shortcut: ['m', 'm'],
       },
       {
@@ -321,25 +296,35 @@ export const BankItems: NavItem[] = [
 
 export const ConfigItems: NavItem[] = [
   {
-    title: 'Configuración',
-    url: '#', // Placeholder as there is no direct link for the parent
-    icon: 'settings',
+    title: 'Datos de la Caja de Ahorro',
+    url: '/dashboard/utilidades/configuraciones/datos-caja-ahorro',
+    icon: 'landmark',
+    colorIcons: 'indigo',
+    isActive: false,
+    items: [],
+  },
+  {
+    title: 'Numeración  Documentos',
+    url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
+    icon: 'fileDigit',
+    colorIcons: 'indigo',
+    isActive: false,
+    items: [],
+  },
+  {
+    title: 'Catálogos de Socios y Nómina',
+    url: '#',
+    icon: 'idCard',
     colorIcons: 'indigo',
     isActive: false,
     items: [
       {
-        title: 'Datos Caja Ahorro',
-        url: '/dashboard/utilidades/configuraciones/datos-caja-ahorro',
-        shortcut: ['m', 'm'],
-      },
-      {
-        title: 'Numeración  Documentos',
+        title: 'Tipos de Asociados',
         shortcut: ['l', 'l'],
-        url: '/dashboard/utilidades/configuraciones/numeracion-documentos',
+        url: '/dashboard/socios/tipo-asociados',
       },
-
       {
-        title: 'Tipos de Nomina',
+        title: 'Tipos de Concepto Nomina',
         shortcut: ['l', 'l'],
         url: '/dashboard/utilidades/configuraciones/tipo-nomina',
       },
@@ -348,6 +333,48 @@ export const ConfigItems: NavItem[] = [
         shortcut: ['l', 'l'],
         url: '/dashboard/utilidades/configuraciones/frecuencias-pago',
       },
+    ],
+  },
+  {
+    title: 'Catálogos de Haberes',
+    url: '#', // Placeholder as there is no direct link for the parent
+    icon: 'piggyBank',
+    colorIcons: 'indigo',
+    isActive: false,
+    items: [
+      {
+        title: 'Tipos de Rétiros',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/haberes/retiros/tipo-retiros',
+      },
+    ],
+  },
+  {
+    title: 'Catálogos de Financiamientos',
+    url: '#', // Placeholder as there is no direct link for the parent
+    icon: 'handCoins',
+    colorIcons: 'indigo',
+    isActive: false,
+    items: [
+      {
+        title: 'Tipos Prestamos',
+        shortcut: ['l', 'l'],
+        url: '/dashboard/prestamos/tipo-prestamos',
+      },
+      {
+        title: 'Tipos de Créditos',
+        url: '/dashboard/creditos/tipo-creditos',
+        shortcut: ['m', 'm'],
+      },
+    ],
+  },
+  {
+    title: 'Eventos Especiales',
+    url: '#', // Placeholder as there is no direct link for the parent
+    icon: 'gift',
+    colorIcons: 'indigo',
+    isActive: false,
+    items: [
       {
         title: 'Tipos Jornadas',
         shortcut: ['l', 'l'],

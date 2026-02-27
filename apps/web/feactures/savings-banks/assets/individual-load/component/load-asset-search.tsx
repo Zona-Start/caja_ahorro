@@ -16,87 +16,77 @@ import {
 import { Input } from '@repo/shadcn/input';
 import { Separator } from '@repo/shadcn/separator';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search, User, X } from 'lucide-react';
+import { AlertCircle, Loader2, Search, User, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useAssociatesByCedula } from '../hooks/use-query-individual-load';
-import { Associates } from '../schemas/individual-load-api-schema';
+import { useIndividualLoadStore } from '../store/individual-load-store';
 
-interface LoadAssetsSearchProps {
-  onSelectAssociate: (associate: Associates | null) => void;
-  selectedAssociate: any | null;
-  shouldClearSearch: boolean;
-  onClearSearch: () => void;
-}
-
-export function LoadAssetsSearch({
-  onSelectAssociate,
-  selectedAssociate,
-  shouldClearSearch,
-  onClearSearch,
-}: LoadAssetsSearchProps) {
+export function LoadAssetsSearch() {
   const toast = useToastSystem();
-  const [searchTerm, setSearchTerm] = useState(''); // Controla el valor del input
-  const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
-  const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
-
-  const [searchResults, setSearchResults] = useState<Associates | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-
   const queryClient = useQueryClient();
-  // Usar el hook con la opción `enabled` para controlar su ejecución
+  const {
+    selectedAssociate,
+    setSelectedAssociate,
+    searchQuery,
+    setSearchQuery,
+    setIsSearching,
+    errors,
+    setRestrictions,
+    clearAll,
+  } = useIndividualLoadStore();
+
+  const [shouldFetch, setShouldFetch] = useState(false);
+  const [submittedSearchTerm, setSubmittedSearchTerm] = useState('');
+
   const { data, error, isLoading, isError } = useAssociatesByCedula(
     submittedSearchTerm,
     {
-      enabled: shouldFetch && !!submittedSearchTerm.trim(), // Activar solo si shouldFetch es true y hay un término
+      enabled: shouldFetch && !!submittedSearchTerm.trim(),
+      retry: false, // Fallar inmediatamente en 404 para mayor rapidez
     },
   );
 
-  // Efecto para manejar los resultados de la búsqueda cuando el hook devuelve datos
   useEffect(() => {
-    if (!shouldFetch && !submittedSearchTerm) {
-      // No actuar si no se ha iniciado una búsqueda explícita y no estamos cargando.
-      return;
-    }
+    setIsSearching(isLoading);
+  }, [isLoading, setIsSearching]);
 
-    if (isLoading) {
-      // La búsqueda está en progreso.
-      return;
+  // Limpiar el término enviado cuando se borra el asociado (ej. al terminar con éxito)
+  useEffect(() => {
+    if (!selectedAssociate && !shouldFetch) {
+      setSubmittedSearchTerm('');
     }
+  }, [selectedAssociate, shouldFetch]);
 
-    if (shouldFetch) {
-      // Solo si *nosotros* activamos la búsqueda
-      setShouldFetch(false); // Reseteamos nuestro flag, la query ya se ejecutó o falló.
+  useEffect(() => {
+    if (shouldFetch && !isLoading) {
+      setShouldFetch(false);
 
       if (isError) {
-        // Manejo del error
-        const errorMessage = error.message || 'Error desconocido';
-        if (errorMessage.includes('not found')) {
+        const errorMessage =
+          (error as any)?.response?.data?.message || error.message || '';
+
+        if (errorMessage.toLowerCase().includes('not found')) {
           toast.info({
             title: 'Asociado no encontrado',
-            description: `No se encontró un asociado con la cédula ${searchTerm}.`,
-          });
-        } else if (errorMessage.includes('retired')) {
-          toast.info({
-            title: 'Asociado retirado',
-            description:
-              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
+            description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
           });
         } else {
+          // Si hay restricciones u otros errores específicos, los guardamos en el store
+          setRestrictions([
+            errorMessage ||
+              'No se puede seleccionar este asociado debido a restricciones actuales.',
+          ]);
           toast.error({
-            title: 'Error realizando la búsqueda',
-            description: 'Conctate con el administrador del sistema.',
+            title: 'Restricción del Asociado',
+            description:
+              errorMessage ||
+              'Este asociado presenta restricciones para la carga de haberes.',
           });
         }
+        setSelectedAssociate(null);
       } else if (data) {
-        setSearchResults(data.data); // Actualiza los resultados con los datos del servidor
-        onSelectAssociate(data.data);
-      } else {
-        setSearchResults(null); // Actualiza los resultados con los datos del servidor
-        onSelectAssociate(null);
-        toast.info({
-          title: 'Información no disponible',
-          description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
-        });
+        setSelectedAssociate(data.data);
+        setRestrictions([]);
       }
     }
   }, [
@@ -104,76 +94,44 @@ export function LoadAssetsSearch({
     isError,
     error,
     isLoading,
-    setSearchResults,
-    submittedSearchTerm,
     shouldFetch,
+    setSelectedAssociate,
+    setRestrictions,
+    toast,
+    submittedSearchTerm,
   ]);
 
-  // Efecto para limpiar el input cuando shouldClearSearch sea true
-  useEffect(() => {
-    if (shouldClearSearch) {
-      setSearchTerm(''); // Limpiar el input
-      setSubmittedSearchTerm('');
-      setSearchResults(null); // Limpiar los resultados de búsqueda
-      onClearSearch(); // Notificar al componente padre que se limpió el input
-    }
-  }, [shouldClearSearch, queryClient, setSearchResults, onClearSearch]);
-
-  // Función para buscar asociados
   const handleSearch = useCallback(() => {
-    const trimmedSearchTerm = searchTerm.trim();
-    if (!trimmedSearchTerm) {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
       toast.warning({
         title: 'Campo vacío',
-        description: 'Por favor, ingrese una cédula para buscar.',
+        description: 'Ingrese una cédula para buscar.',
       });
       return;
     }
 
-    // Limpiar caché y estado antes de nueva búsqueda
+    // Limpiar previo al buscar uno nuevo (Memoria limpia)
     queryClient.removeQueries({
       queryKey: queryKeys.associatesForIndividualAssetLoad.all(),
-      exact: false,
     });
 
-    // Limpiar estado previo
-    setSearchResults(null);
-    onSelectAssociate(null);
+    setRestrictions([]);
+    setSelectedAssociate(null);
+    setSubmittedSearchTerm(trimmed);
+    setShouldFetch(true);
+  }, [searchQuery, queryClient, setSelectedAssociate, setRestrictions, toast]);
 
-    setSubmittedSearchTerm(trimmedSearchTerm);
-    setShouldFetch(true); // Activa la ejecución del hook
-  }, [searchTerm, queryClient, onSelectAssociate]);
-
-  // Función para limpiar la selección de asociado
-  const clearAssociate = useCallback(() => {
+  const handleClear = useCallback(() => {
+    clearAll();
     queryClient.removeQueries({
       queryKey: queryKeys.associatesForIndividualAssetLoad.all(),
-      exact: false,
     });
-    onSelectAssociate(null);
-    setSearchTerm('');
-    setSearchResults(null);
     setSubmittedSearchTerm('');
-    setShouldFetch(false);
-  }, [onSelectAssociate, queryClient]);
-
-  // Efecto para manejar la tecla Enter en la búsqueda
-  useEffect(() => {
-    const handleKeyPress = (e: any) => {
-      if (
-        e.key === 'Enter' &&
-        document.activeElement === document.getElementById('associate-search')
-      ) {
-        handleSearch();
-      }
-    };
-
-    window.addEventListener('keypress', handleKeyPress);
-    return () => window.removeEventListener('keypress', handleKeyPress);
-  }, [searchTerm]);
+  }, [clearAll, queryClient]);
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <IconWrapper className="w-8 h-8">
@@ -182,7 +140,7 @@ export function LoadAssetsSearch({
           Selección de Asociado
         </CardTitle>
         <CardDescription>
-          Busque y seleccione el asociado al que desea cargar haberes
+          Busque por cédula para cargar haberes individualmente
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -190,16 +148,17 @@ export function LoadAssetsSearch({
           <div className="flex gap-2">
             <div className="flex-1">
               <Input
-                id="associate-search"
-                placeholder="Buscar por nombre o documento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)} // Solo actualiza el estado, no ejecuta la búsqueda
-                disabled={isLoading} // Deshabilitar mientras carga
+                id="associate-search-input"
+                placeholder="Ingrese Cédula..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                disabled={isLoading}
               />
             </div>
             <Button
               onClick={handleSearch}
-              disabled={!searchTerm.trim() || isSearching}
+              disabled={!searchQuery.trim() || isLoading}
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -210,67 +169,83 @@ export function LoadAssetsSearch({
             </Button>
           </div>
 
-          {/* Visualización del asociado seleccionado o estado vacío/carga */}
-          {isLoading &&
-            !selectedAssociate && ( // Mostrar solo si estamos cargando y no hay un asociado previo
-              <div className="rounded-lg border border-dashed p-8 text-center mt-4">
-                <div className="flex flex-col items-center justify-center text-muted-foreground">
-                  <Loader2 className="h-8 w-8 mb-2 animate-spin" />
-                  <p>Buscando asociado...</p>
-                </div>
-              </div>
-            )}
-
-          {!isLoading && selectedAssociate && (
-            <div className="rounded-lg border p-4 mt-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium text-lg">
-                    {selectedAssociate.fullname}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedAssociate.cedula}
-                  </p>
-                  <div className="mt-2">
-                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-100">
-                      Cuenta: {selectedAssociate.accountNumber}
-                    </Badge>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearAssociate}
-                  disabled={isLoading}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <Separator className="my-3" />
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Saldo Actual:</span>
-                <span className="font-bold text-lg">
-                  {formatCurrency(Number(selectedAssociate.balance), 'VES')}
-                </span>
+          {errors.length > 0 && (
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex gap-3 text-destructive animate-in fade-in zoom-in duration-200">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-semibold">Restricciones encontradas:</p>
+                <ul className="list-disc list-inside mt-1">
+                  {errors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}
 
-          {!isLoading && !selectedAssociate && (
-            <div className="rounded-lg border border-dashed p-8 text-center mt-4">
-              <div className="flex flex-col items-center justify-center text-muted-foreground">
-                <User className="h-8 w-8 mb-2" />
-                <p>
-                  {submittedSearchTerm
-                    ? 'No se encontró el asociado o no hay datos.'
-                    : 'Ningún asociado seleccionado'}
-                </p>
-                {!submittedSearchTerm && (
-                  <p className="text-sm">
-                    Busque y seleccione un asociado para continuar
+          {isLoading && !selectedAssociate && (
+            <div className="rounded-lg border border-dashed p-10 text-center mt-4">
+              <Loader2 className="h-8 w-8 m-auto animate-spin text-primary" />
+              <p className="mt-4 text-muted-foreground">
+                Validando asociado...
+              </p>
+            </div>
+          )}
+
+          {!isLoading && selectedAssociate && (
+            <div className="rounded-lg border p-5 mt-4 bg-muted/30 relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={handleClear}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-bold text-xl">
+                    {selectedAssociate.fullname}
+                  </h3>
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Badge variant="outline">{selectedAssociate.cedula}</Badge>
+                    <span className="text-xs uppercase font-medium bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      ID: {selectedAssociate.id}
+                    </span>
                   </p>
-                )}
+                </div>
+
+                <div className="inline-flex items-center gap-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-3 py-1 rounded-full text-xs font-semibold">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  Cuenta: {selectedAssociate.accountNumber}
+                </div>
+
+                <Separator />
+
+                <div className="flex justify-between items-end pt-2">
+                  <span className="text-sm text-muted-foreground">
+                    Saldo Disponible
+                  </span>
+                  <div className="text-right">
+                    <span className="text-2xl font-black tracking-tight text-primary">
+                      {formatCurrency(Number(selectedAssociate.balance), 'VES')}
+                    </span>
+                  </div>
+                </div>
               </div>
+            </div>
+          )}
+
+          {!isLoading && !selectedAssociate && errors.length === 0 && (
+            <div className="rounded-lg border border-dashed p-10 text-center mt-4">
+              <User className="h-10 w-10 m-auto text-muted-foreground/50" />
+              <p className="mt-4 text-muted-foreground">
+                Ningún asociado seleccionado
+              </p>
+              <p className="text-xs text-muted-foreground/70">
+                Ingrese la cédula para iniciar el proceso
+              </p>
             </div>
           )}
         </div>

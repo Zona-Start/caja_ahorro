@@ -124,7 +124,10 @@ export const bankTransactions = bankingSchema.table(
     ), // A qué conciliación pertenece
     uploadBatchId: text('upload_batch_id'), // Para identificar el lote de carga
     uploadedAt: timestamp('uploaded_at').defaultNow(),
-    // accounting_entry_id: integer('accounting_entry_id').references(() => accountingEntries.id, { onDelete: 'set null' }), // Enlace si se generó un asiento directo desde aquí
+    accounting_entry_id: integer('accounting_entry_id').references(
+      () => accountingEntries.id,
+      { onDelete: 'set null' },
+    ), // Enlace si se generó un asiento directo desde aquí
     internalLinkStatus: internalLinkStatusEnum('internal_link_status')
       .notNull()
       .default('UNLINKED'), // O 'NO_APLICA' si algunas transacciones bancarias nunca se vincularán (ej., comisiones bancarias),

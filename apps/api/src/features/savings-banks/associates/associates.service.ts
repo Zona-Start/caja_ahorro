@@ -3,11 +3,7 @@ import {
   associates,
 } from '@/database/schema/tables/savings-banks';
 import { associateHaberesBalance } from '@/database/schema/views';
-import {
-  AssociateMovementTypeEnum,
-  CurrencyCodeEnum,
-  StatusEnum,
-} from '@/types/enum';
+import { StatusEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -15,12 +11,22 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as ExcelJS from 'exceljs';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
-import { currencies, systemSettings } from 'src/database/index';
+import {
+  bankDirectory,
+  categoryType,
+  currencies,
+  systemSettings,
+  typePayrolls,
+} from 'src/database/index';
+import { AuditLogEvent } from '../../audit/events/audit-log.event';
 import { AssociateAccountsMovementsService } from '../associate-accounts-movements/associate-accounts-movements.service';
+import { BulkUploadResult } from './dto/bulk-upload-associate.dto';
 import { CreateAssociateAccountsDto } from './dto/create-associate-accounts.dto';
 import { CreateAssociateDto } from './dto/create-associate.dto';
 import { FilterAssociateDto } from './dto/filter-associate.dto';
@@ -32,13 +38,13 @@ export class AssociatesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(userId: number, createAssociateDto: CreateAssociateDto) {
     const key = 'MONEDA';
     try {
       const result = await this.drizzle.transaction(async (tx) => {
-        //genera un transaccion si ocurre un error no se guarda nada
         const setting = await tx.query.systemSettings.findFirst({
           where: eq(systemSettings.key, key),
         });
@@ -48,6 +54,7 @@ export class AssociatesService {
             `System setting with key "${key}" not found or has no value`,
           );
         }
+
         const currencyCode = await tx
           .select()
           .from(currencies)
@@ -64,7 +71,6 @@ export class AssociatesService {
           );
         }
 
-        // Convert Date object to string format for database insertion
         const associateData = {
           ...createAssociateDto,
           birthdate: createAssociateDto.birthdate?.toISOString() || null,
@@ -74,7 +80,8 @@ export class AssociatesService {
           baseSalary: createAssociateDto.baseSalary?.toString(),
           createdById: userId,
         };
-        const insertAssociate = await this.drizzle
+
+        const insertAssociate = await tx
           .insert(associates)
           .values(associateData)
           .returning({
@@ -98,24 +105,23 @@ export class AssociatesService {
             jobTitle: associates.jobTitle,
             baseSalary: associates.baseSalary,
           });
-        const associate = insertAssociate[0].id;
+
+        const associateId = insertAssociate[0].id;
 
         const associateAccountData = {
-          associateId: associate,
+          associateId,
           accountNumber: createAssociateDto.accountNumber,
           currencyCode: currencyCode[0].code,
           balance: (0).toString(),
-          openingDate: new Date(),
+          openingDate: new Date().toISOString(),
           bankDirectoryId: createAssociateDto.bankDirectoryId,
           status: createAssociateDto.status,
           createdById: userId,
         };
-        const insertAssociateAccount = await this.drizzle
+
+        const insertAssociateAccount = await tx
           .insert(associateAccounts)
-          .values({
-            ...associateAccountData,
-            openingDate: associateAccountData.openingDate.toISOString(),
-          })
+          .values(associateAccountData)
           .returning({
             id: associateAccounts.id,
             accountNumber: associateAccounts.accountNumber,
@@ -126,28 +132,26 @@ export class AssociatesService {
             status: associateAccounts.status,
           });
 
-        const payloadMovement = {
-          associateAccountId: insertAssociateAccount[0].id,
-          movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
-          amount: createAssociateDto.baseSalary * 0.1,
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          transactionDate: createAssociateDto.dateAdmission,
-          description: 'Apertura de Cuenta',
-          referenceId: undefined,
-          referenceType: undefined,
-          referenceNumber: undefined,
-        };
-
-        await this.associateAccountsMovementsService.create(
-          userId,
-          payloadMovement,
-        );
-
         return {
           associate: insertAssociate[0],
           associateAccount: insertAssociateAccount[0],
         };
       });
+
+      // Emitir evento de auditoría (carga individual)
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          tableName: 'associates',
+          recordId: String(result.associate.id),
+          action: 'INSERT',
+          userId,
+          area: 'savings_banks',
+          description: `Asociado creado individualmente: ${result.associate.fullname} (${result.associate.cedula})`,
+          newData: result.associate,
+        }),
+      );
+
       return {
         ...result.associate,
         accountNumber: result.associateAccount.accountNumber,
@@ -157,6 +161,12 @@ export class AssociatesService {
         bankDirectoryId: result.associateAccount.bankDirectoryId,
       };
     } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
       console.error('Error generating created associate:', error);
       throw new InternalServerErrorException('Failed created associate.');
     }
@@ -176,10 +186,8 @@ export class AssociatesService {
       payroll = '',
     } = paginationDto || {};
 
-    // Calculate offset
     const offset = (page - 1) * limit;
 
-    // Build search condition
     let searchConditions: SQL<unknown>[] = [];
 
     if (search) {
@@ -193,7 +201,7 @@ export class AssociatesService {
       }
     }
 
-    const dataPayroll = payroll === 'true' ? true : false; // Convert to uppercase for case-insensitive match
+    const dataPayroll = payroll === 'true' ? true : false;
 
     if (status) {
       searchConditions.push(eq(associates.status, status as StatusEnum));
@@ -207,13 +215,11 @@ export class AssociatesService {
       ? and(...searchConditions)
       : undefined;
 
-    // Build sort condition
     const orderBy =
       sortOrder === 'asc'
         ? sql`${associates[sortBy as keyof typeof associates]} asc`
         : sql`${associates[sortBy as keyof typeof associates]} desc`;
 
-    // Get total count for pagination
     const totalCountResult = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(associates)
@@ -222,7 +228,6 @@ export class AssociatesService {
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Get paginated data
     const data = await this.drizzle
       .select({
         id: associates.id,
@@ -260,7 +265,6 @@ export class AssociatesService {
       .limit(limit)
       .offset(offset);
 
-    // Build pagination metadata
     const meta = {
       page,
       limit,
@@ -319,6 +323,7 @@ export class AssociatesService {
       .from(associates)
       .where(eq(associates.id, id))
       .leftJoin(associateAccounts, eq(associateAccounts.associateId, id));
+
     if (!result.length) {
       throw new NotFoundException(`Associate with ID ${id} not found`);
     }
@@ -365,6 +370,7 @@ export class AssociatesService {
         associateHaberesBalance,
         eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       );
+
     if (!result.length) {
       throw new NotFoundException(`Associate with cedula ${cedula} not found`);
     }
@@ -388,7 +394,6 @@ export class AssociatesService {
   async getAssociateDetailsByCedula(cedula: string) {
     const result = await this.drizzle
       .select({
-        // From associates
         id: associates.id,
         cedula: associates.cedula,
         fullname: associates.fullname,
@@ -399,17 +404,9 @@ export class AssociatesService {
         status: associates.status,
         isPayrollCredit: associates.isPayrollCredit,
         baseSalary: associates.baseSalary,
-
-        // From states (as locality)
         locality: schema.states.name,
-
-        // From associateAccounts
         accountNumber: associateAccounts.accountNumber,
-
-        // From bankDirectory
         bankName: schema.bankDirectory.name,
-
-        // From associateHaberesBalance view
         totalHaberes: associateHaberesBalance.haberesBalance,
       })
       .from(associates)
@@ -467,7 +464,6 @@ export class AssociatesService {
           );
         }
 
-        //genera un transaccion si ocurre un error no se guarda nada
         const setting = await tx.query.systemSettings.findFirst({
           where: eq(systemSettings.key, key),
         });
@@ -477,6 +473,7 @@ export class AssociatesService {
             `System setting with key "${key}" not found or has no value`,
           );
         }
+
         const currencyCode = await tx
           .select()
           .from(currencies)
@@ -493,7 +490,6 @@ export class AssociatesService {
           );
         }
 
-        // Convert Date object to string format for database insertion
         const associateData = {
           ...updateAssociateDto,
           birthdate: updateAssociateDto.birthdate?.toISOString() || null,
@@ -503,7 +499,8 @@ export class AssociatesService {
           baseSalary: updateAssociateDto.baseSalary?.toString(),
           updatedById: userId,
         };
-        const updateAssociate = await this.drizzle
+
+        const updateAssociate = await tx
           .update(associates)
           .set(associateData)
           .where(eq(associates.id, id))
@@ -536,7 +533,8 @@ export class AssociatesService {
           status: updateAssociateDto.status,
           updatedById: userId,
         };
-        const updateAsociateAccount = await this.drizzle
+
+        const updateAsociateAccount = await tx
           .update(associateAccounts)
           .set(associateAccountData)
           .where(eq(associateAccounts.associateId, id))
@@ -555,6 +553,7 @@ export class AssociatesService {
           associateAccount: updateAsociateAccount[0],
         };
       });
+
       return {
         ...result.associate,
         accountNumber: result.associateAccount.accountNumber,
@@ -564,19 +563,23 @@ export class AssociatesService {
         bankDirectoryId: result.associateAccount.bankDirectoryId,
       };
     } catch (error) {
-      console.error('Error generating created associate:', error);
-      throw new InternalServerErrorException('Failed created associate.');
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      console.error('Error generating update associate:', error);
+      throw new InternalServerErrorException('Failed update associate.');
     }
   }
 
   async remove(id: number) {
-    // 1. Validar que exista el asociado
     const existingAssociate = await this.findOne(id);
     if (!existingAssociate) {
       throw new NotFoundException(`Associate with ID ${id} not found`);
     }
 
-    // 2. Validar si el status es RETIRED o ARCHIVED
     if (
       existingAssociate.status === 'RETIRED' ||
       existingAssociate.status === 'ARCHIVED'
@@ -586,13 +589,11 @@ export class AssociatesService {
       );
     }
 
-    // 3. Validar movimientos
     const associateAccount =
       await this.drizzle.query.associateAccounts.findFirst({
         where: eq(schema.associateAccounts.associateId, id),
       });
 
-    // Si no tiene cuenta, no puede tener movimientos. Se puede inactivar.
     if (!associateAccount) {
       await this.drizzle
         .update(associates)
@@ -609,14 +610,12 @@ export class AssociatesService {
         ),
       });
 
-    // 4. Si tiene un solo movimiento y es 'APERTURA CUENTA', eliminar físicamente
     if (
       movements.length === 1 &&
       movements[0].description === 'APERTURA CUENTA'
     ) {
       try {
         await this.drizzle.transaction(async (tx) => {
-          // Eliminar el movimiento
           await tx
             .delete(schema.associateAccountMovements)
             .where(
@@ -625,11 +624,9 @@ export class AssociatesService {
                 associateAccount.id,
               ),
             );
-          // Eliminar la cuenta
           await tx
             .delete(schema.associateAccounts)
             .where(eq(schema.associateAccounts.associateId, id));
-          // Eliminar el asociado
           await tx.delete(associates).where(eq(associates.id, id));
         });
         return { message: 'Associate deleted successfully' };
@@ -641,14 +638,12 @@ export class AssociatesService {
       }
     }
 
-    // 3. (continuación) Validar si tiene más de un movimiento o uno incorrecto
     if (movements.length > 0) {
       throw new BadRequestException(
         'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
       );
     }
 
-    // 5. Si no se cumplen las validaciones anteriores (es decir, tiene 0 movimientos), cambiar status a INACTIVE
     await this.drizzle
       .update(associates)
       .set({ status: 'INACTIVE' })
@@ -657,7 +652,6 @@ export class AssociatesService {
     return { message: 'Associate set to INACTIVE successfully' };
   }
 
-  //ACCOUNT BY ID ASSOCIATE
   async findByIdAssociateAccounts(id: number) {
     const result = await this.drizzle
       .select()
@@ -691,7 +685,6 @@ export class AssociatesService {
       );
     }
 
-    // Convert Date object to string format for database insertion
     const associateAccountData = {
       associateId: createAssociateAccountsDto.associateId,
       accountNumber: createAssociateAccountsDto.accountNumber,
@@ -711,5 +704,371 @@ export class AssociatesService {
       .returning();
 
     return result[0];
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  // CARGA MASIVA
+  // ──────────────────────────────────────────────────────────────────────────────
+
+  async bulkUpload(
+    userId: number,
+    fileBuffer: Buffer,
+  ): Promise<BulkUploadResult> {
+    try {
+      // 1. Obtener configuraciones previas una sola vez (fuera de la transacción para no bloquear)
+      const {
+        currencyCode,
+        discountFrequencyId,
+        payrollTypeId,
+        bankId,
+        companyId,
+      } = await this._loadBulkUploadConfigs();
+
+      // 2. Parsear el Excel
+      const rows = await this._parseExcel(fileBuffer);
+
+      if (rows.length === 0) {
+        return { total: 0, inserted: 0, skipped: 0 };
+      }
+
+      let inserted = 0;
+      let skipped = 0;
+      const total = rows.length;
+
+      // 3. Inserción atómica de todas las filas dentro de una transacción
+      await this.drizzle.transaction(async (tx) => {
+        for (const row of rows) {
+          // Verificar si ya existe
+          const existing = await tx
+            .select({ id: associates.id })
+            .from(associates)
+            .where(eq(associates.cedula, row.cedula));
+
+          if (existing.length > 0) {
+            skipped++;
+            continue;
+          }
+
+          // Determinar associatedTypeId buscando por contrato
+          let associatedTypeId: number | undefined;
+          if (row.contrato) {
+            const catType = await tx
+              .select({ id: categoryType.id })
+              .from(categoryType)
+              .where(
+                and(
+                  eq(categoryType.group, 'ASSOCIATED_TYPE'),
+                  eq(categoryType.description, row.contrato),
+                ),
+              );
+            associatedTypeId = catType[0]?.id;
+          }
+
+          // Insertar asociado
+          const [insertedAssociate] = await tx
+            .insert(associates)
+            .values({
+              companyId: companyId ?? null,
+              cedula: row.cedula,
+              fullname: row.fullname,
+              nationality: row.nationality as any,
+              gender: row.gender as any,
+              birthdate: row.fechaNacimiento,
+              dateAdmission: row.fechaIngreso,
+              status: 'ACTIVE' as any,
+              isPayrollCredit: false,
+              phone: row.telefono || null,
+              email: row.correo || null,
+              discountFrequencyId: discountFrequencyId ?? null,
+              payrollTypeId: payrollTypeId ?? null,
+              associatedTypeId: associatedTypeId ?? null,
+              jobTitle: row.cargo,
+              baseSalary: row.sueldo?.toString(),
+              createdById: userId,
+            } as any)
+            .returning({
+              id: associates.id,
+              fullname: associates.fullname,
+              cedula: associates.cedula,
+            });
+          // Removed extra comma here
+
+          // Insertar cuenta del asociado
+          await tx.insert(associateAccounts).values({
+            associateId: insertedAssociate.id,
+            accountNumber: row.nroCuenta,
+            currencyCode,
+            balance: '0',
+            openingDate: new Date().toISOString(),
+            bankDirectoryId: bankId,
+            status: 'ACTIVE',
+            createdById: userId,
+          });
+
+          inserted++;
+        }
+      });
+
+      // 4. Emitir evento de auditoría para la carga masiva
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          tableName: 'associates',
+          recordId: 'bulk',
+          action: 'DATA_IMPORT',
+          userId,
+          area: 'savings_banks',
+          description: `Carga masiva de asociados: ${total} registros en archivo, ${inserted} insertados, ${skipped} omitidos (ya existían).`,
+          newData: { total, inserted, skipped },
+        }),
+      );
+
+      return { total, inserted, skipped };
+    } catch (error) {
+      console.error('Error en carga masiva de asociados:', error);
+      throw new InternalServerErrorException(
+        'Error procesando la carga masiva. Contacte al administrador.',
+      );
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  // Métodos auxiliares privados
+  // ──────────────────────────────────────────────────────────────────────────────
+
+  private async _loadBulkUploadConfigs(): Promise<{
+    currencyCode: any;
+    discountFrequencyId: number | undefined;
+    payrollTypeId: number | undefined;
+    bankId: number | undefined;
+    companyId: number | undefined;
+  }> {
+    // Compañía (se toma la primera de la tabla - caja de ahorro única)
+    const [comp] = await this.drizzle
+      .select({ id: schema.company.id })
+      .from(schema.company)
+      .limit(1);
+    const companyId = comp?.id;
+
+    // Moneda
+    const moneySetting = await this.drizzle.query.systemSettings.findFirst({
+      where: eq(systemSettings.key, 'MONEDA'),
+    });
+    if (!moneySetting?.value) {
+      throw new NotFoundException(
+        'System setting with key "MONEDA" not found or has no value',
+      );
+    }
+    const [currency] = await this.drizzle
+      .select({ code: currencies.code })
+      .from(currencies)
+      .where(eq(schema.currencies.id, Number(moneySetting.value)));
+
+    const currencyCode = currency?.code;
+
+    // Frecuencia de descuento
+    const freqSetting = await this.drizzle.query.systemSettings.findFirst({
+      where: eq(systemSettings.key, 'FRECUENCIA-DESCUENTO'),
+    });
+    let discountFrequencyId: number | undefined;
+    if (freqSetting?.value) {
+      const [catFreq] = await this.drizzle
+        .select({ id: categoryType.id })
+        .from(categoryType)
+        .where(
+          and(
+            eq(categoryType.group, 'DISCOUNT_FREQ'),
+            eq(categoryType.description, freqSetting.value),
+          ),
+        );
+      discountFrequencyId = catFreq?.id;
+    }
+
+    // Payroll type
+    const payrollSetting = await this.drizzle.query.systemSettings.findFirst({
+      where: eq(systemSettings.key, 'PAYROLL-DEFAULT'),
+    });
+    let payrollTypeId: number | undefined;
+    if (payrollSetting?.value) {
+      const [payroll] = await this.drizzle
+        .select({ id: typePayrolls.id })
+        .from(typePayrolls)
+        .where(eq(typePayrolls.code, payrollSetting.value));
+      payrollTypeId = payroll?.id;
+    }
+
+    // Banco (código 0175)
+    const [bank] = await this.drizzle
+      .select({ id: bankDirectory.id })
+      .from(bankDirectory)
+      .where(eq(bankDirectory.code, '0175'));
+    const bankId = bank?.id;
+
+    return {
+      currencyCode,
+      discountFrequencyId,
+      payrollTypeId,
+      bankId,
+      companyId,
+    };
+  }
+
+  private async _parseExcel(fileBuffer: Buffer): Promise<
+    Array<{
+      cedula: string;
+      fullname: string;
+      rif: string;
+      nationality: string;
+      gender: string;
+      fechaNacimiento: string;
+      telefono: string | undefined;
+      correo: string | undefined;
+      fechaIngreso: string;
+      contrato: string;
+      cargo: string;
+      sueldo: number;
+      nroCuenta: string;
+    }>
+  > {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(fileBuffer as any);
+
+    const worksheet = workbook.worksheets[0];
+
+    if (!worksheet) return [];
+
+    const rows: any[] = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+      // Saltar la primera fila (encabezados)
+      if (rowNumber === 1) return;
+
+      const cedula = this._cellValue(row.getCell(1));
+      const fullname = this._cellValue(row.getCell(2));
+      const rif = this._cellValue(row.getCell(3));
+      const genero = this._cellValue(row.getCell(4))?.toUpperCase();
+      const fechaNacimiento = this._cellValue(row.getCell(5));
+      const telefono = this._cellValue(row.getCell(6)) || undefined;
+      const correo = this._cellValue(row.getCell(7)) || undefined;
+      const fechaIngreso = this._cellValue(row.getCell(8));
+      const contrato = this._cellValue(row.getCell(9));
+      const cargo = this._cellValue(row.getCell(10));
+      const sueldo = parseFloat(this._cellValue(row.getCell(11)) || '0');
+      const nroCuenta = this._cellValue(row.getCell(12));
+
+      if (!cedula || !fullname) return; // Saltar filas vacías
+
+      // Mapear nationality desde rif
+      const firstLetterRif = rif?.charAt(0)?.toUpperCase();
+      const nationality =
+        firstLetterRif === 'V'
+          ? 'VENEZOLANO'
+          : firstLetterRif === 'E'
+            ? 'EXTRANJERO'
+            : 'VENEZOLANO'; // default
+
+      // Mapear gender
+      const gender =
+        genero === 'M'
+          ? 'MASCULINO'
+          : genero === 'F'
+            ? 'FEMENINO'
+            : 'MASCULINO'; // default
+
+      const contract = contrato === 'GERENCIAL' ? 'NIVEL GERENCIAL' : contrato;
+
+      rows.push({
+        cedula,
+        fullname,
+        rif,
+        nationality,
+        gender,
+        fechaNacimiento: this._formatDate(fechaNacimiento),
+        telefono,
+        correo,
+        fechaIngreso: this._formatDate(fechaIngreso),
+        contrato: contract,
+        cargo,
+        sueldo,
+        nroCuenta,
+      });
+    });
+
+    return rows;
+  }
+
+  private _cellValue(cell: ExcelJS.Cell): string {
+    const v = cell.value;
+    if (v === null || v === undefined) return '';
+    if (v instanceof Date) return v.toISOString().split('T')[0];
+    if (typeof v === 'object' && 'richText' in v) {
+      return (v as any).richText.map((r: any) => r.text).join('');
+    }
+    if (typeof v === 'object' && 'text' in v) {
+      return String((v as any).text);
+    }
+    return String(v).trim();
+  }
+
+  private _formatDate(value: string): string {
+    if (!value) return new Date().toISOString().split('T')[0];
+    // Intentar parsear como fecha ISO o con slashes/guiones
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    return value;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  // Descarga de template Excel
+  // ──────────────────────────────────────────────────────────────────────────────
+
+  async generateTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Asociados');
+
+    sheet.columns = [
+      { header: 'cedula', key: 'cedula', width: 15 },
+      { header: 'nombre_apellido', key: 'fullname', width: 30 },
+      { header: 'rif', key: 'rif', width: 15 },
+      { header: 'genero', key: 'genero', width: 10 },
+      { header: 'fecha_nacimiento', key: 'fecha_nacimiento', width: 20 },
+      { header: 'telefono', key: 'telefono', width: 20 },
+      { header: 'correo', key: 'correo', width: 30 },
+      { header: 'fecha_ingreso', key: 'fecha_ingreso', width: 20 },
+      { header: 'contrato', key: 'contrato', width: 20 },
+      { header: 'cargo', key: 'cargo', width: 20 },
+      { header: 'sueldo', key: 'sueldo', width: 15 },
+      { header: 'nro_cuenta', key: 'nro_cuenta', width: 25 },
+    ];
+
+    // Estilo para encabezados
+    sheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1F497D' },
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    // Fila de ejemplo (comentada para guía)
+    sheet.addRow({
+      cedula: '12345678',
+      fullname: 'JUAN PÉREZ',
+      rif: 'V12345678',
+      genero: 'M',
+      fecha_nacimiento: '1990-01-15',
+      telefono: '04141234567',
+      correo: 'juan@example.com',
+      fecha_ingreso: '2024-01-01',
+      contrato: 'Empleados',
+      cargo: 'ANALISTA',
+      sueldo: 5000,
+      nro_cuenta: '01750000000000000001',
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer as ArrayBuffer);
   }
 }
