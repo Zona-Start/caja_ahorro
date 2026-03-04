@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/components/ui/tooltip';
-import { CheckCircle, Edit, Send, Trash, XCircle } from 'lucide-react';
+import { CheckCircle, Edit, Eye, Send, Trash, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import {
   useCancelAccountingEntry,
@@ -18,6 +18,7 @@ import {
 } from '../../hooks/use-accounting-entry-mutation';
 import { AccountingEntry } from '../../schemas/accounting-entry.schema';
 import { AccountingEntryModal } from '../accounting-entry-modal';
+import { ViewAccountingEntryModal } from '../view-accounting-entry-modal';
 
 interface CellActionProps {
   data: AccountingEntry;
@@ -26,6 +27,7 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [alertOpen, setAlertOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
   const [action, setAction] = useState<
     'delete' | 'submit' | 'post' | 'cancel' | null
   >(null);
@@ -97,8 +99,30 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onOpenChange={setEditOpen}
         defaultValues={data}
       />
+      <ViewAccountingEntryModal
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        defaultValues={data}
+      />
 
       <div className="flex gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setViewOpen(true)}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Ver Detalle</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

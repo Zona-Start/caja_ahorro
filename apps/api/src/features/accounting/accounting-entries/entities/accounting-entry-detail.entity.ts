@@ -24,4 +24,10 @@ export class AccountingEntryDetail {
 
   @ApiProperty({ required: false })
   updatedAt?: Date;
+
+  @ApiProperty({ required: false })
+  account?: {
+    code: string;
+    name: string;
+  };
 }

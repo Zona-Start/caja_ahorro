@@ -22,7 +22,7 @@ export const accountingRuleSchema = z.object({
     'INVENTORY',
   ]),
   operationType: z.string().min(1, 'El tipo de operación es requerido'),
-  referenceId: z.number().nullable().optional(),
+  referenceValue: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   isActive: z.boolean().nullable().default(true),
   details: z.array(accountingRuleDetailSchema).optional(),

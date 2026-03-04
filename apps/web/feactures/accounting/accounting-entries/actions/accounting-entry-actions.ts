@@ -67,7 +67,6 @@ export const getPaginatedAccountingEntriesAction = async (params: {
 };
 
 export const createAccountingEntryAction = async (payload: AccountingEntry) => {
-  console.log(payload);
 
   // const transform = (data: any) => {
 
@@ -145,6 +144,7 @@ export const getAccountingEntryByIdAction = async (id: number) => {
     console.error('Error fetching accounting entry:', error);
     throw new Error(error.message || 'Error al obtener el asiento contable.');
   }
+
 
   return data;
 };

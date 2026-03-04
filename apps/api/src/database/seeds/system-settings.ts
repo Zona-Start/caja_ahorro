@@ -62,6 +62,39 @@ export async function seedSystemSetting(db: NodePgDatabase<typeof schema>) {
     await db
       .insert(systemSettings)
       .values({
+        key: 'FRECUENCIA-DESCUENTO',
+        value: 'Quincenal',
+        description: 'Frecuencia de Descuento por defecto',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'NRO-ASIENTO',
+        value: '0',
+        description: 'Último consecutivo Asiento Contable',
+        group: 'DOCUMENTS',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
+        key: 'PAYROLL-DEFAULT',
+        value: 'Aporte Empleados',
+        description: 'Tipo de nomina por defecto',
+        group: 'GENERAL',
+        createdById: 1,
+        updatedById: 1,
+      })
+      .onConflictDoNothing();
+    await db
+      .insert(systemSettings)
+      .values({
         key: 'UTILIDAD-PRODUCTO',
         value: '25',
         description: 'UTILIDAD PRODUCTO',

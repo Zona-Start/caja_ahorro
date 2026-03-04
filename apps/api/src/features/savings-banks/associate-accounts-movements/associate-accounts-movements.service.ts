@@ -176,29 +176,29 @@ export class AssociateAccountsMovementsService {
           createdById: userId,
         });
 
-        const paylodAuditData = {
-          associateAccountId,
-          movementType: movementType as AssociateMovementTypeEnum,
-          amount: amount.toString(),
-          currencyCode: currencyCode as CurrencyCodeEnum,
-          transactionDate,
-          description,
-          referenceId,
-          referenceType,
-          referenceNumber: reference,
-          exchangeRateId: exchangeRate?.id ?? null,
-        };
+        // const paylodAuditData = {
+        //   associateAccountId,
+        //   movementType: movementType as AssociateMovementTypeEnum,
+        //   amount: amount.toString(),
+        //   currencyCode: currencyCode as CurrencyCodeEnum,
+        //   transactionDate,
+        //   description,
+        //   referenceId,
+        //   referenceType,
+        //   referenceNumber: reference,
+        //   exchangeRateId: exchangeRate?.id ?? null,
+        // };
 
-        // Registra el log auditoria
-        await tx.insert(auditLogs).values({
-          tableName: 'associateAccountMovements',
-          recordId: String(newMovement.id),
-          action: 'INSERT',
-          userId: Number(userId),
-          area: area ? area : 'HABERES',
-          description: description ?? '',
-          newData: [paylodAuditData],
-        });
+        // // Registra el log auditoria
+        // await tx.insert(auditLogs).values({
+        //   tableName: 'associateAccountMovements',
+        //   recordId: String(newMovement.id),
+        //   action: 'INSERT',
+        //   userId: Number(userId),
+        //   area: area ? area : 'HABERES',
+        //   description: description ?? '',
+        //   newData: [paylodAuditData],
+        // });
 
         return {
           message: 'successful loaded movement',

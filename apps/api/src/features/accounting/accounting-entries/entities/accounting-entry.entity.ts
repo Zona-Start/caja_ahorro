@@ -20,6 +20,9 @@ export class AccountingEntry {
   description: string;
 
   @ApiProperty({ required: false })
+  voucherNo?: string;
+
+  @ApiProperty({ required: false })
   originReferenceId?: string;
 
   @ApiProperty({ required: false })

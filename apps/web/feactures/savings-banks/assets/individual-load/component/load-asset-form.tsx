@@ -67,6 +67,8 @@ export function LoadAssetsForm({
       associateAccountId: 0,
       movementType: 'SAVING_CONTRIBUTION',
       amount: 0,
+      employerAmount: 0,
+      associateAmount: 0,
       transactionDate: new Date(),
       description: '',
       paymentMethod: 'BANK_TRANSFER',
@@ -74,6 +76,9 @@ export function LoadAssetsForm({
       includeBankingDetails: false, // Por defecto activo para mejores prácticas
     },
   });
+
+  const movementType = form.watch('movementType');
+
 
   useEffect(() => {
     if (selectedAssociate) {
@@ -87,6 +92,8 @@ export function LoadAssetsForm({
         associateAccountId: 0,
         movementType: 'SAVING_CONTRIBUTION',
         amount: 0,
+        employerAmount: 0,
+        associateAmount: 0,
         transactionDate: new Date(),
         description: '',
         paymentMethod: 'BANK_TRANSFER',
@@ -198,36 +205,104 @@ export function LoadAssetsForm({
               </div>
 
               <div className="p-4 bg-primary/5 rounded-xl border border-primary/10">
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-primary font-bold">
-                        Monto del Depósito (VES)
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
-                            Bs.
-                          </span>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            className="pl-10 text-xl font-black h-12"
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
-                            disabled={isFormDisabled}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {movementType === 'EMPLOYER_CONTRIBUTION' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="employerAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-primary font-bold">
+                            Monto Aporte Patrono (VES)
+                          </FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
+                                Bs.
+                              </span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                className="pl-10 text-xl font-black h-12"
+                                placeholder="0.00"
+                                {...field}
+                                value={field.value ?? ''}
+                                onChange={(e) =>
+                                  field.onChange(Number(e.target.value))
+                                }
+                                disabled={isFormDisabled}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="associateAmount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-primary font-bold">
+                            Monto Aporte Asociado (VES)
+                          </FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
+                                Bs.
+                              </span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                className="pl-10 text-xl font-black h-12"
+                                placeholder="0.00"
+                                {...field}
+                                value={field.value ?? ''}
+                                onChange={(e) =>
+                                  field.onChange(Number(e.target.value))
+                                }
+                                disabled={isFormDisabled}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-primary font-bold">
+                          Monto del Depósito (VES)
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
+                              Bs.
+                            </span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              className="pl-10 text-xl font-black h-12"
+                              placeholder="0.00"
+                              {...field}
+                              value={field.value ?? ''}
+                              onChange={(e) =>
+                                field.onChange(Number(e.target.value))
+                              }
+                              disabled={isFormDisabled}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
 
               <FormField

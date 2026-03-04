@@ -240,11 +240,11 @@ export function LoadAssetsBulk() {
               </code>{' '}
               |{' '}
               <code className="bg-amber-200/50 px-1 rounded font-bold">
-                5501
+                APORTE EMPLEADOS
               </code>{' '}
               o{' '}
               <code className="bg-amber-200/50 px-1 rounded font-bold">
-                5800
+                DESCUENTOS CAJA
               </code>
               ).
             </p>

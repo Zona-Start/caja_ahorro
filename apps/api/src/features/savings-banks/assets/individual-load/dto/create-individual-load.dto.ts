@@ -18,9 +18,17 @@ export class IndividualLoadDto {
   @IsEnum(AssociateMovementTypeEnum)
   movementType: AssociateMovementTypeEnum;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  amount: number;
+  amount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  employerAmount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  associateAmount?: number;
 
   @IsNotEmpty()
   @IsDate()

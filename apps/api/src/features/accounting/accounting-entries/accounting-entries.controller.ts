@@ -194,17 +194,6 @@ export class AccountingEntriesController {
 
   /* ---------- UTILIDADES & CONSULTAS ---------- */
 
-  /* 1. Próximo número de comprobante por ciclo */
-  @Get('next-number')
-  @RequirePermissions('read:accounting-entries')
-  @ApiOperation({
-    summary: 'Obtener el próximo número de comprobante para un ciclo',
-  })
-  @ApiResponse({ status: 200, description: 'Número de comprobante siguiente.' })
-  async getNextVoucherNo(@Query('accountingCycleId') cycleId: string) {
-    const data = await this.accountingEntriesService.getNextVoucherNo(+cycleId);
-    return { message: 'Next voucher number fetched successfully', data };
-  }
 
   /* 2. Validar cuadre sin guardar */
   @Post('validate')

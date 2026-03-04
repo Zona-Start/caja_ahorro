@@ -10,6 +10,11 @@ export const accountingEntryDetailSchema = z.object({
   updatedAt: z.string().optional().nullable(),
   createdById: z.number().optional().nullable(),
   updatedById: z.number().optional().nullable(),
+  account: z
+    .object({
+      code: z.string(),
+    })
+    .optional(),
 });
 
 export const accountingEntrySchema = z.object({
@@ -18,9 +23,12 @@ export const accountingEntrySchema = z.object({
   accountingCycleId: z.number(),
   entryDate: z.string(),
   description: z.string(),
+  voucherNo: z.string().optional().nullable(),
   originReferenceId: z.string().optional().nullable(),
   originType: z.string().optional().nullable(),
   status: z.string().optional(),
+  postedAt: z.string().optional().nullable(),
+  createdAt: z.string().optional().nullable(),
   currencyCode: z.string(),
   details: z.array(accountingEntryDetailSchema),
 });

@@ -1,10 +1,19 @@
 import { useToastSystem } from '@/hooks/use-toast-system';
 import { queryKeys } from '@/lib/queryKeys';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { saveIndividualLoadAction } from '../actions/individual-load.action';
+import { useMutation, useQueryClient, UseMutationResult } from '@tanstack/react-query';
+import { 
+  bulkUploadIndividualLoadAction, 
+  downloadTemplateIndividualLoadAction, 
+  saveIndividualLoadAction 
+} from '../actions/individual-load.action';
 import { LoadAssest } from '../schemas/individual-load-schema';
 
-export function useIndividualLoadMutation() {
+export function useIndividualLoadMutation(): UseMutationResult<
+  string | undefined,
+  Error,
+  LoadAssest,
+  unknown
+> {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
@@ -13,8 +22,17 @@ export function useIndividualLoadMutation() {
       saveIndividualLoadAction(loadAssest),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.associatesForIndividualAssetLoad.all(),
+        queryKey:[queryKeys.associatesForIndividualAssetLoad.all(),
+          queryKeys.accountingEntries.all(),
+        queryKeys.accountingReports.balanceSheet(),
+        queryKeys.accountingReports.generalLedger(),
+        queryKeys.accountingReports.incomeStatement(),
+        queryKeys.accountingReports.journalBook(),
+        queryKeys.accountingReports.trialBalance(),
+        ] 
       });
+
+      
     },
   });
 }
@@ -22,18 +40,18 @@ export function useIndividualLoadMutation() {
 // Mutation hook para carga masiva desde Excel
 export function useBulkUploadIndividualLoad(
   onSuccess?: (data: { message: string; processedCount: number }) => void,
-) {
+): UseMutationResult<any, Error, FormData, unknown> {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (formData: FormData) =>
-      import('../actions/individual-load.action').then((m) =>
-        m.bulkUploadIndividualLoadAction(formData),
-      ),
+    mutationFn: (formData: FormData) => bulkUploadIndividualLoadAction(formData),
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.associatesForIndividualAssetLoad.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
       });
       if (response) {
         onSuccess?.(response);
@@ -49,14 +67,16 @@ export function useBulkUploadIndividualLoad(
 }
 
 // Mutation hook para descargar el template Excel
-export function useDownloadTemplateIndividualLoad() {
+export function useDownloadTemplateIndividualLoad(): UseMutationResult<
+  string,
+  Error,
+  void,
+  unknown
+> {
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: () =>
-      import('../actions/individual-load.action').then((m) =>
-        m.downloadTemplateIndividualLoadAction(),
-      ),
+    mutationFn: () => downloadTemplateIndividualLoadAction(),
     onSuccess: (base64: string) => {
       try {
         const binaryString = window.atob(base64);

@@ -9,9 +9,31 @@ import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<AccountingEntry>[] = [
   {
+    accessorKey: 'voucherNo',
+    header: 'Comprobante',
+    cell: ({ row }) => <span className="font-mono font-bold text-primary">{row.original.voucherNo || '-'}</span>,
+  },
+  {
     accessorKey: 'entryDate',
-    header: 'Fecha',
-    cell: ({ row }) => new Date(row.original.entryDate).toLocaleDateString(),
+    header: 'Fecha  Asiento',
+    cell: ({ row }) => {
+      const date = row.original.entryDate;
+      if (!date) return '-';
+      const dateStr = (date instanceof Date ? date.toISOString().split('T')[0] : String(date).split('T')[0]) || '';
+      const dateObj = new Date(dateStr.replace(/-/g, '/'));
+      return isNaN(dateObj.getTime()) ? '-' : dateObj.toLocaleDateString();
+    },
+  },
+  {
+    accessorKey: 'postedAt',
+    header: 'Contabilizado',
+    cell: ({ row }) => {
+      const date = row.original.postedAt;
+      if (!date) return '-';
+      const dateStr = (date instanceof Date ? date.toISOString().split('T')[0] : String(date).split('T')[0]) || '';
+      const dateObj = new Date(dateStr.replace(/-/g, '/'));
+      return isNaN(dateObj.getTime()) ? '-' : dateObj.toLocaleDateString();
+    },
   },
   {
     accessorKey: 'description',

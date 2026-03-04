@@ -80,8 +80,8 @@ export class CreateAccountingRuleDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsInt()
-  referenceId?: number;
+  @IsString()
+  referenceValue?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

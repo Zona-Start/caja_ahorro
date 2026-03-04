@@ -1,6 +1,9 @@
 import { useSafeQuery } from '@/hooks/use-safe-query';
 import { queryKeys } from '@/lib/queryKeys';
-import { getPaginatedAccountingEntriesAction } from '../actions/accounting-entry-actions';
+import {
+  getAccountingEntryByIdAction,
+  getPaginatedAccountingEntriesAction,
+} from '../actions/accounting-entry-actions';
 
 /**
  * Hook para obtener asientos contables paginados
@@ -12,5 +15,17 @@ export function usePaginatedAccountingEntries(params = {}) {
     queryKeys.accountingEntries.paginated(params),
     () => getPaginatedAccountingEntriesAction(params),
     { enabled: Object.keys(params).length > 0 },
+  );
+}
+
+/**
+ * Hook para obtener un asiento contable por ID
+ * @param id - ID del asiento contable
+ */
+export function useAccountingEntryById(id?: number) {
+  return useSafeQuery(
+    queryKeys.accountingEntries.detail(id?.toString() || ''),
+    () => getAccountingEntryByIdAction(id!),
+    { enabled: !!id },
   );
 }

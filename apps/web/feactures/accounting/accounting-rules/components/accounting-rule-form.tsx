@@ -69,7 +69,7 @@ export function AccountingRuleForm({
       category: defaultValues?.category || 'SAVINGS_BANK',
       operationType: defaultValues?.operationType || '',
       description: defaultValues?.description || '',
-      referenceId: defaultValues?.referenceId || null,
+      referenceValue: defaultValues?.referenceValue || null,
       isActive: defaultValues?.isActive ?? true,
       details:
         defaultValues?.details?.map((d) => ({
@@ -105,7 +105,7 @@ export function AccountingRuleForm({
       defaultValues.operationType === operationType
     )
       return;
-    form.setValue('referenceId', null);
+    form.setValue('referenceValue', null);
   }, [operationType, form, defaultValues]);
 
   const { fields, append, remove } = useFieldArray({
@@ -243,15 +243,14 @@ export function AccountingRuleForm({
     const usedReferences =
       otherRules
         ?.filter((r) => r.operationType === operationType)
-        .map((r) => r.referenceId) || [];
+        .map((r) => r.referenceValue) || [];
 
     let options: { label: string; value: string }[] = [];
 
     switch (operationType) {
       case 'SAVINGS_UPLOAD':
         options = [
-          { value: '1', label: 'Aporte Empleador' },
-          { value: '2', label: 'Aporte Asociado' },
+          { value: 'Aporte Voluntario', label: 'Aporte Voluntario' },
         ];
         break;
       case 'PAYROLL_CONCEPT':
@@ -287,7 +286,7 @@ export function AccountingRuleForm({
     }
 
     // 3. Filter output options
-    return options.filter((opt) => !usedReferences.includes(Number(opt.value)));
+    return options.filter((opt) => !usedReferences.includes(String(opt.value)));
   }, [
     operationType,
     withdrawalTypes,
@@ -480,16 +479,23 @@ export function AccountingRuleForm({
           {requiresReference && (
             <FormField
               control={form.control}
-              name="referenceId"
+              name="referenceValue"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Referencia Específica</FormLabel>
                   <FormControl>
                     <SelectSearchable
                       options={referenceOptions}
-                      onValueChange={(val) =>
-                        field.onChange(val ? Number(val) : null)
-                      }
+                      onValueChange={(val) => {
+                        field.onChange(val ? String(val) : null);
+                        const selectedOption = referenceOptions.find(
+                          (opt) => opt.value === val,
+                        );
+                        form.setValue(
+                          'referenceValue',
+                          selectedOption ? selectedOption.label : null,
+                        );
+                      }}
                       defaultValue={field.value?.toString() || ''}
                       placeholder="Seleccione Referencia"
                       disabled={readOnly}

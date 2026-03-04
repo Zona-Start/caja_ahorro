@@ -20,8 +20,16 @@ export const formSchema = z.object({
   ),
   amount: z.coerce
     .number()
-    .positive('El monto debe ser positivo')
-    .min(0.01, 'El monto debe ser mayor a 0'),
+    .min(0, 'El monto no puede ser negativo')
+    .optional(),
+  employerAmount: z.coerce
+    .number()
+    .min(0, 'El monto no puede ser negativo')
+    .optional(),
+  associateAmount: z.coerce
+    .number()
+    .min(0, 'El monto no puede ser negativo')
+    .optional(),
   transactionDate: z.date({
     required_error: 'Debe seleccionar una fecha',
   }),
@@ -30,6 +38,31 @@ export const formSchema = z.object({
   paymentMethod: z.string().optional(),
   referenceNumber: z.string().optional(),
   includeBankingDetails: z.boolean().default(false).optional(),
+}).superRefine((data, ctx) => {
+  if (data.movementType === 'EMPLOYER_CONTRIBUTION') {
+    if (!data.employerAmount || data.employerAmount <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe ser mayor a 0',
+        path: ['employerAmount'],
+      });
+    }
+    if (!data.associateAmount || data.associateAmount <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe ser mayor a 0',
+        path: ['associateAmount'],
+      });
+    }
+  } else {
+    if (!data.amount || data.amount <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'El monto debe ser mayor a 0',
+        path: ['amount'],
+      });
+    }
+  }
 });
 
 export type LoadAssest = z.infer<typeof formSchema>;

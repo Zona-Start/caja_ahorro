@@ -15,6 +15,9 @@ export class AccountingRule {
   referenceId?: number | null;
 
   @ApiProperty({ required: false, nullable: true })
+  referenceValue?: string | null;
+
+  @ApiProperty({ required: false, nullable: true })
   description?: string | null;
 
   @ApiProperty({ required: false, default: true, nullable: true })

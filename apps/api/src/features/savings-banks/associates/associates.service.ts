@@ -758,7 +758,7 @@ export class AssociatesService {
               .where(
                 and(
                   eq(categoryType.group, 'ASSOCIATED_TYPE'),
-                  eq(categoryType.description, row.contrato),
+                  ilike(categoryType.description, `%${row.contrato}%`),
                 ),
               );
             associatedTypeId = catType[0]?.id;
@@ -893,7 +893,7 @@ export class AssociatesService {
       const [payroll] = await this.drizzle
         .select({ id: typePayrolls.id })
         .from(typePayrolls)
-        .where(eq(typePayrolls.code, payrollSetting.value));
+        .where(ilike(typePayrolls.description, `%${payrollSetting.value}%`));
       payrollTypeId = payroll?.id;
     }
 
@@ -944,17 +944,15 @@ export class AssociatesService {
       if (rowNumber === 1) return;
 
       const cedula = this._cellValue(row.getCell(1));
-      const fullname = this._cellValue(row.getCell(2));
-      const rif = this._cellValue(row.getCell(3));
+      const rif = this._cellValue(row.getCell(2));
+      const fullname = this._cellValue(row.getCell(3));
       const genero = this._cellValue(row.getCell(4))?.toUpperCase();
-      const fechaNacimiento = this._cellValue(row.getCell(5));
-      const telefono = this._cellValue(row.getCell(6)) || undefined;
-      const correo = this._cellValue(row.getCell(7)) || undefined;
-      const fechaIngreso = this._cellValue(row.getCell(8));
-      const contrato = this._cellValue(row.getCell(9));
-      const cargo = this._cellValue(row.getCell(10));
-      const sueldo = parseFloat(this._cellValue(row.getCell(11)) || '0');
-      const nroCuenta = this._cellValue(row.getCell(12));
+      const contrato = this._cellValue(row.getCell(5));
+      const sueldo = parseFloat(this._cellValue(row.getCell(6)) || '0');
+      const fechaIngreso = this._cellValue(row.getCell(7));
+      const fechaNacimiento = this._cellValue(row.getCell(8));
+      const cargo = this._cellValue(row.getCell(9));
+      const nroCuenta = this._cellValue(row.getCell(10));
 
       if (!cedula || !fullname) return; // Saltar filas vacías
 
@@ -984,8 +982,6 @@ export class AssociatesService {
         nationality,
         gender,
         fechaNacimiento: this._formatDate(fechaNacimiento),
-        telefono,
-        correo,
         fechaIngreso: this._formatDate(fechaIngreso),
         contrato: contract,
         cargo,
@@ -995,7 +991,7 @@ export class AssociatesService {
     });
 
     return rows;
-  }
+  } 
 
   private _cellValue(cell: ExcelJS.Cell): string {
     const v = cell.value;
@@ -1028,17 +1024,15 @@ export class AssociatesService {
 
     sheet.columns = [
       { header: 'cedula', key: 'cedula', width: 15 },
-      { header: 'nombre_apellido', key: 'fullname', width: 30 },
       { header: 'rif', key: 'rif', width: 15 },
-      { header: 'genero', key: 'genero', width: 10 },
-      { header: 'fecha_nacimiento', key: 'fecha_nacimiento', width: 20 },
-      { header: 'telefono', key: 'telefono', width: 20 },
-      { header: 'correo', key: 'correo', width: 30 },
-      { header: 'fecha_ingreso', key: 'fecha_ingreso', width: 20 },
+      { header: 'nombre_apellido', key: 'fullname', width: 30 },
+      { header: 'sexo', key: 'genero', width: 10 },
       { header: 'contrato', key: 'contrato', width: 20 },
-      { header: 'cargo', key: 'cargo', width: 20 },
       { header: 'sueldo', key: 'sueldo', width: 15 },
-      { header: 'nro_cuenta', key: 'nro_cuenta', width: 25 },
+      { header: 'fecha_ingreso', key: 'fecha_ingreso', width: 20 },
+      { header: 'fecha_nacimiento', key: 'fecha_nacimiento', width: 20 },
+      { header: 'cargo', key: 'cargo', width: 20 },
+      { header: 'cuenta_nomina', key: 'nro_cuenta', width: 25 }
     ];
 
     // Estilo para encabezados
@@ -1055,16 +1049,14 @@ export class AssociatesService {
     // Fila de ejemplo (comentada para guía)
     sheet.addRow({
       cedula: '12345678',
-      fullname: 'JUAN PÉREZ',
       rif: 'V12345678',
+      fullname: 'JUAN PÉREZ',
       genero: 'M',
-      fecha_nacimiento: '1990-01-15',
-      telefono: '04141234567',
-      correo: 'juan@example.com',
-      fecha_ingreso: '2024-01-01',
       contrato: 'Empleados',
-      cargo: 'ANALISTA',
       sueldo: 5000,
+      fecha_ingreso: '2024-01-01',
+      fecha_nacimiento: '1990-01-15',
+      cargo: 'ANALISTA',
       nro_cuenta: '01750000000000000001',
     });
 

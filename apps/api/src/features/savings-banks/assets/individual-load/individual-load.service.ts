@@ -14,7 +14,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { eq } from 'drizzle-orm';
+import { eq, ilike } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -49,27 +49,89 @@ export class IndividualLoadService {
       }
 
       const companyId = account.associates.companyId;
+      const isEmployerContribution =
+        dto.movementType === 'EMPLOYER_CONTRIBUTION';
+      const results: any[] = [];
 
-      // 2. Crear movimiento del asociado
-      const payload = {
-        associateAccountId: dto.associateAccountId,
-        movementType: dto.movementType,
-        amount: dto.amount,
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: dto.transactionDate,
-        description: dto.description,
-        referenceType: 'BANK_TRANSACTION',
-        referenceNumber: dto.referenceNumber,
-      };
+      
+      let referenceValue: string | undefined = undefined;
 
-      const result = await this.associateMovementsService.create(
-        userId,
-        payload,
-        tx,
-      );
+      // 2. Crear movimiento(s) del asociado
+      if (isEmployerContribution) {
+        // Aporte Patronal: Se crean dos movimientos
+        const patronalPayload = {
+          associateAccountId: dto.associateAccountId,
+          movementType: 'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
+          amount: dto.employerAmount ?? 0,
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: dto.transactionDate,
+          description: dto.description || 'Aporte Patronal',
+          referenceType: 'BANK_TRANSACTION',
+          referenceNumber: dto.referenceNumber,
+        };
+
+        const associatePayload = {
+          associateAccountId: dto.associateAccountId,
+          movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+          amount: dto.associateAmount ?? 0,
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: dto.transactionDate,
+          description: dto.description || 'Aporte Asociado (Vía Patronal)',
+          referenceType: 'BANK_TRANSACTION',
+          referenceNumber: dto.referenceNumber,
+        };
+
+        const resultPatronal = await this.associateMovementsService.create(
+          userId,
+          patronalPayload,
+          tx,
+        );
+        const resultAsociado = await this.associateMovementsService.create(
+          userId,
+          associatePayload,
+          tx,
+        );
+        results.push(resultPatronal.data, resultAsociado.data);
+
+        const [payrroll] = await tx.select().from(schema.typePayrolls)
+          .where(ilike(schema.typePayrolls.description, 'Aporte Empleados'));
+
+          if (!payrroll) {
+            throw new BadRequestException('No existe un Concepto de nomina para Aporte Empleados, por tan razon no se puede crear el asiento contable');
+          }
+
+          referenceValue = String(payrroll.id);
+
+      } else {
+        // Aporte Voluntario: Un solo movimiento
+        const payload = {
+          associateAccountId: dto.associateAccountId,
+          movementType: dto.movementType,
+          amount: dto.amount ?? 0,
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          transactionDate: dto.transactionDate,
+          description: dto.description || 'Aporte Voluntario',
+          referenceType: 'BANK_TRANSACTION',
+          referenceNumber: dto.referenceNumber,
+        };
+
+        const result = await this.associateMovementsService.create(
+          userId,
+          payload,
+          tx,
+        );
+        results.push(result.data);
+        referenceValue = 'Aporte Voluntario';
+      }
+
+      const totalAmount = isEmployerContribution
+        ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
+        : (dto.amount ?? 0);
+
+      const mainMovementId = results[0].id;
 
       if (dto.bankAccountId) {
-        // 3. Crear movimiento bancario vinculado
+        // 3. Crear movimiento bancario vinculado (al primer movimiento o a la operación)
         const dataBank = {
           movement: {
             bankAccountId: dto.bankAccountId,
@@ -80,29 +142,31 @@ export class IndividualLoadService {
               `Abono a cuenta: ${account.associate_accounts.accountNumber}`,
             bankReference: dto.referenceNumber,
             category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
-            creditAmount: dto.amount,
+            creditAmount: totalAmount,
             debitAmount: 0,
             createdById: userId,
           },
-          links: [
-            {
-              internalRecordType: 'MEMBER_CONTRIBUTION',
-              internalRecordId: result.data.id,
-            },
-          ],
+          links: results.map((m) => ({
+            internalRecordType: 'MEMBER_CONTRIBUTION' as const,
+            internalRecordId: m.id,
+          })),
         };
+
         const bankResult = await this.bankMovementsService.createAndReconcile(
           dataBank,
           userId,
           tx,
         );
-        // 4. Actualizar el movimiento del asociado con el ID del banco
-        await tx
-          .update(schema.associateAccountMovements)
-          .set({
-            referenceId: bankResult.movement.id.toString(),
-          })
-          .where(eq(schema.associateAccountMovements.id, result.data.id));
+
+        // 4. Actualizar los movimientos del asociado con el ID del banco
+        for (const m of results) {
+          await tx
+            .update(schema.associateAccountMovements)
+            .set({
+              referenceId: bankResult.movement.id.toString(),
+            })
+            .where(eq(schema.associateAccountMovements.id, m.id));
+        }
       }
 
       // 5. Crear Asiento Contable Automático
@@ -111,24 +175,45 @@ export class IndividualLoadService {
           userId,
           {
             companyId: Number(companyId),
-            category: 'SAVINGS_BANK',
-            operationType: 'PAYROLL_CONCEPT', // Regla general de carga de haberes
+            category:  'SAVINGS_BANK',
+            operationType: isEmployerContribution ? 'PAYROLL_CONCEPT' : 'SAVINGS_UPLOAD', // Regla general de carga de haberes
             description:
               dto.description ||
-              `Carga individual de haberes - ${account.associates.fullname}`,
+              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes'} - ${account.associates.fullname}`,
             entryDate: dto.transactionDate ?? new Date(),
+            referenceValue,
             currencyCode: 'VES' as CurrencyCodeEnum,
-            originReferenceId: result.data.id.toString(),
-            originType: 'SAVINGS_INDIVIDUAL_LOAD',
+            originReferenceId: mainMovementId.toString(),
+            originType: 'SAVINGS_LOAD',
             items: [
               {
                 associateId: account.associates.id,
-                amounts: {
-                  ASSOCIATED_ACCOUNT: Number(dto.amount), // Haber para el asociado
-                  EMPLOYER_ACCOUNT: Number(dto.amount), // Debe para banco/caja
-                },
+                amounts: isEmployerContribution
+                  ? {
+                      ASSOCIATED_ACCOUNT: dto.associateAmount ?? 0,
+                      EMPLOYER_ACCOUNT: dto.employerAmount ?? 0,
+                    }
+                  : {
+                      ASSOCIATED_ACCOUNT: dto.amount ?? 0,
+                    },
+                descriptions: isEmployerContribution
+                  ? {
+                      ASSOCIATED_ACCOUNT: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                      EMPLOYER_ACCOUNT: `APORTE DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                    }
+                  : {
+                      ASSOCIATED_ACCOUNT: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                    },
               },
             ],
+            globalDescriptions: isEmployerContribution
+              ? {
+                  ASSOCIATED_ACCOUNT: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                  EMPLOYER_ACCOUNT: `APORTE DEL PATRONO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                }
+              : {
+                  ASSOCIATED_ACCOUNT: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                },
           },
           tx,
         );
@@ -151,14 +236,15 @@ export class IndividualLoadService {
         'audit.log',
         new AuditLogEvent({
           tableName: 'associate_account_movements',
-          recordId: result.data.id.toString(),
+          recordId: mainMovementId.toString(),
           action: 'INSERT',
           userId,
           area: 'savings_banks',
-          description: `Carga individual de haberes por ${dto.amount} Bs para asociado ${account.associates.fullname} (ID Asociado: ${account.associates.id})`,
+          description: `Carga de haberes por ${totalAmount} Bs para asociado ${account.associates.fullname} (Cédula Asociado: ${account.associates.cedula})`,
           newData: {
             associateId: account.associates.id,
-            amount: dto.amount,
+            amount: totalAmount,
+            type: dto.movementType,
           },
         }),
       );
@@ -166,7 +252,7 @@ export class IndividualLoadService {
       return {
         message:
           'Carga individual procesada exitosamente con su registro contable.',
-        movementId: result.data.id,
+        movementId: mainMovementId,
       };
     });
   }
@@ -179,9 +265,12 @@ export class IndividualLoadService {
 
     // Fila 1: tipo | 5501
     sheet.getCell('A1').value = 'tipo';
-    sheet.getCell('B1').value = '5501';
+    sheet.getCell('B1').value = 'APORTE EMPLEADOS';
     sheet.getCell('A1').font = { bold: true };
     sheet.getCell('B1').font = { bold: true, color: { argb: 'FFFF0000' } };
+    sheet.getCell('C1').value = 'fecha';
+    sheet.getCell('D1').value = '1989-01-01';
+    sheet.getCell('D1').font = { bold: true };
 
     // Fila 2: encabezados de tabla
     sheet.getCell('A2').value = 'cedula';
@@ -220,11 +309,31 @@ export class IndividualLoadService {
     }
 
     const typeCell = String(worksheet.getCell('B1').value || '').trim();
-    if (typeCell !== '5501' && typeCell !== '5800') {
+    if (typeCell !== 'APORTE EMPLEADOS' && typeCell !== 'DESCUENTOS CAJA') {
       throw new BadRequestException(
-        'El tipo de carga en la celda B1 debe ser 5501 o 5800',
+        'El tipo de carga en la celda B1 debe ser APORTE EMPLEADOS o DESCUENTOS CAJA',
       );
     }
+
+    const rawDateCell = worksheet.getCell('D1').value;
+    let validDate: Date;
+
+    if (rawDateCell instanceof Date) {
+      validDate = rawDateCell;
+    } else {
+      validDate = new Date(String(rawDateCell || ''));
+    }
+
+    if (isNaN(validDate.getTime()) || validDate.getFullYear() < 2000) {
+      throw new BadRequestException(
+        'La fecha en la celda D1 es inválida o muy antigua (debe ser posterior al año 2000)',
+      );
+    }
+
+    const day = String(validDate.getDate()).padStart(2, '0');
+    const month = String(validDate.getMonth() + 1).padStart(2, '0');
+    const year = validDate.getFullYear();
+    const dateCell = `${day}-${month}-${year}`;
 
     const rows: { cedula: string; monto: number }[] = [];
     worksheet.eachRow((row, rowNumber) => {
@@ -249,10 +358,26 @@ export class IndividualLoadService {
       let processedCount = 0;
       const accountingItems: Array<{
         associateId: number;
-        amounts: { ASSOCIATED_ACCOUNT: number; EMPLOYER_ACCOUNT: number };
+        amounts: { ASSOCIATED_ACCOUNT: number; EMPLOYER_ACCOUNT?: number };
+        descriptions?: Record<string, string>;
       }> = [];
 
       let companyId: number | null = null;
+      let referenceValueLookup: string | undefined = undefined;
+
+      // 1. Determinar el concepto de referencia según el tipo de carga
+
+      const [payrollConcept] = await tx
+        .select()
+        .from(schema.typePayrolls)
+        .where(ilike(schema.typePayrolls.description, typeCell));
+
+      if (!payrollConcept) {
+        throw new BadRequestException(
+          `No existe un Concepto de nómina para "${typeCell}", por tal razón no se puede crear el asiento contable`,
+        );
+      }
+      referenceValueLookup = String(payrollConcept.id);
 
       for (const row of rows) {
         // Buscar asociado
@@ -277,7 +402,7 @@ export class IndividualLoadService {
         if (!companyId) companyId = associate.companyId;
 
         // Crear movimientos según el tipo
-        if (typeCell === '5501') {
+        if (typeCell === 'APORTE EMPLEADOS') {
           // Aporte empleado
           await this.associateMovementsService.create(
             userId,
@@ -314,8 +439,13 @@ export class IndividualLoadService {
               ASSOCIATED_ACCOUNT: row.monto,
               EMPLOYER_ACCOUNT: row.monto,
             },
+            descriptions: {
+              ASSOCIATED_ACCOUNT: `AHORRO DEL ${dateCell}`,
+              EMPLOYER_ACCOUNT: `APORTE DEL ${dateCell}`,
+            },
           });
-        } else if (typeCell === '5800') {
+
+        } else if (typeCell === 'DESCUENTOS CAJA') {
           // Un solo movimiento
           await this.associateMovementsService.create(
             userId,
@@ -335,7 +465,9 @@ export class IndividualLoadService {
             associateId: associate.id,
             amounts: {
               ASSOCIATED_ACCOUNT: row.monto,
-              EMPLOYER_ACCOUNT: row.monto,
+            },
+            descriptions: {
+              ASSOCIATED_ACCOUNT: `APORTE DEL ${dateCell}`,
             },
           });
         }
@@ -352,12 +484,17 @@ export class IndividualLoadService {
               companyId: Number(companyId),
               category: 'SAVINGS_BANK',
               operationType: 'PAYROLL_CONCEPT', // Regla general de carga de haberes
-              description: `Carga masiva de haberes (Tipo: ${typeCell}) - ${processedCount} registros`,
+              description: `Carga masiva de haberes - ${processedCount} asociados`,
               entryDate: new Date(),
+              referenceValue: referenceValueLookup,
               currencyCode: 'VES' as CurrencyCodeEnum,
               originReferenceId: `BULK_${Date.now()}`,
               originType: 'SAVINGS_BULK_LOAD',
               items: accountingItems,
+              globalDescriptions: {
+                ASSOCIATED_ACCOUNT: `APORTES SOCIO DEL ${dateCell}`,
+                EMPLOYER_ACCOUNT: `APORTE DEL PATRONO DEL ${dateCell}`,
+              },
             },
             tx,
           );

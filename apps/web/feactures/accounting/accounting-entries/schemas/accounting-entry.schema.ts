@@ -9,6 +9,12 @@ export const accountingEntryDetailSchema = z.object({
   debit: z.number().min(0, 'El débito debe ser un valor positivo.'),
   credit: z.number().min(0, 'El crédito debe ser un valor positivo.'),
   description: z.string().optional(),
+  account: z
+    .object({
+      code: z.string(),
+      name: z.string(),
+    })
+    .optional(),
 });
 
 export const accountingEntrySchema = z.object({
@@ -19,9 +25,12 @@ export const accountingEntrySchema = z.object({
   }),
   entryDate: z.date({ required_error: 'La fecha es requerida.' }),
   description: z.string().min(1, 'La descripción es requerida.'),
+  voucherNo: z.string().optional().nullable(),
   originReferenceId: z.string().optional(),
   originType: z.string().optional(),
   status: statusEnum.optional(),
+  postedAt: z.union([z.date(), z.string()]).optional(),
+  createdAt: z.union([z.date(), z.string()]).optional(),
   currencyCode: z.string().min(1, 'La moneda es requerida.'),
   details: z
     .array(accountingEntryDetailSchema)

@@ -126,23 +126,54 @@ export class AccountingEntriesService {
     // 3. Extraer IDs de los asientos
     const entryIds = entryRows.map((entry) => entry.id);
 
+    // Formatear voucherNo con ceros a la izquierda (8 dígitos)
+    const formatVoucherNo = (no: number | null) =>
+      no ? no.toString().padStart(8, '0') : null;
+
     // 4. Consulta de detalles (Consulta separada usando inArray)
-    const detailRows = await this.drizzle
-      .select()
+    const detailRowsRaw = await this.drizzle
+      .select({
+        id: schema.accountingEntryDetails.id,
+        accountingEntryId: schema.accountingEntryDetails.accountingEntryId,
+        accountPlanId: schema.accountingEntryDetails.accountPlanId,
+        associateId: schema.accountingEntryDetails.associateId,
+        supplierId: schema.accountingEntryDetails.supplierId,
+        debit: schema.accountingEntryDetails.debit,
+        credit: schema.accountingEntryDetails.credit,
+        description: schema.accountingEntryDetails.description,
+        createdAt: schema.accountingEntryDetails.createdAt,
+        updatedAt: schema.accountingEntryDetails.updatedAt,
+        accountCode: schema.accountPlan.code,
+        accountName: schema.accountPlan.name,
+        associateCedula: schema.associates.cedula,
+      })
       .from(schema.accountingEntryDetails)
+      .leftJoin(
+        schema.accountPlan,
+        eq(schema.accountingEntryDetails.accountPlanId, schema.accountPlan.id),
+      )
+      .leftJoin(
+        schema.associates,
+        eq(schema.accountingEntryDetails.associateId, schema.associates.id),
+      )
       .where(
         inArray(schema.accountingEntryDetails.accountingEntryId, entryIds),
       );
 
     // 5. Crear mapa de detalles para un mapeo eficiente (Map<entryId, detail[]>)
-    const detailsMap = new Map<number, typeof detailRows>();
-    detailRows.forEach((detail) => {
-      const entryId = detail.accountingEntryId;
+    const detailsMap = new Map<number, any[]>();
+    detailRowsRaw.forEach((row) => {
+      const entryId = row.accountingEntryId;
       if (!detailsMap.has(entryId)) {
         detailsMap.set(entryId, []);
       }
-      // CORRECCIÓN: Usamos '!' para afirmar a TypeScript que el objeto no es undefined
-      detailsMap.get(entryId)!.push(detail);
+      detailsMap.get(entryId)!.push({
+        ...row,
+        account: {
+            code:row.associateCedula
+                  ? `${row.accountCode}.${row.associateCedula}` : row.accountCode
+        },
+      });
     });
 
     // 6. Mapeo final: Combinar cabeceras y detalles
@@ -155,6 +186,9 @@ export class AccountingEntriesService {
         companyId: entry.companyId,
         accountingCycleId: entry.accountingCycleId,
         description: entry.description,
+        voucherNo: entry.voucherNo
+          ? entry.voucherNo.toString().padStart(8, '0')
+          : undefined,
         entryDate: new Date(entry.entryDate),
         postedAt: entry.postedAt ? new Date(entry.postedAt) : undefined,
         originReferenceId: entry.originReferenceId || undefined,
@@ -188,18 +222,49 @@ export class AccountingEntriesService {
 
     if (!row) throw new NotFoundException(`Asiento ${id} no encontrado.`);
 
-    const details = await this.drizzle
-      .select()
+    const rows_details = await this.drizzle
+      .select({
+        id: schema.accountingEntryDetails.id,
+        accountingEntryId: schema.accountingEntryDetails.accountingEntryId,
+        accountPlanId: schema.accountingEntryDetails.accountPlanId,
+        associateId: schema.accountingEntryDetails.associateId,
+        supplierId: schema.accountingEntryDetails.supplierId,
+        debit: schema.accountingEntryDetails.debit,
+        credit: schema.accountingEntryDetails.credit,
+        description: schema.accountingEntryDetails.description,
+        createdAt: schema.accountingEntryDetails.createdAt,
+        updatedAt: schema.accountingEntryDetails.updatedAt,
+        accountCode: schema.accountPlan.code,
+        accountName: schema.accountPlan.name,
+        associateCedula: schema.associates.cedula,
+      })
       .from(schema.accountingEntryDetails)
+      .leftJoin(
+        schema.accountPlan,
+        eq(schema.accountingEntryDetails.accountPlanId, schema.accountPlan.id),
+      )
+      .leftJoin(
+        schema.associates,
+        eq(schema.accountingEntryDetails.associateId, schema.associates.id),
+      )
       .where(eq(schema.accountingEntryDetails.accountingEntryId, id));
+
+    const details = rows_details.map((d) => ({
+      ...d,
+      account: {
+      code: d.associateCedula
+                  ? `${d.accountCode}.${d.associateCedula}` : d.accountCode
+      },
+    }));
 
     return {
       ...row,
+      voucherNo: row.voucherNo ? row.voucherNo.toString().padStart(8, '0') : undefined,
       entryDate: new Date(row.entryDate),
       postedAt: row.postedAt ? new Date(row.postedAt) : undefined,
       currencyCode: row.currencyCode as CurrencyCodeEnum,
       status: row.status as entryStatusEnum,
-      details: details as AccountingEntryDetail[],
+      details: details as any[],
       originReferenceId: row.originReferenceId || undefined,
       originType: row.originType || undefined,
       updatedAt: row.updatedAt || undefined,
@@ -390,10 +455,14 @@ export class AccountingEntriesService {
     const db = tx ?? this.drizzle;
 
     return db.transaction(async (tx) => {
+      // Obtener y actualizar el siguiente número de comprobante
+      const voucherNo = await this.getNextVoucherNo(tx);
+
       const [entry] = await tx
         .insert(schema.accountingEntries)
         .values({
           ...dto,
+          voucherNo,
           entryDate: dto.entryDate.toISOString().split('T')[0],
           status: 'DRAFT',
           createdById: userId,
@@ -402,6 +471,7 @@ export class AccountingEntriesService {
 
       const details = dto.details.map((d) => ({
         ...d,
+        description: d.description || dto.description,
         accountingEntryId: entry.id,
         debit: d.debit.toString(),
         credit: d.credit.toString(),
@@ -412,8 +482,9 @@ export class AccountingEntriesService {
 
       const entryFormat = {
         ...entry,
-        entryDate: new Date(entry.entryDate), // Convert to Date
-        postedAt: entry.postedAt ? new Date(entry.postedAt) : null, // Convert to Date if exists
+        voucherNo: entry.voucherNo ? entry.voucherNo.toString().padStart(8, '0') : undefined,
+        entryDate: new Date(entry.entryDate),
+        postedAt: entry.postedAt ? new Date(entry.postedAt) : undefined,
       };
 
       return { ...entryFormat, details } as AccountingEntry;
@@ -427,34 +498,31 @@ export class AccountingEntriesService {
       companyId: number;
       category: string;
       operationType: string;
-      referenceId?: number;
+      referenceValue?: string;
       description: string;
       entryDate: Date;
       currencyCode: CurrencyCodeEnum;
       originReferenceId?: string;
       originType?: string;
+      globalDescriptions?: Record<string, string>;
       items: {
         associateId?: number;
         supplierId?: number;
-        amounts: Record<string, number>; // accountRole -> amount
+        amounts: Record<string, number>;
         description?: string;
+        descriptions?: Record<string, string>;
       }[];
     },
-    tx?: NodePgDatabase<typeof schema>, // Aceptar transacción de Drizzle
+    tx?: NodePgDatabase<typeof schema>,
   ): Promise<AccountingEntry | null> {
     const db = tx ?? this.drizzle;
-    // 1. Verificar si los asientos automáticos están habilitados
     const [setting] = await db
       .select()
       .from(schema.systemSettings)
       .where(eq(schema.systemSettings.key, 'ASIENTOS_AUTOMATICOS'));
 
-    if (!setting || setting.value !== 'SI') {
-      // Si no está habilitado, no hacemos nada (o podríamos loguear)
-      return null;
-    }
+    if (!setting || setting.value !== 'SI') return null;
 
-    // 2. Buscar la regla contable
     const rows = await db
       .select()
       .from(schema.accountingRules)
@@ -467,32 +535,25 @@ export class AccountingEntriesService {
           eq(schema.accountingRules.companyId, params.companyId),
           eq(schema.accountingRules.category, params.category),
           eq(schema.accountingRules.operationType, params.operationType),
-          params.referenceId
-            ? eq(schema.accountingRules.referenceId, params.referenceId)
-            : undefined, // Ignora el filtro si no hay un referenceId específico
+          params.referenceValue
+            ? eq(schema.accountingRules.referenceValue, params.referenceValue)
+            : undefined,
           eq(schema.accountingRules.isActive, true),
         ),
       );
 
     if (rows.length === 0) {
       throw new BadRequestException(
-        `No existe una regla contable configurada para: ${params.category} / ${params.operationType}${params.referenceId ? ` (Ref: ${params.referenceId})` : ''}`,
+        `No existe una regla contable configurada para: ${params.category} / ${params.operationType}${params.referenceValue ? ` (Ref: ${params.referenceValue})` : ''}`,
       );
     }
 
-    // 3. Validar ciclo contable
-    const cycle = await this.findActiveCycle(
-      params.companyId,
-      params.entryDate,
-    );
-
-    // 4. Preparar los detalles del asiento basados en los items y la regla
-    const detailsDraft: CreateAccountingEntryDetailDto[] = [];
-    const rule = rows[0].accounting_rules;
-
+    const cycle = await this.findActiveCycle(params.companyId, params.entryDate);
     const ruleDetails = rows
       .map((row) => row.accounting_rule_details)
-      .filter((detail) => detail !== null); // Filtramos por si la regla existe pero no tiene detalles
+      .filter((detail) => detail !== null);
+
+    const aggregatedDetails = new Map<string, any>();
 
     for (const item of params.items) {
       for (const ruleDetail of ruleDetails) {
@@ -501,29 +562,37 @@ export class AccountingEntriesService {
         if (amount === undefined || amount === 0) continue;
 
         const isDebit = ruleDetail.movementType === 'DEBIT';
+        const associateId = ruleDetail.isAuxiliary ? item.associateId : undefined;
+        const supplierId = ruleDetail.isAuxiliarySupplier ? item.supplierId : undefined;
 
-        detailsDraft.push({
-          accountPlanId: ruleDetail.accountPlanId,
-          debit: isDebit ? amount : 0,
-          credit: !isDebit ? amount : 0,
-          description: item.description || params.description,
-          associateId: ruleDetail.isAuxiliary ? item.associateId : undefined,
-          supplierId: ruleDetail.isAuxiliarySupplier
-            ? item.supplierId
-            : undefined,
-        } as any);
+        const description = (associateId || supplierId)
+          ? (item.descriptions?.[ruleDetail.accountRole] || item.description || params.description)
+          : (params.globalDescriptions?.[ruleDetail.accountRole] || item.description || params.description);
+
+        const key = `${ruleDetail.accountPlanId}-${associateId || 'null'}-${supplierId || 'null'}-${description}`;
+
+        if (aggregatedDetails.has(key)) {
+          const existing = aggregatedDetails.get(key);
+          existing.debit += isDebit ? amount : 0;
+          existing.credit += !isDebit ? amount : 0;
+        } else {
+          aggregatedDetails.set(key, {
+            accountPlanId: ruleDetail.accountPlanId,
+            debit: isDebit ? amount : 0,
+            credit: !isDebit ? amount : 0,
+            description,
+            associateId,
+            supplierId,
+          });
+        }
       }
     }
 
-    // 5. Validar partida doble y otros
-    await this.validateAccountingEntry(
-      params.companyId,
-      cycle.id,
-      params.entryDate,
-      detailsDraft,
-    );
+    const detailsDraft: CreateAccountingEntryDetailDto[] = Array.from(aggregatedDetails.values());
 
-    // 6. Ejecutar inserción (usando transacción externa si existe)
+    await this.validateAccountingEntry(params.companyId, cycle.id, params.entryDate, detailsDraft);
+
+    const voucherNo = await this.getNextVoucherNo(db);
     const [entry] = await db
       .insert(schema.accountingEntries)
       .values({
@@ -531,6 +600,7 @@ export class AccountingEntriesService {
         accountingCycleId: cycle.id,
         entryDate: params.entryDate.toISOString().split('T')[0],
         description: params.description,
+        voucherNo,
         originReferenceId: params.originReferenceId,
         originType: params.originType || params.operationType,
         currencyCode: params.currencyCode,
@@ -552,8 +622,9 @@ export class AccountingEntriesService {
 
     return {
       ...entry,
+      voucherNo: entry.voucherNo ? entry.voucherNo.toString().padStart(8, '0') : undefined,
       entryDate: new Date(entry.entryDate),
-      postedAt: entry.postedAt ? new Date(entry.postedAt) : null,
+      postedAt: entry.postedAt ? new Date(entry.postedAt) : undefined,
       details,
     } as AccountingEntry;
   }
@@ -676,15 +747,6 @@ export class AccountingEntriesService {
   }
 
   //extras
-
-  /* GET /api/entries/next-number?accountingCycleId=1 */
-  async getNextVoucherNo(accountingCycleId: number): Promise<number> {
-    const [{ next }] = await this.drizzle
-      .select({ next: sql<number>`coalesce(max(voucher_no),0) + 1` })
-      .from(schema.accountingEntries)
-      .where(eq(schema.accountingEntries.accountingCycleId, accountingCycleId));
-    return next;
-  }
 
   /* POST /api/entries/validate  (body = CreateAccountingEntryDto) */
   async validateDto(dto: CreateAccountingEntryDto): Promise<{
@@ -1109,5 +1171,34 @@ export class AccountingEntriesService {
       currencyCode: 'VES' as CurrencyCodeEnum,
       details,
     });
+  }
+  /* ---------- Helpers ---------- */
+  private async getNextVoucherNo(
+    tx: NodePgDatabase<typeof schema>,
+  ): Promise<number> {
+    const [setting] = await tx
+      .select()
+      .from(schema.systemSettings)
+      .where(eq(schema.systemSettings.key, 'NRO-ASIENTO'));
+
+    if (!setting) {
+      // Si no existe, lo creamos con 1
+      await tx.insert(schema.systemSettings).values({
+        key: 'NRO-ASIENTO',
+        value: '1',
+        description: 'Último consecutivo Asiento Contable',
+        group: 'DOCUMENTS',
+      });
+      return 1;
+    }
+
+    const nextValue = parseInt(setting.value, 10) + 1;
+
+    await tx
+      .update(schema.systemSettings)
+      .set({ value: nextValue.toString() })
+      .where(eq(schema.systemSettings.key, 'NRO-ASIENTO'));
+
+    return nextValue;
   }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "accounting"."accounting_entries" ADD COLUMN "voucher_no" integer;

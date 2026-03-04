@@ -103,6 +103,7 @@ export const accountingEntries = accountingSchema.table(
       .references(() => accountingCycles.id, { onDelete: 'restrict' }), // No borrar ciclo si tiene asientos
     entryDate: date('entry_date').notNull(), // Fecha contable del asiento
     description: text('description').notNull(),
+    voucherNo: integer('voucher_no'), // Número de comprobante correlativo
     originReferenceId: text('origin_reference_id'), // ID de la operación origen (loan_id, payment_id, etc.)
     originType: varchar('origin_type', { length: 50 }), // Tipo de operación origen ('LOAN_DISBURSEMENT', 'BANK_DEPOSIT', 'MANUAL_ENTRY')
     status: entryStatusEnum('status').notNull().default('DRAFT'), // Estado del asiento ej. PENDING, POSTED, CANCELLED
@@ -229,7 +230,7 @@ export const accountingRules = accountingSchema.table('accounting_rules', {
     .references(() => company.id),
   category: varchar('category', { length: 50 }).notNull().default('ACCOUNTING'), // SAVINGS_BANK, ADMINISTRATIVE, BANKING, ACCOUNTING, INVENTORY
   operationType: varchar('operation_type').notNull(), // Ej: PAYROLL_CONCEPT, LOAN_APP
-  referenceId: integer('reference_id'), // ID del Concepto, Tipo de Préstamo, etc.
+  referenceValue: varchar('reference_value', { length: 255 }), // Texto del valor de la selección
   description: text('description'),
   isActive: boolean('is_active').default(true),
 });
