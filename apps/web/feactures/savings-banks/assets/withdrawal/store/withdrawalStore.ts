@@ -19,8 +19,8 @@ interface WithdrawalState {
   setWithdrawalSummary: (summary: WithdrawalState['withdrawalSummary']) => void;
   formValues: any; // Considera tipar esto de forma más específica si es posible
   setFormValues: (values: any) => void;
-  // Nueva acción para limpiar los datos relacionados con el asociado y el préstamo
-  clearAllLoanData: () => void;
+  // Nueva acción para limpiar los datos relacionados con el retiro
+  clearAllWithdrawalData: () => void;
 }
 
 const initialState = {
@@ -52,15 +52,13 @@ export const useWithdrawalStore = create<WithdrawalState>((set) => ({
   setFormValues: (values) => set({ formValues: values }),
 
   // Nueva acción implementada
-  clearAllLoanData: () =>
+  clearAllWithdrawalData: () =>
     set({
       selectedAssociate: initialState.selectedAssociate,
+      selectedWithdrawlType: initialState.selectedWithdrawlType,
       withdrawalSummary: initialState.withdrawalSummary,
       formValues: initialState.formValues,
-      // Opcional: decidir si `clearAllLoanData` debe también activar `shouldClearSearch`.
-      // Si la intención es que al limpiar los datos del préstamo también se limpie la UI de búsqueda,
-      // entonces poner `shouldClearSearch: true` aquí tiene sentido.
-      // El componente de búsqueda luego escucharía este cambio y actuaría (limpiando el input).
+      enabledTime: initialState.enabledTime,
       shouldClearSearch: true,
     }),
 }));

@@ -173,3 +173,21 @@ export const saveWithdrawalAction = async (withdrawal: Withdrawal) => {
     throw new Error(error.message || 'Error saving withdrawal data');
   }
 };
+
+export const disburseWithdrawalAction = async (id: number, payload: any) => {
+  const [error, data] = await safeFetchApi(
+    withdrawalMutationSchema,
+    `/savings-banks/withdrawal-associate/${id}/disburse`,
+    'PATCH',
+    {
+      ...payload,
+      processedAt: payload.processedAt.toISOString(),
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Error disburse withdrawal Management');
+  }
+
+  return data;
+};

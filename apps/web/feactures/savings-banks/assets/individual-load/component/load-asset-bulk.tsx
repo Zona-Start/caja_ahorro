@@ -233,7 +233,7 @@ export function LoadAssetsBulk() {
               Importante: Estructura del archivo
             </p>
             <p>
-              La plantilla debe contener en la 1ra fila el identificador del
+              La plantilla debe contener en la 1era Columna de la 1ra fila el identificador del
               proceso (Ej:{' '}
               <code className="bg-amber-200/50 px-1 rounded font-bold">
                 tipo
@@ -245,6 +245,18 @@ export function LoadAssetsBulk() {
               o{' '}
               <code className="bg-amber-200/50 px-1 rounded font-bold">
                 DESCUENTOS CAJA
+              </code>
+              ).
+            </p>
+             <p>
+              La plantilla debe contener en la 2da Columna de la 1era fila el identificador del
+              fecha (Ej:{' '}
+              <code className="bg-amber-200/50 px-1 rounded font-bold">
+                fecha
+              </code>{' '}
+              |{' '}
+              <code className="bg-amber-200/50 px-1 rounded font-bold">
+                2026-01-01
               </code>
               ).
             </p>

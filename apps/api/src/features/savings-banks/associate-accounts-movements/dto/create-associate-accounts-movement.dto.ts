@@ -1,4 +1,4 @@
-import { AssociateMovementTypeEnum, CurrencyCodeEnum } from '@/types/enum';
+import { AssociateMovementTypeEnum, CurrencyCodeEnum, movementStatusEnum } from '@/types/enum';
 import {
   IsDate,
   IsEnum,
@@ -48,4 +48,8 @@ export class CreateAssociateAccountsMovementDto {
   @IsOptional()
   @IsString()
   area?: string;
+
+  @IsOptional()
+  @IsEnum(movementStatusEnum)
+  status?: movementStatusEnum;
 }

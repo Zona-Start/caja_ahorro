@@ -23,6 +23,7 @@ import {
   loanModalityTypeEnum,
   loanPaymentTypeEnum,
   loanStatusEnum,
+  movementStatusEnum,
   nationalityEnum,
   paymentBatchItemType,
   paymentBatchStatus,
@@ -165,6 +166,7 @@ export const associateAccountMovements = savingsBanksSchema.table(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
     ),
+    status: movementStatusEnum('status').notNull().default('PENDING'),
     ...timestamps,
   },
   (table) => ({

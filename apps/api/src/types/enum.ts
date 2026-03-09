@@ -472,3 +472,9 @@ export enum closingTypeEnum {
   MONTH = 'MONTH',
   YEAR = 'YEAR',
 }
+
+export enum movementStatusEnum {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}

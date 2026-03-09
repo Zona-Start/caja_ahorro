@@ -14,6 +14,7 @@ import {
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CreateWithdrawalAssociateDto } from './dto/create-withdrawal-associate.dto';
 import { FilterWithdrawalAssociateDto } from './dto/filter-withdrawal-associate.dto';
+import { DisburseWithdrawalAssociateDto } from './dto/disburse-withdrawal-associate.dto';
 import { WithdrawalAssociateService } from './withdrawal-associate.service';
 
 @Controller('savings-banks/withdrawal-associate')
@@ -98,6 +99,23 @@ export class WithdrawalAssociateController {
   approve(@Req() req: Request, @Param('id') id: string) {
     const userId = req['user'].id;
     return this.service.approve(+id, userId);
+  }
+
+  @Patch(':id/disburse')
+  @RequirePermissions('disburse:withdrawal-associate')
+  @ApiOperation({ summary: 'Disburse an approved withdrawal request' })
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal disbursed successfully.',
+  })
+  @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
+  disburse(
+    @Req() req: Request,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DisburseWithdrawalAssociateDto,
+  ) {
+    const userId = req['user'].id;
+    return this.service.disburse(id, dto, userId);
   }
 
   @Delete(':id')

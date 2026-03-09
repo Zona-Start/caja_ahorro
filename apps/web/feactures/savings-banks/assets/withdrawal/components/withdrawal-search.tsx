@@ -17,9 +17,10 @@ import { Separator } from '@repo/shadcn/components/ui/separator';
 import { Input } from '@repo/shadcn/input';
 import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Search, User, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react'; // Import useCallback
-import { useAssociatesByCedula } from '../hooks/use-query-individual-withdrawal'; // Ajusta la ruta si es necesario
-import { useWithdrawalStore } from '../store/withdrawalStore'; // Ajusta la ruta si es necesario
+import { useCallback, useEffect, useState } from 'react';
+import { useAssociatesByCedula } from '../hooks/use-query-individual-withdrawal';
+import { useWithdrawalStore } from '../store/withdrawalStore';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface WithdrawalSearchProps {
   currentCurrencyCode: string | undefined;
@@ -32,21 +33,17 @@ const hasElapsedMonths = (
   allowedMonths: number,
   lastOperationDate: Date | null,
 ): boolean => {
+  if (lastOperationDate === null) return true;
+  
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
-
-  if (lastOperationDate === null) {
-    return true;
-  }
   const lastOperationYear = lastOperationDate.getFullYear();
   const lastOperationMonth = lastOperationDate.getMonth();
 
-  // Calculate the difference in months between the two dates
   const monthDifference =
     (currentYear - lastOperationYear) * 12 +
     (currentMonth - lastOperationMonth);
 
-  // Check if the difference is greater than or equal to the allowed number of months
   return monthDifference >= allowedMonths;
 };
 
@@ -56,229 +53,154 @@ export function WithdrawalSearch({
   isEdit = false,
 }: WithdrawalSearchProps) {
   const toast = useToastSystem();
+  const queryClient = useQueryClient();
+  const { generalConfig } = useSystemConfigStore();
+  
   const {
     selectedAssociate,
     setSelectedAssociate,
     shouldClearSearch,
     setShouldClearSearch,
-    clearAllLoanData,
+    clearAllWithdrawalData,
     enabledTime,
     setEnabledTime,
   } = useWithdrawalStore();
 
-  const [searchTerm, setSearchTerm] = useState(''); // Controla el valor del input
-  const [submittedSearchTerm, setSubmittedSearchTerm] = useState(''); // Término enviado para la búsqueda
-
-  const [shouldFetch, setShouldFetch] = useState(false); // Flag para iniciar la búsqueda
-  const { generalConfig } = useSystemConfigStore();
-  const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [submittedSearchTerm, setSubmittedSearchTerm] = useState('');
 
   const {
-    data: associateData, // Renombrar para evitar conflicto con 'data' en useEffect
+    data: associateData,
     error,
     isError,
-    isLoading, // Usar isLoading directamente del hook
+    isFetching,
+    refetch,
   } = useAssociatesByCedula(submittedSearchTerm, {
-    enabled: shouldFetch && !!submittedSearchTerm.trim(), // Activar solo si shouldFetch es true y hay un término
+    enabled: !!submittedSearchTerm.trim(),
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Efecto para manejar los resultados de la búsqueda y el estado post-búsqueda
+  const clearAssociate = useCallback(() => {
+    clearAllWithdrawalData();
+    setSelectedAssociate(null);
+    setSearchTerm('');
+    setSubmittedSearchTerm('');
+    setEnabledTime(true);
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.associatesForWithdrawal._def,
+    });
+  }, [clearAllWithdrawalData, queryClient, setSelectedAssociate, setEnabledTime]);
+
+  const handleSearch = useCallback(() => {
+    const trimmedSearchTerm = searchTerm.trim();
+    if (!trimmedSearchTerm) return;
+
+    if (trimmedSearchTerm === submittedSearchTerm) {
+      refetch();
+    } else {
+      setSelectedAssociate(null);
+      setSubmittedSearchTerm(trimmedSearchTerm);
+    }
+  }, [searchTerm, submittedSearchTerm, refetch, setSelectedAssociate]);
+
+  // Manejar resultados de búsqueda
   useEffect(() => {
-    if (!shouldFetch && !submittedSearchTerm) {
-      // No actuar si no se ha iniciado una búsqueda explícita y no estamos cargando.
+    if (isFetching || !submittedSearchTerm) return;
+
+    if (isError) {
+      setSelectedAssociate(null);
+      const errorMessage = (error as any)?.message || '';
+      const status = (error as any)?.response?.status;
+
+      if (errorMessage.includes('not found') || status === 404) {
+        toast.info({
+          title: 'Asociado no encontrado',
+          description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
+        });
+      } else {
+        toast.error({
+          title: 'Error en la búsqueda',
+          description: 'No se pudo obtener la información del asociado.',
+        });
+      }
+      setSubmittedSearchTerm('');
       return;
     }
 
-    if (isLoading) {
-      // La búsqueda está en progreso.
-      return;
-    }
-
-    // Si llegamos aquí, isLoading es false. La búsqueda ha terminado o no se ha iniciado una nueva válida.
-    if (shouldFetch) {
-      // Solo si *nosotros* activamos la búsqueda
-      setShouldFetch(false); // Reseteamos nuestro flag, la query ya se ejecutó o falló.
-
-      if (isError) {
-        setSelectedAssociate(null);
-        const errorMessage = (error as any)?.message || 'Error desconocido';
-        const status = (error as any)?.response?.status;
-
-        if (errorMessage.includes('not found') || status === 404) {
-          toast.info({
-            title: 'Asociado no encontrado',
-            description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
-          });
-        } else if (errorMessage.includes('retired')) {
-          toast.info({
-            title: 'Asociado retirado',
-            description:
-              'el asociado está liquidado de la caja de ahorro y no puede ser seleccionado.',
-          });
-        } else if (errorMessage.includes('inactive')) {
+    if (associateData && submittedSearchTerm === associateData.cedula) {
+      if (
+        ['APPROVED', 'REQUESTED', 'PENDING_DISBURSEMENT_BANK_BATCH'].includes(
+          associateData.withdrawalStatus ?? '',
+        )
+      ) {
+        toast.warning({
+          title: `Retiro pendiente`,
+          description: `El asociado ${associateData.fullname} ya tiene un proceso de retiro en curso (${associateData.withdrawalStatus || 'PENDIENTE'}).`,
+        });
+        clearAssociate();
+      } else if (associateData.withdrawalStatus === 'DISBURSED') {
+        const timeConfig = generalConfig.find((item) => item.key === 'TIEMPO_RETIRO');
+        const lastDate = associateData.withdrawalDate ? new Date(associateData.withdrawalDate) : null;
+        const isAllowed = hasElapsedMonths(new Date(), Number(timeConfig?.value || 6), lastDate);
+        
+        setEnabledTime(isAllowed);
+        if (!isAllowed) {
           toast.warning({
-            title: `Asociado inactivo`,
-            description:
-              'el asociado está inactivo y no puede ser seleccionado.',
-          });
-        } else {
-          toast.error({
-            title: 'Error realizando la búsqueda',
-            description: 'Conctate con el administrador del sistema.',
-          });
-        }
-      } else if (associateData) {
-        if (
-          associateData.withdrawalStatus === 'APPROVED' ||
-          associateData.withdrawalStatus === 'REQUESTED' ||
-          associateData.withdrawalStatus === 'PENDING_DISBURSEMENT_BANK_BATCH'
-        ) {
-          toast.warning({
-            title: `No se puede realizar retiros para ${associateData.fullname}`,
-            description: `Debe desembolsar el ultimo retiro realizado`,
+            title: `Restricción de tiempo`,
+            description: `Debe transcurrir al menos ${timeConfig?.value || 6} meses desde el último retiro.`,
           });
           clearAssociate();
-        } else if (associateData.withdrawalStatus === 'DISBURSED') {
-          const findTime = generalConfig.filter(
-            (item) => item.key === 'TIEMPO_RETIRO',
-          );
-
-          const withdrawalDate = associateData?.withdrawalDate
-            ? new Date(associateData.withdrawalDate)
-            : null;
-          const BlockedTime = hasElapsedMonths(
-            new Date(),
-            Number(findTime[0]?.value),
-            withdrawalDate,
-          );
-          setEnabledTime(BlockedTime);
-          if (!BlockedTime) {
-            toast.warning({
-              title: `No se puede realizar retiros para ${associateData.fullname}`,
-              description: `Tiene menos de 6 meses último retiro`,
-            });
-            clearAssociate();
-          } else {
-            setSelectedAssociate(associateData);
-          }
         } else {
           setSelectedAssociate(associateData);
         }
-      } else if (submittedSearchTerm && !associateData) {
-        // La búsqueda fue "exitosa" (sin error de red/servidor) pero no devolvió datos
-        setSelectedAssociate(null);
-        setEnabledTime(true);
-        toast.info({
-          title: 'Información no disponible',
-          description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
-        });
+      } else {
+        setSelectedAssociate(associateData);
       }
+      setSubmittedSearchTerm('');
     }
-  }, [
-    associateData,
-    error,
-    isError,
-    isLoading,
-    setSelectedAssociate,
-    submittedSearchTerm,
-    shouldFetch,
-  ]);
+  }, [associateData, error, isError, isFetching, submittedSearchTerm, generalConfig, setSelectedAssociate, setEnabledTime, clearAssociate, toast]);
 
-  // Efecto para limpiar el input y la selección cuando shouldClearSearch (del store) es true
+  // Limpiar búsqueda desde el store
   useEffect(() => {
     if (shouldClearSearch) {
       setSearchTerm('');
       setSubmittedSearchTerm('');
       setSelectedAssociate(null);
       setEnabledTime(true);
-      // Resetea el flag en el store para evitar bucles.
-      if (typeof setShouldClearSearch === 'function') {
-        setShouldClearSearch(false);
-      }
-      // Opcional: Limpiar caché aquí también si es necesario,
-      // aunque clearAssociate se encarga de ello al ser llamado.
-      // queryClient.removeQueries({ queryKey: ['associates-by-cedula'] });
+      setShouldClearSearch(false);
     }
-  }, [
-    shouldClearSearch,
-    setShouldClearSearch,
-    setSelectedAssociate,
-    queryClient,
-  ]);
+  }, [shouldClearSearch, setShouldClearSearch, setSelectedAssociate, setEnabledTime]);
 
-  const handleSearch = useCallback(() => {
-    const trimmedSearchTerm = searchTerm.trim();
-    if (!trimmedSearchTerm) {
-      toast.warning({
-        title: 'Campo vacío',
-        description: 'Por favor, ingrese una cédula para buscar.',
-      });
-      return;
-    }
-
-    // Limpiar caché y estado antes de nueva búsqueda
-    queryClient.removeQueries({
-      queryKey: ['withdrawal-associate-individual'],
-      exact: false,
-    });
-
-    // Limpiar estado previo
-    setSelectedAssociate(null);
-
-    setSubmittedSearchTerm(trimmedSearchTerm);
-    setShouldFetch(true); // Activa la ejecución del hook
-  }, [searchTerm, queryClient, setSelectedAssociate]);
-
-  const clearAssociate = useCallback(() => {
-    clearAllLoanData();
-    setSelectedAssociate(null);
-    setSearchTerm('');
-    setSubmittedSearchTerm('');
-    setShouldFetch(false);
-    setEnabledTime(true);
-    queryClient.removeQueries({
-      queryKey: ['withdrawal-associate-individual'],
-      exact: false,
-    });
-  }, [clearAllLoanData, queryClient, setSelectedAssociate, setEnabledTime]);
-
-  // Efecto para manejar la tecla Enter en la búsqueda
+  // Tecla Enter
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (
         e.key === 'Enter' &&
         document.activeElement === document.getElementById('associate-search')
       ) {
-        e.preventDefault(); // Previene submit de formulario si está dentro de uno
+        e.preventDefault();
         handleSearch();
       }
     };
-
     window.addEventListener('keypress', handleKeyPress);
     return () => window.removeEventListener('keypress', handleKeyPress);
-  }, [handleSearch]); // handleSearch está memoizado con useCallback
+  }, [handleSearch]);
 
   const formatBalance = () => {
     if (selectedAssociate?.balance !== undefined && currentCurrencyCode) {
+      const balance = Number(selectedAssociate.balance);
       if (currentCurrencyCode === 'USD' && currentExchangeRate) {
-        const balance = Number(selectedAssociate.balance);
-        const exchangeRate = Number(currentExchangeRate);
-        const convertedBalance = balance / exchangeRate;
-        return convertedBalance.toFixed(2);
+        return (balance / Number(currentExchangeRate)).toFixed(2);
       }
-      return formatCurrency(Number(selectedAssociate.balance), 'VES');
+      return formatCurrency(balance, (currentCurrencyCode as any) || 'VES');
     }
     return '';
   };
 
-  const hasBlocks =
-    selectedAssociate?.totalLoansAssociate !== 0
-      ? true
-      : selectedAssociate?.totalCreditsAssociate !== 0
-        ? true
-        : selectedAssociate?.isPayrollCredit
-          ? true
-          : false;
+  const hasBlocks = 
+    selectedAssociate?.totalLoansAssociate !== 0 ||
+    selectedAssociate?.totalCreditsAssociate !== 0 ||
+    !!selectedAssociate?.isPayrollCredit;
 
   return (
     <Card>
@@ -287,11 +209,11 @@ export function WithdrawalSearch({
           <IconWrapper className="w-8 h-8">
             <User />
           </IconWrapper>
-          {isEdit ? 'Datos del Asociado' : 'Busqueda de Asociado'}
+          {isEdit ? 'Datos del Asociado' : 'Búsqueda de Asociado'}
         </CardTitle>
         {!isEdit && (
           <CardDescription>
-            Busque y seleccione el asociado para el pago del préstamo
+            Busque y seleccione el asociado para el pago del retiro
           </CardDescription>
         )}
       </CardHeader>
@@ -305,14 +227,14 @@ export function WithdrawalSearch({
                   placeholder="Buscar por cédula..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  disabled={isLoading} // Deshabilitar mientras carga
+                  disabled={isFetching}
                 />
               </div>
               <Button
                 onClick={handleSearch}
-                disabled={!searchTerm.trim() || isLoading}
+                disabled={!searchTerm.trim() || isFetching}
               >
-                {isLoading ? (
+                {isFetching ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Search className="h-4 w-4" />
@@ -322,18 +244,16 @@ export function WithdrawalSearch({
             </div>
           )}
 
-          {/* Visualización del asociado seleccionado o estado vacío/carga */}
-          {isLoading &&
-            !selectedAssociate && ( // Mostrar solo si estamos cargando y no hay un asociado previo
-              <div className="rounded-lg border border-dashed p-8 text-center mt-4">
-                <div className="flex flex-col items-center justify-center text-muted-foreground">
-                  <Loader2 className="h-8 w-8 mb-2 animate-spin" />
-                  <p>Buscando asociado...</p>
-                </div>
+          {isFetching && !selectedAssociate && (
+            <div className="rounded-lg border border-dashed p-8 text-center mt-4">
+              <div className="flex flex-col items-center justify-center text-muted-foreground">
+                <Loader2 className="h-8 w-8 mb-2 animate-spin" />
+                <p>Buscando asociado...</p>
               </div>
-            )}
+            </div>
+          )}
 
-          {!isLoading && selectedAssociate && (
+          {!isFetching && selectedAssociate && (
             <div className="rounded-lg border p-4 mt-4">
               <div className="flex justify-between items-start">
                 <div className="flex flex-col items-start">
@@ -352,7 +272,7 @@ export function WithdrawalSearch({
                     variant="ghost"
                     size="icon"
                     onClick={clearAssociate}
-                    disabled={isLoading} // Aunque isLoading debería ser false aquí
+                    disabled={isFetching}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -366,32 +286,28 @@ export function WithdrawalSearch({
                   {formatBalance()}
                 </span>
               </div>
+              
               {hasBlocks && (
                 <div className="flex items-center justify-center mt-4">
-                  <Badge
-                    className={`text-white text-lg bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700`}
-                  >
-                    {selectedAssociate?.isPayrollCredit &&
-                    selectedAssociate?.isPayrollCredit
-                      ? 'Alerta!! posee un credinomina activo'
-                      : 'Bloqueado posee un préstamo o crédito sin cancelar'}
+                  <Badge className="text-white text-lg bg-red-500 hover:bg-red-600">
+                    {selectedAssociate?.isPayrollCredit
+                      ? 'Alerta!! posee un credinómina activo'
+                      : 'Bloqueado, posee un préstamo o crédito pendiente'}
                   </Badge>
                 </div>
               )}
 
               {!enabledTime && (
                 <div className="flex items-center justify-center mt-4">
-                  <Badge
-                    className={`text-white text-lg bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700`}
-                  >
-                    Bloqueado, Tiene menos de 6 meses último retiro
+                  <Badge className="text-white text-lg bg-red-500 hover:bg-red-600">
+                    Bloqueado, tiene menos de 6 meses desde el último retiro
                   </Badge>
                 </div>
               )}
             </div>
           )}
 
-          {!isLoading && !selectedAssociate && (
+          {!isFetching && !selectedAssociate && (
             <div className="rounded-lg border border-dashed p-8 text-center mt-4">
               <div className="flex flex-col items-center justify-center text-muted-foreground">
                 <User className="h-8 w-8 mb-2" />

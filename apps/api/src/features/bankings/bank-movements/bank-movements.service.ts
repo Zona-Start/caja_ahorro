@@ -641,16 +641,16 @@ export class BankMovementsService {
 
       // 4.  Cierra documentos y genera asiento
       for (const l of dto.links) {
-        await this.closeInternalDocument(
-          l.internalRecordType,
-          l.internalRecordId,
-          bankTransactionId,
-          mov.debitAmount ?? '0',
-          mov.creditAmount ?? '0',
-          userId,
-          tx,
-          mov,
-        );
+        // await this.closeInternalDocument(
+        //   l.internalRecordType,
+        //   l.internalRecordId,
+        //   bankTransactionId,
+        //   mov.debitAmount ?? '0',
+        //   mov.creditAmount ?? '0',
+        //   userId,
+        //   tx,
+        //   mov,
+        // );
         //await this.createAccountingEntry(l.internalRecordType, mov, tx); //generar asiento
       }
 
@@ -684,38 +684,38 @@ export class BankMovementsService {
         .where(eq(schema.withdrawalsAssociates.id, id));
 
       // 2. Movimiento interno (crédito a asociado)
-      await this.assocMvts.create(userId, {
-        associateAccountId: result.associateAccountId as number,
-        movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
-        amount: Number(result.requestedAmount),
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: new Date(),
-        description: `Desembolso de retiro - REF: ${result.referenceCode}`,
-        referenceId: String(btId),
-        referenceType: dataBank.category,
-        referenceNumber: dataBank.bankReference ?? undefined,
-        area: 'Retiros',
-      });
+      // await this.assocMvts.create(userId, {
+      //   associateAccountId: result.associateAccountId as number,
+      //   movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+      //   amount: Number(result.requestedAmount),
+      //   currencyCode: 'VES' as CurrencyCodeEnum,
+      //   transactionDate: new Date(),
+      //   description: `Desembolso de retiro - REF: ${result.referenceCode}`,
+      //   referenceId: String(btId),
+      //   referenceType: dataBank.category,
+      //   referenceNumber: dataBank.bankReference ?? undefined,
+      //   area: 'Retiros',
+      // });
 
-      if (Number(result?.administrativeFee) !== 0) {
-        const cal =
-          (Number(result.requestedAmount) * Number(result.administrativeFee)) /
-          100;
-        const expanseAdministration = Number(result.requestedAmount) - cal;
+      // if (Number(result?.administrativeFee) !== 0) {
+      //   const cal =
+      //     (Number(result.requestedAmount) * Number(result.administrativeFee)) /
+      //     100;
+      //   const expanseAdministration = Number(result.requestedAmount) - cal;
 
-        await this.assocMvts.create(userId, {
-          associateAccountId: result.associateAccountId as number,
-          movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
-          amount: Number(expanseAdministration),
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          transactionDate: new Date(),
-          description: `Gasto Administrativo por Desembolso de retiro - REF: ${result.referenceCode}`,
-          referenceId: String(btId),
-          referenceType: dataBank.category,
-          referenceNumber: dataBank.bankReference ?? undefined,
-          area: 'Retiros',
-        });
-      }
+      //   await this.assocMvts.create(userId, {
+      //     associateAccountId: result.associateAccountId as number,
+      //     movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
+      //     amount: Number(expanseAdministration),
+      //     currencyCode: 'VES' as CurrencyCodeEnum,
+      //     transactionDate: new Date(),
+      //     description: `Gasto Administrativo por Desembolso de retiro - REF: ${result.referenceCode}`,
+      //     referenceId: String(btId),
+      //     referenceType: dataBank.category,
+      //     referenceNumber: dataBank.bankReference ?? undefined,
+      //     area: 'Retiros',
+      //   });
+      // }
 
       await tx
         .update(schema.withdrawalsAssociates)

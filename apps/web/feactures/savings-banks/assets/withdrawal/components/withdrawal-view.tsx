@@ -32,6 +32,7 @@ export function WithdrawalView({ isEdit = false, initialData }: LoanViewProps) {
     setWithdrawalSummary,
     formValues,
     setFormValues,
+    clearAllWithdrawalData,
   } = useWithdrawalStore();
 
   // Local state
@@ -91,6 +92,13 @@ export function WithdrawalView({ isEdit = false, initialData }: LoanViewProps) {
     });
     return () => unsubscribe();
   }, []);
+
+  // Limpiar el store al desmontar el componente
+  useEffect(() => {
+    return () => {
+      clearAllWithdrawalData();
+    };
+  }, [clearAllWithdrawalData]);
 
   // Envío del formulario
   const handleSubmit = async (data: any) => {

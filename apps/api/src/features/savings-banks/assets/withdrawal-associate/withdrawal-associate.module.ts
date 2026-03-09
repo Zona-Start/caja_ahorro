@@ -6,6 +6,8 @@ import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../associate-accounts-movements/associate-accounts-movements.module';
 import { WithdrawalAssociateController } from './withdrawal-associate.controller';
 import { WithdrawalAssociateService } from './withdrawal-associate.service';
+import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
+import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { WithdrawalAssociateService } from './withdrawal-associate.service';
     AssociateAccountsMovementsModule,
     GenerateCodeModule,
     InventoryMovementsModule,
+    AccountingEntriesModule,
+    BankMovementsModule
   ],
   controllers: [WithdrawalAssociateController],
   providers: [WithdrawalAssociateService],

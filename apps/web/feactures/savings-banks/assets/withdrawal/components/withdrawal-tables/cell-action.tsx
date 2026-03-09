@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Eye, FileCheck, Trash } from 'lucide-react';
+import { Eye, FileCheck, Trash, HandCoins } from 'lucide-react';
 import { useState } from 'react';
 import {
   useAprobeWithdrawalMutation,
@@ -17,6 +17,7 @@ import {
 } from '../../hooks/use-withdrawal-mutation';
 import { WithdrawalPaymentApi } from '../../schemas/withdrawal-api-response';
 import { WithdrawalDetailsModal } from '../withdrawal-details-modal';
+import { WithdrawalDisbursementModal } from '../withdrawal-disbursement-modal';
 
 interface CellActionProps {
   data: WithdrawalPaymentApi;
@@ -26,6 +27,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [showAprobedModal, setShowAprobedModal] = useState(false);
+  const [showDisburseModal, setShowDisburseModal] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const { mutate: deleteWithdrawal } = useDeleteWithdrawalMutation();
@@ -60,6 +62,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setIsDetailsModalOpen(false)}
         withdrawal={data}
       />
+      <WithdrawalDisbursementModal
+        isOpen={showDisburseModal}
+        onClose={() => setShowDisburseModal(false)}
+        withdrawal={data}
+      />
       <AlertModal
         isOpen={open}
         onClose={() => setOpen(false)}
@@ -92,6 +99,26 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </TooltipTrigger>
             <TooltipContent>
               <p>Ver Detalles</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                disabled={data.status !== 'APPROVED'}
+                onClick={() => {
+                  setShowDisburseModal(true);
+                }}
+              >
+                <HandCoins className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Desembolsar</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

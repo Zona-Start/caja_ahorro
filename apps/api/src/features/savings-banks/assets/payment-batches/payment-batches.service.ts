@@ -1,3 +1,6 @@
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
@@ -10,6 +13,7 @@ import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
   CurrencyCodeEnum,
+  movementStatusEnum,
   paymentBatchItemStatus,
   paymentBatchItemType,
   paymentBatchStatus,
@@ -39,6 +43,8 @@ export class PaymentBatchesService {
     private readonly audit: AuditLogsService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly settingsSystemService: SettingsSystemService,
+    private readonly accountingEntriesService: AccountingEntriesService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(dto: CreatePaymentBatchDto, userId: number) {
@@ -407,22 +413,87 @@ export class PaymentBatchesService {
           await this.bankMvts.createAndReconcile(dataBank, userId, tx);
 
           // 2. Movimiento interno (crédito a asociado)
-          await this.assocMvts.create(userId, {
-            associateAccountId: it.associateAccountId as number,
-            movementType: paymentBatchItemType.LOAN
-              ? AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT
-              : AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
-            amount: Number(it.amount),
-            currencyCode: batch.currencyCode as CurrencyCodeEnum,
-            transactionDate: new Date(),
-            description: `DESEMBOLSO - REF: ${dto.bankReference}`,
-            referenceId: String(batchId),
-            referenceType: 'payment_batch',
-            referenceNumber: dto.bankReference ?? undefined,
-            area: 'HABERES',
-          });
+          // Si el movimiento ya existe (como en el caso de retiros), lo actualizamos a COMPLETED.
+          // De lo contrario lo creamos.
+          if (it.itemType === paymentBatchItemType.WITHDRAWAL) {
+            await tx
+              .update(schema.associateAccountMovements)
+              .set({
+                status: 'COMPLETED' as movementStatusEnum,
+                referenceId: String(batchId),
+                referenceNumber: dto.bankReference ?? undefined,
+                transactionDate: new Date(dto.processedAt),
+              })
+              .where(
+                and(
+                  eq(schema.associateAccountMovements.referenceId, String(it.sourceId)),
+                  eq(schema.associateAccountMovements.referenceType, 'withdrawalsAssociates'),
+                  eq(schema.associateAccountMovements.movementType, AssociateMovementTypeEnum.SAVING_WITHDRAWAL)
+                ),
+              );
+          } else {
+            await this.assocMvts.create(
+              userId,
+              {
+                associateAccountId: it.associateAccountId as number,
+                movementType:
+                  it.itemType === paymentBatchItemType.LOAN
+                    ? AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT
+                    : AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+                amount: Number(it.amount),
+                currencyCode: batch.currencyCode as CurrencyCodeEnum,
+                transactionDate: new Date(),
+                description: `DESEMBOLSO - REF: ${dto.bankReference}`,
+                referenceId: String(batchId),
+                referenceType: 'payment_batch',
+                referenceNumber: dto.bankReference ?? undefined,
+                area: 'HABERES',
+                status: 'COMPLETED' as movementStatusEnum,
+              },
+              tx,
+            );
+          }
 
-          // 3. Cambiar estado del origen
+          // 3. Generar Asiento Contable (Solo para Retiros por ahora, según solicitud)
+          if (it.itemType === paymentBatchItemType.WITHDRAWAL) {
+            try {
+              const withdrawal = await tx.query.withdrawalsAssociates.findFirst({
+                where: eq(schema.withdrawalsAssociates.id, it.sourceId),
+                with: { account: { with: { associate: true } } },
+              } as any);
+
+              if (withdrawal) {
+                await this.accountingEntriesService.createAutomaticEntry(
+                  userId,
+                  {
+                    companyId: Number(batch.companyId),
+                    category: 'SAVINGS_BANK',
+                    operationType: 'WITHDRAWAL_TYPE',
+                    description: `Desembolso de Retiro - ${(withdrawal as any).account.associate.fullname}`,
+                    entryDate: new Date(dto.processedAt),
+                    referenceValue: 'Retiros Parciales',
+                    currencyCode: batch.currencyCode as CurrencyCodeEnum,
+                    originReferenceId: String(withdrawal.id),
+                    originType: 'WITHDRAWAL_DISBURSEMENT',
+                    items: [
+                      {
+                        associateId: (withdrawal as any).account.associate.id,
+                        amounts: {
+                          ASSOCIATED_ACCOUNT: Number(it.amount),
+                        },
+                      },
+                    ],
+                  },
+                  tx,
+                );
+              }
+            } catch (error) {
+              console.error('Error generando asiento contable:', error);
+              // Podríamos lanzar error o registrarlo, según política del sistema.
+            }
+          }
+
+          // 4. Cambiar estado del origen
           switch (it.itemType) {
             case paymentBatchItemType.LOAN:
               await tx
@@ -443,6 +514,20 @@ export class PaymentBatchesService {
                 .where(eq(schema.liquidationsAssociates.id, it.sourceId));
               break;
           }
+
+          // 5. Auditoría por evento
+          this.eventEmitter.emit(
+            'audit.log',
+            new AuditLogEvent({
+              tableName: 'payment_batch_items',
+              recordId: String(it.id),
+              action: 'UPDATE',
+              userId,
+              area: 'savings_banks',
+              description: `Desembolso procesado para ${it.itemType} ID ${it.sourceId}`,
+              newData: { status: 'PROCESSED', bankReference: dto.bankReference },
+            }),
+          );
         }
       }
 

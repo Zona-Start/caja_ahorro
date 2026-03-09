@@ -5,6 +5,7 @@ import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
   CurrencyCodeEnum,
+  movementStatusEnum,
   paymentMethodEnum,
 } from '@/types/enum';
 import {
@@ -68,6 +69,7 @@ export class IndividualLoadService {
           description: dto.description || 'Aporte Patronal',
           referenceType: 'BANK_TRANSACTION',
           referenceNumber: dto.referenceNumber,
+          status: 'COMPLETED' as movementStatusEnum,
         };
 
         const associatePayload = {
@@ -79,6 +81,7 @@ export class IndividualLoadService {
           description: dto.description || 'Aporte Asociado (Vía Patronal)',
           referenceType: 'BANK_TRANSACTION',
           referenceNumber: dto.referenceNumber,
+           status: 'COMPLETED' as movementStatusEnum,
         };
 
         const resultPatronal = await this.associateMovementsService.create(
@@ -113,6 +116,7 @@ export class IndividualLoadService {
           description: dto.description || 'Aporte Voluntario',
           referenceType: 'BANK_TRANSACTION',
           referenceNumber: dto.referenceNumber,
+          status: 'COMPLETED' as movementStatusEnum,
         };
 
         const result = await this.associateMovementsService.create(
@@ -414,6 +418,7 @@ export class IndividualLoadService {
               transactionDate: new Date(),
               description: 'Carga Masiva - Aporte Empleado',
               referenceType: 'BULK_LOAD',
+              status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
@@ -429,6 +434,7 @@ export class IndividualLoadService {
               transactionDate: new Date(),
               description: 'Carga Masiva - Aporte Empleador',
               referenceType: 'BULK_LOAD',
+              status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
@@ -455,8 +461,26 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Aporte Único',
+              description: 'Carga Masiva - Descuento Caja Empleado',
               referenceType: 'BULK_LOAD',
+              status: 'COMPLETED' as movementStatusEnum,
+            },
+            tx,
+          );
+
+           // Aporte patronal
+          await this.associateMovementsService.create(
+            userId,
+            {
+              associateAccountId: associate.associateAccountId,
+              movementType:
+                'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
+              amount: row.monto,
+              currencyCode: 'VES' as CurrencyCodeEnum,
+              transactionDate: new Date(),
+              description: 'Carga Masiva - Descuento Caja Empleador',
+              referenceType: 'BULK_LOAD',
+              status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
@@ -465,9 +489,11 @@ export class IndividualLoadService {
             associateId: associate.id,
             amounts: {
               ASSOCIATED_ACCOUNT: row.monto,
+              EMPLOYER_ACCOUNT: row.monto,
             },
             descriptions: {
               ASSOCIATED_ACCOUNT: `APORTE DEL ${dateCell}`,
+              EMPLOYER_ACCOUNT: `APORTE DEL ${dateCell}`,
             },
           });
         }

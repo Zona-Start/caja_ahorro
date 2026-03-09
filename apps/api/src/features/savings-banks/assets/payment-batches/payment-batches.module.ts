@@ -7,6 +7,7 @@ import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../associate-accounts-movements/associate-accounts-movements.module';
 import { PaymentBatchesController } from './payment-batches.controller';
 import { PaymentBatchesService } from './payment-batches.service';
+import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PaymentBatchesService } from './payment-batches.service';
     AuditLogsModule,
     GenerateCodeModule,
     SettingsSystemModule,
+    AccountingEntriesModule
   ],
   controllers: [PaymentBatchesController],
   providers: [PaymentBatchesService],

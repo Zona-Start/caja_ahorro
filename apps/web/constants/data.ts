@@ -31,9 +31,9 @@ export const savingBankItems: NavItem[] = [
     isActive: false,
     items: [
       {
-        title: 'Carga Individual',
+        title: 'Carga Haberes',
         shortcut: ['l', 'l'],
-        url: '/dashboard/haberes/carga-individual',
+        url: '/dashboard/haberes/carga-haberes',
       },
       // {
       //   title: 'Carga Masiva',

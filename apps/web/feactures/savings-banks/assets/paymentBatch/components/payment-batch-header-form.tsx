@@ -41,7 +41,7 @@ export function PaymentBatchHeaderForm({
               <SelectSearchable
                 options={bankAccounts.map((acc) => ({
                   value: String(acc.id),
-                  label: `${acc.accountName} (${acc.accountNumber}) - ${acc.balance ?? 0} ${acc.currencyCode}`,
+                  label: `${acc.accountName} (${acc.accountNumber})`,
                 }))}
                 onValueChange={(value) => field.onChange(Number(value))}
                 placeholder="Seleccione una cuenta bancaria"

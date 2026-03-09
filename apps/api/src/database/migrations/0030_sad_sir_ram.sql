@@ -1,0 +1,2 @@
+CREATE TYPE "public"."movement_status" AS ENUM('PENDING', 'COMPLETED', 'CANCELLED');--> statement-breakpoint
+ALTER TABLE "savings_banks"."associate_account_movements" ADD COLUMN "status" "movement_status" DEFAULT 'PENDING' NOT NULL;
