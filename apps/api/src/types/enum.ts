@@ -477,4 +477,5 @@ export enum movementStatusEnum {
   PENDING = 'PENDING',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
+  REVERSED = 'REVERSED',
 }

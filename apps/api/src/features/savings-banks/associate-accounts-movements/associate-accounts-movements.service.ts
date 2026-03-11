@@ -4,7 +4,6 @@ import {
   associateAccountBalanceHistory,
   associateAccountMovements,
   associateAccounts,
-  auditLogs,
 } from '@/database/index';
 import { AssociateMovementTypeEnum, CurrencyCodeEnum } from '@/types/enum';
 import {
@@ -18,7 +17,6 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/index';
 import { CreateAssociateAccountsMovementDto } from './dto/create-associate-accounts-movement.dto';
 import { FilterMovementsDto } from './dto/filter-movements.dto';
-import { UpdateAssociateAccountsMovementDto } from './dto/update-associate-accounts-movement.dto';
 
 @Injectable()
 export class AssociateAccountsMovementsService {
@@ -64,8 +62,7 @@ export class AssociateAccountsMovementsService {
           description,
           referenceId,
           referenceType,
-          referenceNumber,
-          area,
+          status,
         } = createAssociateAccountsMovementDto;
 
         // 2. Valida si ya existe el movimiento para evitar duplicados
@@ -124,17 +121,6 @@ export class AssociateAccountsMovementsService {
               )
             : null;
 
-        // 4. Guarda los datos en associateAccountMovements retornando el id
-
-        const descriptionDefault =
-          movementType === 'SAVING_CONTRIBUTION'
-            ? 'Aporte Asociado'
-            : movementType === 'EMPLOYER_CONTRIBUTION'
-              ? 'Aporte Empleador'
-              : movementType === 'VOLUNTARY_SAVINGS'
-                ? 'Aporte Voluntario'
-                : description;
-
         const [newMovement] = await tx
           .insert(associateAccountMovements)
           .values({
@@ -143,17 +129,13 @@ export class AssociateAccountsMovementsService {
             amount: amount.toString(),
             currencyCode: currencyCode as CurrencyCodeEnum,
             transactionDate,
-            description:
-              description === undefined
-                ? descriptionDefault
-                : description === ''
-                  ? descriptionDefault
-                  : description,
+            description,
             referenceId,
             referenceType,
             referenceNumber: reference,
             exchangeRateId: exchangeRate?.id ?? null,
             createdById: userId,
+            status: status ?? 'PENDING',
           })
           .returning({
             id: associateAccountMovements.id,
@@ -176,30 +158,6 @@ export class AssociateAccountsMovementsService {
           createdById: userId,
         });
 
-        // const paylodAuditData = {
-        //   associateAccountId,
-        //   movementType: movementType as AssociateMovementTypeEnum,
-        //   amount: amount.toString(),
-        //   currencyCode: currencyCode as CurrencyCodeEnum,
-        //   transactionDate,
-        //   description,
-        //   referenceId,
-        //   referenceType,
-        //   referenceNumber: reference,
-        //   exchangeRateId: exchangeRate?.id ?? null,
-        // };
-
-        // // Registra el log auditoria
-        // await tx.insert(auditLogs).values({
-        //   tableName: 'associateAccountMovements',
-        //   recordId: String(newMovement.id),
-        //   action: 'INSERT',
-        //   userId: Number(userId),
-        //   area: area ? area : 'HABERES',
-        //   description: description ?? '',
-        //   newData: [paylodAuditData],
-        // });
-
         return {
           message: 'successful loaded movement',
           data: newMovement,
@@ -217,21 +175,6 @@ export class AssociateAccountsMovementsService {
         'Error al crear el movimiento de cuenta del asociado.',
       );
     }
-  }
-
-  findAll() {
-    return `This action returns all associateAccountsMovements`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} associateAccountsMovement`;
-  }
-
-  update(
-    id: number,
-    updateAssociateAccountsMovementDto: UpdateAssociateAccountsMovementDto,
-  ) {
-    return `This action updates a #${id} associateAccountsMovement`;
   }
 
   async findAllHaberesByAssociate(
@@ -274,6 +217,7 @@ export class AssociateAccountsMovementsService {
     const whereCondition = and(
       inArray(associateAccountMovements.associateAccountId, accountIds),
       inArray(associateAccountMovements.movementType, [...haberesTypes]),
+      eq(associateAccountMovements.status, 'COMPLETED'),
     );
 
     // 4. Execute Count Query
@@ -343,9 +287,13 @@ export class AssociateAccountsMovementsService {
 
     const accountIds = accounts.map((acc) => acc.id);
 
-    const whereCondition = inArray(
-      associateAccountMovements.associateAccountId,
-      accountIds,
+    const whereCondition = and(
+      inArray(associateAccountMovements.associateAccountId, accountIds),
+      // inArray(associateAccountMovements.status, [
+      //   'COMPLETED',
+      //   'CANCELLED',
+      //   'REVERSED',
+      // ]),
     );
 
     // 2. Query all movements for those accounts
@@ -363,6 +311,7 @@ export class AssociateAccountsMovementsService {
         fecha: associateAccountMovements.transactionDate,
         descripcion: associateAccountMovements.description,
         numeroReferencia: associateAccountMovements.referenceNumber,
+        status: associateAccountMovements.status,
       })
       .from(associateAccountMovements)
       .where(whereCondition)

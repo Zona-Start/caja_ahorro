@@ -324,6 +324,9 @@ export const associateHaberesBalance = savingsBanksSchema.view(
       ), 0) AS total_withdrawal_fees
   FROM
       ${associateAccountMovements}
+  WHERE 
+      -- AQUI ESTA LA MAGIA: Solo tomamos en cuenta movimientos completados
+      ${associateAccountMovements.status} = 'COMPLETED'
   GROUP BY
       ${associateAccountMovements.associateAccountId}
 `);

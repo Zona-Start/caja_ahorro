@@ -466,4 +466,9 @@ export const closingStatusEnum = pgEnum('closing_status', [
   'MANUAL_REVERTED',
 ]);
 
-export const movementStatusEnum = pgEnum('movement_status', ['PENDING', 'COMPLETED', 'CANCELLED']);
+export const movementStatusEnum = pgEnum('movement_status', [
+  'PENDING',
+  'COMPLETED',
+  'CANCELLED',
+  'REVERSED',
+]);

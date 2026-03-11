@@ -4,7 +4,7 @@ import { z } from 'zod';
 // Esquema de validación para el formulario
 export const loadAssestApiResponseSchema = z.object({
   message: z.string(),
-  movementId: z.number().optional(),
+  movementId: z.string().optional(),
 });
 
 export type Associates = z.infer<typeof associateApiSchema>;

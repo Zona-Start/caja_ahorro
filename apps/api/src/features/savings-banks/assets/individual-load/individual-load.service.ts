@@ -15,7 +15,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { eq, ilike } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -54,7 +54,6 @@ export class IndividualLoadService {
         dto.movementType === 'EMPLOYER_CONTRIBUTION';
       const results: any[] = [];
 
-      
       let referenceValue: string | undefined = undefined;
 
       // 2. Crear movimiento(s) del asociado
@@ -67,8 +66,6 @@ export class IndividualLoadService {
           currencyCode: 'VES' as CurrencyCodeEnum,
           transactionDate: dto.transactionDate,
           description: dto.description || 'Aporte Patronal',
-          referenceType: 'BANK_TRANSACTION',
-          referenceNumber: dto.referenceNumber,
           status: 'COMPLETED' as movementStatusEnum,
         };
 
@@ -79,9 +76,7 @@ export class IndividualLoadService {
           currencyCode: 'VES' as CurrencyCodeEnum,
           transactionDate: dto.transactionDate,
           description: dto.description || 'Aporte Asociado (Vía Patronal)',
-          referenceType: 'BANK_TRANSACTION',
-          referenceNumber: dto.referenceNumber,
-           status: 'COMPLETED' as movementStatusEnum,
+          status: 'COMPLETED' as movementStatusEnum,
         };
 
         const resultPatronal = await this.associateMovementsService.create(
@@ -96,15 +91,7 @@ export class IndividualLoadService {
         );
         results.push(resultPatronal.data, resultAsociado.data);
 
-        const [payrroll] = await tx.select().from(schema.typePayrolls)
-          .where(ilike(schema.typePayrolls.description, 'Aporte Empleados'));
-
-          if (!payrroll) {
-            throw new BadRequestException('No existe un Concepto de nomina para Aporte Empleados, por tan razon no se puede crear el asiento contable');
-          }
-
-          referenceValue = String(payrroll.id);
-
+        referenceValue = 'Aporte Empleados';
       } else {
         // Aporte Voluntario: Un solo movimiento
         const payload = {
@@ -114,8 +101,6 @@ export class IndividualLoadService {
           currencyCode: 'VES' as CurrencyCodeEnum,
           transactionDate: dto.transactionDate,
           description: dto.description || 'Aporte Voluntario',
-          referenceType: 'BANK_TRANSACTION',
-          referenceNumber: dto.referenceNumber,
           status: 'COMPLETED' as movementStatusEnum,
         };
 
@@ -132,7 +117,7 @@ export class IndividualLoadService {
         ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
         : (dto.amount ?? 0);
 
-      const mainMovementId = results[0].id;
+      const mainMovementId = results[0].referenceNumber;
 
       if (dto.bankAccountId) {
         // 3. Crear movimiento bancario vinculado (al primer movimiento o a la operación)
@@ -168,6 +153,7 @@ export class IndividualLoadService {
             .update(schema.associateAccountMovements)
             .set({
               referenceId: bankResult.movement.id.toString(),
+              referenceType: 'BANK_TRANSACTION',
             })
             .where(eq(schema.associateAccountMovements.id, m.id));
         }
@@ -179,44 +165,54 @@ export class IndividualLoadService {
           userId,
           {
             companyId: Number(companyId),
-            category:  'SAVINGS_BANK',
-            operationType: isEmployerContribution ? 'PAYROLL_CONCEPT' : 'SAVINGS_UPLOAD', // Regla general de carga de haberes
+            category: 'SAVINGS_BANK',
+            operationType: isEmployerContribution
+              ? 'PAYROLL_CONCEPT'
+              : 'SAVINGS_UPLOAD', // Regla general de carga de haberes
             description:
               dto.description ||
-              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes'} - ${account.associates.fullname}`,
+              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
             entryDate: dto.transactionDate ?? new Date(),
             referenceValue,
             currencyCode: 'VES' as CurrencyCodeEnum,
             originReferenceId: mainMovementId.toString(),
             originType: 'SAVINGS_LOAD',
+            roleAliases: isEmployerContribution
+              ? {
+                  SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+                  EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
+                }
+              : {
+                  BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
+                },
             items: [
               {
                 associateId: account.associates.id,
                 amounts: isEmployerContribution
                   ? {
-                      ASSOCIATED_ACCOUNT: dto.associateAmount ?? 0,
-                      EMPLOYER_ACCOUNT: dto.employerAmount ?? 0,
+                      ASSOCIATED_SAVINGS: dto.associateAmount ?? 0,
+                      EMPLOYER_CONTRIBUTION: dto.employerAmount ?? 0,
                     }
                   : {
-                      ASSOCIATED_ACCOUNT: dto.amount ?? 0,
+                      VOLUNTARY_SAVINGS: dto.amount ?? 0,
                     },
                 descriptions: isEmployerContribution
                   ? {
-                      ASSOCIATED_ACCOUNT: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                      EMPLOYER_ACCOUNT: `APORTE DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                      ASSOCIATED_SAVINGS: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                      EMPLOYER_CONTRIBUTION: `APORTE DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
                     }
                   : {
-                      ASSOCIATED_ACCOUNT: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                      VOLUNTARY_SAVINGS: `AHORRO VOLUNTARIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
                     },
               },
             ],
             globalDescriptions: isEmployerContribution
               ? {
-                  ASSOCIATED_ACCOUNT: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                  EMPLOYER_ACCOUNT: `APORTE DEL PATRONO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                  ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                  EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
                 }
               : {
-                  ASSOCIATED_ACCOUNT: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                  VOLUNTARY_SAVINGS: `APORTES VOLUNTARIOS DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
                 },
           },
           tx,
@@ -362,7 +358,7 @@ export class IndividualLoadService {
       let processedCount = 0;
       const accountingItems: Array<{
         associateId: number;
-        amounts: { ASSOCIATED_ACCOUNT: number; EMPLOYER_ACCOUNT?: number };
+        amounts: { ASSOCIATED_SAVINGS: number; EMPLOYER_CONTRIBUTION?: number };
         descriptions?: Record<string, string>;
       }> = [];
 
@@ -370,18 +366,10 @@ export class IndividualLoadService {
       let referenceValueLookup: string | undefined = undefined;
 
       // 1. Determinar el concepto de referencia según el tipo de carga
-
-      const [payrollConcept] = await tx
-        .select()
-        .from(schema.typePayrolls)
-        .where(ilike(schema.typePayrolls.description, typeCell));
-
-      if (!payrollConcept) {
-        throw new BadRequestException(
-          `No existe un Concepto de nómina para "${typeCell}", por tal razón no se puede crear el asiento contable`,
-        );
-      }
-      referenceValueLookup = String(payrollConcept.id);
+      referenceValueLookup =
+        typeCell === 'APORTE EMPLEADOS'
+          ? 'Aporte Empleados'
+          : 'Descuentos Caja';
 
       for (const row of rows) {
         // Buscar asociado
@@ -416,8 +404,7 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Aporte Empleado',
-              referenceType: 'BULK_LOAD',
+              description: 'Carga Masiva - Aporte Patronales',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
@@ -432,8 +419,7 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Aporte Empleador',
-              referenceType: 'BULK_LOAD',
+              description: 'Carga Masiva - Aporte Patronales',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
@@ -442,15 +428,14 @@ export class IndividualLoadService {
           accountingItems.push({
             associateId: associate.id,
             amounts: {
-              ASSOCIATED_ACCOUNT: row.monto,
-              EMPLOYER_ACCOUNT: row.monto,
+              ASSOCIATED_SAVINGS: row.monto,
+              EMPLOYER_CONTRIBUTION: row.monto,
             },
             descriptions: {
-              ASSOCIATED_ACCOUNT: `AHORRO DEL ${dateCell}`,
-              EMPLOYER_ACCOUNT: `APORTE DEL ${dateCell}`,
+              ASSOCIATED_SAVINGS: `AHORRO DEL ${dateCell}`,
+              EMPLOYER_CONTRIBUTION: `APORTE DEL ${dateCell}`,
             },
           });
-
         } else if (typeCell === 'DESCUENTOS CAJA') {
           // Un solo movimiento
           await this.associateMovementsService.create(
@@ -461,14 +446,13 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Descuento Caja Empleado',
-              referenceType: 'BULK_LOAD',
+              description: 'Carga Masiva - Aportes Patronales - Descuento Caja',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
 
-           // Aporte patronal
+          // Aporte patronal
           await this.associateMovementsService.create(
             userId,
             {
@@ -478,8 +462,7 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Descuento Caja Empleador',
-              referenceType: 'BULK_LOAD',
+              description: 'Carga Masiva - Aportes Patronales - Descuento Caja',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
@@ -488,12 +471,12 @@ export class IndividualLoadService {
           accountingItems.push({
             associateId: associate.id,
             amounts: {
-              ASSOCIATED_ACCOUNT: row.monto,
-              EMPLOYER_ACCOUNT: row.monto,
+              ASSOCIATED_SAVINGS: row.monto,
+              EMPLOYER_CONTRIBUTION: row.monto,
             },
             descriptions: {
-              ASSOCIATED_ACCOUNT: `APORTE DEL ${dateCell}`,
-              EMPLOYER_ACCOUNT: `APORTE DEL ${dateCell}`,
+              ASSOCIATED_SAVINGS: `APORTE DEL ${dateCell}`,
+              EMPLOYER_CONTRIBUTION: `APORTE DEL ${dateCell}`,
             },
           });
         }
@@ -510,16 +493,20 @@ export class IndividualLoadService {
               companyId: Number(companyId),
               category: 'SAVINGS_BANK',
               operationType: 'PAYROLL_CONCEPT', // Regla general de carga de haberes
-              description: `Carga masiva de haberes - ${processedCount} asociados`,
+              description: `Carga masiva Aportes Patronales - ${processedCount} asociados`,
               entryDate: new Date(),
               referenceValue: referenceValueLookup,
               currencyCode: 'VES' as CurrencyCodeEnum,
               originReferenceId: `BULK_${Date.now()}`,
               originType: 'SAVINGS_BULK_LOAD',
+              roleAliases: {
+                SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+                EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
+              },
               items: accountingItems,
               globalDescriptions: {
-                ASSOCIATED_ACCOUNT: `APORTES SOCIO DEL ${dateCell}`,
-                EMPLOYER_ACCOUNT: `APORTE DEL PATRONO DEL ${dateCell}`,
+                ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${dateCell}`,
+                EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${dateCell}`,
               },
             },
             tx,

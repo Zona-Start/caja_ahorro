@@ -172,3 +172,10 @@ export const WITHDRAWAL_SATUS = {
   DISBURSED_REVERSED: 'Desembolso Reversado',
   ADJUSTED: 'Ajustado',
 } as const;
+
+export const MOVEMENT_STATUS_TYPES = {
+  PENDING: 'Pendiente',
+  COMPLETED: 'Completado',
+  REVERSED: 'Reversado',
+  CANCELLED: 'Cancelado',
+} as const;

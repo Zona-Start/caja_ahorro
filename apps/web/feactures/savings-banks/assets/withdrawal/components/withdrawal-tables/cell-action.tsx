@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Eye, FileCheck, Trash, HandCoins } from 'lucide-react';
+import { Banknote, Calculator, Eye, FileCheck, Trash } from 'lucide-react';
 import { useState } from 'react';
 import {
   useAprobeWithdrawalMutation,
@@ -102,46 +102,75 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        {!data.isHouseComercial &&
+          !data.isInternalInventory &&
+          data.status === 'APPROVED' && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={data.status !== 'APPROVED'}
+                    onClick={() => {
+                      setShowDisburseModal(true);
+                    }}
+                  >
+                    <Banknote className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Desembolsar</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={data.status !== 'APPROVED'}
-                onClick={() => {
-                  setShowDisburseModal(true);
-                }}
-              >
-                <HandCoins className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Desembolsar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {data.isHouseComercial ||
+          (data.isInternalInventory && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    disabled={data.status !== 'APPROVED'}
+                    onClick={() => {
+                      setShowDisburseModal(true);
+                    }}
+                  >
+                    <Calculator className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Procesar</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))}
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={data.status !== 'REQUESTED'}
-                onClick={() => {
-                  setShowAprobedModal(true);
-                }}
-              >
-                <FileCheck className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Aprobar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {data.status === 'REQUESTED' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  disabled={data.status !== 'REQUESTED'}
+                  onClick={() => {
+                    setShowAprobedModal(true);
+                  }}
+                >
+                  <FileCheck className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Aprobar</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

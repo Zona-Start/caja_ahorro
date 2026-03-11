@@ -170,8 +170,9 @@ export class AccountingEntriesService {
       detailsMap.get(entryId)!.push({
         ...row,
         account: {
-            code:row.associateCedula
-                  ? `${row.accountCode}.${row.associateCedula}` : row.accountCode
+          code: row.associateCedula
+            ? `${row.accountCode}.${row.associateCedula}`
+            : row.accountCode,
         },
       });
     });
@@ -252,14 +253,17 @@ export class AccountingEntriesService {
     const details = rows_details.map((d) => ({
       ...d,
       account: {
-      code: d.associateCedula
-                  ? `${d.accountCode}.${d.associateCedula}` : d.accountCode
+        code: d.associateCedula
+          ? `${d.accountCode}.${d.associateCedula}`
+          : d.accountCode,
       },
     }));
 
     return {
       ...row,
-      voucherNo: row.voucherNo ? row.voucherNo.toString().padStart(8, '0') : undefined,
+      voucherNo: row.voucherNo
+        ? row.voucherNo.toString().padStart(8, '0')
+        : undefined,
       entryDate: new Date(row.entryDate),
       postedAt: row.postedAt ? new Date(row.postedAt) : undefined,
       currencyCode: row.currencyCode as CurrencyCodeEnum,
@@ -482,7 +486,9 @@ export class AccountingEntriesService {
 
       const entryFormat = {
         ...entry,
-        voucherNo: entry.voucherNo ? entry.voucherNo.toString().padStart(8, '0') : undefined,
+        voucherNo: entry.voucherNo
+          ? entry.voucherNo.toString().padStart(8, '0')
+          : undefined,
         entryDate: new Date(entry.entryDate),
         postedAt: entry.postedAt ? new Date(entry.postedAt) : undefined,
       };
@@ -505,6 +511,7 @@ export class AccountingEntriesService {
       originReferenceId?: string;
       originType?: string;
       globalDescriptions?: Record<string, string>;
+      roleAliases?: Record<string, string>;
       items: {
         associateId?: number;
         supplierId?: number;
@@ -548,7 +555,10 @@ export class AccountingEntriesService {
       );
     }
 
-    const cycle = await this.findActiveCycle(params.companyId, params.entryDate);
+    const cycle = await this.findActiveCycle(
+      params.companyId,
+      params.entryDate,
+    );
     const ruleDetails = rows
       .map((row) => row.accounting_rule_details)
       .filter((detail) => detail !== null);
@@ -558,16 +568,52 @@ export class AccountingEntriesService {
     for (const item of params.items) {
       for (const ruleDetail of ruleDetails) {
         if (!ruleDetail?.accountRole) continue;
-        const amount = item.amounts[ruleDetail.accountRole];
+
+        // 1. Buscamos el monto base usando el rol original
+        let amount = item.amounts[ruleDetail.accountRole];
+
+        // 2. Si no existe, buscamos si hay un alias provisto por el servicio externo (Ej. SAVINGS_RECEIVABLE -> ASSOCIATED_SAVINGS)
+        if (
+          amount === undefined &&
+          params.roleAliases &&
+          params.roleAliases[ruleDetail.accountRole]
+        ) {
+          amount = item.amounts[params.roleAliases[ruleDetail.accountRole]];
+        }
+
+        // 3. Si no existe un alias definido, y la BD define una fórmula, intentamos usar la fórmula como alias base
+        if (
+          amount === undefined &&
+          ruleDetail.formula &&
+          item.amounts[ruleDetail.formula] !== undefined
+        ) {
+          amount = item.amounts[ruleDetail.formula];
+        }
+
         if (amount === undefined || amount === 0) continue;
 
         const isDebit = ruleDetail.movementType === 'DEBIT';
-        const associateId = ruleDetail.isAuxiliary ? item.associateId : undefined;
-        const supplierId = ruleDetail.isAuxiliarySupplier ? item.supplierId : undefined;
+        const associateId = ruleDetail.isAuxiliary
+          ? item.associateId
+          : undefined;
+        const supplierId = ruleDetail.isAuxiliarySupplier
+          ? item.supplierId
+          : undefined;
 
-        const description = (associateId || supplierId)
-          ? (item.descriptions?.[ruleDetail.accountRole] || item.description || params.description)
-          : (params.globalDescriptions?.[ruleDetail.accountRole] || item.description || params.description);
+        // Extraer descripciones considerando también si hubo un mapeo por alias
+        const aliasKey =
+          params.roleAliases?.[ruleDetail.accountRole] || ruleDetail.formula;
+        const mappedItemDesc =
+          item.descriptions?.[ruleDetail.accountRole] ||
+          (aliasKey ? item.descriptions?.[aliasKey] : undefined);
+        const mappedGlobalDesc =
+          params.globalDescriptions?.[ruleDetail.accountRole] ||
+          (aliasKey ? params.globalDescriptions?.[aliasKey] : undefined);
+
+        const description =
+          associateId || supplierId
+            ? mappedItemDesc || item.description || params.description
+            : mappedGlobalDesc || item.description || params.description;
 
         const key = `${ruleDetail.accountPlanId}-${associateId || 'null'}-${supplierId || 'null'}-${description}`;
 
@@ -588,9 +634,16 @@ export class AccountingEntriesService {
       }
     }
 
-    const detailsDraft: CreateAccountingEntryDetailDto[] = Array.from(aggregatedDetails.values());
+    const detailsDraft: CreateAccountingEntryDetailDto[] = Array.from(
+      aggregatedDetails.values(),
+    );
 
-    await this.validateAccountingEntry(params.companyId, cycle.id, params.entryDate, detailsDraft);
+    await this.validateAccountingEntry(
+      params.companyId,
+      cycle.id,
+      params.entryDate,
+      detailsDraft,
+    );
 
     const voucherNo = await this.getNextVoucherNo(db);
     const [entry] = await db
@@ -622,7 +675,9 @@ export class AccountingEntriesService {
 
     return {
       ...entry,
-      voucherNo: entry.voucherNo ? entry.voucherNo.toString().padStart(8, '0') : undefined,
+      voucherNo: entry.voucherNo
+        ? entry.voucherNo.toString().padStart(8, '0')
+        : undefined,
       entryDate: new Date(entry.entryDate),
       postedAt: entry.postedAt ? new Date(entry.postedAt) : undefined,
       details,

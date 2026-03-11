@@ -1,11 +1,10 @@
-import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/index';
 import { paymentBatches, paymentBatchItems } from '@/database/index';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditLogsService } from '@/features/audit/audit-logs/audit-logs.service';
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { SettingsSystemService } from '@/features/core/settings-system/settings-system.service';
 import {
@@ -25,6 +24,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { format } from 'date-fns';
 import { and, eq, ilike, inArray, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -426,9 +426,18 @@ export class PaymentBatchesService {
               })
               .where(
                 and(
-                  eq(schema.associateAccountMovements.referenceId, String(it.sourceId)),
-                  eq(schema.associateAccountMovements.referenceType, 'withdrawalsAssociates'),
-                  eq(schema.associateAccountMovements.movementType, AssociateMovementTypeEnum.SAVING_WITHDRAWAL)
+                  eq(
+                    schema.associateAccountMovements.referenceId,
+                    String(it.sourceId),
+                  ),
+                  eq(
+                    schema.associateAccountMovements.referenceType,
+                    'withdrawalsAssociates',
+                  ),
+                  eq(
+                    schema.associateAccountMovements.movementType,
+                    AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+                  ),
                 ),
               );
           } else {
@@ -446,7 +455,6 @@ export class PaymentBatchesService {
                 description: `DESEMBOLSO - REF: ${dto.bankReference}`,
                 referenceId: String(batchId),
                 referenceType: 'payment_batch',
-                referenceNumber: dto.bankReference ?? undefined,
                 area: 'HABERES',
                 status: 'COMPLETED' as movementStatusEnum,
               },
@@ -457,10 +465,12 @@ export class PaymentBatchesService {
           // 3. Generar Asiento Contable (Solo para Retiros por ahora, según solicitud)
           if (it.itemType === paymentBatchItemType.WITHDRAWAL) {
             try {
-              const withdrawal = await tx.query.withdrawalsAssociates.findFirst({
-                where: eq(schema.withdrawalsAssociates.id, it.sourceId),
-                with: { account: { with: { associate: true } } },
-              } as any);
+              const withdrawal = await tx.query.withdrawalsAssociates.findFirst(
+                {
+                  where: eq(schema.withdrawalsAssociates.id, it.sourceId),
+                  with: { account: { with: { associate: true } } },
+                } as any,
+              );
 
               if (withdrawal) {
                 await this.accountingEntriesService.createAutomaticEntry(
@@ -525,7 +535,10 @@ export class PaymentBatchesService {
               userId,
               area: 'savings_banks',
               description: `Desembolso procesado para ${it.itemType} ID ${it.sourceId}`,
-              newData: { status: 'PROCESSED', bankReference: dto.bankReference },
+              newData: {
+                status: 'PROCESSED',
+                bankReference: dto.bankReference,
+              },
             }),
           );
         }

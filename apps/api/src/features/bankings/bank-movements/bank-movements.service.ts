@@ -790,7 +790,6 @@ export class BankMovementsService {
         description: `Desembolso de prestamo - N°: ${result.customReference}`,
         referenceId: String(btId),
         referenceType: dataBank.category,
-        referenceNumber: dataBank.bankReference ?? undefined,
         area: 'PRESTAMOS',
       });
 
@@ -830,7 +829,6 @@ export class BankMovementsService {
           description: `Comision Administrativa por Desembolso de prestamo - N°: ${result.customReference}`,
           referenceId: String(btId),
           referenceType: dataBank.category,
-          referenceNumber: dataBank.bankReference ?? undefined,
           area: 'PRESTAMOS',
         });
 

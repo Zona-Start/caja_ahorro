@@ -11,16 +11,6 @@ export class AssociateAccountsMovementsController {
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
   ) {}
 
-  @Get()
-  findAll() {
-    return this.associateAccountsMovementsService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.associateAccountsMovementsService.findOne(+id);
-  }
-
   @Get('haberes/by-associate/:associateId')
   @RequirePermissions('read:haberes-movements-by-associate')
   @ApiOperation({ summary: 'Get all haberes movements for an associate' })
@@ -56,10 +46,11 @@ export class AssociateAccountsMovementsController {
     @Param('associateId') associateId: string,
     @Query() filtersDto: FilterMovementsDto,
   ) {
-    const result = await this.associateAccountsMovementsService.findAllByAssociate(
-      +associateId,
-      filtersDto,
-    );
+    const result =
+      await this.associateAccountsMovementsService.findAllByAssociate(
+        +associateId,
+        filtersDto,
+      );
     return {
       message: 'Transaction history fetched successfully.',
       data: result.data,

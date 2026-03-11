@@ -11,6 +11,8 @@ export const withdrawalApiSchema = z.object({
   associateCedula: z.string(),
   associateFullname: z.string(),
   status: z.string(),
+  isHouseComercial: z.boolean(),
+  isInternalInventory: z.boolean(),
 });
 
 // Tipo inferido

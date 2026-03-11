@@ -893,7 +893,7 @@ export class AssociatesService {
       const [payroll] = await this.drizzle
         .select({ id: typePayrolls.id })
         .from(typePayrolls)
-        .where(ilike(typePayrolls.description, `%${payrollSetting.value}%`));
+        .where(eq(typePayrolls.code, payrollSetting.value));
       payrollTypeId = payroll?.id;
     }
 
@@ -991,7 +991,7 @@ export class AssociatesService {
     });
 
     return rows;
-  } 
+  }
 
   private _cellValue(cell: ExcelJS.Cell): string {
     const v = cell.value;
@@ -1032,7 +1032,7 @@ export class AssociatesService {
       { header: 'fecha_ingreso', key: 'fecha_ingreso', width: 20 },
       { header: 'fecha_nacimiento', key: 'fecha_nacimiento', width: 20 },
       { header: 'cargo', key: 'cargo', width: 20 },
-      { header: 'cuenta_nomina', key: 'nro_cuenta', width: 25 }
+      { header: 'cuenta_nomina', key: 'nro_cuenta', width: 25 },
     ];
 
     // Estilo para encabezados

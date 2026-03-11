@@ -69,6 +69,7 @@ export const transactionHistorySchema = z.object({
   fecha: z.string(),
   descripcion: z.string().nullable(),
   numeroReferencia: z.string().nullable(),
+  status: z.string(),
 });
 
 export const transactionHistoryResponseSchema = z.object({

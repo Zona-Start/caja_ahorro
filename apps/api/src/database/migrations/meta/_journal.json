@@ -218,6 +218,20 @@
       "when": 1773062626313,
       "tag": "0030_sad_sir_ram",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1773162241840,
+      "tag": "0031_curved_stephen_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1773164158973,
+      "tag": "0032_marvelous_patriot",
+      "breakpoints": true
     }
   ]
 }

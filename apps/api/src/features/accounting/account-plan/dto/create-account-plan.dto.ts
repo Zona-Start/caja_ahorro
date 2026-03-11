@@ -36,6 +36,11 @@ export class CreateAccountPlanDto {
   @IsNotEmpty()
   accountType: AccountTypeEnum;
 
+  @ApiProperty({ description: 'Account description (e.g. "Caja")' })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
   @ApiProperty({
     enum: AccountNatureEnum,
     enumName: 'AccountNatureEnum',

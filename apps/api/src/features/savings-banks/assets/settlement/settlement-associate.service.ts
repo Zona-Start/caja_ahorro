@@ -262,7 +262,7 @@ export class SettlementAssociateService {
           await this.creditPaidService.create(
             {
               amount: Number(totalOutstandingCreditsAtLiquidation),
-              creditId: credits?.creditId,
+              creditId: Number(credits?.creditId),
               paymentDate: new Date(),
               paymentMethod: 'BANK_TRANSFER' as paymentMethodEnum,
               paymentType: 'PAYING' as creditPaymetTypeEnum,
@@ -287,7 +287,7 @@ export class SettlementAssociateService {
           await this.loanPaidService.create(
             {
               amount: Number(totalOutstandingLoansAtLiquidation),
-              loanId: loans.loanId,
+              loanId: Number(loans.loanId),
               paymentDate: new Date(),
               paymentMethod: 'BANK_TRANSFER' as paymentMethodEnum,
               paymentType: 'PAYING' as loanPaymetTypeEnum,
@@ -316,7 +316,6 @@ export class SettlementAssociateService {
             description: 'Liquidacion total de Haberes',
             referenceId: String(liquidation.id),
             referenceType: 'liquidationsAssociates',
-            referenceNumber: liquidation.customReference ?? undefined,
             area: 'LIQUIDACION',
           });
         } catch (error) {

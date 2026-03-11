@@ -569,7 +569,6 @@ export class CreditManagementService {
           description: 'Crédito Aprobado',
           referenceId: String(id),
           referenceType: 'credits',
-          referenceNumber: customReference,
         });
         if (installmentAmount > 0) {
           await this.associateAccountsMovementsService.create(userId, {
@@ -581,7 +580,6 @@ export class CreditManagementService {
             description: `Gastos Administrativos por Crédito N°${customReference}`,
             referenceId: String(id),
             referenceType: 'credits',
-            referenceNumber: customReference,
           });
         }
       }

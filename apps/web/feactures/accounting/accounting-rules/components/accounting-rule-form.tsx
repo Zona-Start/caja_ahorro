@@ -249,9 +249,7 @@ export function AccountingRuleForm({
 
     switch (operationType) {
       case 'SAVINGS_UPLOAD':
-        options = [
-          { value: 'Aporte Voluntario', label: 'Aporte Voluntario' },
-        ];
+        options = [{ value: 'Aporte Voluntario', label: 'Aporte Voluntario' }];
         break;
       case 'PAYROLL_CONCEPT':
         options =
@@ -301,24 +299,54 @@ export function AccountingRuleForm({
     switch (category) {
       case 'SAVINGS_BANK':
         return [
-          { value: 'ASSOCIATED_ACCOUNT', label: 'Cuenta Asociado' },
-          { value: 'EMPLOYER_ACCOUNT', label: 'Cuenta Patrono' },
-          { value: 'LOAN_ACCOUNT', label: 'Cuenta Préstamo' },
+          // --- CUENTAS DE PATRIMONIO / PASIVO (SOCIOS) ---
+          { value: 'ASSOCIATED_SAVINGS', label: 'Ahorro Asociados (Haberes)' },
+          { value: 'EMPLOYER_CONTRIBUTION', label: 'Aporte Patrono (Haberes)' },
+          { value: 'VOLUNTARY_SAVINGS', label: 'Ahorro Voluntario (Haberes)' },
           {
-            value: 'CREDIT_ACCOUNT',
-            label: 'Cuenta Crédito',
+            value: 'PARTIAL_WITHDRAWAL_SAVINGS',
+            label: 'Retiro Parcial (Haberes)',
           },
           {
-            value: 'WITHDRAWAL_ACCOUNT',
-            label: 'Cuenta Retiro',
+            value: 'SPECIAL_WITHDRAWAL_SAVINGS',
+            label: 'Retiro Especial / Consumo (Haberes)',
           },
-          { value: 'INTEREST_EARNED', label: 'Intereses Ganados' },
-          { value: 'SPECIAL_QUOTAS', label: 'Cuotas Especiales' },
-          { value: 'EXPENSE', label: 'Gasto' },
-          { value: 'ASSOCIATED_EARNINGS', label: 'Haberes Asociados' },
-          { value: 'LOAN_RECEIVABLE', label: 'Prestamos por Cobrar' },
+          {
+            value: 'DIVIDENDS_PAYABLE',
+            label: 'Dividendos / Excedentes por Pagar',
+          },
+
+          // --- ACTIVOS: Lo que DEBEN a la Caja (Cuentas 113, 121) ---
+          { value: 'SAVINGS_RECEIVABLE', label: 'Ahorro x Cobrar (Activo)' }, // Ej: 113.01 (Tu imagen)
+          { value: 'EMPLOYER_RECEIVABLE', label: 'Aporte x Cobrar (Activo)' }, // Ej: 113.01.02 (Tu imagen)
+          { value: 'LOAN_PRINCIPAL', label: 'Préstamo Capital (Activo)' }, // Ej: 121.01 (Préstamos)
+          { value: 'CREDIT_PRINCIPAL', label: 'Crédito Capital (CP/LP)' },
+
+          {
+            value: 'OPERATION_COUNTERPART',
+            label: 'Inventario / Cuenta x Pagar',
+          },
+
+          // --- TESORERÍA: Movimiento de dinero real (Cuentas 112) ---
+          { value: 'BANK_ACCOUNT', label: 'Banco Institución' }, // Ej: 112.01 (Transferencias)
+          { value: 'CASH_ACCOUNT', label: 'Caja Principal' },
+
+          // --- RESULTADOS: Ingresos y Gastos (Cuentas 411, 449) ---
+          {
+            value: 'SERVICE_FEE_INCOME',
+            label: 'Ingresos por Comisiones (Gastos de Retiro/Préstamo)',
+          },
+          {
+            value: 'LOAN_INTEREST_INCOME',
+            label: 'Ingresos por Intereses (Préstamos/Créditos)',
+          },
           { value: 'INTEREST_OVERDUE', label: 'Intereses Vencido' },
-          { value: 'CASH_SAVINGS_ACCOUNT', label: 'Caja Ahorro Efetivo' },
+          { value: 'SPECIAL_QUOTAS', label: 'Cuotas Especiales' },
+          { value: 'OPERATING_EXPENSES', label: 'Gastos Operativos' },
+          {
+            value: 'OPERATING_INCOME_VARIOUS',
+            label: 'Ingresos Operativos / Ventas (Combos, Jornadas)',
+          },
         ];
       case 'ADMINISTRATIVE':
         return [
