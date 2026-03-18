@@ -19,6 +19,7 @@ export const ESTATUS_TYPES = {
   DISBURSEMENT_FAILED: 'Desembolso Fallido',
   DISBURSED_REVERSED: 'Desembolso revertido',
   ADJUSTED: 'Ajuste',
+  PROCESSED: 'Procesado',
 } as const;
 
 export type PaymentMethod = keyof typeof PAYMENT_METHOD;

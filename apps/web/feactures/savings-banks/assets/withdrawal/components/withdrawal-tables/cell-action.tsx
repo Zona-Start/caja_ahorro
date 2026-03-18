@@ -14,6 +14,7 @@ import { useState } from 'react';
 import {
   useAprobeWithdrawalMutation,
   useDeleteWithdrawalMutation,
+  useProcessWithdrawalMutation
 } from '../../hooks/use-withdrawal-mutation';
 import { WithdrawalPaymentApi } from '../../schemas/withdrawal-api-response';
 import { WithdrawalDetailsModal } from '../withdrawal-details-modal';
@@ -28,12 +29,16 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showAprobedModal, setShowAprobedModal] = useState(false);
   const [showDisburseModal, setShowDisburseModal] = useState(false);
+  const [showProcessModal, setShowProcessModal] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   const { mutate: deleteWithdrawal } = useDeleteWithdrawalMutation();
 
   const { mutate: aprobeMutation, isPending: isUpdating } =
     useAprobeWithdrawalMutation();
+
+  const { mutate: processMutation, isPending: isProcessing } =
+    useProcessWithdrawalMutation();
 
   const onConfirmDelete = async () => {
     try {
@@ -51,6 +56,15 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     aprobeMutation(Number(data.id!), {
       onSuccess: () => {
         setShowAprobedModal(false);
+      },
+    });
+  };
+
+
+  const onConfirmProcess= async () => {
+    processMutation(Number(data.id!), {
+      onSuccess: () => {
+        setShowProcessModal(false);
       },
     });
   };
@@ -84,6 +98,15 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         title="¿Estás seguro que desea Aprobar este retiro?"
         description="Esta acción no se puede deshacer."
       />
+
+      <AlertModal
+        isOpen={showProcessModal}
+        onClose={() => setShowProcessModal(false)}
+        onConfirm={onConfirmProcess}
+        loading={isUpdating}
+        title="¿Estás seguro que desea Procesar este retiro?"
+        description="Esta acción no se puede deshacer."
+      />
       <Toaster />
       <div className="flex gap-1">
         <TooltipProvider>
@@ -102,10 +125,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        {!data.isHouseComercial &&
-          !data.isInternalInventory &&
-          data.status === 'APPROVED' && (
-            <TooltipProvider>
+      {data.status === 'APPROVED' && (
+           <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -113,42 +134,21 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                     size="icon"
                     disabled={data.status !== 'APPROVED'}
                     onClick={() => {
-                      setShowDisburseModal(true);
+                      data.isHouseComercial || data.isInternalInventory ?
+                       setShowProcessModal(true) :
+                      setShowDisburseModal(true) ;
+                     
                     }}
                   >
-                    <Banknote className="h-4 w-4" />
+                    {data.isHouseComercial || data.isInternalInventory ? <Calculator className="h-4 w-4" /> : <Banknote className="h-4 w-4" />}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Desembolsar</p>
+                  <p>{data.isHouseComercial || data.isInternalInventory ? 'Procesar' : 'Desembolsar'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          )}
-
-        {data.isHouseComercial ||
-          (data.isInternalInventory && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    disabled={data.status !== 'APPROVED'}
-                    onClick={() => {
-                      setShowDisburseModal(true);
-                    }}
-                  >
-                    <Calculator className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Procesar</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ))}
-
+        )}
         {data.status === 'REQUESTED' && (
           <TooltipProvider>
             <Tooltip>

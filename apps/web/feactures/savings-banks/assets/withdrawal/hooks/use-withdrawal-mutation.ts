@@ -8,6 +8,7 @@ import {
   createWithdrawalAction,
   deleteWithdrawalAction,
   disburseWithdrawalAction,
+  processWithdrawalAction,
 } from '../actions/withdrawal-actions';
 import { Withdrawal } from '../schemas/withdrawal.schema';
 
@@ -124,6 +125,35 @@ export function useDisburseWithdrawalMutation(): UseMutationResult<any, Error, {
         queryKey: queryKeys.withdrawals.detail(id),
       });
       toast.success('Retiro desembolsado exitosamente');
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Error al desembolsar el retiro');
+    },
+  });
+}
+
+
+export function useProcessWithdrawalMutation(): UseMutationResult<any, Error, number, unknown> {
+  const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
+  return useMutation({
+     mutationFn: (id: number) =>
+    processWithdrawalAction(id),
+    onSuccess: (_, id ) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.withdrawals.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.accountingEntries.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.withdrawals.detail(id),
+      });
+      toast.success('Retiro procesado exitosamente');
     },
     onError: (error: any) => {
       toast.error(error.message || 'Error al desembolsar el retiro');

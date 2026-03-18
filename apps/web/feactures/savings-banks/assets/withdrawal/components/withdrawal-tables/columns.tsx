@@ -8,13 +8,6 @@ import { WithdrawalPaymentApi } from '../../schemas/withdrawal-api-response';
 import { ESTATUS_TYPES } from '../../schemas/withdrawal-options';
 import { CellAction } from './cell-action';
 
-const statusColors: { [key: string]: string } = {
-  REQUESTED: 'bg-yellow-500 hover:bg-yellow-600',
-  APPROVED: 'bg-blue-500 hover:bg-blue-600',
-  PAID: 'bg-green-500 hover:bg-green-600',
-  REJECTED: 'bg-red-500 hover:bg-red-600',
-  CANCELED: 'bg-gray-500 hover:bg-gray-600',
-};
 
 export const columns: ColumnDef<WithdrawalPaymentApi>[] = [
   {
@@ -72,6 +65,8 @@ export const columns: ColumnDef<WithdrawalPaymentApi>[] = [
           case 'PENDING_DISBURSEMENT_BANK_BATCH':
             return 'outline';
           case 'DISBURSED':
+            return 'success';
+          case 'PROCESSED':
             return 'success';
           default:
             return 'default';

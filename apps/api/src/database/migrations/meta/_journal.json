@@ -232,6 +232,13 @@
       "when": 1773164158973,
       "tag": "0032_marvelous_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1773670403391,
+      "tag": "0033_empty_purple_man",
+      "breakpoints": true
     }
   ]
 }

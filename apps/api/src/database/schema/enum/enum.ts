@@ -268,6 +268,7 @@ export const withdrawalStatusEnum = pgEnum('withdrawal_status_enum', [
   'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
   'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
   'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)
+  'PROCESSED', // Procesado
   'DISBURSEMENT_FAILED', // Nuevo: Desembolso falló en el banco (revisar y reintentar o anular)
   'DISBURSED_REVERSED', // Nuevo: Desembolso fue revertido/anulado contablemente (por error o devolución)
   'ADJUSTED', // Nuevo: Indica que el retiro ha sido afectado por un ajuste contable

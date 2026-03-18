@@ -268,6 +268,7 @@ export enum withdrawalStatusEnum {
   APPROVED = 'APPROVED', // Aprobado, listo para desembolsar (o incluido en TXT)
   REJECTED = 'REJECTED', // Rechazado (nunca se desembolsa)
   REVERSED = 'REVERSED',
+  PROCESSED = 'PROCESSED',
   CANCELLED = 'CANCELLED', // Cancelado por el usuario o administrador antes del desembolso (equivalente a ANULADO)
   PENDING_DISBURSEMENT_BANK_BATCH = 'PENDING_DISBURSEMENT_BANK_BATCH', // Nuevo: Incluido en un TXT o lote para el banco, esperando confirmación
   DISBURSED = 'DISBURSED', // Desembolsado exitosamente (dinero en cuenta del asociado)

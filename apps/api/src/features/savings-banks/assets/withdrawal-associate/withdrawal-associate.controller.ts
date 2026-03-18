@@ -118,6 +118,23 @@ export class WithdrawalAssociateController {
     return this.service.disburse(id, dto, userId);
   }
 
+
+  @Patch(':id/process')
+  @RequirePermissions('process:withdrawal-associate')
+  @ApiOperation({ summary: 'Process an approved withdrawal request' })
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal processed successfully.',
+  })
+  @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
+  process(
+    @Req() req: Request,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    const userId = req['user'].id;
+    return this.service.process(id, userId);
+  }
+
   @Delete(':id')
   @RequirePermissions('delete:withdrawal-associate')
   @ApiOperation({ summary: 'Cancel or reverse a Withdrawal' })

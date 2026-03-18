@@ -204,6 +204,7 @@ export class WithdrawalAssociateService {
         where: eq(withdrawalTypes.id, Number(withdrawal.withdrawalTypeId)),
       });
 
+
       if (!withdrawalType) {
         throw new NotFoundException('Tipo de retiro no encontrado.');
       }
@@ -222,89 +223,6 @@ export class WithdrawalAssociateService {
         (Array.isArray(withdrawal.withdrawalItems) &&
           withdrawal.withdrawalItems.length > 0);
 
-      if (isGoodsWithdrawal) {
-        // Es un retiro de bienes, se descuenta de haberes y se marca como desembolsado.
-        await this.associateAccountsMovementsService.create(userId, {
-          associateAccountId: withdrawal.associateAccountId,
-          movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
-          amount: Number(withdrawal.requestedAmount),
-          currencyCode: CurrencyCodeEnum.VES,
-          transactionDate: new Date(),
-          description: `Retiro de Haberes - Ref: ${withdrawal.referenceCode}`,
-          referenceId: String(withdrawal.id),
-          referenceType: 'withdrawalsAssociates',
-          status: 'PENDING' as movementStatusEnum,
-        });
-
-        if (administrativeFee > 0) {
-          await this.associateAccountsMovementsService.create(userId, {
-            associateAccountId: withdrawal.associateAccountId,
-            movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
-            amount: administrativeFee,
-            currencyCode: CurrencyCodeEnum.VES,
-            transactionDate: new Date(),
-            description: `Gasto Administrativo por retiro de Haberes - Ref: ${withdrawal.referenceCode}`,
-            referenceId: String(withdrawal.id),
-            referenceType: 'withdrawalsAssociates',
-            status: 'PENDING' as movementStatusEnum,
-          });
-        }
-
-        const disbursedAmount =
-          Number(withdrawal.requestedAmount) - administrativeFee;
-        const [updated] = await tx
-          .update(withdrawalsAssociates)
-          .set({
-            status: withdrawalStatusEnum.DISBURSED,
-            administrativeFee: administrativeFee.toString(),
-            disbursedAmount: disbursedAmount.toString(),
-            updatedById: userId,
-          })
-          .where(eq(withdrawalsAssociates.id, id))
-          .returning();
-
-        // Log auditoria unificado
-        this.eventEmitter.emit(
-          'audit.log',
-          new AuditLogEvent({
-            tableName: 'withdrawalsAssociates',
-            recordId: String(id),
-            action: 'UPDATE',
-            userId: userId,
-            area: 'savings_banks',
-            description: `Retiro de haberes aprobado.`,
-            newData: [updated],
-            previousData: [withdrawal],
-          }),
-        );
-
-        if (Array.isArray(withdrawal.withdrawalItems)) {
-          for (const item of withdrawal.withdrawalItems) {
-            if (item.itemType === 'PRODUCT') {
-              await this.inventoryMovementsService.create(
-                userId,
-                {
-                  movementType: 'OUT',
-                  description: `Salida Producto por retiro de haberes Ref: ${withdrawal.referenceCode}`,
-                  documentType: 'VENTA',
-                  documentNumber: withdrawal.referenceCode ?? undefined,
-                  items: [
-                    {
-                      itemId: item.itemId ?? 0,
-                      itemType: 'PRODUCT',
-                      quantity: item.quantity,
-                      unitCost: Number(item.agreedSellingPrice),
-                    },
-                  ],
-                },
-                tx,
-              );
-            }
-          }
-        }
-
-        return { message: 'Retiro por bienes aprobado exitosamente.' };
-      } else {
         // Es un retiro monetario, se aprueba y se crea el movimiento pendiente de desembolso.
 
         const [updated] = await tx
@@ -325,7 +243,7 @@ export class WithdrawalAssociateService {
           amount: Number(withdrawal.requestedAmount),
           currencyCode: CurrencyCodeEnum.VES,
           transactionDate: new Date(),
-          description: `Retiro de Haberes - Ref: ${withdrawal.referenceCode}`,
+          description: `Retiro ${isGoodsWithdrawal ? withdrawalType?.description: 'de Haberes'} - Ref: ${withdrawal.referenceCode}`,
           referenceId: String(withdrawal.id),
           referenceType: 'withdrawalsAssociates',
           status: 'PENDING' as movementStatusEnum,
@@ -338,7 +256,7 @@ export class WithdrawalAssociateService {
             amount: administrativeFee,
             currencyCode: CurrencyCodeEnum.VES,
             transactionDate: new Date(),
-            description: `Gasto Administrativo por retiro - Ref: ${withdrawal.referenceCode}`,
+            description: `Gasto Administrativo por ${isGoodsWithdrawal ? withdrawalType?.description: 'retiro de Haberes'} - Ref: ${withdrawal.referenceCode}`,
             referenceId: String(withdrawal.id),
             referenceType: 'withdrawalsAssociates',
             status: 'PENDING' as movementStatusEnum,
@@ -354,14 +272,14 @@ export class WithdrawalAssociateService {
             action: 'UPDATE',
             userId: userId,
             area: 'savings_banks',
-            description: `Retiro aprobado y movimiento generado en pendiente.`,
+            description: `Retiro ${isGoodsWithdrawal ? withdrawalType?.description: 'de Haberes'} aprobado y movimiento generado en pendiente.`,
             newData: [updated],
             previousData: [withdrawal],
           }),
         );
 
         return { message: 'Retiro aprobado exitosamente.' };
-      }
+
     });
   }
 
@@ -942,40 +860,13 @@ export class WithdrawalAssociateService {
       const withdrawalRecord = withdrawal.withdrawals_associates;
       const withdrawalTypeRecord = withdrawal.withdrawal_types;
 
+
       if (withdrawalRecord.status !== withdrawalStatusEnum.APPROVED) {
         throw new BadRequestException(
-          'Solo se pueden desembolsar retiros aprobados',
+          `Solo se pueden desembolsar retiros aprobados`,
         );
       }
-
-      // 2. Movimiento de banco (egreso por el monto NETO)
-      const dataBank = {
-        movement: {
-          bankAccountId: dto.bankAccountId,
-          transactionDate: new Date(dto.processedAt),
-          paymentMethod: paymentMethodEnum.BANK_TRANSFER,
-          description: `Desembolso de Retiro - ${withdrawalRecord.referenceCode}`,
-          bankReference: dto.bankReference,
-          category: 'MEMBER_WITHDRAWAL' as BankTransactionCategory,
-          creditAmount: 0,
-          debitAmount:
-            Number(withdrawal.withdrawals_associates.disbursedAmount) ?? 0, // Solo el neto sale del banco
-          createdById: userId,
-        },
-        links: [
-          {
-            internalRecordType: 'MEMBER_WITHDRAWAL',
-            internalRecordId: withdrawalRecord.id,
-          },
-        ],
-      };
-
-      const bankResult = await this.bankMovementsService.createAndReconcile(
-        dataBank,
-        userId,
-        tx,
-      );
-
+     
       // 3. Actualizar movimiento interno (marcar como COMPLETED)
       await tx
         .update(schema.associateAccountMovements)
@@ -997,7 +888,7 @@ export class WithdrawalAssociateService {
               AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
             ]),
           ),
-        );
+      );
 
       // 4. Generar Asiento Contable con las 3 líneas
       await this.accountingEntriesService.createAutomaticEntry(
@@ -1044,18 +935,47 @@ export class WithdrawalAssociateService {
         tx,
       );
 
-      // 5. Actualizar estado del retiro con montos finales
-      const [updated] = await tx
-        .update(withdrawalsAssociates)
-        .set({
-          status: withdrawalStatusEnum.DISBURSED,
-          bankTransactionId: bankResult.movement.id,
-          updatedById: userId,
-        })
-        .where(eq(withdrawalsAssociates.id, id))
-        .returning();
+          // 2. Movimiento de banco (egreso por el monto NETO)
+        const dataBank = {
+          movement: {
+            bankAccountId: dto.bankAccountId,
+            transactionDate: new Date(dto.processedAt),
+            paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+            description: `Desembolso de Retiro - ${withdrawalRecord.referenceCode}`,
+            bankReference: dto.bankReference,
+            category: 'MEMBER_WITHDRAWAL' as BankTransactionCategory,
+            creditAmount: 0,
+            debitAmount:
+              Number(withdrawal.withdrawals_associates.disbursedAmount) ?? 0, // Solo el neto sale del banco
+            createdById: userId,
+          },
+          links: [
+            {
+              internalRecordType: 'MEMBER_WITHDRAWAL',
+              internalRecordId: withdrawalRecord.id,
+            },
+          ],
+        };
 
-      // 6. Auditoría
+        const bankResult = await this.bankMovementsService.createAndReconcile(
+          dataBank,
+          userId,
+          tx,
+        );
+      
+        // 5. Actualizar estado del retiro con montos finales
+        const [updated] = await tx
+          .update(withdrawalsAssociates)
+          .set({
+            status: withdrawalStatusEnum.DISBURSED,
+            bankTransactionId: bankResult.movement.id,
+            updatedById: userId,
+          })
+          .where(eq(withdrawalsAssociates.id, id))
+          .returning();
+
+
+           // 6. Auditoría
       this.eventEmitter.emit(
         'audit.log',
         new AuditLogEvent({
@@ -1076,4 +996,169 @@ export class WithdrawalAssociateService {
       };
     });
   }
+
+   async process(
+    id: number,
+    userId: number,
+  ) {
+    return this.db.transaction(async (tx) => {
+      // 1. Verificar retiro y obtener tipo para porcentajes
+      const [withdrawal] = await tx
+        .select()
+        .from(withdrawalsAssociates)
+        .where(eq(withdrawalsAssociates.id, id))
+        .leftJoin(
+          associateAccounts,
+          eq(withdrawalsAssociates.associateAccountId, associateAccounts.id),
+        )
+        .leftJoin(associates, eq(associateAccounts.associateId, associates.id))
+        .leftJoin(
+          withdrawalTypes,
+          eq(withdrawalsAssociates.withdrawalTypeId, withdrawalTypes.id),
+        );
+
+      if (!withdrawal) throw new NotFoundException('Retiro no encontrado');
+
+      const withdrawalRecord = withdrawal.withdrawals_associates;
+      const withdrawalTypeRecord = withdrawal.withdrawal_types;
+
+      const isGoodsWithdrawal =
+        withdrawalRecord.commercialHouseId != null ||
+        (Array.isArray(withdrawalRecord.withdrawalItems) &&
+          withdrawalRecord.withdrawalItems.length > 0);
+
+      if (withdrawalRecord.status !== withdrawalStatusEnum.APPROVED) {
+        throw new BadRequestException(
+          `Solo se pueden procesar retiros aprobados`,
+        );
+      }
+     
+      // 3. Actualizar movimiento interno (marcar como COMPLETED)
+      await tx
+        .update(schema.associateAccountMovements)
+        .set({
+          status: 'COMPLETED' as movementStatusEnum,
+        })
+        .where(
+          and(
+            eq(
+              schema.associateAccountMovements.referenceId,
+              String(withdrawalRecord.id),
+            ),
+            eq(
+              schema.associateAccountMovements.referenceType,
+              'withdrawalsAssociates',
+            ),
+            inArray(schema.associateAccountMovements.movementType, [
+              AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+              AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
+            ]),
+          ),
+        );
+
+      // 4. Generar Asiento Contable con las 3 líneas
+      await this.accountingEntriesService.createAutomaticEntry(
+        userId,
+        {
+          companyId: Number(withdrawal.associates?.companyId ?? 1),
+          category: 'SAVINGS_BANK',
+          operationType: 'WITHDRAWAL_TYPE',
+          description: `Retiro ${withdrawalTypeRecord?.description} - ${withdrawal.associates?.fullname}`,
+          entryDate: new Date(),
+          referenceValue: withdrawalTypeRecord?.description,
+          currencyCode: CurrencyCodeEnum.VES,
+          originReferenceId: String(withdrawalRecord.id),
+          originType: 'WITHDRAWAL_PROCESSING',
+          items: [
+            {
+              associateId: withdrawal.associates?.id as number,
+              amounts: {
+                SPECIAL_WITHDRAWAL_SAVINGS: Number(
+                  withdrawal.withdrawals_associates.requestedAmount,
+                ), // DEBITO (Total solicitado)
+                OPERATING_INCOME_VARIOUS: Number(
+                  withdrawal.withdrawals_associates.administrativeFee,
+                ), // CREDITO (Comisión)
+                OPERATION_COUNTERPART: Number(
+                  withdrawal.withdrawals_associates.disbursedAmount,
+                ), // CREDITO (Banco)
+              },
+              descriptions: {
+                SPECIAL_WITHDRAWAL_SAVINGS:
+                  withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
+                OPERATING_INCOME_VARIOUS: `${withdrawalTypeRecord?.description ?? 'RETIRO'}`,
+                OPERATION_COUNTERPART: `${withdrawal.associates?.cedula} ${withdrawal.associates?.fullname}`,
+              },
+            },
+          ],
+          globalDescriptions: {
+            SPECIAL_WITHDRAWAL_SAVINGS:
+              withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
+            OPERATING_INCOME_VARIOUS: `${withdrawalTypeRecord?.description ?? 'RETIRO'}`,
+            OPERATION_COUNTERPART: `${withdrawal.associates?.cedula} ${withdrawal.associates?.fullname}`,
+          },
+        },
+        tx,
+      );
+      
+        if (Array.isArray(withdrawalRecord.withdrawalItems)) {
+          for (const item of withdrawalRecord.withdrawalItems) {
+            if (item.itemType === 'PRODUCT') {
+              await this.inventoryMovementsService.create(
+                userId,
+                {
+                  movementType: 'OUT',
+                  description: `Salida Producto por retiro ${withdrawalTypeRecord?.description} Ref: ${withdrawalRecord.referenceCode}`,
+                  documentType: 'VENTA',
+                  documentNumber: withdrawalRecord.referenceCode ?? undefined,
+                  items: [
+                    {
+                      itemId: item.itemId ?? 0,
+                      itemType: 'PRODUCT',
+                      quantity: item.quantity,
+                      unitCost: Number(item.agreedSellingPrice),
+                    },
+                  ],
+                },
+                tx,
+              );
+            }
+          }
+        }
+
+        // 5. Actualizar estado del retiro 
+        const [updated] = await tx
+          .update(withdrawalsAssociates)
+          .set({
+            status: withdrawalStatusEnum.PROCESSED,
+            updatedById: userId,
+          })
+          .where(eq(withdrawalsAssociates.id, id))
+          .returning();
+
+        //  Auditoría
+        this.eventEmitter.emit(
+          'audit.log',
+          new AuditLogEvent({
+            tableName: 'withdrawalsAssociates',
+            recordId: String(id),
+            action: 'UPDATE',
+            userId,
+            area: 'savings_banks',
+            description: `Retiro procesado exitosamente por ${withdrawalTypeRecord?.description}`,
+            newData: [updated],
+            previousData: [withdrawalRecord],
+          }),
+        );
+
+        return {
+          message: 'retiro procesado exitosamente',
+          withdrawal: updated,
+        };
+        
+  
+
+    });
+  }
+  
 }

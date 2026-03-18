@@ -97,6 +97,8 @@ export const getWithdrawalAction = async (params: {
       associateCedula: item.associateCedula,
       associateFullname: item.associateFullname,
       status: item.status,
+      isHouseComercial: item.isHouseComercial,
+      isInternalInventory: item.isInternalInventory,
     })) || [];
 
   return {
@@ -191,3 +193,18 @@ export const disburseWithdrawalAction = async (id: number, payload: any) => {
 
   return data;
 };
+
+export const processWithdrawalAction = async (id: number) => {
+  const [error, data] = await safeFetchApi(
+    withdrawalMutationSchema,
+    `/savings-banks/withdrawal-associate/${id}/process`,
+    'PATCH',
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Error process withdrawal Management');
+  }
+
+  return data;
+};
+
