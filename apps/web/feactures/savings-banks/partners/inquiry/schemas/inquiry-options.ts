@@ -31,6 +31,7 @@ export const WITHDRAWAL_STATUS_TYPES = {
   DISBURSEMENT_FAILED: 'Desembolso Fallido',
   DISBURSED_REVERSED: 'Desembolso Reversado',
   ADJUSTED: 'Ajustado',
+  PROCESSED: 'Procesado',
 } as const;
 
 export const MOVEMENT_TYPES = {
@@ -171,6 +172,7 @@ export const WITHDRAWAL_SATUS = {
   DISBURSEMENT_FAILED: 'Desembolso Fallido',
   DISBURSED_REVERSED: 'Desembolso Reversado',
   ADJUSTED: 'Ajustado',
+  PROCESSED: 'Procesado',
 } as const;
 
 export const MOVEMENT_STATUS_TYPES = {

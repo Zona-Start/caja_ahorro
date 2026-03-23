@@ -778,7 +778,7 @@ export function WithdrawalForm({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Total a Transferir
+                        Total a Retirar
                       </p>
                       <p className="text-lg font-medium">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}

@@ -85,12 +85,18 @@ export function LoanSummary({
 
   const balance = Number(selectedAssociate.associate.balance);
   const availability = balance * 0.8;
-  const maxRecommended = availability * 0.9;
+  const baseSalary = Number(selectedAssociate.associate.baseSalary ?? 0);
+  const paymentCapacity = baseSalary > 0 ? baseSalary * 0.3 : null;
 
   const hasBlocks =
     selectedAssociate?.totalLoans !== 0 ||
     selectedAssociate?.totalCredits !== 0 ||
     selectedAssociate?.associate?.isPayrollCredit === true;
+
+  const maxRecommended = Math.min(
+    availability * 0.9,
+    paymentCapacity !== null ? paymentCapacity * 0.9 : Infinity,
+  );
 
   return (
     <div className="space-y-6">
@@ -123,6 +129,19 @@ export function LoanSummary({
               <span className="text-sm font-medium">Disponibilidad</span>
               <span className="text-lg font-bold text-green-600">
                 {formatCurrency(availability)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Capacidad de Pago</span>
+              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {paymentCapacity !== null ? (
+                  formatCurrency(paymentCapacity)
+                ) : (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    No registrado
+                  </span>
+                )}
               </span>
             </div>
 

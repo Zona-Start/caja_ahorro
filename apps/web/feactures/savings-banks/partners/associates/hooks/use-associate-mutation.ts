@@ -114,7 +114,7 @@ export function useDownloadTemplateAssociate() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'template_asociados.xlsx';
+        a.download = 'carga_asociados.xlsx';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

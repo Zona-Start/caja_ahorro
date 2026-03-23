@@ -185,6 +185,8 @@ export const createLoanManagementAction = async (
     interestRate: Number(payloadWithoutId.interestRate),
     termUnits: Number(payloadWithoutId.termUnits),
     termType: payloadWithoutId.termType,
+    // Porcentaje de gastos administrativos (editable por el usuario)
+    expensesPercentage: Number(payloadWithoutId.expensesAmount),
   };
 
   const [error, data] = await safeFetchApi(

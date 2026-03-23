@@ -1,10 +1,14 @@
 import { useToastSystem } from '@/hooks/use-toast-system';
 import { queryKeys } from '@/lib/queryKeys';
-import { useMutation, useQueryClient, UseMutationResult } from '@tanstack/react-query';
-import { 
-  bulkUploadIndividualLoadAction, 
-  downloadTemplateIndividualLoadAction, 
-  saveIndividualLoadAction 
+import {
+  useMutation,
+  UseMutationResult,
+  useQueryClient,
+} from '@tanstack/react-query';
+import {
+  bulkUploadIndividualLoadAction,
+  downloadTemplateIndividualLoadAction,
+  saveIndividualLoadAction,
 } from '../actions/individual-load.action';
 import { LoadAssest } from '../schemas/individual-load-schema';
 
@@ -22,17 +26,16 @@ export function useIndividualLoadMutation(): UseMutationResult<
       saveIndividualLoadAction(loadAssest),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey:[queryKeys.associatesForIndividualAssetLoad.all(),
+        queryKey: [
+          queryKeys.associatesForIndividualAssetLoad.all(),
           queryKeys.accountingEntries.all(),
-        queryKeys.accountingReports.balanceSheet(),
-        queryKeys.accountingReports.generalLedger(),
-        queryKeys.accountingReports.incomeStatement(),
-        queryKeys.accountingReports.journalBook(),
-        queryKeys.accountingReports.trialBalance(),
-        ] 
+          queryKeys.accountingReports.balanceSheet(),
+          queryKeys.accountingReports.generalLedger(),
+          queryKeys.accountingReports.incomeStatement(),
+          queryKeys.accountingReports.journalBook(),
+          queryKeys.accountingReports.trialBalance(),
+        ],
       });
-
-      
     },
   });
 }
@@ -45,7 +48,8 @@ export function useBulkUploadIndividualLoad(
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (formData: FormData) => bulkUploadIndividualLoadAction(formData),
+    mutationFn: (formData: FormData) =>
+      bulkUploadIndividualLoadAction(formData),
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.associatesForIndividualAssetLoad.all(),
@@ -91,7 +95,7 @@ export function useDownloadTemplateIndividualLoad(): UseMutationResult<
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'plantilla_carga_masiva.xlsx';
+        a.download = 'carga_masiva_haberes.xlsx';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

@@ -79,4 +79,8 @@ export class CreateLoanDto {
   @IsInt()
   @IsOptional()
   termUnits?: number; // Número de cuotas o duración del plazo)
+
+  @IsNumber()
+  @IsOptional()
+  expensesPercentage?: number; // Porcentaje de gastos administrativos (sobreescribe el del tipo de préstamo)
 }

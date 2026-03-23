@@ -11,6 +11,8 @@ export const loadAssociate = z.object({
   associateAccountId: z.number(),
   accountNumber: z.string(),
   balance: z.string(),
+  baseSalary: z.string().nullable().optional(),
+  paymentCapacity: z.string().nullable().optional(),
   requestedAprrobed: z.string().nullable().optional(),
 });
 

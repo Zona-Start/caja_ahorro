@@ -117,6 +117,7 @@ export function LoanForm({
   });
 
   const [exceedingAvailability, setExceedingAvailability] = useState(false);
+  const [exceedingPaymentCapacity, setExceedingPaymentCapacity] = useState(false);
 
   // <-- Agrega este efecto para resetear el formulario cuando initialData cambie
   useEffect(() => {
@@ -207,26 +208,22 @@ export function LoanForm({
   }, [form.watch('loanTypeId'), form, loanTypes]);
 
   // Sincronizar para que la fecha de finalización se calcule automáticamente
+  // Lógica de días (idéntica al backend):
+  //   'Plazos'  → numPlazos × 15 días (quincenal)
+  //   'Cuotas'  → numCuotas × 30 días (mensual)
   useEffect(() => {
-    const subscription = form.watch((values, { name, type }) => {
-      // Solo recalcula si cambian startDate, termUnits o termType
+    const subscription = form.watch((values, { name }) => {
       if (name === 'startDate' || name === 'termUnits' || name === 'termType') {
         const { startDate, termUnits, termType } = values;
         if (startDate && termUnits && termType) {
           const start = new Date(startDate as string | Date);
           const units = parseInt(termUnits as string);
-          if (!isNaN(start.getTime()) && !isNaN(units)) {
+          if (!isNaN(start.getTime()) && !isNaN(units) && units > 0) {
+            const daysPerInstallment = termType === 'Plazos' ? 15 : 30;
+            const totalDays = units * daysPerInstallment;
             const newDate = new Date(start);
-            if (termType === 'Plazos') {
-              // Each unit is 15 days.
-              newDate.setDate(newDate.getDate() + units * 15);
-            } else {
-              // 'Cuotas'
-              // Each unit is a month.
-              newDate.setMonth(newDate.getMonth() + units);
-            }
+            newDate.setDate(newDate.getDate() + totalDays);
             const calculatedEndDate = newDate.toISOString().split('T')[0];
-            // Solo actualiza si el valor realmente cambió
             if (form.getValues('endDate') !== calculatedEndDate) {
               form.setValue('endDate', calculatedEndDate, {
                 shouldDirty: true,
@@ -265,19 +262,30 @@ export function LoanForm({
   useEffect(() => {
     if (!selectedAssociate) return;
     if (requestedAmount) {
-      // Calcular resumen del préstamo
-      const amount = requestedAmount; //monto soclitado
+      const amount = requestedAmount;
       const balance = Number(selectedAssociate?.associate.balance);
       const availability = balance * 0.8;
-      if (amount > availability) {
-        setExceedingAvailability(true);
-      } else {
-        setExceedingAvailability(false);
-      }
-    } else if (requestedAmount === 0) {
+      setExceedingAvailability(amount > availability);
+    } else {
       setExceedingAvailability(false);
     }
-  }, [requestedAmount]);
+  }, [requestedAmount, selectedAssociate]);
+
+  // Validación de capacidad de pago: la cuota no puede superar el 30% del salario base
+  useEffect(() => {
+    if (!selectedAssociate || !loanSummary) {
+      setExceedingPaymentCapacity(false);
+      return;
+    }
+    const paymentCapacity = Number(selectedAssociate.associate.paymentCapacity ?? 0);
+    const totalQuota = Number(loanSummary.totalQuota ?? 0);
+    // Solo validar si el asociado tiene salario registrado
+    if (paymentCapacity > 0 && totalQuota > 0) {
+      setExceedingPaymentCapacity(totalQuota > paymentCapacity);
+    } else {
+      setExceedingPaymentCapacity(false);
+    }
+  }, [loanSummary, selectedAssociate]);
 
   return (
     <Card>
@@ -432,7 +440,7 @@ export function LoanForm({
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                   <FormField
                     control={form.control}
                     name="interestRate"
@@ -443,6 +451,28 @@ export function LoanForm({
                           <Input
                             type="number"
                             placeholder="Ej: 12"
+                            {...field}
+                            disabled={
+                              !selectedAssociate ||
+                              isSubmitting ||
+                              isAssociateBlocked
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="expensesAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>% Gastos Administrativos</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Ej: 2"
                             {...field}
                             disabled={
                               !selectedAssociate ||
@@ -737,7 +767,7 @@ export function LoanForm({
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Monto Cuota Pagar
+                        Cuota por Plazo
                       </p>
                       <p className="text-lg font-medium">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}
@@ -755,7 +785,7 @@ export function LoanForm({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Total Gastos Administrativos
+                        Gastos Administrativos
                       </p>
                       <p className="text-lg font-medium">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}
@@ -764,7 +794,10 @@ export function LoanForm({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Total Préstamo a Pagar
+                        Total a Pagar
+                        <span className="ml-1 text-xs text-muted-foreground/70">
+                          (capital + interés + gastos)
+                        </span>
                       </p>
                       <p className="text-lg font-medium">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}
@@ -773,9 +806,12 @@ export function LoanForm({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">
-                        Total Monto Desembolso
+                        Monto Desembolsado
+                        <span className="ml-1 text-xs text-green-600 dark:text-green-400 font-medium">
+                          (monto completo)
+                        </span>
                       </p>
-                      <p className="text-lg font-medium">
+                      <p className="text-lg font-medium text-green-600 dark:text-green-400">
                         {currentCurrencyCode === 'VES' ? 'Bs ' : '$ '}{' '}
                         {loanSummary.totalDisbursement}
                       </p>
@@ -788,9 +824,19 @@ export function LoanForm({
             {exceedingAvailability && (
               <div className="flex items-center justify-center mt-4">
                 <Badge
-                  className={`text-white text-lg bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700`}
+                  className="text-white text-lg bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
                 >
                   El monto solicitado excede la disponibilidad
+                </Badge>
+              </div>
+            )}
+
+            {exceedingPaymentCapacity && !exceedingAvailability && (
+              <div className="flex items-center justify-center mt-4">
+                <Badge
+                  className="text-white text-lg bg-orange-500 hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                >
+                  El monto de la cuota excede la capacidad de pago del asociado
                 </Badge>
               </div>
             )}
@@ -810,7 +856,8 @@ export function LoanForm({
                   isSubmitting ||
                   !form.formState.isValid ||
                   isAssociateBlocked ||
-                  exceedingAvailability
+                  exceedingAvailability ||
+                  exceedingPaymentCapacity
                 }
               >
                 {isSubmitting ? (

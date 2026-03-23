@@ -47,14 +47,24 @@ export class LoanManagementService {
   ) {}
 
   // --- Helper function to generate amortization schedule ---
+  /**
+   * Nueva lógica de cálculo de interés:
+   * - Interés diario = capital × (tasa_anual / 100) / 365
+   * - Días por plazo quincenal = 15 (cada plazo es cada 15 días)
+   * - totalInterest = interésDiario × 15 × numPlazos
+   * - Gasto administrativo se SUMA al total (no se descuenta del desembolso)
+   * - totalPayable = capital + totalInterest + expensesAmount
+   * - installmentAmount (cuota por plazo) = totalPayable / numPlazos
+   */
   private generateAmortizationSchedule(
     loanAmount: number,
-    termMonths: number,
+    numInstallments: number,
     annualInterestRate: number,
     startDate: Date,
     loanId: number,
     createdById: number,
     termType: 'Plazos' | 'Cuotas' = 'Plazos',
+    expensesAmount: number = 0,
   ): Omit<
     LoanAmortizationSchedule,
     | 'id'
@@ -65,23 +75,43 @@ export class LoanManagementService {
     | 'updatedAt'
     | 'updatedById'
   >[] {
-    // 1. Cálculo del interés total fijo
-    const totalInterestFixed = (loanAmount * annualInterestRate) / 100;
-    const totalAmountToPayByClient = loanAmount + totalInterestFixed;
+    // ── 1. Amortización francesa (cuota fija, interés sobre saldo decreciente) ─
+    // Períodos por año: 24 quincenas | 12 meses
+    const periodsPerYear = termType === 'Plazos' ? 24 : 12;
+    const r = (annualInterestRate / 100) / periodsPerYear; // tasa por período
+    const n = numInstallments;
 
-    // 2. Número total de cuotas
-    const totalInstallments = termMonths;
+    // Cuota de capital+interés (fórmula francesa)
+    //   cuota = P × r × (1+r)^n / ((1+r)^n − 1)
+    const factor = Math.pow(1 + r, n);
+    const frenchInstallment = loanAmount * r * factor / (factor - 1);
 
-    // 3. Componentes exactos por cuota
-    const installmentAmountExact = totalAmountToPayByClient / totalInstallments;
-    const interestComponentExact = totalInterestFixed / totalInstallments;
-    const principalComponentExact = loanAmount / totalInstallments;
+    // Interés total = cuota × n − capital
+    const totalInterestFixed = frenchInstallment * n - loanAmount;
 
-    // 4. Función auxiliar: último día del mes
+    // ── 2. Gastos administrativos: se distribuyen uniformemente ──────────────
+    const expensePerInstallment = expensesAmount / n;
+
+    // Cuota total = cuota francesa + gastos por período
+    const totalInstallmentAmount = frenchInstallment + expensePerInstallment;
+
+    // Total a pagar = cuota total × n
+    const totalAmountToPayByClient = totalInstallmentAmount * n;
+
+    // ── 3. Número total de cuotas ─────────────────────────────────────────────
+    const totalInstallments = n;
+
+    // ── 4. Componentes exactos por cuota ──────────────────────────────────────
+    const installmentAmountExact = totalInstallmentAmount;
+    const expenseComponentExact = expensePerInstallment;
+    // Interés de la primera cuota (para inicializar el cronograma)
+    let remainingBalanceForSchedule = loanAmount;
+
+    // ── 5. Función auxiliar: último día del mes ───────────────────────────────
     const getLastDayOfMonth = (date: Date) =>
       new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-    // 5. Función auxiliar: siguiente fecha quincenal
+    // ── 6. Función auxiliar: siguiente fecha quincenal ────────────────────────
     const getNextBiweeklyDueDate = (
       current: Date,
       isFirstHalf: boolean,
@@ -113,7 +143,7 @@ export class LoanManagementService {
       }
     };
 
-    // 6. Determinar la primera fecha de pago
+    // ── 7. Determinar la primera fecha de pago ────────────────────────────────
     let nextDueDate: Date;
     if (termType === 'Plazos') {
       if (startDate.getDate() <= 15) {
@@ -125,7 +155,7 @@ export class LoanManagementService {
       nextDueDate = getLastDayOfMonth(startDate);
     }
 
-    // 7. Armar el cronograma
+    // ── 8. Armar el cronograma ────────────────────────────────────────────────
     const schedule: Omit<
       LoanAmortizationSchedule,
       | 'id'
@@ -137,35 +167,37 @@ export class LoanManagementService {
       | 'updatedById'
     >[] = [];
 
-    let remainingPrincipalBalance = loanAmount;
-
     for (let i = 1; i <= totalInstallments; i++) {
-      let principal = principalComponentExact;
-      let interest = interestComponentExact;
+      // Interés de este período = saldo × tasa por período
+      const interestThisPeriod = remainingBalanceForSchedule * r;
+      // Capital de este período = cuota francesa − interés
+      let principalThisPeriod = frenchInstallment - interestThisPeriod;
+      let expenseComponent = expenseComponentExact;
       let total = installmentAmountExact;
 
+      // Ajuste en la última cuota para cerrar diferencias de redondeo
       if (i === totalInstallments) {
-        principal = remainingPrincipalBalance;
-        total = principal + interest;
+        principalThisPeriod = remainingBalanceForSchedule;
+        total = principalThisPeriod + interestThisPeriod + expenseComponent;
       }
 
-      remainingPrincipalBalance -= principal;
+      remainingBalanceForSchedule -= principalThisPeriod;
 
       schedule.push({
         loanId,
         installmentNumber: i,
         dueDate: new Date(nextDueDate),
-        principalAmount: parseFloat(principal.toFixed(6)),
-        interestAmount: parseFloat(interest.toFixed(6)),
+        principalAmount: parseFloat(principalThisPeriod.toFixed(6)),
+        interestAmount: parseFloat(interestThisPeriod.toFixed(6)),
         totalInstallmentAmount: parseFloat(total.toFixed(6)),
         principalBalancePending: parseFloat(
-          remainingPrincipalBalance.toFixed(6),
+          Math.max(0, remainingBalanceForSchedule).toFixed(6),
         ),
         paymentStatus: PaymentStatusEnum.PENDING,
         createdById,
       });
 
-      // 8. Calcular la siguiente fecha
+      // ── 9. Siguiente fecha de vencimiento ─────────────────────────────────
       if (termType === 'Plazos') {
         if (nextDueDate.getDate() === 16) {
           nextDueDate = getNextBiweeklyDueDate(nextDueDate, false);
@@ -187,10 +219,21 @@ export class LoanManagementService {
     return (value * percentage) / 100;
   }
 
-  // Helper function to add months to a date
-  private addMonthsToDate(date: Date, months: number): Date {
-    const result = new Date(date);
-    result.setMonth(result.getMonth() + months);
+  /**
+   * Calcula la fecha de culminación del préstamo en base a días reales.
+   *   - 'Plazos' (quincenal) : numPlazos × 15 días
+   *   - 'Cuotas' (mensual)   : numCuotas × 30 días
+   * Ejemplo: 4 plazos quincenales → 4 × 15 = 60 días desde startDate.
+   */
+  private calculateEndDate(
+    startDate: Date,
+    numInstallments: number,
+    termType: string,
+  ): Date {
+    const result = new Date(startDate);
+    const daysPerInstallment = termType === 'Plazos' ? 15 : 30;
+    const totalDays = numInstallments * daysPerInstallment;
+    result.setDate(result.getDate() + totalDays);
     return result;
   }
 
@@ -287,9 +330,14 @@ export class LoanManagementService {
       .select()
       .from(loanTypes)
       .where(eq(loanTypes.id, loanTypeId));
-    const finalDate = this.addMonthsToDate(
+
+    // Calcular fecha de culminación: numPlazos × 15 días (quincenal) o numCuotas × 30 días (mensual)
+    const resolvedTermType = termType ?? getLoanTypes.termType ?? 'Plazos';
+    const resolvedTermUnits = termUnits ?? getLoanTypes.termUnits;
+    const finalDate = this.calculateEndDate(
       new Date(startDate),
-      termUnits ?? getLoanTypes.termUnits,
+      resolvedTermUnits,
+      resolvedTermType,
     );
 
     const setting = await this.db.query.systemSettings.findFirst({
@@ -416,7 +464,7 @@ export class LoanManagementService {
       );
     }
 
-    // Calculations
+    // ── Cálculos financieros (nueva lógica) ─────────────────────────────────
     const setting = await this.db.query.systemSettings.findFirst({
       where: eq(systemSettings.key, 'MONEDA'),
     });
@@ -433,59 +481,62 @@ export class LoanManagementService {
     const annualInterestRate = interestRate
       ? parseFloat(interestRate)
       : parseFloat(getLoanTypes.interestRate);
-    const term = termUnits ?? getLoanTypes.termUnits;
+
+    // numPlazos = termUnits tal como se guardó (cantidad de plazos quincenales o cuotas mensuales)
+    const numInstallments = termUnits ?? getLoanTypes.termUnits;
+
+    // Porcentaje de gastos: usa el del préstamo si no viene en el DTO
     const expensePercentage = parseFloat(
       getLoanTypes.administrativeExpensePercentage ?? '0',
     );
-    const percentageInterest =
-      (Number(requestedAmount) * annualInterestRate) / 100;
 
-    let totalQuota = 0;
-    let totalInterest = 0;
-    let installmentAmount = 0;
-    let totalPayable = 0;
-    let totalDisbursed = 0;
-    let totalTerm = 0;
+    const capital = Number(requestedAmount);
 
-    if (termType === 'Plazos') {
-      totalTerm = term / 2;
-    } else {
-      totalTerm = term;
-    }
+    /**
+     * Amortización francesa: cuota fija con interés sobre saldo decreciente.
+     * Tasa por período: tasa_anual / (24 períodos quincenales | 12 mensuales)
+     * Gasto administrativo: se SUMA a la cuota (no reduce el desembolso).
+     */
+    const periodsPerYear = (termType ?? getLoanTypes.termType) === 'Plazos' ? 24 : 12;
+    const r = annualInterestRate / 100 / periodsPerYear;
+    const n = numInstallments;
+    const factor = Math.pow(1 + r, n);
+    const frenchInstallment = capital * r * factor / (factor - 1);
+    const totalInterestCalc = frenchInstallment * n - capital;
 
+    const expensesAmountCalc = (capital * expensePercentage) / 100;
+    const totalPayableCalc = frenchInstallment * n + expensesAmountCalc;
+    // Cuota total = cuota francesa + gastos distribuidos / n
+    const installmentPerPeriod = frenchInstallment + expensesAmountCalc / n;
+
+    // El monto desembolsado es el capital completo (sin descuento)
+    const totalDisbursedCalc = capital;
+
+    let totalQuota = installmentPerPeriod;
+    let totalInterest = totalInterestCalc;
+    let installmentAmount = expensesAmountCalc;
+    let totalPayable = totalPayableCalc;
+    let totalDisbursed = totalDisbursedCalc;
+
+    // Convertir a USD si corresponde
     if (setting && setting.value === 'USD' && exchangeRateData) {
-      totalQuota =
-        (Number(requestedAmount) + percentageInterest) /
-        totalTerm /
-        Number(exchangeRateData.rate);
-      totalInterest =
-        (Number(requestedAmount) * annualInterestRate) /
-        100 /
-        Number(exchangeRateData.rate);
-      installmentAmount =
-        (Number(requestedAmount) * expensePercentage) /
-        100 /
-        Number(exchangeRateData.rate);
-      totalPayable =
-        (Number(requestedAmount) + totalInterest) /
-        Number(exchangeRateData.rate);
-      totalDisbursed =
-        (Number(requestedAmount) - installmentAmount) /
-        Number(exchangeRateData.rate);
-    } else {
-      totalQuota = (Number(requestedAmount) + percentageInterest) / totalTerm;
-      totalInterest = (Number(requestedAmount) * annualInterestRate) / 100;
-      installmentAmount = (Number(requestedAmount) * expensePercentage) / 100;
-      totalPayable = Number(requestedAmount) + totalInterest;
-      totalDisbursed = Number(requestedAmount) - installmentAmount;
+      const rate = Number(exchangeRateData.rate);
+      totalQuota /= rate;
+      totalInterest /= rate;
+      installmentAmount /= rate;
+      totalPayable /= rate;
+      totalDisbursed /= rate;
     }
 
     const customReference =
       await this.generateCodeService.generateNextReference('PRE');
     const approvalDate = new Date();
-    const finalDate = this.addMonthsToDate(
+
+    // Calcular fecha de culminación: numPlazos × 15 días (quincenal) o numCuotas × 30 días (mensual)
+    const finalDate = this.calculateEndDate(
       new Date(startDate!),
-      termUnits ?? getLoanTypes.termUnits,
+      numInstallments,
+      termType ?? getLoanTypes.termType ?? 'Plazos',
     );
 
     // Transaction for approval
@@ -499,10 +550,7 @@ export class LoanManagementService {
           approvedByUserId: userId,
           endDate: finalDate.toISOString(),
           totalInterest: String(totalInterest.toFixed(6)),
-          installmentAmount:
-            termType === 'Plazos'
-              ? String((totalQuota / 2).toFixed(6))
-              : String(totalQuota.toFixed(6)),
+          installmentAmount: String(totalQuota.toFixed(6)),
           expensesAmount: String(installmentAmount.toFixed(6)),
           totalPayable: String(totalPayable.toFixed(6)),
           disbursedAmount: String(totalDisbursed.toFixed(6)),
@@ -523,13 +571,14 @@ export class LoanManagementService {
       });
 
       const schedule = this.generateAmortizationSchedule(
-        Number(requestedAmount),
-        term,
+        capital,
+        n,
         annualInterestRate,
         approvalDate,
         id,
         userId,
         (termType ? termType : 'Plazos') as 'Plazos' | 'Cuotas',
+        expensesAmountCalc,
       );
 
       if (schedule.length > 0) {
@@ -813,6 +862,7 @@ export class LoanManagementService {
         dateAdmission: associates.dateAdmission,
         isPayrollCredit: associates.isPayrollCredit,
         status: associates.status,
+        baseSalary: associates.baseSalary,
       })
       .from(associates)
       .where(eq(associates.cedula, cedula));
@@ -883,12 +933,20 @@ export class LoanManagementService {
         ),
       );
 
+    const baseSalary = associate[0].baseSalary
+      ? Number(associate[0].baseSalary)
+      : 0;
+    // Capacidad de pago = 30% del salario base
+    const paymentCapacity = Number((baseSalary * 0.3).toFixed(2));
+
     return {
       associate: {
         ...associate[0],
         associateAccountId: associateAccount[0].associateAccountId,
         accountNumber: associateAccount[0].accountNumber,
         balance: Number(associateAccount[0].balance).toFixed(2),
+        baseSalary: baseSalary.toFixed(2),
+        paymentCapacity: paymentCapacity.toFixed(2),
         requestedAprrobed:
           result.length !== 0 ? result[0].requestedAprrobed : null,
       },
@@ -937,69 +995,61 @@ export class LoanManagementService {
         ),
       );
 
-    // 3. Calcular nuevos valores si corresponde
-    // 1. Perform calculations
-    // Using the standard formula for annuity loan payments
     const annualInterestRate = updateLoanDto.interestRate
       ? parseFloat(updateLoanDto.interestRate.toString())
-      : parseFloat(getLoanTypes.interestRate); // Tasa de interés anual
-    const term = updateLoanDto.termUnits ?? getLoanTypes.termUnits; // Plazo en meses
-    const expensePercentage = parseFloat(
-      getLoanTypes.administrativeExpensePercentage ?? '0',
-    ); //  Tasa Porcentaje de gastos administrativos
-    const percentageInterest =
-      ((updateLoanDto.requestedAmount ?? 0) * annualInterestRate) / 100; // Porcentaje de cuota
+      : parseFloat(getLoanTypes.interestRate);
 
-    let totalQuota = 0; //Cálculo del pago cuotas mesual
-    let totalInterest = 0; //Cálculo del monto total de intereses
-    let installmentAmount = 0; //total gasto administrativo
-    let totalPayable = 0; //Cálculo del monto total a pagar
-    let totalDisbursed = 0; //calculo desembolso
-    let totalTerm = 0;
-    if (getLoanTypes.termType === 'Plazos') {
-      totalTerm = term / 2;
-    } else {
-      totalTerm = term;
-    }
+    const numInstallments =
+      updateLoanDto.termUnits ?? getLoanTypes.termUnits;
+
+    const resolvedTermType =
+      updateLoanDto.termType ?? getLoanTypes.termType ?? 'Plazos';
+
+    // Porcentaje de gastos: usa el del DTO si viene, sino el del tipo de préstamo
+    const expensePercentage =
+      updateLoanDto.expensesPercentage !== undefined
+        ? updateLoanDto.expensesPercentage
+        : parseFloat(getLoanTypes.administrativeExpensePercentage ?? '0');
+
+    const capital = updateLoanDto.requestedAmount ?? 0;
+
+    /**
+     * Amortización francesa: cuota fija con interés sobre saldo decreciente.
+     * Tasa por período: tasa_anual / (24 quincenales | 12 mensuales)
+     * Gasto administrativo: se SUMA a la cuota (no reduce el desembolso).
+     */
+    const periodsPerYear = resolvedTermType === 'Plazos' ? 24 : 12;
+    const r = (annualInterestRate / 100) / periodsPerYear;
+    const n = numInstallments;
+    const factor = Math.pow(1 + r, n);
+    const frenchInstallment = capital * r * factor / (factor - 1);
+
+    let totalInterest = frenchInstallment * n - capital;
+    let installmentAmount = (capital * expensePercentage) / 100;
+    let totalPayable = frenchInstallment * n + installmentAmount;
+    let totalQuota = frenchInstallment + installmentAmount / n;
+    let totalDisbursed = capital;
+
+    // Convertir a USD si aplica
     if (setting && setting.value === 'USD' && exchangeRateData) {
-      totalQuota =
-        ((updateLoanDto?.requestedAmount ?? 0) + percentageInterest) /
-        totalTerm /
-        Number(exchangeRateData.rate);
-      totalInterest =
-        ((updateLoanDto?.requestedAmount ?? 0) * annualInterestRate) /
-        100 /
-        Number(exchangeRateData.rate);
-      installmentAmount =
-        ((updateLoanDto?.requestedAmount ?? 0) * expensePercentage) /
-        100 /
-        Number(exchangeRateData.rate);
-      totalPayable =
-        ((updateLoanDto?.requestedAmount ?? 0) + totalInterest) /
-        Number(exchangeRateData.rate);
-      totalDisbursed =
-        ((updateLoanDto?.requestedAmount ?? 0) - installmentAmount) /
-        Number(exchangeRateData.rate);
-    } else {
-      totalQuota =
-        ((updateLoanDto?.requestedAmount ?? 0) + percentageInterest) /
-        totalTerm;
-      totalInterest =
-        ((updateLoanDto?.requestedAmount ?? 0) * annualInterestRate) / 100;
-      installmentAmount =
-        ((updateLoanDto?.requestedAmount ?? 0) * expensePercentage) / 100;
-      totalPayable = (updateLoanDto?.requestedAmount ?? 0) + totalInterest;
-      totalDisbursed =
-        (updateLoanDto?.requestedAmount ?? 0) - installmentAmount;
+      const rate = Number(exchangeRateData.rate);
+      totalQuota /= rate;
+      totalInterest /= rate;
+      installmentAmount /= rate;
+      totalPayable /= rate;
+      totalDisbursed /= rate;
     }
 
     let customReference: string | null | undefined = undefined;
     let approvalDate: Date | null = null;
-    const currentDate = new Date(); // Fecha actual
-    const finalDate = this.addMonthsToDate(
+    const currentDate = new Date();
+
+    // Fecha de culminación: numPlazos × 15 días (quincenal) o numCuotas × 30 días (mensual)
+    const finalDate = this.calculateEndDate(
       updateLoanDto?.startDate ?? currentDate,
-      updateLoanDto?.termUnits ?? getLoanTypes.termUnits,
-    ); //fecha finalizacion del pago
+      numInstallments,
+      resolvedTermType,
+    );
 
     // 2 & 3. Handle APPROVED status
     if (updateLoanDto?.status === LoanStatusEnum.APPROVED) {
@@ -1130,7 +1180,7 @@ export class LoanManagementService {
         // Generar y guardar nueva tabla de amortización
         const schedule = this.generateAmortizationSchedule(
           updateLoanDto.requestedAmount!,
-          term,
+          numInstallments,
           annualInterestRate,
           updateLoanDto.startDate!,
           id,

@@ -189,32 +189,34 @@ export function LoanView({ isEdit = false, initialData }: LoanViewProps) {
         setSelectedLoanType(null);
       }
 
-      // Calcular resumen del préstamo
+      // ── Calcular resumen del préstamo (nueva lógica) ─────────────────────
       const amount = Number.parseFloat(values.requestedAmount || '0');
-      const term = Number.parseInt(values.termUnits || '0');
+      const numInstallments = Number.parseInt(values.termUnits || '0');
       const rate = Number.parseFloat(values.interestRate || '0');
-      const expenses = Number.parseFloat(values.expensesAmount || '0');
+      const expensePct = Number.parseFloat(values.expensesAmount || '0');
       const termType = values.termType;
 
-      if (amount > 0 && term > 0 && rate > 0 && termType) {
-        const annualRate = rate / 100;
-        let durationInYears = 0;
-        if (termType === 'Cuotas') {
-          durationInYears = term / 12;
-        } else {
-          // Plazos
-          durationInYears = term / 24; // 24 plazos in a year
-        }
+      if (amount > 0 && numInstallments > 0 && rate > 0 && termType) {
+        /**
+         * Amortización francesa: cuota fija con interés sobre saldo decreciente.
+         * Tasa por período: tasa_anual / (24 quincenales | 12 mensuales)
+         * Gasto administrativo: se SUMA a la cuota (no reduce el desembolso).
+         */
+        const periodsPerYear = termType === 'Plazos' ? 24 : 12;
+        const r = (rate / 100) / periodsPerYear;
+        const n = numInstallments;
+        const factor = Math.pow(1 + r, n);
+        const frenchInstallment = amount * r * factor / (factor - 1);
 
-        const totalInterestValue = amount * annualRate;
-        const totalPayableValue = amount + totalInterestValue;
-        const totalQuotaValue = totalPayableValue / term;
-        const installmentAmountValue = (amount * expenses) / 100;
-        const totalDisbursementValue = amount - installmentAmountValue;
+        const totalInterestValue = frenchInstallment * n - amount;
+        const expensesAmountValue = (amount * expensePct) / 100;
+        const totalPayableValue = frenchInstallment * n + expensesAmountValue;
+        const totalQuotaValue = frenchInstallment + expensesAmountValue / n;
+        const totalDisbursementValue = amount;
 
         let totalQuota = totalQuotaValue;
         let totalInterest = totalInterestValue;
-        let installmentAmount = installmentAmountValue;
+        let installmentAmount = expensesAmountValue;
         let totalPayable = totalPayableValue;
         let totalDisbursement = totalDisbursementValue;
 

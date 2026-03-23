@@ -404,7 +404,7 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Aporte Patronales',
+              description: 'Aporte Patronales',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
@@ -419,7 +419,7 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Aporte Patronales',
+              description: 'Aporte Patronales',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
@@ -446,37 +446,37 @@ export class IndividualLoadService {
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: 'Carga Masiva - Aportes Patronales - Descuento Caja',
+              description: 'Aportes Patronales - Diferencia Ahorro',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
 
           // Aporte patronal
-          await this.associateMovementsService.create(
-            userId,
-            {
-              associateAccountId: associate.associateAccountId,
-              movementType:
-                'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
-              amount: row.monto,
-              currencyCode: 'VES' as CurrencyCodeEnum,
-              transactionDate: new Date(),
-              description: 'Carga Masiva - Aportes Patronales - Descuento Caja',
-              status: 'COMPLETED' as movementStatusEnum,
-            },
-            tx,
-          );
+          // await this.associateMovementsService.create(
+          //   userId,
+          //   {
+          //     associateAccountId: associate.associateAccountId,
+          //     movementType:
+          //       'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
+          //     amount: row.monto,
+          //     currencyCode: 'VES' as CurrencyCodeEnum,
+          //     transactionDate: new Date(),
+          //     description: 'Carga Masiva - Aportes Patronales - Descuento Caja',
+          //     status: 'COMPLETED' as movementStatusEnum,
+          //   },
+          //   tx,
+          // );
 
           accountingItems.push({
             associateId: associate.id,
             amounts: {
               ASSOCIATED_SAVINGS: row.monto,
-              EMPLOYER_CONTRIBUTION: row.monto,
+              //EMPLOYER_CONTRIBUTION: row.monto,
             },
             descriptions: {
-              ASSOCIATED_SAVINGS: `APORTE DEL ${dateCell}`,
-              EMPLOYER_CONTRIBUTION: `APORTE DEL ${dateCell}`,
+              ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateCell}`,
+              // EMPLOYER_CONTRIBUTION: `APORTE DEL ${dateCell}`,
             },
           });
         }
@@ -499,15 +499,26 @@ export class IndividualLoadService {
               currencyCode: 'VES' as CurrencyCodeEnum,
               originReferenceId: `BULK_${Date.now()}`,
               originType: 'SAVINGS_BULK_LOAD',
-              roleAliases: {
-                SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-                EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
-              },
+              roleAliases:
+                typeCell === 'APORTE EMPLEADOS'
+                  ? {
+                      SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+                      EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
+                    }
+                  : {
+                      SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+                    },
+
               items: accountingItems,
-              globalDescriptions: {
-                ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${dateCell}`,
-                EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${dateCell}`,
-              },
+              globalDescriptions:
+                typeCell === 'APORTE EMPLEADOS'
+                  ? {
+                      ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${dateCell}`,
+                      EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${dateCell}`,
+                    }
+                  : {
+                      ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateCell}`,
+                    },
             },
             tx,
           );

@@ -83,6 +83,8 @@ export const columns: ColumnDef<Withdrawal>[] = [
             return 'outline';
           case 'DISBURSED':
             return 'success';
+          case 'PROCESSED':
+            return 'success';
           default:
             return 'default';
         }
