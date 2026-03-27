@@ -78,13 +78,13 @@ export class LoanManagementService {
     // ── 1. Amortización francesa (cuota fija, interés sobre saldo decreciente) ─
     // Períodos por año: 24 quincenas | 12 meses
     const periodsPerYear = termType === 'Plazos' ? 24 : 12;
-    const r = (annualInterestRate / 100) / periodsPerYear; // tasa por período
+    const r = annualInterestRate / 100 / periodsPerYear; // tasa por período
     const n = numInstallments;
 
     // Cuota de capital+interés (fórmula francesa)
     //   cuota = P × r × (1+r)^n / ((1+r)^n − 1)
     const factor = Math.pow(1 + r, n);
-    const frenchInstallment = loanAmount * r * factor / (factor - 1);
+    const frenchInstallment = (loanAmount * r * factor) / (factor - 1);
 
     // Interés total = cuota × n − capital
     const totalInterestFixed = frenchInstallment * n - loanAmount;
@@ -250,6 +250,7 @@ export class LoanManagementService {
       interestRate,
       termType,
       termUnits,
+      expensesPercentage,
     } = createLoanDto;
 
     const [companyData] = await this.db
@@ -365,6 +366,12 @@ export class LoanManagementService {
           interestRate: interestRate
             ? String(interestRate)
             : String(getLoanTypes.interestRate),
+          // Persistir el % de gastos personalizado si el frontend lo envió.
+          // null significa "usar el del tipo de préstamo en la aprobación".
+          expensesPercentage:
+            expensesPercentage != null
+              ? String(expensesPercentage)
+              : null,
           createdById: userId,
           updatedById: userId,
         })
@@ -412,6 +419,7 @@ export class LoanManagementService {
       termType,
       termUnits,
       interestRate,
+      expensesPercentage: savedExpensesPercentage, // % personalizado guardado en la solicitud
     } = loan;
 
     // Re-validate conditions
@@ -485,10 +493,12 @@ export class LoanManagementService {
     // numPlazos = termUnits tal como se guardó (cantidad de plazos quincenales o cuotas mensuales)
     const numInstallments = termUnits ?? getLoanTypes.termUnits;
 
-    // Porcentaje de gastos: usa el del préstamo si no viene en el DTO
-    const expensePercentage = parseFloat(
-      getLoanTypes.administrativeExpensePercentage ?? '0',
-    );
+    // Porcentaje de gastos: prioridad 1 → valor guardado en la solicitud
+    //                       prioridad 2 → valor por defecto del tipo de préstamo
+    const expensePercentage =
+      savedExpensesPercentage != null
+        ? parseFloat(savedExpensesPercentage)
+        : parseFloat(getLoanTypes.administrativeExpensePercentage ?? '0');
 
     const capital = Number(requestedAmount);
 
@@ -497,11 +507,12 @@ export class LoanManagementService {
      * Tasa por período: tasa_anual / (24 períodos quincenales | 12 mensuales)
      * Gasto administrativo: se SUMA a la cuota (no reduce el desembolso).
      */
-    const periodsPerYear = (termType ?? getLoanTypes.termType) === 'Plazos' ? 24 : 12;
+    const periodsPerYear =
+      (termType ?? getLoanTypes.termType) === 'Plazos' ? 24 : 12;
     const r = annualInterestRate / 100 / periodsPerYear;
     const n = numInstallments;
     const factor = Math.pow(1 + r, n);
-    const frenchInstallment = capital * r * factor / (factor - 1);
+    const frenchInstallment = (capital * r * factor) / (factor - 1);
     const totalInterestCalc = frenchInstallment * n - capital;
 
     const expensesAmountCalc = (capital * expensePercentage) / 100;
@@ -999,8 +1010,7 @@ export class LoanManagementService {
       ? parseFloat(updateLoanDto.interestRate.toString())
       : parseFloat(getLoanTypes.interestRate);
 
-    const numInstallments =
-      updateLoanDto.termUnits ?? getLoanTypes.termUnits;
+    const numInstallments = updateLoanDto.termUnits ?? getLoanTypes.termUnits;
 
     const resolvedTermType =
       updateLoanDto.termType ?? getLoanTypes.termType ?? 'Plazos';
@@ -1019,10 +1029,10 @@ export class LoanManagementService {
      * Gasto administrativo: se SUMA a la cuota (no reduce el desembolso).
      */
     const periodsPerYear = resolvedTermType === 'Plazos' ? 24 : 12;
-    const r = (annualInterestRate / 100) / periodsPerYear;
+    const r = annualInterestRate / 100 / periodsPerYear;
     const n = numInstallments;
     const factor = Math.pow(1 + r, n);
-    const frenchInstallment = capital * r * factor / (factor - 1);
+    const frenchInstallment = (capital * r * factor) / (factor - 1);
 
     let totalInterest = frenchInstallment * n - capital;
     let installmentAmount = (capital * expensePercentage) / 100;

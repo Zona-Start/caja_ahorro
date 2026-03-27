@@ -9,13 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Eye, FileCheck, Trash } from 'lucide-react';
+import { Eye, FileCheck, HandCoins, Trash } from 'lucide-react';
 import { useState } from 'react';
 import {
   useAprobedLoanMutation,
   useDeleteLoan,
 } from '../../hooks/use-loans-management-mutation';
 import { LoanManagement } from '../../schemas/loans-management.schema';
+import { DisburseLoanModal } from '../disburse-loan-modal';
 import { LoanDetailsModal } from '../loan-details-modal';
 
 interface CellActionProps {
@@ -27,6 +28,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [showAprobedModal, setShowAprobedModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showDisburseModal, setShowDisburseModal] = useState(false);
   const { mutate: deleteLoan } = useDeleteLoan();
 
   const { mutate: aprobeLoan, isPending: isUpdating } =
@@ -75,6 +77,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onClose={() => setShowDetailsModal(false)}
         loan={data}
       />
+      <DisburseLoanModal
+        isOpen={showDisburseModal}
+        onClose={() => setShowDisburseModal(false)}
+        loan={data}
+      />
       <Toaster />
       <div className="flex gap-1">
         <TooltipProvider>
@@ -118,6 +125,25 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                className="hover:text-green-600 hover:bg-green-100 dark:hover:bg-green-600/20"
+                variant="outline"
+                size="icon"
+                disabled={data.status !== 'APPROVED'}
+                onClick={() => setShowDisburseModal(true)}
+              >
+                <HandCoins className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Desembolsar Préstamo</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
                 variant="outline"
                 size="icon"
                 disabled={data.status !== 'REQUESTED'}
@@ -135,4 +161,3 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     </>
   );
 };
-

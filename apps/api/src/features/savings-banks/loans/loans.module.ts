@@ -1,9 +1,15 @@
 import { Module } from '@nestjs/common';
 import { LoanTypesModule } from './loan-types/loan-types.module';
 import { LoanManagementModule } from './loan_management/loan-management.module';
+import { LoanDisbursementModule } from './loan_disbursement/loan-disbursement.module';
 import { LoanPaidModule } from './loan_paid/loan-paid.module';
 
 @Module({
-  imports: [LoanManagementModule, LoanTypesModule, LoanPaidModule],
+  imports: [
+    LoanManagementModule,
+    LoanTypesModule,
+    LoanPaidModule,
+    LoanDisbursementModule,
+  ],
 })
 export class LoansFeaturesModule {}

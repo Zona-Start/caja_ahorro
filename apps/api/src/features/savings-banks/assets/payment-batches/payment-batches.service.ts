@@ -75,41 +75,6 @@ export class PaymentBatchesService {
           assocNationality: string;
 
         switch (it.type) {
-          case paymentBatchItemType.LOAN:
-            rec = await tx
-              .select({
-                status: schema.loans.status,
-                approvedAmount: schema.loans.approvedAmount,
-                expensesAmount: schema.loans.expensesAmount,
-                disbursementAccountId: schema.associateAccounts.id,
-                currencyCode: schema.loans.currencyCode,
-                associateNationality: schema.associates.nationality,
-                associateCedula: schema.associates.cedula,
-              })
-              .from(schema.loans)
-              .leftJoin(
-                schema.associates,
-                eq(schema.associates.id, schema.loans.associateId),
-              )
-              .leftJoin(
-                schema.associateAccounts,
-                eq(schema.associateAccounts.associateId, schema.associates.id),
-              )
-              .where(eq(schema.loans.id, it.sourceId));
-
-            if (rec.length === 0 || rec[0].status !== 'APPROVED')
-              throw new BadRequestException(
-                `Préstamo ${it.sourceId} no aprobado`,
-              );
-            net =
-              Number(rec[0].approvedAmount) -
-              Number(rec[0].expensesAmount ?? 0);
-            assocAccId = rec[0].disbursementAccountId;
-            assocNationality = rec[0].associateNationality?.[0] || '';
-            assocCedula = `${assocNationality}${rec[0].associateCedula}`;
-            curr = 'VES'; //rec[0].currencyCode;
-            break;
-
           case paymentBatchItemType.WITHDRAWAL:
             rec = await tx
               .select({
@@ -141,7 +106,7 @@ export class PaymentBatchesService {
             assocAccId = rec[0].disbursementAccountId;
             assocNationality = rec[0].associateNationality?.[0] || '';
             assocCedula = `${assocNationality}${rec[0].associateCedula}`;
-            curr = 'VES'; //rec[0].currencyCode;
+            curr = 'VES';
             break;
 
           case paymentBatchItemType.LIQUIDATION:
@@ -178,11 +143,13 @@ export class PaymentBatchesService {
             assocNationality = rec[0].associateNationality?.[0] || '';
             assocCedula = `${assocNationality}${rec[0].associateCedula}`;
             assocAccId = rec[0].disbursementAccountId;
-            curr = 'VES'; //rec[0].currencyCode;
+            curr = 'VES';
             break;
 
           default:
-            throw new BadRequestException('Tipo de ítem inválido');
+            throw new BadRequestException(
+              `Tipo de ítem inválido: ${it.type}. Este lote solo admite WITHDRAWAL y LIQUIDATION.`,
+            );
         }
 
         if (curr !== currencyCode)
@@ -251,9 +218,10 @@ export class PaymentBatchesService {
           status: paymentBatchStatus.DRAFT,
           description: dto.description ?? 'Lote automático',
           createdById: userId,
+          batchType: 'PAYMENT', // Identifica los lotes de retiros/liquidaciones
           paymentBatchReference:
             await this.generateCodeService.generateNextReference('LOT-P'),
-        })
+        } as any)
         .returning();
 
       // Insertar líneas con batchId
@@ -413,8 +381,8 @@ export class PaymentBatchesService {
           await this.bankMvts.createAndReconcile(dataBank, userId, tx);
 
           // 2. Movimiento interno (crédito a asociado)
-          // Si el movimiento ya existe (como en el caso de retiros), lo actualizamos a COMPLETED.
-          // De lo contrario lo creamos.
+          // Para retiros: actualizamos el movimiento pre-existente a COMPLETED.
+          // Para liquidaciones: creamos el movimiento.
           if (it.itemType === paymentBatchItemType.WITHDRAWAL) {
             await tx
               .update(schema.associateAccountMovements)
@@ -441,18 +409,16 @@ export class PaymentBatchesService {
                 ),
               );
           } else {
+            // LIQUIDATION: crear movimiento
             await this.assocMvts.create(
               userId,
               {
                 associateAccountId: it.associateAccountId as number,
-                movementType:
-                  it.itemType === paymentBatchItemType.LOAN
-                    ? AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT
-                    : AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+                movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
                 amount: Number(it.amount),
                 currencyCode: batch.currencyCode as CurrencyCodeEnum,
                 transactionDate: new Date(),
-                description: `DESEMBOLSO - REF: ${dto.bankReference}`,
+                description: `DESEMBOLSO LIQUIDACIÓN - REF: ${dto.bankReference}`,
                 referenceId: String(batchId),
                 referenceType: 'payment_batch',
                 area: 'HABERES',
@@ -503,14 +469,8 @@ export class PaymentBatchesService {
             }
           }
 
-          // 4. Cambiar estado del origen
+          // 4. Cambiar estado del origen (solo WITHDRAWAL y LIQUIDATION)
           switch (it.itemType) {
-            case paymentBatchItemType.LOAN:
-              await tx
-                .update(schema.loans)
-                .set({ status: 'DISBURSED' })
-                .where(eq(schema.loans.id, it.sourceId));
-              break;
             case paymentBatchItemType.WITHDRAWAL:
               await tx
                 .update(schema.withdrawalsAssociates)
@@ -641,7 +601,9 @@ export class PaymentBatchesService {
     const offset = (page - 1) * limit;
 
     /* ---------- 1. Filtros ---------- */
-    const conditions: SQL<unknown>[] = [];
+    const conditions: SQL<unknown>[] = [
+      eq(paymentBatches.batchType, 'PAYMENT'),
+    ];
 
     if (status) {
       conditions.push(eq(paymentBatches.status, status));

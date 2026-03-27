@@ -554,6 +554,47 @@ export const queryKeys = {
   },
 
   // =============================================
+  // SAVINGS BANKS MODULE - LOAN DISBURSEMENT BATCHES
+  // =============================================
+  loanDisbursementBatches: {
+    _def: ['loan-disbursement-batches'] as const,
+
+    all: () => [...queryKeys.loanDisbursementBatches._def],
+
+    list: (params?: Record<string, unknown>) => [
+      ...queryKeys.loanDisbursementBatches._def,
+      'list',
+      params,
+    ],
+
+    detail: (id: number) => [...queryKeys.loanDisbursementBatches._def, 'detail', id],
+  },
+
+  // =============================================
+  // SAVINGS BANKS MODULE - LOAN DISBURSEMENT BATCH SOURCES
+  // =============================================
+  loanDisbursementBatchSources: {
+    _def: ['loan-disbursement-batch-sources'] as const,
+
+    all: () => [...queryKeys.loanDisbursementBatchSources._def],
+
+    approvedLoans: () => [
+      ...queryKeys.loanDisbursementBatchSources._def,
+      'approved-loans',
+    ],
+
+    approvedWithdrawals: () => [
+      ...queryKeys.loanDisbursementBatchSources._def,
+      'approved-withdrawals',
+    ],
+
+    approvedLiquidations: () => [
+      ...queryKeys.loanDisbursementBatchSources._def,
+      'approved-liquidations',
+    ],
+  },
+
+  // =============================================
   // SAVINGS BANKS MODULE - SETTLEMENTS
   // =============================================
   settlements: {

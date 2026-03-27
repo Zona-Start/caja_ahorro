@@ -3,11 +3,13 @@
 import { useToastSystem } from '@/hooks/use-toast-system';
 import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { disburseIndividualLoanAction } from '../actions/disburse-loan-actions';
 import {
   aprobeLoanManagementAction,
   createLoanManagementAction,
   deleteLoanManagementAction,
 } from '../actions/loans-management-actions';
+import { DisburseIndividualLoan } from '../schemas/disburse-loan.schema';
 import { LoanManagement } from '../schemas/loans-management.schema';
 
 /**
@@ -97,6 +99,43 @@ export function useDeleteLoan() {
     },
     onError: (error) => {
       toast.error('Error al cancelar el préstamo, contacte al administrador');
+      console.error('Error:', error);
+    },
+  });
+}
+
+/**
+ * Hook para desembolsar individualmente un préstamo
+ */
+export function useDisburseIndividualLoan() {
+  const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
+  return useMutation({
+    mutationFn: (payload: {
+      loanId: number;
+      bankAccountId: number;
+      currencyCode: string;
+      paymentMethod: string;
+      disbursementDate: Date;
+      bankReference?: string;
+      description?: string;
+    }) => disburseIndividualLoanAction(payload),
+    onSuccess: (_, variables) => {
+      // Invalidar todos los préstamos y el detalle del préstamo afectado
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.detail(variables.loanId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.loansManagement.count(),
+      });
+      toast.success('Préstamo desembolsado exitosamente');
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Error al desembolsar el préstamo');
       console.error('Error:', error);
     },
   });

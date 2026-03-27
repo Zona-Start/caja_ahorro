@@ -239,6 +239,13 @@
       "when": 1773670403391,
       "tag": "0033_empty_purple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1774491624912,
+      "tag": "0034_brainy_stingray",
+      "breakpoints": true
     }
   ]
 }

@@ -452,6 +452,10 @@ export const loans = savingsBanksSchema.table(
     }), // Tasa de interés
     termType: varchar('term_type', { length: 20 }), // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
     termUnits: integer('term_units'), // Número de cuotas o duración del plazo)
+    expensesPercentage: numeric('expenses_percentage', {
+      precision: 5,
+      scale: 2,
+    }), // % de gastos administrativos personalizado (null = usa el del tipo de préstamo)
     ...timestamps, // created_at y updated_at
   },
   (table) => ({
@@ -952,6 +956,8 @@ export const paymentBatches = savingsBanksSchema.table('payment_batches', {
   bankFileName: varchar('bank_file_name', { length: 150 }), // nombre TXT que bajas
   bankReference: varchar('bank_reference', { length: 50 }), // devuelto por banco
   processedAt: timestamp('processed_at'),
+  // Tipo de lote: PAYMENT (retiros/liquidaciones) | LOAN_DISBURSEMENT (desembolsos de préstamos)
+  batchType: varchar('batch_type', { length: 30 }).notNull().default('PAYMENT'),
   ...timestamps,
 });
 
