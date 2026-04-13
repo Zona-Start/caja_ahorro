@@ -20,23 +20,34 @@ import {
 import { SelectedItem } from './payment-batch-types';
 
 interface DisbursementTabsProps {
-  approvedLoans: PaymentBatchApprovedItem[];
   approvedWithdrawals: PaymentBatchApprovedItem[];
   approvedLiquidations: PaymentBatchApprovedItem[];
   selectedItems: SelectedItem[];
   onSelectionChange: (newSelected: SelectedItem[]) => void;
+  // Infinite scroll props
+  withdrawalsInfinite?: {
+    fetchNextPage: () => void;
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+  };
+  liquidationsInfinite?: {
+    fetchNextPage: () => void;
+    hasNextPage: boolean;
+    isFetchingNextPage: boolean;
+  };
 }
 
 export function DisbursementTabs({
-  approvedLoans,
   approvedWithdrawals,
   approvedLiquidations,
   selectedItems,
   onSelectionChange,
+  withdrawalsInfinite,
+  liquidationsInfinite,
 }: DisbursementTabsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [openCommand, setOpenCommand] = useState(false);
-  const [activeTab, setActiveTab] = useState('loans');
+  const [activeTab, setActiveTab] = useState('withdrawals');
 
   // Shortcuts for CMD+K
   useEffect(() => {
@@ -60,10 +71,6 @@ export function DisbursementTabs({
     );
   };
 
-  const filteredLoans = useMemo(
-    () => filterItems(approvedLoans),
-    [approvedLoans, searchQuery],
-  );
   const filteredWithdrawals = useMemo(
     () => filterItems(approvedWithdrawals),
     [approvedWithdrawals, searchQuery],
@@ -75,7 +82,7 @@ export function DisbursementTabs({
 
   // Helper to handle row selection from tables
   const handleTableSelection = (
-    type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION',
+    type: 'WITHDRAWAL' | 'LIQUIDATION',
     rowSelection: Record<string, boolean>,
   ) => {
     // 1. Get all currently selected items of other types
@@ -94,7 +101,7 @@ export function DisbursementTabs({
   };
 
   // Compute rowSelection state for current tab tables
-  const getRowSelection = (type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION') => {
+  const getRowSelection = (type: 'WITHDRAWAL' | 'LIQUIDATION') => {
     const selection: Record<string, boolean> = {};
     selectedItems
       .filter((i) => i.type === type)
@@ -107,7 +114,6 @@ export function DisbursementTabs({
   // For Command Palette
   const allSearchableItems = useMemo(
     () => [
-      ...approvedLoans.map((i) => ({ ...i, type: 'LOAN' as const })),
       ...approvedWithdrawals.map((i) => ({
         ...i,
         type: 'WITHDRAWAL' as const,
@@ -117,11 +123,11 @@ export function DisbursementTabs({
         type: 'LIQUIDATION' as const,
       })),
     ],
-    [approvedLoans, approvedWithdrawals, approvedLiquidations],
+    [approvedWithdrawals, approvedLiquidations],
   );
 
   const toggleSelection = (
-    type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION',
+    type: 'WITHDRAWAL' | 'LIQUIDATION',
     id: number,
   ) => {
     const exists = selectedItems.find(
@@ -174,7 +180,6 @@ export function DisbursementTabs({
                     toggleSelection(item.type, item.id);
                     setOpenCommand(false);
                     // switch tab?
-                    if (item.type === 'LOAN') setActiveTab('loans');
                     if (item.type === 'WITHDRAWAL') setActiveTab('withdrawals');
                     if (item.type === 'LIQUIDATION') setActiveTab('liquidations');
                   }}
@@ -196,13 +201,7 @@ export function DisbursementTabs({
       </CommandDialog>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="loans" className="flex gap-2">
-            Préstamos
-            <Badge variant="secondary" className="px-1.5 py-0.5 text-xs">
-              {filteredLoans.length}
-            </Badge>
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="withdrawals" className="flex gap-2">
             Retiros
             <Badge variant="secondary" className="px-1.5 py-0.5 text-xs">
@@ -217,14 +216,6 @@ export function DisbursementTabs({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="loans" className="mt-4">
-          <ApprovedItemsDataTable
-            columns={getPaymentBatchColumns('LOAN')}
-            data={filteredLoans}
-            rowSelection={getRowSelection('LOAN')}
-            onRowSelectionChange={(sel) => handleTableSelection('LOAN', sel)}
-          />
-        </TabsContent>
         <TabsContent value="withdrawals" className="mt-4">
           <ApprovedItemsDataTable
             columns={getPaymentBatchColumns('WITHDRAWAL')}
@@ -233,6 +224,9 @@ export function DisbursementTabs({
             onRowSelectionChange={(sel) =>
               handleTableSelection('WITHDRAWAL', sel)
             }
+            fetchNextPage={withdrawalsInfinite?.fetchNextPage}
+            hasNextPage={withdrawalsInfinite?.hasNextPage}
+            isFetchingNextPage={withdrawalsInfinite?.isFetchingNextPage}
           />
         </TabsContent>
         <TabsContent value="liquidations" className="mt-4">
@@ -243,6 +237,9 @@ export function DisbursementTabs({
             onRowSelectionChange={(sel) =>
               handleTableSelection('LIQUIDATION', sel)
             }
+            fetchNextPage={liquidationsInfinite?.fetchNextPage}
+            hasNextPage={liquidationsInfinite?.hasNextPage}
+            isFetchingNextPage={liquidationsInfinite?.isFetchingNextPage}
           />
         </TabsContent>
       </Tabs>

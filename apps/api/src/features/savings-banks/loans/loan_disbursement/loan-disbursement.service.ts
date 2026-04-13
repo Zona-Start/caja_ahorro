@@ -148,7 +148,7 @@ export class LoanDisbursementService {
               amounts: {
                 LOAN_PRINCIPAL: principalAmount,
                 SERVICE_FEE_INCOME: expensesAmount,
-                BANK_ACCOUNT: principalAmount + expensesAmount,
+                BANK_ACCOUNT: principalAmount - expensesAmount,
               },
               descriptions: {
                 LOAN_PRINCIPAL: loanTypeName,

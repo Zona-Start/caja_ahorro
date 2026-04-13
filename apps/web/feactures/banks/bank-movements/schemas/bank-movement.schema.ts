@@ -21,7 +21,9 @@ export const bankMovementSchema = z.object({
   amount: z.number().min(0.01, 'El monto debe ser mayor a cero.'),
 
   bankReference: z.string().min(1, 'La refencia es requerida.'),
-  category: z.enum(categoryKeys),
+  category: z.enum(categoryKeys, {
+    required_error: 'La categoría es requerida.',
+  }),
   links: z.array(linkItemSchema).optional(),
 });
 

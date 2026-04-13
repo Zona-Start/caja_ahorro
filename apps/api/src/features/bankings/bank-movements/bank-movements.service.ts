@@ -10,11 +10,13 @@ import {
   CurrencyCodeEnum,
   liquidationsStatusEnum,
   LoanStatusEnum,
+  paymentMethodEnum,
   paymentSupplierStatusEnum,
   withdrawalStatusEnum,
 } from '@/types/enum';
 import {
   ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
@@ -29,6 +31,9 @@ import {
 } from './dto';
 import { GetLinkablesDto } from './dto/get-linkables.dto';
 import { ReverseMovementDto } from './dto/reverse-movement.dto';
+import { LoanPaidService } from '@/features/savings-banks/loans/loan_paid/loan-paid.service';
+import { CreditPaidService } from '@/features/savings-banks/credits/credit-paid/credit-paid.service';
+import { BankTransactions } from '@/database/schema/tables/banking';
 
 @Injectable()
 export class BankMovementsService {
@@ -36,6 +41,8 @@ export class BankMovementsService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly assocMvts: AssociateAccountsMovementsService,
     private readonly audit: AuditLogsService,
+    private readonly loanPaidService: LoanPaidService,
+    private readonly creditPaidService: CreditPaidService,
   ) {}
 
   /**
@@ -131,7 +138,7 @@ export class BankMovementsService {
 
       if (dto.links) {
         // 2.  Reconcilia enseguida
-        await this.reconcile(movement.id, { links: dto.links }, userId, tx);
+        await this.reconcile(movement, { links: dto.links }, userId, tx);
       }
 
       return { movement, message: 'Created and reconciled successfully' };
@@ -226,7 +233,7 @@ export class BankMovementsService {
             amount: schema.associateAccountMovements.amount,
             date: schema.associateAccountMovements.transactionDate,
             concept:
-              sql`CONCAT('Aporte Socio ',${schema.associateAccountMovements.associateAccountId})`.as(
+              sql`CONCAT('Aporte Socio ',${schema.associates.fullname})`.as(
                 'concept',
               ),
           })
@@ -236,6 +243,13 @@ export class BankMovementsService {
             eq(
               schema.associateAccountMovements.id,
               schema.internalTransactionBankLinks.internalRecordId,
+            ),
+          )
+          .innerJoin(
+            schema.associates,
+            eq(
+              schema.associateAccountMovements.associateAccountId,
+              schema.associates.id,
             ),
           )
           .where(
@@ -603,7 +617,7 @@ export class BankMovementsService {
    * Si cualquier paso falla **todo se revierte**.
    */
   async reconcile(
-    bankTransactionId: number,
+    bankTransactionDto: BankTransactions,
     dto: ReconcileBankDto,
     userId: number,
     tx?: NodePgDatabase<typeof schema>,
@@ -614,7 +628,7 @@ export class BankMovementsService {
       const [mov] = await tx
         .select()
         .from(schema.bankTransactions)
-        .where(eq(schema.bankTransactions.id, bankTransactionId));
+        .where(eq(schema.bankTransactions.id, bankTransactionDto.id));
 
       if (!mov) throw new NotFoundException('Bank movement not found');
       if (mov.reconciliationStatus === 'RECONCILED')
@@ -623,7 +637,7 @@ export class BankMovementsService {
       // 2.  Links
       await tx.insert(schema.internalTransactionBankLinks).values(
         dto.links.map((l) => ({
-          bankTransactionId,
+          bankTransactionId: bankTransactionDto.id,
           internalRecordType: l.internalRecordType,
           internalRecordId: l.internalRecordId,
           linkedBy: userId,
@@ -637,21 +651,19 @@ export class BankMovementsService {
           //reconciliationStatus: 'RECONCILED',
           internalLinkStatus: 'LINKED',
         })
-        .where(eq(schema.bankTransactions.id, bankTransactionId));
+        .where(eq(schema.bankTransactions.id, bankTransactionDto.id));
 
       // 4.  Cierra documentos y genera asiento
       for (const l of dto.links) {
-        // await this.closeInternalDocument(
-        //   l.internalRecordType,
-        //   l.internalRecordId,
-        //   bankTransactionId,
-        //   mov.debitAmount ?? '0',
-        //   mov.creditAmount ?? '0',
-        //   userId,
-        //   tx,
-        //   mov,
-        // );
-        //await this.createAccountingEntry(l.internalRecordType, mov, tx); //generar asiento
+        await this.closeInternalDocument(
+          l.internalRecordType,
+          l.internalRecordId,
+          bankTransactionDto.paymentMethod as paymentMethodEnum,
+          new Date(bankTransactionDto.transactionDate),
+          bankTransactionDto.creditAmount ?? '0',
+          userId,
+          tx,
+        );
       }
 
       return { message: 'Reconciled successfully' };
@@ -669,254 +681,34 @@ export class BankMovementsService {
   private async closeInternalDocument(
     type: string,
     id: number,
-    btId: number,
-    debitAmount: string,
-    creditAmount: string,
+    paymentMethod: paymentMethodEnum,
+    paymentDate: Date,
+    amount: string,
     userId: number,
     tx: NodePgDatabase<typeof schema>,
-    dataBank?: any,
   ) {
-    //procesar retiros
-    if (type === 'MEMBER_WITHDRAWAL') {
-      const [result] = await tx
-        .select()
-        .from(schema.withdrawalsAssociates)
-        .where(eq(schema.withdrawalsAssociates.id, id));
-
-      // 2. Movimiento interno (crédito a asociado)
-      // await this.assocMvts.create(userId, {
-      //   associateAccountId: result.associateAccountId as number,
-      //   movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
-      //   amount: Number(result.requestedAmount),
-      //   currencyCode: 'VES' as CurrencyCodeEnum,
-      //   transactionDate: new Date(),
-      //   description: `Desembolso de retiro - REF: ${result.referenceCode}`,
-      //   referenceId: String(btId),
-      //   referenceType: dataBank.category,
-      //   referenceNumber: dataBank.bankReference ?? undefined,
-      //   area: 'Retiros',
-      // });
-
-      // if (Number(result?.administrativeFee) !== 0) {
-      //   const cal =
-      //     (Number(result.requestedAmount) * Number(result.administrativeFee)) /
-      //     100;
-      //   const expanseAdministration = Number(result.requestedAmount) - cal;
-
-      //   await this.assocMvts.create(userId, {
-      //     associateAccountId: result.associateAccountId as number,
-      //     movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
-      //     amount: Number(expanseAdministration),
-      //     currencyCode: 'VES' as CurrencyCodeEnum,
-      //     transactionDate: new Date(),
-      //     description: `Gasto Administrativo por Desembolso de retiro - REF: ${result.referenceCode}`,
-      //     referenceId: String(btId),
-      //     referenceType: dataBank.category,
-      //     referenceNumber: dataBank.bankReference ?? undefined,
-      //     area: 'Retiros',
-      //   });
-      // }
-
-      await tx
-        .update(schema.withdrawalsAssociates)
-        .set({
-          bankTransactionId: dataBank.id,
-          status: 'DISBURSED',
-        })
-        .where(eq(schema.withdrawalsAssociates.id, result.id));
-
-      // 5. Auditoría
-      await this.audit.create(
-        {
-          action: 'UPDATE' as ActionEnumAudit,
-          area: 'PRESTAMOS',
-          description: 'Desembolso de Retiro',
-          recordId: String(btId),
-          tableName: 'withdrawalsAssociates',
-          userId: Number(userId),
-        },
-        tx,
-      );
-    }
-
-    //procesar liquidacion
-    if (type === 'PAYROLL_SETTLEMENT') {
-      const [result] = await tx
-        .select()
-        .from(schema.liquidationsAssociates)
-        .where(eq(schema.liquidationsAssociates.id, id));
-
-      await tx
-        .update(schema.liquidationsAssociates)
-        .set({
-          payoutTransactionId: dataBank.id,
-          status: 'DISBURSED',
-        })
-        .where(eq(schema.liquidationsAssociates.id, result.id));
-
-      // 5. Auditoría
-      await this.audit.create(
-        {
-          action: 'UPDATE' as ActionEnumAudit,
-          area: 'LIQUIDACION',
-          description: 'Desembolso de Liquidacion',
-          recordId: String(btId),
-          tableName: 'liquidationsAssociates',
-          userId: Number(userId),
-        },
-        tx,
-      );
-    }
-
-    //desembolso de prestamos
-    if (type === 'LOAN_DISBURSEMENT') {
-      const [result] = await tx
-        .select()
-        .from(schema.loans)
-        .where(eq(schema.loans.id, id));
-
-      const [loanType] = await tx
-        .select()
-        .from(schema.loanTypes)
-        .where(eq(schema.loanTypes.id, result.loanTypeId));
-
-      // 2. Movimiento interno (crédito a asociado)
-      await this.assocMvts.create(userId, {
-        associateAccountId: result.associateId as number,
-        movementType: AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT,
-        amount: Number(result.disbursedAmount),
-        currencyCode: 'VES' as CurrencyCodeEnum,
-        transactionDate: new Date(),
-        description: `Desembolso de prestamo - N°: ${result.customReference}`,
-        referenceId: String(btId),
-        referenceType: dataBank.category,
-        area: 'PRESTAMOS',
-      });
-
-      await tx
-        .update(schema.loans)
-        .set({
-          disbursedByUserId: userId,
-          status: 'DISBURSED',
-          updatedById: userId,
-          disbursementDate: new Date().toISOString(),
-        })
-        .where(eq(schema.loans.id, result.id));
-
-      // 5. Auditoría
-      await this.audit.create(
-        {
-          action: 'UPDATE' as ActionEnumAudit,
-          area: 'PRESTAMOS',
-          description: 'Desembolso de Prestamo',
-          recordId: String(btId),
-          tableName: 'loans',
-          userId: Number(userId),
-        },
-        tx,
-      );
-
-      if (Number(loanType.administrativeExpensePercentage) > 0) {
-        const expanseAdministration =
-          Number(result.approvedAmount) - Number(result.disbursedAmount);
-
-        await this.assocMvts.create(userId, {
-          associateAccountId: result.associateId as number,
-          movementType: AssociateMovementTypeEnum.LOAN_ADMIN_FEE_DEBIT,
-          amount: Number(expanseAdministration),
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          transactionDate: new Date(),
-          description: `Comision Administrativa por Desembolso de prestamo - N°: ${result.customReference}`,
-          referenceId: String(btId),
-          referenceType: dataBank.category,
-          area: 'PRESTAMOS',
-        });
-
-        await this.audit.create(
-          {
-            action: 'UPDATE' as ActionEnumAudit,
-            area: 'PRESTAMOS',
-            description: 'Comision Administrativa por Desembolso de Prestamo',
-            recordId: String(btId),
-            tableName: 'loans',
-            userId: Number(userId),
-          },
-          tx,
-        );
-      }
-    }
-
     const map: Record<string, () => any> = {
       LOAN_PAYMENT: () =>
-        tx
-          .update(schema.loanPayments)
-          .set({ status: 'DONE' })
-          .where(eq(schema.loanPayments.id, id)),
+        this.loanPaidService.create({
+          loanId: id,
+          paymentMethod: paymentMethod,
+          paymentDate: paymentDate,
+          amount: Number(amount),
+          comment: 'Reconciliación bancaria'
+        }, userId, tx),
+      CREDIT_PAYMENT: () =>
+        this.creditPaidService.applyPaymentFromBankReconciliation(id, tx),
       SUPPLIER_PAYMENT: () =>
         tx
           .update(schema.supplierPayments)
           .set({ status: 'PROCESSED', processedAt: new Date().toISOString() })
           .where(eq(schema.supplierPayments.id, id)),
-
-      CREDIT_DISBURSEMENT: () =>
-        tx
-          .update(schema.credits)
-          .set({
-            status: 'PAID',
-          })
-          .where(eq(schema.credits.id, id)),
     };
 
     if (map[type]) await map[type]();
   }
 
-  /**
-   * createAccountingEntry
-   * Genera el asiento contable (doble partida) a partir de la regla de categoría.
-   * Se ejecuta dentro de la transacción de reconcile().
-   */
-  // private async createAccountingEntry(
-  //   type: string,
-  //   mov: typeof schema.bankTransactions.$inferSelect,
-  //   tx: NodePgDatabase<typeof schema>,
-  // ) {
-  //   const [rule] = await tx
-  //     .select()
-  //     .from(schema.bankCategoryRule)
-  //     .where(eq(schema.bankCategoryRule.category, mov.category!));
 
-  //   if (!rule || !rule.defaultDebitAccountId || !rule.defaultCreditAccountId)
-  //     return;
-
-  //   const [entry] = await tx
-  //     .insert(schema.accountingEntries)
-  //     .values({
-  //       companyId: mov.companyId,
-  //       entryDate: mov.transactionDate,
-  //       concept: `Auto ${mov.category} #${mov.id}`,
-  //       totalDebit: mov.debitAmount,
-  //       totalCredit: mov.creditAmount,
-  //       status: 'POSTED',
-  //     })
-  //     .returning();
-
-  //   await tx.insert(schema.accountingEntryItems).values([
-  //     {
-  //       entryId: entry.id,
-  //       row: 1,
-  //       chartAccountId: rule.defaultDebitAccountId,
-  //       debit: mov.debitAmount,
-  //       credit: '0',
-  //     },
-  //     {
-  //       entryId: entry.id,
-  //       row: 2,
-  //       chartAccountId: rule.defaultCreditAccountId,
-  //       debit: '0',
-  //       credit: mov.creditAmount,
-  //     },
-  //   ]);
-  // }
 
   /* ----------  UTILIDADES  ---------- */
 

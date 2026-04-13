@@ -476,6 +476,24 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.bankMovements._def, 'detail', id],
   },
 
+
+  // =============================================
+  // BANKS MODULE - BANK RECONCILIATIONS
+  // =============================================
+  bankReconciliations: {
+    _def: ['bank-reconciliations'] as const,
+
+    all: () => [...queryKeys.bankReconciliations._def],
+
+    list: (params?: Record<string, unknown>) => [
+      ...queryKeys.bankReconciliations._def,
+      'list',
+      params,
+    ],
+
+    detail: (id: number) => [...queryKeys.bankReconciliations._def, 'detail', id],
+  },
+
   // =============================================
   // BANKS MODULE - LINKABLES
   // =============================================

@@ -5,7 +5,8 @@ import * as schema from '@/database/index';
 import {
   associateAccounts,
   associates,
-  auditLogs,
+  bankTransactions,
+  internalTransactionBankLinks,
   liquidationsAssociates,
 } from '@/database/index';
 import {
@@ -28,6 +29,9 @@ import { AssociateAccountsMovementsService } from '../../associate-accounts-move
 import { CreditPaidService } from '../../credits/credit-paid/credit-paid.service';
 import { LoanPaidService } from '../../loans/loan_paid/loan-paid.service';
 import { CreateSettlementAssociateDto } from './dto/create-settlement-associate.dto';
+import { DisburseSettlementAssociateDto } from './dto/disburse-settlement-associate.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 
 @Injectable()
 export class SettlementAssociateService {
@@ -37,6 +41,7 @@ export class SettlementAssociateService {
     private readonly loanPaidService: LoanPaidService,
     private readonly creditPaidService: CreditPaidService,
     private readonly generateCodeService: GenerateCodeService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findOneRequest(cedula: string) {
@@ -178,16 +183,19 @@ export class SettlementAssociateService {
           customReference: liquidationsAssociates.customReference,
         });
 
-      // 5. Registrar la acción en el log de auditoría
-      await tx.insert(auditLogs).values({
-        userId: userId,
-        action: 'INSERT',
-        tableName: 'liquidationsAssociates',
-        recordId: newLiquidationRequest.id.toString(),
-        description: `Solicitud de Liquidación de Asociado`,
-        area: 'Liquidacion',
-        newData: [{ ...dto, status: 'REQUESTED', customReference: reference }],
-      });
+      // 5. Registrar la acción en el log de auditoría por evento
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId: userId,
+          action: 'INSERT',
+          tableName: 'liquidationsAssociates',
+          recordId: newLiquidationRequest.id.toString(),
+          description: `Solicitud de Liquidación de Asociado`,
+          area: 'Liquidacion',
+          newData: [{ ...dto, status: 'REQUESTED', customReference: reference }],
+        }),
+      );
 
       return {
         message: `Solicitud de liquidación creada exitosamente.`,
@@ -204,6 +212,9 @@ export class SettlementAssociateService {
    * @returns Un mensaje de éxito con el resultado de la operación.
    */
   async approve(liquidationId: number, userId: number) {
+
+
+    
     return this.db.transaction(async (tx) => {
       // 1. Obtener la liquidación y validar su estado
       const [liquidation] = await tx
@@ -249,21 +260,19 @@ export class SettlementAssociateService {
         totalOutstandingCreditsAtLiquidation,
         totalOutstandingLoansAtLiquidation,
         netLiquidationAmount,
-        liquidationDate,
       } = liquidation;
 
       // 3. Compensación de Deudas (Créditos y Préstamos)
       // NOTA: Se asume 'SETTLEMENT' como método de pago para estas transacciones internas.
+
       if (Number(totalOutstandingCreditsAtLiquidation) > 0) {
-        const credits = await this.creditPaidService.findOneRequest(
-          associate.cedula,
-        );
+       const [credits] = await tx.select().from(schema.credits).where(and(eq(schema.credits.associateId, associate.id), eq(schema.credits.status, 'DISBURSED'))).limit(1);
         try {
           await this.creditPaidService.create(
             {
               amount: Number(totalOutstandingCreditsAtLiquidation),
               creditId: Number(credits?.creditId),
-              paymentDate: new Date(),
+              paymentDate: new Date(liquidation.liquidationDate) ?? new Date(),
               paymentMethod: 'BANK_TRANSFER' as paymentMethodEnum,
               paymentType: 'PAYING' as creditPaymetTypeEnum,
               comment: 'Pago de Crédito por liquidación de asociado',
@@ -271,6 +280,8 @@ export class SettlementAssociateService {
               bankId: undefined,
             },
             userId,
+            tx,
+            true
           );
         } catch (error) {
           throw new InternalServerErrorException(
@@ -280,22 +291,23 @@ export class SettlementAssociateService {
       }
 
       if (Number(totalOutstandingLoansAtLiquidation) > 0) {
-        const loans = await this.loanPaidService.findOneRequest(
-          associate.cedula,
-        );
+        const [loans] = await tx.select().from(schema.loans).where(and(eq(schema.loans.associateId, associate.id), eq(schema.loans.status, 'DISBURSED'))).limit(1);
+    
         try {
           await this.loanPaidService.create(
             {
               amount: Number(totalOutstandingLoansAtLiquidation),
-              loanId: Number(loans.loanId),
-              paymentDate: new Date(),
+              loanId: Number(loans.id),
+              paymentDate: new Date(liquidation.liquidationDate) ?? new Date(),
               paymentMethod: 'BANK_TRANSFER' as paymentMethodEnum,
-              paymentType: 'PAYING' as loanPaymetTypeEnum,
+              paymentType: 'CANCELLATION' as loanPaymetTypeEnum,
               comment: 'Pago de préstamo por liquidación de asociado',
               transactionReference: '',
               bankId: undefined,
             },
             userId,
+            tx,
+            true
           );
         } catch (error) {
           throw new InternalServerErrorException(
@@ -356,22 +368,131 @@ export class SettlementAssociateService {
         })
         .where(eq(liquidationsAssociates.id, liquidationId));
 
-      // 8. Registrar la aprobación en el log de auditoría
-      await tx.insert(auditLogs).values({
-        userId: userId,
-        action: 'UPDATE',
-        tableName: 'liquidationsAssociates',
-        recordId: liquidationId.toString(),
-        description: `Procesamiento y Aprobación de Liquidación de Asociado`,
-        area: 'Liquidacion',
-        newData: [{ ...liquidation, status: 'PROCESSED' }],
-      });
+      // 8. Registrar la aprobación en el log de auditoría por evento
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId: userId,
+          action: 'UPDATE',
+          tableName: 'liquidationsAssociates',
+          recordId: liquidationId.toString(),
+          description: `Procesamiento y Aprobación de Liquidación de Asociado`,
+          area: 'Liquidacion',
+          newData: [{ ...liquidation, status: 'PROCESSED' }],
+        }),
+      );
 
       return {
         message: `Liquidación procesada exitosamente para el asociado '${associate.fullname}'.`,
         liquidationId: liquidation.id,
       };
     });
+  }
+  /**
+   * @description Ejecuta el desembolso final de una liquidación procesada.
+   * Crea el movimiento bancario de salida, vincula la transacción y actualiza el estado.
+   * No genera asiento contable automático por requerimiento de negocio.
+   * @param liquidationId - ID de la liquidación a desembolsar.
+   * @param dto - Datos bancarios para el pago.
+   * @param userId - ID del usuario que registra el desembolso.
+   */
+  async disburse(
+    liquidationId: number,
+    dto: DisburseSettlementAssociateDto,
+    userId: number,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const executeInTransaction = async (trx: any) => {
+      // 1. Validación de la liquidación
+      const [liquidation] = await trx
+        .select()
+        .from(liquidationsAssociates)
+        .leftJoin(associates, eq(liquidationsAssociates.associateId, associates.id))
+        .where(eq(liquidationsAssociates.id, liquidationId));
+
+      if (!liquidation) {
+        throw new NotFoundException(
+          `Liquidación con ID ${liquidationId} no encontrada.`,
+        );
+      }
+
+      if (liquidation.liquidations_associates.status !== 'PROCESSED') {
+        throw new BadRequestException(
+          `Solo se pueden desembolsar liquidaciones en estado 'PROCESADO'. Estado actual: ${liquidation.liquidations_associates.status}.`,
+        );
+      }
+
+      // 2. Extracción y validación del monto
+      const netAmount = Number(liquidation.liquidations_associates.netLiquidationAmount);
+      if (netAmount <= 0) {
+        throw new BadRequestException(
+          `El monto neto de la liquidación (${netAmount}) debe ser mayor a cero para proceder con el desembolso.`,
+        );
+      }
+
+      // 3. Crear Movimiento Bancario (Salida)
+      const [bankTransaction] = (await trx
+        .insert(bankTransactions)
+        .values({
+          bankAccountId: dto.bankAccountId,
+          paymentMethod: 'BANK_TRANSFER', // Requerido por el flujo: transferencia
+          transactionDate: dto.transferDate.toISOString(),
+          description: `Liquidación Final - Socio - ${liquidation.associates?.fullname}`,
+          category: 'PAYROLL_SETTLEMENT',
+          bankReference: dto.bankReference,
+          creditAmount: netAmount.toString(),
+          debitAmount: '0.00',
+          reconciliationStatus: 'RECONCILED',
+          internalLinkStatus: 'LINKED', // Se enlaza directamente
+        })
+        .returning({ id: bankTransactions.id })) as unknown as any[];
+
+      // 4. Vinculación con registro interno
+      await trx.insert(internalTransactionBankLinks).values({
+        bankTransactionId: bankTransaction.id,
+        internalRecordType: 'PAYROLL_SETTLEMENT',
+        internalRecordId: liquidationId,
+        linkedBy: userId,
+      });
+
+      // 5. Actualización de estado de la liquidación
+      await trx
+        .update(liquidationsAssociates)
+        .set({
+          status: 'DISBURSED',
+          updatedById: userId,
+          updatedAt: new Date(),
+        })
+        .where(eq(liquidationsAssociates.id, liquidationId));
+
+      // 6. Registrar en el log de auditoría por evento
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId: userId,
+          action: 'UPDATE',
+          tableName: 'liquidationsAssociates',
+          recordId: liquidationId.toString(),
+          description: `Desembolso de Liquidación de Asociado (Tran: ${bankTransaction.id})`,
+          area: 'Liquidacion',
+          newData: [
+            {
+              status: 'DISBURSED',
+              bankTransactionId: bankTransaction.id,
+              bankReference: dto.bankReference,
+            },
+          ],
+        }),
+      );
+
+      return {
+        message: 'Desembolso procesado exitosamente',
+        liquidationId: liquidationId,
+        bankTransactionId: bankTransaction.id,
+      };
+    };
+
+    return tx ? executeInTransaction(tx) : this.db.transaction(executeInTransaction);
   }
 
   async findAll(paginationDto: PaginationDto) {
@@ -473,7 +594,32 @@ export class SettlementAssociateService {
     };
   }
 
-  async findSettlementAprovee() {
+  async findSettlementAprovee(paginationDto: PaginationDto) {
+    const { page = 1, limit = 10, search = '' } = paginationDto || {};
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL<unknown>[] = [
+      eq(liquidationsAssociates.status, 'PROCESSED'),
+    ];
+
+    if (search) {
+      conditions.push(ilike(associates.cedula, `%${search}%`));
+    }
+
+    const where = and(...conditions);
+
+    const totalCountResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(liquidationsAssociates)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .where(where);
+
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
     const result = await this.db
       .select({
         id: liquidationsAssociates.id,
@@ -489,10 +635,24 @@ export class SettlementAssociateService {
         associates,
         eq(associates.id, liquidationsAssociates.associateId),
       )
-      .where(eq(liquidationsAssociates.status, 'PROCESSED'));
+      .where(where)
+      .limit(limit)
+      .offset(offset);
+
+    const meta = {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
 
     return {
       data: result,
+      meta,
     };
   }
 }

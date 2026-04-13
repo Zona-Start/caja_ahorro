@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const LOAN_PAYMENT_TYPES = {
-  PAYING: 'Abona a Préstamo',
-  CANCELLATION: 'Cancela Préstamo',
+  PAYING: 'Pago Cuota',
+  CANCELLATION: 'Cancelación Pago',
 } as const;
 
 export const PAYMENT_METHOD = {

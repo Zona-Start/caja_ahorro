@@ -1,4 +1,5 @@
 'use client';
+import { AlertModal } from '@/components/modal/alert-modal';
 import { IconWrapper } from '@/components/icon-wrapper';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
@@ -118,6 +119,7 @@ export function LoanForm({
 
   const [exceedingAvailability, setExceedingAvailability] = useState(false);
   const [exceedingPaymentCapacity, setExceedingPaymentCapacity] = useState(false);
+  const [isConfirmOpen, setConfirmOpen] = useState(false);
 
   // <-- Agrega este efecto para resetear el formulario cuando initialData cambie
   useEffect(() => {
@@ -245,8 +247,13 @@ export function LoanForm({
   }, [form, onFormChange]);
 
   // Función para manejar el envío del formulario
-  const handleSubmit = form.handleSubmit((data) => {
+  const onPreSubmit = () => {
+    setConfirmOpen(true);
+  };
+
+  const onConfirm = form.handleSubmit((data) => {
     onSubmit(data);
+    setConfirmOpen(false);
   });
 
   const handleCancel = () => {
@@ -288,21 +295,33 @@ export function LoanForm({
   }, [loanSummary, selectedAssociate]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconWrapper className="w-8 h-8">
-            <CreditCard />
-          </IconWrapper>
-          Datos del Préstamo
-        </CardTitle>
-        <CardDescription>
-          Ingrese la información del préstamo a otorgar
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      <AlertModal
+        isOpen={isConfirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={onConfirm}
+        loading={isSubmitting}
+        title="Confirmar Registro de Préstamo"
+        description="¿Está seguro que desea otorgar este préstamo al asociado? Se registrarán las cuotas y movimientos contables correspondientes."
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IconWrapper className="w-8 h-8">
+              <CreditCard />
+            </IconWrapper>
+            Datos del Préstamo
+          </CardTitle>
+          <CardDescription>
+            Ingrese la información del préstamo a otorgar
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onPreSubmit)}
+              className="space-y-6"
+            >
             <Tabs defaultValue="general" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="general">Información General</TabsTrigger>
@@ -555,7 +574,6 @@ export function LoanForm({
                               isSubmitting ||
                               isAssociateBlocked
                             } // <-- Added isAssociateBlocked
-                            minDate={new Date()}
                           />
                         </FormControl>
                         <FormMessage />
@@ -876,6 +894,7 @@ export function LoanForm({
           </form>
         </Form>
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 }

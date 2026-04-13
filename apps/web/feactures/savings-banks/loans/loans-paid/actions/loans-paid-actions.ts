@@ -179,3 +179,69 @@ export const saveLoanPaidAction = async (loanPaid: LoanPaid) => {
     throw new Error(error.message || 'Error saving associate data');
   }
 };
+
+export const downloadLoanPaidTemplateAction = async () => {
+  const [error, data] = await safeFetchApi<any>(
+    null,
+    '/loan-paid/download-template',
+    'GET',
+    undefined,
+    { responseType: 'arraybuffer' }
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Error downloading template');
+  }
+
+  return data;
+};
+
+
+export const bulkUploadLoanPaidAction = async (formData: FormData) => {
+  const [error, data] = await safeFetchApi<any>(
+    null,
+    '/loan-paid/bulk',
+    'POST',
+    formData
+  );
+
+  if (error) {
+    throw new Error(error.message || 'Error uploading file');
+  }
+
+  return data;
+};
+
+export const exportLoanPaidPdfAction = async (params: any) => {
+  const searchParams = new URLSearchParams();
+  const { fetchApi } = await import('@/lib/fetch.api');
+
+  if (params) {
+    if (params.page) searchParams.append('page', params.page.toString());
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.bank) searchParams.append('bank', params.bank);
+    if (params.type) searchParams.append('type', params.type);
+    if (params.method) searchParams.append('method', params.method);
+    if (params.search) {
+      searchParams.append('search', params.search.toUpperCase());
+    }
+  }
+
+  try {
+    const response = await fetchApi.get(
+      `/loan-paid/report/pdf?${searchParams.toString()}`,
+      {
+        responseType: 'arraybuffer',
+      },
+    );
+
+     return {
+      success: true,
+      data: Buffer.from(response.data).toString('base64'),
+    };
+
+  } catch (error: any) {
+    console.error('Error downloading PDF:', error);
+    throw new Error('Error al descargar el reporte PDF');
+  }
+};

@@ -9,11 +9,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { CheckSquare, Trash } from 'lucide-react';
+import { CheckSquare, Trash, Banknote } from 'lucide-react';
 import { useState } from 'react';
 
 import { useApproveSettlementMutation } from '../../hooks/use-settlement-mutation';
 import { SettlementPaymentApi } from '../../schemas/settlement-api-response';
+import { DisburseSettlementModal } from './disburse-modal';
 
 interface CellActionProps {
   data: SettlementPaymentApi;
@@ -23,10 +24,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openApprove, setOpenApprove] = useState(false);
+  const [openDisburse, setOpenDisburse] = useState(false);
 
   const { mutate: approveSettlement, isPending: isApproving } =
     useApproveSettlementMutation();
-  // const { mutate: deleteWithdrawal } = useDeleteWithdrawal();
 
   const onConfirmDelete = async () => {
     // try {
@@ -58,6 +59,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         title="¿Está seguro de aprobar la liquidación?"
         description="Esta acción procesará la liquidación del asociado. Esta acción no se puede deshacer."
       />
+      <DisburseSettlementModal
+        isOpen={openDisburse}
+        onClose={() => setOpenDisburse(false)}
+        data={data}
+      />
       <AlertModal
         isOpen={openDelete}
         onClose={() => setOpenDelete(false)}
@@ -68,28 +74,53 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       />
       <Toaster />
       <div className="flex gap-1">
+        {data.status === 'REQUESTED' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  onClick={() => setOpenApprove(true)}
+                >
+                  <CheckSquare className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Aprobar Liquidación</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {data.status === 'PROCESSED' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                  onClick={() => setOpenDisburse(true)}
+                >
+                  <Banknote className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Procesar Desembolso</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => setOpenApprove(true)}
-              >
-                <CheckSquare className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Aprobar Liquidación</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
+                className="h-8 w-8"
                 onClick={() => setOpenDelete(true)}
                 disabled // Disabling delete for now as it's not implemented
               >

@@ -10,10 +10,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { Trash } from 'lucide-react';
+import { Eye, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { useDeleteLoanPaid } from '../../hooks/use-loans-paid-mutation';
 import { LoanPaymentApi } from '../../schemas/loans-paid-api-response';
+import { LoansPaidDetailModal } from '../loans-paid-detail-modal';
 
 interface CellActionProps {
   data: LoanPaymentApi;
@@ -23,6 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const toast = useToastSystem();
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const { mutate: deleteLoanPaid } = useDeleteLoanPaid();
 
   const onConfirm = async () => {
@@ -55,26 +57,29 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         title="¿Estás seguro que desea anular el pago? "
         description="Esta acción no se puede deshacer."
       />
+      <LoansPaidDetailModal
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        data={data}
+      />
       <Toaster />
       <div className="flex gap-1">
-        {/* <TooltipProvider>
+        <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  router.push(`/dashboard/prestamos/pagos/editar/${data.id}`);
-                }}
+                onClick={() => setIsDetailOpen(true)}
               >
-                <Edit className="h-4 w-4" />
+                <Eye className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Editar</p>
+              <p>Ver detalles</p>
             </TooltipContent>
           </Tooltip>
-        </TooltipProvider> */}
+        </TooltipProvider>
 
         <TooltipProvider>
           <Tooltip>

@@ -20,11 +20,12 @@ export const getAssociatesByCedulaAction = async (cedula: string) => {
 };
 
 export const saveIndividualLoadAction = async (payload: LoadAssest) => {
+  const { includeBankingDetails, ...rest } = payload;
   const [error, data] = await safeFetchApi(
     loadAssestApiResponseSchema,
     '/savings-banks/individual-load',
     'POST',
-    payload,
+    rest,
   );
 
   if (error) {

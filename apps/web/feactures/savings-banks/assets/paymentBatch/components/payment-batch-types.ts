@@ -1,4 +1,4 @@
 export interface SelectedItem {
-  type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION';
+  type: 'WITHDRAWAL' | 'LIQUIDATION';
   sourceId: number;
 }

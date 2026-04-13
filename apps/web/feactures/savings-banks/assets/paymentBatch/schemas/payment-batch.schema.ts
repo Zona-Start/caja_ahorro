@@ -5,7 +5,7 @@ import {
 } from './payment-batch-options';
 
 export const createPaymentBatchItemSchema = z.object({
-  type: z.enum(['LOAN', 'WITHDRAWAL', 'LIQUIDATION']),
+  type: z.enum(['WITHDRAWAL', 'LIQUIDATION']),
   sourceId: z.number().min(1, 'ID de origen requerido'),
 });
 

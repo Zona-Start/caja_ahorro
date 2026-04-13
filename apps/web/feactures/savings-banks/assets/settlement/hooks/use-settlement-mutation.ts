@@ -5,9 +5,11 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   approveSettlementAction,
+  disburseSettlementAction,
   saveSettlementAction,
 } from '../actions/settlement-actions';
 import { Settlement } from '../schemas/settlement.schema';
+import { DisburseSettlementFormData } from '../schemas/disburse-settlement.schema';
 
 // Mutation hook remains the same
 export function useSettlementMutation() {
@@ -60,6 +62,36 @@ export function useApproveSettlementMutation() {
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al aprobar la liquidación');
+    },
+  });
+}
+
+export function useDisburseSettlementMutation() {
+  const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      formData,
+    }: {
+      id: number;
+      formData: DisburseSettlementFormData;
+    }) => disburseSettlementAction(id, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.settlements.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankAccounts.all(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.bankMovements.all(),
+      });
+      toast.success('Desembolso procesado exitosamente');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al procesar el desembolso');
     },
   });
 }

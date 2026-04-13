@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CreateSettlementAssociateDto } from './dto/create-settlement-associate.dto';
+import { DisburseSettlementAssociateDto } from './dto/disburse-settlement-associate.dto';
 import { SettlementAssociateService } from './settlement-associate.service';
 
 @ApiTags('Settlement Associate')
@@ -27,7 +28,7 @@ export class SettlementAssociateController {
     description: 'The settlement request has been successfully created.',
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  createRequest(@Req() req: Request, @Body() dto: CreateSettlementAssociateDto) {
+  createRequest(@Req() req: any, @Body() dto: CreateSettlementAssociateDto) {
     const userId = req['user'].id;
     return this.service.create(dto, userId);
   }
@@ -48,12 +49,34 @@ export class SettlementAssociateController {
     return this.service.approve(id, userId);
   }
 
+  @Post(':id/disburse')
+  @RequirePermissions('approve:settlement-associate')
+  @ApiOperation({
+    summary: 'Register the final disbursement for a processed settlement',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'The disbursement has been successfully recorded.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Settlement request not found or not in PROCESSED status.',
+  })
+  disburseRequest(
+    @Req() req: any,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: DisburseSettlementAssociateDto,
+  ) {
+    const userId = req['user'].id;
+    return this.service.disburse(id, dto, userId);
+  }
+
   @Get('approved')
   @RequirePermissions('read:settlement-associate')
   @ApiOperation({ summary: 'Get all settlement aproveed ' })
   @ApiResponse({ status: 200, description: 'Return all settlement aproveed' })
-  findSettlementAprovee() {
-    return this.service.findSettlementAprovee();
+  findSettlementAprovee(@Query() paginationDto: PaginationDto) {
+    return this.service.findSettlementAprovee(paginationDto);
   }
 
   @Get()

@@ -8,6 +8,8 @@ import { AssociateAccountsMovementsModule } from '../../associate-accounts-movem
 import { PaymentBatchesController } from './payment-batches.controller';
 import { PaymentBatchesService } from './payment-batches.service';
 import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
+import { SettlementAssociateModule } from '../settlement/settlement-associate.module';
+import { WithdrawalAssociateModule } from '../withdrawal-associate/withdrawal-associate.module';
 
 @Module({
   imports: [
@@ -17,7 +19,9 @@ import { AccountingEntriesModule } from '@/features/accounting/accounting-entrie
     AuditLogsModule,
     GenerateCodeModule,
     SettingsSystemModule,
-    AccountingEntriesModule
+    AccountingEntriesModule,
+    SettlementAssociateModule,
+    WithdrawalAssociateModule,
   ],
   controllers: [PaymentBatchesController],
   providers: [PaymentBatchesService],

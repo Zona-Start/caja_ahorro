@@ -85,6 +85,35 @@ export function BankMovementForm({
     form.setValue('amount', totalAmount, { shouldValidate: true });
   }, [selectedItems, totalAmount, form]);
 
+  const movementType = useWatch({ control: form.control, name: 'movementType' });
+
+  const entryCategories = [
+    'LOAN_PAYMENT',
+    'CREDIT_PAYMENT',
+    'INTEREST_EARNED',
+    'TAX_CREDIT',
+    'OTHER_INCOME',
+    'INTERNAL_TRANSFER',
+    'BANK_ADJUSTMENT',
+  ];
+  const exitCategories = [
+    'BANK_FEE',
+    'INTEREST_CHARGED',
+    'TAX_DEBIT',
+    'OTHER_EXPENSE',
+    'CLOSING_BANK',
+    'INTERNAL_TRANSFER',
+    'BANK_ADJUSTMENT',
+  ];
+
+  const filteredCategories = Object.entries(BANK_TRANSACTION_CATEGORY).filter(
+    ([key]) => {
+      if (movementType === 'ENTRY') return entryCategories.includes(key);
+      if (movementType === 'EXIT') return exitCategories.includes(key);
+      return false;
+    },
+  );
+
   const onSubmit = (data: BankMovement) => {
     const payload: any = {
       ...data,
@@ -124,13 +153,15 @@ export function BankMovementForm({
               {form.formState.errors.root.message}
             </p>
           )}
+
+          {/* 1. Cuenta y 2. Fecha */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="bankAccountId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cuenta Bancaria</FormLabel>
+                  <FormLabel>1. Cuenta Bancaria</FormLabel>
                   <SelectSearchable
                     options={
                       bankAccounts?.data?.map((acc) => ({
@@ -151,7 +182,7 @@ export function BankMovementForm({
               name="transactionDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fecha</FormLabel>
+                  <FormLabel>2. Fecha</FormLabel>
                   <FormControl>
                     <CustomCalendar
                       value={field.value || null}
@@ -163,15 +194,26 @@ export function BankMovementForm({
                 </FormItem>
               )}
             />
+          </div>
 
+          {/* 3. Tipo de Movimiento y 4. Categoría */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
               control={form.control}
               name="movementType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Movimiento</FormLabel>
+                  <FormLabel>3. Tipo de Movimiento</FormLabel>
                   <Select
-                    onValueChange={field.onChange}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      form.resetField('category');
+                      if (wantsToLink) {
+                        setWantsToLink(false);
+                        form.resetField('links');
+                        form.resetField('amount');
+                      }
+                    }}
                     defaultValue={field.value}
                   >
                     <FormControl>
@@ -193,17 +235,16 @@ export function BankMovementForm({
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Categoría</FormLabel>
+                  <FormLabel>4. Categoría del Movimiento</FormLabel>
                   <Select
                     onValueChange={(value) => {
                       field.onChange(value);
-                      if (wantsToLink) {
-                        setWantsToLink(false);
-                        form.resetField('links');
-                        form.resetField('amount');
-                      }
+                      form.resetField('links');
+                      form.resetField('amount');
+                      clearItems();
                     }}
                     defaultValue={field.value}
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
@@ -211,13 +252,11 @@ export function BankMovementForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.entries(BANK_TRANSACTION_CATEGORY).map(
-                        ([key, value]) => (
-                          <SelectItem key={key} value={key}>
-                            {value}
-                          </SelectItem>
-                        ),
-                      )}
+                      {filteredCategories.map(([key, value]) => (
+                        <SelectItem key={key} value={key}>
+                          {value}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -226,69 +265,21 @@ export function BankMovementForm({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <FormItem>
-              <FormLabel>¿Desea vincular a un registro del sistema?</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  setWantsToLink(value === 'true');
-                }}
-                value={wantsToLink ? 'true' : 'false'}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Seleccione una opción" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="false">No</SelectItem>
-                  <SelectItem value="true">Sí</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormItem>
-
-            {wantsToLink && (
-              <FormItem>
-                <FormLabel>Operaciones dentro del sistema</FormLabel>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                  onClick={() => setSearchModalOpen(true)}
-                  disabled={!category || !date}
-                >
-                  <Search className="mr-2 h-4 w-4" />
-                  Buscar y seleccionar operaciones...
-                </Button>
-                {(!category || !date) && (
-                  <p className="text-sm text-muted-foreground">
-                    Seleccione una categoría y una fecha para buscar.
-                  </p>
-                )}
-              </FormItem>
-            )}
-          </div>
-
-          {wantsToLink && (
-            <div className="col-span-2">
-              <SelectedLinkableItemsTable />
-            </div>
-          )}
-
+          {/* 5. Tipo de Operación, 6. Referencia, 7. Monto */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormField
               control={form.control}
               name="paymentMethod"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tipo de Transacción</FormLabel>
+                  <FormLabel>5. Tipo de Operación</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
                   >
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Seleccione un tipo" />
+                        <SelectValue placeholder="Seleccione una operación" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -308,7 +299,7 @@ export function BankMovementForm({
               name="bankReference"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Referencia Bancaria</FormLabel>
+                  <FormLabel>6. Referencia Bancaria</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Referencia"
@@ -325,7 +316,7 @@ export function BankMovementForm({
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monto</FormLabel>
+                  <FormLabel>7. Monto</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -344,13 +335,14 @@ export function BankMovementForm({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* 8. Descripción */}
+          <div className="grid grid-cols-1 gap-4">
             <FormField
               control={form.control}
               name="description"
               render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Descripción</FormLabel>
+                <FormItem>
+                  <FormLabel>8. Descripción</FormLabel>
                   <FormControl>
                     <Textarea
                       placeholder="Descripción del movimiento"
@@ -363,7 +355,59 @@ export function BankMovementForm({
             />
           </div>
 
-          <div className="flex justify-end gap-4 pr-4">
+          {/* 9. Vinculación (Solo para Entradas) */}
+          {movementType === 'ENTRY' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-secondary/10 mt-4">
+              <FormItem>
+                <FormLabel>9. ¿Desea vincular a un registro del sistema?</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    setWantsToLink(value === 'true');
+                  }}
+                  value={wantsToLink ? 'true' : 'false'}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccione una opción" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="false">No</SelectItem>
+                    <SelectItem value="true">Sí</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+
+              {wantsToLink && (
+                <FormItem>
+                  <FormLabel>Búsqueda de operaciones del sistema</FormLabel>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    onClick={() => setSearchModalOpen(true)}
+                    disabled={!category || !date}
+                  >
+                    <Search className="mr-2 h-4 w-4" />
+                    Buscar y seleccionar operaciones...
+                  </Button>
+                  {(!category || !date) && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Seleccione fecha y categoría para buscar.
+                    </p>
+                  )}
+                </FormItem>
+              )}
+
+              {wantsToLink && selectedItems.length > 0 && (
+                <div className="col-span-1 md:col-span-2 mt-4">
+                  <SelectedLinkableItemsTable />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-4 pt-4">
             <Button variant="outline" type="button" onClick={onCancel}>
               Cancelar
             </Button>

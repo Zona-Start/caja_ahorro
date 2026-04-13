@@ -11,7 +11,7 @@ import {
   credits,
   creditsTypes,
 } from '@/database/index';
-import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+ import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
@@ -25,12 +25,15 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  OnModuleInit,
+  forwardRef,
 } from '@nestjs/common';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateCreditPaidDto } from './dto/create-credit.dto';
 import { FilterCreditPaidDto } from './dto/filter-credit-paid.dto';
+import { ModuleRef } from '@nestjs/core';
 
 // Define una tolerancia para comparar montos monetarios después de redondeo.
 // Esto es para CUADRAR el pago si hay una diferencia mínima causada por el toFixed(2) del usuario.
@@ -40,13 +43,24 @@ const ROUNDING_ACCEPTANCE_TOLERANCE = 0.005; // Permite hasta medio centavo de a
 const EPSILON_COMPARISON = 0.05; // Para errores de punto flotante muy pequeños
 
 @Injectable()
-export class CreditPaidService {
+export class CreditPaidService implements OnModuleInit {
+
+  // Declara la variable aquí arriba en lugar de en el constructor
+  private bankMovementsService: BankMovementsService;
+
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly generateCodeService: GenerateCodeService,
-    private readonly bankMovementsService: BankMovementsService,
+    
+    private moduleRef: ModuleRef,
   ) {}
+
+  // Este método se ejecuta automáticamente cuando NestJS ya leyó todos los archivos
+  onModuleInit() {
+    this.bankMovementsService = this.moduleRef.get(BankMovementsService, { strict: false });
+  }
 
   // calculate balance pending
   private async _calculateBalancePending(creditId: number): Promise<number> {
@@ -184,7 +198,7 @@ export class CreditPaidService {
     };
   }
 
-  async create(dto: CreateCreditPaidDto, userId: number) {
+  async create(dto: CreateCreditPaidDto, userId: number, tx?: NodePgDatabase<typeof schema>,liquidationActive?: boolean) {
     const {
       amount,
       bankId,
@@ -206,8 +220,10 @@ export class CreditPaidService {
     //   where: eq(exchangeRates.date, entryDate),
     // });
 
+    const db = tx || this.db;
+
     // Inicia la transacción para asegurar la atomicidad de las operaciones
-    const result = await this.db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
         await this._calculateCoveredInstallments(creditId, amount);
 
@@ -353,7 +369,7 @@ export class CreditPaidService {
 
     // si transaccion se genero satifactoria se registra el movimiento en cuenta asocaido
     if (result.transation) {
-      const resutAccount = await this.db
+      const resutAccount = await db
         .select({
           id: schema.associateAccounts.id,
           referenceLoans: credits.customReference,
@@ -379,10 +395,14 @@ export class CreditPaidService {
         area: 'CREDITOS',
       };
 
-      await this.associateAccountsMovementsService.create(
+       if (!liquidationActive){
+         await this.associateAccountsMovementsService.create(
         userId,
         payloadMovementLoan,
       );
+       }
+
+     
 
       const dataBank = {
         movement: {
@@ -403,9 +423,13 @@ export class CreditPaidService {
           },
         ],
       };
-      await this.bankMovementsService.createAndReconcile(dataBank, userId);
 
-      if (result.balanceInFavorValue !== 0) {
+       if (!liquidationActive){
+         await this.bankMovementsService.createAndReconcile(dataBank, userId);
+       }
+
+        if (!liquidationActive){
+           if (result.balanceInFavorValue !== 0) {
         const payloadMovementLoan = {
           associateAccountId: Number(resutAccount[0].id),
           movementType:
@@ -425,6 +449,8 @@ export class CreditPaidService {
           payloadMovementLoan,
         );
       }
+        }
+     
     }
 
     // Retorna una respuesta de éxito
@@ -1045,4 +1071,15 @@ export class CreditPaidService {
   //     totalLoanInPaymet: Number(totalLoanInPaymet[0].count),
   //   };
   // }
+
+  async applyPaymentFromBankReconciliation(
+    paymentId: number,
+    tx: NodePgDatabase<typeof schema>,
+  ) {
+    await tx
+      .update(creditPayments)
+      .set({ status: 'DONE' })
+      .where(eq(creditPayments.id, paymentId));
+  }
 }
+

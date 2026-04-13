@@ -37,8 +37,8 @@ export class WithdrawalAssociateController {
   @RequirePermissions('read:withdrawal-associate')
   @ApiOperation({ summary: 'Get all withdrawal aproveed ' })
   @ApiResponse({ status: 200, description: 'Return all withdrawal aproveed' })
-  findWithdrawalAprovee() {
-    return this.service.findWithdrawalAprovee();
+  findWithdrawalAprovee(@Query() paginationDto: FilterWithdrawalAssociateDto) {
+    return this.service.findWithdrawalAprovee(paginationDto);
   }
 
   @Get()

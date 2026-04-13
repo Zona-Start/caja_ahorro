@@ -32,7 +32,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { and, desc, eq, ilike, inArray, or, SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray,  or, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
 import { CreateWithdrawalAssociateDto } from './dto/create-withdrawal-associate.dto';
@@ -730,29 +730,82 @@ export class WithdrawalAssociateService {
     });
   }
 
-  async findWithdrawalAprovee() {
-    const result = await this.db
-      .select({
-        id: withdrawalsAssociates.id,
-        associateId: associates.id,
-        associateCedula: associates.cedula,
-        associateName: associates.fullname,
-        reference: withdrawalsAssociates.referenceCode,
-        approvalDate: withdrawalsAssociates.updatedAt,
-        amount: withdrawalsAssociates.requestedAmount,
-      })
-      .from(withdrawalsAssociates)
-      .leftJoin(
-        associateAccounts,
-        eq(associateAccounts.id, withdrawalsAssociates.associateAccountId),
-      )
-      .leftJoin(associates, eq(associates.id, associateAccounts.associateId))
-      .where(eq(withdrawalsAssociates.status, 'APPROVED'));
+  async findWithdrawalAprovee(paginationDto: FilterWithdrawalAssociateDto) {
+  const { page = 1, limit = 10, search = '' } = paginationDto || {};
+  const offset = (page - 1) * limit;
 
-    return {
-      data: result,
-    };
+  // 1. Añadimos las validaciones de isNull obligatorias en las condiciones base
+  const conditions: SQL<unknown>[] = [
+    eq(withdrawalsAssociates.status, 'APPROVED'),
+    eq(withdrawalTypes.isHouseComercial, false),
+    eq(withdrawalTypes.isInternalInventory, false)
+  ];
+
+  if (search) {
+    conditions.push(ilike(associates.cedula, `%${search}%`));
   }
+
+  const where = and(...conditions);
+
+  // 2. Agregamos el JOIN de la tabla de tipos a la consulta del total (Count)
+  const totalCountResult = await this.db
+    .select({ count: sql<number>`count(*)` })
+    .from(withdrawalsAssociates)
+    .leftJoin(
+      associateAccounts,
+      eq(associateAccounts.id, withdrawalsAssociates.associateAccountId),
+    )
+    .leftJoin(associates, eq(associates.id, associateAccounts.associateId))
+    .leftJoin(
+      withdrawalTypes, 
+      eq(withdrawalTypes.id, withdrawalsAssociates.withdrawalTypeId) // <-- NUEVO JOIN
+    )
+    .where(where);
+
+  const totalCount = Number(totalCountResult[0].count);
+  const totalPages = Math.ceil(totalCount / limit);
+
+  // 3. Agregamos el JOIN de la tabla de tipos a la consulta de resultados
+  const result = await this.db
+    .select({
+      id: withdrawalsAssociates.id,
+      associateId: associates.id,
+      associateCedula: associates.cedula,
+      associateName: associates.fullname,
+      reference: withdrawalsAssociates.referenceCode,
+      approvalDate: withdrawalsAssociates.updatedAt,
+      amount: withdrawalsAssociates.requestedAmount,
+    })
+    .from(withdrawalsAssociates)
+    .leftJoin(
+      associateAccounts,
+      eq(associateAccounts.id, withdrawalsAssociates.associateAccountId),
+    )
+    .leftJoin(associates, eq(associates.id, associateAccounts.associateId))
+    .leftJoin(
+      withdrawalTypes, 
+      eq(withdrawalTypes.id, withdrawalsAssociates.withdrawalTypeId) // <-- NUEVO JOIN
+    )
+    .where(where)
+    .limit(limit)
+    .offset(offset);
+
+  const meta = {
+    page,
+    limit,
+    totalCount,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPreviousPage: page > 1,
+    nextPage: page < totalPages ? page + 1 : null,
+    previousPage: page > 1 ? page - 1 : null,
+  };
+
+  return {
+    data: result,
+    meta,
+  };
+}
 
   async findWithdrawalDetails(id: number) {
     type WithdrawalItem = {
@@ -838,10 +891,11 @@ export class WithdrawalAssociateService {
     id: number,
     dto: DisburseWithdrawalAssociateDto,
     userId: number,
+    tx?: NodePgDatabase<typeof schema>,
   ) {
-    return this.db.transaction(async (tx) => {
+    const executeInTransaction = async (trx: any) => {
       // 1. Verificar retiro y obtener tipo para porcentajes
-      const [withdrawal] = await tx
+      const [withdrawal] = await trx
         .select()
         .from(withdrawalsAssociates)
         .where(eq(withdrawalsAssociates.id, id))
@@ -860,15 +914,14 @@ export class WithdrawalAssociateService {
       const withdrawalRecord = withdrawal.withdrawals_associates;
       const withdrawalTypeRecord = withdrawal.withdrawal_types;
 
-
       if (withdrawalRecord.status !== withdrawalStatusEnum.APPROVED) {
         throw new BadRequestException(
           `Solo se pueden desembolsar retiros aprobados`,
         );
       }
-     
+
       // 3. Actualizar movimiento interno (marcar como COMPLETED)
-      await tx
+      await trx
         .update(schema.associateAccountMovements)
         .set({
           status: 'COMPLETED' as movementStatusEnum,
@@ -888,7 +941,7 @@ export class WithdrawalAssociateService {
               AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
             ]),
           ),
-      );
+        );
 
       // 4. Generar Asiento Contable con las 3 líneas
       await this.accountingEntriesService.createAutomaticEntry(
@@ -932,50 +985,49 @@ export class WithdrawalAssociateService {
             BANK_ACCOUNT: `TB ${withdrawal.associates?.cedula} ${withdrawal.associates?.fullname}`,
           },
         },
-        tx,
+        trx,
       );
 
-          // 2. Movimiento de banco (egreso por el monto NETO)
-        const dataBank = {
-          movement: {
-            bankAccountId: dto.bankAccountId,
-            transactionDate: new Date(dto.processedAt),
-            paymentMethod: paymentMethodEnum.BANK_TRANSFER,
-            description: `Desembolso de Retiro - ${withdrawalRecord.referenceCode}`,
-            bankReference: dto.bankReference,
-            category: 'MEMBER_WITHDRAWAL' as BankTransactionCategory,
-            creditAmount: 0,
-            debitAmount:
-              Number(withdrawal.withdrawals_associates.disbursedAmount) ?? 0, // Solo el neto sale del banco
-            createdById: userId,
+      // 2. Movimiento de banco (egreso por el monto NETO)
+      const dataBank = {
+        movement: {
+          bankAccountId: dto.bankAccountId,
+          transactionDate: new Date(dto.processedAt),
+          paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+          description: `Desembolso de Retiro - ${withdrawalRecord.referenceCode}`,
+          bankReference: dto.bankReference,
+          category: 'MEMBER_WITHDRAWAL' as BankTransactionCategory,
+          creditAmount: 0,
+          debitAmount:
+            Number(withdrawal.withdrawals_associates.disbursedAmount) ?? 0, // Solo el neto sale del banco
+          createdById: userId,
+        },
+        links: [
+          {
+            internalRecordType: 'MEMBER_WITHDRAWAL',
+            internalRecordId: withdrawalRecord.id,
           },
-          links: [
-            {
-              internalRecordType: 'MEMBER_WITHDRAWAL',
-              internalRecordId: withdrawalRecord.id,
-            },
-          ],
-        };
+        ],
+      };
 
-        const bankResult = await this.bankMovementsService.createAndReconcile(
-          dataBank,
-          userId,
-          tx,
-        );
-      
-        // 5. Actualizar estado del retiro con montos finales
-        const [updated] = await tx
-          .update(withdrawalsAssociates)
-          .set({
-            status: withdrawalStatusEnum.DISBURSED,
-            bankTransactionId: bankResult.movement.id,
-            updatedById: userId,
-          })
-          .where(eq(withdrawalsAssociates.id, id))
-          .returning();
+      const bankResult = await this.bankMovementsService.createAndReconcile(
+        dataBank,
+        userId,
+        trx,
+      );
 
+      // 5. Actualizar estado del retiro con montos finales
+      const [updated] = await trx
+        .update(withdrawalsAssociates)
+        .set({
+          status: withdrawalStatusEnum.DISBURSED,
+          bankTransactionId: bankResult.movement.id,
+          updatedById: userId,
+        })
+        .where(eq(withdrawalsAssociates.id, id))
+        .returning();
 
-           // 6. Auditoría
+      // 6. Auditoría
       this.eventEmitter.emit(
         'audit.log',
         new AuditLogEvent({
@@ -994,7 +1046,9 @@ export class WithdrawalAssociateService {
         message: 'Desembolso procesado exitosamente',
         withdrawal: updated,
       };
-    });
+    };
+
+    return tx ? executeInTransaction(tx) : this.db.transaction(executeInTransaction);
   }
 
    async process(
@@ -1064,7 +1118,7 @@ export class WithdrawalAssociateService {
           category: 'SAVINGS_BANK',
           operationType: 'WITHDRAWAL_TYPE',
           description: `Retiro ${withdrawalTypeRecord?.description} - ${withdrawal.associates?.fullname}`,
-          entryDate: new Date(),
+          entryDate: new Date(withdrawal.withdrawals_associates.withdrawalDate) ?? new Date(),
           referenceValue: withdrawalTypeRecord?.description,
           currencyCode: CurrencyCodeEnum.VES,
           originReferenceId: String(withdrawalRecord.id),

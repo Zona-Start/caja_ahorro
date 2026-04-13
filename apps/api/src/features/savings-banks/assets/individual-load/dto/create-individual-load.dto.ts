@@ -38,15 +38,37 @@ export class IndividualLoadDto {
   @IsString()
   description?: string;
 
+  @IsNotEmpty()
+  @IsString()
+  referenceNumber: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  bankAccountId: number;
+
+  @IsNotEmpty()
+  @IsEnum(paymentMethodEnum.enumValues)
+  paymentMethod: (typeof paymentMethodEnum.enumValues)[number];
+}
+
+export class BulkIndividualLoadDto {
+  @IsNotEmpty()
+  @IsNumber()
+  bankAccountId: number;
+
+  @IsNotEmpty()
+  @IsEnum(paymentMethodEnum.enumValues)
+  paymentMethod: (typeof paymentMethodEnum.enumValues)[number];
+
+  @IsNotEmpty()
+  @IsString()
+  referenceNumber: string;
+
+  @IsNotEmpty()
+  @IsDate()
+  transactionDate: Date;
+
   @IsOptional()
   @IsString()
-  referenceNumber?: string;
-
-  @IsOptional()
-  @IsNumber()
-  bankAccountId?: number;
-
-  @IsEnum(paymentMethodEnum.enumValues)
-  @IsOptional()
-  paymentMethod?: (typeof paymentMethodEnum.enumValues)[number];
+  description?: string;
 }

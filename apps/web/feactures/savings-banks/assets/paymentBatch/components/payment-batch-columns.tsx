@@ -13,7 +13,7 @@ export interface PaymentBatchApprovedItem {
 }
 
 export const getPaymentBatchColumns = (
-  itemType: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION',
+  itemType: 'WITHDRAWAL' | 'LIQUIDATION',
 ): ColumnDef<PaymentBatchApprovedItem>[] => [
   {
     id: 'select',

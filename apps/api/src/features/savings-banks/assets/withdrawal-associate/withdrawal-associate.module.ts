@@ -21,5 +21,6 @@ import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-mov
   ],
   controllers: [WithdrawalAssociateController],
   providers: [WithdrawalAssociateService],
+  exports: [WithdrawalAssociateService],
 })
 export class WithdrawalAssociateModule {}

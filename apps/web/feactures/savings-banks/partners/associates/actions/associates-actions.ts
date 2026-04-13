@@ -209,3 +209,45 @@ export const downloadAssociatesTemplateAction = async (): Promise<string> => {
     throw new Error('Error al descargar el template');
   }
 };
+
+
+
+
+///Descarga pdf 
+export const exportAssociatesPdfAction = async (params: any) => {
+  const searchParams = new URLSearchParams();
+  const { fetchApi } = await import('@/lib/fetch.api');
+
+  if (params) {
+    if (params.page) searchParams.append('page', params.page.toString());
+    if (params.limit) searchParams.append('limit', params.limit.toString());
+    if (params.status) searchParams.append('status', params.status);
+    if (params.payroll) searchParams.append('payroll', params.payroll);
+    if (params.search) {
+      const type = /^\d/.test(params.search) ? 'cedula' : 'fullname';
+      searchParams.append('searchType', type);
+      searchParams.append('search', params.search.toUpperCase());
+    }
+  }
+
+  try {
+    // 1. Petición con Axios (fetchApi)
+    const response = await fetchApi.get(
+      `/savings-banks/associates/report/pdf?${searchParams.toString()}`,
+      {
+        responseType: 'arraybuffer', // Crucial para recibir datos binarios
+      },
+    );
+
+     return {
+      success: true,
+      data: Buffer.from(response.data).toString('base64'),
+    };
+
+  } catch (error: any) {
+    console.error('Error downloading PDF:', error);
+    throw new Error('Error al descargar el reporte PDF');
+  }
+};
+
+

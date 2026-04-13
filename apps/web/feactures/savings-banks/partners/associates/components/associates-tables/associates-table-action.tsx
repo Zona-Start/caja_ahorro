@@ -11,6 +11,7 @@ import {
   PAYROLL_OPTIONS,
   useAssociatesTableFilters,
 } from './use-associates-filters';
+import { ExportAssociatesButton } from '../export-bottom';
 
 export default function AssociatesTableAction() {
   const {
@@ -25,6 +26,16 @@ export default function AssociatesTableAction() {
 
   const [open, setOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+
+    // Objeto de filtros actuales para el PDF
+  const currentFilters = {
+    page: 1,
+    limit: 10,
+    status: statusFilter,
+    payroll: payrollFilter,
+    search: searchQuery,
+  };
+
 
   return (
     <div className="flex items-center justify-between mt-4 ">
@@ -52,6 +63,7 @@ export default function AssociatesTableAction() {
         />
       </div>
       <div className="flex gap-2">
+        <ExportAssociatesButton currentFilters={currentFilters} />
         <Button onClick={() => setBulkOpen(true)} size="sm" variant="outline">
           <Upload className="mr-2 h-4 w-4" /> Carga masiva
         </Button>

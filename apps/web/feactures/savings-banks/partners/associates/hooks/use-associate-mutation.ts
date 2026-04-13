@@ -7,6 +7,7 @@ import {
   bulkUploadAssociatesAction,
   deleteAssociatesAction,
   downloadAssociatesTemplateAction,
+  exportAssociatesPdfAction,
   saveAssociateAction,
 } from '../actions/associates-actions';
 
@@ -129,6 +130,50 @@ export function useDownloadTemplateAssociate() {
       toast.error(
         'Error al descargar el template. Por favor, intente de nuevo.',
       );
+    },
+  });
+}
+
+
+export function useExportAssociates() {
+  return useMutation({
+    // La mutación llama a tu Server Action que devuelve el base64
+    mutationFn: (params: any) => exportAssociatesPdfAction(params),
+    
+    onSuccess: (result) => {
+      try {
+        // 1. Convertimos el base64 de vuelta a un Blob
+        // Usamos la data que viene del result de la mutation
+        const byteCharacters = atob(result.data);
+        const byteNumbers = new Array(byteCharacters.length);
+        
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+
+        // 2. Proceso de descarga (Solo ocurre en el cliente)
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `reporte_asociados_${Date.now()}.pdf`;
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpieza de memoria y DOM
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+      } catch (err) {
+        console.error('Error al procesar el archivo PDF en el cliente:', err);
+      }
+    },
+    onError: (error) => {
+      console.error('Export Mutation Error:', error);
     },
   });
 }

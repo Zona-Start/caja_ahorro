@@ -22,7 +22,8 @@ export class CreateLoanPaidDto {
   paymentMethod: paymentMethodEnum;
 
   @IsEnum(loanPaymetTypeEnum)
-  paymentType: loanPaymetTypeEnum;
+  @IsOptional()
+  paymentType?: loanPaymetTypeEnum;
 
   @IsDate()
   @Type(() => Date)
@@ -31,8 +32,8 @@ export class CreateLoanPaidDto {
 
   @IsNumber()
   @IsPositive()
-  @IsNotEmpty()
-  bankId: number | undefined; // id del banco
+  @IsOptional()
+  bankId?: number; // id del banco
 
   @IsNumber()
   @IsPositive()

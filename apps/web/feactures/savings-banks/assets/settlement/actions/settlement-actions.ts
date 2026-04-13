@@ -3,10 +3,12 @@ import { safeFetchApi } from '@/lib/fetch.api';
 import { associateLiquidationResponseSchema } from '../schemas/individual-settlement-api-schema';
 import {
   approveSettlementResponseSchema,
+  disburseSettlementResponseSchema,
   settlementApiResponseSchema,
   settlementMutationSchema,
 } from '../schemas/settlement-api-response';
 import { Settlement } from '../schemas/settlement.schema';
+import { DisburseSettlementFormData } from '../schemas/disburse-settlement.schema';
 
 export const getAssociatesByCedulaAction = async (cedula: string) => {
   const [error, data] = await safeFetchApi(
@@ -150,4 +152,25 @@ export const saveSettlementAction = async (settlement: Settlement) => {
   } catch (error: any) {
     throw new Error(error.message || 'Error saving Settlement data');
   }
+};
+
+export const disburseSettlementAction = async (
+  id: number,
+  formData: DisburseSettlementFormData,
+) => {
+  const [error, data] = await safeFetchApi(
+    disburseSettlementResponseSchema,
+    `/savings-banks/settlement-associate/${id}/disburse`,
+    'POST',
+    formData,
+  );
+
+  if (error) {
+    console.error('Error:', error);
+    throw new Error(
+      error.message || `Error disbursing settlement with ID ${id}`,
+    );
+  }
+
+  return data;
 };

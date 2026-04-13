@@ -150,26 +150,34 @@ export const getApprovedLoansAction = async () => {
   return response?.data;
 };
 
-export const getApprovedWithdrawalsAction = async () => {
+export const getApprovedWithdrawalsAction = async (page = 1, limit = 20) => {
+  const searchParams = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  });
   const [error, response] = await safeFetchApi(
     approvedSourceItemsApiResponseSchema,
-    '/savings-banks/withdrawal-associate/approved',
+    `/savings-banks/withdrawal-associate/approved?${searchParams}`,
     'GET',
   );
   if (error) {
     throw new Error(error.message || 'Error fetching approved withdrawals');
   }
-  return response?.data;
+  return response;
 };
 
-export const getApprovedLiquidationsAction = async () => {
+export const getApprovedLiquidationsAction = async (page = 1, limit = 20) => {
+  const searchParams = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  });
   const [error, response] = await safeFetchApi(
     approvedSourceItemsApiResponseSchema,
-    '/savings-banks/settlement-associate/approved',
+    `/savings-banks/settlement-associate/approved?${searchParams}`,
     'GET',
   );
   if (error) {
     throw new Error(error.message || 'Error fetching approved liquidations');
   }
-  return response?.data;
+  return response;
 };

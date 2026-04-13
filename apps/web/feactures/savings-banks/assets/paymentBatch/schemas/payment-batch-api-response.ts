@@ -84,4 +84,16 @@ const approvedSourceItemSchema = z.object({
 export const approvedSourceItemsApiResponseSchema = z.object({
   message: z.string().optional(),
   data: z.array(approvedSourceItemSchema),
+  meta: z
+    .object({
+      page: z.number(),
+      limit: z.number(),
+      totalCount: z.number(),
+      totalPages: z.number(),
+      hasNextPage: z.boolean(),
+      hasPreviousPage: z.boolean(),
+      nextPage: z.number().nullable(),
+      previousPage: z.number().nullable(),
+    })
+    .optional(),
 });

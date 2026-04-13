@@ -229,4 +229,25 @@ export class AssociatesController {
     );
     return { message: 'Associate Accounts created successfully', data };
   }
+
+
+  ///─── Reposts  ──────────────────────────────────────────────────────
+
+   @Get('report/pdf')
+  async downloadReportPdf(
+    @Query() filterDto: FilterAssociateDto, // Recibe los query params automáticamente
+    @Res() res: Response,
+  ) {
+    // Generamos el documento (instancia de PDFKit)
+    const pdfDoc = await this.associatesService.getReportsPdf(filterDto);
+
+    // Configuración de Headers
+    const filename = `reporte_asociados_${Date.now()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+
+    // Enviamos el flujo al cliente y finalizamos
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  }
 }

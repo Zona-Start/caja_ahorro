@@ -13,7 +13,10 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { IndividualLoadDto } from './dto/create-individual-load.dto';
+import {
+  BulkIndividualLoadDto,
+  IndividualLoadDto,
+} from './dto/create-individual-load.dto';
 import { IndividualLoadService } from './individual-load.service';
 
 @ApiTags('savings-banks/individual-load')
@@ -57,11 +60,12 @@ export class IndividualLoadController {
   async createBulk(
     @Req() req: Request,
     @UploadedFile() file: Express.Multer.File,
+    @Body() dto: BulkIndividualLoadDto,
   ) {
     if (!file) {
       throw new BadRequestException('El archivo es requerido');
     }
     const userId = req['user'].id;
-    return this.individualLoadService.createBulk(file.buffer, userId);
+    return this.individualLoadService.createBulk(file.buffer, dto, userId);
   }
 }

@@ -29,6 +29,7 @@ import {
 } from './accounting';
 import { users } from './auth';
 import { company } from './core';
+import { InferSelectModel } from 'drizzle-orm';
 
 //Directorio de entidades bancarias.
 export const bankDirectory = bankingSchema.table(
@@ -149,6 +150,8 @@ export const bankTransactions = bankingSchema.table(
     reconIdIdx: index('bank_trans_recon_id_idx').on(table.bankReconciliationId),
   }),
 );
+
+export type BankTransactions = InferSelectModel<typeof bankTransactions>;
 
 export const internalTransactionBankLinks = bankingSchema.table(
   'internal_transaction_bank_links',

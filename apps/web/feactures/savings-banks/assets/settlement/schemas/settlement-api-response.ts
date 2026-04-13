@@ -49,3 +49,9 @@ export const approveSettlementResponseSchema = z.object({
   message: z.string(),
   liquidationId: z.number(),
 });
+
+export const disburseSettlementResponseSchema = z.object({
+  message: z.string(),
+  liquidationId: z.number(),
+  bankTransactionId: z.number(),
+});

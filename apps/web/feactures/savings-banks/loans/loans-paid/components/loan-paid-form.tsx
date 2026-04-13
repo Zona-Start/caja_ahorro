@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { AlertModal } from '@/components/modal/alert-modal';
 import { Banknote, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -61,10 +62,12 @@ export function LoanPaidForm({
 }: LoanFormProps) {
   const { selectedAssociate, loanSummary } = useLoansPaidStore();
 
-  const { data: bankAccountsData, isLoading: isLoadingBankAccounts } =
+   const { data: bankAccountsData, isLoading: isLoadingBankAccounts } =
     useBankAccountAll();
   const bankAccounts = bankAccountsData?.data || [];
   const [isCancellation, setIsCancellation] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingData, setPendingData] = useState<any>(null);
 
   const form = useForm<z.infer<typeof loanPaymentSchema>>({
     resolver: zodResolver(loanPaymentSchema),
@@ -164,8 +167,16 @@ export function LoanPaidForm({
 
   // Función para manejar el envío del formulario
   const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data);
+    setPendingData(data);
+    setShowConfirm(true);
   });
+
+  const onConfirm = () => {
+    if (pendingData) {
+      onSubmit(pendingData);
+      setShowConfirm(false);
+    }
+  };
 
   const handleCancel = () => {
     form.reset();
@@ -185,6 +196,14 @@ export function LoanPaidForm({
           Ingrese la información del pago a registrar
         </CardDescription>
       </CardHeader>
+      <AlertModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={onConfirm}
+        loading={isSubmitting}
+        title="¿Confirmar el Registro de Pago?"
+        description="Esta acción registrará el pago y generará los asientos contables correspondientes de forma automática. ¿Desea continuar?"
+      />
       <CardContent>
         <Form {...form}>
           <form onSubmit={handleSubmit} className="space-y-6">

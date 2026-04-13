@@ -19,5 +19,6 @@ import { SettlementAssociateService } from './settlement-associate.service';
   ],
   controllers: [SettlementAssociateController],
   providers: [SettlementAssociateService],
+  exports: [SettlementAssociateService],
 })
 export class SettlementAssociateModule {}

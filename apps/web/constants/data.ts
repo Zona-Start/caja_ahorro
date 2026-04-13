@@ -283,15 +283,15 @@ export const BankItems: NavItem[] = [
     isActive: false,
     items: [], // No child items
   },
-  // {
-  //   title: 'Conciliacion Bancaria',
-  //   url: '#',
-  //   icon: 'squarePercent',
-  //   colorIcons: 'rose',
-  //   shortcut: ['p', 'p'],
-  //   isActive: false,
-  //   items: [], // No child items
-  // },
+  {
+    title: 'Conciliacion Bancaria',
+    url: '/dashboard/bancos/conciliacion-bancaria',
+    icon: 'squarePercent',
+    colorIcons: 'rose',
+    shortcut: ['p', 'p'],
+    isActive: false,
+    items: [], // No child items
+  },
 ];
 
 export const ConfigItems: NavItem[] = [

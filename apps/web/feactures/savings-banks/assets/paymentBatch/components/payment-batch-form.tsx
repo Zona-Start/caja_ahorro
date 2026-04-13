@@ -16,7 +16,6 @@ import { useForm } from 'react-hook-form';
 import { useBankAccountAll } from '../../../../banks/bank-account/hooks/use-query-bank-account';
 import {
   useApprovedLiquidations,
-  useApprovedLoans,
   useApprovedWithdrawals,
 } from '../hooks/use-query-source-items';
 import {
@@ -24,6 +23,7 @@ import {
   createPaymentBatchSchema,
 } from '../schemas/payment-batch.schema';
 import { DisbursementTabs } from './disbursement-tabs';
+import { getPaymentBatchColumns, PaymentBatchApprovedItem } from './payment-batch-columns';
 import {  PaymentBatchHeaderForm } from './payment-batch-header-form';
 import { SelectedItem } from './payment-batch-types';
 import { SelectionSummary } from './selection-summary';
@@ -74,11 +74,32 @@ export function PaymentBatchForm({
   const bankAccounts = bankAccountsData?.data || [];
   
   // Fetch approved items
-  const { data: approvedLoans, isLoading: isLoadingLoans } = useApprovedLoans();
-  const { data: approvedWithdrawals, isLoading: isLoadingWithdrawals } =
-    useApprovedWithdrawals();
-  const { data: approvedLiquidations, isLoading: isLoadingLiquidations } =
-    useApprovedLiquidations();
+  const {
+    data: withdrawalsData,
+    isLoading: isLoadingWithdrawals,
+    fetchNextPage: fetchNextWithdrawals,
+    hasNextPage: hasNextWithdrawals,
+    isFetchingNextPage: isFetchingNextWithdrawals,
+  } = useApprovedWithdrawals();
+
+  const {
+    data: liquidationsData,
+    isLoading: isLoadingLiquidations,
+    fetchNextPage: fetchNextLiquidations,
+    hasNextPage: hasNextLiquidations,
+    isFetchingNextPage: isFetchingNextLiquidations,
+  } = useApprovedLiquidations();
+
+  // Flatten the infinite data for logic (selection/totals)
+  const approvedWithdrawals = useMemo<PaymentBatchApprovedItem[]>(
+    () => withdrawalsData?.pages.flatMap((page: any) => page?.data || []) || [],
+    [withdrawalsData],
+  );
+
+  const approvedLiquidations = useMemo<PaymentBatchApprovedItem[]>(
+    () => liquidationsData?.pages.flatMap((page: any) => page?.data || []) || [],
+    [liquidationsData],
+  );
 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>(
     initialData?.items || [],
@@ -97,14 +118,12 @@ export function PaymentBatchForm({
     let total = 0;
     selectedItems.forEach((selected) => {
       let item;
-      if (selected.type === 'LOAN') {
-        item = approvedLoans?.find((loan) => loan.id === selected.sourceId);
-      } else if (selected.type === 'WITHDRAWAL') {
-        item = approvedWithdrawals?.find(
+      if (selected.type === 'WITHDRAWAL') {
+        item = approvedWithdrawals.find(
           (withdrawal) => withdrawal.id === selected.sourceId,
         );
       } else if (selected.type === 'LIQUIDATION') {
-        item = approvedLiquidations?.find(
+        item = approvedLiquidations.find(
           (liquidation) => liquidation.id === selected.sourceId,
         );
       }
@@ -113,13 +132,13 @@ export function PaymentBatchForm({
       }
     });
     return total;
-  }, [selectedItems, approvedLoans, approvedWithdrawals, approvedLiquidations]);
+  }, [selectedItems, approvedWithdrawals, approvedLiquidations]);
 
   const handleSubmit = form.handleSubmit((data) => {
     onSubmit(data);
   });
 
-  if (isLoadingLoans || isLoadingWithdrawals || isLoadingLiquidations) {
+  if (isLoadingWithdrawals || isLoadingLiquidations) {
     return <DetailsSkeleton />;
   }
 
@@ -150,11 +169,20 @@ export function PaymentBatchForm({
               />
 
               <DisbursementTabs
-                approvedLoans={approvedLoans || []}
-                approvedWithdrawals={approvedWithdrawals || []}
-                approvedLiquidations={approvedLiquidations || []}
+                approvedWithdrawals={approvedWithdrawals}
+                approvedLiquidations={approvedLiquidations}
                 selectedItems={selectedItems}
                 onSelectionChange={handleSelectionChange}
+                withdrawalsInfinite={{
+                  fetchNextPage: fetchNextWithdrawals,
+                  hasNextPage: !!hasNextWithdrawals,
+                  isFetchingNextPage: isFetchingNextWithdrawals,
+                }}
+                liquidationsInfinite={{
+                  fetchNextPage: fetchNextLiquidations,
+                  hasNextPage: !!hasNextLiquidations,
+                  isFetchingNextPage: isFetchingNextLiquidations,
+                }}
               />
             </form>
           </Form>

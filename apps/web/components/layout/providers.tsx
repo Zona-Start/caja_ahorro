@@ -10,9 +10,9 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
-      gcTime: 60 * 60 * 1000, // 1 hora para garbage collection
-      staleTime: 60 * 60 * 1000, // 1 hora para considerar datos obsoletos
-      refetchOnWindowFocus: false, // No recargar al enfocar la ventana
+      // gcTime: 60 * 60 * 1000, // 1 hora para garbage collection
+      // staleTime: 60 * 60 * 1000, // 1 hora para considerar datos obsoletos
+      // refetchOnWindowFocus: false, // No recargar al enfocar la ventana
       refetchOnMount: true, // Recargar al montar el componente
     },
   },

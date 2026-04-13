@@ -21,7 +21,10 @@ import * as ExcelJS from 'exceljs';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/index';
 import { AssociateAccountsMovementsService } from '../../associate-accounts-movements/associate-accounts-movements.service';
-import { IndividualLoadDto } from './dto/create-individual-load.dto';
+import {
+  BulkIndividualLoadDto,
+  IndividualLoadDto,
+} from './dto/create-individual-load.dto';
 
 @Injectable()
 export class IndividualLoadService {
@@ -119,47 +122,52 @@ export class IndividualLoadService {
 
       const mainMovementId = results[0].referenceNumber;
 
-      if (dto.bankAccountId) {
-        // 3. Crear movimiento bancario vinculado (al primer movimiento o a la operación)
-        const dataBank = {
-          movement: {
-            bankAccountId: dto.bankAccountId,
-            transactionDate: dto.transactionDate ?? new Date(),
-            paymentMethod: dto.paymentMethod as paymentMethodEnum,
-            description:
-              dto.description ??
-              `Abono a cuenta: ${account.associate_accounts.accountNumber}`,
-            bankReference: dto.referenceNumber,
-            category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
-            creditAmount: totalAmount,
-            debitAmount: 0,
-            createdById: userId,
-          },
-          links: results.map((m) => ({
-            internalRecordType: 'MEMBER_CONTRIBUTION' as const,
-            internalRecordId: m.id,
-          })),
-        };
-
-        const bankResult = await this.bankMovementsService.createAndReconcile(
-          dataBank,
-          userId,
-          tx,
+      // 3. Validar datos bancarios obligatorios
+      if (!dto.bankAccountId || !dto.paymentMethod || !dto.referenceNumber) {
+        throw new BadRequestException(
+          'Los datos bancarios (cuenta, método y referencia) son obligatorios para procesar la carga individual',
         );
-
-        // 4. Actualizar los movimientos del asociado con el ID del banco
-        for (const m of results) {
-          await tx
-            .update(schema.associateAccountMovements)
-            .set({
-              referenceId: bankResult.movement.id.toString(),
-              referenceType: 'BANK_TRANSACTION',
-            })
-            .where(eq(schema.associateAccountMovements.id, m.id));
-        }
       }
 
-      // 5. Crear Asiento Contable Automático
+      // 4. Crear movimiento bancario vinculado (SIEMPRE se crea pues es obligatorio)
+      const dataBank = {
+        movement: {
+          bankAccountId: dto.bankAccountId,
+          transactionDate: dto.transactionDate ?? new Date(),
+          paymentMethod: dto.paymentMethod as paymentMethodEnum,
+          description:
+            dto.description ??
+            `Abono a cuenta: ${account.associate_accounts.accountNumber}`,
+          bankReference: dto.referenceNumber,
+          category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
+          creditAmount: totalAmount,
+          debitAmount: 0,
+          createdById: userId,
+        },
+        links: results.map((m) => ({
+          internalRecordType: 'MEMBER_CONTRIBUTION' as const,
+          internalRecordId: m.id,
+        })),
+      };
+
+      const bankResult = await this.bankMovementsService.createAndReconcile(
+        dataBank,
+        userId,
+        tx,
+      );
+
+      // 5. Actualizar los movimientos del asociado con el ID del banco
+      for (const m of results) {
+        await tx
+          .update(schema.associateAccountMovements)
+          .set({
+            referenceId: bankResult.movement.id.toString(),
+            referenceType: 'BANK_TRANSACTION',
+          })
+          .where(eq(schema.associateAccountMovements.id, m.id));
+      }
+
+      // 6. Crear Asiento Contable Automático
       try {
         await this.accountingEntriesService.createAutomaticEntry(
           userId,
@@ -231,7 +239,7 @@ export class IndividualLoadService {
         throw error;
       }
 
-      // 6. Registro de Auditoría
+      // 7. Registro de Auditoría
       this.eventEmitter.emit(
         'audit.log',
         new AuditLogEvent({
@@ -297,7 +305,11 @@ export class IndividualLoadService {
   /**
    * Carga masiva de haberes (Lote)
    */
-  async createBulk(fileBuffer: Buffer, userId: number) {
+  async createBulk(
+    fileBuffer: Buffer,
+    dto: BulkIndividualLoadDto,
+    userId: number,
+  ) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(fileBuffer as any);
     const worksheet = workbook.worksheets[0];
@@ -356,6 +368,8 @@ export class IndividualLoadService {
 
     return this.drizzle.transaction(async (tx) => {
       let processedCount = 0;
+      let totalAmountProcessed = 0;
+      const resultsAssociateMovements: any[] = [];
       const accountingItems: Array<{
         associateId: number;
         amounts: { ASSOCIATED_SAVINGS: number; EMPLOYER_CONTRIBUTION?: number };
@@ -396,21 +410,22 @@ export class IndividualLoadService {
         // Crear movimientos según el tipo
         if (typeCell === 'APORTE EMPLEADOS') {
           // Aporte empleado
-          await this.associateMovementsService.create(
+          const resEmp = await this.associateMovementsService.create(
             userId,
             {
               associateAccountId: associate.associateAccountId,
               movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
-              transactionDate: new Date(),
+              transactionDate: dto.transactionDate ?? new Date(),
               description: 'Aporte Patronales',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
+          resultsAssociateMovements.push(resEmp.data);
           // Aporte patronal
-          await this.associateMovementsService.create(
+          const resPat = await this.associateMovementsService.create(
             userId,
             {
               associateAccountId: associate.associateAccountId,
@@ -418,12 +433,14 @@ export class IndividualLoadService {
                 'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
-              transactionDate: new Date(),
+              transactionDate: dto.transactionDate ?? new Date(),
               description: 'Aporte Patronales',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
+          resultsAssociateMovements.push(resPat.data);
+          totalAmountProcessed += row.monto * 2; // Ambos aportes
 
           accountingItems.push({
             associateId: associate.id,
@@ -438,19 +455,21 @@ export class IndividualLoadService {
           });
         } else if (typeCell === 'DESCUENTOS CAJA') {
           // Un solo movimiento
-          await this.associateMovementsService.create(
+          const resDes = await this.associateMovementsService.create(
             userId,
             {
               associateAccountId: associate.associateAccountId,
               movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
-              transactionDate: new Date(),
+              transactionDate: dto.transactionDate ?? new Date(),
               description: 'Aportes Patronales - Diferencia Ahorro',
               status: 'COMPLETED' as movementStatusEnum,
             },
             tx,
           );
+          resultsAssociateMovements.push(resDes.data);
+          totalAmountProcessed += row.monto;
 
           // Aporte patronal
           // await this.associateMovementsService.create(
@@ -485,7 +504,45 @@ export class IndividualLoadService {
       }
 
       if (processedCount > 0 && companyId) {
-        // Crear un solo asiento contable para todos los registrados
+        // 1. Crear movimiento bancario unificado para todo el lote
+        const dataBankBulk = {
+          movement: {
+            bankAccountId: dto.bankAccountId,
+            transactionDate: dto.transactionDate ?? new Date(),
+            paymentMethod: dto.paymentMethod as paymentMethodEnum,
+            description:
+              dto.description ??
+              `Carga masiva: ${typeCell} - ${processedCount} registros`,
+            bankReference: dto.referenceNumber,
+            category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
+            creditAmount: totalAmountProcessed,
+            debitAmount: 0,
+            createdById: userId,
+          },
+          links: resultsAssociateMovements.map((m) => ({
+            internalRecordType: 'MEMBER_CONTRIBUTION' as const,
+            internalRecordId: m.id,
+          })),
+        };
+
+        const bankResult = await this.bankMovementsService.createAndReconcile(
+          dataBankBulk,
+          userId,
+          tx,
+        );
+
+        // 2. Actualizar los movimientos del asociado con el ID del banco
+        for (const m of resultsAssociateMovements) {
+          await tx
+            .update(schema.associateAccountMovements)
+            .set({
+              referenceId: bankResult.movement.id.toString(),
+              referenceType: 'BANK_TRANSACTION',
+            })
+            .where(eq(schema.associateAccountMovements.id, m.id));
+        }
+
+        // 3. Crear un solo asiento contable para todos los registrados
         try {
           await this.accountingEntriesService.createAutomaticEntry(
             userId,
@@ -493,11 +550,11 @@ export class IndividualLoadService {
               companyId: Number(companyId),
               category: 'SAVINGS_BANK',
               operationType: 'PAYROLL_CONCEPT', // Regla general de carga de haberes
-              description: `Carga masiva Aportes Patronales - ${processedCount} asociados`,
-              entryDate: new Date(),
+              description: `Carga masiva ${typeCell} - ${processedCount} asociados`,
+              entryDate: dto.transactionDate ?? new Date(),
               referenceValue: referenceValueLookup,
               currencyCode: 'VES' as CurrencyCodeEnum,
-              originReferenceId: `BULK_${Date.now()}`,
+              originReferenceId: bankResult.movement.id.toString(),
               originType: 'SAVINGS_BULK_LOAD',
               roleAliases:
                 typeCell === 'APORTE EMPLEADOS'

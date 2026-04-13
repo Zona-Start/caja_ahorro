@@ -1,4 +1,5 @@
 'use client';
+import { AlertModal } from '@/components/modal/alert-modal';
 import { IconWrapper } from '@/components/icon-wrapper';
 import { useSupplierAll } from '@/feactures/administration/suppliers/hooks/use-query-suppliers';
 import { useCategoriesTypesGroup } from '@/feactures/common/category-types/hooks/use-querys-category-types';
@@ -79,6 +80,7 @@ export function WithdrawalForm({
   } = useWithdrawalStore();
 
   const [exceedingAvailability, setExceedingAvailability] = useState(false);
+  const [isConfirmOpen, setConfirmOpen] = useState(false);
   const { data: withdrawlTypes } = useQueryWithdrawalType();
   const { data: productsData } = useProducts();
   const { data: suppliers } = useSupplierAll();
@@ -247,7 +249,11 @@ export function WithdrawalForm({
     setWithdrawalSummary,
   ]);
 
-  const handleSubmit = form.handleSubmit((data) => {
+  const onPreSubmit = () => {
+    setConfirmOpen(true);
+  };
+
+  const onConfirm = form.handleSubmit((data) => {
     let withdrawalItems: any[] = [];
     if (showProductSelection) {
       withdrawalItems = (data.products || []).map((p: any) => ({
@@ -284,6 +290,7 @@ export function WithdrawalForm({
     delete dataToSubmit.items;
 
     onSubmit(dataToSubmit);
+    setConfirmOpen(false);
   });
 
   const handleCancel = () => {
@@ -299,21 +306,33 @@ export function WithdrawalForm({
         : false;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconWrapper className="w-8 h-8">
-            <Banknote />
-          </IconWrapper>
-          Datos del Retiro
-        </CardTitle>
-        <CardDescription>
-          Ingrese la información del retiro a registrar
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      <AlertModal
+        isOpen={isConfirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={onConfirm}
+        loading={isSubmitting}
+        title="Confirmar Retiro"
+        description="¿Está seguro que desea registrar este retiro de haberes? Esta operación generará un movimiento contable y afectará el saldo disponible del asociado."
+      />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IconWrapper className="w-8 h-8">
+              <Banknote />
+            </IconWrapper>
+            Datos del Retiro
+          </CardTitle>
+          <CardDescription>
+            Ingrese la información del retiro a registrar
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onPreSubmit)}
+              className="space-y-6"
+            >
             <FormField
               control={form.control}
               name="withdrawalTypeId"
@@ -836,6 +855,7 @@ export function WithdrawalForm({
           </form>
         </Form>
       </CardContent>
-    </Card>
+      </Card>
+    </>
   );
 }

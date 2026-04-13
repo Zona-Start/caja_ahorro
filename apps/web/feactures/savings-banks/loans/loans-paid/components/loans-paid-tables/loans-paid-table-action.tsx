@@ -11,6 +11,10 @@ import {
   PAYMENT_METHOD_OPTIONS,
   useAssociatesTableFilters,
 } from './use-loans-paid-filters';
+import { LoansPaidBulkUploadModal } from '../loans-paid-bulk-upload-modal';
+import { useState } from 'react';
+import { Upload } from 'lucide-react';
+import { ExportLoanPaidButton } from '../export-bottom';
 
 export default function LoansPaidTableAction() {
   const {
@@ -25,12 +29,23 @@ export default function LoansPaidTableAction() {
     methodFilter,
   } = useAssociatesTableFilters();
 
+  const [bulkOpen, setBulkOpen] = useState(false);
+
   const { data: Banks } = useBanksQuery();
   const BANK_DIRECTORY_OPTIONS =
     Banks?.data?.map((bank) => ({
       value: bank?.id?.toString() ?? '',
       label: bank?.name ?? '',
     })) ?? [];
+
+  const currentFilters = {
+    page: 1,
+    limit: 10,
+    search: searchQuery,
+    bank: bankFilter,
+    type: typeFilter,
+    method: methodFilter,
+  };
 
   return (
     <div className="flex items-center justify-between mt-4 ">
@@ -49,13 +64,6 @@ export default function LoansPaidTableAction() {
           setFilterValue={setTypeFilter}
           filterValue={typeFilter}
         />
-        {/* <DataTableFilterBox
-          filterKey="type"
-          title="Tipo de Banco"
-          options={BANK_DIRECTORY_OPTIONS}
-          setFilterValue={setBankFilter}
-          filterValue={bankFilter}
-        /> */}
         <DataTableFilterBox
           filterKey="modality"
           title="Metodo"
@@ -64,11 +72,24 @@ export default function LoansPaidTableAction() {
           filterValue={methodFilter}
         />
       </div>
-      <Link href="/dashboard/prestamos/pagos/nuevo">
-        <Button size="sm">
-          <Plus className="h-4 w-4" /> Nuevo Pago
+      <div className="flex gap-2">
+        <ExportLoanPaidButton currentFilters={currentFilters} />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setBulkOpen(true)}
+          className="gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          Carga Masiva
         </Button>
-      </Link>
+        <Link href="/dashboard/prestamos/pagos/nuevo">
+          <Button size="sm">
+            <Plus className="h-4 w-4" /> Nuevo Pago
+          </Button>
+        </Link>
+      </div>
+      <LoansPaidBulkUploadModal open={bulkOpen} onOpenChange={setBulkOpen} />
     </div>
   );
 }

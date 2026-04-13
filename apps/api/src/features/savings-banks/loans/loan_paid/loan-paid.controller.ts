@@ -1,6 +1,9 @@
 import { RequirePermissions } from '@/common/decorators/permissions.decorator';
-import { Body, Controller, Delete, Get, Param, Post, Query, Req } from '@nestjs/common';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { CreateBulkLoanPaidDto } from './dto/bulk-loan-paid.dto';
 import { CreateLoanPaidDto } from './dto/create-loan.dto';
 import { FilterLoanPaidDto } from './dto/filter-loan-paid.dto';
 import { LoanPaidService } from './loan-paid.service';
@@ -11,9 +14,32 @@ export class LoanPaidController {
 
   @Post()
   @RequirePermissions('read:loan-paid')
-  create(@Req() req: Request, @Body() createLoanPaidDto: CreateLoanPaidDto) {
-    const userdId = req['user'].id;
-    return this.loanPaidService.create(createLoanPaidDto, userdId);
+  create(@Body() createLoanPaidDto: CreateLoanPaidDto, @Req() req: any) {
+    const userId = req.user.id;
+    return this.loanPaidService.create(createLoanPaidDto, userId);
+  }
+
+  @Get('download-template')
+  @RequirePermissions('read:loan-management')
+  async downloadTemplate(@Res() res: Response) {
+    const buffer = await this.loanPaidService.downloadTemplate();
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="plantilla-pagos-prestamos.xlsx"',
+    });
+    res.send(buffer);
+  }
+
+  @Post('bulk')
+  @RequirePermissions('update:loan-management')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  bulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any
+  ) {
+    const userId = req.user.id;
+    return this.loanPaidService.bulkUpload(file, userId);
   }
 
   @Get()
@@ -22,6 +48,23 @@ export class LoanPaidController {
   @ApiResponse({ status: 200, description: 'Return all Loan paid.' })
   findAll(@Query() paginationDto: FilterLoanPaidDto) {
     return this.loanPaidService.findAll(paginationDto);
+  }
+
+  @Get('report/pdf')
+  @RequirePermissions('read:loan-paid')
+  @ApiOperation({ summary: 'Generate and download PDF report of loan payments' })
+  async downloadReportPdf(
+    @Query() filterDto: FilterLoanPaidDto,
+    @Res() res: Response,
+  ) {
+    const pdfDoc = await this.loanPaidService.getReportsPdf(filterDto);
+
+    const filename = `reporte_pagos_prestamos_${Date.now()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+
+    pdfDoc.pipe(res);
+    pdfDoc.end();
   }
 
   // @Get('count')

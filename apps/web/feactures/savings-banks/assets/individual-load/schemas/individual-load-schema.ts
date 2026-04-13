@@ -34,10 +34,16 @@ export const formSchema = z.object({
     required_error: 'Debe seleccionar una fecha',
   }),
   description: z.string().min(1, 'Debe indicar una descripción'),
-  bankAccountId: z.number().optional(),
-  paymentMethod: z.string().optional(),
-  referenceNumber: z.string().optional(),
-  includeBankingDetails: z.boolean().default(false).optional(),
+  bankAccountId: z.number({
+    required_error: 'Debe seleccionar una cuenta bancaria',
+  }),
+  paymentMethod: z.string({
+    required_error: 'Debe seleccionar un método de pago',
+  }),
+  referenceNumber: z.string({
+    required_error: 'Debe indicar un número de referencia',
+  }).min(1, 'Debe indicar un número de referencia'),
+  includeBankingDetails: z.boolean().default(true),
 }).superRefine((data, ctx) => {
   if (data.movementType === 'EMPLOYER_CONTRIBUTION') {
     if (!data.employerAmount || data.employerAmount <= 0) {
@@ -66,3 +72,21 @@ export const formSchema = z.object({
 });
 
 export type LoadAssest = z.infer<typeof formSchema>;
+
+export const bulkFormSchema = z.object({
+  bankAccountId: z.number({
+    required_error: 'Debe seleccionar una cuenta bancaria',
+  }),
+  paymentMethod: z.string({
+    required_error: 'Debe seleccionar un método de pago',
+  }),
+  referenceNumber: z.string({
+    required_error: 'Debe indicar un número de referencia',
+  }).min(1, 'Debe indicar un número de referencia'),
+  transactionDate: z.date({
+    required_error: 'Debe seleccionar una fecha de transacción',
+  }),
+  description: z.string().optional(),
+});
+
+export type BulkLoadAsset = z.infer<typeof bulkFormSchema>;

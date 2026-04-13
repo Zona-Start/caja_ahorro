@@ -71,9 +71,10 @@ export function LoadAssetsForm({
       associateAmount: 0,
       transactionDate: new Date(),
       description: '',
+      bankAccountId: 0,
       paymentMethod: 'BANK_TRANSFER',
       referenceNumber: '',
-      includeBankingDetails: false, // Por defecto activo para mejores prácticas
+      includeBankingDetails: true,
     },
   });
 
@@ -98,26 +99,16 @@ export function LoadAssetsForm({
         description: '',
         paymentMethod: 'BANK_TRANSFER',
         referenceNumber: '',
-        includeBankingDetails: false,
+        includeBankingDetails: true,
       });
     }
   }, [selectedAssociate, form]);
 
   const handleSubmit = form.handleSubmit((data: LoadAssest) => {
-    const { includeBankingDetails, ...rest } = data;
-
-    const dataTransform = {
-      ...rest,
-      bankAccountId: includeBankingDetails ? rest.bankAccountId : undefined,
-      paymentMethod: includeBankingDetails ? rest.paymentMethod : undefined,
-      referenceNumber: includeBankingDetails ? rest.referenceNumber : undefined,
-    };
-
-    onSubmit(dataTransform);
+    onSubmit(data);
     setConfirmOpen(false);
   });
 
-  const includeBankingDetails = form.watch('includeBankingDetails');
   const hasRestrictions = errors.length > 0;
   const isFormDisabled = !selectedAssociate || isSubmitting || hasRestrictions;
 
@@ -324,61 +315,79 @@ export function LoadAssetsForm({
                 )}
               />
 
-              <div className="space-y-4 border rounded-lg p-4 bg-muted/20">
-                <FormField
-                  control={form.control}
-                  name="includeBankingDetails"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between">
-                      <div className="space-y-0.5">
-                        <FormLabel>Datos Bancarios</FormLabel>
-                        <p className="text-xs text-muted-foreground">
-                          Vincular con movimiento en cuenta bancaria
-                        </p>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isFormDisabled}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+              <div className="space-y-4 border rounded-lg p-6 bg-muted/30">
+                <div className="flex flex-col gap-1 pb-4 border-b border-muted">
+                  <h3 className="text-sm font-bold text-primary uppercase">Datos Bancarios</h3>
+                  <p className="text-xs text-muted-foreground italic">
+                    * Estos campos son ahora obligatorios para procesar la carga.
+                  </p>
+                </div>
 
-                {includeBankingDetails && (
-                  <div className="space-y-4 pt-4 animate-in slide-in-from-top-2 duration-300">
+                <div className="space-y-4 pt-4">
+                  <FormField
+                    control={form.control}
+                    name="bankAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
+                          Cuenta Receptora
+                        </FormLabel>
+                        <Select
+                          onValueChange={(value) =>
+                            field.onChange(Number(value))
+                          }
+                          value={field.value ? String(field.value) : ''}
+                          disabled={isFormDisabled}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione cuenta bancaria" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {bankAccounts.map((account) => (
+                              <SelectItem
+                                key={account.id}
+                                value={String(account.id)}
+                              >
+                                {account.accountName} -{' '}
+                                {account.accountNumber.slice(-4)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="bankAccountId"
+                      name="paymentMethod"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
-                            Cuenta Receptora
+                            Método de Pago
                           </FormLabel>
                           <Select
-                            onValueChange={(value) =>
-                              field.onChange(Number(value))
-                            }
-                            value={String(field.value)}
+                            onValueChange={field.onChange}
+                            value={field.value}
                             disabled={isFormDisabled}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Seleccione cuenta bancaria" />
+                                <SelectValue placeholder="Método de pago" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {bankAccounts.map((account) => (
-                                <SelectItem
-                                  key={account.id}
-                                  value={String(account.id)}
-                                >
-                                  {account.accountName} -{' '}
-                                  {account.accountNumber.slice(-4)}
-                                </SelectItem>
-                              ))}
+                              {Object.entries(PAYMENT_METHODS).map(
+                                ([k, v]) => (
+                                  <SelectItem key={k} value={k}>
+                                    {v}
+                                  </SelectItem>
+                                ),
+                              )}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -386,59 +395,27 @@ export function LoadAssetsForm({
                       )}
                     />
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="paymentMethod"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
-                              Referencia / Pago
-                            </FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
+                    <FormField
+                      control={form.control}
+                      name="referenceNumber"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col justify-end">
+                          <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
+                            Nro. Referencia
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Ej. 12345678"
+                              {...field}
                               disabled={isFormDisabled}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {Object.entries(PAYMENT_METHODS).map(
-                                  ([k, v]) => (
-                                    <SelectItem key={k} value={k}>
-                                      {v}
-                                    </SelectItem>
-                                  ),
-                                )}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="referenceNumber"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-col justify-end">
-                            <FormControl>
-                              <Input
-                                placeholder="Nro. Referencia"
-                                {...field}
-                                disabled={isFormDisabled}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                )}
+                </div>
               </div>
 
               <Button

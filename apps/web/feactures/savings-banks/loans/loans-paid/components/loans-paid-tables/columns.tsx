@@ -2,12 +2,14 @@
 
 import { ColumnDef } from '@tanstack/react-table';
 
+import { Badge } from '@repo/shadcn/badge';
 import { LoanPaymentApi } from '../../schemas/loans-paid-api-response';
 import {
   LOAN_PAYMENT_TYPES,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
 } from '../../schemas/loans-paid-options';
+import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<LoanPaymentApi>[] = [
   {
@@ -52,14 +54,25 @@ export const columns: ColumnDef<LoanPaymentApi>[] = [
     accessorKey: 'paymentStatus',
     header: 'Estatus Pago',
     cell: ({ row }) => {
-      const paymentStatusKey = row.original
-        .paymentStatus as keyof typeof PAYMENT_STATUS;
-      return PAYMENT_STATUS[paymentStatusKey] || '';
+      const status = row.original.paymentStatus;
+      const paymentStatusKey = status as keyof typeof PAYMENT_STATUS;
+      const label = PAYMENT_STATUS[paymentStatusKey] || status;
+
+      let variant: 'default' | 'outline' | 'secondary' | 'destructive' | 'success' = 'default';
+      
+      if (status === 'DONE') variant = 'success';
+      if (status === 'CANCELED') variant = 'destructive';
+
+      return (
+        <Badge variant={variant} className="font-medium">
+          {label}
+        </Badge>
+      );
     },
   },
-  // {
-  //   id: 'actions',
-  //   header: 'Acciones',
-  //   cell: ({ row }) => <CellAction data={row.original} />,
-  // },
+  {
+    id: 'actions',
+    header: 'Acciones',
+    cell: ({ row }) => <CellAction data={row.original} />,
+  },
 ];

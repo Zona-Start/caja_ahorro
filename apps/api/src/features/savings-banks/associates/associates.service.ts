@@ -25,20 +25,21 @@ import {
   typePayrolls,
 } from 'src/database/index';
 import { AuditLogEvent } from '../../audit/events/audit-log.event';
-import { AssociateAccountsMovementsService } from '../associate-accounts-movements/associate-accounts-movements.service';
 import { BulkUploadResult } from './dto/bulk-upload-associate.dto';
 import { CreateAssociateAccountsDto } from './dto/create-associate-accounts.dto';
 import { CreateAssociateDto } from './dto/create-associate.dto';
 import { FilterAssociateDto } from './dto/filter-associate.dto';
 import { UpdateAssociateDto } from './dto/update-associate.dto';
 import { Associates } from './entities/entity';
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 
 @Injectable()
 export class AssociatesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
-    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly pdfService: PdfGeneratorService
+
   ) {}
 
   async create(userId: number, createAssociateDto: CreateAssociateDto) {
@@ -763,6 +764,8 @@ export class AssociatesService {
               );
             associatedTypeId = catType[0]?.id;
           }
+  
+          
 
           // Insertar asociado
           const [insertedAssociate] = await tx
@@ -888,12 +891,14 @@ export class AssociatesService {
     const payrollSetting = await this.drizzle.query.systemSettings.findFirst({
       where: eq(systemSettings.key, 'PAYROLL-DEFAULT'),
     });
+
+    
     let payrollTypeId: number | undefined;
     if (payrollSetting?.value) {
       const [payroll] = await this.drizzle
         .select({ id: typePayrolls.id })
         .from(typePayrolls)
-        .where(eq(typePayrolls.code, payrollSetting.value));
+        .where(ilike(typePayrolls.description, `%${payrollSetting.value}%`));        
       payrollTypeId = payroll?.id;
     }
 
@@ -1063,4 +1068,68 @@ export class AssociatesService {
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer as ArrayBuffer);
   }
+
+
+
+  // ──────────────────────────────────────────────────────────────────────────────
+  // Descarga de asociados PDF
+  // ──────────────────────────────────────────────────────────────────────────────
+
+   async getReportsPdf(paginationDto?: FilterAssociateDto) {
+    let rawData: any[];
+
+    if (paginationDto) {
+      // Si usas un findAll existente, extraemos los datos
+      const payload = await this.findAll(paginationDto);
+      rawData = payload.data;
+    } else {
+      // Consulta directa con Drizzle
+      rawData = await this.drizzle
+        .select({
+          cedula: associates.cedula,
+          fullname: associates.fullname,
+          dateAdmission: associates.dateAdmission,
+          status: associates.status,
+          isPayrollCredit: associates.isPayrollCredit,
+          jobTitle: associates.jobTitle,
+          accountNumber: associateAccounts.accountNumber,
+        })
+        .from(associates)
+        .leftJoin(
+          associateAccounts,
+          eq(associateAccounts.associateId, associates.id),
+        );
+    }
+
+    // Transformamos los datos al formato que espera la tabla de pdfmake
+    const tableBody = [
+      // Fila 1: Encabezados
+      ['Cédula', 'Nombre y Apellido', 'Ingreso', 'Estatus', 'Credi-Nomina', 'Cargo', 'Nro Cuenta'],
+      // Filas de datos mapeadas
+      ...rawData.map((item) => [
+        item.cedula ?? 'N/A',
+        item.fullname ?? 'N/A',
+        item.dateAdmission ? new Date(item.dateAdmission).toLocaleDateString() : 'N/A',
+        item.status ?? 'N/A',
+        item.isPayrollCredit ? 'Sí' : 'No',
+        item.jobTitle ?? 'N/A',
+        item.accountNumber ?? 'Sin cuenta',
+      ]),
+    ];
+
+    const content = {
+      table: {
+        headerRows: 1,
+        widths: [60, '*', 65, 55, 45, 80, 100], 
+        body: tableBody,
+      },
+      layout: 'lightHorizontalLines', // Opcional: mejora estética
+    };
+
+    return this.pdfService.generateReport('LISTADO DE ASOCIADOS', content, {
+    orientation: 'landscape',
+    pageSize: 'LETTER'
+  });
+  }
+
 }
