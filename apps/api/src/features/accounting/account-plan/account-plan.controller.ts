@@ -1,5 +1,4 @@
-import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
-import { Roles } from '@/common/decorators/roles.decorator';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -12,6 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AccountPlanService } from './account-plan.service';
 import { CreateAccountPlanDto } from './dto/create-account-plan.dto';
 import { FilterAccountPlanDto } from './dto/filter-account-plan.dto';
@@ -20,48 +20,58 @@ import { UpdateAccountPlanDto } from './dto/update-account-plan.dto';
 @ApiTags('account-plan')
 @Controller('account-plan')
 export class AccountPlanController {
-  constructor(private readonly accountPlanService: AccountPlanService) {}
+  constructor(
+    private readonly accountPlanService: AccountPlanService,
+    private readonly tenantService: TenantContextService,
+  ) {}
 
   @Post()
-  @Roles('superadmin', 'admin')
-  @RequirePermissions('create:account-plan')
   @ApiOperation({ summary: 'Create a new account plan' })
   @ApiResponse({
     status: 201,
     description: 'Account plan created successfully.',
   })
-  async create(
-    @Req() req: Request,
-    @Body() createAccountPlanDto: CreateAccountPlanDto,
-  ) {
-    const userId = req['user'].id;
+  async create(@Req() req: Request, @Body() dto: CreateAccountPlanDto) {
+    const { targetTenantId, userId } = this.tenantService.getTenantContext(
+      req,
+      dto,
+    );
     const data = await this.accountPlanService.create(
+      dto,
+      targetTenantId,
       userId,
-      createAccountPlanDto,
     );
     return { message: 'Account plan created successfully', data };
   }
 
   @Get('all')
-  @RequirePermissions('read:account-plans')
   @ApiOperation({
     summary: 'Get all account plans',
   })
   @ApiResponse({ status: 200, description: 'Return all account plans.' })
-  async findAll() {
-    const data = await this.accountPlanService.findAll();
+  async findAll(@Req() req: Request, @Body() tenantId?: string) {
+    const { targetTenantId } = this.tenantService.getTenantContext(
+      req,
+      tenantId,
+    );
+    const data = await this.accountPlanService.findAll(targetTenantId);
     return { message: 'Account plans fetched successfully', data };
   }
 
   @Get('pagination')
-  @RequirePermissions('read:account-plans')
   @ApiOperation({
     summary: 'Get all account plans with pagination and filters',
   })
   @ApiResponse({ status: 200, description: 'Return paginated account plans .' })
-  async findAllByPagination(@Query() paginationDto: FilterAccountPlanDto) {
-    const result =
-      await this.accountPlanService.findAllByPagination(paginationDto);
+  async findAllByPagination(
+    @Req() req: Request,
+    @Query() dto: FilterAccountPlanDto,
+  ) {
+    const { targetTenantId } = this.tenantService.getTenantContext(req, dto);
+    const result = await this.accountPlanService.findAllByPagination(
+      targetTenantId,
+      dto,
+    );
     return {
       message: 'account plans fetched successfully',
       data: result.data,
@@ -70,18 +80,23 @@ export class AccountPlanController {
   }
 
   @Get(':id')
-  @RequirePermissions('read:account-plan')
   @ApiOperation({ summary: 'Get an account plan by ID' })
   @ApiResponse({ status: 200, description: 'Return the account plan.' })
   @ApiResponse({ status: 404, description: 'Account plan not found.' })
-  async findOne(@Param('id') id: string) {
-    const data = await this.accountPlanService.findOne(+id);
+  async findOne(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() tenantId?: string,
+  ) {
+    const { targetTenantId } = this.tenantService.getTenantContext(
+      req,
+      tenantId,
+    );
+    const data = await this.accountPlanService.findOne(id, targetTenantId);
     return { message: 'Account plan fetched successfully', data };
   }
 
   @Patch(':id')
-  @Roles('superadmin', 'admin')
-  @RequirePermissions('update:account-plan')
   @ApiOperation({ summary: 'Update an account plan' })
   @ApiResponse({
     status: 200,
@@ -91,28 +106,37 @@ export class AccountPlanController {
   async update(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() updateAccountPlanDto: UpdateAccountPlanDto,
+    @Body() dto: UpdateAccountPlanDto,
   ) {
-    const userId = req['user'].id;
+    const { targetTenantId, userId } = this.tenantService.getTenantContext(
+      req,
+      dto,
+    );
     const data = await this.accountPlanService.update(
+      id,
+      targetTenantId,
       userId,
-      +id,
-      updateAccountPlanDto,
+      dto,
     );
     return { message: 'Account plan updated successfully', data };
   }
 
   @Delete(':id')
-  @Roles('superadmin', 'admin')
-  @RequirePermissions('delete:account-plan')
   @ApiOperation({ summary: 'Delete an account plan' })
   @ApiResponse({
     status: 200,
     description: 'Account plan deleted successfully.',
   })
   @ApiResponse({ status: 404, description: 'Account plan not found.' })
-  async remove(@Param('id') id: string, @Req() req: Request) {
-    const userId = req['user'].id;
-    return await this.accountPlanService.remove(+id, userId);
+  async remove(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Body() tenantId?: string,
+  ) {
+    const { targetTenantId, userId } = this.tenantService.getTenantContext(
+      req,
+      tenantId,
+    );
+    return await this.accountPlanService.remove(id, targetTenantId, userId);
   }
 }

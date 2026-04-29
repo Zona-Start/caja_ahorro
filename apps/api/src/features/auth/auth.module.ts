@@ -1,12 +1,14 @@
-import { MailModule } from '@/features/mail/mail.module';
+import { DrizzleModule } from '@/database/drizzle.module';
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module';
+import { CoreModule } from '../core/core.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { DrizzleModule } from '@/database/drizzle.module';
+import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
-  imports: [DrizzleModule, MailModule],
+  imports: [DrizzleModule, CoreModule, AuditModule],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, JwtStrategy],
 })
 export class AuthModule {}

@@ -1,12 +1,14 @@
+import { DrizzleModule } from '@/database/drizzle.module';
 import { Module } from '@nestjs/common';
-import { AuditLogsModule } from './audit-logs/audit-logs.module';
-import { ActivityLogsSystemModule } from './activity-logs-system/activity-logs-system.module';
-
+import {
+  AuditEventService,
+  AuditHelper,
+  SystemEventHelper,
+} from './audit-event.service';
 
 @Module({
-  imports: [
-    AuditLogsModule,
-    ActivityLogsSystemModule
-  ],
+  imports: [DrizzleModule],
+  providers: [AuditEventService, AuditHelper, SystemEventHelper],
+  exports: [AuditEventService, AuditHelper, SystemEventHelper],
 })
 export class AuditModule {}

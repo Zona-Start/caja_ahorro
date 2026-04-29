@@ -1,4 +1,9 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateMunicipalityDto } from './create-municipality.dto';
+import { createZodDto } from 'nestjs-zod';
+import { CreateMunicipalitySchema } from './create-municipality.dto';
 
-export class UpdateMunicipalityDto extends PartialType(CreateMunicipalityDto) {}
+// Creamos el esquema parcial basado en el de creación
+export const UpdateMunicipalitySchema = CreateMunicipalitySchema.partial();
+
+export class UpdateMunicipalityDto extends createZodDto(
+  UpdateMunicipalitySchema,
+) {}

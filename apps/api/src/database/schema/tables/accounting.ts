@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   check,
@@ -5,37 +6,37 @@ import {
   index,
   integer,
   numeric,
-  serial,
   text,
   timestamp,
   unique,
   uniqueIndex,
+  uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../../timestamps';
-import { users } from './auth';
-
-import { sql } from 'drizzle-orm';
+import { accountingSchema } from '../_schemas';
 import {
   accountNatureEnum,
   accountTypeEnum,
   currencyCodeEnum,
   cycleStatusEnum,
   entryStatusEnum,
-} from '../enum/enum';
-import { accountingSchema } from '../schemas';
-import { suppliers } from './administration';
-import { company } from './core';
-import { associates } from './savings-banks';
+} from '../enum/';
+import { users } from './auth';
+import { suppliers } from './purchasing';
+import { associates } from './savings';
+import { tenants } from './tenants';
 
 // Tabla de Plan de cuentas  Almacena las cuentas contables de la caja de ahorro.
 export const accountPlan = accountingSchema.table(
   'account_plan',
   {
-    id: serial('id').primaryKey(),
-    companyId: integer('company_id').references(() => company.id, {
-      onDelete: 'cascade',
-    }),
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
     code: varchar('code', { length: 50 }).notNull(), // Código contable jerárquico (ej: 1.1.01.001)
     name: text('name').notNull(), // Nombre de la cuenta (ej: "Caja Principal")
     description: text('description'), // Optional account description
@@ -44,7 +45,7 @@ export const accountPlan = accountingSchema.table(
     level: integer('level').notNull(), // Account level in the hierarchy (e.g. 1, 2, 3)
     allowsMovements: boolean('allows_movements').notNull().default(true), // True si es cuenta de detalle (imputable), False si es de agrupación,
     isActive: boolean('is_active').default(true),
-    parentAccountId: integer('parent_account_id').references(
+    parentAccountId: uuid('parent_account_id').references(
       () => accountPlan.id,
       { onDelete: 'set null' },
     ),
@@ -53,7 +54,7 @@ export const accountPlan = accountingSchema.table(
   (table) => ({
     codeSavingsBankIdx: uniqueIndex('account_plan_code_savings_bank_uidx').on(
       table.code,
-      table.companyId,
+      table.tenantId,
     ), // Código único por caja
     nameIdx: index('account_plan_name_idx').on(table.name),
     typeIdx: index('account_plan_type_idx').on(table.accountType),
@@ -65,15 +66,15 @@ export const accountPlan = accountingSchema.table(
 export const accountingCycles = accountingSchema.table(
   'accounting_cycles',
   {
-    id: serial('id').primaryKey(),
-    companyId: integer('company_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
       .notNull()
-      .references(() => company.id, { onDelete: 'cascade' }),
+      .references(() => tenants.id, { onDelete: 'cascade' }),
     startDate: date('start_date').notNull(),
     endDate: date('end_date').notNull(),
     status: cycleStatusEnum('status').notNull().default('OPEN'), // OPEN, CLOSED, CLOSING
     description: text('description').notNull(), // Ej: "Ciclo Contable Enero 2025"
-    closedByUser_id: integer('closed_by_user_id').references(() => users.id, {
+    closedByUser_id: uuid('closed_by_user_id').references(() => users.id, {
       onDelete: 'cascade',
     }), // FK a tabla Usuarios
     closedAt: timestamp('closed_at'),
@@ -81,7 +82,7 @@ export const accountingCycles = accountingSchema.table(
   },
   (table) => ({
     savingsBankDateIdx: uniqueIndex('accounting_cycles_sb_start_end_uidx').on(
-      table.companyId,
+      table.tenantId,
       table.startDate,
       table.endDate,
     ), // Ciclo único por caja y fechas
@@ -94,16 +95,16 @@ export const accountingEntries = accountingSchema.table(
   // Renombrado de transactionsCountable
   'accounting_entries',
   {
-    id: serial('id').primaryKey(),
-    companyId: integer('company_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
       .notNull()
-      .references(() => company.id, { onDelete: 'cascade' }),
-    accountingCycleId: integer('accounting_cycle_id')
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    accountingCycleId: uuid('accounting_cycle_id')
       .notNull()
       .references(() => accountingCycles.id, { onDelete: 'restrict' }), // No borrar ciclo si tiene asientos
     entryDate: date('entry_date').notNull(), // Fecha contable del asiento
     description: text('description').notNull(),
-    voucherNo: integer('voucher_no'), // Número de comprobante correlativo
+    voucherNo: integer('voucher_no').notNull(), // Número de comprobante correlativo
     originReferenceId: text('origin_reference_id'), // ID de la operación origen (loan_id, payment_id, etc.)
     originType: varchar('origin_type', { length: 50 }), // Tipo de operación origen ('LOAN_DISBURSEMENT', 'BANK_DEPOSIT', 'MANUAL_ENTRY')
     status: entryStatusEnum('status').notNull().default('DRAFT'), // Estado del asiento ej. PENDING, POSTED, CANCELLED
@@ -131,17 +132,17 @@ export const accountingEntryDetails = accountingSchema.table(
   // Renombrado de movementsCountable
   'accounting_entry_details',
   {
-    id: serial('id').primaryKey(),
-    accountingEntryId: integer('accounting_entry_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountingEntryId: uuid('accounting_entry_id')
       .notNull()
       .references(() => accountingEntries.id, { onDelete: 'cascade' }), // Si se borra la cabecera, se borran detalles
-    accountPlanId: integer('account_plan_id')
+    accountPlanId: uuid('account_plan_id')
       .notNull()
       .references(() => accountPlan.id, { onDelete: 'restrict' }), // No borrar cuenta si tiene movimientos
-    associateId: integer('associate_id').references(() => associates.id, {
+    associateId: uuid('associate_id').references(() => associates.id, {
       onDelete: 'restrict',
     }),
-    supplierId: integer('supplier_id').references(() => suppliers.id, {
+    supplierId: uuid('supplier_id').references(() => suppliers.id, {
       onDelete: 'restrict', // No puedes borrar un proveedor si tiene asientos
     }),
     debit: numeric('debit', { precision: 20, scale: 6 })
@@ -174,14 +175,14 @@ export const accountingEntryDetails = accountingSchema.table(
 export const accountBalances = accountingSchema.table(
   'account_balances',
   {
-    id: serial('id').primaryKey(),
-    companyId: integer('company_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
       .notNull()
-      .references(() => company.id, { onDelete: 'cascade' }),
-    accountPlanId: integer('account_plan_id')
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    accountPlanId: uuid('account_plan_id')
       .notNull()
       .references(() => accountPlan.id, { onDelete: 'cascade' }),
-    accountingCyclesId: integer('accounting_cycles_id') // puede ser el anual o el mensual
+    accountingCyclesId: uuid('accounting_cycles_id') // puede ser el anual o el mensual
       .notNull()
       .references(() => accountingCycles.id, { onDelete: 'cascade' }),
 
@@ -212,7 +213,7 @@ export const accountBalances = accountingSchema.table(
   (table) => ({
     // un registro por cuenta y ciclo
     uniqueAccountCycle: unique('account_balances_unique').on(
-      table.companyId,
+      table.tenantId,
       table.accountPlanId,
       table.accountingCyclesId,
     ),
@@ -224,23 +225,24 @@ export const accountBalances = accountingSchema.table(
 ////REGLAS DE ASIENTOS AUTOMÁTICOS////
 // 1. Definición de la Regla (El Evento)
 export const accountingRules = accountingSchema.table('accounting_rules', {
-  id: serial('id').primaryKey(),
-  companyId: integer('company_id')
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
     .notNull()
-    .references(() => company.id),
+    .references(() => tenants.id, { onDelete: 'cascade' }),
   category: varchar('category', { length: 50 }).notNull().default('ACCOUNTING'), // SAVINGS_BANK, ADMINISTRATIVE, BANKING, ACCOUNTING, INVENTORY
   operationType: varchar('operation_type').notNull(), // Ej: PAYROLL_CONCEPT, LOAN_APP
   referenceValue: varchar('reference_value', { length: 255 }), // Texto del valor de la selección
   description: text('description'),
   isActive: boolean('is_active').default(true),
+  ...timestamps,
 });
 
 // 2. Detalle de la Regla (Los Asientos automáticos)
 export const accountingRuleDetails = accountingSchema.table(
   'accounting_rule_details',
   {
-    id: serial('id').primaryKey(),
-    ruleId: integer('rule_id').references(() => accountingRules.id),
+    id: uuid('id').primaryKey().defaultRandom(),
+    ruleId: uuid('rule_id').references(() => accountingRules.id),
     accountRole: varchar('account_role'), // Ej: 'ASOCIADO_CUENTA', 'PATRONO_CUENTA', 'INTERES_CUENTA'
     movementType: varchar('movement_type', {
       enum: ['DEBIT', 'CREDIT'],
@@ -248,6 +250,6 @@ export const accountingRuleDetails = accountingSchema.table(
     isAuxiliary: boolean('is_auxiliary').default(false),
     isAuxiliarySupplier: boolean('is_auxiliary_supplier').default(false),
     formula: text('formula'), // Opcional: para calcular montos (ej: "total * 0.05")
-    accountPlanId: integer('account_plan_id').references(() => accountPlan.id),
+    accountPlanId: uuid('account_plan_id').references(() => accountPlan.id),
   },
 );

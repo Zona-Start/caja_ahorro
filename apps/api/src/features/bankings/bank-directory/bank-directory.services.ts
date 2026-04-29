@@ -1,13 +1,13 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { bankDirectory } from '@/database/schema/tables';
+import { BankDirectory } from '@/database/types/treasury';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { eq, ilike, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
-import * as schema from 'src/database/index';
-import { CreateBankDirectoryDto } from './dto/create-bank-directory.dto';
+import * as schema from 'src/database/schema';
+import { CreateBankDirectoryDto } from './dto/bank-directory.schema';
 import { UpdateBankDirectoryDto } from './dto/update-bank-directory.dto';
-import { BankDirectory } from './entities/bank-directory.entity';
 
 @Injectable()
 export class BankDirectoryService {
@@ -16,39 +16,20 @@ export class BankDirectoryService {
   ) {}
 
   async findAll(): Promise<BankDirectory[]> {
-    const data = await this.drizzle
-      .select({
-        id: bankDirectory.id,
-        code: bankDirectory.code,
-        name: bankDirectory.name,
-        isActive: bankDirectory.isActive,
-        countryCode: bankDirectory.countryCode,
-      })
-      .from(bankDirectory)
-      .orderBy(bankDirectory.id);
-
-    return data as BankDirectory[];
+    return await this.drizzle.query.bankDirectory.findMany();
   }
 
   async findOne(id: string): Promise<BankDirectory> {
     const [result] = await this.drizzle
       .select()
       .from(bankDirectory)
-      .where(eq(bankDirectory.id, parseInt(id)));
+      .where(eq(bankDirectory.id, id));
 
-    return result as BankDirectory;
-  }
-
-  async findByCode(code: string): Promise<BankDirectory> {
-    const [result] = await this.drizzle
-      .select()
-      .from(bankDirectory)
-      .where(eq(bankDirectory.code, code));
     return result as BankDirectory;
   }
 
   async findAllByPagination(
-    paginationDto?: PaginationDto,
+    paginationDto: PaginationDto,
   ): Promise<{ data: BankDirectory[]; meta: any }> {
     const {
       page = 1,
@@ -57,129 +38,89 @@ export class BankDirectoryService {
       sortBy = 'id',
       sortOrder = 'asc',
     } = paginationDto || {};
-
-    // Calculate offset
     const offset = (page - 1) * limit;
 
-    // Build search condition
-    let searchCondition: SQL<unknown> | undefined;
+    const conditions: SQL<unknown>[] = [];
     if (search) {
-      searchCondition = ilike(bankDirectory.name, `%${search}%`);
+      conditions.push(ilike(bankDirectory.name, `%${search}%`));
     }
-    // Build sort condition
+    const whereCondition = and(...conditions);
+
     const orderBy =
       sortOrder === 'asc'
         ? sql`${bankDirectory[sortBy as keyof typeof bankDirectory]} asc`
         : sql`${bankDirectory[sortBy as keyof typeof bankDirectory]} desc`;
 
-    // Get total count for pagination
     const totalCountResult = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(bankDirectory)
-      .where(searchCondition);
+      .where(whereCondition);
 
     const totalCount = Number(totalCountResult[0].count);
-    const totalPages = Math.ceil(totalCount / limit);
-
-    // Get paginated data
     const data = await this.drizzle
-      .select({
-        id: bankDirectory.id,
-        code: bankDirectory.code,
-        name: bankDirectory.name,
-        isActive: bankDirectory.isActive,
-        countryCode: bankDirectory.countryCode,
-      })
+      .select()
       .from(bankDirectory)
-      .where(searchCondition)
+      .where(whereCondition)
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
 
-    // Build pagination metadata
-    const meta = {
-      page,
-      limit,
-      totalCount,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-      nextPage: page < totalPages ? page + 1 : null,
-      previousPage: page > 1 ? page - 1 : null,
+    return {
+      data: data as BankDirectory[],
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
     };
-
-    return { data: data as BankDirectory[], meta };
   }
 
-  async create(userId: number, data: CreateBankDirectoryDto) {
-    const bank = await this.drizzle
+  async create(userId: string, data: CreateBankDirectoryDto) {
+    const [bank] = await this.drizzle
       .select()
       .from(bankDirectory)
       .where(eq(bankDirectory.code, data.code));
-    if (bank.length !== 0) {
-      throw new HttpException('Banks exist directory', HttpStatus.BAD_REQUEST);
+
+    if (bank) {
+      throw new HttpException(
+        'Bank directory already exists',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const [result] = await this.drizzle
       .insert(bankDirectory)
-      .values({
-        ...data,
-        createdById: userId,
-      })
+      .values({ ...data, createdById: userId })
       .returning();
 
     return result;
   }
 
   async update(
-    userId: number,
+    userId: string,
     id: string,
     data: UpdateBankDirectoryDto,
   ): Promise<BankDirectory> {
-    const bank = await this.drizzle
-      .select()
-      .from(bankDirectory)
-      .where(eq(bankDirectory.id, parseInt(id)));
-    if (bank.length === 0) {
-      throw new HttpException(
-        'Bank directory  not found',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    await this.findOne(id);
 
     const [result] = await this.drizzle
       .update(bankDirectory)
       .set({
-        code: data.code,
-        name: data.name,
-        isActive: data.isActive === 'true' ? true : false,
-        countryCode: data.countryCode,
+        ...data,
         updatedById: userId,
       })
-      .where(eq(bankDirectory.id, parseInt(id)))
+      .where(eq(bankDirectory.id, id))
       .returning();
 
-    return <BankDirectory>{
-      ...result,
-      countryCode: result.countryCode || undefined,
-    };
+    return result as BankDirectory;
   }
 
   async remove(id: string) {
-    const bank = await this.drizzle
-      .select()
-      .from(bankDirectory)
-      .where(eq(bankDirectory.id, parseInt(id)));
-    if (bank.length === 0) {
-      throw new HttpException(
-        'Bank directory not found',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    await this.findOne(id);
     await this.drizzle
       .delete(bankDirectory)
-      .where(eq(bankDirectory.id, parseInt(id)))
-      .returning();
+      .where(and(eq(bankDirectory.id, id)));
 
     return { message: 'Bank directory deleted successfully' };
   }

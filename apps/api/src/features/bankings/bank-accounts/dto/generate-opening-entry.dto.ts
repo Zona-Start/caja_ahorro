@@ -1,24 +1,21 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsNotEmpty, IsNumber } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class GenerateOpeningEntryDto {
-  @ApiProperty({ description: 'Saldo inicial de la cuenta bancaria' })
-  @IsNotEmpty()
-  @IsNumber()
-  currentBalance: number;
+export const GenerateOpeningEntrySchema = z.object({
+  currentBalance: z.number().describe('Saldo inicial de la cuenta bancaria'),
 
-  @ApiProperty({
-    description: 'ID de la regla contable para el asiento de apertura',
-  })
-  @IsNotEmpty()
-  @IsNumber()
-  accountingRuleId: number;
+  accountingRuleId: z
+    .number()
+    .describe('ID de la regla contable para el asiento de apertura'),
 
-  @ApiProperty({
-    description: 'Fecha del asiento de apertura',
-    example: '2024-01-13',
-  })
-  @IsNotEmpty()
-  @IsDateString()
-  openingDate: string;
-}
+  openingDate: z
+    .string()
+    .refine((val) => !isNaN(Date.parse(val)), {
+      message: 'Formato de fecha inválido (ISO 8601 esperado)',
+    })
+    .describe('Fecha del asiento de apertura (YYYY-MM-DD)'),
+});
+
+export class GenerateOpeningEntryDto extends createZodDto(
+  GenerateOpeningEntrySchema,
+) {}

@@ -1,5 +1,6 @@
-import { Roles } from '@/common/decorators';
-import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import { ReqLogInterceptor } from '@/common/interceptors';
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -8,79 +9,90 @@ import {
   Param,
   Patch,
   Post,
-  Query,
+  Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AccountingRulesService } from './accounting-rules.service';
-import { CreateAccountingRuleDto } from './dto/create-accounting-rule.dto';
+import {
+  CreateAccountingRuleDto,
+  CreateAccountingRuleSchema,
+} from './dto/create-accounting-rule.dto';
 import { UpdateAccountingRuleDto } from './dto/update-accounting-rule.dto';
 
 @ApiTags('accounting-rules')
+@UseInterceptors(ReqLogInterceptor)
 @Controller('accounting-rules')
 export class AccountingRulesController {
   constructor(
     private readonly accountingRulesService: AccountingRulesService,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
-  @Roles('superadmin', 'admin')
-  @RequirePermissions('create:accounting-rule')
   @Post()
   @ApiOperation({ summary: 'Create a new accounting rule' })
   @ApiResponse({
     status: 201,
     description: 'Accounting rule created successfully.',
   })
-  create(@Body() createAccountingRuleDto: CreateAccountingRuleDto) {
-    return this.accountingRulesService.create(createAccountingRuleDto);
+  create(
+    @Req() req: Request,
+    @Body(new ZodValidatorPipe(CreateAccountingRuleSchema))
+    dto: CreateAccountingRuleDto,
+  ) {
+    const { targetTenantId, userId } = this.tenantContext.getTenantContext(
+      req,
+      dto,
+    );
+    return this.accountingRulesService.create(targetTenantId, userId, dto);
   }
 
-  @Roles('superadmin', 'admin')
   @Get()
-  @RequirePermissions('read:accounting-rules')
-  @ApiOperation({
-    summary: 'Get all accounting rules',
-  })
+  @ApiOperation({ summary: 'Get all accounting rules' })
   @ApiResponse({ status: 200, description: 'Return all accounting rules.' })
-  findAll(@Query('companyId') companyId: string) {
-    return this.accountingRulesService.findAll(+companyId);
+  findAll() {
+    const tenantId = this.tenantContext.getTenantId();
+    return this.accountingRulesService.findAll(tenantId);
   }
 
-  @Roles('superadmin', 'admin')
   @Get(':id')
-  @RequirePermissions('read:accounting-rule')
   @ApiOperation({ summary: 'Get a single accounting rule' })
   @ApiResponse({
     status: 200,
     description: 'Return a single accounting rule.',
   })
   findOne(@Param('id') id: string) {
-    return this.accountingRulesService.findOne(+id);
+    const tenantId = this.tenantContext.getTenantId();
+    return this.accountingRulesService.findOne(tenantId, id);
   }
 
-  @Roles('superadmin', 'admin')
   @Patch(':id')
-  @RequirePermissions('update:accounting-rule')
   @ApiOperation({ summary: 'Update an accounting rule' })
   @ApiResponse({
     status: 200,
     description: 'Accounting rule updated successfully.',
   })
   update(
+    @Req() req: Request,
     @Param('id') id: string,
-    @Body() updateAccountingRuleDto: UpdateAccountingRuleDto,
+    @Body() dto: UpdateAccountingRuleDto,
   ) {
-    return this.accountingRulesService.update(+id, updateAccountingRuleDto);
+    const { targetTenantId, userId } = this.tenantContext.getTenantContext(
+      req,
+      dto,
+    );
+    return this.accountingRulesService.update(id, targetTenantId, userId, dto);
   }
 
-  @Roles('superadmin', 'admin')
   @Delete(':id')
-  @RequirePermissions('delete:accounting-rule')
   @ApiOperation({ summary: 'Delete an accounting rule' })
   @ApiResponse({
     status: 200,
     description: 'Accounting rule deleted successfully.',
   })
-  remove(@Param('id') id: string) {
-    return this.accountingRulesService.remove(+id);
+  remove(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
+    return this.accountingRulesService.remove(id, targetTenantId, userId);
   }
 }

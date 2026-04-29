@@ -1,4 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import { AccountingEntryWithDetails } from '@/database/types/accounting';
+import { AuditHelper } from '@/features/audit/audit-event.service';
 import { CurrencyCodeEnum, entryStatusEnum } from '@/types/enum';
 import {
   BadRequestException,
@@ -8,15 +10,12 @@ import {
 } from '@nestjs/common';
 import { and, eq, gte, ilike, inArray, lte, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from 'src/database/index';
-import { AccountPlanService } from '../account-plan/account-plan.service';
+import * as schema from 'src/database/schema';
 import { AccountingCyclesService } from '../accounting-cycles/accounting-cycles.service';
 import { CreateAccountingEntryDetailDto } from './dto/create-accounting-entry-detail.dto';
 import { CreateAccountingEntryDto } from './dto/create-accounting-entry.dto';
 import { FilterAccountingEntryDto } from './dto/filter-accounting-entry.dto';
 import { UpdateAccountingEntryDto } from './dto/update-accounting-entry.dto';
-import { AccountingEntryDetail } from './entities/accounting-entry-detail.entity';
-import { AccountingEntry } from './entities/accounting-entry.entity';
 
 const SORTABLE_FIELDS = ['entryDate', 'id', 'description'] as const;
 
@@ -25,11 +24,11 @@ export class AccountingEntriesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly accountingCyclesService: AccountingCyclesService,
-    private readonly accountPlanService: AccountPlanService,
+    private readonly auditHelper: AuditHelper,
   ) {}
 
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
-  async findAllPaginated(dto: FilterAccountingEntryDto) {
+  async findAllPaginated(tenantId: string, dto: FilterAccountingEntryDto) {
     const {
       page = 1,
       limit = 10,
@@ -49,7 +48,7 @@ export class AccountingEntriesService {
       throw new BadRequestException(`Campo de orden no válido: ${sortBy}`);
 
     const offset = (page - 1) * limit;
-    const conds: SQL[] = [];
+    const conds: SQL[] = [eq(schema.accountingEntries.tenantId, tenantId)];
 
     // --- (Filtros de la cabecera del asiento)
     if (search)
@@ -108,6 +107,8 @@ export class AccountingEntriesService {
       .limit(limit)
       .offset(offset);
 
+    // ... el resto del método se mantiene, usando el tenantId filtrado ...
+
     // Si no hay asientos, devolvemos el resultado inmediatamente
     if (entryRows.length === 0) {
       return {
@@ -161,7 +162,7 @@ export class AccountingEntriesService {
       );
 
     // 5. Crear mapa de detalles para un mapeo eficiente (Map<entryId, detail[]>)
-    const detailsMap = new Map<number, any[]>();
+    const detailsMap = new Map<string, any[]>();
     detailRowsRaw.forEach((row) => {
       const entryId = row.accountingEntryId;
       if (!detailsMap.has(entryId)) {
@@ -184,7 +185,7 @@ export class AccountingEntriesService {
       // Aplicar las conversiones de tipo y fechas al objeto de entrada
       return {
         id: entry.id,
-        companyId: entry.companyId,
+        tenantId: entry.tenantId,
         accountingCycleId: entry.accountingCycleId,
         description: entry.description,
         voucherNo: entry.voucherNo
@@ -197,7 +198,7 @@ export class AccountingEntriesService {
         currencyCode: entry.currencyCode as CurrencyCodeEnum,
         status: entry.status as entryStatusEnum,
         // Adjuntamos el array de detalles
-        details: details as AccountingEntryDetail[],
+        details: details as any[],
       };
     });
 
@@ -215,11 +216,16 @@ export class AccountingEntriesService {
   }
 
   /* ---------- Ver uno ---------- */
-  async findOne(id: number): Promise<AccountingEntry> {
+  async findOne(tenantId: string, id: string): Promise<any> {
     const [row] = await this.drizzle
       .select()
       .from(schema.accountingEntries)
-      .where(eq(schema.accountingEntries.id, id));
+      .where(
+        and(
+          eq(schema.accountingEntries.id, id),
+          eq(schema.accountingEntries.tenantId, tenantId),
+        ),
+      );
 
     if (!row) throw new NotFoundException(`Asiento ${id} no encontrado.`);
 
@@ -278,95 +284,119 @@ export class AccountingEntriesService {
   }
 
   /* ---------- Actualizar ---------- */
+  /* ---------- Actualizar ---------- */
   async update(
-    userId: number,
-    id: number,
+    userId: string,
+    tenantId: string,
+    id: string,
     dto: UpdateAccountingEntryDto,
-  ): Promise<AccountingEntry> {
-    const existing = await this.findOne(id);
-    if (existing.status !== entryStatusEnum.DRAFT)
-      throw new BadRequestException('Solo se puede editar en Borrador.');
+  ): Promise<AccountingEntryWithDetails> {
+    // 1. Verificar existencia y estado
+    const existing = await this.findOne(tenantId, id);
+    if (existing.status !== entryStatusEnum.DRAFT) {
+      throw new BadRequestException(
+        'Solo se puede editar asientos en estado Borrador.',
+      );
+    }
 
-    // Si no envía details, mantén los existentes; si envía, úsalos
-    /* ---------- normaliza SIEMPRE un array válido ---------- */
-    const details: CreateAccountingEntryDetailDto[] =
-      (dto.details
+    // 2. Preparar el merge para la validación de integridad (partida doble)
+    // Mapeamos asegurando que los tipos coincidan con lo que espera validateAccountingEntry
+    const detailsForValidation = (
+      dto.details
         ? dto.details.map((d) => ({
-            accountPlanId: d.accountPlanId!, // ❗garantizamos existencia previa
-            debit: Number(d.debit),
-            credit: Number(d.credit),
-            description: d.description,
+            accountPlanId: d.accountPlanId!,
+            debit: Number(d.debit || 0),
+            credit: Number(d.credit || 0),
+            description: d.description ?? existing.description,
           }))
-        : existing.details?.map((d) => ({
+        : existing.details.map((d) => ({
             accountPlanId: d.accountPlanId,
             debit: Number(d.debit),
             credit: Number(d.credit),
-            description: d.description,
-          }))) ?? [];
+            description: d.description ?? existing.description,
+          }))
+    ) as any;
 
-    const merged: CreateAccountingEntryDto = {
-      companyId: existing.companyId,
-      accountingCycleId: existing.accountingCycleId,
-      entryDate: dto.entryDate || existing.entryDate,
-      description: dto.description || existing.description,
-      originReferenceId: dto.originReferenceId ?? existing.originReferenceId,
-      originType: dto.originType ?? existing.originType,
-      currencyCode: dto.currencyCode || existing.currencyCode,
-      details,
-    };
     await this.validateAccountingEntry(
-      merged.companyId,
-      merged.accountingCycleId,
-      merged.entryDate,
-      merged.details,
+      tenantId,
+      existing.accountingCycleId,
+      dto.entryDate || existing.entryDate,
+      detailsForValidation,
     );
 
     return this.drizzle.transaction(async (tx) => {
+      // 3. Actualizar Cabecera
+      // Extraemos details para no intentar insertarlos en la tabla padre
+      const { details: dtoDetails, ...entryData } = dto;
+
       await tx
         .update(schema.accountingEntries)
         .set({
-          ...dto,
-          entryDate: merged.entryDate.toISOString().split('T')[0],
+          ...entryData,
+          entryDate: (dto.entryDate || existing.entryDate)
+            .toISOString()
+            .split('T')[0],
           updatedById: userId,
+          updatedAt: new Date(),
         })
-        .where(eq(schema.accountingEntries.id, id));
+        .where(
+          and(
+            eq(schema.accountingEntries.id, id),
+            eq(schema.accountingEntries.tenantId, tenantId),
+          ),
+        );
 
-      if (dto.details) {
+      // 4. Si se enviaron nuevos detalles, reemplazamos
+      if (dtoDetails) {
+        // Borrar antiguos
         await tx
           .delete(schema.accountingEntryDetails)
           .where(eq(schema.accountingEntryDetails.accountingEntryId, id));
-        // 🔧 Construimos objetos limpios y obligatorios
-        const cleanDetails: (typeof schema.accountingEntryDetails.$inferInsert)[] =
-          details.map((d) => ({
-            accountingEntryId: id,
-            accountPlanId: d.accountPlanId,
-            debit: d.debit.toString(),
-            credit: d.credit.toString(),
-            description: d.description,
-          }));
+
+        // Insertar nuevos (Aquí es donde faltaba createdById)
+        const cleanDetails = dtoDetails.map((d) => ({
+          accountingEntryId: id,
+          accountPlanId: d.accountPlanId!,
+          debit: d.debit?.toString() || '0',
+          credit: d.credit?.toString() || '0',
+          description: d.description ?? dto.description ?? existing.description,
+          associateId: d.associateId ?? null,
+          supplierId: d.supplierId ?? null,
+          createdById: userId, // 👈 Obligatorio según tu esquema
+        }));
+
         await tx.insert(schema.accountingEntryDetails).values(cleanDetails);
       }
 
-      return this.findOne(id);
+      return this.findOne(tenantId, id);
     });
   }
 
   /* ---------- Eliminar ---------- */
-  async remove(id: number): Promise<{ message: string }> {
-    const existing = await this.findOne(id);
+  async remove(
+    userId: string,
+    tenantId: string,
+    id: string,
+  ): Promise<{ message: string }> {
+    const existing = await this.findOne(tenantId, id);
     if (existing.status !== entryStatusEnum.DRAFT)
       throw new BadRequestException('Solo se puede eliminar en Borrador.');
     await this.drizzle
       .delete(schema.accountingEntries)
-      .where(eq(schema.accountingEntries.id, id));
+      .where(
+        and(
+          eq(schema.accountingEntries.id, id),
+          eq(schema.accountingEntries.tenantId, tenantId),
+        ),
+      );
     return { message: 'Asiento eliminado exitosamente.' };
   }
 
   /* ---------- Validaciones comunes ---------- */
-  private async findActiveCycle(companyId: number, date: Date) {
+  private async findActiveCycle(tenantId: string, date: Date) {
     const cycle = await this.drizzle.query.accountingCycles.findFirst({
       where: and(
-        eq(schema.accountingCycles.companyId, companyId),
+        eq(schema.accountingCycles.tenantId, tenantId),
         eq(schema.accountingCycles.status, 'OPEN'),
         lte(
           schema.accountingCycles.startDate,
@@ -385,12 +415,15 @@ export class AccountingEntriesService {
   }
 
   private async validateAccountingEntry(
-    companyId: number,
-    accountingCycleId: number,
+    tenantId: string,
+    accountingCycleId: string,
     entryDate: Date,
     details: CreateAccountingEntryDetailDto[],
   ) {
-    const cycle = await this.accountingCyclesService.findOne(accountingCycleId);
+    const cycle = await this.accountingCyclesService.findOne(
+      tenantId,
+      accountingCycleId,
+    );
     if (!cycle || cycle.status !== 'OPEN')
       throw new BadRequestException('El ciclo contable debe estar abierto.');
 
@@ -445,12 +478,13 @@ export class AccountingEntriesService {
 
   /* ---------- Crear ---------- */
   async create(
-    userId: number,
+    userId: string,
+    tenantId: string,
     dto: CreateAccountingEntryDto,
     tx?: NodePgDatabase<typeof schema>,
-  ): Promise<AccountingEntry> {
+  ): Promise<AccountingEntryWithDetails> {
     await this.validateAccountingEntry(
-      dto.companyId,
+      tenantId,
       dto.accountingCycleId,
       dto.entryDate,
       dto.details,
@@ -459,49 +493,60 @@ export class AccountingEntriesService {
     const db = tx ?? this.drizzle;
 
     return db.transaction(async (tx) => {
-      // Obtener y actualizar el siguiente número de comprobante
-      const voucherNo = await this.getNextVoucherNo(tx);
+      const voucherNo = await this.getNextVoucherNo(tenantId, userId, tx);
 
+      // 1. Insertar Cabecera
       const [entry] = await tx
         .insert(schema.accountingEntries)
         .values({
           ...dto,
-          voucherNo,
+          tenantId, // Asegúrate de incluir el tenantId
+          voucherNo: voucherNo,
           entryDate: dto.entryDate.toISOString().split('T')[0],
           status: 'DRAFT',
           createdById: userId,
         })
         .returning();
 
-      const details = dto.details.map((d) => ({
+      // 2. Preparar objetos de detalle
+      const detailsToInsert = dto.details.map((d) => ({
         ...d,
-        description: d.description || dto.description,
+        description: d.description || dto.description || null,
         accountingEntryId: entry.id,
         debit: d.debit.toString(),
         credit: d.credit.toString(),
         createdById: userId,
+        // Manejo explícito de nulos para evitar errores de compatibilidad
+        associateId: d.associateId ?? null,
+        supplierId: d.supplierId ?? null,
       }));
 
-      await tx.insert(schema.accountingEntryDetails).values(details);
+      // 3. INSERTAR Y CAPTURAR (Esto genera los ids, createdAt, etc.)
+      const insertedDetails = await tx
+        .insert(schema.accountingEntryDetails)
+        .values(detailsToInsert)
+        .returning();
 
-      const entryFormat = {
+      // 4. Formatear la salida para cumplir con AccountingEntryWithDetails
+      return {
         ...entry,
-        voucherNo: entry.voucherNo
-          ? entry.voucherNo.toString().padStart(8, '0')
-          : undefined,
-        entryDate: new Date(entry.entryDate),
-        postedAt: entry.postedAt ? new Date(entry.postedAt) : undefined,
-      };
-
-      return { ...entryFormat, details } as AccountingEntry;
+        // Drizzle devuelve la fecha como string de la DB, convertimos a Date
+        entryDate: entry.entryDate,
+        postedAt: entry.postedAt ? new Date(entry.postedAt) : null,
+        updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null,
+        // Usamos los detalles devueltos por la DB, no los del mapa original
+        details: insertedDetails,
+      } as AccountingEntryWithDetails;
     });
   }
 
   /* ---------- Crear Asiento Automático ---------- */
   async createAutomaticEntry(
-    userId: number,
+    tenantId: string,
+    userId: string,
     params: {
-      companyId: number;
+      module: string;
+      submodule: string;
       category: string;
       operationType: string;
       referenceValue?: string;
@@ -513,22 +558,43 @@ export class AccountingEntriesService {
       globalDescriptions?: Record<string, string>;
       roleAliases?: Record<string, string>;
       items: {
-        associateId?: number;
-        supplierId?: number;
+        associateId?: string;
+        supplierId?: string;
         amounts: Record<string, number>;
         description?: string;
         descriptions?: Record<string, string>;
       }[];
     },
     tx?: NodePgDatabase<typeof schema>,
-  ): Promise<AccountingEntry | null> {
+  ): Promise<AccountingEntryWithDetails | null> {
     const db = tx ?? this.drizzle;
-    const [setting] = await db
-      .select()
-      .from(schema.systemSettings)
-      .where(eq(schema.systemSettings.key, 'ASIENTOS_AUTOMATICOS'));
 
-    if (!setting || setting.value !== 'SI') return null;
+    const [masterSetting] = await db
+      .select()
+      .from(schema.tenantSettings)
+      .where(
+        and(
+          eq(schema.tenantSettings.tenantId, tenantId),
+          eq(schema.tenantSettings.key, 'ACCOUNTING_AUTO_POSTING_MASTER'),
+        ),
+      );
+
+    if (!masterSetting || masterSetting.value !== 'true') return null;
+
+    const autoPostKey = `AUTO_POST_ENTRY_${params.submodule.toUpperCase()}`;
+    const [moduleSetting] = await db
+      .select()
+      .from(schema.moduleSettings)
+      .where(
+        and(
+          eq(schema.moduleSettings.tenantId, tenantId),
+          eq(schema.moduleSettings.module, params.module),
+          eq(schema.moduleSettings.submodule, params.submodule),
+          eq(schema.moduleSettings.key, autoPostKey),
+        ),
+      );
+
+    if (!moduleSetting || moduleSetting.value !== 'true') return null;
 
     const rows = await db
       .select()
@@ -539,7 +605,7 @@ export class AccountingEntriesService {
       )
       .where(
         and(
-          eq(schema.accountingRules.companyId, params.companyId),
+          eq(schema.accountingRules.tenantId, tenantId),
           eq(schema.accountingRules.category, params.category),
           eq(schema.accountingRules.operationType, params.operationType),
           params.referenceValue
@@ -555,10 +621,7 @@ export class AccountingEntriesService {
       );
     }
 
-    const cycle = await this.findActiveCycle(
-      params.companyId,
-      params.entryDate,
-    );
+    const cycle = await this.findActiveCycle(tenantId, params.entryDate);
     const ruleDetails = rows
       .map((row) => row.accounting_rule_details)
       .filter((detail) => detail !== null);
@@ -593,12 +656,10 @@ export class AccountingEntriesService {
         if (amount === undefined || amount === 0) continue;
 
         const isDebit = ruleDetail.movementType === 'DEBIT';
-        const associateId = ruleDetail.isAuxiliary
-          ? item.associateId
-          : undefined;
+        const associateId = ruleDetail.isAuxiliary ? item.associateId : null;
         const supplierId = ruleDetail.isAuxiliarySupplier
           ? item.supplierId
-          : undefined;
+          : null;
 
         // Extraer descripciones considerando también si hubo un mapeo por alias
         const aliasKey =
@@ -639,17 +700,17 @@ export class AccountingEntriesService {
     );
 
     await this.validateAccountingEntry(
-      params.companyId,
+      tenantId,
       cycle.id,
       params.entryDate,
       detailsDraft,
     );
 
-    const voucherNo = await this.getNextVoucherNo(db);
+    const voucherNo = await this.getNextVoucherNo(tenantId, userId, db);
     const [entry] = await db
       .insert(schema.accountingEntries)
       .values({
-        companyId: params.companyId,
+        tenantId: tenantId,
         accountingCycleId: cycle.id,
         entryDate: params.entryDate.toISOString().split('T')[0],
         description: params.description,
@@ -663,40 +724,51 @@ export class AccountingEntriesService {
       })
       .returning();
 
-    const details = detailsDraft.map((d) => ({
-      ...d,
+    // Mapeo para la inserción
+    const detailsToInsert = detailsDraft.map((d) => ({
+      accountPlanId: d.accountPlanId,
       accountingEntryId: entry.id,
       debit: d.debit.toString(),
       credit: d.credit.toString(),
+      description: d.description,
+      associateId: d.associateId ? String(d.associateId) : null,
+      supplierId: d.supplierId ? String(d.supplierId) : null,
       createdById: userId,
     }));
 
-    await db.insert(schema.accountingEntryDetails).values(details);
+    // CRITICO: Capturar los detalles reales retornados por la DB
+    const insertedDetails = await db
+      .insert(schema.accountingEntryDetails)
+      .values(detailsToInsert)
+      .returning();
 
+    // Formatear salida final
     return {
       ...entry,
-      voucherNo: entry.voucherNo
-        ? entry.voucherNo.toString().padStart(8, '0')
-        : undefined,
-      entryDate: new Date(entry.entryDate),
-      postedAt: entry.postedAt ? new Date(entry.postedAt) : undefined,
-      details,
-    } as AccountingEntry;
+      // Convertir strings de fecha de DB a objetos Date de JS
+      entryDate: entry.entryDate,
+      postedAt: entry.postedAt ? new Date(entry.postedAt) : null,
+      updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null,
+      details: insertedDetails, // Ahora sí tiene id, createdAt, etc.
+    } as AccountingEntryWithDetails;
   }
 
   /* ---------- Pasar a PENDIENTE ---------- */
-  async submitEntry(userId: number, id: number): Promise<AccountingEntry> {
-    const existing = await this.findOne(id);
+  async submitEntry(
+    userId: string,
+    tenantId: string,
+    id: string,
+  ): Promise<AccountingEntryWithDetails> {
+    const existing = await this.findOne(tenantId, id);
     if (existing.status !== entryStatusEnum.DRAFT)
       throw new BadRequestException('Solo se puede someter en Borrador.');
 
-    // ❗ Garantiza array
     if (!existing.details?.length)
       throw new BadRequestException(
         'El asiento debe tener al menos dos líneas.',
       );
     const toValidate: CreateAccountingEntryDto = {
-      companyId: existing.companyId,
+      tenantId: existing.tenantId,
       accountingCycleId: existing.accountingCycleId,
       entryDate: existing.entryDate,
       description: existing.description,
@@ -711,7 +783,7 @@ export class AccountingEntriesService {
       })),
     };
     await this.validateAccountingEntry(
-      toValidate.companyId,
+      existing.tenantId,
       toValidate.accountingCycleId,
       toValidate.entryDate,
       toValidate.details,
@@ -720,18 +792,28 @@ export class AccountingEntriesService {
     await this.drizzle
       .update(schema.accountingEntries)
       .set({ status: entryStatusEnum.PENDING, updatedById: userId })
-      .where(eq(schema.accountingEntries.id, id));
+      .where(
+        and(
+          eq(schema.accountingEntries.id, id),
+          eq(schema.accountingEntries.tenantId, tenantId),
+        ),
+      );
 
-    return this.findOne(id);
+    return this.findOne(tenantId, id);
   }
 
   /* ---------- Contabilizar (POSTED) ---------- */
-  async postEntry(userId: number, id: number): Promise<AccountingEntry> {
-    const existing = await this.findOne(id);
+  async postEntry(
+    userId: string,
+    tenantId: string,
+    id: string,
+  ): Promise<AccountingEntryWithDetails> {
+    const existing = await this.findOne(tenantId, id);
     if (existing.status !== entryStatusEnum.PENDING)
       throw new BadRequestException('Solo se puede contabilizar en Pendiente.');
 
     const cycle = await this.accountingCyclesService.findOne(
+      tenantId,
       existing.accountingCycleId,
     );
     if (cycle.status !== 'OPEN')
@@ -747,22 +829,28 @@ export class AccountingEntriesService {
       .where(
         and(
           eq(schema.accountingEntries.id, id),
+          eq(schema.accountingEntries.tenantId, tenantId),
           eq(schema.accountingEntries.status, entryStatusEnum.PENDING),
         ),
       );
 
-    return this.findOne(id);
+    return this.findOne(tenantId, id);
   }
 
   /* ---------- Anular (CANCELLED) ---------- */
-  async cancelEntry(userId: number, id: number): Promise<AccountingEntry> {
-    const original = await this.findOne(id);
+  async cancelEntry(
+    userId: string,
+    tenantId: string,
+    id: string,
+  ): Promise<AccountingEntryWithDetails> {
+    const original = await this.findOne(tenantId, id);
     if (original.status !== entryStatusEnum.POSTED)
       throw new BadRequestException(
         'Solo se puede anular un asiento CONTABILIZADO.',
       );
 
     const cycle = await this.accountingCyclesService.findOne(
+      tenantId,
       original.accountingCycleId,
     );
     if (cycle.status !== 'OPEN')
@@ -773,9 +861,9 @@ export class AccountingEntriesService {
         throw new BadRequestException(
           'El asiento no tiene líneas para revertir.',
         );
-      // 1. Crear asiento reverso
+
       const reversal: CreateAccountingEntryDto = {
-        companyId: original.companyId,
+        tenantId: original.tenantId,
         accountingCycleId: original.accountingCycleId,
         entryDate: new Date(),
         description: `ANULACIÓN: ${original.description}`,
@@ -789,33 +877,37 @@ export class AccountingEntriesService {
           description: `Reversión de ${d.description || ''}`,
         })),
       };
-      await this.create(userId, reversal);
+      await this.create(userId, tenantId, reversal, tx);
 
-      // 2. Marcar original como CANCELLED
       await tx
         .update(schema.accountingEntries)
         .set({ status: entryStatusEnum.CANCELLED, updatedById: userId })
-        .where(eq(schema.accountingEntries.id, id));
+        .where(
+          and(
+            eq(schema.accountingEntries.id, id),
+            eq(schema.accountingEntries.tenantId, tenantId),
+          ),
+        );
 
-      return this.findOne(id);
+      return this.findOne(tenantId, id);
     });
   }
 
-  //extras
-
-  /* POST /api/entries/validate  (body = CreateAccountingEntryDto) */
-  async validateDto(dto: CreateAccountingEntryDto): Promise<{
+  async validateDto(
+    tenantId: string,
+    dto: CreateAccountingEntryDto,
+  ): Promise<{
     totalDebit: number;
     totalCredit: number;
     balanced: boolean;
     lines: number;
   }> {
     await this.validateAccountingEntry(
-      dto.companyId,
+      tenantId,
       dto.accountingCycleId,
       dto.entryDate,
       dto.details,
-    ); // lanza si hay error
+    );
     const totals = dto.details.reduce(
       (acc, l) => {
         acc.debit += Number(l.debit);
@@ -832,427 +924,412 @@ export class AccountingEntriesService {
     };
   }
 
-  /* GET /api/entries/totals?start=2025-01-01&end=2025-01-31 */
-  async getTotals(
-    companyId: number,
-    start: Date,
-    end: Date,
-  ): Promise<{ totalDebit: number; totalCredit: number }> {
-    const [row] = await this.drizzle
-      .select({
-        totalDebit: sql<number>`sum(${schema.accountingEntryDetails.debit})`,
-        totalCredit: sql<number>`sum(${schema.accountingEntryDetails.credit})`,
-      })
-      .from(schema.accountingEntryDetails)
-      .innerJoin(
-        schema.accountingEntries,
-        eq(
-          schema.accountingEntries.id,
-          schema.accountingEntryDetails.accountingEntryId,
-        ),
-      )
-      .where(
-        and(
-          eq(schema.accountingEntries.companyId, companyId),
-          eq(schema.accountingEntries.status, 'POSTED'),
-          gte(
-            schema.accountingEntries.entryDate,
-            start.toISOString().split('T')[0],
-          ),
-          lte(
-            schema.accountingEntries.entryDate,
-            end.toISOString().split('T')[0],
-          ),
-        ),
-      );
+  // async getTotals(
+  //   tenantId: string,
+  //   start: Date,
+  //   end: Date,
+  // ): Promise<{ totalDebit: number; totalCredit: number }> {
+  //   const [row] = await this.drizzle
+  //     .select({
+  //       totalDebit: sql<number>`sum(${schema.accountingEntryDetails.debit})`,
+  //       totalCredit: sql<number>`sum(${schema.accountingEntryDetails.credit})`,
+  //     })
+  //     .from(schema.accountingEntryDetails)
+  //     .innerJoin(
+  //       schema.accountingEntries,
+  //       eq(
+  //         schema.accountingEntries.id,
+  //         schema.accountingEntryDetails.accountingEntryId,
+  //       ),
+  //     )
+  //     .where(
+  //       and(
+  //         eq(schema.accountingEntries.tenantId, tenantId),
+  //         eq(schema.accountingEntries.status, 'POSTED'),
+  //         gte(
+  //           schema.accountingEntries.entryDate,
+  //           start.toISOString().split('T')[0],
+  //         ),
+  //         lte(
+  //           schema.accountingEntries.entryDate,
+  //           end.toISOString().split('T')[0],
+  //         ),
+  //       ),
+  //     );
 
-    return {
-      totalDebit: row.totalDebit ?? 0,
-      totalCredit: row.totalCredit ?? 0,
-    };
-  }
+  //   return {
+  //     totalDebit: row.totalDebit ?? 0,
+  //     totalCredit: row.totalCredit ?? 0,
+  //   };
+  // }
 
   /* POST /api/entries/generate-opening
    body = { accountingCycleId, entryDate, balances: [{accountPlanId, amount}] } */
-  async generateOpening(
-    userId: number,
-    dto: {
-      accountingCycleId: number;
-      entryDate: Date;
-      balances: { accountPlanId: number; amount: number }[];
-    },
-  ): Promise<AccountingEntry> {
-    const cycle = await this.accountingCyclesService.findOne(
-      dto.accountingCycleId,
-    );
-    if (!cycle || cycle.status !== 'OPEN')
-      throw new BadRequestException('Ciclo cerrado o inexistente.');
+  // async generateOpening(
+  //   userId: string,
+  //   tenantId: string,
+  //   dto: GenerateOpeningDto,
+  // ): Promise<AccountingEntry> {
+  //   const cycle = await this.accountingCyclesService.findOne(
+  //     dto.accountingCycleId,
+  //   );
+  //   if (!cycle || cycle.status !== 'OPEN')
+  //     throw new BadRequestException('Ciclo cerrado o inexistente.');
 
-    const capitalAcc = await this.drizzle
-      .select()
-      .from(schema.accountPlan)
-      .where(
-        and(
-          eq(schema.accountPlan.code, '3.1.01.001'),
-          eq(schema.accountPlan.companyId, cycle.companyId),
-        ),
-      )
-      .limit(1);
+  //   const capitalAcc = await this.drizzle
+  //     .select()
+  //     .from(schema.accountPlan)
+  //     .where(
+  //       and(
+  //         eq(schema.accountPlan.code, '3.1.01.001'),
+  //         eq(schema.accountPlan.tenantId, tenantId),
+  //       ),
+  //     )
+  //     .limit(1);
 
-    if (!capitalAcc.length)
-      throw new BadRequestException(
-        'No existe cuenta de capital (3.1.01.001).',
-      );
+  //   if (!capitalAcc.length)
+  //     throw new BadRequestException(
+  //       'No existe cuenta de capital (3.1.01.001).',
+  //     );
 
-    const details: CreateAccountingEntryDetailDto[] = [
-      ...dto.balances.map((b) => ({
-        accountPlanId: b.accountPlanId,
-        debit: b.amount,
-        credit: 0,
-        description: 'Saldo inicial según inventario',
-      })),
-      {
-        accountPlanId: capitalAcc[0].id,
-        debit: 0,
-        credit: dto.balances.reduce((sum, b) => sum + b.amount, 0),
-        description: 'Capital inicial',
-      },
-    ];
+  //   const details: CreateAccountingEntryDetailDto[] = [
+  //     ...dto.balances.map((b) => ({
+  //       accountPlanId: b.accountPlanId,
+  //       debit: b.amount,
+  //       credit: 0,
+  //       description: 'Saldo inicial según inventario',
+  //     })),
+  //     {
+  //       accountPlanId: capitalAcc[0].id,
+  //       debit: 0,
+  //       credit: dto.balances.reduce((sum, b) => sum + b.amount, 0),
+  //       description: 'Capital inicial',
+  //     },
+  //   ];
 
-    return this.create(userId, {
-      companyId: cycle.companyId,
-      accountingCycleId: dto.accountingCycleId,
-      entryDate: dto.entryDate,
-      description: 'Asiento de apertura',
-      currencyCode: 'VES' as CurrencyCodeEnum,
-      details,
-    });
-  }
+  //   return this.create(userId, tenantId, {
+  //     tenantId: tenantId,
+  //     accountingCycleId: dto.accountingCycleId,
+  //     entryDate: dto.entryDate,
+  //     description: 'Asiento de apertura',
+  //     currencyCode: 'VES' as CurrencyCodeEnum,
+  //     details,
+  //   });
+  // }
 
   /* POST /api/entries/close-month
    body = { accountingCycleId, entryDate, resultAccountId } */
-  async closeMonth(
-    userId: number,
-    dto: {
-      accountingCycleId: number;
-      entryDate: Date;
-      resultAccountId: number;
-    },
-  ): Promise<AccountingEntry> {
-    const cycle = await this.accountingCyclesService.findOne(
-      dto.accountingCycleId,
-    );
-    if (!cycle || cycle.status !== 'OPEN')
-      throw new BadRequestException('Ciclo cerrado o inexistente.');
+  // async closeMonth(
+  //   userId: string,
+  //   tenantId: string,
+  //   dto: CloseMonthDto,
+  // ): Promise<AccountingEntry> {
+  //   const cycle = await this.accountingCyclesService.findOne(
+  //     dto.accountingCycleId,
+  //   );
+  //   if (!cycle || cycle.status !== 'OPEN')
+  //     throw new BadRequestException('Ciclo cerrado o inexistente.');
 
-    // 1. Obtener saldos de cuentas de resultado (4- y 5-) del ciclo
-    const result = await this.drizzle
-      .select({
-        accountPlanId: schema.accountingEntryDetails.accountPlanId,
-        nature: schema.accountPlan.nature,
-        totalDebit: sql<number>`sum(${schema.accountingEntryDetails.debit})`,
-        totalCredit: sql<number>`sum(${schema.accountingEntryDetails.credit})`,
-      })
-      .from(schema.accountingEntryDetails)
-      .innerJoin(
-        schema.accountingEntries,
-        eq(
-          schema.accountingEntries.id,
-          schema.accountingEntryDetails.accountingEntryId,
-        ),
-      )
-      .innerJoin(
-        schema.accountPlan,
-        eq(schema.accountPlan.id, schema.accountingEntryDetails.accountPlanId),
-      )
-      .where(
-        and(
-          eq(schema.accountingEntries.companyId, cycle.companyId),
-          eq(schema.accountingEntries.accountingCycleId, dto.accountingCycleId),
-          eq(schema.accountingEntries.status, 'POSTED'),
-          inArray(schema.accountPlan.accountType, ['REVENUE', 'EXPENSE']),
-        ),
-      )
-      .groupBy(
-        schema.accountingEntryDetails.accountPlanId,
-        schema.accountPlan.nature,
-      );
+  //   // 1. Obtener saldos de cuentas de resultado (4- y 5-) del ciclo
+  //   const result = await this.drizzle
+  //     .select({
+  //       accountPlanId: schema.accountingEntryDetails.accountPlanId,
+  //       nature: schema.accountPlan.nature,
+  //       totalDebit: sql<number>`sum(${schema.accountingEntryDetails.debit})`,
+  //       totalCredit: sql<number>`sum(${schema.accountingEntryDetails.credit})`,
+  //     })
+  //     .from(schema.accountingEntryDetails)
+  //     .innerJoin(
+  //       schema.accountingEntries,
+  //       eq(
+  //         schema.accountingEntries.id,
+  //         schema.accountingEntryDetails.accountingEntryId,
+  //       ),
+  //     )
+  //     .innerJoin(
+  //       schema.accountPlan,
+  //       eq(schema.accountPlan.id, schema.accountingEntryDetails.accountPlanId),
+  //     )
+  //     .where(
+  //       and(
+  //         eq(schema.accountingEntries.companyId, cycle.companyId),
+  //         eq(schema.accountingEntries.accountingCycleId, dto.accountingCycleId),
+  //         eq(schema.accountingEntries.status, 'POSTED'),
+  //         inArray(schema.accountPlan.accountType, ['REVENUE', 'EXPENSE']),
+  //       ),
+  //     )
+  //     .groupBy(
+  //       schema.accountingEntryDetails.accountPlanId,
+  //       schema.accountPlan.nature,
+  //     );
 
-    if (!result.length)
-      throw new BadRequestException('No hay cuentas de resultado para cerrar.');
+  //   if (!result.length)
+  //     throw new BadRequestException('No hay cuentas de resultado para cerrar.');
 
-    // 2. Detalle: vaciar cada cuenta al resultado
-    const details: CreateAccountingEntryDetailDto[] = [];
-    let resultDebit = 0;
-    let resultCredit = 0;
+  //   // 2. Detalle: vaciar cada cuenta al resultado
+  //   const details: CreateAccountingEntryDetailDto[] = [];
+  //   let resultDebit = 0;
+  //   let resultCredit = 0;
 
-    for (const r of result) {
-      const bal = (r.totalDebit ?? 0) - (r.totalCredit ?? 0);
-      if (bal === 0) continue;
-      if (r.nature === 'DEBIT') {
-        details.push({
-          accountPlanId: r.accountPlanId,
-          debit: 0,
-          credit: Math.abs(bal),
-          description: 'Cierre de resultado',
-        });
-        if (bal > 0) resultCredit += bal;
-        else resultDebit += Math.abs(bal);
-      } else {
-        details.push({
-          accountPlanId: r.accountPlanId,
-          debit: Math.abs(bal),
-          credit: 0,
-          description: 'Cierre de resultado',
-        });
-        if (bal > 0) resultDebit += bal;
-        else resultCredit += Math.abs(bal);
-      }
-    }
+  //   for (const r of result) {
+  //     const bal = (r.totalDebit ?? 0) - (r.totalCredit ?? 0);
+  //     if (bal === 0) continue;
+  //     if (r.nature === 'DEBIT') {
+  //       details.push({
+  //         accountPlanId: r.accountPlanId,
+  //         debit: 0,
+  //         credit: Math.abs(bal),
+  //         description: 'Cierre de resultado',
+  //       });
+  //       if (bal > 0) resultCredit += bal;
+  //       else resultDebit += Math.abs(bal);
+  //     } else {
+  //       details.push({
+  //         accountPlanId: r.accountPlanId,
+  //         debit: Math.abs(bal),
+  //         credit: 0,
+  //         description: 'Cierre de resultado',
+  //       });
+  //       if (bal > 0) resultDebit += bal;
+  //       else resultCredit += Math.abs(bal);
+  //     }
+  //   }
 
-    // 3. Contrapartida en cuenta de resultado
-    const finalBal = resultDebit - resultCredit;
-    details.push({
-      accountPlanId: dto.resultAccountId,
-      debit: finalBal < 0 ? Math.abs(finalBal) : 0,
-      credit: finalBal > 0 ? finalBal : 0,
-      description: 'Resultado del ejercicio',
-    });
+  //   // 3. Contrapartida en cuenta de resultado
+  //   const finalBal = resultDebit - resultCredit;
+  //   details.push({
+  //     accountPlanId: dto.resultAccountId,
+  //     debit: finalBal < 0 ? Math.abs(finalBal) : 0,
+  //     credit: finalBal > 0 ? finalBal : 0,
+  //     description: 'Resultado del ejercicio',
+  //   });
 
-    return this.create(userId, {
-      companyId: cycle.companyId,
-      accountingCycleId: dto.accountingCycleId,
-      entryDate: dto.entryDate,
-      description: 'Cierre de resultado',
-      currencyCode: 'VES' as CurrencyCodeEnum,
-      details,
-    });
-  }
+  //   return this.create(userId, tenantId, {
+  //     tenantId: tenantId,
+  //     accountingCycleId: dto.accountingCycleId,
+  //     entryDate: dto.entryDate,
+  //     description: 'Cierre de resultado',
+  //     currencyCode: 'VES' as CurrencyCodeEnum,
+  //     details,
+  //   });
+  // }
 
   /* POST /api/entries/depreciation
    body = { accountingCycleId, entryDate, lines:[{assetAccountId, expenseAccountId, amount}] } */
-  async depreciate(
-    userId: number,
-    dto: {
-      accountingCycleId: number;
-      entryDate: Date;
-      lines: {
-        assetAccountId: number;
-        expenseAccountId: number;
-        amount: number;
-      }[];
-    },
-  ): Promise<AccountingEntry> {
-    if (!dto.lines.length)
-      throw new BadRequestException('No hay montos a depreciar.');
+  // async depreciate(
+  //   userId: string,
+  //   tenantId: string,
+  //   dto: DepreciationDto,
+  // ): Promise<AccountingEntry> {
+  //   if (!dto.lines.length)
+  //     throw new BadRequestException('No hay montos a depreciar.');
 
-    const cycle = await this.accountingCyclesService.findOne(
-      dto.accountingCycleId,
-    );
-    if (!cycle || cycle.status !== 'OPEN')
-      throw new BadRequestException('Ciclo cerrado.');
+  //   const cycle = await this.accountingCyclesService.findOne(
+  //     dto.accountingCycleId,
+  //   );
+  //   if (!cycle || cycle.status !== 'OPEN')
+  //     throw new BadRequestException('Ciclo cerrado.');
 
-    const details: CreateAccountingEntryDetailDto[] = dto.lines.flatMap((l) => [
-      {
-        accountPlanId: l.expenseAccountId,
-        debit: l.amount,
-        credit: 0,
-        description: 'Depreciación del mes',
-      },
-      {
-        accountPlanId: l.assetAccountId,
-        debit: 0,
-        credit: l.amount,
-        description: 'Depreciación acumulada',
-      },
-    ]);
+  //   const details: CreateAccountingEntryDetailDto[] = dto.lines.flatMap((l) => [
+  //     {
+  //       accountPlanId: l.expenseAccountId,
+  //       debit: l.amount,
+  //       credit: 0,
+  //       description: 'Depreciación del mes',
+  //     },
+  //     {
+  //       accountPlanId: l.assetAccountId,
+  //       debit: 0,
+  //       credit: l.amount,
+  //       description: 'Depreciación acumulada',
+  //     },
+  //   ]);
 
-    return this.create(userId, {
-      companyId: cycle.companyId,
-      accountingCycleId: dto.accountingCycleId,
-      entryDate: dto.entryDate,
-      description: 'Asiento de depreciación',
-      currencyCode: 'VES' as CurrencyCodeEnum,
-      details,
-    });
-  }
+  //   return this.create(userId, tenantId, {
+  //     tenantId: tenantId,
+  //     accountingCycleId: dto.accountingCycleId,
+  //     entryDate: dto.entryDate,
+  //     description: 'Asiento de depreciación',
+  //     currencyCode: 'VES' as CurrencyCodeEnum,
+  //     details,
+  //   });
+  // }
 
   /* POST /api/entries/bank-reconciliation
    body = { accountingCycleId, entryDate, items:[{accountId, amount, description}] } */
-  async bankReconciliation(
-    userId: number,
-    dto: {
-      accountingCycleId: number;
-      entryDate: Date;
-      items: { accountId: number; amount: number; description?: string }[];
-    },
-  ): Promise<AccountingEntry> {
-    const cycle = await this.accountingCyclesService.findOne(
-      dto.accountingCycleId,
-    );
-    if (!cycle || cycle.status !== 'OPEN')
-      throw new BadRequestException('Ciclo cerrado.');
+  // async bankReconciliation(
+  //   userId: string,
+  //   tenantId: string,
+  //   dto: BankReconciliationDto,
+  // ): Promise<AccountingEntry> {
+  //   const cycle = await this.accountingCyclesService.findOne(
+  //     dto.accountingCycleId,
+  //   );
+  //   if (!cycle || cycle.status !== 'OPEN')
+  //     throw new BadRequestException('Ciclo cerrado.');
 
-    const details: CreateAccountingEntryDetailDto[] = dto.items.map((i) => ({
-      accountPlanId: i.accountId,
-      debit: i.amount > 0 ? i.amount : 0,
-      credit: i.amount < 0 ? Math.abs(i.amount) : 0,
-      description: i.description || 'Ajuste por conciliación',
-    }));
+  //   const details: CreateAccountingEntryDetailDto[] = dto.items.map((i) => ({
+  //     accountPlanId: i.accountId,
+  //     debit: i.amount > 0 ? i.amount : 0,
+  //     credit: i.amount < 0 ? Math.abs(i.amount) : 0,
+  //     description: i.description || 'Ajuste por conciliación',
+  //   }));
 
-    return this.create(userId, {
-      companyId: cycle.companyId,
-      accountingCycleId: dto.accountingCycleId,
-      entryDate: dto.entryDate,
-      description: 'Ajustes de conciliación bancaria',
-      currencyCode: 'VES' as CurrencyCodeEnum,
-      details,
-    });
-  }
+  //   return this.create(userId, tenantId, {
+  //     tenantId: tenantId,
+  //     accountingCycleId: dto.accountingCycleId,
+  //     entryDate: dto.entryDate,
+  //     description: 'Ajustes de conciliación bancaria',
+  //     currencyCode: 'VES' as CurrencyCodeEnum,
+  //     details,
+  //   });
+  // }
 
   /* POST /api/entries/inventory-adjust
    body = { accountingCycleId, entryDate, items:[{inventoryAccountId, expenseAccountId, qty, cost}] } */
-  async inventoryAdjust(
-    userId: number,
-    dto: {
-      accountingCycleId: number;
-      entryDate: Date;
-      items: {
-        inventoryAccountId: number;
-        expenseAccountId: number;
-        qty: number;
-        unitCost: number;
-      }[];
-    },
-  ): Promise<AccountingEntry> {
-    const cycle = await this.accountingCyclesService.findOne(
-      dto.accountingCycleId,
-    );
-    if (!cycle || cycle.status !== 'OPEN')
-      throw new BadRequestException('Ciclo cerrado.');
+  // async inventoryAdjust(
+  //   userId: string,
+  //   tenantId: string,
+  //   dto: InventoryAdjustDto,
+  // ): Promise<AccountingEntry> {
+  //   const cycle = await this.accountingCyclesService.findOne(
+  //     dto.accountingCycleId,
+  //   );
+  //   if (!cycle || cycle.status !== 'OPEN')
+  //     throw new BadRequestException('Ciclo cerrado.');
 
-    const details: CreateAccountingEntryDetailDto[] = dto.items.flatMap((i) => {
-      const total = i.qty * i.unitCost;
-      if (total === 0) return [];
-      if (total > 0) {
-        // Sobrante  inventario ↑
-        return [
-          {
-            accountPlanId: i.inventoryAccountId,
-            debit: total,
-            credit: 0,
-            description: 'Ajuste por inventario (sobrante)',
-          },
-          {
-            accountPlanId: i.expenseAccountId,
-            debit: 0,
-            credit: total,
-            description: 'Ingreso por sobrante',
-          },
-        ];
-      } else {
-        // Merma  inventario ↓
-        const abs = Math.abs(total);
-        return [
-          {
-            accountPlanId: i.expenseAccountId,
-            debit: abs,
-            credit: 0,
-            description: 'Merma / deterioro',
-          },
-          {
-            accountPlanId: i.inventoryAccountId,
-            debit: 0,
-            credit: abs,
-            description: 'Ajuste por inventario (merma)',
-          },
-        ];
-      }
-    });
+  //   const details: CreateAccountingEntryDetailDto[] = dto.items.flatMap((i) => {
+  //     const total = i.qty * i.unitCost;
+  //     if (total === 0) return [];
+  //     if (total > 0) {
+  //       // Sobrante  inventario ↑
+  //       return [
+  //         {
+  //           accountPlanId: i.inventoryAccountId,
+  //           debit: total,
+  //           credit: 0,
+  //           description: 'Ajuste por inventario (sobrante)',
+  //         },
+  //         {
+  //           accountPlanId: i.expenseAccountId,
+  //           debit: 0,
+  //           credit: total,
+  //           description: 'Ingreso por sobrante',
+  //         },
+  //       ];
+  //     } else {
+  //       // Merma  inventario ↓
+  //       const abs = Math.abs(total);
+  //       return [
+  //         {
+  //           accountPlanId: i.expenseAccountId,
+  //           debit: abs,
+  //           credit: 0,
+  //           description: 'Merma / deterioro',
+  //         },
+  //         {
+  //           accountPlanId: i.inventoryAccountId,
+  //           debit: 0,
+  //           credit: abs,
+  //           description: 'Ajuste por inventario (merma)',
+  //         },
+  //       ];
+  //     }
+  //   });
 
-    if (!details.length)
-      throw new BadRequestException('No hay ajustes a registrar.');
+  //   if (!details.length)
+  //     throw new BadRequestException('No hay ajustes a registrar.');
 
-    return this.create(userId, {
-      companyId: cycle.companyId,
-      accountingCycleId: dto.accountingCycleId,
-      entryDate: dto.entryDate,
-      description: 'Ajustes de inventario',
-      currencyCode: 'VES' as CurrencyCodeEnum,
-      details,
-    });
-  }
+  //   return this.create(userId, tenantId, {
+  //     tenantId: tenantId,
+  //     accountingCycleId: dto.accountingCycleId,
+  //     entryDate: dto.entryDate,
+  //     description: 'Ajustes de inventario',
+  //     currencyCode: 'VES' as CurrencyCodeEnum,
+  //     details,
+  //   });
+  // }
 
   /* POST /api/entries/tax-provision
    body = { accountingCycleId, entryDate, items:[{expenseAccountId, taxPayableAccountId, amount}] } */
-  async taxProvision(
-    userId: number,
-    dto: {
-      accountingCycleId: number;
-      entryDate: Date;
-      items: {
-        expenseAccountId: number;
-        taxPayableAccountId: number;
-        amount: number;
-      }[];
-    },
-  ): Promise<AccountingEntry> {
-    const cycle = await this.accountingCyclesService.findOne(
-      dto.accountingCycleId,
-    );
-    if (!cycle || cycle.status !== 'OPEN')
-      throw new BadRequestException('Ciclo cerrado.');
+  // async taxProvision(
+  //   userId: string,
+  //   tenantId: string,
+  //   dto: TaxProvisionDto,
+  // ): Promise<AccountingEntry> {
+  //   const cycle = await this.accountingCyclesService.findOne(
+  //     dto.accountingCycleId,
+  //   );
+  //   if (!cycle || cycle.status !== 'OPEN')
+  //     throw new BadRequestException('Ciclo cerrado.');
 
-    const details: CreateAccountingEntryDetailDto[] = dto.items.flatMap((i) => [
-      {
-        accountPlanId: i.expenseAccountId,
-        debit: i.amount,
-        credit: 0,
-        description: 'Gasto por impuesto',
-      },
-      {
-        accountPlanId: i.taxPayableAccountId,
-        debit: 0,
-        credit: i.amount,
-        description: 'Impuesto por pagar',
-      },
-    ]);
+  //   const details: CreateAccountingEntryDetailDto[] = dto.items.flatMap((i) => [
+  //     {
+  //       accountPlanId: i.expenseAccountId,
+  //       debit: i.amount,
+  //       credit: 0,
+  //       description: 'Gasto por impuesto',
+  //     },
+  //     {
+  //       accountPlanId: i.taxPayableAccountId,
+  //       debit: 0,
+  //       credit: i.amount,
+  //       description: 'Impuesto por pagar',
+  //     },
+  //   ]);
 
-    return this.create(userId, {
-      companyId: cycle.companyId,
-      accountingCycleId: dto.accountingCycleId,
-      entryDate: dto.entryDate,
-      description: 'Provisiones de impuestos',
-      currencyCode: 'VES' as CurrencyCodeEnum,
-      details,
-    });
-  }
+  //   return this.create(userId, tenantId, {
+  //     tenantId: tenantId,
+  //     accountingCycleId: dto.accountingCycleId,
+  //     entryDate: dto.entryDate,
+  //     description: 'Provisiones de impuestos',
+  //     currencyCode: 'VES' as CurrencyCodeEnum,
+  //     details,
+  //   });
+  // }
   /* ---------- Helpers ---------- */
   private async getNextVoucherNo(
+    tenantId: string,
+    createdBy: string,
     tx: NodePgDatabase<typeof schema>,
   ): Promise<number> {
     const [setting] = await tx
       .select()
-      .from(schema.systemSettings)
-      .where(eq(schema.systemSettings.key, 'NRO-ASIENTO'));
+      .from(schema.moduleSettings)
+      .where(
+        and(
+          eq(schema.moduleSettings.module, 'accounting'),
+          eq(schema.moduleSettings.submodule, 'entries'),
+          eq(schema.moduleSettings.key, 'DOC-ASIENTO'),
+        ),
+      );
 
     if (!setting) {
       // Si no existe, lo creamos con 1
-      await tx.insert(schema.systemSettings).values({
-        key: 'NRO-ASIENTO',
+      await tx.insert(schema.moduleSettings).values({
+        module: 'accounting',
+        submodule: 'entries',
+        key: 'DOC-ASIENTO',
         value: '1',
         description: 'Último consecutivo Asiento Contable',
-        group: 'DOCUMENTS',
+        createdBy,
+        tenantId,
       });
       return 1;
     }
 
-    const nextValue = parseInt(setting.value, 10) + 1;
+    const nextValue = parseInt(setting.value ?? '0', 10) + 1;
 
     await tx
-      .update(schema.systemSettings)
-      .set({ value: nextValue.toString() })
-      .where(eq(schema.systemSettings.key, 'NRO-ASIENTO'));
+      .update(schema.moduleSettings)
+      .set({ value: nextValue.toString(), updatedBy: createdBy })
+      .where(
+        and(
+          eq(schema.moduleSettings.module, 'accounting'),
+          eq(schema.moduleSettings.submodule, 'entries'),
+          eq(schema.moduleSettings.key, 'DOC-ASIENTO'),
+        ),
+      );
 
     return nextValue;
   }

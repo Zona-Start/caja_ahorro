@@ -1,10 +1,6 @@
-import * as schema from '@/database';
-import {
-  accountingBalanceByBank,
-  bankStatementBalance,
-  currencies,
-} from '@/database';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
+import { currencies } from '@/database/schema';
 import { CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,
@@ -15,9 +11,7 @@ import {
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AccountingEntriesService } from '../../accounting/accounting-entries/accounting-entries.service';
-import { CreateAccountingEntryDto } from '../../accounting/accounting-entries/dto/create-accounting-entry.dto';
-import { SettingsSystemService } from '../../core/settings-system/settings-system.service';
-import { CreateBankAccountDto } from './dto/create-bank-account.dto';
+import { CreateBankAccountDto } from './dto/bank-accounts.schema';
 import { FilterBankAccountDto } from './dto/filter-bank-account.dto';
 import { UpdateBankAccountDto } from './dto/update-bank-account.dto';
 
@@ -27,117 +21,9 @@ export class BankAccountsService {
     @Inject(DRIZZLE_PROVIDER)
     private drizzle: NodePgDatabase<typeof schema>,
     private readonly accountingEntriesService: AccountingEntriesService,
-    private readonly settingsSystemService: SettingsSystemService,
   ) {}
 
-  private async _createOpeningEntry(
-    tx: NodePgDatabase<typeof schema>,
-    userId: number,
-    bankAccount: any,
-    currentBalance: number,
-    accountingRuleId: number,
-    openingDate?: string,
-  ) {
-    // 1. Buscar ciclo contable abierto
-    const [openCycle] = await tx
-      .select()
-      .from(schema.accountingCycles)
-      .where(
-        and(
-          eq(schema.accountingCycles.companyId, bankAccount.companyId),
-          eq(schema.accountingCycles.status, 'OPEN'),
-        ),
-      );
-
-    if (!openCycle) {
-      throw new BadRequestException(
-        'No se encontró un ciclo contable abierto para la compañía.',
-      );
-    }
-
-    // 2. Buscar la regla contable por ID
-    const [accountingRule] = await tx
-      .select()
-      .from(schema.accountingRules)
-      .where(eq(schema.accountingRules.id, accountingRuleId));
-
-    if (!accountingRule) {
-      throw new BadRequestException(
-        `No se encontró la regla contable con ID ${accountingRuleId}.`,
-      );
-    }
-
-    // Validar que la regla sea de la categoría correcta
-    if (accountingRule.category !== 'BANKING') {
-      throw new BadRequestException(
-        'La regla contable seleccionada no es de la categoría BANKING.',
-      );
-    }
-
-    if (accountingRule.operationType !== 'BANK_INITIAL_BALANCE') {
-      throw new BadRequestException(
-        'La regla contable seleccionada no es para BANK_INITIAL_BALANCE.',
-      );
-    }
-
-    if (!accountingRule.isActive) {
-      throw new BadRequestException(
-        'La regla contable seleccionada no está activa.',
-      );
-    }
-
-    // 3. Buscar el detalle de la regla con accountRole = 'INITIAL_BALANCE_CAPITAL'
-    const [ruleDetail] = await tx
-      .select()
-      .from(schema.accountingRuleDetails)
-      .where(eq(schema.accountingRuleDetails.ruleId, accountingRule.id));
-
-    if (!ruleDetail || !ruleDetail.accountPlanId) {
-      throw new BadRequestException(
-        'No se encontró la cuenta contable de contrapartida (INITIAL_BALANCE_CAPITAL) en la regla de apertura bancaria.',
-      );
-    }
-
-    const capitalAccountId = ruleDetail.accountPlanId;
-
-    // 4. Crear el asiento contable
-    const entryDto: CreateAccountingEntryDto = {
-      companyId: bankAccount.companyId,
-      accountingCycleId: openCycle.id,
-      entryDate: openingDate
-        ? new Date(openingDate)
-        : new Date(bankAccount.openingDate || Date.now()),
-      description: `Apertura de cuenta bancaria: ${bankAccount.accountName || bankAccount.accountNumber}`,
-      currencyCode: bankAccount.currencyCode as CurrencyCodeEnum,
-      originType: 'BANK_ACCOUNT',
-      originReferenceId: bankAccount.id.toString(),
-      details: [
-        {
-          accountPlanId: bankAccount.linkedChartAccountId, // DEBIT: Cuenta bancaria
-          debit: currentBalance,
-          credit: 0,
-          description: 'Saldo inicial en banco',
-        },
-        {
-          accountPlanId: capitalAccountId, // CREDIT: Cuenta de contrapartida
-          debit: 0,
-          credit: currentBalance,
-          description: 'Contrapartida apertura de cuenta',
-        },
-      ],
-    };
-
-    const res = await this.accountingEntriesService.create(userId, entryDto);
-
-    if (res && res.id) {
-      await this.accountingEntriesService.submitEntry(userId, res.id);
-      await this.accountingEntriesService.postEntry(userId, res.id);
-    }
-
-    return res;
-  }
-
-  async findAll() {
+  async findAll(tenantId: string) {
     return await this.drizzle
       .select({
         id: schema.bankAccounts.id,
@@ -151,14 +37,24 @@ export class BankAccountsService {
         schema.bankDirectory,
         eq(schema.bankDirectory.id, schema.bankAccounts.bankDirectoryId),
       )
-      .where(eq(schema.bankAccounts.isActive, true));
+      .where(
+        and(
+          eq(schema.bankAccounts.isActive, true),
+          eq(schema.bankAccounts.tenantId, tenantId),
+        ),
+      );
   }
 
-  async findOne(id: number) {
+  async findOne(id: string, tenantId: string) {
     const result = await this.drizzle
       .select()
       .from(schema.bankAccounts)
-      .where(eq(schema.bankAccounts.id, id));
+      .where(
+        and(
+          eq(schema.bankAccounts.id, id),
+          eq(schema.bankAccounts.tenantId, tenantId),
+        ),
+      );
 
     if (!result.length) {
       throw new NotFoundException(`Bank Account with ID ${id} not found`);
@@ -167,20 +63,27 @@ export class BankAccountsService {
     return result[0];
   }
 
-  async findAllByPagination(filterBankAccountDto?: FilterBankAccountDto) {
+  async findAllByPagination(
+    filterBankAccountDto?: FilterBankAccountDto,
+    tenantId?: string,
+  ) {
     const {
       page = 1,
       limit = 10,
       search = '',
-      sortBy = 'id',
-      sortOrder = 'asc',
       status,
       accountType,
       currencyCode,
+      sortOrder,
+      sortBy,
     } = filterBankAccountDto || {};
 
     const offset = (page - 1) * limit;
     let searchCondition: SQL<unknown> | undefined;
+    if (tenantId) {
+      searchCondition = eq(schema.bankAccounts.tenantId, tenantId);
+    }
+
     if (search) {
       searchCondition = ilike(schema.bankAccounts.accountNumber, `%${search}%`);
     }
@@ -220,7 +123,7 @@ export class BankAccountsService {
     const data = await this.drizzle
       .select({
         id: schema.bankAccounts.id,
-        companyId: schema.bankAccounts.companyId,
+        tenantId: schema.bankAccounts.tenantId,
         bankDirectoryId: schema.bankAccounts.bankDirectoryId,
         bankDirectoryName: schema.bankDirectory.name,
         accountNumber: schema.bankAccounts.accountNumber,
@@ -234,8 +137,8 @@ export class BankAccountsService {
         linkedChartAccountId: schema.bankAccounts.linkedChartAccountId,
         isActive: schema.bankAccounts.isActive,
         openingEntryPosted: schema.bankAccounts.openingEntryPosted,
-        currentBalance: accountingBalanceByBank.balance,
-        lastStatementBalance: bankStatementBalance.currentStatementBalance,
+        // currentBalance: accountingBalanceByBank.balance,
+        // lastStatementBalance: bankStatementBalance.currentStatementBalance,
       })
       .from(schema.bankAccounts)
       .where(searchCondition)
@@ -244,16 +147,16 @@ export class BankAccountsService {
         eq(schema.bankDirectory.id, schema.bankAccounts.bankDirectoryId),
       )
       // Saldo contable (por cuenta y moneda)
-      .leftJoin(
-        accountingBalanceByBank,
-        eq(accountingBalanceByBank.bankAccountId, schema.bankAccounts.id),
-      )
+      // .leftJoin(
+      //   accountingBalanceByBank,
+      //   eq(accountingBalanceByBank.bankAccountId, schema.bankAccounts.id),
+      // )
 
-      // Saldo bancario (por cuenta)
-      .leftJoin(
-        bankStatementBalance,
-        eq(bankStatementBalance.bankAccountId, schema.bankAccounts.id),
-      )
+      // // Saldo bancario (por cuenta)
+      // .leftJoin(
+      //   bankStatementBalance,
+      //   eq(bankStatementBalance.bankAccountId, schema.bankAccounts.id),
+      // )
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -274,8 +177,8 @@ export class BankAccountsService {
       accountName: item.accountName ?? undefined,
       currencyCode: item.currencyCode as CurrencyCodeEnum,
       openingDate: item.openingDate ? new Date(item.openingDate) : undefined,
-      currentBalance: item.currentBalance,
-      lastStatementBalance: item.lastStatementBalance,
+      // currentBalance: item.currentBalance,
+      // lastStatementBalance: item.lastStatementBalance,
       lastStatementDate: item.lastStatementDate
         ? new Date(item.lastStatementDate)
         : undefined,
@@ -287,12 +190,17 @@ export class BankAccountsService {
     };
   }
 
-  async create(userId: number, data: CreateBankAccountDto) {
+  async create(userId: string, tenantId: string, data: CreateBankAccountDto) {
     return this.drizzle.transaction(async (tx) => {
       const existingAccount = await tx
         .select()
         .from(schema.bankAccounts)
-        .where(eq(schema.bankAccounts.accountNumber, data.accountNumber));
+        .where(
+          and(
+            eq(schema.bankAccounts.accountNumber, data.accountNumber),
+            eq(schema.bankAccounts.tenantId, tenantId),
+          ),
+        );
 
       if (existingAccount.length) {
         throw new BadRequestException(
@@ -303,7 +211,7 @@ export class BankAccountsService {
       const currenciesCode = await tx
         .select()
         .from(currencies)
-        .where(eq(currencies.id, Number(data.currencyCode)));
+        .where(eq(currencies.id, data.currencyCode));
 
       if (!currenciesCode.length) {
         throw new BadRequestException(
@@ -312,7 +220,7 @@ export class BankAccountsService {
       }
 
       const formatData = {
-        companyId: data.companyId,
+        tenantId: tenantId,
         bankDirectoryId: data.bankDirectoryId,
         accountNumber: data.accountNumber,
         accountName: data.accountName,
@@ -333,49 +241,60 @@ export class BankAccountsService {
         .returning();
 
       // Si se solicita generar el asiento de apertura
-      if (
-        data.openingEntryPosted &&
-        data.currentBalance &&
-        data.currentBalance > 0
-      ) {
-        if (!data.accountingRuleId) {
-          throw new BadRequestException(
-            'Debe seleccionar una regla contable para generar el asiento de apertura.',
-          );
-        }
+      // if (
+      //   data.openingEntryPosted &&
+      //   data.currentBalance &&
+      //   data.currentBalance > 0
+      // ) {
+      //   if (!data.accountingRuleId) {
+      //     throw new BadRequestException(
+      //       'Debe seleccionar una regla contable para generar el asiento de apertura.',
+      //     );
+      //   }
 
-        await this._createOpeningEntry(
-          tx,
-          userId,
-          newBankAccount,
-          data.currentBalance,
-          data.accountingRuleId,
-          data.openingDate
-            ? new Date(data.openingDate).toISOString()
-            : undefined,
-        );
+      //   //revisar el asiento contable aqui
+      //   await this._createOpeningEntry(
+      //     tx,
+      //     userId,
+      //     newBankAccount,
+      //     data.currentBalance,
+      //     data.accountingRuleId,
+      //     data.openingDate
+      //       ? new Date(data.openingDate).toISOString()
+      //       : undefined,
+      //   );
 
-        // Marcar que ya se generó el asiento de apertura
-        await tx
-          .update(schema.bankAccounts)
-          .set({
-            openingEntryPosted: true,
-            currentBalance: String(data.currentBalance),
-            ruleAccountId: data.accountingRuleId,
-          })
-          .where(eq(schema.bankAccounts.id, newBankAccount.id));
-      }
+      //   // Marcar que ya se generó el asiento de apertura
+      //   await tx
+      //     .update(schema.bankAccounts)
+      //     .set({
+      //       openingEntryPosted: true,
+      //       currentBalance: String(data.currentBalance),
+      //       ruleAccountId: data.accountingRuleId,
+      //     })
+      //     .where(eq(schema.bankAccounts.id, newBankAccount.id));
+      // }
 
       return newBankAccount;
     });
   }
 
-  async update(id: number, userId: number, data: UpdateBankAccountDto) {
+  async update(
+    id: string,
+    userId: string,
+    data: UpdateBankAccountDto,
+    tenantId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const [existing] = await tx
         .select()
         .from(schema.bankAccounts)
-        .where(eq(schema.bankAccounts.id, id));
+        .where(
+          and(
+            eq(schema.bankAccounts.id, id),
+            eq(schema.bankAccounts.tenantId, tenantId),
+          ),
+        );
 
       if (!existing) {
         throw new NotFoundException(`Bank Account with ID ${id} not found`);
@@ -391,7 +310,7 @@ export class BankAccountsService {
       const currenciesCode = await tx
         .select()
         .from(currencies)
-        .where(eq(currencies.id, Number(data.currencyCode)));
+        .where(eq(currencies.code, data.currencyCode as CurrencyCodeEnum));
 
       const formatData: any = {
         bankDirectoryId: data.bankDirectoryId,
@@ -416,7 +335,12 @@ export class BankAccountsService {
       const [updatedBankAccount] = await tx
         .update(schema.bankAccounts)
         .set(formatData)
-        .where(eq(schema.bankAccounts.id, id))
+        .where(
+          and(
+            eq(schema.bankAccounts.id, id),
+            eq(schema.bankAccounts.tenantId, tenantId),
+          ),
+        )
         .returning();
 
       // Si se solicita generar el asiento de apertura y no se ha generado antes
@@ -426,35 +350,36 @@ export class BankAccountsService {
         data.currentBalance &&
         data.currentBalance > 0
       ) {
-        if (!data.accountingRuleId) {
+        if (!data.ruleAccountId) {
           throw new BadRequestException(
             'Debe seleccionar una regla contable para generar el asiento de apertura.',
           );
         }
 
-        await this._createOpeningEntry(
-          tx,
-          userId,
-          updatedBankAccount,
-          data.currentBalance,
-          data.accountingRuleId,
-          data.openingDate
-            ? new Date(data.openingDate).toISOString()
-            : undefined,
-        );
+        //revisar el asiento contable aqui
+        // await this._createOpeningEntry(
+        //   tx,
+        //   userId,
+        //   updatedBankAccount,
+        //   data.currentBalance,
+        //   data.accountingRuleId,
+        //   data.openingDate
+        //     ? new Date(data.openingDate).toISOString()
+        //     : undefined,
+        // );
 
-        await tx
-          .update(schema.bankAccounts)
-          .set({ openingEntryPosted: true })
-          .where(eq(schema.bankAccounts.id, id));
+        // await tx
+        //   .update(schema.bankAccounts)
+        //   .set({ openingEntryPosted: true })
+        //   .where(eq(schema.bankAccounts.id, id));
       }
 
       return updatedBankAccount;
     });
   }
 
-  async remove(id: number) {
-    const existing = await this.findOne(id);
+  async remove(id: string, tenantId: string) {
+    const existing = await this.findOne(id, tenantId);
 
     if (!existing) {
       throw new NotFoundException(`Bank Account with ID ${id} not found`);
@@ -462,17 +387,23 @@ export class BankAccountsService {
 
     await this.drizzle
       .delete(schema.bankAccounts)
-      .where(eq(schema.bankAccounts.id, id));
+      .where(
+        and(
+          eq(schema.bankAccounts.id, id),
+          eq(schema.bankAccounts.tenantId, tenantId),
+        ),
+      );
 
     return { message: 'Bank Account deleted successfully' };
   }
 
   async generateOpeningEntry(
-    id: number,
-    userId: number,
+    id: string,
+    userId: string,
     currentBalance: number,
-    accountingRuleId: number,
+    accountingRuleId: string,
     openingDate: string,
+    tenantId: string,
   ) {
     return this.drizzle.transaction(async (tx) => {
       const [existing] = await tx
@@ -508,14 +439,15 @@ export class BankAccountsService {
         );
       }
 
-      await this._createOpeningEntry(
-        tx,
-        userId,
-        existing,
-        currentBalance,
-        accountingRuleId,
-        openingDate,
-      );
+      //revisar el asiento contable aqui
+      // await this._createOpeningEntry(
+      //   tx,
+      //   userId,
+      //   existing,
+      //   currentBalance,
+      //   accountingRuleId,
+      //   openingDate,
+      // );
 
       await tx
         .update(schema.bankAccounts)

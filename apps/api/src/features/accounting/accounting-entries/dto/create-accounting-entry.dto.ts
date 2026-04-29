@@ -1,75 +1,58 @@
 import { CurrencyCodeEnum } from '@/types/enum';
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  ArrayMinSize,
-  IsDate,
-  IsEnum,
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
-import { CreateAccountingEntryDetailDto } from './create-accounting-entry-detail.dto';
+import { z } from 'zod';
 
-export class CreateAccountingEntryDto {
-  @ApiProperty({ description: 'ID de la compañía' })
-  @IsInt()
-  @IsNotEmpty()
-  companyId: number;
+export const CreateAccountingEntryBaseSchema = z.object({
+  tenantId: z.string().uuid(),
+  accountingCycleId: z.string().uuid(),
+  entryDate: z.coerce.date(),
+  description: z.string().min(1),
+  originReferenceId: z.string().optional(),
+  originType: z.string().optional(),
+  currencyCode: z.nativeEnum(CurrencyCodeEnum),
+  details: z
+    .array(
+      z.object({
+        accountPlanId: z.string().uuid(),
+        associateId: z.string().uuid().optional().nullable(),
+        supplierId: z.string().uuid().optional().nullable(),
+        debit: z.coerce.string().default('0.00'),
+        credit: z.coerce.string().default('0.00'),
+        description: z.string().optional().nullable(),
+      }),
+    )
+    .min(2),
+});
 
-  @ApiProperty({
-    description: 'ID del ciclo contable al que pertenece el asiento',
-  })
-  @IsInt()
-  @IsNotEmpty()
-  accountingCycleId: number;
+// 2. Exportamos el esquema con validaciones para el POST
+export const CreateAccountingEntrySchema =
+  CreateAccountingEntryBaseSchema.refine(
+    (data) => {
+      const totalDebit = data.details.reduce((sum, detail) => {
+        // Usamos Number() para asegurar el tipo y 0 como fallback
+        const value =
+          typeof detail.debit === 'number'
+            ? detail.debit
+            : Number(detail.debit || 0);
+        return sum + value;
+      }, 0);
 
-  @ApiProperty({ description: 'Fecha contable del asiento' })
-  @IsDate()
-  @IsNotEmpty()
-  @Type(() => Date)
-  entryDate: Date;
+      const totalCredit = data.details.reduce((sum, detail) => {
+        const value =
+          typeof detail.credit === 'number'
+            ? detail.credit
+            : Number(detail.credit || 0);
+        return sum + value;
+      }, 0);
 
-  @ApiProperty({ description: 'Descripción general del asiento' })
-  @IsString()
-  @IsNotEmpty()
-  description: string;
+      return Math.abs(totalDebit - totalCredit) < 0.00001;
+    },
+    {
+      message:
+        'El asiento no está cuadrado: los débitos y créditos deben ser iguales',
+      path: ['details'],
+    },
+  );
 
-  @ApiProperty({
-    required: false,
-    description: 'ID de referencia de la operación origen (ej: loan_id)',
-  })
-  @IsOptional()
-  @IsString()
-  originReferenceId?: string;
-
-  @ApiProperty({
-    required: false,
-    description: 'Tipo de operación origen (ej: LOAN_DISBURSEMENT)',
-  })
-  @IsOptional()
-  @IsString()
-  originType?: string;
-
-  @ApiProperty({
-    enum: CurrencyCodeEnum,
-    description: 'Código de la moneda del asiento',
-  })
-  @IsEnum(CurrencyCodeEnum)
-  @IsNotEmpty()
-  currencyCode: CurrencyCodeEnum;
-
-  @ApiProperty({
-    type: () => [CreateAccountingEntryDetailDto],
-    description: 'Detalles del asiento contable',
-  })
-  @ArrayMinSize(2, {
-    message:
-      'Un asiento contable debe tener al menos dos detalles (débito y crédito)',
-  })
-  @ValidateNested({ each: true })
-  @Type(() => CreateAccountingEntryDetailDto)
-  details: CreateAccountingEntryDetailDto[];
-}
+export type CreateAccountingEntryDto = z.infer<
+  typeof CreateAccountingEntrySchema
+>;

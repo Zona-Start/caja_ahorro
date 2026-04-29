@@ -1,393 +1,436 @@
-import { envs } from '@/common/config/envs';
-import { Env, validateString } from '@/common/utils';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { RefreshTokenDto } from '@/features/auth/dto/refresh-token.dto';
-import { SignInUserDto } from '@/features/auth/dto/signIn-user.dto';
-import { SignOutUserDto } from '@/features/auth/dto/signOut-user.dto';
-import { ValidateUserDto } from '@/features/auth/dto/validate-user.dto';
-import AuthTokensInterface from '@/features/auth/interfaces/auth-tokens.interface';
+import * as schema from '@/database/schema';
 import {
-  LoginUserInterface,
-  Roles,
-} from '@/features/auth/interfaces/login-user.interface';
-import RefreshTokenInterface from '@/features/auth/interfaces/refresh-token.interface';
-import { MailService } from '@/features/mail/mail.service';
-import { User } from '@/features/users/entities/user.entity';
+  AUTH_METHODS,
+  FAILURE_REASONS,
+  loginAttempts,
+  sessions,
+  users,
+} from '@/database/schema';
+import { SystemEventHelper } from '@/features/audit/audit-event.service';
+import { LoginInput } from '@/features/auth/dto/login.dto';
+import { CryptographyService } from '@/features/core/security/cryptography.service';
+import { SecurityService } from '@/features/core/security/security.service';
+import { UsersService } from '@/features/core/users/users.service';
 import {
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService, JwtSignOptions } from '@nestjs/jwt';
-import crypto from 'crypto';
-import { eq } from 'drizzle-orm';
+import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
+import { and, eq, gt, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from 'src/database/index';
-import { sessions, userAccessSummary, users } from 'src/database/index';
-import { Session } from './interfaces/session.interface';
+
+interface UserWithRelations {
+  id: string;
+  username: string;
+  email: string;
+  fullname: string;
+  status: string;
+  isSystemAdmin: boolean;
+  passwordHash: string;
+  tenantMembers?: any[];
+  userPermissions?: any[];
+}
+
+interface LoginContext {
+  ipAddress?: string;
+  userAgent?: string;
+  deviceFingerprint?: string;
+}
+
+const MAX_CONCURRENT_SESSIONS = 3;
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 5;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
+    @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
+    private readonly usersService: UsersService,
+    private readonly securityService: SecurityService,
+    private readonly cryptographyService: CryptographyService,
     private readonly jwtService: JwtService,
-    private readonly config: ConfigService<Env>,
-    @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
-    private readonly mailService: MailService,
+    private readonly systemEventHelper: SystemEventHelper,
   ) {}
 
-  //Decode Tokens
-  // Método para decodificar el token y obtener los datos completos
-  private decodeToken(token: string): {
-    sub: number;
-    username?: string;
-    iat: number;
-    exp: number;
-  } {
-    try {
-      const decoded = this.jwtService.decode(token) as {
-        sub: number;
-        username?: string;
-        iat: number;
-        exp: number;
-      };
+  async login(loginDto: LoginInput, context: LoginContext = {}): Promise<any> {
+    const { username, password } = loginDto;
+    const { ipAddress, userAgent, deviceFingerprint } = context;
 
-      // Validar que contiene los datos esenciales
-      if (!decoded || !decoded.exp || !decoded.iat) {
-        throw new Error('Token lacks required fields');
-      }
+    const user = (await this.usersService.findByUsername(
+      username.trim(),
+    )) as UserWithRelations | null;
 
-      return decoded;
-    } catch (error) {
-      // Manejo seguro del tipo unknown
-      let errorMessage = 'Failed to decode token';
-
-      if (error instanceof Error) {
-        errorMessage = error.message;
-        console.error('Error decoding token:', errorMessage);
-      } else {
-        console.error('Unknown error type:', error);
-      }
-
-      throw new HttpException(errorMessage, HttpStatus.UNAUTHORIZED);
-    }
-  }
-
-  async generateTokens(user: User): Promise<AuthTokensInterface> {
-    const accessTokenSecret = envs.access_token_secret ?? '';
-    const accessTokenExp = envs.access_token_expiration ?? '';
-    const refreshTokenSecret = envs.refresh_token_secret ?? '';
-    const refreshTokenExp = envs.refresh_token_expiration ?? '';
-
-    if (
-      !accessTokenSecret ||
-      !accessTokenExp ||
-      !refreshTokenSecret ||
-      !refreshTokenExp
-    ) {
-      throw new Error('JWT environment variables are missing or invalid');
+    if (!user) {
+      await this.logLoginAttempt(
+        null,
+        username,
+        false,
+        FAILURE_REASONS.USER_NOT_FOUND,
+        context,
+      );
+      await this.systemEventHelper.logAuthenticationFailed(
+        username,
+        FAILURE_REASONS.USER_NOT_FOUND,
+        { ipAddress, userAgent },
+      );
+      throw new UnauthorizedException('Invalid credentials');
     }
 
-    interface JwtPayload {
-      sub: number;
-      username: string;
-    }
-
-    const payload: JwtPayload = {
-      sub: Number(user?.id),
-      username: user.username ?? '',
-    };
-
-    const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        secret: accessTokenSecret,
-        expiresIn: accessTokenExp,
-      } as JwtSignOptions),
-
-      this.jwtService.signAsync(payload, {
-        secret: refreshTokenSecret,
-        expiresIn: refreshTokenExp,
-      } as JwtSignOptions),
-    ]);
-
-    return { access_token, refresh_token };
-  }
-
-  //Generate OTP Code For Email Confirmation
-  async generateOTP(length = 6): Promise<string> {
-    return crypto
-      .randomInt(0, 10 ** length)
-      .toString()
-      .padStart(length, '0');
-  }
-
-  // metodo para crear una session
-  private async createSession(sessionInput: Session): Promise<string> {
-    const { userId } = sessionInput;
-    const activeSessionsCount = await this.drizzle
-      .select()
-      .from(sessions)
-      .where(eq(sessions.userId, parseInt(userId)));
-
-    if (activeSessionsCount.length !== 0) {
-      // Elimina sessiones viejsas
-      await this.drizzle
-        .delete(sessions)
-        .where(eq(sessions.userId, parseInt(userId)));
-    }
-
-    const session = await this.drizzle.insert(sessions).values({
-      sessionToken: sessionInput.sessionToken,
-      userId: parseInt(userId),
-      expiresAt: sessionInput.expiresAt,
-    });
-    if (session.rowCount === 0)
-      throw new HttpException('Failed to create session', HttpStatus.NOT_FOUND);
-
-    return 'Session created successfully';
-  }
-
-  //Find User
-  async findUser(username: string): Promise<User | null> {
-    const user = await this.drizzle
-      .select()
-      .from(users)
-      .where(eq(users.username, username));
-    return user[0] as User | null;
-  }
-
-  //Find User
-  async findUserById(id: number): Promise<User | null> {
-    const user = await this.drizzle
-      .select()
-      .from(users)
-      .where(eq(users.id, id));
-    return user[0] as User | null;
-  }
-
-  //Check User Is Already Exists
-  async validateUser(dto: ValidateUserDto): Promise<User> {
-    const user = await this.findUser(dto.username);
-    if (!user) throw new NotFoundException('User not found');
-    const isValid = await validateString(
-      dto.password,
-      user?.password as string,
+    const isValidPassword = await this.securityService.comparePassword(
+      password,
+      user.passwordHash,
     );
-    if (!isValid) throw new UnauthorizedException('Invalid credentials');
-    return user;
+
+    if (!isValidPassword) {
+      await this.logLoginAttempt(
+        user.id,
+        username,
+        false,
+        FAILURE_REASONS.INVALID_CREDENTIALS,
+        context,
+      );
+      await this.systemEventHelper.logAuthenticationFailed(
+        username,
+        FAILURE_REASONS.INVALID_CREDENTIALS,
+        { ipAddress, userAgent },
+      );
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (user.status !== 'active') {
+      await this.logLoginAttempt(
+        user.id,
+        username,
+        false,
+        FAILURE_REASONS.USER_INACTIVE,
+        context,
+      );
+      await this.systemEventHelper.logAuthenticationFailed(
+        username,
+        FAILURE_REASONS.USER_INACTIVE,
+        { ipAddress, userAgent },
+      );
+      throw new UnauthorizedException('User account is not active');
+    }
+
+    const rateLimitExceeded = await this.checkRateLimit(user.id);
+    if (rateLimitExceeded) {
+      await this.logLoginAttempt(
+        user.id,
+        username,
+        false,
+        FAILURE_REASONS.RATE_LIMIT_EXCEEDED,
+        context,
+      );
+      await this.systemEventHelper.logAuthenticationFailed(
+        username,
+        FAILURE_REASONS.RATE_LIMIT_EXCEEDED,
+        { ipAddress, userAgent },
+      );
+      throw new UnauthorizedException(
+        'Too many login attempts. Please try again later.',
+      );
+    }
+
+    await this.logLoginAttempt(user.id, username, true, undefined, context);
+
+    await this.revokeOldSessionsIfNeeded(user.id);
+
+    const [accessToken, refreshToken] = await this.generateTokens(user);
+
+    const tokenHash = await this.cryptographyService.hashData(refreshToken);
+
+    await this.createSession(user.id, refreshToken, tokenHash, context);
+
+    await this.updateLastLogin(user.id);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: this.formatAuthUser(user),
+    };
   }
 
-  //Find rol user
-  async findUserRol(id: number): Promise<Roles[]> {
-    const roles = await this.drizzle
-      .select({
-        id: schema.roles.id,
-        role: schema.roles.name,
-      })
-      .from(schema.usersRole)
-      .leftJoin(schema.roles, eq(schema.roles.id, schema.usersRole.roleId))
-      .where(eq(schema.usersRole.userId, id));
+  async refreshTokens(
+    refreshToken: string,
+    context: LoginContext = {},
+  ): Promise<any> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
 
-    if (roles.length === 0) {
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const userId = payload.sub;
+
+    const session = await this.db.query.sessions.findFirst({
+      where: and(eq(sessions.userId, userId), eq(sessions.isActive, true)),
+    });
+
+    if (!session || session.revokedAt) {
+      throw new UnauthorizedException('Refresh token invalid or revoked');
+    }
+
+    await this.checkSessionAnomalies(session, context);
+
+    await this.rotateSession(session);
+
+    const user = (await this.usersService.findById(
+      userId,
+    )) as UserWithRelations | null;
+    if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // Aseguramos que no haya valores nulos
-    return roles.map((role) => ({
-      id: role.id ?? 0, // Asignamos un valor por defecto (0) si es null
-      rol: role.role ?? '', // Asignamos un valor por defecto (cadena vacía) si es null
-    }));
-  }
+    const [accessToken, newRefreshToken] = await this.generateTokens(user);
 
-  //Sign In User Account
-  async signIn(dto: SignInUserDto): Promise<LoginUserInterface> {
-    const user = await this.validateUser(dto);
-    const tokens = await this.generateTokens(user);
-    const decodeAccess = this.decodeToken(tokens.access_token);
-    const decodeRefresh = this.decodeToken(tokens.refresh_token);
-    const rol = await this.findUserRol(user?.id as number);
+    const newTokenHash =
+      await this.cryptographyService.hashData(newRefreshToken);
 
-    await this.createSession({
-      userId: String(user?.id), // Convert number to string
-      sessionToken: tokens.refresh_token,
-      expiresAt: decodeRefresh.exp,
-    });
+    await this.createSession(user.id, newRefreshToken, newTokenHash, context);
 
     return {
-      message: 'User signed in successfully',
-      user: {
-        id: user?.id as number,
-        username: user?.username,
-        fullname: user?.fullname,
-        email: user?.email,
-        rol: rol,
-      },
-      tokens: {
-        access_token: tokens.access_token,
-        access_expire_in: decodeAccess.exp,
-        refresh_token: tokens.refresh_token,
-        refresh_expire_in: decodeRefresh.exp,
-      },
+      accessToken,
+      refreshToken: newRefreshToken,
+      user: this.formatAuthUser(user),
     };
   }
 
-  // //Forgot Password
-  // async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
-  //   const user = await this.findUser(dto.username);
-  //   if (!user) throw new NotFoundException('User not found');
-  //   const passwordResetToken = await this.generateOTP();
-  //   user.passwordResetToken = passwordResetToken;
-  //   user.passwordResetTokenExpires = new Date(
-  //     Date.now() + 1000 * 60 * 60 * 24, // 1 day
-  //   );
-  //   await this.UserRepository.save(user);
-  //   await this.mailService.sendEmail({
-  //     to: [user.email],
-  //     subject: 'Reset Password',
-  //     html: ForgotPasswordMail({
-  //       name: user.name,
-  //       code: passwordResetToken,
-  //     }),
-  //   });
-  // }
-
-  //Sign Out User Account
-  async signOut(dto: SignOutUserDto): Promise<void> {
-    const { user_id } = dto;
-    const user = await this.drizzle
-      .select()
-      .from(users)
-      .where(eq(users.id, parseInt(user_id)));
-    if (!user) throw new NotFoundException('User not found');
-    await this.drizzle
-      .delete(sessions)
-      .where(eq(sessions.userId, parseInt(user_id)));
-  }
-
-  //Refresh User Access Token
-  // ... imports previos
-
-  //Refresh User Access Token
-  async refreshToken(dto: RefreshTokenDto): Promise<RefreshTokenInterface> {
-    const { refreshToken } = dto;
-
-    // 1. Validar firma del token (Crypto check)
-    let payload: any;
-    try {
-      payload = await this.jwtService.verifyAsync(refreshToken, {
-        secret: envs.refresh_token_secret,
-      });
-    } catch (e) {
-      throw new UnauthorizedException('Invalid Refresh Token Signature');
-    }
-
-    const userId = Number(payload.sub); // Es más seguro usar el ID del token que el del DTO
-
-    // 2. Buscar la sesión por UserID (SIN filtrar por token todavía)
-    // Esto es clave: traemos la sesión para ver qué está pasando
-    const [currentSession] = await this.drizzle
-      .select()
-      .from(sessions)
-      .where(eq(sessions.userId, userId));
-
-    if (!currentSession) throw new NotFoundException('Session not found');
-
-    // CONFIGURACIÓN: Tiempo de gracia en milisegundos (ej: 15 segundos)
-    const GRACE_PERIOD_MS = 15000;
-
-    // -------------------------------------------------------------------
-    // ESCENARIO A: Rotación Normal (El token coincide con el actual)
-    // -------------------------------------------------------------------
-    if (currentSession.sessionToken === refreshToken) {
-      const user = await this.findUserById(userId);
-      if (!user) throw new NotFoundException('User not found');
-
-      // Generar nuevos tokens (A -> B)
-      const tokensNew = await this.generateTokens(user);
-      const decodeAccess = this.decodeToken(tokensNew.access_token);
-      const decodeRefresh = this.decodeToken(tokensNew.refresh_token);
-
-      // Actualizamos DB guardando el token "viejo" como "previous"
-      await this.drizzle
+  async logout(userId: string, sessionId?: string) {
+    if (sessionId) {
+      await this.db
         .update(sessions)
         .set({
-          sessionToken: tokensNew.refresh_token, // Nuevo (B)
-          previousSessionToken: refreshToken, // Viejo (A)
-          lastRotatedAt: new Date(), // Marca de tiempo
-          expiresAt: decodeRefresh.exp,
+          isActive: false,
+          revokedAt: new Date(),
+          revokedReason: 'logout',
+        })
+        .where(eq(sessions.id, sessionId));
+    } else {
+      await this.db
+        .update(sessions)
+        .set({
+          isActive: false,
+          revokedAt: new Date(),
+          revokedReason: 'logout',
         })
         .where(eq(sessions.userId, userId));
-
-      return {
-        access_token: tokensNew.access_token,
-        access_expire_in: decodeAccess.exp,
-        refresh_token: tokensNew.refresh_token,
-        refresh_expire_in: decodeRefresh.exp,
-      };
     }
-
-    // -------------------------------------------------------------------
-    // ESCENARIO B: Periodo de Gracia (Condición de Carrera)
-    // -------------------------------------------------------------------
-    // El token no coincide con el actual, ¿pero coincide con el anterior?
-    const isPreviousToken =
-      currentSession.previousSessionToken === refreshToken;
-
-    // Calculamos cuánto tiempo ha pasado desde la rotación
-    const timeSinceRotation = currentSession.lastRotatedAt
-      ? Date.now() - new Date(currentSession.lastRotatedAt).getTime()
-      : Infinity;
-
-    if (isPreviousToken && timeSinceRotation < GRACE_PERIOD_MS) {
-      // ¡Es una condición de carrera! El usuario envió 'A' pero ya rotamos a 'B'.
-      // Le devolvemos 'B' (el actual en DB) para que se sincronice.
-
-      const user = await this.findUserById(userId);
-
-      if (!user) throw new NotFoundException('User not found');
-
-      // Generamos un access token nuevo fresco (barato)
-      const accessTokenPayload = { sub: user.id, username: user.username };
-      const newAccessToken = await this.jwtService.signAsync(
-        accessTokenPayload,
-        {
-          secret: envs.access_token_secret,
-          expiresIn: envs.access_token_expiration,
-        } as JwtSignOptions,
-      );
-      const decodeAccess = this.decodeToken(newAccessToken);
-
-      // IMPORTANTE: Devolvemos el refresh token QUE YA ESTÁ EN LA BASE DE DATOS
-      // No generamos uno nuevo para no romper la cadena de la otra petición que ganó.
-      return {
-        access_token: newAccessToken,
-        access_expire_in: decodeAccess.exp,
-        refresh_token: currentSession.sessionToken!, // Devolvemos el token 'B'
-        refresh_expire_in: currentSession.expiresAt as number,
-      };
-    }
-
-    // -------------------------------------------------------------------
-    // ESCENARIO C: Robo de Token (Reuse Detection)
-    // -------------------------------------------------------------------
-    // Si el token no es el actual, ni el anterior válido... ALGUIEN LO ROBÓ.
-    // O el usuario está intentando reusar un token muy viejo.
-
-    // Medida de seguridad: Borrar todas las sesiones del usuario
-    await this.drizzle.delete(sessions).where(eq(sessions.userId, userId));
-
-    throw new UnauthorizedException(
-      'Refresh token reuse detected. Access revoked.',
-    );
   }
 
-  async access(id: number) {
-    return await this.drizzle
-      .select()
-      .from(userAccessSummary)
-      .where(eq(userAccessSummary.userId, id));
+  async revokeAllSessions(userId: string) {
+    await this.db
+      .update(sessions)
+      .set({
+        isActive: false,
+        revokedAt: new Date(),
+        revokedReason: 'revoked_by_user',
+      })
+      .where(eq(sessions.userId, userId));
+  }
+
+  async generateTokens(user: UserWithRelations): Promise<[string, string]> {
+    const payload = {
+      sub: user.id,
+      username: user.username,
+      isSystemAdmin: user.isSystemAdmin || false,
+    };
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: '1h',
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d',
+    });
+
+    return [accessToken, refreshToken];
+  }
+
+  private async createSession(
+    userId: string,
+    refreshToken: string,
+    tokenHash: string,
+    context: LoginContext,
+  ) {
+    const previousSession = await this.db.query.sessions.findFirst({
+      where: and(eq(sessions.userId, userId), eq(sessions.isActive, true)),
+      orderBy: (s, { desc }) => [desc(s.createdAt)],
+    });
+
+    const [session] = await this.db
+      .insert(sessions)
+      .values({
+        userId,
+        refreshToken,
+        refreshTokenHash: tokenHash,
+        refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        previousRefreshTokenHash: previousSession?.refreshTokenHash,
+        lastRotatedAt: previousSession?.lastRotatedAt,
+        rotationCount: sql`(${previousSession?.rotationCount || 0}) + 1`,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        deviceFingerprint: context.deviceFingerprint,
+        authMethod: AUTH_METHODS.PASSWORD,
+        correlationId: randomBytes(16).toString('hex'),
+      })
+      .returning();
+
+    return session;
+  }
+
+  private async rotateSession(previousSession: any) {
+    await this.db
+      .update(sessions)
+      .set({
+        refreshToken: '',
+        previousRefreshTokenHash: previousSession.refreshTokenHash,
+        lastRotatedAt: new Date(),
+        isActive: false,
+        revokedAt: new Date(),
+        revokedReason: 'rotation',
+      })
+      .where(eq(sessions.id, previousSession.id));
+  }
+
+  private async revokeOldSessionsIfNeeded(userId: string) {
+    const activeSessions = await this.db.query.sessions.findMany({
+      where: and(eq(sessions.userId, userId), eq(sessions.isActive, true)),
+      orderBy: (s, { desc }) => [desc(s.createdAt)],
+      limit: MAX_CONCURRENT_SESSIONS + 1,
+    });
+
+    if (activeSessions.length > MAX_CONCURRENT_SESSIONS) {
+      const toRevoke = activeSessions.slice(MAX_CONCURRENT_SESSIONS);
+      for (const session of toRevoke) {
+        await this.db
+          .update(sessions)
+          .set({
+            isActive: false,
+            revokedAt: new Date(),
+            revokedReason: 'max_sessions_exceeded',
+          })
+          .where(eq(sessions.id, session.id));
+      }
+    }
+  }
+
+  private async checkSessionAnomalies(session: any, context: LoginContext) {
+    if (context.ipAddress && session.ipAddress !== context.ipAddress) {
+      this.logger.warn(
+        `Session anomaly detected: IP changed from ${session.ipAddress} to ${context.ipAddress} for user ${session.userId}`,
+      );
+    }
+
+    if (
+      context.deviceFingerprint &&
+      session.deviceFingerprint !== context.deviceFingerprint
+    ) {
+      this.logger.warn(
+        `Session anomaly detected: device changed for user ${session.userId}`,
+      );
+    }
+  }
+
+  private async checkRateLimit(userId: string): Promise<boolean> {
+    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+
+    const recentFailedAttempts = await this.db.query.loginAttempts.findMany({
+      where: and(
+        eq(loginAttempts.userId, userId),
+        eq(loginAttempts.success, false),
+        gt(loginAttempts.createdAt, windowStart),
+      ),
+    });
+
+    return recentFailedAttempts.length >= MAX_LOGIN_ATTEMPTS;
+  }
+
+  private async logLoginAttempt(
+    userId: string | null,
+    username: string,
+    success: boolean,
+    failureReason: string | undefined,
+    context: LoginContext,
+  ) {
+    await this.db.insert(loginAttempts).values({
+      userId,
+      username,
+      ipAddress: context.ipAddress || 'unknown',
+      userAgent: context.userAgent,
+      deviceFingerprint: context.deviceFingerprint,
+      success,
+      failureReason,
+      correlationId: randomBytes(16).toString('hex'),
+    });
+  }
+
+  async updateLastLogin(userId: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({
+        lastLoginAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+  }
+
+  private formatAuthUser(user: UserWithRelations) {
+    const memberships = (user.tenantMembers || []).map((m) => ({
+      tenantId: m.tenantId,
+      tenantName: m.tenant?.name,
+      role: {
+        id: m.role?.id,
+        name: m.role?.name,
+      },
+      permissions: (m.role?.rolePermissions || []).map((rp: any) => ({
+        resource: rp.permission?.resource,
+        action: rp.permission?.action,
+        scope: rp.permission?.scope,
+      })),
+    }));
+
+    const activeMembership = memberships[0];
+
+    const specialPermissions = (user.userPermissions || [])
+      .filter(
+        (up) => !activeMembership || up.tenantId === activeMembership.tenantId,
+      )
+      .map((up) => ({
+        resource: up.permission?.resource,
+        action: up.permission?.action,
+        scope: up.permission?.scope,
+      }));
+
+    const consolidatedPermissions = activeMembership
+      ? [...activeMembership.permissions, ...specialPermissions]
+      : specialPermissions;
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      fullname: user.fullname,
+      status: user.status,
+      isSystemAdmin: user.isSystemAdmin || false,
+      activeTenantId: activeMembership?.tenantId || null,
+      memberships,
+      permissions: consolidatedPermissions,
+    };
   }
 }

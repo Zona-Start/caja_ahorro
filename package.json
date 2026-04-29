@@ -6,6 +6,7 @@
   "scripts": {
     "add:api": "pnpm add --filter=api",
     "add:web": "pnpm add --filter=web",
+    "add:web-server": "pnpm add --filter=web-server",
     "build": "turbo build",
     "changeset": "changeset",
     "clear:modules": "npx npkill",
@@ -16,6 +17,7 @@
     "dev": "turbo dev",
     "dev:api": "pnpm dev --filter=api",
     "dev:web": "pnpm dev --filter=web",
+    "dev:web-server": "pnpm dev --filter=web-server",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "lint": "turbo lint",

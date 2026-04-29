@@ -1,47 +1,65 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+// src/common/guards/roles.guard.ts
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { IS_PUBLIC_KEY } from '../decorators';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(
-    private reflector: Reflector,
-  ) {}
+  constructor(private reflector: Reflector) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  canActivate(context: ExecutionContext): boolean {
+    // 1. Si la ruta es pública, ignoramos la validación de roles
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-    
-    if (isPublic) {
-      return true;
-    }
-    
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    
+    if (isPublic) return true;
+
+    // 2. Obtener roles requeridos
+    const requiredRoles = this.reflector.getAllAndOverride<string[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
-    
-    const { user } = context.switchToHttp().getRequest();
-    
+
+    const request = context.switchToHttp().getRequest();
+    const { user } = request;
+
+    // 🚨 SEGURIDAD: Si requiere rol y no hay usuario, denegar acceso
     if (!user) {
-      return false;
+      throw new UnauthorizedException(
+        'Autenticación requerida para verificar roles',
+      );
     }
-    
-    // Si el usuario es SUPERADMIN, permitir acceso sin verificar más
-    if (user.isSuperAdmin) {
+
+    // Leer del contexto inyectado por TenantGuard
+    const userRoleName: string | undefined = request.userRole;
+
+    if (userRoleName === 'superadmin') {
       return true;
     }
-    
-    // Verificar si el usuario tiene alguno de los roles requeridos
-    return requiredRoles.some(role => 
-      user.roles.includes(role)
-    );
+
+    if (!userRoleName) {
+      throw new ForbiddenException('El usuario no tiene un rol asignado');
+    }
+
+    const hasRole = requiredRoles.includes(userRoleName);
+    if (!hasRole) {
+      throw new ForbiddenException(
+        'Permisos insuficientes: requiere un rol superior',
+      );
+    }
+
+    return true;
   }
 }

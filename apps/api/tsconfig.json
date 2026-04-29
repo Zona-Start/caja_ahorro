@@ -4,7 +4,9 @@
     "strict": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": false,
+    "allowSyntheticDefaultImports": true,
     "outDir": "./dist",
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "baseUrl": "./",
     "paths": {
       "@/*": ["./src/*"]

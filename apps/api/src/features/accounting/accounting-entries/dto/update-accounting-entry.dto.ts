@@ -1,23 +1,26 @@
-import { ApiProperty, PartialType, OmitType } from '@nestjs/swagger';
-import { CreateAccountingEntryDto } from './create-accounting-entry.dto';
-import { IsOptional, ValidateNested, ArrayMinSize, IsEnum, IsDate } from 'class-validator';
-import { Type } from 'class-transformer';
-import { UpdateAccountingEntryDetailDto } from './update-accounting-entry-detail.dto';
-import { CurrencyCodeEnum } from '@/types/enum';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
+// Importamos el BASE, no el que tiene el refine
+import { CreateAccountingEntryBaseSchema } from './create-accounting-entry.dto';
+import { UpdateAccountingEntryDetailSchema } from './update-accounting-entry-detail.dto';
 
-export class UpdateAccountingEntryDto extends PartialType(
-  OmitType(CreateAccountingEntryDto, ['details', 'entryDate']),
-) {
-  @ApiProperty({ type: () => [UpdateAccountingEntryDetailDto], description: 'Detalles del asiento contable', required: false })
-  @IsOptional()
-  @ArrayMinSize(2, { message: 'Un asiento contable debe tener al menos dos detalles (débito y crédito)' })
-  @ValidateNested({ each: true })
-  @Type(() => UpdateAccountingEntryDetailDto)
-  details?: UpdateAccountingEntryDetailDto[];
+export const UpdateAccountingEntrySchema = CreateAccountingEntryBaseSchema.omit(
+  {
+    details: true,
+    entryDate: true,
+  },
+)
+  .partial() // Esto hace que todos los campos del base sean opcionales
+  .extend({
+    // Redefinimos los campos específicos para el update
+    details: z
+      .array(UpdateAccountingEntryDetailSchema)
+      .min(2, { message: 'Debe tener al menos dos detalles' })
+      .optional(),
 
-  @ApiProperty({ description: 'Fecha contable del asiento', required: false })
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  entryDate?: Date;
-}
+    entryDate: z.coerce.date().optional(),
+  });
+
+export class UpdateAccountingEntryDto extends createZodDto(
+  UpdateAccountingEntrySchema,
+) {}

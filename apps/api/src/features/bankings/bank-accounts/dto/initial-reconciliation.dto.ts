@@ -1,28 +1,23 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsDate, IsNotEmpty, IsNumber } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class InitialReconciliationDto {
-  @ApiProperty()
-  @IsBoolean()
-  createAdjustment: boolean;
+export const InitialReconciliationSchema = z.object({
+  createAdjustment: z.boolean().describe('Indica si se debe crear un ajuste'),
 
-  @ApiProperty()
-  @IsNumber()
-  @IsNotEmpty()
-  bankAccountId: number;
+  bankAccountId: z.number().positive().describe('ID de la cuenta bancaria'),
 
-  @ApiProperty()
-  @IsNumber()
-  @IsNotEmpty()
-  lastStatementBalance: number;
+  lastStatementBalance: z
+    .number()
+    .describe('Saldo del último estado de cuenta'),
 
-  @ApiProperty()
-  @IsDate()
-  @IsNotEmpty()
-  lastStatementDate: Date;
+  // z.coerce.date() intenta convertir automáticamente strings a objetos Date
+  lastStatementDate: z.coerce
+    .date()
+    .describe('Fecha del último estado de cuenta'),
 
-  @ApiProperty()
-  @IsDate()
-  @IsNotEmpty()
-  reconciliationDate: Date;
-}
+  reconciliationDate: z.coerce.date().describe('Fecha de la conciliación'),
+});
+
+export class InitialReconciliationDto extends createZodDto(
+  InitialReconciliationSchema,
+) {}

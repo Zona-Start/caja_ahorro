@@ -1,8 +1,11 @@
+import 'dotenv/config';
 import type { Config } from 'drizzle-kit';
-import { envs } from './common/config/envs';
+import { envVarsSchema } from './common/config/envs';
+
+const envVars = envVarsSchema.parse(process.env);
 
 export default {
-  schema: './src/database/schema/*', // Path to schema file
+  schema: './src/database/schema', // Path to schema file
   out: './src/database/migrations', // Path to output directory
   dialect: 'postgresql', // Database dialect
   schemaFilter: [
@@ -10,12 +13,13 @@ export default {
     'auth',
     'accounting',
     'savings-banks',
-    'banking',
-    'administration',
+    'treasury',
+    'purchasing',
     'inventory',
     'core',
+    'audit',
   ],
   dbCredentials: {
-    url: envs.dataBaseUrl,
+    url: envVars.DATABASE_URL,
   },
 } satisfies Config;

@@ -1,1 +1,0 @@
-ALTER TABLE "accounting"."accounting_rules" ADD COLUMN "category" varchar(50) DEFAULT 'ACCOUNTING' NOT NULL;

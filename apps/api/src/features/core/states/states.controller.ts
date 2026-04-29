@@ -1,5 +1,4 @@
 import { Roles } from '@/common/decorators';
-import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
 import {
   Body,
   Controller,
@@ -23,7 +22,6 @@ export class StatesController {
 
   @Get()
   @Roles('admin', 'user')
-  @RequirePermissions('read:states')
   @ApiOperation({ summary: 'Get all states' })
   @ApiResponse({ status: 200, description: 'Return all states', type: [State] })
   findAll() {
@@ -32,7 +30,6 @@ export class StatesController {
 
   @Get(':id')
   @Roles('admin', 'user')
-  @RequirePermissions('read:states')
   @ApiOperation({ summary: 'Get a state by id' })
   @ApiResponse({ status: 200, description: 'Return a state', type: State })
   @ApiResponse({ status: 404, description: 'State not found' })
@@ -42,7 +39,6 @@ export class StatesController {
 
   @Post()
   @Roles('admin')
-  @RequirePermissions('create:states')
   @ApiOperation({ summary: 'Create a new state' })
   @ApiResponse({ status: 201, description: 'State created', type: State })
   create(@Body() createStateDto: CreateStateDto) {
@@ -51,7 +47,6 @@ export class StatesController {
 
   @Patch(':id')
   @Roles('admin')
-  @RequirePermissions('update:states')
   @ApiOperation({ summary: 'Update a state' })
   @ApiResponse({ status: 200, description: 'State updated', type: State })
   @ApiResponse({ status: 404, description: 'State not found' })
@@ -64,7 +59,6 @@ export class StatesController {
 
   @Delete(':id')
   @Roles('admin')
-  @RequirePermissions('delete:states')
   @ApiOperation({ summary: 'Delete a state' })
   @ApiResponse({ status: 200, description: 'State deleted' })
   @ApiResponse({ status: 404, description: 'State not found' })

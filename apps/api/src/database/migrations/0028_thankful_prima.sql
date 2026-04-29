@@ -1,1 +1,0 @@
-ALTER TABLE "accounting"."accounting_rules" DROP COLUMN "reference_id";

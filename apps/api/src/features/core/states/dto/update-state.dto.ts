@@ -1,4 +1,7 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateStateDto } from './create-state.dto';
+import { createZodDto } from 'nestjs-zod';
+import { CreateStateSchema } from './create-state.dto';
 
-export class UpdateStateDto extends PartialType(CreateStateDto) {}
+// Creamos el esquema parcial basado en el de creación
+export const UpdateStateSchema = CreateStateSchema.partial();
+
+export class UpdateStateDto extends createZodDto(UpdateStateSchema) {}

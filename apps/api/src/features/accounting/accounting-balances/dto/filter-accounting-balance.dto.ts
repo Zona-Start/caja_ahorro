@@ -1,12 +1,21 @@
-import { IsOptional, IsString } from 'class-validator';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { createZodDto } from 'nestjs-zod';
+import { PaginationSchema } from 'src/common/dto/pagination.dto';
+import { z } from 'zod';
 
-export class FilterAccountingBalanceDto extends PaginationDto {
-  @IsOptional()
-  @IsString()
-  accountingCycleId?: string;
+// Extendemos el esquema base de paginación
+export const FilterAccountingBalanceSchema = PaginationSchema.extend({
+  accountingCycleId: z
+    .string()
+    .uuid({ message: 'El ID del ciclo contable debe ser un UUID válido' })
+    .optional(),
 
-  @IsOptional()
-  @IsString()
-  companyId?: string;
-}
+  tenantId: z
+    .string()
+    .uuid({ message: 'El ID del tenant debe ser un UUID válido' })
+    .optional(),
+});
+
+// Definimos la clase DTO para NestJS
+export class FilterAccountingBalanceDto extends createZodDto(
+  FilterAccountingBalanceSchema,
+) {}

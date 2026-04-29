@@ -1,22 +1,20 @@
-import { accountPlan } from '@/database/schema/tables';
-import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
-import { ActionEnumAudit } from '@/types/enum';
+import { accountPlan } from '@/database/schema';
+import { AccountPlan } from '@/database/types/accounting';
+import { AuditHelper } from '@/features/audit/audit-event.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
-import * as schema from 'src/database/index';
+import * as schema from 'src/database/schema';
 import { UpdateAccountPlanDto } from './dto//update-account-plan.dto';
 import { CreateAccountPlanDto } from './dto/create-account-plan.dto';
 import { FilterAccountPlanDto } from './dto/filter-account-plan.dto';
-import { AccountPlan } from './entities/account-plan.entity';
 
 @Injectable()
 export class AccountPlanService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly auditHelper: AuditHelper,
   ) {}
 
   async findAccountPlanByCode(code: string) {
@@ -26,7 +24,11 @@ export class AccountPlanService {
       .where(eq(accountPlan.code, code));
   }
 
-  async create(userdId: number, createAccountPlanDto: CreateAccountPlanDto) {
+  async create(
+    createAccountPlanDto: CreateAccountPlanDto,
+    tenantId: string,
+    userId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const existsAccountPlan = await tx
         .select()
@@ -34,9 +36,9 @@ export class AccountPlanService {
         .where(
           and(
             eq(accountPlan.code, createAccountPlanDto.code),
-            eq(accountPlan.level, createAccountPlanDto.level),
+            eq(accountPlan.tenantId, tenantId),
           ),
-        ); // Check if account plan already exists in the databas
+        );
 
       if (existsAccountPlan.length !== 0) {
         throw new NotFoundException(`Account Plan already exists`);
@@ -44,7 +46,7 @@ export class AccountPlanService {
       const result = await tx
         .insert(accountPlan)
         .values({
-          companyId: createAccountPlanDto.companyId,
+          tenantId: tenantId,
           code: createAccountPlanDto.code,
           name: createAccountPlanDto.name,
           description: createAccountPlanDto.description,
@@ -54,34 +56,29 @@ export class AccountPlanService {
           allowsMovements: createAccountPlanDto.allowsMovements,
           isActive: createAccountPlanDto.isActive,
           parentAccountId: createAccountPlanDto.parentAccountId,
-          createdById: userdId,
+          createdById: userId,
         })
         .returning();
 
       // Registra el log auditoria
-      this.eventEmitter.emit(
-        'audit.log',
-        new AuditLogEvent({
-          tableName: 'accountPlan',
-          recordId: String(result[0].id),
-          action: ActionEnumAudit.INSERT,
-          userId: Number(userdId),
-          area: 'CONTABLE',
-          description: 'Creación de Plan de Cuenta',
-          newData: [result[0]],
-        }),
-      );
+      await this.auditHelper.logCreate(tenantId, 'accountPlan', result[0], {
+        targetId: result[0].id,
+        description: `Created Account Plan ${result[0].name}`,
+      });
 
       return result[0];
     });
   }
 
-  async findAll() {
-    return await this.drizzle.select().from(accountPlan);
-    //.where(eq(accountPlan.allowsMovements, true));
+  async findAll(tenantId: string) {
+    return await this.drizzle
+      .select()
+      .from(accountPlan)
+      .where(eq(accountPlan.tenantId, tenantId));
   }
 
   async findAllByPagination(
+    tenantId: string,
     paginationDto?: FilterAccountPlanDto,
   ): Promise<{ data: AccountPlan[]; meta: any }> {
     const {
@@ -95,11 +92,9 @@ export class AccountPlanService {
       level = '',
     } = paginationDto || {};
 
-    // Calculate offset
     const offset = (page - 1) * limit;
 
-    // Build search condition
-    let searchConditions: SQL<unknown>[] = [];
+    let searchConditions: SQL<unknown>[] = [eq(accountPlan.tenantId, tenantId)];
 
     if (search) {
       switch (searchType) {
@@ -113,24 +108,20 @@ export class AccountPlanService {
     }
 
     if (type) {
-      searchConditions.push(eq(accountPlan.accountType, type));
+      searchConditions.push(eq(accountPlan.accountType, type as any));
     }
 
     if (level) {
       searchConditions.push(eq(accountPlan.level, Number(level)));
     }
 
-    const searchCondition = searchConditions.length
-      ? and(...searchConditions)
-      : undefined;
+    const searchCondition = and(...searchConditions);
 
-    // Build sort condition
     const orderBy =
       sortOrder === 'asc'
         ? sql`${accountPlan[sortBy as keyof typeof accountPlan]} asc`
         : sql`${accountPlan[sortBy as keyof typeof accountPlan]} desc`;
 
-    // Get total count for pagination
     const totalCountResult = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(accountPlan)
@@ -139,28 +130,14 @@ export class AccountPlanService {
     const totalCount = Number(totalCountResult[0].count);
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Get paginated data
     const data = await this.drizzle
-      .select({
-        id: accountPlan.id,
-        companyId: accountPlan.companyId,
-        code: accountPlan.code,
-        name: accountPlan.name,
-        description: accountPlan.description,
-        accountType: accountPlan.accountType,
-        nature: accountPlan.nature,
-        level: accountPlan.level,
-        allowsMovements: accountPlan.allowsMovements,
-        isActive: accountPlan.isActive,
-        parentAccountId: accountPlan.parentAccountId,
-      })
+      .select()
       .from(accountPlan)
       .where(searchCondition)
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
 
-    // Build pagination metadata
     const meta = {
       page,
       limit,
@@ -178,12 +155,16 @@ export class AccountPlanService {
     };
   }
 
-  async findOne(id: number, tx?: NodePgDatabase<typeof schema>) {
+  async findOne(
+    tenantId: string,
+    id: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
     const db = tx ?? this.drizzle;
     const result = await db
       .select()
       .from(accountPlan)
-      .where(eq(accountPlan.id, id));
+      .where(and(eq(accountPlan.id, id), eq(accountPlan.tenantId, tenantId)));
 
     if (!result.length) {
       throw new NotFoundException(`Account Plan with ID ${id} not found`);
@@ -193,68 +174,50 @@ export class AccountPlanService {
   }
 
   async update(
-    userdId: number,
-    id: number,
+    id: string,
+    tenantId: string,
+    userId: string,
     updateAccountPlanDto: UpdateAccountPlanDto,
   ) {
     return this.drizzle.transaction(async (tx) => {
-      const existingAccountPlan = await this.findOne(id, tx);
-
-      if (!existingAccountPlan) {
-        throw new NotFoundException(
-          `Update Account Plan with ID ${id} not found`,
-        );
-      }
+      const existingAccountPlan = await this.findOne(tenantId, id, tx);
 
       const result = await tx
         .update(accountPlan)
         .set({
           ...updateAccountPlanDto,
-          updatedById: userdId,
+          updatedById: userId,
         })
-        .where(eq(accountPlan.id, id))
+        .where(and(eq(accountPlan.id, id), eq(accountPlan.tenantId, tenantId)))
         .returning();
 
-      // Registra el log auditoria
-      this.eventEmitter.emit(
-        'audit.log',
-        new AuditLogEvent({
-          tableName: 'accountPlan',
-          recordId: String(result[0].id),
-          action: ActionEnumAudit.UPDATE,
-          userId: Number(userdId),
-          area: 'CONTABLE',
-          description: 'Actualizacion de Plan de Cuenta',
-          newData: [result[0]],
-        }),
+      await this.auditHelper.logUpdate(
+        tenantId,
+        'accountPlan',
+        existingAccountPlan,
+        result[0],
+        { targetId: id, description: `Updated Account Plan ${result[0].name}` },
       );
 
       return result[0];
     });
   }
 
-  async remove(id: number, userdId: number) {
-    const existingAccountPlan = await this.findOne(id);
-    if (!existingAccountPlan) {
-      throw new NotFoundException(
-        `Delete Account Plan with ID ${id} not found`,
-      );
-    }
+  async remove(id: string, tenantId: string, userId: string) {
+    const existingAccountPlan = await this.findOne(tenantId, id);
 
-    await this.drizzle.delete(accountPlan).where(eq(accountPlan.id, id));
+    await this.drizzle
+      .delete(accountPlan)
+      .where(and(eq(accountPlan.id, id), eq(accountPlan.tenantId, tenantId)));
 
-    // Registra el log auditoria
-    this.eventEmitter.emit(
-      'audit.log',
-      new AuditLogEvent({
-        tableName: 'accountPlan',
-        recordId: String(id),
-        action: ActionEnumAudit.DELETE,
-        userId: Number(userdId),
-        area: 'CONTABLE',
-        description: 'Eliminacion de Plan de Cuenta',
-        newData: [id],
-      }),
+    await this.auditHelper.logDelete(
+      tenantId,
+      'accountPlan',
+      existingAccountPlan,
+      {
+        targetId: id,
+        description: `Deleted Account Plan ${existingAccountPlan.name}`,
+      },
     );
 
     return { message: 'Account Plan deleted successfully' };

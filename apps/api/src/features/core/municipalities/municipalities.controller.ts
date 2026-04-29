@@ -1,5 +1,4 @@
 import { Roles } from '@/common/decorators';
-import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
 import {
   Body,
   Controller,
@@ -16,14 +15,13 @@ import { UpdateMunicipalityDto } from './dto/update-municipality.dto';
 import { Municipality } from './entities/municipality.entity';
 import { MunicipalitiesService } from './municipalities.service';
 
-@ApiTags('Municipalities')
+@ApiTags('core/Municipalities')
 @Controller('core/municipalities')
 export class MunicipalitiesController {
   constructor(private readonly municipalitiesService: MunicipalitiesService) {}
 
   @Get()
   @Roles('admin', 'user')
-  @RequirePermissions('read:municipalities')
   @ApiOperation({ summary: 'Get all municipalities' })
   @ApiResponse({
     status: 200,
@@ -36,7 +34,6 @@ export class MunicipalitiesController {
 
   @Get(':id')
   @Roles('admin', 'user')
-  @RequirePermissions('read:municipalities')
   @ApiOperation({ summary: 'Get a municipality by id' })
   @ApiResponse({
     status: 200,
@@ -50,7 +47,6 @@ export class MunicipalitiesController {
 
   @Get('state/:stateId')
   @Roles('admin', 'user')
-  @RequirePermissions('read:municipalities')
   @ApiOperation({ summary: 'Get municipalities by state id' })
   @ApiResponse({
     status: 200,
@@ -64,7 +60,6 @@ export class MunicipalitiesController {
 
   @Post()
   @Roles('ADMIN')
-  @RequirePermissions('create:municipalities')
   @ApiOperation({ summary: 'Create a new municipality' })
   @ApiResponse({
     status: 201,
@@ -77,7 +72,6 @@ export class MunicipalitiesController {
 
   @Patch(':id')
   @Roles('ADMIN')
-  @RequirePermissions('update:municipalities')
   @ApiOperation({ summary: 'Update a municipality' })
   @ApiResponse({
     status: 200,
@@ -94,7 +88,6 @@ export class MunicipalitiesController {
 
   @Delete(':id')
   @Roles('ADMIN')
-  @RequirePermissions('delete:municipalities')
   @ApiOperation({ summary: 'Delete a municipality' })
   @ApiResponse({ status: 200, description: 'Municipality deleted' })
   @ApiResponse({ status: 404, description: 'Municipality not found' })

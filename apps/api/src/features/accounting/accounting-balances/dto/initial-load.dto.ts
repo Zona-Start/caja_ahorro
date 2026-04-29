@@ -1,35 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsArray,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
+import { z } from 'zod';
 
-export class BalanceDto {
-  @ApiProperty({ description: 'Account code' })
-  @IsString()
-  @IsNotEmpty()
-  accountCode: string;
+export const BalanceSchema = z.object({
+  accountCode: z.string().min(1),
+  descripcion: z.string().min(1),
+  balance: z.coerce.number(),
+});
 
-  @ApiProperty({ description: 'Account description' })
-  @IsString()
-  @IsNotEmpty()
-  descripcion: string;
+export const InitialLoadSchema = z.object({
+  balances: z.array(BalanceSchema).optional(),
+});
 
-  @ApiProperty({ description: 'Balance' })
-  @IsNumber()
-  balance: number;
-}
-
-export class InitialLoadDto {
-  @ApiProperty({ type: [BalanceDto], required: false })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BalanceDto)
-  balances?: BalanceDto[];
-}
+export type InitialLoadDto = z.infer<typeof InitialLoadSchema>;

@@ -1,1 +1,0 @@
-ALTER TYPE "public"."withdrawal_status_enum" ADD VALUE 'PROCESSED' BEFORE 'DISBURSEMENT_FAILED';

@@ -1,9 +1,18 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CloseCycleDto {
-  @ApiProperty({ description: 'Is this a fiscal year end closing?' })
-  @IsBoolean()
-  @IsOptional()
-  isFiscalYearEnd?: boolean;
-}
+export const CloseCycleSchema = z.object({
+  tenantId: z
+    .string()
+    .uuid({ message: 'El tenantId debe ser un UUID válido' })
+    .optional(),
+
+  isFiscalYearEnd: z
+    .boolean({
+      invalid_type_error: 'isFiscalYearEnd debe ser un valor booleano',
+    })
+    .default(false)
+    .optional(),
+});
+
+export class CloseCycleDto extends createZodDto(CloseCycleSchema) {}

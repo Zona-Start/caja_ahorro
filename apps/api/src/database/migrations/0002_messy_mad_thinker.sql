@@ -1,1 +1,0 @@
-ALTER TABLE "savings_banks"."associate_account_movements" ALTER COLUMN "reference_number" DROP NOT NULL;

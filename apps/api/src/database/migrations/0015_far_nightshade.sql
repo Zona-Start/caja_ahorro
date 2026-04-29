@@ -1,1 +1,0 @@
-CREATE TYPE "public"."closing_status" AS ENUM('SUCCESS', 'FAILED', 'MANUAL_REVERTED');

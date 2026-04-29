@@ -1,16 +1,5 @@
-import { PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
-import { CreateBankDirectoryDto } from './create-bank-directory.dto';
+import z from 'zod';
+import { CreateBankDirectorySchema } from './bank-directory.schema';
 
-export class UpdateBankDirectoryDto extends PartialType(
-  CreateBankDirectoryDto,
-) {
-  @IsOptional()
-  @IsString()
-  @MaxLength(3)
-  countryCode?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: string;
-}
+export const UpdateBankDirectorySchema = CreateBankDirectorySchema.partial();
+export type UpdateBankDirectoryDto = z.infer<typeof UpdateBankDirectorySchema>;

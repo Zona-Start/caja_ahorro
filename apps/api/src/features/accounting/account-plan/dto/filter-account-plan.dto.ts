@@ -1,20 +1,20 @@
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 import { AccountTypeEnum } from '@/types/enum';
-import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PaginationSchema } from 'src/common/dto/pagination.dto';
 
-export class FilterAccountPlanDto extends PartialType(PaginationDto) {
-  @ApiPropertyOptional({
-    description: 'Column type',
-    enum: AccountTypeEnum,
-    enumName: 'AccountTypeEnum',
-  })
-  @IsOptional()
-  @IsEnum(AccountTypeEnum)
-  type?: AccountTypeEnum;
+// Extendemos el esquema de paginación que ya creamos
+export const FilterAccountPlanSchema = PaginationSchema.extend({
+  type: z
+    .nativeEnum(AccountTypeEnum, {
+      errorMap: () => ({ message: "Tipo de cuenta inválido" }),
+    })
+    .optional(),
 
-  @ApiPropertyOptional({ description: 'Column level' })
-  @IsOptional()
-  @IsString()
-  level?: string;
-}
+  level: z
+    .string()
+    .optional(),
+});
+
+// Creamos la clase DTO
+export class FilterAccountPlanDto extends createZodDto(FilterAccountPlanSchema) {}

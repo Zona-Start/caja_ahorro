@@ -1,20 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateParishDto {
-  @ApiProperty({
-    description: 'The name of the parish',
-    example: 'Downtown',
-  })
-  @IsNotEmpty()
-  @IsString()
-  name: string;
+export const CreateParishSchema = z.object({
+  name: z
+    .string()
+    .min(1, 'El nombre de la parroquia es obligatorio')
+    .describe('The name of the parish'),
 
-  @ApiProperty({
-    description: 'The ID of the municipality this parish belongs to',
-    example: 1,
-  })
-  @IsNotEmpty()
-  @IsNumber()
-  municipalityId: number;
-}
+  municipalityId: z
+    .number()
+    .positive('El ID del municipio debe ser un número positivo')
+    .describe('The ID of the municipality this parish belongs to'),
+});
+
+export class CreateParishDto extends createZodDto(CreateParishSchema) {}

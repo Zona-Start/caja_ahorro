@@ -1,5 +1,5 @@
-import { Roles } from '@/common/decorators';
-import { RequirePermissions } from '@/common/decorators/permissions.decorator';
+import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -9,113 +9,88 @@ import {
   Post,
   Query,
   Req,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountingCyclesService } from './accounting-cycles.service';
-import { CreateAccountingCycleDto } from './dto/create-accounting-cycle.dto';
-import { FilterAccountingCycleDto } from './dto/filter-accounting-cycle.dto';
-import { UpdateAccountingCycleDto } from './dto/update-accounting-cycle.dto';
+import {
+  CreateAccountingCycleDto,
+  FilterAccountingCycleDto,
+  UpdateAccountingCycleDto,
+} from './dto/accounting-cycles.schema';
 
 @ApiTags('accounting-cycles')
 @Controller('accounting-cycles')
+@UseInterceptors(ReqLogInterceptor)
 export class AccountingCyclesController {
   constructor(
-    private readonly accountingCyclesService: AccountingCyclesService,
+    private readonly service: AccountingCyclesService,
+    private readonly tenantContextService: TenantContextService,
   ) {}
 
   @Post()
-  @Roles('superadmin', 'admin')
-  @RequirePermissions('create:accounting-cycle')
   @ApiOperation({ summary: 'Create a new accounting cycle' })
   @ApiResponse({
     status: 201,
-    description: 'Accountign Cycle created successfully.',
+    description: 'Accounting Cycle created successfully.',
   })
-  async create(
-    @Req() req: Request,
-    @Body() createAccountingCycleDto: CreateAccountingCycleDto,
-  ) {
-    const userId = req['user'].id;
-    const data = await this.accountingCyclesService.create(
-      userId,
-      createAccountingCycleDto,
-    );
-    return { message: 'Accouting Cycle created successfully', data };
+  async create(@Req() req: any, @Body() dto: CreateAccountingCycleDto) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    const data = await this.service.create(targetTenantId, userId, dto);
+    return { message: 'Accounting Cycle created successfully', data };
   }
 
   @Get()
-  @RequirePermissions('read:accounting-cycle')
-  @ApiOperation({ summary: 'Get all accounting cycle' })
-  @ApiResponse({ status: 200, description: 'Return all accounting cycle.' })
-  async findAll() {
-    const data = await this.accountingCyclesService.findAll();
-    return { message: 'Accouting Cycle fetched successfully', data };
+  @ApiOperation({ summary: 'Get all accounting cycles' })
+  async findAll(@Req() req: any) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const data = await this.service.findAll(targetTenantId);
+    return { message: 'Accounting Cycles fetched successfully', data };
   }
 
   @Get('/paginated')
-  @RequirePermissions('read:accounting-cycle')
-  @ApiOperation({
-    summary: 'Get all Accouting Cycle with pagination and filters',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Return paginated Accouting Cycle.',
-  })
-  async findAllPaginated(@Query() paginationDto: FilterAccountingCycleDto) {
-    const result =
-      await this.accountingCyclesService.findAllPaginated(paginationDto);
+  @ApiOperation({ summary: 'Get all Accounting Cycles with pagination' })
+  async findAllPaginated(
+    @Req() req: any,
+    @Query() dto: FilterAccountingCycleDto,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const result = await this.service.findAllPaginated(targetTenantId, dto);
     return {
-      message: 'Accouting Cycle fetched successfully',
+      message: 'Accounting Cycles fetched successfully',
       data: result.data,
       meta: result.meta,
     };
   }
 
   @Get(':id')
-  @RequirePermissions('read:accounting-cycle')
-  @ApiOperation({ summary: 'Get a Accouting Cycle by ID' })
-  @ApiResponse({ status: 200, description: 'Return the Accouting Cycle.' })
-  @ApiResponse({ status: 404, description: 'User not Accouting Cycle.' })
-  async findOne(@Param('id') id: string) {
-    const data = await this.accountingCyclesService.findOne(+id);
-    return { message: 'Accouting Cycle fetched successfully', data };
+  @ApiOperation({ summary: 'Get an Accounting Cycle by ID' })
+  async findOne(@Req() req: any, @Param('id') id: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const data = await this.service.findOne(targetTenantId, id);
+    return { message: 'Accounting Cycle fetched successfully', data };
   }
 
   @Patch(':id')
-  @Roles('superadmin', 'admin')
-  @RequirePermissions('update:accounting-cycle')
-  @ApiOperation({ summary: 'Update a Accouting Cycle' })
-  @ApiResponse({
-    status: 200,
-    description: 'Accouting Cycle updated successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Accouting Cycle not found.' })
+  @ApiOperation({ summary: 'Update an Accounting Cycle' })
   async update(
-    @Req() req: Request,
+    @Req() req: any,
     @Param('id') id: string,
-    @Body() updateAccountingCycleDto: UpdateAccountingCycleDto,
+    @Body() dto: UpdateAccountingCycleDto,
   ) {
-    const userId = req['user'].id;
-    const data = await this.accountingCyclesService.update(
-      userId,
-      +id,
-      updateAccountingCycleDto,
-    );
-    return { message: 'Accouting Cycle updated successfully', data };
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    const data = await this.service.update(targetTenantId, userId, id, dto);
+    return { message: 'Accounting Cycle updated successfully', data };
   }
 
   @Patch(':id/close')
-  @Roles('admin', 'contable')
-  @RequirePermissions('close:accounting-cycle')
-  @ApiOperation({ summary: 'Close a Accouting Cycle' })
-  @ApiResponse({
-    status: 200,
-    description: 'Accouting Cycle close successfully.',
-  })
-  @ApiResponse({ status: 404, description: 'Accouting Cycle not found.' })
-  async close(@Req() req: Request, @Param('id') id: string) {
-    const userId = req['user'].id;
-    const data = await this.accountingCyclesService.close(userId, +id);
-    return { message: 'Accouting Cycle closed successfully', data };
+  @ApiOperation({ summary: 'Close an Accounting Cycle' })
+  async close(@Req() req: any, @Param('id') id: string) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    const data = await this.service.close(targetTenantId, userId, id);
+    return { message: 'Accounting Cycle closed successfully', data };
   }
 }

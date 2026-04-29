@@ -1,1 +1,0 @@
-ALTER TABLE "accounting"."accounting_rules" ADD COLUMN "reference_value" varchar(255);

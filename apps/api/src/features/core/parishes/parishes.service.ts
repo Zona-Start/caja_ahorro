@@ -1,5 +1,5 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/index';
+import * as schema from '@/database/schema';
 import { municipalities, parishes } from '@/database/schema/tables';
 import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';

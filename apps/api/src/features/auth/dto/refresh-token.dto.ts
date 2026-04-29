@@ -1,14 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class RefreshTokenDto {
-  @ApiProperty()
-  @IsString({
-    message: 'Refresh token must be a string',
-  })
-  refreshToken: string;
+export const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, 'El token de refresco es obligatorio'),
+});
 
-  @ApiProperty()
-  @IsNumber()
-  userId: number;
-}
+export class RefreshTokenDto extends createZodDto(RefreshTokenSchema) {}

@@ -1,44 +1,41 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  IsInt,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateAccountingEntryDetailDto {
-  @ApiProperty()
-  @IsInt()
-  @IsNotEmpty()
-  accountPlanId: number;
+export const CreateAccountingEntryDetailSchema = z
+  .object({
+    // Asumiendo el cambio a UUID que estamos aplicando en todo el sistema
+    accountPlanId: z
+      .string()
+      .uuid({ message: 'El ID de la cuenta debe ser un UUID válido' }),
 
-  @ApiProperty({
-    type: 'string',
-    format: 'float',
-    description: 'Monto del débito, debe ser 0 si hay crédito',
+    debit: z.coerce
+      .string()
+      .min(0, 'El débito no puede ser negativo')
+      .default('0.00'),
+
+    credit: z.coerce
+      .string()
+      .min(0, 'El crédito no puede ser negativo')
+      .default('0.00'),
+    associateId: z.string().uuid().optional().nullable(),
+    supplierId: z.string().uuid().optional().nullable(),
+    description: z
+      .string()
+      .max(255, 'La descripción es muy larga')
+      .optional()
+      .nullable(),
   })
-  @IsNumber({ maxDecimalPlaces: 6 })
-  @IsNumber()
-  @Type(() => Number)
-  debit: number;
+  .refine(
+    (data) =>
+      (Number(data.debit) > 0 && Number(data.credit) === 0) ||
+      (Number(data.credit) > 0 && Number(data.debit) === 0),
+    {
+      message:
+        'Debe haber un monto en débito o en crédito, pero no en ambos simultáneamente',
+      path: ['debit'], // El error se marcará en el campo debit
+    },
+  );
 
-  @ApiProperty({
-    type: 'string',
-    format: 'float',
-    description: 'Monto del crédito, debe ser 0 si hay débito',
-  })
-  @IsNumber({ maxDecimalPlaces: 6 })
-  @IsNumber()
-  @Type(() => Number)
-  credit: number;
-
-  @ApiProperty({
-    required: false,
-    description: 'Descripción del detalle del asiento',
-  })
-  @IsOptional()
-  @IsString()
-  description?: string;
-}
+export class CreateAccountingEntryDetailDto extends createZodDto(
+  CreateAccountingEntryDetailSchema,
+) {}

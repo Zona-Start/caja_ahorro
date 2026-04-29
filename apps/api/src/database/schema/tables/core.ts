@@ -1,59 +1,83 @@
 import {
   boolean,
-  date,
   index,
   integer,
   jsonb,
-  numeric,
   serial,
   text,
+  timestamp,
   uniqueIndex,
+  uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { timestamps, timestampsShort } from '../../timestamps';
-import * as enums from '../enum/enum'; // Importa tus enums
-import { coreSchema } from '../schemas';
-import { accountPlan } from './accounting';
+import { timestamps } from '../../timestamps';
+import { coreSchema } from '../_schemas';
+import * as enums from '../enum'; // Importa tus enums
+import { tenants } from './tenants';
 
-//Información general de la Compañia.
-export const company = coreSchema.table(
-  'company', // Company
+// === GLOBAL SETTINGS ===
+export const globalSettings = coreSchema.table(
+  'global_settings',
   {
-    id: serial('id').primaryKey(),
-    name: varchar('name', { length: 255 }).notNull(),
-    rif: varchar('rif', { length: 20 }).unique().notNull(),
-    address: text('address'),
-    phone: varchar('phone', { length: 50 }),
-    email: varchar('email', { length: 100 }).unique(),
-    contactPerson: text('contact_person'),
-    contactPhone: varchar('contact_phone', { length: 50 }),
-    contactEmail: varchar('contact_email', { length: 100 }),
-    ...timestampsShort,
+    id: uuid('id').primaryKey().defaultRandom(),
+    key: varchar('key', { length: 100 }).notNull().unique(),
+    value: text('value'),
+    description: text('description'),
+    category: varchar('category', { length: 50 }).notNull().default('general'),
+    isEncrypted: boolean('is_encrypted').default(false),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedBy: uuid('updated_by'),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
-  (table) => ({
-    nameIdx: index('company_name_idx').on(table.name),
-    rifIdx: uniqueIndex('company_rif_uidx').on(table.rif), // Asegurar unicidad a nivel DB
-  }),
+  (table) => [
+    index('global_settings_key_idx').on(table.key),
+    index('global_settings_category_idx').on(table.category),
+  ],
 );
 
-//Configuraciones generales del sistema (ej: Tasa de interés por mora, etc.)
-export const systemSettings = coreSchema.table('system_settings', {
-  id: serial('id').primaryKey(),
-  key: varchar('key', { length: 100 }).notNull().unique(), // La clave debe ser única
-  value: text('value').notNull(), // Valor de la clave
-  description: text('description'), // Descripción de funcionalidad
-  group: varchar('group', { length: 100 }), // Agrupación de la configuración (ej: 'INTEREST', 'FEES', etc.)
-  ...timestamps,
-});
+// === MODULE SETTINGS ===
+export const moduleSettings = coreSchema.table(
+  'module_settings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
+    module: varchar('module', { length: 50 }).notNull(),
+    submodule: varchar('submodule', { length: 50 }).notNull(),
+    key: varchar('key', { length: 100 }).notNull(),
+    value: text('value'),
+    description: text('description'),
+    isEncrypted: boolean('is_encrypted').default(false),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedBy: uuid('updated_by'),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('module_settings_tenant_idx').on(table.tenantId),
+    index('module_settings_module_idx').on(table.tenantId, table.module),
+    uniqueIndex('module_settings_composite_key_uidx').on(
+      table.tenantId,
+      table.module,
+      table.submodule,
+      table.key,
+    ),
+  ],
+);
 
 //Definición de monedas disponibles en el sistema.
 export const currencies = coreSchema.table('currencies', {
-  id: serial('id').primaryKey(),
+  id: uuid('id').primaryKey().defaultRandom(),
   code: enums.currencyCodeEnum('code').notNull().unique(), // Ej: VES, USD
   name: varchar('name', { length: 100 }).notNull(), // Ej: Bolívar Soberano, Dólar Americano
   symbol: varchar('symbol', { length: 5 }), // Ej: Bs., $
   decimalPlaces: integer('decimal_places').notNull().default(2),
   isActive: boolean('is_active').default(true),
+  isBase: boolean('is_base').default(false),
   ...timestamps,
 });
 
@@ -61,66 +85,46 @@ export const currencies = coreSchema.table('currencies', {
 export const exchangeRates = coreSchema.table(
   'exchange_rates',
   {
-    id: serial('id').primaryKey(),
-    date: date('date').notNull(),
-    fromCurrencyCode: enums.currencyCodeEnum('from_currency_code').notNull(), //.references(() => currencies.code), // FK si code es PK/Unique en currencies
-    toCurrencyCode: enums.currencyCodeEnum('to_currency_code').notNull(), //.references(() => currencies.code),
-    rate: numeric('rate', { precision: 20, scale: 6 }).notNull(), // Tasa de conversión (1 FROM = rate TO)
-    source: varchar('source', { length: 50 }), // Ej: BCV, Monitor Dolar, Manual
+    id: uuid('id').primaryKey().defaultRandom(),
+    currencyId: uuid('currency_id')
+      .notNull()
+      .references(() => currencies.id, { onDelete: 'cascade' }),
+    rate: varchar('rate', { length: 20 }).notNull(),
+    source: varchar('source', { length: 50 }).default('MANUAL'),
+    isAutomatic: boolean('is_automatic').default(false),
+    fetchedAt: timestamp('fetched_at'),
     ...timestamps,
   },
-  (table) => ({
-    dateCurrencyIdx: uniqueIndex('exchange_rates_date_from_to_uidx').on(
-      table.date,
-      table.fromCurrencyCode,
-      table.toCurrencyCode,
-    ), // Tasa única por día y par
-  }),
+  (table) => [
+    index('exchange_rates_currency_idx').on(table.currencyId),
+    index('exchange_rates_date_idx').on(table.fetchedAt),
+  ],
 );
 
 //Tabla genérica para clasificaciones y tipos (Tipos de Nómina, Tipos de Trabajador, Frecuencia Descuento, etc).
-export const categoryType = coreSchema.table(
-  'category_types', // Plural
+export const categories = coreSchema.table(
+  'categories', // Plural
   {
-    id: serial('id').primaryKey(),
-    group: varchar('group', { length: 100 }).notNull(), // Ej: 'PAYROLL_TYPE', 'WORKER_TYPE', 'DISCOUNT_FREQ', 'ASSOCIATE_ACCOUNT_TYPE'
-    description: text('description').notNull(), // Nombre legible
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
+    type: varchar('type', { length: 50 }).notNull(),
+    code: varchar('code', { length: 20 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(), // Ej: 'PAYROLL_TYPE', 'WORKER_TYPE', 'DISCOUNT_FREQ', 'ASSOCIATE_ACCOUNT_TYPE'
+    description: text('description'), // Nombre legible
     options: jsonb('options'), // Opciones extra en formato JSON si es necesario
     isActive: boolean('is_active').default(true),
     ...timestamps,
   },
-  (table) => ({
-    groupDescIdx: index('category_types_group_desc_idx').on(
-      table.group,
-      table.description,
-    ),
-  }),
+  (table) => [
+    index('categories_type_idx').on(table.type),
+    index('categories_code_idx').on(table.type, table.code),
+    index('categories_active_idx').on(table.type, table.isActive),
+  ],
 );
-
-//Tabla de tipos de operaciones (Ej: Aportes, Retiro, Préstamo, etc.)
-export const typePayrolls = coreSchema.table('type_payrolls', {
-  id: serial('id').primaryKey(),
-  code: varchar('code', { length: 10 }).notNull(),
-  description: text('description').notNull(),
-  deferredDate: date('deferred_date'),
-  dateCanceled: date('date_canceled'),
-  deferredNumber: integer('deferred_number'),
-  numberCanceled: integer('number_canceled'),
-  group: varchar('group', { length: 100 }).notNull(), // Ej: 'PAYROLL_TYPE', 'WORKER_TYPE', 'DISCOUNT_FREQ', 'ASSOCIATE_ACCOUNT_TYPE'
-  metadata: jsonb('metadata'), // Opciones extra en formato JSON si es necesario
-  associatedAccount: integer('associated_account').references(
-    () => accountPlan.id,
-    { onDelete: 'set null' },
-  ),
-  employerAccount: integer('employer_account').references(
-    () => accountPlan.id,
-    { onDelete: 'set null' },
-  ),
-  loanAccount: integer('loan_account').references(() => accountPlan.id, {
-    onDelete: 'set null',
-  }),
-  ...timestamps,
-});
 
 // Tabla Estados
 export const states = coreSchema.table(

@@ -1,44 +1,31 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class PaginationDto {
-  @ApiPropertyOptional({ default: 1, description: 'Page number' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number;
+export const PaginationSchema = z.object({
+  page: z
+    .preprocess((val) => Number(val), z.number().int().min(1))
+    .default(1)
+    .optional(),
 
-  @ApiPropertyOptional({ default: 10, description: 'Items per page' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  limit?: number;
+  limit: z
+    .preprocess((val) => Number(val), z.number().int().min(1))
+    .default(10)
+    .optional(),
 
-  @ApiPropertyOptional({ description: 'Search term' })
-  @IsOptional()
-  @IsString()
-  search?: string;
+  search: z.string().optional(),
 
-  @ApiPropertyOptional({ description: 'Search type' })
-  @IsOptional()
-  @IsString()
-  searchType?: string;
+  searchType: z.string().optional(),
 
-  @ApiPropertyOptional({ default: 'id', description: 'Field to sort by' })
-  @IsOptional()
-  @IsString()
-  sortBy?: string;
+  sortBy: z.string().default('id').optional(),
 
-  @ApiPropertyOptional({
-    default: 'asc',
-    enum: ['asc', 'desc'],
-    description: 'Sort order',
-  })
-  @IsOptional()
-  @IsString()
-  @IsIn(['asc', 'desc'])
-  sortOrder?: 'asc' | 'desc';
-}
+  sortOrder: z
+    .enum(['asc', 'desc'], {
+      errorMap: () => ({ message: "El orden debe ser 'asc' o 'desc'" }),
+    })
+    .default('asc')
+    .optional(),
+
+  tenantId: z.string().uuid().optional().describe("Tenant ID (opcional para superadmins)"),
+});
+
+export class PaginationDto extends createZodDto(PaginationSchema) {}

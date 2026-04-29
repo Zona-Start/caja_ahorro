@@ -1,1 +1,0 @@
-DROP TABLE "accounting"."accounting_closings" CASCADE;

@@ -1,5 +1,4 @@
 import { Roles } from '@/common/decorators';
-import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
 import {
   Body,
   Controller,
@@ -16,14 +15,12 @@ import { UpdateParishDto } from './dto/update-parish.dto';
 import { Parish } from './entities/parish.entity';
 import { ParishesService } from './parishes.service';
 
-@ApiTags('Parishes')
+@ApiTags('core/Parishes')
 @Controller('core/parishes')
 export class ParishesController {
   constructor(private readonly parishesService: ParishesService) {}
 
   @Get()
-  @Roles('admin', 'user')
-  @RequirePermissions('read:parishes')
   @ApiOperation({ summary: 'Get all parishes' })
   @ApiResponse({
     status: 200,
@@ -35,8 +32,6 @@ export class ParishesController {
   }
 
   @Get(':id')
-  @Roles('admin', 'user')
-  @RequirePermissions('read:parishes')
   @ApiOperation({ summary: 'Get a parish by id' })
   @ApiResponse({
     status: 200,
@@ -49,8 +44,6 @@ export class ParishesController {
   }
 
   @Get('municipality/:municipalityId')
-  @Roles('admin', 'user')
-  @RequirePermissions('read:parishes')
   @ApiOperation({ summary: 'Get parishes by municipality id' })
   @ApiResponse({
     status: 200,
@@ -66,7 +59,6 @@ export class ParishesController {
 
   @Post()
   @Roles('ADMIN')
-  @RequirePermissions('create:parishes')
   @ApiOperation({ summary: 'Create a new parish' })
   @ApiResponse({
     status: 201,
@@ -79,7 +71,6 @@ export class ParishesController {
 
   @Patch(':id')
   @Roles('ADMIN')
-  @RequirePermissions('update:parishes')
   @ApiOperation({ summary: 'Update a parish' })
   @ApiResponse({
     status: 200,
@@ -95,8 +86,6 @@ export class ParishesController {
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
-  @RequirePermissions('delete:parishes')
   @ApiOperation({ summary: 'Delete a parish' })
   @ApiResponse({ status: 200, description: 'Parish deleted' })
   @ApiResponse({ status: 404, description: 'Parish not found' })

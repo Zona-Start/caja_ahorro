@@ -1,117 +1,82 @@
-import { Type } from 'class-transformer';
-import {
-  IsArray,
-  IsDate,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-// Ejemplo de uno de ellos (crea los demás iguales)
-export class GenerateOpeningDto {
-  @IsInt() accountingCycleId: number;
-  @IsDate() entryDate: Date;
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => BalanceDto)
-  balances: BalanceDto[];
-}
-export class BalanceDto {
-  @IsInt() accountPlanId: number;
-  @IsNumber({ maxDecimalPlaces: 6 }) amount: number;
-}
+export const BalanceSchema = z.object({
+  accountPlanId: z.string().uuid(),
+  amount: z.coerce.number().min(0),
+});
 
-export class CloseMonthDto {
-  @IsInt()
-  accountingCycleId: number;
+export const GenerateOpeningSchema = z.object({
+  accountingCycleId: z.string().uuid(),
+  entryDate: z.coerce.date(),
+  balances: z.array(BalanceSchema).min(1, 'Debe incluir al menos un balance'),
+});
 
-  @IsDate()
-  @Type(() => Date)
-  entryDate: Date;
+export class GenerateOpeningDto extends createZodDto(GenerateOpeningSchema) {}
 
-  @IsInt()
-  resultAccountId: number;
-}
+export const CloseMonthSchema = z.object({
+  accountingCycleId: z.string().uuid(),
+  entryDate: z.coerce.date(),
+  resultAccountId: z.string().uuid(), // Cuenta de resultados (ej. Utilidades Retenidas)
+});
 
-class DepreciationLine {
-  @IsInt() assetAccountId: number;
-  @IsInt() expenseAccountId: number;
-  @IsNumber({ maxDecimalPlaces: 6 }) amount: number;
-}
+export class CloseMonthDto extends createZodDto(CloseMonthSchema) {}
 
-export class DepreciationDto {
-  @IsInt()
-  accountingCycleId: number;
+const DepreciationLineSchema = z.object({
+  assetAccountId: z.string().uuid(),
+  expenseAccountId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+});
 
-  @IsDate()
-  @Type(() => Date)
-  entryDate: Date;
+export const DepreciationSchema = z.object({
+  accountingCycleId: z.string().uuid(),
+  entryDate: z.coerce.date(),
+  lines: z.array(DepreciationLineSchema).min(1),
+});
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => DepreciationLine)
-  lines: DepreciationLine[];
-}
+export class DepreciationDto extends createZodDto(DepreciationSchema) {}
 
-class ReconciliationItem {
-  @IsInt() accountId: number;
-  @IsNumber({ maxDecimalPlaces: 6 }) amount: number;
-  @IsOptional() @IsString() description?: string;
-}
+const ReconciliationItemSchema = z.object({
+  accountId: z.string().uuid(),
+  amount: z.coerce.number(),
+  description: z.string().optional(),
+});
 
-export class BankReconciliationDto {
-  @IsInt()
-  accountingCycleId: number;
+export const BankReconciliationSchema = z.object({
+  accountingCycleId: z.string().uuid(),
+  entryDate: z.coerce.date(),
+  items: z.array(ReconciliationItemSchema).min(1),
+});
 
-  @IsDate()
-  @Type(() => Date)
-  entryDate: Date;
+export class BankReconciliationDto extends createZodDto(
+  BankReconciliationSchema,
+) {}
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ReconciliationItem)
-  items: ReconciliationItem[];
-}
+const InventoryItemSchema = z.object({
+  inventoryAccountId: z.string().uuid(),
+  expenseAccountId: z.string().uuid(),
+  qty: z.coerce.number(),
+  unitCost: z.coerce.number().min(0),
+});
 
-class InventoryItem {
-  @IsInt() inventoryAccountId: number;
-  @IsInt() expenseAccountId: number;
-  @IsNumber({ maxDecimalPlaces: 6 }) qty: number;
-  @IsNumber({ maxDecimalPlaces: 6 }) unitCost: number;
-}
+export const InventoryAdjustSchema = z.object({
+  accountingCycleId: z.string().uuid(),
+  entryDate: z.coerce.date(),
+  items: z.array(InventoryItemSchema).min(1),
+});
 
-export class InventoryAdjustDto {
-  @IsInt()
-  accountingCycleId: number;
+export class InventoryAdjustDto extends createZodDto(InventoryAdjustSchema) {}
 
-  @IsDate()
-  @Type(() => Date)
-  entryDate: Date;
+const TaxItemSchema = z.object({
+  expenseAccountId: z.string().uuid(),
+  taxPayableAccountId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+});
 
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => InventoryItem)
-  items: InventoryItem[];
-}
+export const TaxProvisionSchema = z.object({
+  accountingCycleId: z.string().uuid(),
+  entryDate: z.coerce.date(),
+  items: z.array(TaxItemSchema).min(1),
+});
 
-class TaxItem {
-  @IsInt() expenseAccountId: number;
-  @IsInt() taxPayableAccountId: number;
-  @IsNumber({ maxDecimalPlaces: 6 }) amount: number;
-}
-
-export class TaxProvisionDto {
-  @IsInt()
-  accountingCycleId: number;
-
-  @IsDate()
-  @Type(() => Date)
-  entryDate: Date;
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => TaxItem)
-  items: TaxItem[];
-}
+export class TaxProvisionDto extends createZodDto(TaxProvisionSchema) {}

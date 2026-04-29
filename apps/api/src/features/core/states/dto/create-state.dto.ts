@@ -1,12 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateStateDto {
-  @ApiProperty({
-    description: 'The name of the state',
-    example: 'California',
-  })
-  @IsNotEmpty()
-  @IsString()
-  name: string;
-}
+export const CreateStateSchema = z.object({
+  name: z
+    .string()
+    .min(1, 'El nombre del estado es obligatorio')
+    .describe('The name of the state'),
+});
+
+export class CreateStateDto extends createZodDto(CreateStateSchema) {}

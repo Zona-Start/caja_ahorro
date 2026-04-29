@@ -1,5 +1,4 @@
-import { Roles } from '@/common/decorators';
-import { RequirePermissions } from '@/common/decorators/require-permissions.decorator';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -11,83 +10,57 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { BankAccountsService } from './bank-accounts.service';
-import { CreateBankAccountDto } from './dto/create-bank-account.dto';
+import { CreateBankAccountDto } from './dto/bank-accounts.schema';
 import { FilterBankAccountDto } from './dto/filter-bank-account.dto';
-import { GenerateOpeningEntryDto } from './dto/generate-opening-entry.dto';
 import { UpdateBankAccountDto } from './dto/update-bank-account.dto';
 
+@ApiTags('bakings/bank-accounts')
 @Controller('bakings/bank-accounts')
 export class BankAccountsController {
-  constructor(private readonly bankAccountsService: BankAccountsService) {}
-
-  @Post('/generate-opening-entry/:id')
-  @Roles('admin')
-  @RequirePermissions('create:bank-accounts')
-  @ApiOperation({ summary: 'Generate opening entry for existing bank account' })
-  @ApiResponse({
-    status: 200,
-    description: 'Opening entry generated successfully.',
-  })
-  async generateOpeningEntry(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() generateOpeningEntryDto: GenerateOpeningEntryDto,
-  ) {
-    const userId = req['user'].id;
-    return await this.bankAccountsService.generateOpeningEntry(
-      +id,
-      userId,
-      generateOpeningEntryDto.currentBalance,
-      generateOpeningEntryDto.accountingRuleId,
-      generateOpeningEntryDto.openingDate,
-    );
-  }
+  constructor(
+    private readonly service: BankAccountsService,
+    private readonly tenantContextService: TenantContextService,
+  ) {}
 
   @Post()
-  @Roles('admin')
-  @RequirePermissions('create:bank-accounts')
   @ApiOperation({ summary: 'Create a new bank account' })
   @ApiResponse({
     status: 201,
     description: 'Bank account created successfully.',
   })
-  async create(
-    @Req() req: Request,
-    @Body() createBankAccountDto: CreateBankAccountDto,
-  ) {
-    const userId = req['user'].id;
-    const data = await this.bankAccountsService.create(
-      userId,
-      createBankAccountDto,
-    );
+  async create(@Req() req: any, @Body() dto: CreateBankAccountDto) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    const data = await this.service.create(userId, targetTenantId, dto);
     return { message: 'Bank Account created successfully', data };
   }
 
   @Get()
-  @RequirePermissions('read:bank-accounts')
   @ApiOperation({ summary: 'Get all bank accounts' })
   @ApiResponse({ status: 200, description: 'Return all bank accounts.' })
-  async findAll() {
-    const data = await this.bankAccountsService.findAll();
+  async findAll(@Req() req: any, @Query('tenantId') tenantId?: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      tenantId,
+    );
+    const data = await this.service.findAll(targetTenantId);
     return { message: 'Bank Accounts fetched successfully', data };
   }
 
   @Get('/paginated')
-  @RequirePermissions('read:bank-accounts')
-  @ApiOperation({
-    summary: 'Get all bank accounts',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Return paginated all bank accounts.',
-  })
+  @ApiOperation({ summary: 'Get all bank accounts with pagination' })
+  @ApiResponse({ status: 200, description: 'Return paginated bank accounts.' })
   async findAllByPagination(
-    @Query() filterBankAccountDto: FilterBankAccountDto,
+    @Req() req: any,
+    @Query() dto: FilterBankAccountDto,
   ) {
-    const result =
-      await this.bankAccountsService.findAllByPagination(filterBankAccountDto);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      dto,
+    );
+    const result = await this.service.findAllByPagination(dto, targetTenantId);
     return {
       message: 'Bank Accounts fetched successfully',
       data: result.data,
@@ -96,49 +69,53 @@ export class BankAccountsController {
   }
 
   @Get(':id')
-  @RequirePermissions('read:bank-accounts')
   @ApiOperation({ summary: 'Get a bank account by ID' })
   @ApiResponse({ status: 200, description: 'Return the bank account.' })
-  @ApiResponse({ status: 404, description: 'Bank account not found.' })
-  async findOne(@Param('id') id: string) {
-    const data = await this.bankAccountsService.findOne(+id);
+  async findOne(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Query('tenantId') tenantId?: string,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      tenantId,
+    );
+    const data = await this.service.findOne(id, targetTenantId);
     return { message: 'Bank Account fetched successfully', data };
   }
 
   @Patch(':id')
-  @Roles('admin')
-  @RequirePermissions('update:bank-accounts')
   @ApiOperation({ summary: 'Update a bank account' })
   @ApiResponse({
     status: 200,
     description: 'Bank account updated successfully.',
   })
-  @ApiResponse({ status: 404, description: 'Bank account not found.' })
   async update(
-    @Req() req: Request,
     @Param('id') id: string,
-    @Body() updateBankAccountDto: UpdateBankAccountDto,
+    @Body() dto: UpdateBankAccountDto,
+    @Req() req: any,
   ) {
-    const userId = req['user'].id;
-    const data = await this.bankAccountsService.update(
-      +id,
-      userId,
-      updateBankAccountDto,
-    );
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    const data = await this.service.update(id, userId, dto, targetTenantId);
     return { message: 'Bank Account updated successfully', data };
   }
 
   @Delete(':id')
-  @Roles('admin')
-  @RequirePermissions('delete:bank-accounts')
   @ApiOperation({ summary: 'Delete a bank account' })
   @ApiResponse({
     status: 200,
     description: 'Bank account deleted successfully.',
   })
-  @ApiResponse({ status: 404, description: 'Bank account not found.' })
-  async remove(@Param('id') id: string) {
-    const result = await this.bankAccountsService.remove(+id);
-    return result;
+  async remove(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Query('tenantId') tenantId?: string,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      tenantId,
+    );
+    return await this.service.remove(id, targetTenantId);
   }
 }

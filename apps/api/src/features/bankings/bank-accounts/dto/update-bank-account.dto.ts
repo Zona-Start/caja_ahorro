@@ -1,4 +1,5 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateBankAccountDto } from './create-bank-account.dto';
+import z from 'zod';
+import { CreateBankAccountSchema } from './bank-accounts.schema';
 
-export class UpdateBankAccountDto extends PartialType(CreateBankAccountDto) {}
+export const UpdateBankAccountSchema = CreateBankAccountSchema.partial();
+export type UpdateBankAccountDto = z.infer<typeof UpdateBankAccountSchema>;

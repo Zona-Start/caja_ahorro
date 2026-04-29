@@ -1,2 +1,0 @@
-ALTER TABLE "savings_banks"."loans" ADD COLUMN "expenses_percentage" numeric(5, 2);--> statement-breakpoint
-ALTER TABLE "savings_banks"."payment_batches" ADD COLUMN "batch_type" varchar(30) DEFAULT 'PAYMENT' NOT NULL;

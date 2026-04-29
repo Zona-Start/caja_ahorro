@@ -1,4 +1,7 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateParishDto } from './create-parish.dto';
+import { createZodDto } from 'nestjs-zod';
+import { CreateParishSchema } from './create-parish.dto';
 
-export class UpdateParishDto extends PartialType(CreateParishDto) {}
+// Esquema que hace opcionales todos los campos de CreateParishSchema
+export const UpdateParishSchema = CreateParishSchema.partial();
+
+export class UpdateParishDto extends createZodDto(UpdateParishSchema) {}

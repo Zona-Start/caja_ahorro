@@ -1,22 +1,24 @@
 {
-  "extends": "@repo/ts-config/nextjs.json",
+  "extends": "@repo/ts-config/base.json",
   "compilerOptions": {
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"],
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "rootDirs": [".", "./.react-router/types"],
     "paths": {
-      "@/*": ["./*"],
+      "@/*": ["./app/*"],
+      "~/*": ["./app/*"],
       "@repo/shadcn/*": ["../../packages/shadcn/src/*"]
-    }
+    },
+    "noUncheckedIndexedAccess": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "noEmit": true
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "next-env.d.ts",
-    "next.config.js",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": ["node_modules"]
+  "include": ["**/*", "**/.server/**/*", "**/.client/**/*", ".react-router/types/**/*"],
+  "exclude": ["node_modules", "./build"]
 }

@@ -1,105 +1,54 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
-import { ActionEnumAudit } from '@/types/enum';
+import * as schema from '@/database/schema';
+import { AuditHelper } from '@/features/audit/audit-event.service';
 import {
   ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  and,
-  eq,
-  gte,
-  ilike,
-  inArray,
-  lte,
-  ne,
-  or,
-  sql,
-  SQL,
-} from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, lte, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from 'src/database/index';
-import { CreateAccountingCycleDto } from './dto/create-accounting-cycle.dto';
-import { FilterAccountingCycleDto } from './dto/filter-accounting-cycle.dto';
-import { UpdateAccountingCycleDto } from './dto/update-accounting-cycle.dto';
-import { AccountingCycle } from './entities/accounting-cycle.entity';
+import {
+  CreateAccountingCycleDto,
+  UpdateAccountingCycleDto,
+} from './dto/accounting-cycles.schema';
 
 @Injectable()
 export class AccountingCyclesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly auditHelper: AuditHelper,
   ) {}
 
-  private async getAccountingCycleForDate(startDate: Date, endDate: Date) {
-    const existingCycle = await this.drizzle
-      .select()
-      .from(schema.accountingCycles)
-      .where(
-        and(
-          eq(
-            schema.accountingCycles.startDate,
-            startDate.toISOString().split('T')[0],
-          ),
-          eq(
-            schema.accountingCycles.endDate,
-            endDate.toISOString().split('T')[0],
-          ),
-        ),
-      );
-
-    return existingCycle;
-  }
-
   async create(
-    userId: number,
+    tenantId: string,
+    userId: string,
     dto: CreateAccountingCycleDto,
-    opts?: { forceStatus?: 'OPEN' | 'PENDING' },
-  ): Promise<AccountingCycle> {
-    /* 0. Validar solapamiento con ciclos OPEN o PENDING */
+  ) {
+    // 0. Validar solapamiento
+    const startDateStr = new Date(dto.startDate).toISOString().split('T')[0];
+    const endDateStr = new Date(dto.endDate).toISOString().split('T')[0];
+
     const overlapping = await this.drizzle
       .select({ id: schema.accountingCycles.id })
       .from(schema.accountingCycles)
       .where(
         and(
-          eq(schema.accountingCycles.companyId, dto.companyId),
+          eq(schema.accountingCycles.tenantId, tenantId),
           inArray(schema.accountingCycles.status, ['OPEN', 'PENDING']),
           or(
-            /* a) empieza dentro del nuevo rango */
             and(
-              gte(
-                schema.accountingCycles.startDate,
-                dto.startDate.toISOString().split('T')[0],
-              ),
-              lte(
-                schema.accountingCycles.startDate,
-                dto.endDate.toISOString().split('T')[0],
-              ),
+              gte(schema.accountingCycles.startDate, startDateStr),
+              lte(schema.accountingCycles.startDate, endDateStr),
             ),
-            /* b) termina dentro del nuevo rango */
             and(
-              gte(
-                schema.accountingCycles.endDate,
-                dto.startDate.toISOString().split('T')[0],
-              ),
-              lte(
-                schema.accountingCycles.endDate,
-                dto.endDate.toISOString().split('T')[0],
-              ),
+              gte(schema.accountingCycles.endDate, startDateStr),
+              lte(schema.accountingCycles.endDate, endDateStr),
             ),
-            /* c) envuelve completamente al nuevo rango */
             and(
-              lte(
-                schema.accountingCycles.startDate,
-                dto.startDate.toISOString().split('T')[0],
-              ),
-              gte(
-                schema.accountingCycles.endDate,
-                dto.endDate.toISOString().split('T')[0],
-              ),
+              lte(schema.accountingCycles.startDate, startDateStr),
+              gte(schema.accountingCycles.endDate, endDateStr),
             ),
           ),
         ),
@@ -108,316 +57,144 @@ export class AccountingCyclesService {
 
     if (overlapping.length) {
       throw new ConflictException(
-        'A cycle with OPEN or PENDING status already exists in the given date range.',
+        'Un ciclo con estatus OPEN o PENDING ya existe en el rango de fechas.',
       );
     }
 
-    /* 1. ¿Hay algún ciclo OPEN ahora? */
-    const openNow = await this.drizzle
-      .select({ id: schema.accountingCycles.id })
-      .from(schema.accountingCycles)
-      .where(
-        and(
-          eq(schema.accountingCycles.companyId, dto.companyId),
-          eq(schema.accountingCycles.status, 'OPEN'),
-        ),
-      )
-      .limit(1);
-
-    /* 2. Determinar status */
-    const requested = opts?.forceStatus;
-    const status: 'OPEN' | 'PENDING' =
-      requested ?? (openNow.length ? 'PENDING' : 'OPEN');
-
-    if (status === 'OPEN' && openNow.length) {
-      throw new ConflictException('An OPEN cycle already exists.');
-    }
-
-    /* 3. Crear el ciclo */
     const [raw] = await this.drizzle
       .insert(schema.accountingCycles)
       .values({
-        companyId: dto.companyId,
-        startDate: dto.startDate.toISOString().split('T')[0],
-        endDate: dto.endDate.toISOString().split('T')[0],
-        status,
+        tenantId: tenantId,
+        startDate: startDateStr,
+        endDate: endDateStr,
+        status: 'OPEN',
         description: dto.description,
         createdById: userId,
       })
       .returning();
 
-    this.eventEmitter.emit(
-      'audit.log',
-      new AuditLogEvent({
-        tableName: 'accountingCycles',
-        recordId: String(raw.id),
-        action: ActionEnumAudit.INSERT,
-        userId: Number(userId),
-        area: 'CONTABLE',
-        description: 'Creación de Ciclo Contable',
-        newData: [raw],
-      }),
-    );
+    await this.auditHelper.logCreate(tenantId, 'accountingCycles', raw, {
+      targetId: raw.id,
+      description: `Ciclo contable creado: ${raw.description || raw.id}`,
+    });
 
-    return {
-      ...raw,
-      startDate: new Date(raw.startDate),
-      endDate: new Date(raw.endDate),
-    } as AccountingCycle;
+    return raw;
   }
 
-  async findAll() {
-    return await this.drizzle.select().from(schema.accountingCycles);
+  async findAll(tenantId: string) {
+    return await this.drizzle
+      .select()
+      .from(schema.accountingCycles)
+      .where(eq(schema.accountingCycles.tenantId, tenantId));
   }
 
-  async findAllPaginated(
-    paginationDto?: FilterAccountingCycleDto,
-  ): Promise<{ data: AccountingCycle[]; meta: any }> {
-    const {
-      page = 1,
-      limit = 10,
-      search = '',
-      sortBy = 'id',
-      sortOrder = 'asc',
-      startDate = '',
-      endDate = '',
-      status = '',
-    } = paginationDto || {};
-    // Calculate offset
+  async findAllPaginated(tenantId: string, paginationDto: any) {
+    const { page = 1, limit = 10, search = '' } = paginationDto;
     const offset = (page - 1) * limit;
 
-    // Build search condition
-    let searchConditions: SQL<unknown>[] = [];
-
+    const conditions: SQL<unknown>[] = [
+      eq(schema.accountingCycles.tenantId, tenantId),
+    ];
     if (search) {
-      searchConditions.push(
+      conditions.push(
         ilike(schema.accountingCycles.description, `%${search}%`),
       );
     }
 
-    if (startDate) {
-      searchConditions.push(
-        eq(
-          schema.accountingCycles.startDate,
-          startDate.toISOString().split('T')[0],
-        ),
-      );
-    }
+    const where = and(...conditions);
 
-    if (endDate) {
-      searchConditions.push(
-        eq(
-          schema.accountingCycles.endDate,
-          endDate.toISOString().split('T')[0],
-        ),
-      );
-    }
-
-    if (status) {
-      searchConditions.push(eq(schema.accountingCycles.status, status));
-    }
-
-    const searchCondition = searchConditions.length
-      ? and(...searchConditions)
-      : undefined;
-
-    // Build sort condition
-    const orderBy =
-      sortOrder === 'asc'
-        ? sql`${schema.accountingCycles[sortBy as keyof typeof schema.accountingCycles]} asc`
-        : sql`${schema.accountingCycles[sortBy as keyof typeof schema.accountingCycles]} desc`;
-
-    // Get total count for pagination
-    const totalCountResult = await this.drizzle
+    const [total] = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(schema.accountingCycles)
-      .where(searchCondition);
+      .where(where);
 
-    const totalCount = Number(totalCountResult[0].count);
-    const totalPages = Math.ceil(totalCount / limit);
-
-    // Get paginated data
     const data = await this.drizzle
-      .select({
-        id: schema.accountingCycles.id,
-        companyId: schema.accountingCycles.companyId,
-        startDate: schema.accountingCycles.startDate,
-        endDate: schema.accountingCycles.endDate,
-        status: schema.accountingCycles.status,
-        description: schema.accountingCycles.description,
-        closedAt: schema.accountingCycles.closedAt,
-      })
+      .select()
       .from(schema.accountingCycles)
-      .where(searchCondition)
-      .orderBy(orderBy)
+      .where(where)
       .limit(limit)
       .offset(offset);
 
-    // Build pagination metadata
-    const meta = {
-      page,
-      limit,
-      totalCount,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
-      nextPage: page < totalPages ? page + 1 : null,
-      previousPage: page > 1 ? page - 1 : null,
-    };
-
     return {
-      data: data.map((cycle) => ({
-        ...cycle,
-        startDate: new Date(cycle.startDate),
-        endDate: new Date(cycle.endDate),
-      })) as AccountingCycle[],
-      meta,
+      data,
+      meta: {
+        totalCount: Number(total.count),
+        page,
+        limit,
+        totalPages: Math.ceil(Number(total.count) / limit),
+      },
     };
   }
 
-  async findOne(id: number) {
-    const result = await this.drizzle
+  async findOne(tenantId: string, id: string) {
+    const [result] = await this.drizzle
       .select()
-      .from(schema.accountingCycles)
-      .where(eq(schema.accountingCycles.id, id));
-
-    if (!result.length) {
-      throw new NotFoundException(`Accounting Cycle with ID ${id} not found`);
-    }
-
-    return result[0];
-  }
-
-  async update(userId: number, id: number, dto: UpdateAccountingCycleDto) {
-    /* 0. Asegurar que existe */
-    const current = await this.findOne(id);
-    if (!current) {
-      throw new NotFoundException(`Accounting cycle with ID ${id} not found`);
-    }
-
-    const toISO = (d?: Date) => d?.toISOString().split('T')[0];
-
-    const startStr = toISO(dto.startDate) ?? current.startDate;
-    const endStr = toISO(dto.endDate) ?? current.endDate;
-
-    /* 1. Solapamiento con otros ciclos (OPEN o PENDING) */
-    const overlap = await this.drizzle
-      .select({ id: schema.accountingCycles.id })
       .from(schema.accountingCycles)
       .where(
         and(
-          eq(schema.accountingCycles.companyId, current.companyId),
-          inArray(schema.accountingCycles.status, ['OPEN', 'PENDING']),
-          ne(schema.accountingCycles.id, id), // excepto él mismo
-          or(
-            and(
-              gte(schema.accountingCycles.startDate, startStr),
-              lte(schema.accountingCycles.startDate, endStr),
-            ),
-            and(
-              gte(schema.accountingCycles.endDate, startStr),
-              lte(schema.accountingCycles.endDate, endStr),
-            ),
-            and(
-              lte(schema.accountingCycles.startDate, startStr),
-              gte(schema.accountingCycles.endDate, endStr),
-            ),
-          ),
+          eq(schema.accountingCycles.tenantId, tenantId),
+          eq(schema.accountingCycles.id, id),
         ),
-      )
-      .limit(1);
-
-    if (overlap.length) {
-      throw new ConflictException(
-        'Another cycle (OPEN or PENDING) already overlaps the requested date range.',
       );
-    }
 
-    /* 2. Un solo OPEN */
-    const targetStatus = dto.status ?? current.status;
-    if (targetStatus === 'OPEN') {
-      const otherOpen = await this.drizzle
-        .select({ id: schema.accountingCycles.id })
-        .from(schema.accountingCycles)
-        .where(
-          and(
-            eq(schema.accountingCycles.companyId, current.companyId),
-            eq(schema.accountingCycles.status, 'OPEN'),
-            ne(schema.accountingCycles.id, id),
-          ),
-        )
-        .limit(1);
+    if (!result) throw new NotFoundException('Ciclo no encontrado');
+    return result;
+  }
 
-      if (otherOpen.length) {
-        throw new ConflictException('An OPEN cycle already exists.');
-      }
-    }
-
-    /* 3. Actualizar */
+  async update(
+    tenantId: string,
+    userId: string,
+    id: string,
+    dto: UpdateAccountingCycleDto,
+  ) {
+    const current = await this.findOne(tenantId, id);
     const [updated] = await this.drizzle
       .update(schema.accountingCycles)
-      .set({
-        companyId: dto.companyId ?? current.companyId,
-        startDate: startStr,
-        endDate: endStr,
-        status: targetStatus,
-        description: dto.description ?? current.description,
-        updatedById: userId,
-      })
-      .where(eq(schema.accountingCycles.id, id))
+      .set({ ...dto, updatedById: userId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.accountingCycles.tenantId, tenantId),
+          eq(schema.accountingCycles.id, id),
+        ),
+      )
       .returning();
 
-    this.eventEmitter.emit(
-      'audit.log',
-      new AuditLogEvent({
-        tableName: 'accountingCycles',
-        recordId: String(updated.id),
-        action: ActionEnumAudit.UPDATE,
-        userId: Number(userId),
-        area: 'CONTABLE',
-        description: 'Actualización de Ciclo Contable',
-        newData: [updated],
-        previousData: [current],
-      }),
+    await this.auditHelper.logUpdate(
+      tenantId,
+      'accountingCycles',
+      current,
+      updated,
+      {
+        targetId: id,
+        description: `Ciclo contable actualizado: ${id}`,
+      },
     );
-
     return updated;
   }
 
-  async close(userId: number, id: number) {
-    const existingAccountPlan = await this.findOne(id);
-
-    if (!existingAccountPlan) {
-      throw new NotFoundException(
-        `Update Account Plan with ID ${id} not found`,
-      );
-    }
-
-    const result = await this.drizzle
+  async close(tenantId: string, userId: string, id: string) {
+    const current = await this.findOne(tenantId, id);
+    const [closed] = await this.drizzle
       .update(schema.accountingCycles)
-      .set({
-        closedByUser_id: userId,
-        updatedById: userId,
-        closedAt: new Date(),
-        status: 'CLOSED',
-      })
-      .where(eq(schema.accountingCycles.id, id))
+      .set({ status: 'CLOSED', closedAt: new Date(), updatedById: userId })
+      .where(
+        and(
+          eq(schema.accountingCycles.tenantId, tenantId),
+          eq(schema.accountingCycles.id, id),
+        ),
+      )
       .returning();
 
-    this.eventEmitter.emit(
-      'audit.log',
-      new AuditLogEvent({
-        tableName: 'accountingCycles',
-        recordId: String(result[0].id),
-        action: ActionEnumAudit.UPDATE, // Closing is an update
-        userId: Number(userId),
-        area: 'CONTABLE',
-        description: 'Cierre de Ciclo Contable',
-        newData: [result[0]],
-        previousData: [existingAccountPlan],
-      }),
+    await this.auditHelper.logUpdate(
+      tenantId,
+      'accountingCycles',
+      current,
+      closed,
+      {
+        targetId: id,
+        description: `Ciclo contable cerrado: ${id}`,
+      },
     );
-
-    return result[0];
+    return closed;
   }
 }

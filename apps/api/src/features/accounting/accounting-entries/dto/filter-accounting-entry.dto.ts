@@ -1,53 +1,56 @@
-import { entryStatusEnum } from '@/types/enum';
-import { ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsDate, IsEnum, IsOptional, IsString } from 'class-validator';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { entryStatusEnum } from '@/types/enum'; // Asegúrate de que sea un enum de TS o un objeto const
+import { createZodDto } from 'nestjs-zod';
+import { PaginationSchema } from 'src/common/dto/pagination.dto';
+import { z } from 'zod';
 
-export class FilterAccountingEntryDto extends PartialType(PaginationDto) {
-  @ApiPropertyOptional({ description: 'Filtrar por ID de ciclo contable' })
-  @IsOptional()
-  @Type(() => Number)
-  accountingCycleId?: number;
+export const FilterAccountingEntrySchema = PaginationSchema.extend({
+  // IDs como UUID (ajustados desde number por consistencia con Drizzle)
+  tenantId: z
+    .string()
+    .uuid({ message: 'El ID del tenant debe ser un UUID válido' })
+    .optional(),
+  accountingCycleId: z
+    .string()
+    .uuid({ message: 'El ID del ciclo debe ser un UUID válido' })
+    .optional(),
 
-  @ApiPropertyOptional({
-    description: 'Filtrar por estado del asiento',
-    enum: entryStatusEnum,
-  })
-  @IsOptional()
-  @IsEnum(entryStatusEnum)
-  status?: entryStatusEnum;
+  accountPlanId: z
+    .string()
+    .uuid({ message: 'El ID de la cuenta debe ser un UUID válido' })
+    .optional(),
 
-  @ApiPropertyOptional({ description: 'Filtrar por tipo de origen' })
-  @IsOptional()
-  @IsString()
-  originType?: string;
+  // Enum de estado
+  status: z
+    .nativeEnum(entryStatusEnum, {
+      errorMap: () => ({ message: 'Estado de asiento no válido' }),
+    })
+    .optional(),
 
-  @ApiPropertyOptional({
-    description: 'Filtrar por ID de referencia de origen',
-  })
-  @IsOptional()
-  @IsString()
-  originReferenceId?: string;
+  // Referencias de origen
+  originType: z.string().optional(),
+  originReferenceId: z.string().optional(),
 
-  @ApiPropertyOptional({
-    description: 'Filtrar por fecha de inicio del asiento',
-  })
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  startDate?: Date;
+  // Rango de fechas con coerción automática
+  startDate: z.coerce
+    .date({ invalid_type_error: 'Fecha de inicio inválida' })
+    .optional(),
 
-  @ApiPropertyOptional({ description: 'Filtrar por fecha de fin del asiento' })
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  endDate?: Date;
+  endDate: z.coerce
+    .date({ invalid_type_error: 'Fecha de fin inválida' })
+    .optional(),
+}).refine(
+  (data) => {
+    if (data.startDate && data.endDate) {
+      return data.startDate <= data.endDate;
+    }
+    return true;
+  },
+  {
+    message: 'La fecha de inicio no puede ser mayor a la fecha de fin',
+    path: ['startDate'],
+  },
+);
 
-  @ApiPropertyOptional({
-    description: 'Filtrar por ID de cuenta contable en los detalles',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  accountPlanId?: number;
-}
+export class FilterAccountingEntryDto extends createZodDto(
+  FilterAccountingEntrySchema,
+) {}
