@@ -1,0 +1,56 @@
+import { QUERY_KEYS } from '@/lib/query-keys';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { type TenantsFilters } from './use-tenants-filters';
+import { tenantsService } from '../services/tenants-service';
+import { type Tenant } from '../schemas/tenants.schema';
+
+const mapFiltersToApiParams = (filters: TenantsFilters) => ({
+  page: filters.page,
+  limit: filters.limit,
+  search: filters.search || undefined,
+  isActive:
+    filters.isActive === 'all' ? undefined : filters.isActive === 'true',
+});
+
+export function useTenantsQuery(
+  filters: TenantsFilters,
+): UseQueryResult<Tenant[]> {
+  return useQuery({
+    queryKey: QUERY_KEYS.tenants.list(filters),
+    queryFn: () => tenantsService.getAll(mapFiltersToApiParams(filters)),
+  });
+}
+
+export function useTenantActiveCountQuery(
+  enabled: boolean = true,
+): UseQueryResult<number> {
+  return useQuery({
+    queryKey: QUERY_KEYS.tenants.count(),
+    queryFn: () => tenantsService.getActiveCount(),
+    enabled,
+  });
+}
+
+export function useTenantQuery(
+  id: string,
+  enabled: boolean = true,
+): UseQueryResult<Tenant> {
+  return useQuery({
+    queryKey: QUERY_KEYS.tenants.detail(id),
+    queryFn: () => tenantsService.getById(id),
+    enabled: enabled && !!id,
+  });
+}
+
+export function useTenantByRifQuery(
+  rif: string,
+  enabled: boolean = true,
+): UseQueryResult<Tenant | null> {
+  return useQuery({
+    queryKey: QUERY_KEYS.tenants.byRif(rif),
+    queryFn: () => tenantsService.getByRif(rif),
+    enabled: enabled && rif.trim().length > 0,
+    retry: false,
+  });
+}
+

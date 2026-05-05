@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/auth.store';
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+  import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
 
 // ── Axios instances ──────────────────────────────────────────────────────────
 
@@ -250,9 +250,9 @@ if (import.meta.env.DEV) {
           console.group(
             '%c📋 Validation Messages (%d)',
             'color: #ff922b; font-weight: bold;',
-            (data.message as unknown[]).length,
+            (data?.message as unknown[]).length,
           );
-          for (const msg of data.message as string[]) {
+          for (const msg of data?.message as string[]) {
             console.log('  •', msg);
           }
           console.groupEnd();

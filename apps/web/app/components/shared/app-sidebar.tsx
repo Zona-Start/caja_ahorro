@@ -1,79 +1,42 @@
-import { useAuthStore } from '@/stores/auth.store';
-import { NavUser } from '@/components/shared/nav-user';
-import {
-  IconDashboard,
-  IconInnerShadowTop,
-  IconUser,
-  IconUsers,
-} from '@tabler/icons-react';
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
 } from '@repo/shadcn/sidebar';
-import type { Icon } from '@tabler/icons-react';
-import * as React from 'react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@repo/shadcn/collapsible';
+import { ChevronRight, Torus } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
-
-// ── Navigation definition ────────────────────────────────────────────────────
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: Icon;
-  /** If defined, the item is only visible when the user has this permission. */
-  requiresPermission?: { resource: string; action: string };
-}
-
-const navItems: NavItem[] = [
-  {
-    label: 'Dashboard',
-    href: '/dashboard',
-    icon: IconDashboard,
-  },
-  {
-    label: 'Perfil',
-    href: '/dashboard/profile',
-    icon: IconUser,
-  },
-  {
-    label: 'Usuarios',
-    href: '/dashboard/users',
-    icon: IconUsers,
-    requiresPermission: { resource: 'iam:users', action: 'read' },
-  },
-];
-
-// ── Component ────────────────────────────────────────────────────────────────
+import { navGroups } from '@/constants/navegations';
+import { useAuthStore } from '@/stores/auth.store';
+import { NavUser } from './nav-user';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const location = useLocation();
 
-  const filteredNav = navItems.filter((item) => {
+  // Función para filtrar por permisos (aplica a padres e hijos si es necesario)
+  const canSee = (item: any) => {
     if (!item.requiresPermission) return true;
-    const { resource, action } = item.requiresPermission;
-    return hasPermission(resource, action);
-  });
+    return hasPermission(item.requiresPermission.resource, item.requiresPermission.action);
+  };
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
-            >
+            <SidebarMenuButton asChild className="p-1.5!">
               <Link to="/dashboard">
-                <IconInnerShadowTop className="size-5!" />
+                <Torus className="size-5!" />
                 <span className="text-base font-semibold">Caja de Ahorro</span>
               </Link>
             </SidebarMenuButton>
@@ -82,27 +45,68 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navegación</SidebarGroupLabel>
-          <SidebarGroupContent>
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarMenu>
-              {filteredNav.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
+              {group.items.filter(canSee).map((item) => {
+                // Si el item NO tiene hijos, renderizamos un link simple
+                if (!item.items?.length) {
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={location.pathname === item.href}
+                        tooltip={item.label}
+                      >
+                        <Link to={item.href}>
+                          {item.icon && <item.icon />}
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                // Si TIENE hijos, renderizamos un Collapsible
+                return (
+                  <Collapsible
+                    key={item.label}
                     asChild
-                    isActive={location.pathname === item.href}
-                    tooltip={item.label}
+                    defaultOpen={location.pathname.startsWith(item.href)}
+                    className="group/collapsible"
                   >
-                    <Link to={item.href}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip={item.label}>
+                          {item.icon && <item.icon />}
+                          <span>{item.label}</span>
+                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.items.map((subItem) => (
+                            <SidebarMenuSubItem key={subItem.href}>
+                              <SidebarMenuSubButton 
+                                asChild 
+                                isActive={location.pathname === subItem.href}
+                              >
+                                <Link to={subItem.href}>
+                                  <span>{subItem.label}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                );
+              })}
             </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>

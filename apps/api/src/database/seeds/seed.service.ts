@@ -59,9 +59,9 @@ export class SeedService implements OnModuleInit {
     this.logger.log('Starting database seed...');
 
     try {
-      await this.seedPermissions();
-      await this.seedSuperadmin();
 
+      await this.seedSuperadmin();
+      await this.seedPermissions();
       await this.seedGlobalSettings();
       await this.seedCurrencies();
       await this.seedDirectoryBanks();

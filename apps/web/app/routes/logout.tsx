@@ -1,4 +1,4 @@
-import { authService } from '@/lib/auth-service';
+import { authService } from '@/features/auth/services/auth-service';
 import { redirect } from 'react-router';
 
 /**

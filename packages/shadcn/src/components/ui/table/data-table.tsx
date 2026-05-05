@@ -1,4 +1,3 @@
-'use client';
 import {
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
@@ -90,56 +89,62 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="flex flex-1 flex-col space-y-4">
-      <div className="relative flex flex-1">
-        <div className="absolute bottom-0 left-0 right-0 top-0 flex border rounded-md overflow-hidden">
-          <Table className="relative">
-            <TableHeader className="sticky top-0 z-10 bg-muted">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
+    <div className="flex flex-col space-y-4 w-full">
+      <div className="rounded-md border bg-card overflow-x-auto">
+        <Table>
+          <TableHeader className="bg-muted">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="whitespace-nowrap">
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {/* 
+                MEJORA: Verificamos si data existe y tiene longitud. 
+                Si totalItems es 0 o data está vacío, mostramos el mensaje.
+            */}
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && 'selected'}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </TableCell>
                   ))}
                 </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody className="overflow-auto">
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && 'selected'}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center text-2xl"
-                  >
-                    No existen resultados.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  {/* Mensaje más descriptivo y centrado */}
+                  <div className="flex flex-col items-center justify-center space-y-1">
+                    <p className="text-lg font-medium">No se encontraron resultados</p>
+                    <p className="text-sm">Intenta ajustar tus filtros de búsqueda.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       <div className="flex flex-col items-center justify-end gap-2 space-x-2 py-2 sm:flex-row">

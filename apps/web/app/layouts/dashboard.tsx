@@ -3,6 +3,7 @@ import { SiteHeader } from '@/components/shared/site-header';
 import { requireAuthenticated } from '@/lib/auth-guards';
 import { SidebarInset, SidebarProvider } from '@repo/shadcn/sidebar';
 import { Outlet } from 'react-router';
+import { NuqsAdapter } from 'nuqs/adapters/react-router/v7'
 
 /**
  * Protected dashboard layout.
@@ -17,7 +18,8 @@ export async function clientLoader() {
 
 export default function DashboardLayout() {
   return (
-    <SidebarProvider
+     <NuqsAdapter>
+       <SidebarProvider
       style={
         {
           '--sidebar-width': 'calc(var(--spacing) * 72)',
@@ -38,5 +40,7 @@ export default function DashboardLayout() {
         </div>
       </SidebarInset>
     </SidebarProvider>
+     </NuqsAdapter>
+   
   );
 }

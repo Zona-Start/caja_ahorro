@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@repo/shadcn/*": ["packages/shadcn/src/*"]
+      "@repo/shadcn/*": ["./src/*"]
     }
   },
   "include": ["src", "../../apps/web/components/use-toast.ts"],

@@ -1,24 +1,9 @@
-import { authService } from '@/lib/auth-service';
-import { loginSchema, type LoginInput } from '@/lib/schemas';
+import { LoginForm } from '@/features/auth/components/sigin-view';
 import { useAuthStore } from '@/stores/auth.store';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@repo/shadcn/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@repo/shadcn/card';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
-import { Input } from '@repo/shadcn/input';
-import { Label } from '@repo/shadcn/label';
-import { useMutation } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { redirect, useNavigate, useNavigation } from 'react-router';
+import { redirect } from 'react-router';
 
 export function meta() {
-  return [{ title: 'Login | Caja de Ahorro' }];
+  return [{ title: 'Ingresar | Caja de Ahorro' }];
 }
 
 /**
@@ -34,41 +19,9 @@ export function clientLoader() {
 }
 
 export default function LoginPage() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const loginMutation = useMutation({
-    mutationFn: (data: LoginInput) => authService.login(data),
-    onSuccess: () => {
-      toast({ title: 'Bienvenido', description: 'Inicio de sesión exitoso' });
-      navigate('/dashboard');
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Error de autenticación',
-        description:
-          error?.response?.data?.message ?? 'Credenciales inválidas',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginInput>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const navigation = useNavigation();
-  const isNavigating = navigation.state !== 'idle';
-
-  const isPending = loginMutation.isPending || isNavigating;
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 via-background to-background p-4">
-      <Card className="w-full max-w-md">
+      {/* <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
           <CardDescription>
@@ -124,7 +77,9 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-      </Card>
+      </Card> */}
+
+      <LoginForm />
     </div>
   );
 }

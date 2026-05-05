@@ -1,9 +1,9 @@
 import { useAuthStore } from '@/stores/auth.store';
 import {
-  IconDotsVertical,
-  IconLogout,
-  IconUserCircle,
-} from '@tabler/icons-react';
+  LogOut,
+  UserCircle,
+  DotIcon,
+} from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
@@ -69,7 +69,7 @@ export function NavUser() {
                   {roleName ?? user.email}
                 </span>
               </div>
-              <IconDotsVertical className="ml-auto size-4" />
+              <DotIcon className="ml-auto size-4" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -97,14 +97,14 @@ export function NavUser() {
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link to="/dashboard/profile">
-                  <IconUserCircle />
+                  <UserCircle />
                   Perfil
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
-              <IconLogout />
+              <LogOut />
               Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>

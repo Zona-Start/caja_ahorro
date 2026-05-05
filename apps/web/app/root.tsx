@@ -16,6 +16,7 @@ import { ThemeProvider } from './components/providers/theme-provider';
 
 export const links: Route.LinksFunction = () => [
   { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+  { rel: 'icon', href: '/favicon.ico', type: 'image/x-icon' },
   {
     rel: 'preconnect',
     href: 'https://fonts.gstatic.com',

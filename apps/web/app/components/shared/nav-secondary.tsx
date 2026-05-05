@@ -1,9 +1,9 @@
 import * as React from "react"
-import { type Icon } from "@tabler/icons-react"
+import { type LucideIcon } from "lucide-react"
 
 import {
   SidebarGroup,
-  SidebarGroupContent,
+  SidebarGroupContent,  
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -16,7 +16,7 @@ export function NavSecondary({
   items: {
     title: string
     url: string
-    icon: Icon
+    icon: LucideIcon
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
