@@ -1,10 +1,10 @@
+import { loginResponseSchema } from '@/lib/schemas';
+import { useAuthStore } from '@/stores/auth.store';
 import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
   isAxiosError,
 } from 'axios';
-import { loginResponseSchema } from '@/lib/schemas';
-import { useAuthStore } from '@/stores/auth.store';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -160,6 +160,14 @@ apiClient.interceptors.request.use((config) => {
   if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Attach tenantId header if user has a tenant
+  const user = useAuthStore.getState().user;
+  const tenantId = user?.memberships?.[0]?.tenantId;
+  if (tenantId && !config.headers['x-tenant-id']) {
+    config.headers['x-tenant-id'] = tenantId;
+  }
+
   return config;
 });
 
@@ -192,10 +200,7 @@ if (import.meta.env.DEV) {
 
         // ── Summary ──────────────────────────────────────────────────────
         const message =
-          data?.message ??
-          data?.error ??
-          error.message ??
-          'Unknown error';
+          data?.message ?? data?.error ?? error.message ?? 'Unknown error';
 
         console.log(
           '%cMessage:%c %s',
@@ -260,20 +265,14 @@ if (import.meta.env.DEV) {
 
         // ── Full response payload ────────────────────────────────────────
         if (data) {
-          console.groupCollapsed(
-            '%c📦 Response Payload',
-            'color: #868e96;',
-          );
+          console.groupCollapsed('%c📦 Response Payload', 'color: #868e96;');
           console.dir(data, { depth: 5 });
           console.groupEnd();
         }
 
         // ── Request body (if any) ────────────────────────────────────────
         if (config?.data) {
-          console.groupCollapsed(
-            '%c📤 Request Body',
-            'color: #868e96;',
-          );
+          console.groupCollapsed('%c📤 Request Body', 'color: #868e96;');
           try {
             console.dir(
               typeof config.data === 'string'
@@ -288,10 +287,7 @@ if (import.meta.env.DEV) {
         }
 
         // ── Request headers ──────────────────────────────────────────────
-        console.groupCollapsed(
-          '%c🔑 Request Headers',
-          'color: #868e96;',
-        );
+        console.groupCollapsed('%c🔑 Request Headers', 'color: #868e96;');
         console.dir(config?.headers, { depth: 3 });
         console.groupEnd();
 
@@ -338,4 +334,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-

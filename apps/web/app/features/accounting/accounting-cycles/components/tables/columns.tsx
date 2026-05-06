@@ -1,5 +1,5 @@
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
 import { CYCLE_STATUS_OPTIONS } from '../../schemas/accounting-cycle-options';
 import type { AccountingCycle } from '../../schemas/accounting-cycle.schema';

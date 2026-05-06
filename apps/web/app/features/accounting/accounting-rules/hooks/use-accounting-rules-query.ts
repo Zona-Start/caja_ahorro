@@ -1,12 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query-keys';
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { AccountingRule } from '../schemas/accounting-rule.schema';
 import { AccountingRulesService } from '../services/accounting-rules-service';
 
-export function useAccountingRules(companyId: number = 1) {
+export function useAccountingRules(params: any): UseQueryResult<{
+  data: AccountingRule[];
+  meta: any;
+}> {
   return useQuery({
     queryKey: QUERY_KEYS.accountingRules.lists(),
-    queryFn: () => AccountingRulesService.getAll(companyId),
-    enabled: !!companyId,
+    queryFn: () => AccountingRulesService.getPaginated(params),
+    enabled: !!params,
   });
 }
 

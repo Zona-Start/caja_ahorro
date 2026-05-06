@@ -1,18 +1,18 @@
 import { z } from 'zod';
 
 export const accountingCycleApiSchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number().optional(),
+  id: z.string().optional(),
+  tenantId: z.string().optional(),
   startDate: z.string(),
   endDate: z.string(),
   status: z.string(),
   description: z.string(),
   closedAt: z.string().optional().nullable(),
-  closedByUser_id: z.number().optional().nullable(),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
-  createdById: z.number().optional(),
-  updateById: z.number().optional().nullable(),
+  closedByUser_id: z.string().optional().nullable(),
+  createdAt: z.string().optional().nullable(),
+  updatedAt: z.string().optional().nullable(),
+  createdById: z.string().optional().nullable(),
+  updateById: z.string().optional().nullable(),
 });
 
 export type AccountingCycleApi = z.infer<typeof accountingCycleApiSchema>;
@@ -39,9 +39,9 @@ export const accountingCyclePaginationResponseSchema = z.object({
     limit: z.number(),
     totalCount: z.number(),
     totalPages: z.number(),
-    hasNextPage: z.boolean(),
-    hasPreviousPage: z.boolean(),
-    nextPage: z.number().nullable(),
-    previousPage: z.number().nullable(),
+    hasNextPage: z.boolean().optional().nullable(),
+    hasPreviousPage: z.boolean().optional().nullable(),
+    nextPage: z.number().optional().nullable(),
+    previousPage: z.number().optional().nullable(),
   }),
 });

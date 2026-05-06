@@ -4,8 +4,8 @@ import {
   accountingCyclePaginationResponseSchema,
   accountingCycleResponseSchema,
 } from '../schemas/accounting-cycle-api';
-import type { AccountingCycle } from '../schemas/accounting-cycle.schema';
 import { CycleStatusEnum } from '../schemas/accounting-cycle-options';
+import type { AccountingCycle } from '../schemas/accounting-cycle.schema';
 
 export class AccountingCyclesService {
   static async getAll() {
@@ -29,7 +29,9 @@ export class AccountingCyclesService {
     if (params.sortBy) searchParams.append('sortBy', params.sortBy);
     if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
 
-    const response = await apiClient.get(`/accounting-cycles/paginated?${searchParams.toString()}`);
+    const response = await apiClient.get(
+      `/accounting-cycles/paginated?${searchParams.toString()}`,
+    );
     const parsed = accountingCyclePaginationResponseSchema.parse(response.data);
 
     const toLocalDate = (iso: string): Date => {
@@ -61,13 +63,19 @@ export class AccountingCyclesService {
 
   static async create(payload: AccountingCycle) {
     const { id, status, ...payloadWithoutId } = payload;
-    const response = await apiClient.post('/accounting-cycles', payloadWithoutId);
+    const response = await apiClient.post(
+      '/accounting-cycles',
+      payloadWithoutId,
+    );
     return accountingCycleResponseSchema.parse(response.data).data;
   }
 
   static async update(payload: AccountingCycle) {
     const { id, ...payloadWithoutId } = payload;
-    const response = await apiClient.patch(`/accounting-cycles/${id}`, payloadWithoutId);
+    const response = await apiClient.patch(
+      `/accounting-cycles/${id}`,
+      payloadWithoutId,
+    );
     return accountingCycleResponseSchema.parse(response.data).data;
   }
 

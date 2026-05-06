@@ -3,9 +3,10 @@ import * as schema from '@/database/schema';
 import { AccountingRuleWithDetails } from '@/database/types/accounting';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateAccountingRuleDto } from './dto/create-accounting-rule.dto';
+import { FilterAccountingRulesDto } from './dto/filter-accounting-rule.dto';
 import { UpdateAccountingRuleDto } from './dto/update-accounting-rule.dto';
 
 @Injectable()
@@ -70,6 +71,84 @@ export class AccountingRulesService {
       });
     }
     return results;
+  }
+
+  async findAllByPagination(
+    tenantId: string | null, // Ahora puede ser null si es superadmin
+    paginationDto?: FilterAccountingRulesDto,
+  ): Promise<{ data: AccountingRuleWithDetails[]; meta: any }> {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+    } = paginationDto || {};
+
+    const offset = (page - 1) * limit;
+
+    let searchConditions: SQL<unknown>[] = [];
+
+    if (search) {
+      searchConditions.push(
+        ilike(schema.accountingRules.description, `%${search}%`),
+      );
+    }
+
+    if (tenantId) {
+      searchConditions.push(eq(schema.accountingRules.tenantId, tenantId));
+    }
+
+    const searchCondition = and(...searchConditions);
+
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${schema.accountingRules[sortBy as keyof typeof schema.accountingRules]} asc`
+        : sql`${schema.accountingRules[sortBy as keyof typeof schema.accountingRules]} desc`;
+
+    const totalCountResult = await this.drizzle
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.accountingRules)
+      .where(searchCondition);
+
+    const totalCount = Number(totalCountResult[0].count);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const data = await this.drizzle
+      .select()
+      .from(schema.accountingRules)
+      .where(searchCondition)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    const results: AccountingRuleWithDetails[] = [];
+    for (const r of data) {
+      const details = await this.drizzle
+        .select()
+        .from(schema.accountingRuleDetails)
+        .where(eq(schema.accountingRuleDetails.ruleId, r.id));
+      results.push({
+        ...r,
+        details: details as any,
+      });
+    }
+
+    const meta = {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return {
+      data: results,
+      meta,
+    };
   }
 
   async findOne(

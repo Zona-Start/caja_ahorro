@@ -75,8 +75,8 @@ CREATE TABLE "accounting"."account_balances" (
 	"final_balance" numeric(20, 6) DEFAULT '0.00' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "account_balances_unique" UNIQUE("tenant_id","account_plan_id","accounting_cycles_id")
 );
 --> statement-breakpoint
@@ -94,8 +94,8 @@ CREATE TABLE "accounting"."account_plan" (
 	"parent_account_id" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "accounting"."accounting_cycles" (
@@ -109,8 +109,8 @@ CREATE TABLE "accounting"."accounting_cycles" (
 	"closed_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "accounting"."accounting_entries" (
@@ -119,7 +119,7 @@ CREATE TABLE "accounting"."accounting_entries" (
 	"accounting_cycle_id" uuid NOT NULL,
 	"entry_date" date NOT NULL,
 	"description" text NOT NULL,
-	"voucher_no" integer,
+	"voucher_no" integer NOT NULL,
 	"origin_reference_id" text,
 	"origin_type" varchar(50),
 	"status" "accounting"."accounting_entry_status" DEFAULT 'DRAFT' NOT NULL,
@@ -127,8 +127,8 @@ CREATE TABLE "accounting"."accounting_entries" (
 	"currency_code" "currency_code" NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "accounting"."accounting_entry_details" (
@@ -142,8 +142,8 @@ CREATE TABLE "accounting"."accounting_entry_details" (
 	"description" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "debit_credit_check" CHECK (("accounting"."accounting_entry_details"."debit" > 0 AND "accounting"."accounting_entry_details"."credit" = 0) OR ("accounting"."accounting_entry_details"."debit" = 0 AND "accounting"."accounting_entry_details"."credit" > 0) OR ("accounting"."accounting_entry_details"."debit" = 0 AND "accounting"."accounting_entry_details"."credit" = 0)),
 	CONSTRAINT "amount_positive_check" CHECK ("accounting"."accounting_entry_details"."debit" >= 0 AND "accounting"."accounting_entry_details"."credit" >= 0),
 	CONSTRAINT "only_one_auxiliary_check" CHECK (("accounting"."accounting_entry_details"."associate_id" IS NULL OR "accounting"."accounting_entry_details"."supplier_id" IS NULL))
@@ -167,7 +167,11 @@ CREATE TABLE "accounting"."accounting_rules" (
 	"operation_type" varchar NOT NULL,
 	"reference_value" varchar(255),
 	"description" text,
-	"is_active" boolean DEFAULT true
+	"is_active" boolean DEFAULT true,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."accounts_payable" (
@@ -187,8 +191,8 @@ CREATE TABLE "purchasing"."accounts_payable" (
 	"observations" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "accounts_payable_supplier_invoice_id_unique" UNIQUE("supplier_invoice_id"),
 	CONSTRAINT "accounts_payable_ap_number_unique" UNIQUE("ap_number")
 );
@@ -202,8 +206,8 @@ CREATE TABLE "savings"."associate_account_balance_history" (
 	"reason" varchar(255),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."associate_account_movements" (
@@ -221,13 +225,13 @@ CREATE TABLE "savings"."associate_account_movements" (
 	"status" "savings"."movement_status" DEFAULT 'PENDING' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."associate_accounts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"associated_id" uuid,
+	"associate_id" uuid,
 	"account_number" varchar(20) NOT NULL,
 	"currency_code" "currency_code" NOT NULL,
 	"balance" numeric(20, 6) DEFAULT '0.00' NOT NULL,
@@ -237,8 +241,8 @@ CREATE TABLE "savings"."associate_accounts" (
 	"status" "status_enum" DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "associate_accounts_account_number_unique" UNIQUE("account_number")
 );
 --> statement-breakpoint
@@ -264,8 +268,8 @@ CREATE TABLE "savings"."associates" (
 	"base_salary" numeric(20, 6),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "associates_cedula_unique" UNIQUE("cedula")
 );
 --> statement-breakpoint
@@ -308,8 +312,8 @@ CREATE TABLE "treasury"."bank_accounts" (
 	"rule_account_id" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "bank_accounts_account_number_unique" UNIQUE("account_number")
 );
 --> statement-breakpoint
@@ -333,8 +337,8 @@ CREATE TABLE "treasury"."bank_directory" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "bank_directory_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
@@ -350,8 +354,8 @@ CREATE TABLE "treasury"."bank_reconciliation_details" (
 	"adjustment_entry_id" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "bank_reconciliation_details_bank_transaction_id_unique" UNIQUE("bank_transaction_id")
 );
 --> statement-breakpoint
@@ -371,8 +375,8 @@ CREATE TABLE "treasury"."bank_reconciliations" (
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "treasury"."bank_transactions" (
@@ -397,8 +401,8 @@ CREATE TABLE "treasury"."bank_transactions" (
 	"note" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "core"."categories" (
@@ -407,13 +411,13 @@ CREATE TABLE "core"."categories" (
 	"type" varchar(50) NOT NULL,
 	"code" varchar(20) NOT NULL,
 	"name" varchar(255) NOT NULL,
-	"description" text NOT NULL,
+	"description" text,
 	"options" jsonb,
 	"is_active" boolean DEFAULT true,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."credit_amortization_schedule" (
@@ -430,8 +434,8 @@ CREATE TABLE "savings"."credit_amortization_schedule" (
 	"last_payment_date" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."credit_item_sales" (
@@ -447,8 +451,8 @@ CREATE TABLE "savings"."credit_item_sales" (
 	"days" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."credit_payments" (
@@ -467,8 +471,8 @@ CREATE TABLE "savings"."credit_payments" (
 	"payment_status" "savings"."payment_status" DEFAULT 'DONE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."credit_payment_details" (
@@ -478,8 +482,8 @@ CREATE TABLE "savings"."credit_payment_details" (
 	"amount" numeric(20, 6) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."credit_status_history" (
@@ -523,8 +527,8 @@ CREATE TABLE "savings"."credits" (
 	"term_units" integer,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."credits_types" (
@@ -553,8 +557,8 @@ CREATE TABLE "savings"."credits_types" (
 	"accepts_refinancing" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "core"."currencies" (
@@ -564,10 +568,11 @@ CREATE TABLE "core"."currencies" (
 	"symbol" varchar(5),
 	"decimal_places" integer DEFAULT 2 NOT NULL,
 	"is_active" boolean DEFAULT true,
+	"is_base" boolean DEFAULT false,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "currencies_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
@@ -580,8 +585,8 @@ CREATE TABLE "core"."exchange_rates" (
 	"fetched_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."fixed_assets" (
@@ -605,8 +610,8 @@ CREATE TABLE "inventory"."fixed_assets" (
 	"disposal_value" numeric(18, 2),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "fixed_assets_asset_code_unique" UNIQUE("asset_code")
 );
 --> statement-breakpoint
@@ -624,8 +629,22 @@ CREATE TABLE "inventory"."fixed_assets_prices" (
 	"is_active" boolean DEFAULT true,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
+);
+--> statement-breakpoint
+CREATE TABLE "core"."global_settings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"key" varchar(100) NOT NULL,
+	"value" text,
+	"description" text,
+	"category" varchar(50) DEFAULT 'general' NOT NULL,
+	"is_encrypted" boolean DEFAULT false,
+	"created_by" uuid,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_by" uuid,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "global_settings_key_unique" UNIQUE("key")
 );
 --> statement-breakpoint
 CREATE TABLE "treasury"."internal_transaction_bank_links" (
@@ -638,8 +657,8 @@ CREATE TABLE "treasury"."internal_transaction_bank_links" (
 	"linked_by" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."inventories_categories" (
@@ -650,8 +669,8 @@ CREATE TABLE "inventory"."inventories_categories" (
 	"description" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "inventories_categories_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
@@ -672,8 +691,8 @@ CREATE TABLE "inventory"."inventory_movements" (
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."liquidations_associates" (
@@ -694,8 +713,8 @@ CREATE TABLE "savings"."liquidations_associates" (
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."loan_amortization_schedule" (
@@ -712,8 +731,8 @@ CREATE TABLE "savings"."loan_amortization_schedule" (
 	"last_payment_date" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."loan_payments" (
@@ -732,8 +751,8 @@ CREATE TABLE "savings"."loan_payments" (
 	"custom_reference" varchar(50),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."loan_payment_details" (
@@ -744,8 +763,8 @@ CREATE TABLE "savings"."loan_payment_details" (
 	"payment_status" "savings"."payment_status" DEFAULT 'DONE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."loan_status_history" (
@@ -783,8 +802,8 @@ CREATE TABLE "savings"."loan_types" (
 	"accepts_refinancing" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."loans" (
@@ -824,8 +843,8 @@ CREATE TABLE "savings"."loans" (
 	"expenses_percentage" numeric(5, 2),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "core"."localities" (
@@ -836,8 +855,8 @@ CREATE TABLE "core"."localities" (
 	"name" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "localities_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
@@ -855,14 +874,29 @@ CREATE TABLE "auth"."login_attempts" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "core"."module_settings" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_id" uuid NOT NULL,
+	"module" varchar(50) NOT NULL,
+	"submodule" varchar(50) NOT NULL,
+	"key" varchar(100) NOT NULL,
+	"value" text,
+	"description" text,
+	"is_encrypted" boolean DEFAULT false,
+	"created_by" uuid,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_by" uuid,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "core"."municipalities" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"state_id" integer NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "core"."parishes" (
@@ -871,8 +905,8 @@ CREATE TABLE "core"."parishes" (
 	"municipality_id" integer NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."payment_batch_items" (
@@ -890,8 +924,8 @@ CREATE TABLE "savings"."payment_batch_items" (
 	"rejection_reason" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "savings"."payment_batches" (
@@ -910,8 +944,8 @@ CREATE TABLE "savings"."payment_batches" (
 	"batch_type" varchar(30) DEFAULT 'PAYMENT' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "payment_batches_payment_batch_reference_unique" UNIQUE("payment_batch_reference")
 );
 --> statement-breakpoint
@@ -925,8 +959,8 @@ CREATE TABLE "auth"."permissions" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	"deleted_by" uuid,
 	"deleted_at" timestamp
 );
@@ -950,8 +984,8 @@ CREATE TABLE "inventory"."product_prices" (
 	"is_active" boolean DEFAULT true,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."product_service_suppliers" (
@@ -984,8 +1018,8 @@ CREATE TABLE "inventory"."products" (
 	"unit_of_measure" "inventory"."unit_of_measure",
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "products_sku_unique" UNIQUE("sku")
 );
 --> statement-breakpoint
@@ -1000,8 +1034,8 @@ CREATE TABLE "purchasing"."purchase_order_items" (
 	"total_cost" numeric(18, 2) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."purchase_orders" (
@@ -1019,8 +1053,8 @@ CREATE TABLE "purchasing"."purchase_orders" (
 	"observations" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "purchase_orders_order_number_unique" UNIQUE("order_number")
 );
 --> statement-breakpoint
@@ -1031,8 +1065,8 @@ CREATE TABLE "auth"."role_permissions" (
 	"is_custom" boolean DEFAULT false,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "auth"."roles" (
@@ -1045,8 +1079,8 @@ CREATE TABLE "auth"."roles" (
 	"deleted_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."service_prices" (
@@ -1063,8 +1097,8 @@ CREATE TABLE "inventory"."service_prices" (
 	"is_active" boolean DEFAULT true,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."services" (
@@ -1077,8 +1111,8 @@ CREATE TABLE "inventory"."services" (
 	"status" "purchasing"."status_suppliers" DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "services_service_code_unique" UNIQUE("service_code")
 );
 --> statement-breakpoint
@@ -1110,8 +1144,8 @@ CREATE TABLE "core"."states" (
 	"name" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."supplier_advances" (
@@ -1125,8 +1159,8 @@ CREATE TABLE "purchasing"."supplier_advances" (
 	"status" varchar DEFAULT 'PENDING',
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."supplier_credit_notes" (
@@ -1141,8 +1175,8 @@ CREATE TABLE "purchasing"."supplier_credit_notes" (
 	"available_amount" numeric(18, 2) DEFAULT '0.00',
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "supplier_credit_notes_credit_note_number_unique" UNIQUE("credit_note_number")
 );
 --> statement-breakpoint
@@ -1157,8 +1191,8 @@ CREATE TABLE "purchasing"."supplier_debit_notes" (
 	"amount" numeric(18, 2) DEFAULT '0.00',
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "supplier_debit_notes_debit_note_number_unique" UNIQUE("debit_note_number")
 );
 --> statement-breakpoint
@@ -1174,8 +1208,8 @@ CREATE TABLE "purchasing"."supplier_invoice_items" (
 	"total_line" numeric(18, 2) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."supplier_invoices" (
@@ -1197,8 +1231,8 @@ CREATE TABLE "purchasing"."supplier_invoices" (
 	"observations" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "supplier_invoices_supplier_invoice_number_unique" UNIQUE("supplier_invoice_number")
 );
 --> statement-breakpoint
@@ -1211,8 +1245,8 @@ CREATE TABLE "purchasing"."supplier_payment_lines" (
 	"description" varchar(255),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."supplier_payments" (
@@ -1234,8 +1268,8 @@ CREATE TABLE "purchasing"."supplier_payments" (
 	"observations" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "supplier_payments_payment_number_unique" UNIQUE("payment_number")
 );
 --> statement-breakpoint
@@ -1248,8 +1282,8 @@ CREATE TABLE "purchasing"."supplier_transaction_applications" (
 	"application_date" date DEFAULT now(),
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."supplier_transactions" (
@@ -1269,8 +1303,8 @@ CREATE TABLE "purchasing"."supplier_transactions" (
 	"observations" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "supplier_transactions_transaction_number_unique" UNIQUE("transaction_number")
 );
 --> statement-breakpoint
@@ -1289,8 +1323,8 @@ CREATE TABLE "purchasing"."suppliers" (
 	"status" "purchasing"."status_suppliers" DEFAULT 'ACTIVE' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "suppliers_code_unique" UNIQUE("code"),
 	CONSTRAINT "suppliers_tax_id_unique" UNIQUE("tax_id")
 );
@@ -1323,8 +1357,8 @@ CREATE TABLE "auth"."tenant_members" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "tenant"."tenant_settings" (
@@ -1336,8 +1370,8 @@ CREATE TABLE "tenant"."tenant_settings" (
 	"category" varchar(50) DEFAULT 'general' NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "tenant"."tenants" (
@@ -1366,8 +1400,8 @@ CREATE TABLE "auth"."user_permissions" (
 	"permission_id" uuid NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL
+	"created_by_id" uuid,
+	"updated_by_id" uuid
 );
 --> statement-breakpoint
 CREATE TABLE "auth"."users" (
@@ -1381,8 +1415,8 @@ CREATE TABLE "auth"."users" (
 	"is_system_admin" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	"deleted_by" uuid,
 	"deleted_at" timestamp,
 	"last_login_at" timestamp
@@ -1403,8 +1437,8 @@ CREATE TABLE "savings"."withdrawal_types" (
 	"is_internal_inventory" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "withdrawal_types_description_unique" UNIQUE("description")
 );
 --> statement-breakpoint
@@ -1425,8 +1459,8 @@ CREATE TABLE "savings"."withdrawals_associates" (
 	"withdrawal_items" jsonb,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
-	"created_by_id" uuid NOT NULL,
-	"updated_by_id" uuid NOT NULL,
+	"created_by_id" uuid,
+	"updated_by_id" uuid,
 	CONSTRAINT "withdrawals_associates_reference_code_unique" UNIQUE("reference_code")
 );
 --> statement-breakpoint
@@ -1453,7 +1487,7 @@ ALTER TABLE "savings"."associate_account_balance_history" ADD CONSTRAINT "associ
 ALTER TABLE "savings"."associate_account_balance_history" ADD CONSTRAINT "associate_account_balance_history_movement_id_associate_account_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "savings"."associate_account_movements"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associate_account_movements" ADD CONSTRAINT "associate_account_movements_associate_account_id_associate_accounts_id_fk" FOREIGN KEY ("associate_account_id") REFERENCES "savings"."associate_accounts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associate_account_movements" ADD CONSTRAINT "associate_account_movements_exchange_rate_id_exchange_rates_id_fk" FOREIGN KEY ("exchange_rate_id") REFERENCES "core"."exchange_rates"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "savings"."associate_accounts" ADD CONSTRAINT "associate_accounts_associated_id_associates_id_fk" FOREIGN KEY ("associated_id") REFERENCES "savings"."associates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings"."associate_accounts" ADD CONSTRAINT "associate_accounts_associate_id_associates_id_fk" FOREIGN KEY ("associate_id") REFERENCES "savings"."associates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associate_accounts" ADD CONSTRAINT "associate_accounts_bank_id_bank_directory_id_fk" FOREIGN KEY ("bank_id") REFERENCES "treasury"."bank_directory"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_locality_id_states_id_fk" FOREIGN KEY ("locality_id") REFERENCES "core"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1543,6 +1577,7 @@ ALTER TABLE "core"."localities" ADD CONSTRAINT "localities_state_id_states_id_fk
 ALTER TABLE "core"."localities" ADD CONSTRAINT "localities_municipality_id_municipalities_id_fk" FOREIGN KEY ("municipality_id") REFERENCES "core"."municipalities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."localities" ADD CONSTRAINT "localities_parish_id_parishes_id_fk" FOREIGN KEY ("parish_id") REFERENCES "core"."parishes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."login_attempts" ADD CONSTRAINT "login_attempts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."module_settings" ADD CONSTRAINT "module_settings_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."municipalities" ADD CONSTRAINT "municipalities_state_id_states_id_fk" FOREIGN KEY ("state_id") REFERENCES "core"."states"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."parishes" ADD CONSTRAINT "parishes_municipality_id_municipalities_id_fk" FOREIGN KEY ("municipality_id") REFERENCES "core"."municipalities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."payment_batch_items" ADD CONSTRAINT "payment_batch_items_payment_batch_id_payment_batches_id_fk" FOREIGN KEY ("payment_batch_id") REFERENCES "savings"."payment_batches"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1635,7 +1670,7 @@ CREATE INDEX "assoc_acct_mov_type_idx" ON "savings"."associate_account_movements
 CREATE INDEX "assoc_acct_mov_reference_idx" ON "savings"."associate_account_movements" USING btree ("reference_type","reference_id");--> statement-breakpoint
 CREATE INDEX "assoc_acct_mov_exchange_rate_idx" ON "savings"."associate_account_movements" USING btree ("exchange_rate_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "associate_accounts_account_number_uidx" ON "savings"."associate_accounts" USING btree ("account_number");--> statement-breakpoint
-CREATE INDEX "associate_accounts_associate_idx" ON "savings"."associate_accounts" USING btree ("associated_id");--> statement-breakpoint
+CREATE INDEX "associate_accounts_associate_idx" ON "savings"."associate_accounts" USING btree ("associate_id");--> statement-breakpoint
 CREATE INDEX "associate_accounts_status_idx" ON "savings"."associate_accounts" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "associate_accounts_currency_idx" ON "savings"."associate_accounts" USING btree ("currency_code");--> statement-breakpoint
 CREATE INDEX "associate_opening_date_idx" ON "savings"."associate_accounts" USING btree ("opening_date");--> statement-breakpoint
@@ -1698,6 +1733,8 @@ CREATE INDEX "exchange_rates_date_idx" ON "core"."exchange_rates" USING btree ("
 CREATE INDEX "fixed_asset_code_idx" ON "inventory"."fixed_assets" USING btree ("asset_code");--> statement-breakpoint
 CREATE INDEX "fixed_asset_cat_id_idx" ON "inventory"."fixed_assets" USING btree ("category_id");--> statement-breakpoint
 CREATE INDEX "fixed_asset_status_idx" ON "inventory"."fixed_assets" USING btree ("asset_status");--> statement-breakpoint
+CREATE INDEX "global_settings_key_idx" ON "core"."global_settings" USING btree ("key");--> statement-breakpoint
+CREATE INDEX "global_settings_category_idx" ON "core"."global_settings" USING btree ("category");--> statement-breakpoint
 CREATE INDEX "int_trans_links_bank_trans_id_idx" ON "treasury"."internal_transaction_bank_links" USING btree ("bank_transaction_id");--> statement-breakpoint
 CREATE INDEX "int_trans_links_internal_record_idx" ON "treasury"."internal_transaction_bank_links" USING btree ("internal_record_type","internal_record_id");--> statement-breakpoint
 CREATE INDEX "inventory_categories_name_idx" ON "inventory"."inventories_categories" USING btree ("name");--> statement-breakpoint
@@ -1729,6 +1766,9 @@ CREATE INDEX "login_attempts_ip_address_idx" ON "auth"."login_attempts" USING bt
 CREATE INDEX "login_attempts_created_at_idx" ON "auth"."login_attempts" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "login_attempts_success_idx" ON "auth"."login_attempts" USING btree ("success");--> statement-breakpoint
 CREATE INDEX "login_attempts_correlation_id_idx" ON "auth"."login_attempts" USING btree ("correlation_id");--> statement-breakpoint
+CREATE INDEX "module_settings_tenant_idx" ON "core"."module_settings" USING btree ("tenant_id");--> statement-breakpoint
+CREATE INDEX "module_settings_module_idx" ON "core"."module_settings" USING btree ("tenant_id","module");--> statement-breakpoint
+CREATE UNIQUE INDEX "module_settings_composite_key_uidx" ON "core"."module_settings" USING btree ("tenant_id","module","submodule","key");--> statement-breakpoint
 CREATE INDEX "municipalities_index_idx" ON "core"."municipalities" USING btree ("id","name","state_id");--> statement-breakpoint
 CREATE INDEX "parishes_index_idx" ON "core"."parishes" USING btree ("id","name","municipality_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "permissions_resource_action_scope_idx" ON "auth"."permissions" USING btree ("resource","action","scope");--> statement-breakpoint
@@ -1788,4 +1828,343 @@ CREATE INDEX "withdrawal_types_frequency_relation_idx" ON "savings"."withdrawal_
 CREATE INDEX "withdrawals_associate_account_idx" ON "savings"."withdrawals_associates" USING btree ("associate_account_id");--> statement-breakpoint
 CREATE INDEX "withdrawals_withdrawal_type_idx" ON "savings"."withdrawals_associates" USING btree ("withdrawal_type_id");--> statement-breakpoint
 CREATE INDEX "withdrawals_withdrawal_date_idx" ON "savings"."withdrawals_associates" USING btree ("withdrawal_date");--> statement-breakpoint
-CREATE UNIQUE INDEX "withdrawals_reference_code_uidx" ON "savings"."withdrawals_associates" USING btree ("reference_code");
+CREATE UNIQUE INDEX "withdrawals_reference_code_uidx" ON "savings"."withdrawals_associates" USING btree ("reference_code");--> statement-breakpoint
+CREATE VIEW "accounting"."accounting_balance" AS (
+  SELECT
+    ap.tenant_id,
+    ap.id AS account_plan_id,
+    ap.code AS account_code,
+    ap.name AS account_name,
+    COALESCE(ae.currency_code, 'VES') AS currency_code,
+    COALESCE(SUM(aed.debit), 0) AS total_debit,
+    COALESCE(SUM(aed.credit), 0) AS total_credit,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)
+      ELSE 0
+    END AS balance
+  FROM "accounting"."account_plan" ap
+  LEFT JOIN "accounting"."accounting_entry_details" aed ON aed.account_plan_id = ap.id
+  LEFT JOIN "accounting"."accounting_entries" ae
+    ON ae.id = aed.accounting_entry_id
+   AND ae.tenant_id = ap.tenant_id
+   AND ae.status = 'POSTED'
+  GROUP BY ap.tenant_id, ap.id, ap.code, ap.name, ap.nature, COALESCE(ae.currency_code, 'VES')
+);--> statement-breakpoint
+CREATE VIEW "accounting"."accounting_balance_by_bank" AS (
+  SELECT
+    ba.tenant_id,
+    ba.id AS bank_account_id,
+    ap.id AS account_plan_id,
+    ap.code AS account_code,
+    ap.name AS account_name,
+    COALESCE(ae.currency_code, ba.currency_code) AS currency_code,
+    COALESCE(SUM(aed.debit), 0) AS total_debit,
+    COALESCE(SUM(aed.credit), 0) AS total_credit,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)
+      ELSE 0
+    END AS balance
+  FROM "treasury"."bank_accounts" ba
+  INNER JOIN "accounting"."account_plan" ap ON ap.id = ba.linked_chart_account_id
+  LEFT JOIN "accounting"."accounting_entry_details" aed ON aed.account_plan_id = ap.id
+  LEFT JOIN "accounting"."accounting_entries" ae
+    ON ae.id = aed.accounting_entry_id
+   AND ae.tenant_id = ba.tenant_id
+   AND ae.status = 'POSTED'
+  GROUP BY ba.tenant_id, ba.id, ap.id, ap.code, ap.name, ap.nature,
+           COALESCE(ae.currency_code, ba.currency_code)
+);--> statement-breakpoint
+CREATE VIEW "accounting"."period_account_movements_view" AS (
+  SELECT
+    aed.account_plan_id,
+    ae.accounting_cycle_id,
+    COALESCE(SUM(aed.debit), 0) AS period_debit,
+    COALESCE(SUM(aed.credit), 0) AS period_credit
+  FROM "accounting"."accounting_entry_details" aed
+  INNER JOIN "accounting"."accounting_entries" ae ON aed.accounting_entry_id = ae.id
+  WHERE ae.status = 'POSTED'
+  GROUP BY aed.account_plan_id, ae.accounting_cycle_id
+);--> statement-breakpoint
+CREATE VIEW "accounting"."active_account_balances_view" AS (
+  SELECT
+    ab.account_plan_id,
+    ab.tenant_id,
+    ab.accounting_cycles_id AS accounting_cycle_id,
+    ap.code AS account_code,
+    ap.name AS account_name,
+    ap.nature,
+    ab.initial_balance,
+    COALESCE(pam.period_debit, 0) AS period_debit,
+    COALESCE(pam.period_credit, 0) AS period_credit,
+    CASE
+      WHEN ap.nature = 'DEBIT' THEN (ab.initial_balance + COALESCE(pam.period_debit, 0) - COALESCE(pam.period_credit, 0))
+      WHEN ap.nature = 'CREDIT' THEN (ab.initial_balance + COALESCE(pam.period_credit, 0) - COALESCE(pam.period_debit, 0))
+      ELSE 0
+    END AS current_balance
+  FROM "accounting"."account_balances" ab
+  INNER JOIN "accounting"."account_plan" ap ON ab.account_plan_id = ap.id
+  LEFT JOIN "accounting"."period_account_movements_view" pam
+    ON ab.account_plan_id = pam.account_plan_id AND ab.accounting_cycles_id = pam.accounting_cycle_id
+);--> statement-breakpoint
+CREATE VIEW "inventory"."inventory_availability" AS (
+  SELECT
+    item_id,
+    item_type,
+    SUM(
+      CASE
+        WHEN movement_type IN ('IN','ADJUST_IN') THEN quantity
+        WHEN movement_type IN ('OUT','ADJUST_OUT') THEN -quantity
+        ELSE quantity
+      END
+    ) AS available_quantity,
+    tenant_id
+  FROM "inventory"."inventory_movements"
+  GROUP BY item_id, item_type, tenant_id
+);--> statement-breakpoint
+CREATE VIEW "purchasing"."supplier_advances_360" AS (
+  SELECT
+    s.tenant_id,
+    s.id                                          AS supplier_id,
+    COUNT(a.id)                                   AS advances_count,
+    COALESCE(SUM(a.amount), 0)                    AS advances_total,
+    COALESCE(SUM(a.available_amount), 0)          AS advances_available
+  FROM "purchasing"."suppliers" s
+  LEFT JOIN "purchasing"."supplier_advances" a ON a.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "purchasing"."supplier_ap_360" AS (
+  SELECT
+    s.tenant_id,
+    s.id                                      AS supplier_id,
+    COUNT(ap.id)                              AS ap_count,
+    COALESCE(SUM(ap.original_amount), 0)      AS ap_original,
+    COALESCE(SUM(ap.paid_amount), 0)          AS ap_paid,
+    COALESCE(SUM(ap.remaining_amount), 0)     AS ap_remaining,
+    COALESCE(SUM(ap.remaining_amount) FILTER (WHERE ap.due_date < CURRENT_DATE), 0) AS ap_overdue
+  FROM "purchasing"."suppliers" s
+  LEFT JOIN "purchasing"."accounts_payable" ap ON ap.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "purchasing"."supplier_master_360" AS (
+  SELECT
+    s.id            AS supplier_id,
+    s.tenant_id,
+    s.code,
+    s.name,
+    s.tax_id,
+    s.category::text,
+    s.status::text,
+    s.contact_name,
+    s.contact_email,
+    s.contact_phone,
+    s.address,
+    st.name         AS state_name
+  FROM "purchasing"."suppliers" s
+  LEFT JOIN "core"."states" st ON st.id = s.state
+);--> statement-breakpoint
+CREATE VIEW "purchasing"."supplier_notes_360" AS (
+  SELECT
+    s.tenant_id,
+    s.id            AS supplier_id,
+    COUNT(DISTINCT cn.id)                          AS cn_count,
+    COALESCE(SUM(cn.amount), 0)                    AS cn_amount,
+    COALESCE(SUM(cn.available_amount), 0)          AS cn_available,
+    COUNT(DISTINCT dn.id)                          AS dn_count,
+    COALESCE(SUM(dn.amount), 0)                    AS dn_amount
+  FROM "purchasing"."suppliers" s
+  LEFT JOIN "purchasing"."supplier_credit_notes" cn ON cn.supplier_id = s.id
+  LEFT JOIN "purchasing"."supplier_debit_notes" dn ON dn.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "purchasing"."supplier_payments_360" AS (
+  SELECT
+    s.tenant_id,
+    s.id            AS supplier_id,
+    COUNT(p.id)                                AS payments_count,
+    COALESCE(SUM(p.total_amount), 0)           AS payments_total,
+    MAX(p.requested_at)                        AS last_payment_date
+  FROM "purchasing"."suppliers" s
+  LEFT JOIN "purchasing"."supplier_payments" p ON p.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "purchasing"."supplier_purchases_360" AS (
+  SELECT
+    s.tenant_id,
+    s.id                                     AS supplier_id,
+    COUNT(DISTINCT po.id)                    AS po_count,
+    COUNT(DISTINCT po.id) FILTER (WHERE po.status = 'PENDING') AS po_pending,
+    COUNT(DISTINCT inv.id)                   AS invoices_count,
+    COALESCE(SUM(inv.total_amount), 0)       AS invoices_total,
+    MAX(inv.invoice_date)                    AS last_invoice_date
+  FROM "purchasing"."suppliers" s
+  LEFT JOIN "purchasing"."purchase_orders" po ON po.supplier_id = s.id
+  LEFT JOIN "purchasing"."supplier_invoices" inv ON inv.supplier_id = s.id
+  GROUP BY s.id
+);--> statement-breakpoint
+CREATE VIEW "purchasing"."supplier_total_360" AS (
+  SELECT
+    m.supplier_id,
+    m.tenant_id,
+    m.code,
+    m.name,
+    m.tax_id,
+    m.category,
+    m.status,
+    m.contact_name,
+    m.contact_email,
+    m.contact_phone,
+    m.address,
+    m.state_name,
+    COALESCE(p.po_count, 0)             AS po_count,
+    COALESCE(p.po_pending, 0)           AS po_pending,
+    COALESCE(p.invoices_count, 0)       AS invoices_count,
+    COALESCE(p.invoices_total, 0)       AS invoices_total,
+    p.last_invoice_date,
+    COALESCE(ap.ap_count, 0)            AS ap_count,
+    COALESCE(ap.ap_original, 0)         AS ap_original,
+    COALESCE(ap.ap_paid, 0)             AS ap_paid,
+    COALESCE(ap.ap_remaining, 0)        AS ap_remaining,
+    COALESCE(ap.ap_overdue, 0)          AS ap_overdue,
+    COALESCE(adv.advances_count, 0)     AS advances_count,
+    COALESCE(adv.advances_total, 0)     AS advances_total,
+    COALESCE(adv.advances_available, 0) AS advances_available,
+    COALESCE(n.cn_count, 0)             AS cn_count,
+    COALESCE(n.cn_amount, 0)            AS cn_amount,
+    COALESCE(n.cn_available, 0)         AS cn_available,
+    COALESCE(n.dn_count, 0)             AS dn_count,
+    COALESCE(n.dn_amount, 0)            AS dn_amount,
+    COALESCE(py.payments_count, 0)      AS payments_count,
+    COALESCE(py.payments_total, 0)      AS payments_total,
+    py.last_payment_date,
+    /* saldo neto = AP pendiente + ND - NC disponible - anticipos disponibles - pagos */
+    COALESCE(ap.ap_remaining, 0)
+      + COALESCE(n.dn_amount, 0)
+      - COALESCE(n.cn_available, 0)
+      - COALESCE(adv.advances_available, 0)
+      - COALESCE(py.payments_total, 0)    AS net_balance
+  FROM "purchasing"."supplier_master_360" m
+  LEFT JOIN "purchasing"."supplier_purchases_360" p ON p.supplier_id = m.supplier_id
+  LEFT JOIN "purchasing"."supplier_ap_360" ap ON ap.supplier_id = m.supplier_id
+  LEFT JOIN "purchasing"."supplier_advances_360" adv ON adv.supplier_id = m.supplier_id
+  LEFT JOIN "purchasing"."supplier_notes_360" n ON n.supplier_id = m.supplier_id
+  LEFT JOIN "purchasing"."supplier_payments_360" py ON py.supplier_id = m.supplier_id
+);--> statement-breakpoint
+CREATE VIEW "savings"."associate_account_balances" AS (
+    SELECT
+      aa.id AS associate_account_id,
+      aa.associate_id,
+      aa.account_number,
+      aa.currency_code,
+      COALESCE(SUM(
+        CASE
+          WHEN aam.movement_type IN (
+            'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',
+            'LOAN_DISBURSEMENT_CREDIT','SPECIAL_LOAN_DISBURSEMENT_CREDIT',
+            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT','SPECIAL_CREDIT_DISBURSEMENT_CREDIT',
+            'LOAN_REFINANCING_CREDIT','LOAN_REIMBURSEMENT_CREDIT',
+            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT','LOAN_OVERPAYMENT_CREDIT',
+            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT','LOAN_PARTIAL_DISBURSEMENT_CREDIT',
+            'DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT','ADJUSTMENT_CREDIT','OTHER_CREDIT'
+          ) THEN aam.amount
+          WHEN aam.movement_type IN (
+            'SAVING_WITHDRAWAL','LOAN_REFINANCING_DEBIT','LOAN_PAYMENT_DEBIT',
+            'COMMERCIAL_CREDIT_PAYMENT_DEBIT','WITHDRAWAL_FEE_DEBIT',
+            'LOAN_INTEREST_DEBIT','LOAN_FEE_DEBIT','LOAN_ADMIN_FEE_DEBIT',
+            'LATE_PAYMENT_FEE_DEBIT','PAYMENT_REVERSAL_DEBIT',
+            'CREDIT_ADMIN_FEE_DEBIT','ADJUSTMENT_DEBIT','FEE_CORRECTION_DEBIT',
+            'ADMIN_FEE_DEBIT','OTHER_DEBIT','FEE_DEBIT'
+          ) THEN -aam.amount
+          ELSE 0
+        END
+      ), 0) AS calculated_balance
+    FROM "savings"."associate_accounts" aa
+    LEFT JOIN "savings"."associate_account_movements" aam
+      ON aa.id = aam.associate_account_id AND aam.status = 'COMPLETED'
+    GROUP BY aa.id, aa.associate_id, aa.account_number, aa.currency_code
+  );--> statement-breakpoint
+CREATE VIEW "savings"."associate_haberes_balance" AS (
+  SELECT
+    associate_account_id,
+    COALESCE(SUM(amount_change), 0) AS haberes_balance,
+    MAX(transaction_date) AS last_movement_date,
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SAVING_CONTRIBUTION'), 0) AS haberes_contribution,
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'VOLUNTARY_SAVINGS'), 0) AS haberes_voluntary,
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'EMPLOYER_CONTRIBUTION'), 0) AS haberes_employer,
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'DIVIDEND_CREDIT'), 0) AS surpluses,
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SAVING_WITHDRAWAL'), 0) AS total_withdrawals,
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'WITHDRAWAL_FEE_DEBIT'), 0) AS total_withdrawal_fees
+  FROM (
+    SELECT
+      associate_account_id,
+      movement_type,
+      CASE
+        WHEN movement_type IN (
+          'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',
+          'ADJUSTMENT_CREDIT','DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT',
+          'LOAN_OVERPAYMENT_CREDIT','COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT',
+          'SAVING_WITHDRAWAL_REVERSAL_CREDIT','LIQUIDATION_BALANCE_REVERSAL_CREDIT',
+          'ACCOUNTING_ADJUSTMENT_CREDIT','OTHER_CREDIT'
+        ) THEN amount
+        WHEN movement_type IN (
+          'SAVING_WITHDRAWAL','WITHDRAWAL_FEE_DEBIT','ADJUSTMENT_DEBIT',
+          'FEE_CORRECTION_DEBIT','PAYMENT_REVERSAL_DEBIT','ADMIN_FEE_DEBIT',
+          'OTHER_DEBIT','FEE_DEBIT','LIQUIDATION_BALANCE',
+          'ACCOUNTING_ADJUSTMENT_DEBIT','LIQUIDATION_LOAN_PAYMENT_DEBIT',
+          'LIQUIDATION_CREDIT_PAYMENT_DEBIT','LIQUIDATION_COMMERCIAL_CREDIT_PAYMENT_DEBIT',
+          'LIQUIDATION_SPECIAL_LOAN_PAYMENT_DEBIT','LIQUIDATION_SPECIAL_CREDIT_PAYMENT_DEBIT'
+        ) THEN -amount
+        ELSE 0
+      END AS amount_change,
+      transaction_date
+    FROM "savings"."associate_account_movements"
+    WHERE status = 'COMPLETED'
+  ) sub
+  GROUP BY associate_account_id
+);--> statement-breakpoint
+CREATE VIEW "savings"."credit_outstanding_balance" AS (
+  SELECT
+    c.id AS credit_id,
+    c.tenant_id,
+    c.associate_id,
+    c.currency_code,
+    c.status::text AS credit_status,
+    COALESCE(SUM(cas.principal_amount) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS total_principal_pending,
+    COALESCE(SUM(cas.interest_amount) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS total_interest_pending,
+    COALESCE(SUM(cas.principal_amount + cas.interest_amount) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS outstanding_total_balance
+  FROM "savings"."credits" c
+  JOIN "savings"."credit_amortization_schedule" cas ON c.id = cas.credit_id
+  WHERE c.status IN ('APPROVED','IN_PAYMENT')
+  GROUP BY c.id, c.tenant_id, c.associate_id, c.currency_code, c.status
+);--> statement-breakpoint
+CREATE VIEW "savings"."loan_outstanding_balance" AS (
+  SELECT
+    l.id AS loan_id,
+    l.tenant_id,
+    l.associate_id,
+    l.currency_code,
+    l.status::text AS loan_status,
+    COALESCE(SUM(las.principal_amount) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS total_principal_pending,
+    COALESCE(SUM(las.interest_amount) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS total_interest_pending,
+    COALESCE(SUM(las.principal_amount + las.interest_amount) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS outstanding_total_balance
+  FROM "savings"."loans" l
+  JOIN "savings"."loan_amortization_schedule" las ON l.id = las.loan_id
+  WHERE l.status IN ('DISBURSED','IN_PAYMENT','OVERDUE')
+  GROUP BY l.id, l.tenant_id, l.associate_id, l.currency_code, l.status
+);--> statement-breakpoint
+CREATE VIEW "treasury"."bank_statement_balance" AS (
+  SELECT 
+    ba.tenant_id,
+    ba.id AS bank_account_id,
+    ba.account_number,
+    ba.account_name,
+    ba.currency_code,
+    COALESCE(SUM(bt.credit_amount), 0) AS total_credits,
+    COALESCE(SUM(bt.debit_amount), 0) AS total_debits,
+    COALESCE(SUM(bt.credit_amount - bt.debit_amount), 0) AS current_statement_balance,
+    MAX(bt.transaction_date) AS last_transaction_date
+  FROM "treasury"."bank_accounts" ba
+  LEFT JOIN "treasury"."bank_transactions" bt ON bt.bank_account_id = ba.id
+  GROUP BY ba.id, ba.account_number, ba.account_name, ba.currency_code
+);

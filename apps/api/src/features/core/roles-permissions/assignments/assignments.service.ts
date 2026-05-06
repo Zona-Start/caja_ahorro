@@ -106,7 +106,7 @@ export class AssignmentsService {
 
     await this.auditHelper.logUpdate(
       role.tenantId,
-      'role_permissions',
+      'role',
       {},
       { assigned: insertedIds },
       {
@@ -156,7 +156,7 @@ export class AssignmentsService {
 
     await this.auditHelper.logUpdate(
       userId,
-      'role_permissions',
+      'role',
       {},
       { removed: true },
       {

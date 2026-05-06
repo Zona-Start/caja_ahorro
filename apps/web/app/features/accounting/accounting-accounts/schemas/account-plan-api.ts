@@ -1,8 +1,8 @@
 import z from 'zod';
 
 export const accountPlanApiResponseSchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number(),
+  id: z.union([z.number(), z.string()]).optional(),
+  companyId: z.union([z.number(), z.string()]).optional(),
   code: z.string(),
   name: z.string(),
   description: z.string().optional().nullable(),
@@ -15,14 +15,14 @@ export const accountPlanApiResponseSchema = z.object({
     'MEMORANDUM',
   ]),
   nature: z.enum(['DEBIT', 'CREDIT']).optional(),
-  level: z.number().nullable(),
+  level: z.union([z.number(), z.string()]).nullable(),
   allowsMovements: z.boolean(),
   isActive: z.boolean(),
-  parentAccountId: z.number().nullable(),
+  parentAccountId: z.union([z.number(), z.string(), z.null()]).nullable(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
-  createdById: z.number().optional(),
-  updateById: z.number().optional(),
+  createdById: z.union([z.number(), z.string(), z.null()]).optional(),
+  updateById: z.union([z.number(), z.string(), z.null()]).optional(),
 });
 
 export type AccountPlanApiResponse = z.infer<
@@ -30,7 +30,7 @@ export type AccountPlanApiResponse = z.infer<
 >;
 
 export const accountPlanListApiResponseSchema = z.object({
-  message: z.string(),
+  message: z.string().optional(),
   data: z.array(accountPlanApiResponseSchema),
   meta: z
     .object({
@@ -43,5 +43,6 @@ export const accountPlanListApiResponseSchema = z.object({
       nextPage: z.number().nullable(),
       previousPage: z.number().nullable(),
     })
+    .nullable()
     .optional(),
 });

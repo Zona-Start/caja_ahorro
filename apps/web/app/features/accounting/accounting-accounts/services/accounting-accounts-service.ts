@@ -1,7 +1,5 @@
 import { apiClient } from '@/lib/api-client';
-import {
-  accountPlanListApiResponseSchema,
-} from '../schemas/account-plan-api';
+import { accountPlanListApiResponseSchema } from '../schemas/account-plan-api';
 import {
   type AccountPlan,
   accountPlanDeleteResponseSchema,
@@ -45,11 +43,48 @@ export class AccountingAccountsService {
     if (params.sortBy) searchParams.append('sortBy', params.sortBy);
     if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
 
-    const response = await apiClient.get(`/account-plan/pagination?${searchParams.toString()}`);
-    const parsed = accountPlanListApiResponseSchema.parse(response.data);
+    const response = await apiClient.get(
+      `/account-plan/pagination?${searchParams.toString()}`,
+    );
+
+    if (!response.data) {
+      return {
+        data: [],
+        meta: {
+          page: 1,
+          limit: 10,
+          totalCount: 0,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          nextPage: null,
+          previousPage: null,
+        },
+      };
+    }
+
+    let parsed;
+    try {
+      parsed = accountPlanListApiResponseSchema.parse(response.data);
+    } catch (parseError) {
+      return {
+        data: [],
+        meta: {
+          page: 1,
+          limit: 10,
+          totalCount: 0,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          nextPage: null,
+          previousPage: null,
+        },
+      };
+    }
+
     return {
       data: parsed.data,
-      meta: parsed.meta || {
+      meta: parsed.meta ?? {
         page: 1,
         limit: 10,
         totalCount: 0,
@@ -70,7 +105,10 @@ export class AccountingAccountsService {
 
   static async update(payload: AccountPlan) {
     const { id, ...payloadWithoutId } = payload;
-    const response = await apiClient.patch(`/account-plan/${id}`, payloadWithoutId);
+    const response = await apiClient.patch(
+      `/account-plan/${id}`,
+      payloadWithoutId,
+    );
     return accountPlanResponseSchema.parse(response.data);
   }
 

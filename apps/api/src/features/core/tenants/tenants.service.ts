@@ -1,6 +1,7 @@
 import * as schema from '@/database/schema';
 import { tenants } from '@/database/schema';
 
+import { TenantCreatedEvent } from '@/database/seeds/seed-tenants-default.service';
 import {
   ConflictException,
   ForbiddenException,
@@ -116,7 +117,7 @@ export class TenantsService {
       description: `Created tenant ${tenant.name}`,
     });
 
-    //this.eventEmitter.emit('tenant.created', new TenantCreatedEvent(tenant.id));
+    this.eventEmitter.emit('tenant.created', new TenantCreatedEvent(tenant.id));
 
     return tenant;
   }

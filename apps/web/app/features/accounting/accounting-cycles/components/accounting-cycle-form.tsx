@@ -21,12 +21,14 @@ interface AccountingCycleFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   defaultValues?: Partial<AccountingCycle>;
+  disabled?: boolean;
 }
 
 export function AccountingCycleForm({
   onSuccess,
   onCancel,
   defaultValues,
+  disabled = false,
 }: AccountingCycleFormProps) {
   const { mutate: saveCycle, isPending: isSaving } = useAccountingCycleMutation();
 
@@ -59,7 +61,7 @@ export function AccountingCycleForm({
             <FormItem>
               <FormLabel>Descripción</FormLabel>
               <FormControl>
-                <Input placeholder="Ej: Ejercicio 2024" {...field} />
+                <Input placeholder="Ej: Ejercicio 2024" {...field} disabled={disabled} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -78,6 +80,7 @@ export function AccountingCycleForm({
                     type="date"
                     value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : field.value}
                     onChange={(e) => field.onChange(new Date(e.target.value))}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -96,6 +99,7 @@ export function AccountingCycleForm({
                     type="date"
                     value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : field.value}
                     onChange={(e) => field.onChange(new Date(e.target.value))}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -104,14 +108,22 @@ export function AccountingCycleForm({
           />
         </div>
 
-        <div className="flex justify-end gap-4 pt-4">
-          <Button variant="outline" type="button" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? 'Guardando...' : 'Guardar'}
-          </Button>
-        </div>
+        {disabled ? (
+          <div className="flex justify-end">
+            <Button type="button" onClick={onCancel}>
+              Cerrar
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-4 pt-4">
+            <Button variant="outline" type="button" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );

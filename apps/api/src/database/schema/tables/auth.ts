@@ -1,14 +1,12 @@
 import { timestamps } from '@/database/timestamps';
 import * as t from 'drizzle-orm/pg-core';
+import { authSchema } from '../_schemas';
 import {
   permissionActionEnum,
   permissionResourceEnum,
   permissionScopeEnum,
 } from '../enum';
 import { tenants } from './tenants';
-import { authSchema } from "../_schemas";
-
-
 
 // Tabla de Usuarios sistema
 export const users = authSchema.table(
@@ -92,7 +90,12 @@ export const tenantMembers = authSchema.table(
   'tenant_members',
   {
     id: t.uuid('id').primaryKey().defaultRandom(),
-    userId: t.uuid('user_id').notNull(),
+    userId: t
+      .uuid('user_id')
+      .references(() => users.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
     tenantId: t
       .uuid('tenant_id')
       .references(() => tenants.id, {
@@ -122,8 +125,18 @@ export const userPermissions = authSchema.table(
   'user_permissions',
   {
     id: t.uuid('id').primaryKey().defaultRandom(),
-    tenantId: t.uuid('tenant_id').notNull(),
-    userId: t.uuid('user_id').notNull(),
+    tenantId: t
+      .uuid('tenant_id')
+      .references(() => tenants.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
+    userId: t
+      .uuid('user_id')
+      .references(() => users.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
     permissionId: t.uuid('permission_id').notNull(),
     ...timestamps,
   },

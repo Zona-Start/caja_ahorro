@@ -78,9 +78,9 @@ export class AccountPlanService {
   }
 
   async findAllByPagination(
-  tenantId: string | null, // Ahora puede ser null si es superadmin
-  paginationDto?: FilterAccountPlanDto,
-): Promise<{ data: AccountPlan[]; meta: any }> {
+    tenantId: string | null, // Ahora puede ser null si es superadmin
+    paginationDto?: FilterAccountPlanDto,
+  ): Promise<{ data: AccountPlan[]; meta: any }> {
     const {
       page = 1,
       limit = 10,
@@ -108,8 +108,8 @@ export class AccountPlanService {
     }
 
     if (tenantId) {
-    searchConditions.push(eq(accountPlan.tenantId, tenantId));
-  }
+      searchConditions.push(eq(accountPlan.tenantId, tenantId));
+    }
 
     if (type) {
       searchConditions.push(eq(accountPlan.accountType, type as any));

@@ -14,10 +14,12 @@ const mapFiltersToApiParams = (filters: TenantsFilters) => ({
 
 export function useTenantsQuery(
   filters: TenantsFilters,
-): UseQueryResult<Tenant[]> {
+  enabled: boolean = true,
+): UseQueryResult<{ data: Tenant[]; meta: any }> {
   return useQuery({
     queryKey: QUERY_KEYS.tenants.list(filters),
     queryFn: () => tenantsService.getAll(mapFiltersToApiParams(filters)),
+    enabled,
   });
 }
 

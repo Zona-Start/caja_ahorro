@@ -13,9 +13,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreatePermissionDto } from './dtos/create-permission.dto';
+import { PermissionPaginationDto } from './dtos/permission-pagination.dto';
 
 type ResourceType = (typeof permissionResourceEnum.enumValues)[number];
 type ActionType = (typeof permissionActionEnum.enumValues)[number];
@@ -32,6 +33,92 @@ export class PermissionsService {
     return await this.db.query.permissions.findMany({
       orderBy: (permissions, { desc }) => [desc(permissions.createdAt)],
     });
+  }
+
+  async findAllByPagination(
+    paginationDto?: PermissionPaginationDto,
+  ): Promise<{ data: any[]; meta: any }> {
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      searchType = '',
+      sortBy = 'id',
+      sortOrder = 'asc',
+      resource,
+      action,
+      scope,
+    } = paginationDto || {};
+
+    const offset = (page - 1) * limit;
+
+    let searchConditions: SQL<unknown>[] = [];
+
+    if (search) {
+      switch (searchType) {
+        case 'name':
+          searchConditions.push(ilike(permissions.name, `%${search}%`));
+          break;
+        case 'resource':
+          searchConditions.push(ilike(permissions.resource, `%${search}%`));
+          break;
+        case 'action':
+          searchConditions.push(ilike(permissions.action, `%${search}%`));
+          break;
+      }
+    }
+
+    if (resource) {
+      searchConditions.push(eq(permissions.resource, resource as ResourceType));
+    }
+
+    if (action) {
+      searchConditions.push(eq(permissions.action, action as ActionType));
+    }
+
+    if (scope) {
+      searchConditions.push(eq(permissions.scope, scope as ScopeType));
+    }
+
+    const searchCondition = and(...searchConditions);
+
+    const orderByColumn = permissions[sortBy as keyof typeof permissions];
+    const orderByClause =
+      sortOrder === 'asc'
+        ? sql`${orderByColumn} asc`
+        : sql`${orderByColumn} desc`;
+
+    const totalCountResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(permissions)
+      .where(searchCondition);
+
+    const totalCount = Number(totalCountResult[0]?.count || 0);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const data = await this.db
+      .select()
+      .from(permissions)
+      .where(searchCondition)
+      .orderBy(orderByClause)
+      .limit(limit)
+      .offset(offset);
+
+    const meta = {
+      page,
+      limit,
+      totalCount,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+      nextPage: page < totalPages ? page + 1 : null,
+      previousPage: page > 1 ? page - 1 : null,
+    };
+
+    return {
+      data,
+      meta,
+    };
   }
 
   async findById(id: string): Promise<any | null> {

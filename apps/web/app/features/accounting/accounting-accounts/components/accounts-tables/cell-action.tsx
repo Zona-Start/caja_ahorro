@@ -1,13 +1,14 @@
-import { Button } from '@repo/shadcn/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/shadcn/tooltip';
-import { Edit, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { AlertModal } from '@/components/shared/alert-modal';
+import { Button } from '@repo/shadcn/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
+import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useDeleteAccountingAccount } from '../../hooks/use-accounting-accounts-mutation';
 import type { AccountPlanApiResponse } from '../../schemas/account-plan-api';
 import { AccountPlanModal } from '../account-plan-modal';
@@ -18,8 +19,9 @@ interface CellActionProps {
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openView, setOpenView] = useState(false);
 
   const { mutate: deleteAccount } = useDeleteAccountingAccount();
 
@@ -27,7 +29,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     try {
       setLoading(true);
       deleteAccount(data.id!);
-      setOpen(false);
+      setOpenDelete(false);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -38,8 +40,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   return (
     <>
       <AlertModal
-        isOpen={open}
-        onClose={() => setOpen(false)}
+        isOpen={openDelete}
+        onClose={() => setOpenDelete(false)}
         onConfirm={onConfirm}
         loading={loading}
         title="¿Estás seguro que desea eliminar esta cuenta contable?"
@@ -47,46 +49,44 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       />
 
       <AccountPlanModal
-        open={showEditModal}
-        onOpenChange={setShowEditModal}
+        open={openEdit}
+        onOpenChange={setOpenEdit}
         defaultValues={data}
+        mode="edit"
       />
 
-      <div className="flex gap-1">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setShowEditModal(true)}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Editar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+      <AccountPlanModal
+        open={openView}
+        onOpenChange={setOpenView}
+        defaultValues={data}
+        mode="view"
+      />
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setOpen(true)}
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Eliminar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="h-8 w-8 p-0">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setOpenView(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Ver Detalles
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setOpenDelete(true)}
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Eliminar
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 };

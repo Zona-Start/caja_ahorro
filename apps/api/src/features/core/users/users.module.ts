@@ -1,3 +1,4 @@
+import { TenantContextModule } from '@/common/services/tenant-context.module';
 import { DrizzleModule } from '@/database/drizzle.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -14,6 +15,7 @@ import { UsersService } from './users.service';
     SecurityModule,
     CryptographyModule,
     AuditModule,
+    TenantContextModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],

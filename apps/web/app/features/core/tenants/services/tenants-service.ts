@@ -5,13 +5,24 @@ import {
   tenantDeleteResponseSchema,
   tenantsListResponseSchema,
 } from '../schemas/tenants-api.schema';
-import { tenantSchema, type TenantMutation } from '../schemas/tenants.schema';
+import { tenantSchema, type Tenant, type TenantMutation } from '../schemas/tenants.schema';
 
 export interface TenantsQueryParams {
   page?: number;
   limit?: number;
   search?: string;
   isActive?: boolean;
+}
+
+interface TenantsPaginatedResponse {
+  data: Tenant[];
+  meta: {
+    totalItems: number;
+    itemCount: number;
+    itemsPerPage: number;
+    totalPages: number;
+    currentPage: number;
+  };
 }
 
 const buildQueryParams = (params: TenantsQueryParams): string => {
@@ -28,11 +39,27 @@ const buildQueryParams = (params: TenantsQueryParams): string => {
 };
 
 export const tenantsService = {
-  getAll: async (params: TenantsQueryParams) => {
+  getAll: async (params: TenantsQueryParams): Promise<TenantsPaginatedResponse> => {
     const response = await apiClient.get(
       `/core/tenants?${buildQueryParams(params)}`,
     );
-    return tenantsListResponseSchema.parse(response.data);
+
+    try {
+      const parsed = tenantsListResponseSchema.parse(response.data);
+      return parsed;
+    } catch {
+      const data = tenantSchema.array().parse(response.data);
+      return {
+        data,
+        meta: {
+          totalItems: data.length,
+          itemCount: data.length,
+          itemsPerPage: params.limit ?? 10,
+          totalPages: Math.ceil(data.length / (params.limit ?? 10)),
+          currentPage: params.page ?? 1,
+        },
+      };
+    }
   },
 
   getActiveCount: async () => {

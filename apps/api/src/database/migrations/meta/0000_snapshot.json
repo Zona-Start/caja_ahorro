@@ -1,5 +1,5 @@
 {
-  "id": "6db7596c-845c-4a93-a3d5-613fbaaa766f",
+  "id": "cdfc2686-d114-43f0-812a-1d7144661282",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -78,13 +78,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -271,13 +271,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -456,13 +456,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -584,7 +584,7 @@
           "name": "voucher_no",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "origin_reference_id": {
           "name": "origin_reference_id",
@@ -636,13 +636,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -812,13 +812,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -1071,6 +1071,31 @@
           "primaryKey": false,
           "notNull": false,
           "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -1208,13 +1233,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -1379,13 +1404,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -1561,13 +1586,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -1691,8 +1716,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "associated_id": {
-          "name": "associated_id",
+        "associate_id": {
+          "name": "associate_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -1761,13 +1786,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -1790,7 +1815,7 @@
           "name": "associate_accounts_associate_idx",
           "columns": [
             {
-              "expression": "associated_id",
+              "expression": "associate_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1863,13 +1888,13 @@
         }
       },
       "foreignKeys": {
-        "associate_accounts_associated_id_associates_id_fk": {
-          "name": "associate_accounts_associated_id_associates_id_fk",
+        "associate_accounts_associate_id_associates_id_fk": {
+          "name": "associate_accounts_associate_id_associates_id_fk",
           "tableFrom": "associate_accounts",
           "tableTo": "associates",
           "schemaTo": "savings",
           "columnsFrom": [
-            "associated_id"
+            "associate_id"
           ],
           "columnsTo": [
             "id"
@@ -2047,13 +2072,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -2633,13 +2658,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -2965,13 +2990,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -3098,13 +3123,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -3329,13 +3354,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -3585,13 +3610,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -3771,7 +3796,7 @@
           "name": "description",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "options": {
           "name": "options",
@@ -3803,13 +3828,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -3984,13 +4009,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -4144,13 +4169,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -4340,13 +4365,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -4507,13 +4532,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -4867,13 +4892,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -5174,13 +5199,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -5411,6 +5436,13 @@
           "notNull": false,
           "default": true
         },
+        "is_base": {
+          "name": "is_base",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -5428,13 +5460,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -5513,13 +5545,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -5709,13 +5741,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -5901,13 +5933,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -5957,6 +5989,123 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "core.global_settings": {
+      "name": "global_settings",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "category": {
+          "name": "category",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'general'"
+        },
+        "is_encrypted": {
+          "name": "is_encrypted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "global_settings_key_idx": {
+          "name": "global_settings_key_idx",
+          "columns": [
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "global_settings_category_idx": {
+          "name": "global_settings_category_idx",
+          "columns": [
+            {
+              "expression": "category",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "global_settings_key_unique": {
+          "name": "global_settings_key_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "key"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -6026,13 +6175,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -6175,13 +6324,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -6354,13 +6503,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -6516,13 +6665,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -6675,13 +6824,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -6855,13 +7004,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -7030,13 +7179,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -7357,13 +7506,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -7782,13 +7931,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -8000,13 +8149,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -8328,6 +8477,180 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "core.module_settings": {
+      "name": "module_settings",
+      "schema": "core",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "module": {
+          "name": "module",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submodule": {
+          "name": "submodule",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_encrypted": {
+          "name": "is_encrypted",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "module_settings_tenant_idx": {
+          "name": "module_settings_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "module_settings_module_idx": {
+          "name": "module_settings_module_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "module",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "module_settings_composite_key_uidx": {
+          "name": "module_settings_composite_key_uidx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "module",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "submodule",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "module_settings_tenant_id_tenants_id_fk": {
+          "name": "module_settings_tenant_id_tenants_id_fk",
+          "tableFrom": "module_settings",
+          "tableTo": "tenants",
+          "schemaTo": "tenant",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "core.municipalities": {
       "name": "municipalities",
       "schema": "core",
@@ -8367,13 +8690,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -8466,13 +8789,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -8622,13 +8945,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -8774,13 +9097,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -8897,13 +9220,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "deleted_by": {
           "name": "deleted_by",
@@ -9140,13 +9463,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -9508,13 +9831,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -9679,13 +10002,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -9809,13 +10132,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -9926,13 +10249,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -10068,13 +10391,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -10244,13 +10567,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -10370,13 +10693,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -10715,13 +11038,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -10828,13 +11151,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -10966,13 +11289,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -11119,13 +11442,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -11278,13 +11601,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -11448,13 +11771,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -11596,13 +11919,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -11765,13 +12088,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -11892,13 +12215,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {},
@@ -12062,13 +12385,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -12249,13 +12572,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -12619,13 +12942,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -12791,13 +13114,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -13052,13 +13375,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -13199,13 +13522,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "deleted_by": {
           "name": "deleted_by",
@@ -13392,13 +13715,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -13646,13 +13969,13 @@
           "name": "created_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "updated_by_id": {
           "name": "updated_by_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -14459,7 +14782,1067 @@
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
+  "views": {
+    "accounting.accounting_balance": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_debit": {
+          "name": "total_debit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_credit": {
+          "name": "total_credit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    ap.tenant_id,\n    ap.id AS account_plan_id,\n    ap.code AS account_code,\n    ap.name AS account_name,\n    COALESCE(ae.currency_code, 'VES') AS currency_code,\n    COALESCE(SUM(aed.debit), 0) AS total_debit,\n    COALESCE(SUM(aed.credit), 0) AS total_credit,\n    CASE \n      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)\n      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)\n      ELSE 0\n    END AS balance\n  FROM \"accounting\".\"account_plan\" ap\n  LEFT JOIN \"accounting\".\"accounting_entry_details\" aed ON aed.account_plan_id = ap.id\n  LEFT JOIN \"accounting\".\"accounting_entries\" ae\n    ON ae.id = aed.accounting_entry_id\n   AND ae.tenant_id = ap.tenant_id\n   AND ae.status = 'POSTED'\n  GROUP BY ap.tenant_id, ap.id, ap.code, ap.name, ap.nature, COALESCE(ae.currency_code, 'VES')\n",
+      "name": "accounting_balance",
+      "schema": "accounting",
+      "isExisting": false,
+      "materialized": false
+    },
+    "accounting.accounting_balance_by_bank": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_account_id": {
+          "name": "bank_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_debit": {
+          "name": "total_debit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_credit": {
+          "name": "total_credit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "balance": {
+          "name": "balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    ba.tenant_id,\n    ba.id AS bank_account_id,\n    ap.id AS account_plan_id,\n    ap.code AS account_code,\n    ap.name AS account_name,\n    COALESCE(ae.currency_code, ba.currency_code) AS currency_code,\n    COALESCE(SUM(aed.debit), 0) AS total_debit,\n    COALESCE(SUM(aed.credit), 0) AS total_credit,\n    CASE \n      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)\n      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)\n      ELSE 0\n    END AS balance\n  FROM \"treasury\".\"bank_accounts\" ba\n  INNER JOIN \"accounting\".\"account_plan\" ap ON ap.id = ba.linked_chart_account_id\n  LEFT JOIN \"accounting\".\"accounting_entry_details\" aed ON aed.account_plan_id = ap.id\n  LEFT JOIN \"accounting\".\"accounting_entries\" ae\n    ON ae.id = aed.accounting_entry_id\n   AND ae.tenant_id = ba.tenant_id\n   AND ae.status = 'POSTED'\n  GROUP BY ba.tenant_id, ba.id, ap.id, ap.code, ap.name, ap.nature,\n           COALESCE(ae.currency_code, ba.currency_code)\n",
+      "name": "accounting_balance_by_bank",
+      "schema": "accounting",
+      "isExisting": false,
+      "materialized": false
+    },
+    "accounting.active_account_balances_view": {
+      "columns": {
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accounting_cycle_id": {
+          "name": "accounting_cycle_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_code": {
+          "name": "account_code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nature": {
+          "name": "nature",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "initial_balance": {
+          "name": "initial_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_debit": {
+          "name": "period_debit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_credit": {
+          "name": "period_credit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_balance": {
+          "name": "current_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    ab.account_plan_id,\n    ab.tenant_id,\n    ab.accounting_cycles_id AS accounting_cycle_id,\n    ap.code AS account_code,\n    ap.name AS account_name,\n    ap.nature,\n    ab.initial_balance,\n    COALESCE(pam.period_debit, 0) AS period_debit,\n    COALESCE(pam.period_credit, 0) AS period_credit,\n    CASE\n      WHEN ap.nature = 'DEBIT' THEN (ab.initial_balance + COALESCE(pam.period_debit, 0) - COALESCE(pam.period_credit, 0))\n      WHEN ap.nature = 'CREDIT' THEN (ab.initial_balance + COALESCE(pam.period_credit, 0) - COALESCE(pam.period_debit, 0))\n      ELSE 0\n    END AS current_balance\n  FROM \"accounting\".\"account_balances\" ab\n  INNER JOIN \"accounting\".\"account_plan\" ap ON ab.account_plan_id = ap.id\n  LEFT JOIN \"accounting\".\"period_account_movements_view\" pam\n    ON ab.account_plan_id = pam.account_plan_id AND ab.accounting_cycles_id = pam.accounting_cycle_id\n",
+      "name": "active_account_balances_view",
+      "schema": "accounting",
+      "isExisting": false,
+      "materialized": false
+    },
+    "accounting.period_account_movements_view": {
+      "columns": {
+        "account_plan_id": {
+          "name": "account_plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accounting_cycle_id": {
+          "name": "accounting_cycle_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_debit": {
+          "name": "period_debit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_credit": {
+          "name": "period_credit",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    aed.account_plan_id,\n    ae.accounting_cycle_id,\n    COALESCE(SUM(aed.debit), 0) AS period_debit,\n    COALESCE(SUM(aed.credit), 0) AS period_credit\n  FROM \"accounting\".\"accounting_entry_details\" aed\n  INNER JOIN \"accounting\".\"accounting_entries\" ae ON aed.accounting_entry_id = ae.id\n  WHERE ae.status = 'POSTED'\n  GROUP BY aed.account_plan_id, ae.accounting_cycle_id\n",
+      "name": "period_account_movements_view",
+      "schema": "accounting",
+      "isExisting": false,
+      "materialized": false
+    },
+    "inventory.inventory_availability": {
+      "columns": {
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_type": {
+          "name": "item_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "available_quantity": {
+          "name": "available_quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    item_id,\n    item_type,\n    SUM(\n      CASE\n        WHEN movement_type IN ('IN','ADJUST_IN') THEN quantity\n        WHEN movement_type IN ('OUT','ADJUST_OUT') THEN -quantity\n        ELSE quantity\n      END\n    ) AS available_quantity,\n    tenant_id\n  FROM \"inventory\".\"inventory_movements\"\n  GROUP BY item_id, item_type, tenant_id\n",
+      "name": "inventory_availability",
+      "schema": "inventory",
+      "isExisting": false,
+      "materialized": false
+    },
+    "purchasing.supplier_advances_360": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_count": {
+          "name": "advances_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_total": {
+          "name": "advances_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_available": {
+          "name": "advances_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id                                          AS supplier_id,\n    COUNT(a.id)                                   AS advances_count,\n    COALESCE(SUM(a.amount), 0)                    AS advances_total,\n    COALESCE(SUM(a.available_amount), 0)          AS advances_available\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"supplier_advances\" a ON a.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_advances_360",
+      "schema": "purchasing",
+      "isExisting": false,
+      "materialized": false
+    },
+    "purchasing.supplier_ap_360": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_count": {
+          "name": "ap_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_original": {
+          "name": "ap_original",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_paid": {
+          "name": "ap_paid",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_remaining": {
+          "name": "ap_remaining",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_overdue": {
+          "name": "ap_overdue",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id                                      AS supplier_id,\n    COUNT(ap.id)                              AS ap_count,\n    COALESCE(SUM(ap.original_amount), 0)      AS ap_original,\n    COALESCE(SUM(ap.paid_amount), 0)          AS ap_paid,\n    COALESCE(SUM(ap.remaining_amount), 0)     AS ap_remaining,\n    COALESCE(SUM(ap.remaining_amount) FILTER (WHERE ap.due_date < CURRENT_DATE), 0) AS ap_overdue\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"accounts_payable\" ap ON ap.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_ap_360",
+      "schema": "purchasing",
+      "isExisting": false,
+      "materialized": false
+    },
+    "purchasing.supplier_master_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_name": {
+          "name": "state_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n    s.id            AS supplier_id,\n    s.tenant_id,\n    s.code,\n    s.name,\n    s.tax_id,\n    s.category::text,\n    s.status::text,\n    s.contact_name,\n    s.contact_email,\n    s.contact_phone,\n    s.address,\n    st.name         AS state_name\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"core\".\"states\" st ON st.id = s.state\n",
+      "name": "supplier_master_360",
+      "schema": "purchasing",
+      "isExisting": false,
+      "materialized": false
+    },
+    "purchasing.supplier_notes_360": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_count": {
+          "name": "cn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_amount": {
+          "name": "cn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_available": {
+          "name": "cn_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_count": {
+          "name": "dn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_amount": {
+          "name": "dn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id            AS supplier_id,\n    COUNT(DISTINCT cn.id)                          AS cn_count,\n    COALESCE(SUM(cn.amount), 0)                    AS cn_amount,\n    COALESCE(SUM(cn.available_amount), 0)          AS cn_available,\n    COUNT(DISTINCT dn.id)                          AS dn_count,\n    COALESCE(SUM(dn.amount), 0)                    AS dn_amount\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"supplier_credit_notes\" cn ON cn.supplier_id = s.id\n  LEFT JOIN \"purchasing\".\"supplier_debit_notes\" dn ON dn.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_notes_360",
+      "schema": "purchasing",
+      "isExisting": false,
+      "materialized": false
+    },
+    "purchasing.supplier_payments_360": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_count": {
+          "name": "payments_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_total": {
+          "name": "payments_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_payment_date": {
+          "name": "last_payment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id            AS supplier_id,\n    COUNT(p.id)                                AS payments_count,\n    COALESCE(SUM(p.total_amount), 0)           AS payments_total,\n    MAX(p.requested_at)                        AS last_payment_date\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"supplier_payments\" p ON p.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_payments_360",
+      "schema": "purchasing",
+      "isExisting": false,
+      "materialized": false
+    },
+    "purchasing.supplier_purchases_360": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "po_count": {
+          "name": "po_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "po_pending": {
+          "name": "po_pending",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_count": {
+          "name": "invoices_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_total": {
+          "name": "invoices_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_invoice_date": {
+          "name": "last_invoice_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id                                     AS supplier_id,\n    COUNT(DISTINCT po.id)                    AS po_count,\n    COUNT(DISTINCT po.id) FILTER (WHERE po.status = 'PENDING') AS po_pending,\n    COUNT(DISTINCT inv.id)                   AS invoices_count,\n    COALESCE(SUM(inv.total_amount), 0)       AS invoices_total,\n    MAX(inv.invoice_date)                    AS last_invoice_date\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"purchase_orders\" po ON po.supplier_id = s.id\n  LEFT JOIN \"purchasing\".\"supplier_invoices\" inv ON inv.supplier_id = s.id\n  GROUP BY s.id\n",
+      "name": "supplier_purchases_360",
+      "schema": "purchasing",
+      "isExisting": false,
+      "materialized": false
+    },
+    "purchasing.supplier_total_360": {
+      "columns": {
+        "supplier_id": {
+          "name": "supplier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_id": {
+          "name": "tax_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_name": {
+          "name": "contact_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state_name": {
+          "name": "state_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "po_count": {
+          "name": "po_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "po_pending": {
+          "name": "po_pending",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_count": {
+          "name": "invoices_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invoices_total": {
+          "name": "invoices_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_invoice_date": {
+          "name": "last_invoice_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ap_count": {
+          "name": "ap_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_original": {
+          "name": "ap_original",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_paid": {
+          "name": "ap_paid",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_remaining": {
+          "name": "ap_remaining",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ap_overdue": {
+          "name": "ap_overdue",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_count": {
+          "name": "advances_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_total": {
+          "name": "advances_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advances_available": {
+          "name": "advances_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_count": {
+          "name": "cn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_amount": {
+          "name": "cn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cn_available": {
+          "name": "cn_available",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_count": {
+          "name": "dn_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dn_amount": {
+          "name": "dn_amount",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_count": {
+          "name": "payments_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payments_total": {
+          "name": "payments_total",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_payment_date": {
+          "name": "last_payment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "net_balance": {
+          "name": "net_balance",
+          "type": "numeric(18, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    m.supplier_id,\n    m.tenant_id,\n    m.code,\n    m.name,\n    m.tax_id,\n    m.category,\n    m.status,\n    m.contact_name,\n    m.contact_email,\n    m.contact_phone,\n    m.address,\n    m.state_name,\n    COALESCE(p.po_count, 0)             AS po_count,\n    COALESCE(p.po_pending, 0)           AS po_pending,\n    COALESCE(p.invoices_count, 0)       AS invoices_count,\n    COALESCE(p.invoices_total, 0)       AS invoices_total,\n    p.last_invoice_date,\n    COALESCE(ap.ap_count, 0)            AS ap_count,\n    COALESCE(ap.ap_original, 0)         AS ap_original,\n    COALESCE(ap.ap_paid, 0)             AS ap_paid,\n    COALESCE(ap.ap_remaining, 0)        AS ap_remaining,\n    COALESCE(ap.ap_overdue, 0)          AS ap_overdue,\n    COALESCE(adv.advances_count, 0)     AS advances_count,\n    COALESCE(adv.advances_total, 0)     AS advances_total,\n    COALESCE(adv.advances_available, 0) AS advances_available,\n    COALESCE(n.cn_count, 0)             AS cn_count,\n    COALESCE(n.cn_amount, 0)            AS cn_amount,\n    COALESCE(n.cn_available, 0)         AS cn_available,\n    COALESCE(n.dn_count, 0)             AS dn_count,\n    COALESCE(n.dn_amount, 0)            AS dn_amount,\n    COALESCE(py.payments_count, 0)      AS payments_count,\n    COALESCE(py.payments_total, 0)      AS payments_total,\n    py.last_payment_date,\n    /* saldo neto = AP pendiente + ND - NC disponible - anticipos disponibles - pagos */\n    COALESCE(ap.ap_remaining, 0)\n      + COALESCE(n.dn_amount, 0)\n      - COALESCE(n.cn_available, 0)\n      - COALESCE(adv.advances_available, 0)\n      - COALESCE(py.payments_total, 0)    AS net_balance\n  FROM \"purchasing\".\"supplier_master_360\" m\n  LEFT JOIN \"purchasing\".\"supplier_purchases_360\" p ON p.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_ap_360\" ap ON ap.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_advances_360\" adv ON adv.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_notes_360\" n ON n.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_payments_360\" py ON py.supplier_id = m.supplier_id\n",
+      "name": "supplier_total_360",
+      "schema": "purchasing",
+      "isExisting": false,
+      "materialized": false
+    },
+    "savings.associate_account_balances": {
+      "columns": {
+        "associate_account_id": {
+          "name": "associate_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "calculated_balance": {
+          "name": "calculated_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n    SELECT\n      aa.id AS associate_account_id,\n      aa.associate_id,\n      aa.account_number,\n      aa.currency_code,\n      COALESCE(SUM(\n        CASE\n          WHEN aam.movement_type IN (\n            'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',\n            'LOAN_DISBURSEMENT_CREDIT','SPECIAL_LOAN_DISBURSEMENT_CREDIT',\n            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT','SPECIAL_CREDIT_DISBURSEMENT_CREDIT',\n            'LOAN_REFINANCING_CREDIT','LOAN_REIMBURSEMENT_CREDIT',\n            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT','LOAN_OVERPAYMENT_CREDIT',\n            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT','LOAN_PARTIAL_DISBURSEMENT_CREDIT',\n            'DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT','ADJUSTMENT_CREDIT','OTHER_CREDIT'\n          ) THEN aam.amount\n          WHEN aam.movement_type IN (\n            'SAVING_WITHDRAWAL','LOAN_REFINANCING_DEBIT','LOAN_PAYMENT_DEBIT',\n            'COMMERCIAL_CREDIT_PAYMENT_DEBIT','WITHDRAWAL_FEE_DEBIT',\n            'LOAN_INTEREST_DEBIT','LOAN_FEE_DEBIT','LOAN_ADMIN_FEE_DEBIT',\n            'LATE_PAYMENT_FEE_DEBIT','PAYMENT_REVERSAL_DEBIT',\n            'CREDIT_ADMIN_FEE_DEBIT','ADJUSTMENT_DEBIT','FEE_CORRECTION_DEBIT',\n            'ADMIN_FEE_DEBIT','OTHER_DEBIT','FEE_DEBIT'\n          ) THEN -aam.amount\n          ELSE 0\n        END\n      ), 0) AS calculated_balance\n    FROM \"savings\".\"associate_accounts\" aa\n    LEFT JOIN \"savings\".\"associate_account_movements\" aam\n      ON aa.id = aam.associate_account_id AND aam.status = 'COMPLETED'\n    GROUP BY aa.id, aa.associate_id, aa.account_number, aa.currency_code\n  ",
+      "name": "associate_account_balances",
+      "schema": "savings",
+      "isExisting": false,
+      "materialized": false
+    },
+    "savings.associate_haberes_balance": {
+      "columns": {
+        "associate_account_id": {
+          "name": "associate_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_balance": {
+          "name": "haberes_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_movement_date": {
+          "name": "last_movement_date",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "haberes_contribution": {
+          "name": "haberes_contribution",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_voluntary": {
+          "name": "haberes_voluntary",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "haberes_employer": {
+          "name": "haberes_employer",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "surpluses": {
+          "name": "surpluses",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_withdrawals": {
+          "name": "total_withdrawals",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_withdrawal_fees": {
+          "name": "total_withdrawal_fees",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    associate_account_id,\n    COALESCE(SUM(amount_change), 0) AS haberes_balance,\n    MAX(transaction_date) AS last_movement_date,\n    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SAVING_CONTRIBUTION'), 0) AS haberes_contribution,\n    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'VOLUNTARY_SAVINGS'), 0) AS haberes_voluntary,\n    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'EMPLOYER_CONTRIBUTION'), 0) AS haberes_employer,\n    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'DIVIDEND_CREDIT'), 0) AS surpluses,\n    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SAVING_WITHDRAWAL'), 0) AS total_withdrawals,\n    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'WITHDRAWAL_FEE_DEBIT'), 0) AS total_withdrawal_fees\n  FROM (\n    SELECT\n      associate_account_id,\n      movement_type,\n      CASE\n        WHEN movement_type IN (\n          'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',\n          'ADJUSTMENT_CREDIT','DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT',\n          'LOAN_OVERPAYMENT_CREDIT','COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT',\n          'SAVING_WITHDRAWAL_REVERSAL_CREDIT','LIQUIDATION_BALANCE_REVERSAL_CREDIT',\n          'ACCOUNTING_ADJUSTMENT_CREDIT','OTHER_CREDIT'\n        ) THEN amount\n        WHEN movement_type IN (\n          'SAVING_WITHDRAWAL','WITHDRAWAL_FEE_DEBIT','ADJUSTMENT_DEBIT',\n          'FEE_CORRECTION_DEBIT','PAYMENT_REVERSAL_DEBIT','ADMIN_FEE_DEBIT',\n          'OTHER_DEBIT','FEE_DEBIT','LIQUIDATION_BALANCE',\n          'ACCOUNTING_ADJUSTMENT_DEBIT','LIQUIDATION_LOAN_PAYMENT_DEBIT',\n          'LIQUIDATION_CREDIT_PAYMENT_DEBIT','LIQUIDATION_COMMERCIAL_CREDIT_PAYMENT_DEBIT',\n          'LIQUIDATION_SPECIAL_LOAN_PAYMENT_DEBIT','LIQUIDATION_SPECIAL_CREDIT_PAYMENT_DEBIT'\n        ) THEN -amount\n        ELSE 0\n      END AS amount_change,\n      transaction_date\n    FROM \"savings\".\"associate_account_movements\"\n    WHERE status = 'COMPLETED'\n  ) sub\n  GROUP BY associate_account_id\n",
+      "name": "associate_haberes_balance",
+      "schema": "savings",
+      "isExisting": false,
+      "materialized": false
+    },
+    "savings.credit_outstanding_balance": {
+      "columns": {
+        "credit_id": {
+          "name": "credit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credit_status": {
+          "name": "credit_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_principal_pending": {
+          "name": "total_principal_pending",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_interest_pending": {
+          "name": "total_interest_pending",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outstanding_total_balance": {
+          "name": "outstanding_total_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    c.id AS credit_id,\n    c.tenant_id,\n    c.associate_id,\n    c.currency_code,\n    c.status::text AS credit_status,\n    COALESCE(SUM(cas.principal_amount) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS total_principal_pending,\n    COALESCE(SUM(cas.interest_amount) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS total_interest_pending,\n    COALESCE(SUM(cas.principal_amount + cas.interest_amount) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS outstanding_total_balance\n  FROM \"savings\".\"credits\" c\n  JOIN \"savings\".\"credit_amortization_schedule\" cas ON c.id = cas.credit_id\n  WHERE c.status IN ('APPROVED','IN_PAYMENT')\n  GROUP BY c.id, c.tenant_id, c.associate_id, c.currency_code, c.status\n",
+      "name": "credit_outstanding_balance",
+      "schema": "savings",
+      "isExisting": false,
+      "materialized": false
+    },
+    "savings.loan_outstanding_balance": {
+      "columns": {
+        "loan_id": {
+          "name": "loan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loan_status": {
+          "name": "loan_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_principal_pending": {
+          "name": "total_principal_pending",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_interest_pending": {
+          "name": "total_interest_pending",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "outstanding_total_balance": {
+          "name": "outstanding_total_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "definition": "\n  SELECT\n    l.id AS loan_id,\n    l.tenant_id,\n    l.associate_id,\n    l.currency_code,\n    l.status::text AS loan_status,\n    COALESCE(SUM(las.principal_amount) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS total_principal_pending,\n    COALESCE(SUM(las.interest_amount) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS total_interest_pending,\n    COALESCE(SUM(las.principal_amount + las.interest_amount) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS outstanding_total_balance\n  FROM \"savings\".\"loans\" l\n  JOIN \"savings\".\"loan_amortization_schedule\" las ON l.id = las.loan_id\n  WHERE l.status IN ('DISBURSED','IN_PAYMENT','OVERDUE')\n  GROUP BY l.id, l.tenant_id, l.associate_id, l.currency_code, l.status\n",
+      "name": "loan_outstanding_balance",
+      "schema": "savings",
+      "isExisting": false,
+      "materialized": false
+    },
+    "treasury.bank_statement_balance": {
+      "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_account_id": {
+          "name": "bank_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_credits": {
+          "name": "total_credits",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_debits": {
+          "name": "total_debits",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_statement_balance": {
+          "name": "current_statement_balance",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_transaction_date": {
+          "name": "last_transaction_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "definition": "\n  SELECT \n    ba.tenant_id,\n    ba.id AS bank_account_id,\n    ba.account_number,\n    ba.account_name,\n    ba.currency_code,\n    COALESCE(SUM(bt.credit_amount), 0) AS total_credits,\n    COALESCE(SUM(bt.debit_amount), 0) AS total_debits,\n    COALESCE(SUM(bt.credit_amount - bt.debit_amount), 0) AS current_statement_balance,\n    MAX(bt.transaction_date) AS last_transaction_date\n  FROM \"treasury\".\"bank_accounts\" ba\n  LEFT JOIN \"treasury\".\"bank_transactions\" bt ON bt.bank_account_id = ba.id\n  GROUP BY ba.id, ba.account_number, ba.account_name, ba.currency_code\n",
+      "name": "bank_statement_balance",
+      "schema": "treasury",
+      "isExisting": false,
+      "materialized": false
+    }
+  },
   "_meta": {
     "columns": {},
     "schemas": {},

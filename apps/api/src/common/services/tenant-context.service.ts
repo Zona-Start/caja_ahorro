@@ -6,24 +6,29 @@ import { ClsService } from 'nestjs-cls';
 export class TenantContextService {
   constructor(private readonly cls: ClsService) {}
 
- getTenantContext(req: Request, dto: any = {}) {
-  // Solo tomamos el tenantId si viene explícitamente en el DTO
-  const dtoTenantId = dto?.tenantId || null;
-  const isSystemAdmin = req['user']?.isSystemAdmin;
-  const currentTenantId = this.cls.get('tenantId');
+  getTenantContext(req: Request, dto: any = {}) {
+    // Solo tomamos el tenantId si viene explícitamente en el DTO
+    const dtoTenantId = dto?.tenantId || null;
+    const isSystemAdmin = req['user']?.isSystemAdmin;
+    const currentTenantId = this.cls.get('tenantId');
 
-  // Si es Admin del sistema, priorizamos el filtro del DTO. 
-  // Si no hay filtro, targetTenantId será null (permitiendo ver todo).
-  // Si NO es Admin, usamos obligatoriamente su currentTenantId.
-  const targetTenantId = isSystemAdmin ? dtoTenantId : currentTenantId;
+    //para validar errores
+    // console.log('dtoTenantId', dtoTenantId);
+    // console.log('isSystemAdmin', isSystemAdmin);
+    // console.log('currentTenantId', currentTenantId);
 
-  // Solo lanzamos excepción si NO es superadmin y no tenemos un tenantId
-  if (!isSystemAdmin && !targetTenantId) {
-    throw new ConflictException('Tenant ID is required for this operation');
+    // Si es Admin del sistema, priorizamos el filtro del DTO.
+    // Si no hay filtro, targetTenantId será null (permitiendo ver todo).
+    // Si NO es Admin, usamos obligatoriamente su currentTenantId.
+    const targetTenantId = isSystemAdmin ? dtoTenantId : currentTenantId;
+
+    // Solo lanzamos excepción si NO es superadmin y no tenemos un tenantId
+    if (!isSystemAdmin && !targetTenantId) {
+      throw new ConflictException('Tenant ID is required for this operation');
+    }
+
+    return { targetTenantId, userId: req['user']?.sub, isSystemAdmin };
   }
-
-  return { targetTenantId, userId: req['user']?.sub, isSystemAdmin };
-}
 
   getTenantId() {
     return this.cls.get('tenantId');

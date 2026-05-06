@@ -30,7 +30,7 @@ export class RolesService {
   ) {}
 
   async findAll(dto: RoleQueryDto, currentTenantId?: string): Promise<any> {
-    const { page = 1, limit = 20, search, tenantId } = dto;
+    const { page = 1, limit = 10, search, tenantId } = dto;
     const offset = (page - 1) * limit;
 
     const conditions: SQL[] = [isNull(roles.deletedAt)];
@@ -158,6 +158,10 @@ export class RolesService {
       })
       .where(and(eq(roles.id, id), eq(roles.tenantId, tenantId)))
       .returning();
+
+    if (!updated) {
+      throw new NotFoundException('Role not found after update');
+    }
 
     await this.auditHelper.logUpdate(
       updated.tenantId,

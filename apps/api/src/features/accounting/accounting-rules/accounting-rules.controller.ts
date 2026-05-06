@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseInterceptors,
 } from '@nestjs/common';
@@ -19,6 +20,7 @@ import {
   CreateAccountingRuleDto,
   CreateAccountingRuleSchema,
 } from './dto/create-accounting-rule.dto';
+import { FilterAccountingRulesDto } from './dto/filter-accounting-rule.dto';
 import { UpdateAccountingRuleDto } from './dto/update-accounting-rule.dto';
 
 @ApiTags('accounting-rules')
@@ -54,6 +56,30 @@ export class AccountingRulesController {
   findAll() {
     const tenantId = this.tenantContext.getTenantId();
     return this.accountingRulesService.findAll(tenantId);
+  }
+
+  @Get('pagination')
+  @ApiOperation({
+    summary: 'Get all accounting rules with pagination and filters',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated accounting rules .',
+  })
+  async findAllByPagination(
+    @Req() req: Request,
+    @Query() dto: FilterAccountingRulesDto,
+  ) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req, dto);
+    const result = await this.accountingRulesService.findAllByPagination(
+      targetTenantId,
+      dto,
+    );
+    return {
+      message: 'accounting rules fetched successfully',
+      data: result.data,
+      meta: result.meta,
+    };
   }
 
   @Get(':id')

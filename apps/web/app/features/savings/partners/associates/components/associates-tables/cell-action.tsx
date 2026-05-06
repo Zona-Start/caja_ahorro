@@ -1,52 +1,49 @@
 import { useState } from 'react';
-import { Edit, Eye, Trash } from 'lucide-react';
+import { AlertModal } from '@/components/shared/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/shadcn/tooltip';
-
-
-import { AlertModal } from '@/components/shared/alert-modal';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
+import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { toast } from '@repo/shadcn/hooks/use-toast';
 import { useDeleteAssociateMutation, useAssociateQuery } from '../../hooks/use-associates-query';
 import { type AssociatesMutate } from '../../schemas/associates.schema';
-import { AssociateViewModal } from '../associates-view-modal';
 import { AssociatesModal } from '../associates-modal';
-import { toast } from '@repo/shadcn/hooks/use-toast.ts';
 
 interface CellActionProps {
   data: AssociatesMutate;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const [open, setOpen] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openView, setOpenView] = useState(false);
   const [associateId, setAssociateId] = useState<number | null>(null);
 
   const { mutate: deleteAssociate, isPending: loading } = useDeleteAssociateMutation();
-  
+
   const { data: associateData } = useAssociateQuery(associateId!);
 
   const onConfirm = async () => {
     deleteAssociate(data.id!, {
-      onSuccess: () => setOpen(false),
+      onSuccess: () => setOpenDelete(false),
     });
   };
 
   const allowedStatuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
-  
+
   const handleEdit = () => {
     if (allowedStatuses.includes(data.status)) {
       setAssociateId(data.id!);
-      setShowEditModal(true);
+      setOpenEdit(true);
     } else {
       toast({
         title: 'Error',
-        description:
-          "El estatus del asociado no permite modificación",
+        description: 'El estatus del asociado no permite modificación',
         variant: 'destructive',
       });
     }
@@ -54,14 +51,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
 
   const handleView = () => {
     setAssociateId(data.id!);
-    setShowViewModal(true);
+    setOpenView(true);
   };
 
   return (
     <>
       <AlertModal
-        isOpen={open}
-        onClose={() => setOpen(false)}
+        isOpen={openDelete}
+        onClose={() => setOpenDelete(false)}
         onConfirm={onConfirm}
         loading={loading}
         title="¿Estás seguro que desea eliminar al Asociado?"
@@ -71,9 +68,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       {associateData?.data && (
         <>
           <AssociatesModal
-            open={showEditModal}
+            open={openEdit}
             onOpenChange={(open) => {
-              setShowEditModal(open);
+              setOpenEdit(open);
               if (!open) setAssociateId(null);
             }}
             defaultValues={{
@@ -93,13 +90,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             }}
           />
 
-          <AssociateViewModal
-            open={showViewModal}
-            onOpenChange={(open: any) => {
-              setShowViewModal(open);
+          <AssociatesModal
+            open={openView}
+            onOpenChange={(open) => {
+              setOpenView(open);
               if (!open) setAssociateId(null);
             }}
-            associateData={{
+            defaultValues={{
               ...associateData.data,
               birthdate: associateData.data.birthdate
                 ? new Date(associateData.data.birthdate)
@@ -114,63 +111,39 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               isPayrollCredit: associateData.data.isPayrollCredit,
               baseSalary: String(Number(associateData.data.baseSalary).toFixed(2)),
             }}
+            readOnly
           />
         </>
       )}
 
-      <div className="flex gap-1">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleView}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Ver</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleEdit}
-                disabled={!allowedStatuses.includes(data.status)}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Editar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setOpen(true)}
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Eliminar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="h-8 w-8 p-0">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={handleView}>
+            <Eye className="mr-2 h-4 w-4" />
+            Ver Detalles
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={handleEdit}
+            disabled={!allowedStatuses.includes(data.status)}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setOpenDelete(true)}
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Eliminar
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 };

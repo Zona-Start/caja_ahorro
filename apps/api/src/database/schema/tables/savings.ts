@@ -5,7 +5,6 @@ import {
   integer,
   jsonb,
   numeric,
-  pgSchema,
   text,
   timestamp,
   uniqueIndex,
@@ -13,6 +12,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../../timestamps';
+import { savingsSchema } from '../_schemas';
 import {
   associateMovementTypeEnum,
   creditModalityTypeEnum,
@@ -40,9 +40,6 @@ import { categories, exchangeRates, states } from './core';
 import { suppliers } from './purchasing';
 import { tenants } from './tenants';
 import { bankDirectory, bankTransactions } from './treasury';
-import { savingsSchema } from "../_schemas";
-
-
 
 // Tabla de los asociados. Almacena la información de los asociados de la caja de ahorro.
 export const associates = savingsSchema.table(
@@ -113,7 +110,7 @@ export const associateAccounts = savingsSchema.table(
   'associate_accounts',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    associateId: uuid('associated_id').references(() => associates.id, {
+    associateId: uuid('associate_id').references(() => associates.id, {
       onDelete: 'cascade',
     }), // id asosciado
     accountNumber: varchar('account_number', { length: 20 }).notNull().unique(), // numero de cuenta

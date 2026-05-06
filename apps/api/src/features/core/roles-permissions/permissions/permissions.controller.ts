@@ -9,10 +9,12 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { CreatePermissionDto } from './dtos/create-permission.dto';
+import { PermissionPaginationDto } from './dtos/permission-pagination.dto';
 import { PermissionsService } from './permissions.service';
 
 @Controller('core/roles-permissions/permissions')
@@ -40,6 +42,12 @@ export class PermissionsController {
   @Permissions({ resource: 'iam:permissions', action: 'read', scope: 'global' })
   async findAll() {
     return this.permissionsService.findAll();
+  }
+
+  @Get('paginated')
+  @Permissions({ resource: 'iam:permissions', action: 'read', scope: 'global' })
+  async findAllPaginated(@Query() paginationDto: PermissionPaginationDto) {
+    return this.permissionsService.findAllByPagination(paginationDto);
   }
 
   @Get(':id')

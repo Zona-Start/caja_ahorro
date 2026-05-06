@@ -1,7 +1,5 @@
-import { useAccountingAccounts } from '@/features/accounting-accounts/hooks/use-accounting-accounts-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
-import { Switch } from '@repo/shadcn/switch';
 import {
   Form,
   FormControl,
@@ -20,9 +18,11 @@ import {
 } from '@repo/shadcn/select';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { Separator } from '@repo/shadcn/separator';
+import { Switch } from '@repo/shadcn/switch';
 import { Plus, Trash } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
+import { useAccountingAccounts } from '../../accounting-accounts/hooks/use-accounting-accounts-query';
 import { useAccountingRuleMutation } from '../hooks/use-accounting-rules-mutation';
 import { useAccountingRules } from '../hooks/use-accounting-rules-query';
 import {
@@ -109,21 +109,42 @@ export function AccountingRuleForm({
         ];
       case 'BANKING':
         return [
-          { value: 'TRANSFER_BETWEEN_ACCOUNTS', label: 'Transferencia entre Cuentas' },
+          {
+            value: 'TRANSFER_BETWEEN_ACCOUNTS',
+            label: 'Transferencia entre Cuentas',
+          },
           { value: 'BANK_DEBIT_NOTE', label: 'Nota de Débito Bancaria' },
           { value: 'BANK_CREDIT_NOTE', label: 'Nota de Crédito Bancaria' },
-          { value: 'CHECK_ISSUANCE_PAYMENT', label: 'Emisión de Cheque / Pago' },
-          { value: 'EMPLOYER_DEPOSIT_RECEPTION', label: 'Recepción Depósito Patronal' },
-          { value: 'LOAN_COLLECTION_PAYROLL', label: 'Recaudación Préstamos (Nómina)' },
-          { value: 'LOAN_COLLECTION_WINDOW', label: 'Cobro de Préstamo (Ventanilla)' },
-          { value: 'CONTRIBUTION_INCOME_PAYROLL', label: 'Ingreso por Aportes (Nómina)' },
+          {
+            value: 'CHECK_ISSUANCE_PAYMENT',
+            label: 'Emisión de Cheque / Pago',
+          },
+          {
+            value: 'EMPLOYER_DEPOSIT_RECEPTION',
+            label: 'Recepción Depósito Patronal',
+          },
+          {
+            value: 'LOAN_COLLECTION_PAYROLL',
+            label: 'Recaudación Préstamos (Nómina)',
+          },
+          {
+            value: 'LOAN_COLLECTION_WINDOW',
+            label: 'Cobro de Préstamo (Ventanilla)',
+          },
+          {
+            value: 'CONTRIBUTION_INCOME_PAYROLL',
+            label: 'Ingreso por Aportes (Nómina)',
+          },
           { value: 'BANK_INITIAL_BALANCE', label: 'Carga de Saldo Inicial' },
           { value: 'BANK_FEE', label: 'Comisión por Cuenta' },
           { value: 'OTHER_BANKING', label: 'Otros' },
         ];
       case 'ACCOUNTING':
         return [
-          { value: 'FISCAL_YEAR_CLOSING', label: 'Cierre de Ejercicio (Anual)' },
+          {
+            value: 'FISCAL_YEAR_CLOSING',
+            label: 'Cierre de Ejercicio (Anual)',
+          },
           { value: 'EXCHANGE_DIFFERENCE', label: 'Diferencia de Cambio' },
           { value: 'ASSET_DEPRECIATION', label: 'Depreciación de Activos' },
           { value: 'EXPENSE_AMORTIZATION', label: 'Amortización de Gastos' },
@@ -132,9 +153,15 @@ export function AccountingRuleForm({
       case 'INVENTORY':
         return [
           { value: 'GOODS_RECEIPT', label: 'Recepción de Mercancía' },
-          { value: 'INVENTORY_ADJUSTMENT_NEG', label: 'Ajuste de Inventario (-)' },
+          {
+            value: 'INVENTORY_ADJUSTMENT_NEG',
+            label: 'Ajuste de Inventario (-)',
+          },
           { value: 'SALE_OUTPUT', label: 'Salida por Venta' },
-          { value: 'WAREHOUSE_TRANSFER', label: 'Transferencia entre Almacenes' },
+          {
+            value: 'WAREHOUSE_TRANSFER',
+            label: 'Transferencia entre Almacenes',
+          },
         ];
       default:
         return [];
@@ -148,14 +175,26 @@ export function AccountingRuleForm({
           { value: 'ASSOCIATED_SAVINGS', label: 'Ahorro Asociados (Haberes)' },
           { value: 'EMPLOYER_CONTRIBUTION', label: 'Aporte Patrono (Haberes)' },
           { value: 'VOLUNTARY_SAVINGS', label: 'Ahorro Voluntario (Haberes)' },
-          { value: 'PARTIAL_WITHDRAWAL_SAVINGS', label: 'Retiro Parcial (Haberes)' },
-          { value: 'SPECIAL_WITHDRAWAL_SAVINGS', label: 'Retiro Especial / Consumo (Haberes)' },
-          { value: 'DIVIDENDS_PAYABLE', label: 'Dividendos / Excedentes por Pagar' },
+          {
+            value: 'PARTIAL_WITHDRAWAL_SAVINGS',
+            label: 'Retiro Parcial (Haberes)',
+          },
+          {
+            value: 'SPECIAL_WITHDRAWAL_SAVINGS',
+            label: 'Retiro Especial / Consumo (Haberes)',
+          },
+          {
+            value: 'DIVIDENDS_PAYABLE',
+            label: 'Dividendos / Excedentes por Pagar',
+          },
           { value: 'SAVINGS_RECEIVABLE', label: 'Ahorro x Cobrar (Activo)' },
           { value: 'EMPLOYER_RECEIVABLE', label: 'Aporte x Cobrar (Activo)' },
           { value: 'LOAN_PRINCIPAL', label: 'Préstamo Capital (Activo)' },
           { value: 'CREDIT_PRINCIPAL', label: 'Crédito Capital (CP/LP)' },
-          { value: 'OPERATION_COUNTERPART', label: 'Inventario / Cuenta x Pagar' },
+          {
+            value: 'OPERATION_COUNTERPART',
+            label: 'Inventario / Cuenta x Pagar',
+          },
           { value: 'BANK_ACCOUNT', label: 'Banco Institución' },
           { value: 'CASH_ACCOUNT', label: 'Caja Principal' },
           { value: 'SERVICE_FEE_INCOME', label: 'Ingresos por Comisiones' },
@@ -219,7 +258,9 @@ export function AccountingRuleForm({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="SAVINGS_BANK">Caja de Ahorro</SelectItem>
-                    <SelectItem value="ADMINISTRATIVE">Administrativa</SelectItem>
+                    <SelectItem value="ADMINISTRATIVE">
+                      Administrativa
+                    </SelectItem>
                     <SelectItem value="BANKING">Bancaria</SelectItem>
                     <SelectItem value="ACCOUNTING">Contable</SelectItem>
                     <SelectItem value="INVENTORY">Inventario</SelectItem>

@@ -1,5 +1,17 @@
-import { useSearchParams } from 'react-router';
 import { useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router';
+import { z } from 'zod';
+
+export const accountingRulesFilterSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  search: z.string().optional(),
+  tenantId: z.string().optional(),
+});
+
+export type AccountingRulesFilters = z.infer<
+  typeof accountingRulesFilterSchema
+>;
 
 export function useAccountingRulesFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,12 +27,13 @@ export function useAccountingRulesFilters() {
         else newParams.delete('q');
       }
       if (filters.page !== undefined) {
-        if (filters.page && filters.page !== 1) newParams.set('page', String(filters.page));
+        if (filters.page && filters.page !== 1)
+          newParams.set('page', String(filters.page));
         else newParams.delete('page');
       }
       setSearchParams(newParams);
     },
-    [searchParams, setSearchParams]
+    [searchParams, setSearchParams],
   );
 
   const resetFilters = useCallback(() => {

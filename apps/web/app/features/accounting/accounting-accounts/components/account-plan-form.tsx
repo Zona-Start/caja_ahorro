@@ -31,12 +31,14 @@ interface AccountPlanFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   defaultValues?: Partial<AccountPlan>;
+  disabled?: boolean;
 }
 
 export function AccountPlanForm({
   onSuccess,
   onCancel,
   defaultValues,
+  disabled = false,
 }: AccountPlanFormProps) {
   const {
     mutate: saveAccountingAccounts,
@@ -113,7 +115,7 @@ export function AccountPlanForm({
               <FormItem>
                 <FormLabel>Código</FormLabel>
                 <FormControl>
-                  <Input placeholder="1.1.1" {...field} />
+                  <Input placeholder="1.1.1" {...field} disabled={disabled} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -127,7 +129,7 @@ export function AccountPlanForm({
               <FormItem>
                 <FormLabel>Nombre</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input {...field} disabled={disabled} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -143,6 +145,7 @@ export function AccountPlanForm({
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
+                  disabled={disabled}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -171,6 +174,7 @@ export function AccountPlanForm({
                 <Select
                   onValueChange={(value) => field.onChange(Number(value))}
                   defaultValue={String(field.value)}
+                  disabled={disabled}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -208,6 +212,7 @@ export function AccountPlanForm({
                   }
                   placeholder="Selecciona una cuenta padre"
                   defaultValue={field.value?.toString() || 'null'}
+                  disabled={disabled}
                 />
                 <FormMessage />
               </FormItem>
@@ -223,6 +228,7 @@ export function AccountPlanForm({
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
+                  disabled={disabled}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -251,6 +257,7 @@ export function AccountPlanForm({
                 <Select
                   onValueChange={(value) => field.onChange(value === 'true')}
                   defaultValue={field.value?.toString()}
+                  disabled={disabled}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -276,6 +283,7 @@ export function AccountPlanForm({
                 <Select
                   onValueChange={(value) => field.onChange(value === 'true')}
                   defaultValue={field.value?.toString()}
+                  disabled={disabled}
                 >
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -293,14 +301,22 @@ export function AccountPlanForm({
           />
         </div>
 
-        <div className="flex justify-end gap-4">
-          <Button variant="outline" type="button" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? 'Guardando...' : 'Guardar'}
-          </Button>
-        </div>
+        {disabled ? (
+          <div className="flex justify-end">
+            <Button type="button" onClick={onCancel}>
+              Cerrar
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-4">
+            <Button variant="outline" type="button" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );

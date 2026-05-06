@@ -1,8 +1,8 @@
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
-import { columns } from './accounts-tables/columns';
-import { usePaginatedAccountingAccounts } from '../hooks/use-accounting-accounts-query';
 import { useAccountingAccountsFilters } from '../hooks/use-accounting-accounts-filters';
+import { usePaginatedAccountingAccounts } from '../hooks/use-accounting-accounts-query';
+import { columns } from './accounts-tables/columns';
 
 export default function AccountingAccountsList() {
   const { filters } = useAccountingAccountsFilters();

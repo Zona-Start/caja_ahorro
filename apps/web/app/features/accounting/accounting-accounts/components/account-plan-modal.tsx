@@ -13,12 +13,14 @@ interface AccountPlanModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultValues?: Partial<AccountPlanApiResponse>;
+  mode?: 'create' | 'edit' | 'view';
 }
 
 export function AccountPlanModal({
   open,
   onOpenChange,
   defaultValues,
+  mode = 'create',
 }: AccountPlanModalProps) {
   const handleSuccess = () => {
     onOpenChange(false);
@@ -27,6 +29,9 @@ export function AccountPlanModal({
   const handleCancel = () => {
     onOpenChange(false);
   };
+
+  const isViewMode = mode === 'view';
+  const isEditMode = mode === 'edit';
 
   return (
     <Dialog
@@ -40,19 +45,23 @@ export function AccountPlanModal({
       <DialogContent className="sm:max-w-[600px] z-50 ">
         <DialogHeader>
           <DialogTitle>
-            {defaultValues?.id
-              ? 'Actualizar Cuenta Contable'
-              : 'Crear Cuenta Contable'}
+            {isViewMode
+              ? 'Detalles de Cuenta Contable'
+              : isEditMode
+                ? 'Actualizar Cuenta Contable'
+                : 'Crear Cuenta Contable'}
           </DialogTitle>
           <DialogDescription>
-            Complete los campos para{' '}
-            {defaultValues?.id ? 'actualizar' : 'crear'} la cuenta contable
+            {isViewMode
+              ? 'Información de la cuenta contable.'
+              : `Complete los campos para ${isEditMode ? 'actualizar' : 'crear'} la cuenta contable`}
           </DialogDescription>
         </DialogHeader>
         <AccountPlanForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={defaultValues as unknown as Partial<AccountPlan>}
+          disabled={isViewMode}
         />
       </DialogContent>
     </Dialog>

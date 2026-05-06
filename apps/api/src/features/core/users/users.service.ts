@@ -133,7 +133,11 @@ export class UsersService {
     });
   }
 
-  async create(dto: CreateUserDto, creatorTenantId?: string): Promise<any> {
+  async create(
+    dto: CreateUserDto,
+    creatorTenantId?: string,
+    userId?: string,
+  ): Promise<any> {
     const existingUser = await this.db.query.users.findFirst({
       where: or(eq(users.username, dto.username), eq(users.email, dto.email)),
     });
@@ -143,6 +147,7 @@ export class UsersService {
     }
 
     const passwordHash = await this.securityService.hashPassword(dto.password);
+
     const targetTenantId = creatorTenantId || dto.tenantId;
 
     const newUser = await this.db.transaction(async (tx) => {
@@ -156,6 +161,7 @@ export class UsersService {
           email: dto.email,
           status: dto.status || 'active',
           isSystemAdmin: dto.isSystemAdmin || false,
+          createdById: userId,
         })
         .returning();
 
@@ -167,6 +173,7 @@ export class UsersService {
           tenantId: targetTenantId,
           roleId: dto.roleId,
           isActive: true,
+          createdById: userId,
         });
       }
       return newUser;
@@ -184,6 +191,7 @@ export class UsersService {
     id: string,
     dto: UpdateUserDto,
     tenantId?: string,
+    userId?: string,
   ): Promise<any> {
     const user = await this.findById(id, tenantId);
     if (!user) throw new NotFoundException('User not found');
@@ -195,6 +203,7 @@ export class UsersService {
       status: dto.status,
       isSystemAdmin: dto.isSystemAdmin,
       updatedAt: new Date(),
+      updatedById: userId,
     };
 
     if (dto.password) {
@@ -233,7 +242,7 @@ export class UsersService {
     return updated;
   }
 
-  async remove(id: string, tenantId?: string): Promise<void> {
+  async remove(id: string, tenantId?: string, userId?: string): Promise<void> {
     const user = await this.findById(id, tenantId);
     if (!user) throw new NotFoundException('User not found');
 
@@ -254,7 +263,7 @@ export class UsersService {
     } else {
       await this.db
         .update(users)
-        .set({ deletedAt: new Date() })
+        .set({ deletedAt: new Date(), deletedBy: userId })
         .where(eq(users.id, id));
     }
 
@@ -265,16 +274,17 @@ export class UsersService {
   }
 
   async managePermissions(
-    userId: string,
+    id: string,
     tenantId: string,
     permissionIds: string[],
+    userId: string,
   ): Promise<void> {
     // 1. Limpiar permisos especiales previos para este usuario en este tenant
     await this.db
       .delete(userPermissions)
       .where(
         and(
-          eq(userPermissions.userId, userId),
+          eq(userPermissions.userId, id),
           eq(userPermissions.tenantId, tenantId),
         ),
       );
@@ -282,16 +292,17 @@ export class UsersService {
     // 2. Insertar nuevos
     if (permissionIds.length > 0) {
       const values = permissionIds.map((pId) => ({
-        userId,
+        userId: id,
         tenantId,
         permissionId: pId,
+        createdById: userId,
       }));
       await this.db.insert(userPermissions).values(values);
     }
 
     await this.auditHelper.logUpdate(
       tenantId,
-      'user_permissions',
+      'user',
       {},
       { permissionIds },
       {

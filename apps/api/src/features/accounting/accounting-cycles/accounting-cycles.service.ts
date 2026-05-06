@@ -119,9 +119,9 @@ export class AccountingCyclesService {
       data,
       meta: {
         totalCount: Number(total.count),
-        page,
-        limit,
-        totalPages: Math.ceil(Number(total.count) / limit),
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(Number(total.count) / Number(limit)),
       },
     };
   }
