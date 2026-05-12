@@ -6,7 +6,6 @@ import {
   Delete,
   Get,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -75,12 +74,12 @@ export class BankDirectoryController {
   @ApiOperation({ summary: 'Update a banks' })
   @ApiResponse({ status: 200, description: 'banks updated successfully.' })
   async update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Body() dto: UpdateBankDirectoryDto,
     @Req() req: Request,
   ) {
     const userId = this.tenantContextService.getUserId(req);
-    const data = await this.service.update(userId, id.toString(), dto);
+    const data = await this.service.update(userId, id, dto);
     return { message: 'Bank updated successfully', data };
   }
 

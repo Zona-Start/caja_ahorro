@@ -1,9 +1,10 @@
-import { type ColumnDef } from '@tanstack/react-table';
 import { formatCurrency } from '@/lib/format-utils';
+import { type ColumnDef } from '@tanstack/react-table';
+import z from 'zod';
 import { MOVEMENT_TYPES } from '../../../schemas/inquiry-options';
-import { type HaberesMovement } from '../../../schemas/inquiry-schema';
+import { type haberesMovementSchema } from '../../../schemas/inquiry-schema';
 
-export type HaberesData = HaberesMovement;
+export type HaberesData = z.infer<typeof haberesMovementSchema>;
 
 export const columns: ColumnDef<HaberesData>[] = [
   {

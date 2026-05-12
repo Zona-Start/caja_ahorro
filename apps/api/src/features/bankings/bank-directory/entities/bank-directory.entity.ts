@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class BankDirectory {
   @ApiProperty({ required: false })
-  id?: number;
+  id?: string;
 
   @ApiProperty()
   code: string;
@@ -23,8 +23,8 @@ export class BankDirectory {
   updatedAt?: Date;
 
   @ApiProperty({ required: false })
-  createdById?: number;
+  createdById?: string;
 
   @ApiProperty({ required: false })
-  updateById?: number;
+  updatedById?: string;
 }

@@ -1,78 +1,79 @@
-import { useToastSystem } from '@/hooks/use-toast-system';
+import { useToast } from '@repo/shadcn/hooks/use-toast';
 import {
   useMutation,
-  UseMutationResult,
   useQueryClient,
+  type UseMutationResult,
 } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { typeLoansService } from '../services/type-loans-service';
+import { isAxiosError } from 'axios';
+import { type LoanType, type LoanTypeMutation } from '../schemas/loan-types.schema';
+import { loanTypesService } from '../services/type-loans-service';
 
-export function useCreateTypeLoanMutation(): UseMutationResult<
+const getErrorMessage = (error: unknown) => {
+  if (isAxiosError<{ message?: string }>(error)) {
+    return (
+      error.response?.data?.message ||
+      error.message ||
+      'Se produjo un error al ejecutar la operación'
+    );
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Se produjo un error al ejecutar la operación';
+};
+
+export function useSaveLoanTypeMutation(): UseMutationResult<
+  LoanType,
   unknown,
-  Error,
-  unknown,
-  unknown
+  LoanTypeMutation
 > {
   const queryClient = useQueryClient();
-  const toast = useToastSystem();
+  const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (typeLoan: unknown) => typeLoansService.create(typeLoan),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.typeLoans.all(),
+    mutationFn: (payload) => loanTypesService.save(payload),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['loanTypes'] });
+      toast({
+        title: variables.id ? 'Tipo de préstamo actualizado' : 'Tipo de préstamo creado',
+        description: variables.id
+          ? 'Los datos del tipo de préstamo se actualizaron correctamente.'
+          : 'El tipo de préstamo fue creado correctamente.',
       });
-      toast.success('Tipo de préstamo creado exitosamente');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Error al crear el tipo de préstamo');
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
     },
   });
 }
 
-export function useUpdateTypeLoanMutation(): UseMutationResult<
+export function useDeleteLoanTypeMutation(): UseMutationResult<
+  { message: string },
   unknown,
-  Error,
-  { id: number; data: unknown },
-  unknown
+  number
 > {
   const queryClient = useQueryClient();
-  const toast = useToastSystem();
+  const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: unknown }) =>
-      typeLoansService.update(id, data),
+    mutationFn: (id) => loanTypesService.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.typeLoans.all(),
+      queryClient.invalidateQueries({ queryKey: ['loanTypes'] });
+      toast({
+        title: 'Tipo de préstamo eliminado',
+        description: 'El tipo de préstamo fue eliminado correctamente.',
       });
-      toast.success('Tipo de préstamo actualizado exitosamente');
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Error al actualizar el tipo de préstamo');
-    },
-  });
-}
-
-export function useDeleteTypeLoanMutation(): UseMutationResult<
-  unknown,
-  Error,
-  number,
-  unknown
-> {
-  const queryClient = useQueryClient();
-  const toast = useToastSystem();
-
-  return useMutation({
-    mutationFn: (id: number) => typeLoansService.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.typeLoans.all(),
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
       });
-      toast.success('Tipo de préstamo eliminado exitosamente');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Error al eliminar el tipo de préstamo');
     },
   });
 }

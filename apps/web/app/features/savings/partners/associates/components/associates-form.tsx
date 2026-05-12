@@ -1,4 +1,3 @@
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import { CustomCalendar } from '@repo/shadcn/custom-calendar';
@@ -20,19 +19,17 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
-
+import { useForm } from 'react-hook-form';
 import { useAssociateMutation } from '../hooks/use-associates-query';
 import { ESTATUS_TYPES, type EstatusType } from '../schemas/associates-options';
 import {
   AssociateMutationSchema,
   type AssociatesMutate,
 } from '../schemas/associates.schema';
-
 // Dependencies
-import { useStatesQuery } from '@/features/common/states/hooks/use-states-query';
-import { useCategoriesTypesGroup } from '@/features/common/category-types/hooks/use-querys-category-types';
-import { useTypePayroll } from '@/features/configurations/type-payroll/hooks/use-query-type-payroll';
 import { useBanksQuery } from '@/features/banks/bank-directory/hooks/use-banks-querys';
+import { useCategoriesQuery } from '@/features/core/categories/hooks/use-categories-queries';
+import { useStatesQuery } from '@/features/core/states/hooks/use-querys-states';
 
 interface AccountPlanFormProps {
   onSuccess?: () => void;
@@ -59,9 +56,21 @@ export function AssociatesForm({
   const { mutate: saveAssociate, isPending: isSaving } = useAssociateMutation();
 
   const { data: StatesQuery } = useStatesQuery();
-  const { data: CategoryFrecuentia } = useCategoriesTypesGroup('DISCOUNT_FREQ');
-  const { data: AssociatedType } = useCategoriesTypesGroup('ASSOCIATED_TYPE');
-  const { data: PayrollType } = useTypePayroll();
+  const { data: CategoryFrecuentia } = useCategoriesQuery({
+    page: 1,
+    limit: 100,
+    type: 'discount_frequency',
+  });
+  const { data: AssociatedType } = useCategoriesQuery({
+    page: 1,
+    limit: 100,
+    type: 'associate_type',
+  });
+  const { data: PayrollType } = useCategoriesQuery({
+    page: 1,
+    limit: 100,
+    type: 'payroll_type',
+  });
   const { data: Banks } = useBanksQuery();
 
   const form = useForm<AssociatesMutate>({
@@ -165,7 +174,7 @@ export function AssociatesForm({
                   <FormLabel>Nacionalidad</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -191,7 +200,7 @@ export function AssociatesForm({
                   <FormLabel>Género</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    value={field.value}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -245,7 +254,7 @@ export function AssociatesForm({
                     }
                     onValueChange={(value) => field.onChange(Number(value))}
                     placeholder="Selecciona un estado"
-                    defaultValue={field.value?.toString()}
+                    value={field.value?.toString() ?? ''}
                     disabled={readOnly}
                   />
                   <FormMessage />
@@ -342,7 +351,7 @@ export function AssociatesForm({
                   <FormLabel>Frecuencia Descuento</FormLabel>
                   <Select
                     onValueChange={(value) => field.onChange(Number(value))}
-                    defaultValue={String(field.value)}
+                    value={field.value != null ? String(field.value) : ''}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -351,12 +360,9 @@ export function AssociatesForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                      {CategoryFrecuentia?.data?.map((item: any) => (
-                        <SelectItem
-                          key={item.id}
-                          value={item.id!.toString()}
-                        >
-                          {item.description}
+                      {CategoryFrecuentia?.data?.map((item) => (
+                        <SelectItem key={item.id} value={item.id!.toString()}>
+                          {item.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -374,7 +380,7 @@ export function AssociatesForm({
                   <FormLabel>Posee Credi-Nomina</FormLabel>
                   <Select
                     onValueChange={(value) => field.onChange(value === 'true')}
-                    defaultValue={String(field.value)}
+                    value={field.value != null ? String(field.value) : ''}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -400,7 +406,7 @@ export function AssociatesForm({
                   <FormLabel>Estatus del Socio</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={String(field.value)}
+                    value={field.value}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -429,7 +435,7 @@ export function AssociatesForm({
                   <FormLabel>Tipo de Nomina</FormLabel>
                   <Select
                     onValueChange={(value) => field.onChange(Number(value))}
-                    defaultValue={String(field.value)}
+                    value={field.value != null ? String(field.value) : ''}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -438,12 +444,9 @@ export function AssociatesForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                      {PayrollType?.data?.map((item: any) => (
-                        <SelectItem
-                          key={item.id}
-                          value={item.id!.toString()}
-                        >
-                          {item.code} - {item.description}
+                      {PayrollType?.data?.map((item) => (
+                        <SelectItem key={item.id} value={item.id!.toString()}>
+                          {item.code} - {item.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -460,7 +463,7 @@ export function AssociatesForm({
                   <FormLabel>Tipo de Trabajador</FormLabel>
                   <Select
                     onValueChange={(value) => field.onChange(Number(value))}
-                    defaultValue={String(field.value)}
+                    value={field.value != null ? String(field.value) : ''}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -469,12 +472,9 @@ export function AssociatesForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
-                      {AssociatedType?.data?.map((item: any) => (
-                        <SelectItem
-                          key={item.id}
-                          value={item.id!.toString()}
-                        >
-                          {item.description}
+                      {AssociatedType?.data?.map((item) => (
+                        <SelectItem key={item.id} value={item.id!.toString()}>
+                          {item.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -556,7 +556,7 @@ export function AssociatesForm({
                     }
                     onValueChange={(value) => field.onChange(Number(value))}
                     placeholder="Selecciona un banco"
-                    defaultValue={String(field.value)}
+                    value={field.value != null ? String(field.value) : ''}
                     disabled={readOnly}
                   />
                   <FormMessage />

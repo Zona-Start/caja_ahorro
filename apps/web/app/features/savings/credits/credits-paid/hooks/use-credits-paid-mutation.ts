@@ -30,3 +30,26 @@ export function useCreateCreditPaymentMutation(): UseMutationResult<
     },
   });
 }
+
+export function useDeleteCreditPaymentMutation(): UseMutationResult<
+  unknown,
+  Error,
+  number,
+  unknown
+> {
+  const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id: number) => creditsPaidService.deleteCreditPayment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.creditsPaid.all(),
+      });
+      toast.success('Pago eliminado exitosamente');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al eliminar el pago');
+    },
+  });
+}

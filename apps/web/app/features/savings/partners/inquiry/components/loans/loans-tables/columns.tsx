@@ -1,11 +1,14 @@
-import { type ColumnDef } from '@tanstack/react-table';
 import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
 import { Progress } from '@repo/shadcn/progress';
+import { type ColumnDef } from '@tanstack/react-table';
+import z from 'zod';
 import { LOAN_STATUS_TYPES } from '../../../schemas/inquiry-options';
-import { type Loan } from '../../../schemas/inquiry-schema';
+import { type loanSchema } from '../../../schemas/inquiry-schema';
 import { CellAction } from './cell-action';
+
+export type Loan = z.infer<typeof loanSchema>;
 
 export const columns: ColumnDef<Loan>[] = [
   {
@@ -77,11 +80,7 @@ export const columns: ColumnDef<Loan>[] = [
 
       return (
         <div className={cn('p-2 h-full w-full')}>
-          <Badge
-            variant={variant as any}
-          >
-            {statusText}
-          </Badge>
+          <Badge variant={variant as any}>{statusText}</Badge>
         </div>
       );
     },

@@ -1,19 +1,14 @@
-import { CurrencyCodeEnum } from '@/types/enum';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class BankAccount {
   @ApiProperty({ description: 'ID único de la cuenta bancaria' })
-  id: number;
+  id: string;
 
-  @ApiProperty({
-    description: 'ID de la compañía propietaria de la cuenta bancaria',
-  })
-  companyId: number;
+  @ApiProperty({ description: 'ID del tenant al que pertenece' })
+  tenantId: string;
 
-  @ApiProperty({
-    description: 'ID del banco al que pertenece la cuenta bancaria',
-  })
-  bankDirectoryId: number;
+  @ApiProperty({ description: 'ID del banco al que pertenece la cuenta bancaria' })
+  bankDirectoryId: string;
 
   @ApiProperty({ description: 'Número de cuenta bancaria completo' })
   accountNumber: string;
@@ -21,47 +16,45 @@ export class BankAccount {
   @ApiProperty({ description: 'Nombre de la cuenta bancaria', required: false })
   accountName?: string;
 
-  @ApiProperty({
-    description: 'Tipo de cuenta bancaria (Ej: Corriente, Ahorro)',
-  })
+  @ApiProperty({ description: 'Tipo de cuenta bancaria (Ej: Corriente, Ahorro)' })
   accountType: string;
 
   @ApiProperty({ description: 'Código de moneda de la cuenta bancaria' })
-  currencyCode: CurrencyCodeEnum;
+  currencyCode: string;
 
-  @ApiProperty({ description: 'Fecha de apertura de la cuenta bancaria' })
+  @ApiProperty({ description: 'Fecha de apertura de la cuenta bancaria', required: false })
   openingDate?: Date;
 
-  @ApiProperty({ description: 'Saldo inicial de la cuenta bancaria' })
-  currentBalance?: number;
+  @ApiProperty({ description: 'Saldo actual de la cuenta bancaria', required: false })
+  currentBalance?: string;
 
-  @ApiProperty({ description: 'Saldo del último extracto cargado' })
-  lastStatementBalance?: number;
+  @ApiProperty({ description: 'Saldo del último extracto cargado', required: false })
+  lastStatementBalance?: string;
 
-  @ApiProperty({ description: 'Fecha del último extracto cargado' })
+  @ApiProperty({ description: 'Fecha del último extracto cargado', required: false })
   lastStatementDate?: Date;
 
   @ApiProperty({ description: 'ID de la cuenta contable vinculada' })
-  linkedChartAccountId: number;
+  linkedChartAccountId: string;
 
   @ApiProperty({ description: 'Estado activo de la cuenta bancaria' })
   isActive: boolean;
 
-  @ApiProperty({ description: 'Fecha de creación de la cuenta bancaria' })
+  @ApiProperty({ description: 'Indica si el asiento de apertura fue generado' })
+  openingEntryPosted: boolean;
+
+  @ApiProperty({ description: 'ID de la regla contable', required: false })
+  ruleAccountId?: string;
+
+  @ApiProperty({ description: 'Fecha de creación' })
   createdAt?: Date;
 
-  @ApiProperty({
-    description: 'Fecha de última actualización de la cuenta bancaria',
-  })
+  @ApiProperty({ description: 'Fecha de última actualización' })
   updatedAt?: Date;
 
-  @ApiProperty({
-    description: 'Usuario Fecha de creación de la cuenta bancaria',
-  })
-  createdById?: Date;
+  @ApiProperty({ description: 'ID del usuario que creó el registro' })
+  createdById?: string;
 
-  @ApiProperty({
-    description: 'Usuario fecha última actualización de la cuenta bancaria',
-  })
-  updatedById?: Date;
+  @ApiProperty({ description: 'ID del usuario que actualizó el registro' })
+  updatedById?: string;
 }

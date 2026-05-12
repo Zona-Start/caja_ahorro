@@ -26,6 +26,9 @@ import { AuditModule } from './features/audit/audit.module';
 import { AuthModule } from './features/auth/auth.module';
 import { BankingsModule } from './features/bankings/bankings.module';
 import { CoreModule } from './features/core/core.module';
+import { InventoryFeatureModule } from './features/inventory/inventory-module';
+import { PurchasingFeaturesModule } from './features/purchasing/purchasing.module';
+import { SavingsFeaturesModule } from './features/savings/savings.module';
 
 @Module({
   providers: [
@@ -82,10 +85,10 @@ import { CoreModule } from './features/core/core.module';
     AccountingFeaturesModule,
     BankingsModule,
     SeedModule,
-    //MailModule,
-    //SavingsBanksFeatureModule,
-    //BankingsModule,
-    //AdministrationFeaturesModule,
+    SavingsFeaturesModule,
+    InventoryFeatureModule,
+    BankingsModule,
+    PurchasingFeaturesModule,
     //ReportsModule,
   ],
 })

@@ -39,10 +39,10 @@ export function useAvailablePermissions(
 
       try {
         const rolePermissions = await rolesService.getRolePermissions(roleId);
-        const rolePermissionIds = new Set(rolePermissions.map((p: any) => p.permissionId || p.id));
+        const rolePermissionIds = new Set(rolePermissions.map((p) => p.permissionId || p.id));
 
         return allPermissions.filter(
-          (p: any) => !rolePermissionIds.has(p.id),
+          (p) => !rolePermissionIds.has(p.id),
         );
       } catch (error) {
         console.error('Error fetching role permissions:', error);

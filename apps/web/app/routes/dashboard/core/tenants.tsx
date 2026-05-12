@@ -1,11 +1,10 @@
-import TenantsList from '@/features/core/tenants/components/tenants-list';
+import TenantsPage from '@/features/core/tenants/pages/tenants-page';
 import { tenantsListLoader } from '@/features/core/tenants/loaders/tenants-loader';
+import { queryClient } from '@/lib/query-client';
 import type { Route } from './+types/tenants';
 
 export function clientLoader({ request }: Route.LoaderArgs) {
-  return tenantsListLoader({ request } as any);
+  return tenantsListLoader(queryClient)({ request });
 }
 
-export default function TenantsPage() {
-  return <TenantsList />;
-}
+export default TenantsPage;

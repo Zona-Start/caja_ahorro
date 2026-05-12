@@ -3,9 +3,26 @@ import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { AccountingRule } from '../schemas/accounting-rule.schema';
 import { AccountingRulesService } from '../services/accounting-rules-service';
 
-export function useAccountingRules(params: any): UseQueryResult<{
+type PaginationMeta = {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  nextPage: number | null;
+  previousPage: number | null;
+};
+
+export function useAccountingRules(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}): UseQueryResult<{
   data: AccountingRule[];
-  meta: any;
+  meta: PaginationMeta;
 }> {
   return useQuery({
     queryKey: QUERY_KEYS.accountingRules.lists(),

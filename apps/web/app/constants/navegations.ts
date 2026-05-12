@@ -1,11 +1,24 @@
 // src/constants/navegations.ts
 import {
+  ArrowRightLeft,
+  Boxes,
   Building2,
+  ClipboardList,
+  CreditCard,
+  DollarSign,
+  FileText,
+  HandCoins,
+  Landmark,
   LayoutDashboard,
   Lock,
   LucideIcon,
+  Package,
+  Receipt,
   Settings,
   Shield,
+  ShoppingCart,
+  Tag,
+  Upload,
   UserCog,
   Users,
 } from 'lucide-react';
@@ -23,7 +36,7 @@ export interface NavItem {
     resource: string;
     action: string;
   };
-  items?: NavSubItem[]; // Aquí definimos que es opcional
+  items?: NavSubItem[];
 }
 
 export interface NavGroup {
@@ -33,19 +46,113 @@ export interface NavGroup {
 
 export const navGroups: NavGroup[] = [
   {
-    label: 'Gestión',
+    label: 'Dashboard',
     items: [
       {
-        label: 'Dashboard',
+        label: 'Inicio',
         href: '/dashboard',
         icon: LayoutDashboard,
       },
+    ],
+  },
+  {
+    label: 'Caja de Ahorro',
+    items: [
       {
-        label: 'Asociados',
-        href: '/members',
+        label: 'Socios',
+        href: '#',
         icon: Users,
-        // Ahora TS no se quejará de esta propiedad
-        items: [{ label: 'Lista', href: '/members/list' }],
+        // requiresPermission: {
+        //   resource: 'portfolio:credits-types',
+        //   action: 'read',
+        // },
+        items: [
+          {
+            label: 'Asociados',
+            href: '/dashboard/caja-ahorro/asociados',
+          },
+          {
+            label: 'Estado de Cuentas',
+            href: '/dashboard/caja-ahorro/estado-cuenta',
+          },
+        ],
+      },
+      {
+        label: 'Haberes',
+        href: '#',
+        icon: Upload,
+        // requiresPermission: {
+        //   resource: 'savings:assets',
+        //   action: 'read',
+        // },
+        items: [
+          {
+            label: 'Carga',
+            href: '/dashboard/caja-ahorro/carga-haberes',
+          },
+          {
+            label: 'Retiros',
+            href: '/dashboard/caja-ahorro/retiros',
+          },
+          {
+            label: 'Liquidacion',
+            href: '/dashboard/caja-ahorro/liquidacion',
+          },
+          {
+            label: 'Desembolsos',
+            href: '/dashboard/caja-ahorro/desembolsos',
+          },
+          {
+            label: 'Tipos de Retiros',
+            href: '/dashboard/caja-ahorro/tipo-retiros',
+          },
+        ],
+      },
+      {
+        label: 'Prestamos',
+        href: '#',
+        icon: HandCoins,
+        // requiresPermission: {
+        //   resource: 'portfolio:credits-types',
+        //   action: 'read',
+        // },
+        items: [
+          {
+            label: 'Gestion',
+            href: '/dashboard/caja-ahorro/prestamos',
+          },
+          {
+            label: 'Pagos',
+            href: '/dashboard/caja-ahorro/pagos-prestamos',
+          },
+          {
+            label: 'Tipos',
+            href: '/dashboard/caja-ahorro/tipo-prestamos',
+          },
+        ],
+      },
+      {
+        label: 'Creditos',
+        href: '#',
+        icon: CreditCard,
+        // requiresPermission: {
+        //   resource: 'portfolio:credits-types',
+        //   action: 'read',
+        // },
+        items: [
+          {
+            label: 'Gestion',
+            href: '/dashboard/caja-ahorro/creditos',
+          },
+          {
+            label: 'Pagos',
+            href: '/dashboard/caja-ahorro/pagos-creditos',
+          },
+          {
+            label: 'Tipos',
+            href: '/dashboard/caja-ahorro/tipo-creditos',
+          },
+        ],
       },
     ],
   },
@@ -56,7 +163,6 @@ export const navGroups: NavGroup[] = [
         label: 'Catalogo Contable',
         href: '#',
         icon: LayoutDashboard,
-        // Ahora TS no se quejará de esta propiedad
         items: [
           {
             label: 'Plan de Cuentas',
@@ -76,7 +182,6 @@ export const navGroups: NavGroup[] = [
         label: 'Operaciones Contables',
         href: '#',
         icon: Users,
-        // Ahora TS no se quejará de esta propiedad
         items: [
           {
             label: 'Asientos Contables',
@@ -87,6 +192,121 @@ export const navGroups: NavGroup[] = [
             href: '/dashboard/contabilidad/saldos-contables',
           },
         ],
+      },
+      {
+        label: 'Reportes Contables',
+        href: '#',
+        icon: Users,
+        items: [
+          {
+            label: 'Libro Diario',
+            href: '/dashboard/contabilidad/libro-diario',
+          },
+          {
+            label: 'Mayor General',
+            href: '/dashboard/contabilidad/mayor-general',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'Inventario',
+    items: [
+      {
+        label: 'Categorias',
+        href: '/dashboard/inventario/categorias',
+        icon: Tag,
+        // requiresPermission: {
+        //   resource: 'inventory:categories',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Productos',
+        href: '/dashboard/inventario/productos',
+        icon: Package,
+        // requiresPermission: {
+        //   resource: 'inventory:products',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Servicios',
+        href: '/dashboard/inventario/servicios',
+        icon: Boxes,
+        // requiresPermission: {
+        //   resource: 'inventory:services',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Activos Fijos',
+        href: '/dashboard/inventario/activos-fijos',
+        icon: ClipboardList,
+        // requiresPermission: {
+        //   resource: 'inventory:fixed_assets',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Movimientos',
+        href: '/dashboard/inventario/movimientos',
+        icon: ArrowRightLeft,
+        // requiresPermission: {
+        //   resource: 'inventory:movements',
+        //   action: 'read',
+        // },
+      },
+    ],
+  },
+  {
+    label: 'Compras',
+    items: [
+      {
+        label: 'Proveedores',
+        href: '/dashboard/compras/proveedores',
+        icon: Users,
+        // requiresPermission: {
+        //   resource: 'purchasing:suppliers',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Ordenes de Compra',
+        href: '/dashboard/compras/ordenes-compra',
+        icon: ShoppingCart,
+        // requiresPermission: {
+        //   resource: 'purchasing:purchase-orders',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Ctas. por Pagar',
+        href: '/dashboard/compras/cuentas-por-pagar',
+        icon: DollarSign,
+        // requiresPermission: {
+        //   resource: 'purchasing:accounts-payable',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Facturas',
+        href: '/dashboard/compras/facturas',
+        icon: Receipt,
+        // requiresPermission: {
+        //   resource: 'purchasing:supplier-invoices',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Pagos',
+        href: '/dashboard/compras/pagos',
+        icon: FileText,
+        // requiresPermission: {
+        //   resource: 'purchasing:supplier-payments',
+        //   action: 'read',
+        // },
       },
     ],
   },
@@ -129,6 +349,15 @@ export const navGroups: NavGroup[] = [
           action: 'read',
         },
       },
+      {
+        label: 'Categorías',
+        href: '/dashboard/administracion/categorias',
+        icon: Tag,
+        requiresPermission: {
+          resource: 'catalog:categories',
+          action: 'read',
+        },
+      },
     ],
   },
   {
@@ -167,6 +396,33 @@ export const navGroups: NavGroup[] = [
         icon: Settings,
         requiresPermission: {
           resource: 'system:currencies',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Bancos',
+        href: '/dashboard/configuracion/bancos',
+        icon: Landmark,
+        requiresPermission: {
+          resource: 'banking:directory',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Cuentas Bancarias',
+        href: '/dashboard/configuracion/cuentas-bancarias',
+        icon: Landmark,
+        requiresPermission: {
+          resource: 'banking:accounts',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Mov. Bancarios',
+        href: '/dashboard/configuracion/movimientos-bancarios',
+        icon: ArrowRightLeft,
+        requiresPermission: {
+          resource: 'banking:movements',
           action: 'read',
         },
       },

@@ -56,7 +56,7 @@ export function PaymentBatchView({
 
   const handleCancel = () => {
     clearAllPaymentBatchData();
-    navigate('/dashboard/caja-ahorro/desembolsos-asociados');
+    navigate('/dashboard/caja-ahorro/desembolsos');
   };
 
   return (

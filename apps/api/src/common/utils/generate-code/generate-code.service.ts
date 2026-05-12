@@ -1,155 +1,228 @@
-// import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-// import {
-//   Inject,
-//   Injectable,
-//   InternalServerErrorException,
-// } from '@nestjs/common';
-// import { eq } from 'drizzle-orm';
-// import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-// import * as schema from 'src/database/schema';
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from 'src/database/schema';
+import { moduleSettings } from 'src/database/schema/tables/core';
 
-// @Injectable()
-// export class GenerateCodeService {
-//   constructor(
-//     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-//   ) {}
+@Injectable()
+export class GenerateCodeService {
+  constructor(
+    @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
+  ) {}
 
-//   async generateCustomReference(
-//     key: string,
-//     abbreviation: string,
-//   ): Promise<string> {
-//     // Fetch the current correlative number and increment it
+  private findSetting(
+    tx: NodePgDatabase<typeof schema>,
+    tenantId: string,
+    module: string,
+    submodule: string,
+    key: string,
+  ) {
+    return tx
+      .select()
+      .from(moduleSettings)
+      .where(
+        and(
+          eq(moduleSettings.tenantId, tenantId),
+          eq(moduleSettings.module, module),
+          eq(moduleSettings.submodule, submodule),
+          eq(moduleSettings.key, key),
+        ),
+      )
+      .for('update')
+      .limit(1);
+  }
 
-//     try {
-//       const result = await this.db.transaction(async (tx) => {
-//         // Lock the row for update
-//         const setting = await tx.query.systemSettings.findFirst({
-//           where: eq(systemSettings.key, key),
-//         });
+  async generateCustomReference(
+    tenantId: string,
+    module: string,
+    submodule: string,
+    key: string,
+    abbreviation: string,
+  ): Promise<string> {
+    try {
+      const result = await this.db.transaction(async (tx) => {
+        const [setting] = await this.findSetting(
+          tx,
+          tenantId,
+          module,
+          submodule,
+          key,
+        );
 
-//         if (!setting) {
-//           throw new InternalServerErrorException(
-//             `System setting '${key}' not found.`,
-//           );
-//         }
+        if (!setting) {
+          throw new NotFoundException(
+            `Module setting '${module}/${submodule}/${key}' not found for tenant.`,
+          );
+        }
 
-//         const currentNumber = parseInt(setting.value, 10);
-//         if (isNaN(currentNumber)) {
-//           throw new InternalServerErrorException(
-//             `Invalid correlative number format for '${key}'.`,
-//           );
-//         }
+        const currentNumber = parseInt(setting?.value || '0', 10);
+        if (isNaN(currentNumber)) {
+          throw new InternalServerErrorException(
+            `Invalid number format for setting '${key}'.`,
+          );
+        }
 
-//         const nextNumber = currentNumber + 1;
-//         const nextValue = nextNumber.toString().padStart(5, '0'); // Pad with leading zeros
-//         await this.updateValueSetting(key, nextValue); // Update the setting with the new value
-//         return nextValue; // Return the generated reference
-//       });
-//       return `${abbreviation}-${result}`; // Prefix the reference
-//     } catch (error) {
-//       console.error('Error generating custom reference:', error);
-//       throw new InternalServerErrorException(
-//         'Failed to generate custom loan reference.',
-//       );
-//     }
-//   }
+        const nextNumber = currentNumber + 1;
+        const nextValue = nextNumber.toString().padStart(5, '0');
 
-//   async updateValueSetting(key: string, value: string): Promise<void> {
-//     try {
-//       await this.db.transaction(async (tx) => {
-//         // Lock the row for update
-//         const setting = await tx.query.systemSettings.findFirst({
-//           where: eq(systemSettings.key, key),
-//           // Add forUpdate() if your Drizzle version supports it for row locking
-//           // Example: columns: {}, with: { forUpdate: true }
-//         });
+        await tx
+          .update(moduleSettings)
+          .set({ value: nextValue, updatedAt: new Date() })
+          .where(eq(moduleSettings.id, setting.id));
 
-//         if (!setting) {
-//           throw new InternalServerErrorException(
-//             `System setting '${key}' not found.`,
-//           );
-//         }
-//         // Update the setting with the new value
-//         await tx
-//           .update(systemSettings)
-//           .set({ value: String(value), updatedAt: new Date() }) // Assuming you have an updatedById field to set too
-//           .where(eq(systemSettings.id, setting.id));
-//       });
-//     } catch (error) {
-//       console.error('Error generating custom reference:', error);
-//       throw new InternalServerErrorException(
-//         'Failed to generate custom loan reference.',
-//       );
-//     }
-//   }
+        return nextValue;
+      });
 
-//   async generateNextReference(
-//     prefix: string,
-//     tx?: NodePgDatabase<typeof schema>,
-//   ): Promise<string> {
-//     const db = tx ?? this.db;
-//     const year = new Date().getFullYear();
-//     const key = `${prefix}-${year}`;
+      return `${abbreviation}-${result}`;
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Failed to generate custom reference.',
+      );
+    }
+  }
 
-//     return db.transaction(async (tx) => {
-//       // bloqueo explícito (FOR UPDATE)
-//       const [setting] = await tx
-//         .select()
-//         .from(systemSettings)
-//         .where(eq(systemSettings.key, key))
-//         .for('update'); // Drizzle ≥ 0.30 → .for('update')
+  async updateValueSetting(
+    tenantId: string,
+    module: string,
+    submodule: string,
+    key: string,
+    value: string,
+  ): Promise<void> {
+    try {
+      await this.db.transaction(async (tx) => {
+        const [setting] = await this.findSetting(
+          tx,
+          tenantId,
+          module,
+          submodule,
+          key,
+        );
 
-//       if (!setting) {
-//         // primer uso del año: lo creamos
-//         await tx.insert(systemSettings).values({
-//           key,
-//           value: '1',
-//           description: `${prefix} sequence ${year}`,
-//         });
-//         return `${prefix}-${year}-000001`;
-//       }
+        if (!setting) {
+          throw new NotFoundException(
+            `Module setting '${module}/${submodule}/${key}' not found for tenant.`,
+          );
+        }
 
-//       const next = parseInt(setting.value, 10) + 1;
-//       const nextStr = next.toString().padStart(6, '0'); // 6 dígitos
+        await tx
+          .update(moduleSettings)
+          .set({ value: String(value), updatedAt: new Date() })
+          .where(eq(moduleSettings.id, setting.id));
+      });
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        'Failed to update module setting.',
+      );
+    }
+  }
 
-//       await tx
-//         .update(systemSettings)
-//         .set({ value: next.toString() })
-//         .where(eq(systemSettings.key, key));
+  async generateNextReference(
+    prefix: string,
+    tenantId: string,
+    module: string,
+    submodule: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<string> {
+    const db = tx ?? this.db;
+    const year = new Date().getFullYear();
+    const key = `${prefix}-${year}`;
 
-//       return `${prefix}-${year}-${nextStr}`;
-//     });
-//   }
+    return db.transaction(async (transaction) => {
+      const [setting] = await transaction
+        .select()
+        .from(moduleSettings)
+        .where(
+          and(
+            eq(moduleSettings.tenantId, tenantId),
+            eq(moduleSettings.module, module),
+            eq(moduleSettings.submodule, submodule),
+            eq(moduleSettings.key, key),
+          ),
+        )
+        .for('update')
+        .limit(1);
 
-//   async generateGlobalCode(
-//     prefix: string,
-//     tx?: NodePgDatabase<typeof schema>,
-//   ): Promise<string> {
-//     const db = tx ?? this.db;
-//     return db.transaction(async (tx) => {
-//       const [setting] = await tx
-//         .select()
-//         .from(systemSettings)
-//         .where(eq(systemSettings.key, prefix))
-//         .for('update');
+      // if (!setting) {
+      //   await transaction.insert(moduleSettings).values({
+      //     tenantId,
+      //     module,
+      //     submodule,
+      //     key,
+      //     value: '1',
+      //     description: `${prefix} sequence ${year} for tenant ${tenantId}`,
+      //   });
+      //   return `${prefix}-${year}-000001`;
+      // }
 
-//       if (!setting) {
-//         // primer uso: creamos la fila
-//         await tx.insert(systemSettings).values({
-//           key: prefix,
-//           value: '1',
-//           description: `Global sequence ${prefix}`,
-//         });
-//         return `${prefix}-${'1'.padStart(6, '0')}`;
-//       }
+      const next = parseInt(setting?.value || '0', 10) + 1;
+      const nextStr = next.toString().padStart(6, '0');
 
-//       const next = parseInt(setting.value, 10) + 1;
-//       await tx
-//         .update(systemSettings)
-//         .set({ value: next.toString() })
-//         .where(eq(systemSettings.key, prefix));
+      await transaction
+        .update(moduleSettings)
+        .set({ value: next.toString(), updatedAt: new Date() })
+        .where(eq(moduleSettings.id, setting.id));
 
-//       return `${prefix}-${next.toString().padStart(6, '0')}`;
-//     });
-//   }
-// }
+      return `${prefix}-${year}-${nextStr}`;
+    });
+  }
+
+  async generateGlobalCode(
+    prefix: string,
+    tenantId: string,
+    module: string,
+    submodule: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<string> {
+    const db = tx ?? this.db;
+
+    return db.transaction(async (transaction) => {
+      const [setting] = await transaction
+        .select()
+        .from(moduleSettings)
+        .where(
+          and(
+            eq(moduleSettings.tenantId, tenantId),
+            eq(moduleSettings.module, module),
+            eq(moduleSettings.submodule, submodule),
+            eq(moduleSettings.key, prefix),
+          ),
+        )
+        .for('update')
+        .limit(1);
+
+      // if (!setting) {
+      //   await transaction.insert(moduleSettings).values({
+      //     tenantId,
+      //     module: 'SEQUENCES',
+      //     submodule: 'GLOBAL',
+      //     key: prefix,
+      //     value: '1',
+      //     description: `Global sequence ${prefix} for tenant ${tenantId}`,
+      //   });
+      //   return `${prefix}-000001`;
+      // }
+
+      const next = parseInt(setting?.value || '0', 10) + 1;
+
+      await transaction
+        .update(moduleSettings)
+        .set({ value: next.toString(), updatedAt: new Date() })
+        .where(eq(moduleSettings.id, setting.id));
+
+      return `${prefix}-${next.toString().padStart(6, '0')}`;
+    });
+  }
+}

@@ -1,11 +1,14 @@
-import { type ColumnDef } from '@tanstack/react-table';
 import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
 import { Progress } from '@repo/shadcn/progress';
+import { type ColumnDef } from '@tanstack/react-table';
+import z from 'zod';
 import { CREDIT_STATUS_TYPES } from '../../../schemas/inquiry-options';
-import { type Credit } from '../../../schemas/inquiry-schema';
+import { type creditSchema } from '../../../schemas/inquiry-schema';
 import { CellAction } from './cell-action';
+
+export type Credit = z.infer<typeof creditSchema>;
 
 export const columns: ColumnDef<Credit>[] = [
   {
@@ -81,11 +84,7 @@ export const columns: ColumnDef<Credit>[] = [
 
       return (
         <div className={cn('p-2 h-full w-full')}>
-          <Badge
-            variant={variant as any}
-          >
-            {statusText}
-          </Badge>
+          <Badge variant={variant as any}>{statusText}</Badge>
         </div>
       );
     },

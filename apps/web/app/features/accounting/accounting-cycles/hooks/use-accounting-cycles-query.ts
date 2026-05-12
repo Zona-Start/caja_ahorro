@@ -3,6 +3,17 @@ import { QUERY_KEYS } from '@/lib/query-keys';
 import { AccountingCyclesService } from '../services/accounting-cycles-service';
 import type { AccountingCycle } from '../schemas/accounting-cycle.schema';
 
+type PaginationMeta = {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  nextPage: number | null;
+  previousPage: number | null;
+};
+
 export function useAccountingCycles(): UseQueryResult<AccountingCycle[]> {
   return useQuery({
     queryKey: QUERY_KEYS.accountingCycles.lists(),
@@ -10,7 +21,14 @@ export function useAccountingCycles(): UseQueryResult<AccountingCycle[]> {
   });
 }
 
-export function usePaginatedAccountingCycles(params: any): UseQueryResult<{ data: AccountingCycle[]; meta: any }> {
+export function usePaginatedAccountingCycles(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}): UseQueryResult<{ data: AccountingCycle[]; meta: PaginationMeta }> {
   return useQuery({
     queryKey: QUERY_KEYS.accountingCycles.list(params),
     queryFn: () => AccountingCyclesService.getPaginated(params),

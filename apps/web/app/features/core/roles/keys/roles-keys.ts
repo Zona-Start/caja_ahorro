@@ -1,7 +1,7 @@
 export const ROLES_KEYS = {
   all: ['roles'] as const,
   lists: () => [...ROLES_KEYS.all, 'list'] as const,
-  list: (filters: Record<string, unknown>) => [
+  list: (filters: object) => [
     ...ROLES_KEYS.lists(),
     filters,
   ] as const,

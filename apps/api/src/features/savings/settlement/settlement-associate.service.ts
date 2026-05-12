@@ -1,0 +1,489 @@
+import { PaginationDto } from '@/common/dto/pagination.dto';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
+import {
+  associateAccounts,
+  associates,
+  bankTransactions,
+  internalTransactionBankLinks,
+  liquidationsAssociates,
+} from '@/database/schema';
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { AssociateMovementTypeEnum, CurrencyCodeEnum } from '@/types/enum';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { and, eq, ilike, SQL, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { AssociateAccountsMovementsService } from '../parnerts/associate-accounts-movements/associate-accounts-movements.service';
+import {
+  CreateSettlementAssociateDto,
+  DisburseSettlementAssociateDto,
+} from './dto/settlement.schema';
+import { SavingsLiquidationService } from './liquidation.service';
+
+@Injectable()
+export class SettlementAssociateService {
+  constructor(
+    @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
+    private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
+    private readonly generateCodeService: GenerateCodeService,
+    private readonly eventEmitter: EventEmitter2,
+    private readonly savingsLiquidationService: SavingsLiquidationService,
+  ) {}
+
+  async findOneRequest(tenantId: string, cedula: string) {
+    const result = await this.db
+      .select()
+      .from(associates)
+      .where(
+        and(eq(associates.cedula, cedula), eq(associates.tenantId, tenantId)),
+      );
+
+    if (!result.length) {
+      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
+    }
+    if (result[0].status === 'INACTIVE') {
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} is inactive`,
+      );
+    }
+
+    if (result[0].status === 'RETIRED') {
+      throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
+    }
+
+    const resultLiquidations =
+      await this.savingsLiquidationService.calculateAssociateLiquidation(
+        cedula,
+      );
+
+    return {
+      message: 'Associate liquidation calculated',
+      data: resultLiquidations,
+    };
+  }
+
+  async create(
+    tenantId: string,
+    userId: string,
+    dto: CreateSettlementAssociateDto,
+  ) {
+    const { associateId, amount, description, date } = dto;
+
+    return this.db.transaction(async (tx) => {
+      const [associate] = await tx
+        .select({
+          id: associates.id,
+          cedula: associates.cedula,
+          status: associates.status,
+        })
+        .from(associates)
+        .where(
+          and(
+            eq(associates.id, associateId),
+            eq(associates.tenantId, tenantId),
+          ),
+        );
+
+      if (!associate?.id) {
+        throw new NotFoundException(`Asociado no encontrado.`);
+      }
+
+      if (associate.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          `El asociado con cédula '${associate.cedula}' no está activo para ser liquidado (estado actual: ${associate.status}).`,
+        );
+      }
+
+      const [existingLiquidation] = await tx
+        .select()
+        .from(liquidationsAssociates)
+        .where(
+          and(
+            eq(liquidationsAssociates.associateId, associateId),
+            eq(liquidationsAssociates.status, 'REQUESTED'),
+            eq(liquidationsAssociates.tenantId, tenantId),
+          ),
+        );
+
+      if (existingLiquidation) {
+        throw new BadRequestException(
+          `Ya existe una solicitud de liquidación pendiente para este asociado.`,
+        );
+      }
+
+      const reference = await this.generateCodeService.generateNextReference(
+        'RH-LIQ',
+        tenantId,
+        'savings',
+        'settlement',
+        tx,
+      );
+
+      const resultLiquidations =
+        await this.savingsLiquidationService.calculateAssociateLiquidation(
+          associate.cedula,
+        );
+
+      const liqCalc = resultLiquidations;
+
+      const [newLiquidationRequest] = await tx
+        .insert(liquidationsAssociates)
+        .values({
+          tenantId,
+          associateId: associateId,
+          liquidationDate: new Date(date).toISOString().split('T')[0],
+          currencyCode: 'VES' as CurrencyCodeEnum,
+          totalSavingsBalanceAtLiquidation: String(
+            liqCalc.total_savings_balance,
+          ),
+          totalOutstandingLoansAtLiquidation: String(
+            liqCalc.total_outstanding_loans,
+          ),
+          totalOutstandingCreditsAtLiquidation: String(
+            liqCalc.total_outstanding_credits,
+          ),
+          netLiquidationAmount: String(amount),
+          status: 'REQUESTED',
+          notes: description,
+          createdById: userId,
+          customReference: reference,
+        })
+        .returning({
+          id: liquidationsAssociates.id,
+          customReference: liquidationsAssociates.customReference,
+        });
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId,
+          action: 'INSERT',
+          tableName: 'liquidationsAssociates',
+          recordId: newLiquidationRequest.id,
+          description: `Solicitud de Liquidación de Asociado`,
+          area: 'Liquidacion',
+          newData: [
+            { ...dto, status: 'REQUESTED', customReference: reference },
+          ],
+          tenantId,
+        }),
+      );
+
+      return {
+        message: `Solicitud de liquidación creada exitosamente.`,
+        liquidation: newLiquidationRequest,
+      };
+    });
+  }
+
+  async approve(tenantId: string, userId: string, liquidationId: string) {
+    return this.db.transaction(async (tx) => {
+      const [liquidation] = await tx
+        .select()
+        .from(liquidationsAssociates)
+        .where(
+          and(
+            eq(liquidationsAssociates.id, liquidationId),
+            eq(liquidationsAssociates.tenantId, tenantId),
+          ),
+        );
+
+      if (!liquidation) {
+        throw new NotFoundException(
+          `Solicitud de liquidación con ID ${liquidationId} no encontrada.`,
+        );
+      }
+
+      if (liquidation.status !== 'REQUESTED') {
+        throw new BadRequestException(
+          `La liquidación no está en estado 'SOLICITADO'. Estado actual: ${liquidation.status}.`,
+        );
+      }
+
+      const [associate] = await tx
+        .select({
+          id: associates.id,
+          cedula: associates.cedula,
+          fullname: associates.fullname,
+          status: associates.status,
+          associateAccountId: associateAccounts.id,
+        })
+        .from(associates)
+        .leftJoin(
+          associateAccounts,
+          eq(associateAccounts.associateId, associates.id),
+        )
+        .where(
+          and(
+            eq(associates.id, liquidation.associateId),
+            eq(associates.tenantId, tenantId),
+          ),
+        );
+
+      if (!associate?.id) {
+        throw new NotFoundException(
+          `Asociado no encontrado para esta liquidación.`,
+        );
+      }
+
+      if (Number(liquidation.netLiquidationAmount) > 0) {
+        try {
+          await this.associateAccountsMovementsService.create(
+            userId,
+            {
+              associateAccountId: associate.associateAccountId,
+              movementType: 'LIQUIDATION_BALANCE' as AssociateMovementTypeEnum,
+              amount: Number(liquidation.netLiquidationAmount),
+              currencyCode: 'VES' as CurrencyCodeEnum,
+              transactionDate: new Date(),
+              description: 'Liquidacion total de Haberes',
+              referenceId: liquidation.id,
+              referenceType: 'liquidationsAssociates',
+              area: 'LIQUIDACION',
+            },
+            tenantId,
+          );
+        } catch (error) {
+          throw new InternalServerErrorException(
+            `Error al generar el movimiento de la liquidacion.`,
+          );
+        }
+      }
+
+      await tx
+        .update(liquidationsAssociates)
+        .set({
+          status: 'PROCESSED',
+          updatedById: userId,
+        })
+        .where(
+          and(
+            eq(liquidationsAssociates.id, liquidationId),
+            eq(liquidationsAssociates.tenantId, tenantId),
+          ),
+        );
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId,
+          action: 'UPDATE',
+          tableName: 'liquidationsAssociates',
+          recordId: liquidationId,
+          description: `Procesamiento y Aprobación de Liquidación de Asociado`,
+          area: 'Liquidacion',
+          newData: [{ ...liquidation, status: 'PROCESSED' }],
+          tenantId,
+        }),
+      );
+
+      return {
+        message: `Liquidación procesada exitosamente.`,
+        liquidationId: liquidation.id,
+      };
+    });
+  }
+
+  async disburse(
+    tenantId: string,
+    userId: string,
+    liquidationId: string,
+    dto: DisburseSettlementAssociateDto,
+    tx?: any,
+  ) {
+    const executeInTransaction = async (trx: any) => {
+      const [liquidation] = await trx
+        .select()
+        .from(liquidationsAssociates)
+        .leftJoin(
+          associates,
+          eq(liquidationsAssociates.associateId, associates.id),
+        )
+        .where(
+          and(
+            eq(liquidationsAssociates.id, liquidationId),
+            eq(liquidationsAssociates.tenantId, tenantId),
+          ),
+        );
+
+      if (!liquidation) {
+        throw new NotFoundException(
+          `Liquidación con ID ${liquidationId} no encontrada.`,
+        );
+      }
+
+      if (liquidation.liquidations_associates.status !== 'PROCESSED') {
+        throw new BadRequestException(
+          `Solo se pueden desembolsar liquidaciones en estado 'PROCESADO'. Estado actual: ${liquidation.liquidations_associates.status}.`,
+        );
+      }
+
+      const netAmount = Number(
+        liquidation.liquidations_associates.netLiquidationAmount,
+      );
+
+      const [bankTransaction] = await trx
+        .insert(bankTransactions)
+        .values({
+          tenantId,
+          bankAccountId: dto.bankAccountId,
+          paymentMethod: 'BANK_TRANSFER',
+          transactionDate: dto.transferDate.toISOString().split('T')[0],
+          description: `Liquidación Final - Socio - ${liquidation.associates?.fullname}`,
+          category: 'PAYROLL_SETTLEMENT',
+          bankReference: dto.bankReference,
+          creditAmount: netAmount.toString(),
+          debitAmount: '0.00',
+          reconciliationStatus: 'RECONCILED',
+          internalLinkStatus: 'LINKED',
+          createdById: userId,
+        })
+        .returning({ id: bankTransactions.id });
+
+      await trx.insert(internalTransactionBankLinks).values({
+        tenantId,
+        bankTransactionId: bankTransaction.id,
+        internalRecordType: 'PAYROLL_SETTLEMENT',
+        internalRecordId: liquidationId,
+        linkedBy: userId,
+        createdById: userId,
+      });
+
+      await trx
+        .update(liquidationsAssociates)
+        .set({
+          status: 'DISBURSED',
+          updatedById: userId,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(liquidationsAssociates.id, liquidationId),
+            eq(liquidationsAssociates.tenantId, tenantId),
+          ),
+        );
+
+      return {
+        message: 'Desembolso procesado exitosamente',
+        liquidationId: liquidationId,
+        bankTransactionId: bankTransaction.id,
+      };
+    };
+
+    return tx
+      ? executeInTransaction(tx)
+      : this.db.transaction(executeInTransaction);
+  }
+
+  async findAll(tenantId: string, paginationDto: PaginationDto) {
+    const { page = 1, limit = 10, search = '' } = paginationDto || {};
+
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL<unknown>[] = [
+      eq(liquidationsAssociates.tenantId, tenantId),
+    ];
+
+    if (search) {
+      conditions.push(ilike(associates.cedula, `%${search}%`));
+    }
+
+    const where = and(...conditions);
+
+    const totalCountResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(liquidationsAssociates)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .where(where);
+
+    const totalItems = Number(totalCountResult[0].count);
+
+    const data = await this.db
+      .select({
+        id: liquidationsAssociates.id,
+        customReference: liquidationsAssociates.customReference,
+        liquidationDate: liquidationsAssociates.liquidationDate,
+        netLiquidationAmount: liquidationsAssociates.netLiquidationAmount,
+        associateCedula: associates.cedula,
+        associateFullname: associates.fullname,
+        status: liquidationsAssociates.status,
+      })
+      .from(liquidationsAssociates)
+      .where(where)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      data,
+      meta: {
+        totalItems,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page,
+      },
+    };
+  }
+
+  async findSettlementAprovee(tenantId: string, paginationDto: PaginationDto) {
+    const { page = 1, limit = 10 } = paginationDto || {};
+    const offset = (page - 1) * limit;
+
+    const where = and(
+      eq(liquidationsAssociates.status, 'PROCESSED'),
+      eq(liquidationsAssociates.tenantId, tenantId),
+    );
+
+    const totalCountResult = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(liquidationsAssociates)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .where(where);
+
+    const totalItems = Number(totalCountResult[0].count);
+
+    const data = await this.db
+      .select({
+        id: liquidationsAssociates.id,
+        associateName: associates.fullname,
+        amount: liquidationsAssociates.netLiquidationAmount,
+      })
+      .from(liquidationsAssociates)
+      .leftJoin(
+        associates,
+        eq(associates.id, liquidationsAssociates.associateId),
+      )
+      .where(where)
+      .limit(limit)
+      .offset(offset);
+
+    return {
+      data,
+      meta: {
+        totalItems,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page,
+      },
+    };
+  }
+}

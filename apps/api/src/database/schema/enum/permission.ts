@@ -1,9 +1,7 @@
 // ==========================================
 // 1. ACCIONES (Los verbos del sistema)
 
-import { authSchema } from "../_schemas";
-
-
+import { authSchema } from '../_schemas';
 
 // ==========================================
 export const permissionActionEnum = authSchema.enum('permission_action', [
@@ -29,13 +27,18 @@ export const permissionResourceEnum = authSchema.enum('permission_resource', [
   'savings:members',
   'savings:contributions',
   'savings:withdrawals',
+  'savings:withdrawal-types',
   'savings:liquidations',
   'savings:configuration',
 
   // --- MODULE: PORTFOLIO (Cartera / Préstamos) ---
   'portfolio:loans',
+  'portfolio:loans-types',
   'portfolio:credits',
+  'portfolio:credits-types',
   'portfolio:payments',
+  'portfolio:payments-loans',
+  'portfolio:payments-credits',
   'portfolio:products',
 
   // --- MODULE: ACCOUNTING (Contabilidad) ---

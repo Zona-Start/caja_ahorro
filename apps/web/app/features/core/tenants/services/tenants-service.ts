@@ -14,7 +14,7 @@ export interface TenantsQueryParams {
   isActive?: boolean;
 }
 
-interface TenantsPaginatedResponse {
+export interface TenantsPaginatedResponse {
   data: Tenant[];
   meta: {
     totalItems: number;

@@ -1,7 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { currencies } from '@/database/schema';
-import { CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -175,7 +174,7 @@ export class BankAccountsService {
     const transformData = data.map((item) => ({
       ...item,
       accountName: item.accountName ?? undefined,
-      currencyCode: item.currencyCode as CurrencyCodeEnum,
+      currencyCode: item.currencyCode as string,
       openingDate: item.openingDate ? new Date(item.openingDate) : undefined,
       // currentBalance: item.currentBalance,
       // lastStatementBalance: item.lastStatementBalance,
@@ -211,11 +210,11 @@ export class BankAccountsService {
       const currenciesCode = await tx
         .select()
         .from(currencies)
-        .where(eq(currencies.id, data.currencyCode));
+        .where(eq(currencies.code, data.currencyCode as 'VES' | 'USD' | 'EUR'));
 
       if (!currenciesCode.length) {
         throw new BadRequestException(
-          `No se encontró la moneda con ID ${data.currencyCode}`,
+          `No se encontró la moneda con código ${data.currencyCode}`,
         );
       }
 
@@ -310,7 +309,7 @@ export class BankAccountsService {
       const currenciesCode = await tx
         .select()
         .from(currencies)
-        .where(eq(currencies.code, data.currencyCode as CurrencyCodeEnum));
+        .where(eq(currencies.code, data.currencyCode as 'VES' | 'USD' | 'EUR'));
 
       const formatData: any = {
         bankDirectoryId: data.bankDirectoryId,

@@ -1,10 +1,13 @@
-import { type ColumnDef } from '@tanstack/react-table';
 import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
+import { type ColumnDef } from '@tanstack/react-table';
+import z from 'zod';
 import { WITHDRAWAL_STATUS_TYPES } from '../../../schemas/inquiry-options';
-import { type Withdrawal } from '../../../schemas/inquiry-schema';
+import { type withdrawalSchema } from '../../../schemas/inquiry-schema';
 import { CellAction } from './cell-action';
+
+type Withdrawal = z.infer<typeof withdrawalSchema>;
 
 export const columns: ColumnDef<Withdrawal>[] = [
   {
@@ -75,11 +78,7 @@ export const columns: ColumnDef<Withdrawal>[] = [
 
       return (
         <div className={cn('p-2 h-full w-full')}>
-          <Badge
-            variant={variant as any}
-          >
-            {statusText}
-          </Badge>
+          <Badge variant={variant as any}>{statusText}</Badge>
         </div>
       );
     },

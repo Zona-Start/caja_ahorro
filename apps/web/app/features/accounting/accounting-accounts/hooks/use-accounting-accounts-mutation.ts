@@ -27,10 +27,10 @@ export function useAccountingAccountMutation() {
         });
       }
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al guardar la cuenta contable.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al guardar la cuenta contable.',
         variant: 'destructive',
       });
     },
@@ -52,10 +52,10 @@ export function useDeleteAccountingAccount() {
         description: 'La cuenta contable ha sido eliminada exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al eliminar la cuenta contable.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al eliminar la cuenta contable.',
         variant: 'destructive',
       });
     },

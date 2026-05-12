@@ -1,7 +1,7 @@
 export const TENANTS_KEYS = {
   all: ['tenants'] as const,
   lists: () => [...TENANTS_KEYS.all, 'list'] as const,
-  list: (filters: Record<string, unknown>) => [
+  list: (filters: object) => [
     ...TENANTS_KEYS.lists(),
     filters,
   ] as const,

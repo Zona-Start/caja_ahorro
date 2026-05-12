@@ -16,18 +16,18 @@ export const tenantSettingsService = {
     const params = new URLSearchParams();
     if (filters?.category) params.set('category', filters.category);
 
-    const response = await apiClient.get('/core/tenants-settings', { params });
+    const response = await apiClient.get('/core/tenants/settings', { params });
     const data = tenantSettingsListResponseSchema.parse(response.data);
     return data.map((p) => tenantSettingSchema.parse(p));
   },
 
   getById: async (id: string) => {
-    const response = await apiClient.get(`/core/tenants-settings/${id}`);
+    const response = await apiClient.get(`/core/tenants/settings/${id}`);
     return tenantSettingSchema.parse(response.data);
   },
 
   update: async (id: string, payload: Partial<TenantSettingMutation>) => {
-    const response = await apiClient.patch(`/core/tenants-settings/${id}`, payload);
+    const response = await apiClient.patch(`/core/tenants/settings/${id}`, payload);
     if (Array.isArray(response.data)) {
       return response.data[0] ? tenantSettingSchema.parse(response.data[0]) : null;
     }

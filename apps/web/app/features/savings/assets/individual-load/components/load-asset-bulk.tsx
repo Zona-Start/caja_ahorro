@@ -302,8 +302,8 @@ export function LoadAssetsBulk() {
               </div>
 
               {includeBankingDetails && (
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                   <FormField
                     control={form.control}
                     name="bankAccountId"
@@ -427,8 +427,9 @@ export function LoadAssetsBulk() {
                     </FormItem>
                   )}
                 />
-              </div>
+                </>
               )}
+
 
               <div className="flex flex-col sm:flex-row justify-center gap-4">
                 <Button

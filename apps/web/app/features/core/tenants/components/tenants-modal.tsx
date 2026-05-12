@@ -5,35 +5,36 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import type { TenantMutation } from '../schemas/tenants.schema';
+import type { TenantMutation, Tenant } from '../schemas/tenants.schema';
+import { useTenantsModalStore } from '../store/tenants-modal-store';
 import { TenantsForm } from './tenants-form';
 
-interface TenantsModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  defaultValues?: Partial<TenantMutation>;
-  mode?: 'create' | 'edit' | 'view';
+/** Strips null values to undefined so Tenant data is compatible with TenantMutation */
+function toFormValues(tenant: Tenant): Partial<TenantMutation> {
+  return Object.fromEntries(
+    Object.entries(tenant).map(([key, value]) => [
+      key,
+      value === null ? undefined : value,
+    ]),
+  ) as Partial<TenantMutation>;
 }
 
-export function TenantsModal({
-  open,
-  onOpenChange,
-  defaultValues,
-  mode = 'create',
-}: TenantsModalProps) {
+export function TenantsModal() {
+  const { isOpen, mode, data, closeModal } = useTenantsModalStore();
+
   const handleSuccess = () => {
-    onOpenChange(false);
+    closeModal();
   };
 
   const handleCancel = () => {
-    onOpenChange(false);
+    closeModal();
   };
 
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && closeModal()}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -54,7 +55,7 @@ export function TenantsModal({
         <TenantsForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
-          defaultValues={defaultValues}
+          defaultValues={data ? toFormValues(data) : undefined}
           disabled={isViewMode}
         />
       </DialogContent>

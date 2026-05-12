@@ -40,10 +40,11 @@ export default function UsersList() {
 
   const columns = isSystemAdmin
     ? usersColumns
-    : usersColumns.filter(
-        (col) =>
-          col.id !== 'tenant' && (col as any).accessorKey !== 'tenantMembers',
-      );
+    : usersColumns.filter((col) => {
+        if (col.id === 'tenant') return false;
+        if ('accessorKey' in col && col.accessorKey === 'tenantMembers') return false;
+        return true;
+      });
 
   return (
     <div className="space-y-4">

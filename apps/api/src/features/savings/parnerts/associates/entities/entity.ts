@@ -1,0 +1,30 @@
+export class Associates {
+  id: string;
+  tenantId: string;
+  cedula: string;
+  fullname: string;
+  nationality: string;
+  gender: string;
+  birthdate: string;
+  dateAdmission: string;
+  dateGraduation?: string;
+  discountFrequencyId?: number;
+  status: string;
+  isPayrollCredit: boolean;
+  localityId?: number;
+  phone?: string;
+  email?: string;
+  payrollTypeId?: string;
+  associatedTypeId?: string;
+  jobTitle?: string;
+  baseSalary?: string;
+  accountNumber?: string;
+  currencyCode?: string;
+  balance?: string;
+  openingDate?: string;
+  bankDirectoryId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdById?: string;
+  updatedById?: string;
+}

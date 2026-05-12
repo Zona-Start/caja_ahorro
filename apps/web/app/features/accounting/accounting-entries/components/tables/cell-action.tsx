@@ -1,12 +1,13 @@
 import { AlertModal } from '@/components/shared/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/shadcn/tooltip';
-import { CheckCircle, Edit, Eye, Send, Trash, XCircle } from 'lucide-react';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
+import { CheckCircle, Edit, Eye, MoreHorizontal, Send, Trash, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import {
   useCancelAccountingEntryMutation,
@@ -104,126 +105,73 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         defaultValues={data}
       />
 
-      <div className="flex gap-1">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setViewOpen(true)}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Ver Detalle</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setEditOpen(true)}
-                disabled={data.status !== 'DRAFT'}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Editar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  setAction('submit');
-                  setAlertOpen(true);
-                }}
-                disabled={data.status !== 'DRAFT'}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Enviar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={data.status !== 'PENDING'}
-                onClick={() => {
-                  setAction('post');
-                  setAlertOpen(true);
-                }}
-              >
-                <CheckCircle className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Contabilizar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        {data.status !== 'POSTED' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  disabled={data.status !== 'DRAFT'}
-                  onClick={() => {
-                    setAction('delete');
-                    setAlertOpen(true);
-                  }}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Eliminar</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {data.status === 'POSTED' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setAction('cancel');
-                    setAlertOpen(true);
-                  }}
-                >
-                  <XCircle className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Anular</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="h-8 w-8 p-0">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setViewOpen(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Ver Detalle
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setEditOpen(true)}
+            disabled={data.status !== 'DRAFT'}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Editar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              setAction('submit');
+              setAlertOpen(true);
+            }}
+            disabled={data.status !== 'DRAFT'}
+          >
+            <Send className="mr-2 h-4 w-4" />
+            Enviar
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              setAction('post');
+              setAlertOpen(true);
+            }}
+            disabled={data.status !== 'PENDING'}
+          >
+            <CheckCircle className="mr-2 h-4 w-4" />
+            Contabilizar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {data.status !== 'POSTED' && (
+            <DropdownMenuItem
+              onClick={() => {
+                setAction('delete');
+                setAlertOpen(true);
+              }}
+              disabled={data.status !== 'DRAFT'}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
+          {data.status === 'POSTED' && (
+            <DropdownMenuItem
+              onClick={() => {
+                setAction('cancel');
+                setAlertOpen(true);
+              }}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Anular
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 };

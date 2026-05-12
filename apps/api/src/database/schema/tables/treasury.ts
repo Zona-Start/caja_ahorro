@@ -3,9 +3,7 @@ import {
   char,
   date,
   index,
-  integer,
   numeric,
-  pgSchema,
   text,
   timestamp,
   uniqueIndex,
@@ -23,6 +21,7 @@ import {
 } from '../enum';
 
 import { InferSelectModel } from 'drizzle-orm';
+import { treasurySchema } from '../_schemas';
 import {
   accountingEntries,
   accountingEntryDetails,
@@ -31,9 +30,6 @@ import {
 } from './accounting';
 import { users } from './auth';
 import { tenants } from './tenants';
-import { treasurySchema } from "../_schemas";
-
-
 
 //Directorio de entidades bancarias.
 export const bankDirectory = treasurySchema.table(
@@ -179,7 +175,7 @@ export const internalTransactionBankLinks = treasurySchema.table(
     internalRecordType: varchar('internal_record_type', {
       length: 50,
     }).notNull(), // e.g., 'LOAN_PAYMENT', 'LOAN_DISBURSEMENT', 'MEMBER_WITHDRAWAL', 'MEMBER_DEPOSIT', 'GENERAL_EXPENSE', 'GENERAL_INCOME'
-    internalRecordId: integer('internal_record_id').notNull(), // El ID del registro específico en su tabla respectiva
+    internalRecordId: varchar('internal_record_id').notNull(), // El ID del registro específico en su tabla respectiva
 
     linkedAt: timestamp('linked_at').defaultNow(),
     linkedBy: uuid('linked_by').references(() => users.id, {

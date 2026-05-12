@@ -11,10 +11,9 @@ interface AccountingRulesListProps {
 export default function AccountingRulesList({
   initialSearch,
 }: AccountingRulesListProps) {
-  const companyId = 1; // Assuming companyId=1 for now
-  const { data, isLoading } = useAccountingRules(companyId);
+  const { data, isLoading } = useAccountingRules({});
 
-  let filteredData: AccountingRule[] = data || [];
+  let filteredData: AccountingRule[] = data?.data || [];
 
   if (initialSearch) {
     filteredData = filteredData.filter(

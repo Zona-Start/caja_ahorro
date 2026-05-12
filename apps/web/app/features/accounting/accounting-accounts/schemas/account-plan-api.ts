@@ -1,8 +1,8 @@
 import z from 'zod';
 
 export const accountPlanApiResponseSchema = z.object({
-  id: z.union([z.number(), z.string()]).optional(),
-  companyId: z.union([z.number(), z.string()]).optional(),
+  id: z.string().optional(),
+  tenantId: z.string().optional(),
   code: z.string(),
   name: z.string(),
   description: z.string().optional().nullable(),

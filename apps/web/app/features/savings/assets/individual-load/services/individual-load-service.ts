@@ -27,8 +27,13 @@ export const individualLoadService = {
         responseType: 'arraybuffer',
       }
     );
-    const buffer = Buffer.from(response.data, 'binary');
-    return buffer.toString('base64');
+    const bytes = new Uint8Array(response.data as ArrayBuffer);
+    let binary = '';
+    const len = bytes.length;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]!);
+    }
+    return btoa(binary);
   },
 
   bulkUpload: async (formData: FormData) => {

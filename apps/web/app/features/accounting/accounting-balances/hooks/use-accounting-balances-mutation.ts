@@ -19,10 +19,10 @@ export function useBootstrappingMutation() {
         description: 'La carga inicial de balances se ha realizado exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al cargar los balances.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al cargar los balances.',
         variant: 'destructive',
       });
     },
@@ -44,10 +44,10 @@ export function useBootstrappingWithFileMutation() {
         description: 'El archivo de balances ha sido procesado exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al procesar el archivo.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al procesar el archivo.',
         variant: 'destructive',
       });
     },
@@ -70,10 +70,10 @@ export function useCloseCycleMutation() {
         description: 'El ciclo contable ha sido cerrado exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al cerrar el ciclo.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al cerrar el ciclo.',
         variant: 'destructive',
       });
     },
@@ -95,10 +95,10 @@ export function useOpenCycleMutation() {
         description: 'El nuevo ciclo contable ha sido abierto exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al abrir el ciclo.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al abrir el ciclo.',
         variant: 'destructive',
       });
     },

@@ -16,10 +16,18 @@ export const RESOURCE_OPTIONS = [
   { value: 'savings:members', label: 'Caja de Ahorro: Asociados' },
   { value: 'savings:contributions', label: 'Caja de Ahorro: Aportes' },
   { value: 'savings:withdrawals', label: 'Caja de Ahorro: Retiros' },
+  {
+    value: 'savings:withdrawal-types',
+    label: 'Caja de Ahorro: Tipos de Retiros',
+  },
   { value: 'savings:liquidations', label: 'Caja de Ahorro: Liquidaciones' },
   { value: 'savings:configuration', label: 'Caja de Ahorro: Configuración' },
   { value: 'portfolio:loans', label: 'Cartera: Préstamos' },
+  { value: 'portfolio:loans-types', label: 'Cartera: Tipos de Préstamos' },
   { value: 'portfolio:credits', label: 'Cartera: Créditos' },
+  { value: 'portfolio:credits-types', label: 'Cartera: Tipos de Créditos' },
+  { value: 'portfolio:payments-loans', label: 'Cartera: Pagos de Préstamos' },
+  { value: 'portfolio:payments-credits', label: 'Cartera: Pagos de Créditos' },
   { value: 'portfolio:payments', label: 'Cartera: Pagos' },
   { value: 'portfolio:products', label: 'Cartera: Productos' },
   {

@@ -1,0 +1,54 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UsePipes,
+} from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
+import { Request } from 'express';
+import {
+  CreateCreditPaidSchema,
+  FilterCreditPaidSchema,
+  CreateCreditPaidDto,
+  FilterCreditPaidDto,
+} from './dto/credit-paid.schema';
+import { CreditPaidService } from './credit-paid.service';
+
+@ApiTags('credit-paid')
+@Controller('credit-paid')
+export class CrediPaidController {
+  constructor(
+    private readonly service: CreditPaidService,
+    private readonly tenantContextService: TenantContextService,
+  ) {}
+
+  @Post()
+  @UsePipes(new ZodValidatorPipe(CreateCreditPaidSchema))
+  create(@Req() req: Request, @Body() dto: CreateCreditPaidDto) {
+    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    return this.service.create(targetTenantId, userId, dto);
+  }
+
+  @Get('request/:cedula')
+  @ApiOperation({ summary: 'Get one credit associate for payment' })
+  @ApiResponse({ status: 200, description: 'Return credit associate.' })
+  @ApiResponse({ status: 404, description: 'Credit associate not found.' })
+  findOneRequest(@Req() req: Request, @Param('cedula') cedula: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.service.findOneRequest(targetTenantId, cedula);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all credit paid or filter by credit paid' })
+  @ApiResponse({ status: 200, description: 'Return all credit paid.' })
+  findAll(@Req() req: Request, @Query(new ZodValidatorPipe(FilterCreditPaidSchema)) query: FilterCreditPaidDto) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.service.findAll(targetTenantId, query);
+  }
+}

@@ -1,4 +1,3 @@
-import { IconWrapper } from '@/components/icon-wrapper';
 import { AlertModal } from '@/components/modal/alert-modal';
 import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { Switch } from '@repo/shadcn/switch';
 import { Textarea } from '@repo/shadcn/textarea';
 import { Check, Coins, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -82,7 +80,8 @@ export function LoadAssetsForm({
     if (selectedAssociate) {
       form.setValue(
         'associateAccountId',
-        (selectedAssociate as { associateAccountsId?: number }).associateAccountsId ?? 0
+        (selectedAssociate as { associateAccountsId?: number })
+          .associateAccountsId ?? 0,
       );
     } else {
       form.reset({
@@ -121,9 +120,7 @@ export function LoadAssetsForm({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-primary">
-            <IconWrapper className="w-8 h-8">
-              <Coins />
-            </IconWrapper>
+            <Coins className="w-8 h-8" />
             Detalles de la Carga
           </CardTitle>
           <CardDescription>
@@ -313,9 +310,12 @@ export function LoadAssetsForm({
 
               <div className="space-y-4 border rounded-lg p-6 bg-muted/30">
                 <div className="flex flex-col gap-1 pb-4 border-b border-muted">
-                  <h3 className="text-sm font-bold text-primary uppercase">Datos Bancarios</h3>
+                  <h3 className="text-sm font-bold text-primary uppercase">
+                    Datos Bancarios
+                  </h3>
                   <p className="text-xs text-muted-foreground italic">
-                    * Estos campos son ahora obligatorios para procesar la carga.
+                    * Estos campos son ahora obligatorios para procesar la
+                    carga.
                   </p>
                 </div>
 
@@ -377,13 +377,11 @@ export function LoadAssetsForm({
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {Object.entries(PAYMENT_METHODS).map(
-                                ([k, v]) => (
-                                  <SelectItem key={k} value={k}>
-                                    {v}
-                                  </SelectItem>
-                                ),
-                              )}
+                              {Object.entries(PAYMENT_METHODS).map(([k, v]) => (
+                                <SelectItem key={k} value={k}>
+                                  {v}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />

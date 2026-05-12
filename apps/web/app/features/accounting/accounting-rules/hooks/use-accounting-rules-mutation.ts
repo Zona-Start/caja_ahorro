@@ -22,10 +22,10 @@ export function useAccountingRuleMutation() {
         description: `La regla contable ha sido ${variables.id ? 'actualizada' : 'creada'} exitosamente.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al guardar la regla.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al guardar la regla.',
         variant: 'destructive',
       });
     },
@@ -47,10 +47,10 @@ export function useDeleteAccountingRuleMutation() {
         description: 'La regla contable ha sido eliminada exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al eliminar la regla.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al eliminar la regla.',
         variant: 'destructive',
       });
     },

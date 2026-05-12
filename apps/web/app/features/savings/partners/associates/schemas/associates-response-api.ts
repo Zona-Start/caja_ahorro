@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 // RESPONSE API SCHEMA
 export const associateApiSchema = z.object({
-  id: z.number(),
-  companyId: z.number(),
+  id: z.string().uuid(),
+  tenantId: z.string().uuid(),
   cedula: z.string(),
   fullname: z.string(),
   nationality: z.enum(['VENEZOLANO', 'EXTRANJERO']),

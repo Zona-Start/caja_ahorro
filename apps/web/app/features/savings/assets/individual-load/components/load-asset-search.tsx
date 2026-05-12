@@ -1,4 +1,3 @@
-import { IconWrapper } from '@/components/icon-wrapper';
 import { useToastSystem } from '@/hooks/use-toast-system';
 import { formatCurrency } from '@/lib/format-utils';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -41,7 +40,7 @@ export function LoadAssetsSearch() {
     {
       enabled: shouldFetch && !!submittedSearchTerm.trim(),
       retry: false,
-    }
+    },
   );
 
   useEffect(() => {
@@ -59,8 +58,7 @@ export function LoadAssetsSearch() {
       setShouldFetch(false);
 
       if (isError) {
-        const errorMessage =
-          (error as { message?: string })?.message || '';
+        const errorMessage = (error as { message?: string })?.message || '';
 
         if (errorMessage.toLowerCase().includes('not found')) {
           toast.info({
@@ -81,7 +79,16 @@ export function LoadAssetsSearch() {
         }
         setSelectedAssociate(null);
       } else if (data) {
-        const dataTyped = data as { data?: { fullname: string; cedula: string; id: number; accountNumber: string; balance: number; associateAccountsId: number } };
+        const dataTyped = data as {
+          data?: {
+            fullname: string;
+            cedula: string;
+            id: number;
+            accountNumber: string;
+            balance: number;
+            associateAccountsId: number;
+          };
+        };
         setSelectedAssociate(dataTyped.data ?? null);
         setRestrictions([]);
       }
@@ -130,9 +137,7 @@ export function LoadAssetsSearch() {
     <Card className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <IconWrapper className="w-8 h-8">
-            <User />
-          </IconWrapper>
+          <User className="w-8 h-8" />
           Selección de Asociado
         </CardTitle>
         <CardDescription>
@@ -225,7 +230,10 @@ export function LoadAssetsSearch() {
                   </span>
                   <div className="text-right">
                     <span className="text-2xl font-black tracking-tight text-primary">
-                      {formatCurrency(Number(selectedAssociate.balance) || 0, 'VES')}
+                      {formatCurrency(
+                        Number(selectedAssociate.balance) || 0,
+                        'VES',
+                      )}
                     </span>
                   </div>
                 </div>

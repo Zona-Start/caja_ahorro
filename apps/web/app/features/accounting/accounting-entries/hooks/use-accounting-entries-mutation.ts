@@ -22,10 +22,10 @@ export function useAccountingEntryMutation() {
         description: `El asiento contable ha sido ${variables.id ? 'actualizado' : 'creado'} exitosamente.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al guardar el asiento.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al guardar el asiento.',
         variant: 'destructive',
       });
     },
@@ -47,10 +47,10 @@ export function useDeleteAccountingEntryMutation() {
         description: 'El asiento contable ha sido eliminado exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al eliminar el asiento.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al eliminar el asiento.',
         variant: 'destructive',
       });
     },
@@ -72,10 +72,10 @@ export function useSubmitAccountingEntryMutation() {
         description: 'El asiento contable ha sido enviado para su revisión.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al enviar el asiento.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al enviar el asiento.',
         variant: 'destructive',
       });
     },
@@ -97,10 +97,10 @@ export function usePostAccountingEntryMutation() {
         description: 'El asiento contable ha sido contabilizado exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al contabilizar el asiento.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al contabilizar el asiento.',
         variant: 'destructive',
       });
     },
@@ -122,10 +122,10 @@ export function useCancelAccountingEntryMutation() {
         description: 'El asiento contable ha sido anulado exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al anular el asiento.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al anular el asiento.',
         variant: 'destructive',
       });
     },

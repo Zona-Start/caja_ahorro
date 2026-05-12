@@ -45,7 +45,7 @@ export function AccountingRuleForm({
 }: AccountingRuleFormProps) {
   const { mutate: saveAccountingRule, isPending: isSaving } =
     useAccountingRuleMutation();
-  const { data: accountingRules } = useAccountingRules(1);
+  const { data: accountingRules } = useAccountingRules({});
   const { data: accountingAccounts, isLoading: isLoadingAccounts } =
     useAccountingAccounts();
 

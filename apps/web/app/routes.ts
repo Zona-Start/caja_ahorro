@@ -16,6 +16,7 @@ const routes: RouteConfig = [
     route('administracion/usuarios', 'routes/dashboard/core/users.tsx'),
     route('administracion/roles', 'routes/dashboard/core/roles.tsx'),
     route('administracion/permisos', 'routes/dashboard/core/permissions.tsx'),
+    route('administracion/categorias', 'routes/dashboard/core/categories.tsx'),
 
     // ── Módulo de Contabilidad ──
     route(
@@ -44,17 +45,96 @@ const routes: RouteConfig = [
     ),
 
     // ── Módulo de Caja de Ahorro ──
-    route('caja-ahorro/asociados', 'routes/dashboard/savings-associates.tsx'),
-    route('caja-ahorro/consulta', 'routes/dashboard/savings-inquiry.tsx'),
+    route(
+      'caja-ahorro/asociados',
+      'routes/dashboard/savings/savings-associates.tsx',
+    ),
+    route(
+      'caja-ahorro/estado-cuenta',
+      'routes/dashboard/savings/savings-inquiry.tsx',
+    ),
+    route(
+      'caja-ahorro/carga-haberes',
+      'routes/dashboard/savings/savings-individual-load.tsx',
+    ),
+    route(
+      'caja-ahorro/liquidacion',
+      'routes/dashboard/savings/savings-settlement.tsx',
+    ),
+    route(
+      'caja-ahorro/desembolsos',
+      'routes/dashboard/savings/savings-payment-batch.tsx',
+    ),
     route(
       'caja-ahorro/tipo-retiros',
-      'routes/dashboard/savings-withdrawal-types.tsx',
+      'routes/dashboard/savings/savings-withdrawal-types.tsx',
     ),
-    route('caja-ahorro/retiros', 'routes/dashboard/savings-withdrawal.tsx'),
     route(
-      'caja-ahorro/retiros/nuevo',
-      'routes/dashboard/savings-withdrawal-create.tsx',
+      'caja-ahorro/retiros',
+      'routes/dashboard/savings/savings-withdrawal.tsx',
     ),
+    route(
+      'caja-ahorro/prestamos',
+      'routes/dashboard/savings/savings-loans-management.tsx',
+    ),
+    route(
+      'caja-ahorro/pagos-prestamos',
+      'routes/dashboard/savings/savings-loans-paid.tsx',
+    ),
+    route(
+      'caja-ahorro/tipo-prestamos',
+      'routes/dashboard/savings/savings-loan-types.tsx',
+    ),
+    route(
+      'caja-ahorro/creditos',
+      'routes/dashboard/savings/savings-credits-management.tsx',
+    ),
+    route(
+      'caja-ahorro/pagos-creditos',
+      'routes/dashboard/savings/savings-credits-paid.tsx',
+    ),
+    route(
+      'caja-ahorro/tipo-creditos',
+      'routes/dashboard/savings/savings-credit-types.tsx',
+    ),
+
+    // ── Módulo de Inventario ──
+    route(
+      'inventario/categorias',
+      'routes/dashboard/inventory/inventory-categories.tsx',
+    ),
+    route(
+      'inventario/productos',
+      'routes/dashboard/inventory/inventory-products.tsx',
+    ),
+    route(
+      'inventario/servicios',
+      'routes/dashboard/inventory/inventory-services.tsx',
+    ),
+    route(
+      'inventario/activos-fijos',
+      'routes/dashboard/inventory/inventory-fixed-assets.tsx',
+    ),
+    route(
+      'inventario/movimientos',
+      'routes/dashboard/inventory/inventory-movements.tsx',
+    ),
+
+    // ── Módulo de Compras ──
+    route('compras/proveedores', 'routes/dashboard/purchasing/suppliers.tsx'),
+    route(
+      'compras/ordenes-compra',
+      'routes/dashboard/purchasing/purchase-orders.tsx',
+    ),
+    route(
+      'compras/cuentas-por-pagar',
+      'routes/dashboard/purchasing/accounts-payable.tsx',
+    ),
+    route(
+      'compras/facturas',
+      'routes/dashboard/purchasing/supplier-invoices.tsx',
+    ),
+    route('compras/pagos', 'routes/dashboard/purchasing/supplier-payments.tsx'),
 
     // ── Módulo de Configuración ──
     route(
@@ -72,6 +152,18 @@ const routes: RouteConfig = [
     route(
       'configuracion/monedas',
       'routes/dashboard/configuracion/monedas.tsx',
+    ),
+    route(
+      'configuracion/bancos',
+      'routes/dashboard/configuracion/bank-directory.tsx',
+    ),
+    route(
+      'configuracion/cuentas-bancarias',
+      'routes/dashboard/configuracion/bank-account.tsx',
+    ),
+    route(
+      'configuracion/movimientos-bancarios',
+      'routes/dashboard/configuracion/bank-movements.tsx',
     ),
   ]),
 ];

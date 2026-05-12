@@ -22,10 +22,10 @@ export function useAccountingCycleMutation() {
         description: `El ciclo contable ha sido ${variables.id ? 'actualizado' : 'creado'} exitosamente.`,
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al guardar el ciclo.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al guardar el ciclo.',
         variant: 'destructive',
       });
     },
@@ -47,10 +47,10 @@ export function useCloseAccountingCycleMutation() {
         description: 'El ciclo contable ha sido cerrado exitosamente.',
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: error.message || 'Ha ocurrido un error al cerrar el ciclo.',
+        description: (error as Error)?.message || 'Ha ocurrido un error al cerrar el ciclo.',
         variant: 'destructive',
       });
     },
