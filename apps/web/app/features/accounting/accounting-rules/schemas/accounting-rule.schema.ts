@@ -1,19 +1,19 @@
 import { z } from 'zod';
 
 export const accountingRuleDetailSchema = z.object({
-  id: z.number().optional(),
-  ruleId: z.number().optional(),
+  id: z.string().optional(),
+  ruleId: z.string().optional(),
   accountRole: z.string().nullable().optional(),
   movementType: z.enum(['DEBIT', 'CREDIT']),
   isAuxiliary: z.boolean().optional().default(false),
   isAuxiliarySupplier: z.boolean().optional().default(false),
   formula: z.string().nullable().optional(),
-  accountPlanId: z.number().nullable(),
+  accountPlanId: z.string().nullable(),
 });
 
 export const accountingRuleSchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number(),
+  id: z.string().optional(),
+  tenantId: z.string(),
   category: z.enum([
     'SAVINGS_BANK',
     'ADMINISTRATIVE',

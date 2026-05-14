@@ -77,7 +77,7 @@ export function AssociatesForm({
     resolver: zodResolver(AssociateMutationSchema),
     defaultValues: {
       id: defaultValues?.id,
-      companyId: defaultValues?.companyId || 1,
+      tenantId: defaultValues?.tenantId || '',
       cedula: defaultValues?.cedula || '',
       fullname: defaultValues?.fullname || '',
       nationality: defaultValues?.nationality || 'VENEZOLANO',
@@ -350,8 +350,8 @@ export function AssociatesForm({
                 <FormItem className="w-full">
                   <FormLabel>Frecuencia Descuento</FormLabel>
                   <Select
-                    onValueChange={(value) => field.onChange(Number(value))}
-                    value={field.value != null ? String(field.value) : ''}
+                    onValueChange={(value) => field.onChange(value)}
+                    value={field.value != null ? field.value : ''}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -361,7 +361,7 @@ export function AssociatesForm({
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
                       {CategoryFrecuentia?.data?.map((item) => (
-                        <SelectItem key={item.id} value={item.id!.toString()}>
+                        <SelectItem key={item.id} value={item.id!}>
                           {item.name}
                         </SelectItem>
                       ))}
@@ -434,8 +434,8 @@ export function AssociatesForm({
                 <FormItem className="w-full">
                   <FormLabel>Tipo de Nomina</FormLabel>
                   <Select
-                    onValueChange={(value) => field.onChange(Number(value))}
-                    value={field.value != null ? String(field.value) : ''}
+                    onValueChange={(value) => field.onChange(value)}
+                    value={field.value != null ? field.value : ''}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -445,7 +445,7 @@ export function AssociatesForm({
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
                       {PayrollType?.data?.map((item) => (
-                        <SelectItem key={item.id} value={item.id!.toString()}>
+                        <SelectItem key={item.id} value={item.id!}>
                           {item.code} - {item.name}
                         </SelectItem>
                       ))}
@@ -462,8 +462,8 @@ export function AssociatesForm({
                 <FormItem className="w-full">
                   <FormLabel>Tipo de Trabajador</FormLabel>
                   <Select
-                    onValueChange={(value) => field.onChange(Number(value))}
-                    value={field.value != null ? String(field.value) : ''}
+                    onValueChange={(value) => field.onChange(value)}
+                    value={field.value != null ? field.value : ''}
                     disabled={readOnly}
                   >
                     <FormControl>
@@ -473,7 +473,7 @@ export function AssociatesForm({
                     </FormControl>
                     <SelectContent className="w-full min-w-[200px] max-h-[200px] overflow-y-auto">
                       {AssociatedType?.data?.map((item) => (
-                        <SelectItem key={item.id} value={item.id!.toString()}>
+                        <SelectItem key={item.id} value={item.id!}>
                           {item.name}
                         </SelectItem>
                       ))}
@@ -550,13 +550,13 @@ export function AssociatesForm({
                   <SelectSearchable
                     options={
                       Banks?.data?.map((item) => ({
-                        value: item.id!.toString(),
+                        value: item.id!,
                         label: `${item.code} - ${item.name}`,
                       })) || []
                     }
-                    onValueChange={(value) => field.onChange(Number(value))}
+                    onValueChange={(value) => field.onChange(value)}
                     placeholder="Selecciona un banco"
-                    value={field.value != null ? String(field.value) : ''}
+                    value={field.value != null ? field.value : ''}
                     disabled={readOnly}
                   />
                   <FormMessage />

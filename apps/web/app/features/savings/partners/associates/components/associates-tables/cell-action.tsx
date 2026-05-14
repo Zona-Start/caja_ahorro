@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { AlertModal } from '@/components/shared/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -8,9 +7,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
-import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { toast } from '@repo/shadcn/hooks/use-toast';
-import { useDeleteAssociateMutation, useAssociateQuery } from '../../hooks/use-associates-query';
+import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import {
+  useAssociateQuery,
+  useDeleteAssociateMutation,
+  useInactiveAssociateMutation,
+} from '../../hooks/use-associates-query';
 import { type AssociatesMutate } from '../../schemas/associates.schema';
 import { AssociatesModal } from '../associates-modal';
 
@@ -20,17 +24,28 @@ interface CellActionProps {
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openDelete, setOpenDelete] = useState(false);
+  const [openInactive, setOpenInactive] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
-  const [associateId, setAssociateId] = useState<number | null>(null);
+  const [associateId, setAssociateId] = useState<string | null>(null);
 
-  const { mutate: deleteAssociate, isPending: loading } = useDeleteAssociateMutation();
+  const { mutate: deleteAssociate, isPending: loading } =
+    useDeleteAssociateMutation();
+
+  const { mutate: inactiveAssociate, isPending: inactiveLoading } =
+    useInactiveAssociateMutation();
 
   const { data: associateData } = useAssociateQuery(associateId!);
 
   const onConfirm = async () => {
     deleteAssociate(data.id!, {
       onSuccess: () => setOpenDelete(false),
+    });
+  };
+
+  const onInactive = async () => {
+    inactiveAssociate(data.id!, {
+      onSuccess: () => setOpenInactive(false),
     });
   };
 
@@ -65,6 +80,15 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         description="Esta acción no se puede deshacer."
       />
 
+      <AlertModal
+        isOpen={openInactive}
+        onClose={() => setOpenInactive(false)}
+        onConfirm={onInactive}
+        loading={inactiveLoading}
+        title="¿Estás seguro que desea inactivar al Asociado?"
+        description="Esta acción no se puede deshacer."
+      />
+
       {associateData?.data && (
         <>
           <AssociatesModal
@@ -86,7 +110,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 : undefined,
               jobTitle: associateData.data.jobTitle || undefined,
               isPayrollCredit: associateData.data.isPayrollCredit,
-              baseSalary: String(Number(associateData.data.baseSalary).toFixed(2)),
+              baseSalary: String(
+                Number(associateData.data.baseSalary).toFixed(2),
+              ),
             }}
           />
 
@@ -109,7 +135,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 : undefined,
               jobTitle: associateData.data.jobTitle || undefined,
               isPayrollCredit: associateData.data.isPayrollCredit,
-              baseSalary: String(Number(associateData.data.baseSalary).toFixed(2)),
+              baseSalary: String(
+                Number(associateData.data.baseSalary).toFixed(2),
+              ),
             }}
             readOnly
           />
@@ -135,6 +163,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             Editar
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setOpenInactive(true)}
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Inactivar
+          </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() => setOpenDelete(true)}
             className="text-red-600 focus:text-red-600 focus:bg-red-50"

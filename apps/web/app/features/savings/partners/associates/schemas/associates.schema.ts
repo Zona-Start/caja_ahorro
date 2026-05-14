@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 //schemas Response Query pagiantion
 export const associatesSchema = z.object({
-  id: z.number(),
-  companyId: z.number(),
+  id: z.string().uuid().optional(),
+  tenantId: z.string().uuid().optional(),
   cedula: z.string(),
   fullname: z.string(),
   nationality: z.enum(['VENEZOLANO', 'EXTRANJERO']),
@@ -30,8 +30,8 @@ export const associatesSchema = z.object({
 
 //schema Request for api
 export const AssociateMutationSchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number(),
+  id: z.string().uuid().optional(),
+  tenantId: z.string().uuid().optional(),
   cedula: z
     .string()
     .min(7, 'No puede tener menos de 7 digítos')
@@ -51,7 +51,7 @@ export const AssociateMutationSchema = z.object({
   birthdate: z.date({ message: 'Fecha de nacimiento inválida' }),
   dateAdmission: z.date({ message: 'Fecha inválida' }),
   dateGraduation: z.date({ message: 'Fecha inválida' }).optional().nullable(),
-  discountFrequencyId: z.number({
+  discountFrequencyId: z.string().uuid({
     message: 'La frecuencia de descuento es requerida',
   }),
   status: z.enum([
@@ -74,10 +74,16 @@ export const AssociateMutationSchema = z.object({
 
   email: z.string().email('El correo electrónico no es válido').nullable(),
   payrollTypeId: z
-    .number({ message: 'El tipo de nomina es requerido' })
+    .string()
+    .uuid({
+      message: 'La frecuencia de descuento es requerida',
+    })
     .optional(),
   associatedTypeId: z
-    .number({ message: 'El tipo de Asociado es requerido' })
+    .string()
+    .uuid({
+      message: 'La frecuencia de descuento es requerida',
+    })
     .optional(),
   jobTitle: z.string().optional(),
   baseSalary: z
@@ -94,7 +100,9 @@ export const AssociateMutationSchema = z.object({
   currencyCode: z.string().optional(),
   balance: z.string().optional(),
   openingDate: z.string().optional(),
-  bankDirectoryId: z.number({ message: 'El banco es requerido' }),
+  bankDirectoryId: z.string().uuid({
+    message: 'La frecuencia de descuento es requerida',
+  }),
 });
 
 export const accountsAssociatesSchema = z.object({

@@ -24,3 +24,32 @@ export const accountingRuleListApiResponseSchema = z.object({
     .nullable()
     .optional(),
 });
+
+export const accountingRuleDetailApiSchema = z.object({
+  id: z.string().optional(),
+  ruleId: z.string().optional(),
+  accountRole: z.string().nullable().optional(),
+  movementType: z.enum(['DEBIT', 'CREDIT']),
+  isAuxiliary: z.boolean().optional().default(false),
+  isAuxiliarySupplier: z.boolean().optional().default(false),
+  formula: z.string().nullable().optional(),
+  accountPlanId: z.string().nullable(),
+});
+
+export const accountingRuleApiSchema = z.array(
+  z.object({
+    id: z.string().optional(),
+    companyId: z.number(),
+    category: z.string(),
+    operationType: z.string().min(1, 'El tipo de operación es requerido'),
+    referenceValue: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
+    isActive: z.boolean().nullable().default(true),
+    details: z.array(accountingRuleDetailApiSchema).optional(),
+    createdAt: z.string(),
+    updatedAt: z.string().nullable(),
+    tenantId: z.string(),
+    createdById: z.string().nullable(),
+    updatedById: z.string().nullable(),
+  }),
+);

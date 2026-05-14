@@ -40,7 +40,9 @@ export const associatesService = {
       ...(params.sortOrder && { sortOrder: params.sortOrder }),
     });
 
-    const response = await apiClient.get(`/savings-banks/associates?${searchParams}`);
+    const response = await apiClient.get(
+      `/savings-banks/associates?${searchParams}`,
+    );
     return AssociatesResponseAllSchema.parse(response.data);
   },
 
@@ -63,6 +65,8 @@ export const associatesService = {
     };
 
     const response = await apiClient.post('/savings-banks/associates', payload);
+    console.log('Response create associate', response.data);
+
     return AssociatesResponseOneSchema.parse(response.data);
   },
 
@@ -79,7 +83,10 @@ export const associatesService = {
       baseSalary: Number(associatesMutate.baseSalary),
     };
 
-    const response = await apiClient.patch(`/savings-banks/associates/${id}`, payload);
+    const response = await apiClient.patch(
+      `/savings-banks/associates/${id}`,
+      payload,
+    );
     return AssociatesResponseOneSchema.parse(response.data);
   },
 
@@ -88,17 +95,31 @@ export const associatesService = {
     return AssociatesDeleteResponseSchema.parse(response.data);
   },
 
+  inactive: async (id: number | string) => {
+    const response = await apiClient.delete(
+      `/savings-banks/associates/${id}/inactive`,
+    );
+    return AssociatesDeleteResponseSchema.parse(response.data);
+  },
+
   bulkUpload: async (formData: FormData) => {
-    const response = await apiClient.post('/savings-banks/associates/bulk-upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post(
+      '/savings-banks/associates/bulk-upload',
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      },
+    );
     return AssociatesBulkUploadResponseSchema.parse(response.data);
   },
 
   downloadTemplate: async () => {
-    const response = await apiClient.get('/savings-banks/associates/bulk-upload/template', {
-      responseType: 'arraybuffer',
-    });
+    const response = await apiClient.get(
+      '/savings-banks/associates/bulk-upload/template',
+      {
+        responseType: 'arraybuffer',
+      },
+    );
     return response.data as ArrayBuffer;
   },
 
@@ -115,9 +136,12 @@ export const associatesService = {
         searchParams.append('search', params.search.toUpperCase());
       }
     }
-    const response = await apiClient.get(`/savings-banks/associates/report/pdf?${searchParams}`, {
-      responseType: 'arraybuffer',
-    });
+    const response = await apiClient.get(
+      `/savings-banks/associates/report/pdf?${searchParams}`,
+      {
+        responseType: 'arraybuffer',
+      },
+    );
     return response.data as ArrayBuffer;
   },
 };

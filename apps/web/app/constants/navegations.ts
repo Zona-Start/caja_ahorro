@@ -173,7 +173,7 @@ export const navGroups: NavGroup[] = [
             href: '/dashboard/contabilidad/ciclos-contables',
           },
           {
-            label: 'Reglas Contables',
+            label: 'Mapa de Integraciones',
             href: '/dashboard/contabilidad/reglas-contables',
           },
         ],

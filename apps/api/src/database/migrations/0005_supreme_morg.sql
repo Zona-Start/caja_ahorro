@@ -1,0 +1,2 @@
+ALTER TABLE "savings"."associates" ADD COLUMN "discount_frequency_id" uuid;--> statement-breakpoint
+ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_discount_frequency_id_categories_id_fk" FOREIGN KEY ("discount_frequency_id") REFERENCES "core"."categories"("id") ON DELETE set null ON UPDATE no action;

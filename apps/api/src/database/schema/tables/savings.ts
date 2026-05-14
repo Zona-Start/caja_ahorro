@@ -58,7 +58,12 @@ export const associates = savingsSchema.table(
     birthdate: date('birthdate'), //fecha de nacimiento
     dateAdmission: date('admission_date').notNull(), //fecha ingreso
     dateGraduation: date('graduation_date'), //fecha de egreso
-    discountFrequencyId: integer('discount_frequency_id'), //fecuencia de descuento
+    discountFrequencyId: uuid('discount_frequency_id').references(
+      () => categories.id,
+      {
+        onDelete: 'set null',
+      },
+    ), //fecuencia de descuento
     status: statusEnum('status').notNull().default('ACTIVE'), //estatus del asociado
     isPayrollCredit: boolean('is_payroll_credit').notNull().default(false), // posee credinomina
     localityId: integer('locality_id').references(() => states.id, {

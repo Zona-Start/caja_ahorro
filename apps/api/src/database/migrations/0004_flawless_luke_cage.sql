@@ -1,0 +1,1 @@
+ALTER TABLE "savings"."associates" DROP COLUMN "discount_frequency_id";

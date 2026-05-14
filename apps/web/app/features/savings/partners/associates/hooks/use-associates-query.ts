@@ -99,6 +99,34 @@ export function useDeleteAssociateMutation(): UseMutationResult<
   });
 }
 
+export function useInactiveAssociateMutation(): UseMutationResult<
+  any,
+  Error,
+  number | string
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number | string) => associatesService.inactive(id),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.associates.lists(),
+      });
+      toast({
+        title: 'Operación exitosa',
+        description: 'El asociado fue inactivado correctamente.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error en la Operación',
+        description: 'Ocurrio un erro al inactivar el Asociado.',
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function useBulkUploadAssociatesMutation(): UseMutationResult<
   any,
   Error,

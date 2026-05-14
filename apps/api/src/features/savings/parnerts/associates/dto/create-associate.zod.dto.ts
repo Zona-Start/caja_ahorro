@@ -1,6 +1,6 @@
-import { z } from 'zod';
-import { createZodDto } from 'nestjs-zod';
 import { GenderEnum, NationalityEnum, StatusEnum } from '@/types/enum';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const CreateAssociateSchema = z.object({
   tenantId: z.string().uuid().optional(),
@@ -11,7 +11,7 @@ export const CreateAssociateSchema = z.object({
   birthdate: z.coerce.date(),
   dateAdmission: z.coerce.date(),
   dateGraduation: z.coerce.date().optional().nullable(),
-  discountFrequencyId: z.coerce.number().int().optional().nullable(),
+  discountFrequencyId: z.string().uuid().optional().nullable(),
   status: z.nativeEnum(StatusEnum).default(StatusEnum.ACTIVE).optional(),
   isPayrollCredit: z.coerce.boolean().default(false).optional(),
   localityId: z.coerce.number().int().optional().nullable(),
@@ -28,4 +28,4 @@ export const CreateAssociateSchema = z.object({
 export const UpdateAssociateSchema = CreateAssociateSchema.partial();
 
 export class CreateAssociateDto extends createZodDto(CreateAssociateSchema) {}
-export class UpdateAssociateDto extends createZodDto(UpdateAssociateSchema) {};
+export class UpdateAssociateDto extends createZodDto(UpdateAssociateSchema) {}

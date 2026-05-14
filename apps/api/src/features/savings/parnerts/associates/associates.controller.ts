@@ -31,6 +31,7 @@ import { AssociatesService } from './associates.service';
 import { CreateAssociateAccountsSchema } from './dto/create-associate-accounts.dto';
 import {
   CreateAssociateSchema,
+  UpdateAssociateDto,
   UpdateAssociateSchema,
 } from './dto/create-associate.zod.dto';
 import {
@@ -221,12 +222,16 @@ export class AssociatesController {
   @ApiOperation({ summary: 'Update an associate' })
   @ApiResponse({ status: 200, description: 'Associate updated successfully.' })
   @ApiResponse({ status: 404, description: 'Associate not found.' })
-  @UsePipes(new ZodValidatorPipe(UpdateAssociateSchema))
-  async update(@Req() req: Request, @Param('id') id: string, @Body() dto: any) {
+  async update(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidatorPipe(UpdateAssociateSchema)) dto: UpdateAssociateDto,
+  ) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(
       req,
       dto,
     );
+
     const data = await this.associatesService.update(
       targetTenantId,
       userId,
@@ -243,6 +248,15 @@ export class AssociatesController {
   async remove(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
     return await this.associatesService.remove(targetTenantId, userId, id);
+  }
+
+  @Delete(':id/inactive')
+  @ApiOperation({ summary: 'Inactive an associate' })
+  @ApiResponse({ status: 200, description: 'Associate inactive successfully.' })
+  @ApiResponse({ status: 404, description: 'Associate not found.' })
+  async inactive(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
+    return await this.associatesService.inactive(targetTenantId, userId, id);
   }
 
   @Post(':id/accounts')

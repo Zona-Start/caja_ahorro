@@ -29,6 +29,20 @@
       "when": 1778506104170,
       "tag": "0003_abnormal_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778681585500,
+      "tag": "0004_flawless_luke_cage",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778681610096,
+      "tag": "0005_supreme_morg",
+      "breakpoints": true
     }
   ]
 }

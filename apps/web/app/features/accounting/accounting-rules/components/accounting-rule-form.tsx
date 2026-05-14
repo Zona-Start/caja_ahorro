@@ -5,7 +5,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
@@ -23,14 +22,31 @@ import { Plus, Trash } from 'lucide-react';
 import { useMemo } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useAccountingAccounts } from '../../accounting-accounts/hooks/use-accounting-accounts-query';
+import { useAllAccountingRules } from '../hooks/use-all-accounting-rules';
 import { useAccountingRuleMutation } from '../hooks/use-accounting-rules-mutation';
-import { useAccountingRules } from '../hooks/use-accounting-rules-query';
+import { useAccountingRulesParams } from '../hooks/use-accounting-rules-params';
+import { useWithdrawalTypesQuery } from '@/features/savings/withdrawals/withdrawal-types/hooks/use-withdrawal-types-query';
+import { useLoanTypesQuery } from '@/features/savings/loans/type-loans/hooks/use-type-loans-query';
+import { useCreditTypesQuery } from '@/features/savings/credits/type-credits/hooks/use-credit-types-query';
+import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
+import {
+  categoryTranslations,
+  getOperationDef,
+  operationsByCategory,
+  operationTypeTranslations,
+  roleOptionsByCategory,
+  type Category,
+} from '../constants/operations';
+import type { AccountPlan } from '../../accounting-accounts/schemas/account-plan.schema';
 import {
   type AccountingRule,
   accountingRuleSchema,
 } from '../schemas/accounting-rule.schema';
 
 interface AccountingRuleFormProps {
+  category?: Category;
+  operationType?: string;
+  reference?: string | null;
   onSuccess?: () => void;
   onCancel?: () => void;
   defaultValues?: Partial<AccountingRule>;
@@ -38,474 +54,472 @@ interface AccountingRuleFormProps {
 }
 
 export function AccountingRuleForm({
+  category: propCategory,
+  operationType: propOperationType,
+  reference: propReference,
   onSuccess,
   onCancel,
   defaultValues,
   readOnly = false,
 }: AccountingRuleFormProps) {
+  const { category: urlCategory, operation: urlOperation, reference: urlReference } =
+    useAccountingRulesParams();
+
+  const category = (propCategory ?? urlCategory) as Category;
+  const operationType = propOperationType ?? urlOperation;
+  const reference = propReference ?? urlReference;
+
+  const isPageMode = !!propCategory && !!propOperationType;
+
+  const opDef = operationType ? getOperationDef(operationType) : undefined;
+
   const { mutate: saveAccountingRule, isPending: isSaving } =
     useAccountingRuleMutation();
-  const { data: accountingRules } = useAccountingRules({});
+  const { data: allRules } = useAllAccountingRules();
   const { data: accountingAccounts, isLoading: isLoadingAccounts } =
     useAccountingAccounts();
 
-  // Mocks for missing features not yet ported
-  const withdrawalTypes = { data: [] };
-  const loanTypes = { data: [] };
-  const creditTypes = { data: [] };
-  const payrollTypes = { data: [] };
+  const { data: withdrawalTypes } = useWithdrawalTypesQuery(
+    { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
+    operationType === 'WITHDRAWAL_TYPE' && !!reference,
+  );
+  const { data: loanTypes } = useLoanTypesQuery(
+    { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
+    operationType === 'LOAN_TYPE' && !!reference,
+  );
+  const { data: creditTypes } = useCreditTypesQuery(
+    { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
+    operationType === 'CREDIT_TYPE' && !!reference,
+  );
+  const { data: payrollTypes } = useCategoriesByTypeQuery(
+    'payroll_type',
+    operationType === 'PAYROLL_CONCEPT' && !!reference,
+  );
+
+  const referenceLabel = useMemo(() => {
+    if (!reference || !opDef?.isDynamic) return null;
+    if (operationType === 'WITHDRAWAL_TYPE') {
+      const found = withdrawalTypes?.data?.find(
+        (w: { id: string; description: string }) => w.id === reference,
+      );
+      return found?.description ?? reference;
+    }
+    if (operationType === 'LOAN_TYPE') {
+      const found = loanTypes?.data?.find(
+        (l: { id: number; name: string }) => String(l.id) === reference,
+      );
+      return found?.name ?? reference;
+    }
+    if (operationType === 'CREDIT_TYPE') {
+      const found = creditTypes?.data?.find(
+        (c: { id: number; name: string }) => String(c.id) === reference,
+      );
+      return found?.name ?? reference;
+    }
+    if (operationType === 'PAYROLL_CONCEPT') {
+      const found = payrollTypes?.find(
+        (p: { id: string; name: string }) => p.id === reference,
+      );
+      return found?.name ?? reference;
+    }
+    return reference;
+  }, [reference, operationType, opDef, withdrawalTypes, loanTypes, creditTypes, payrollTypes]);
+
+  const existingRule = useMemo(() => {
+    if (defaultValues?.id) return defaultValues as AccountingRule;
+    if (!allRules || !operationType) return undefined;
+
+    if (opDef?.isDynamic && reference) {
+      return allRules.find(
+        (r) =>
+          r.category === category &&
+          r.operationType === operationType &&
+          r.referenceValue === reference,
+      );
+    }
+
+    return allRules.find(
+      (r) =>
+        r.category === category &&
+        r.operationType === operationType &&
+        !r.referenceValue,
+    );
+  }, [allRules, category, operationType, reference, opDef, defaultValues]);
+
+  const isEdit = !!existingRule?.id;
 
   const form = useForm<AccountingRule>({
     resolver: zodResolver(accountingRuleSchema),
-    defaultValues: {
-      id: defaultValues?.id,
-      companyId: defaultValues?.companyId || 1,
-      category: defaultValues?.category || 'SAVINGS_BANK',
-      operationType: defaultValues?.operationType || '',
-      description: defaultValues?.description || '',
-      referenceValue: defaultValues?.referenceValue || null,
-      isActive: defaultValues?.isActive ?? true,
-      details:
-        defaultValues?.details?.map((d) => ({
-          ...d,
-          isAuxiliary: d.isAuxiliary ?? false,
-          isAuxiliarySupplier: d.isAuxiliarySupplier ?? false,
-        })) || [],
-    },
+    defaultValues: (existingRule
+      ? {
+          id: existingRule.id,
+          tenantId: existingRule.tenantId ?? '',
+          category: existingRule.category,
+          operationType: existingRule.operationType,
+          description: existingRule.description ?? '',
+          referenceValue: existingRule.referenceValue ?? null,
+          isActive: existingRule.isActive ?? true,
+          details:
+            existingRule.details?.map((d) => ({
+              ...d,
+              isAuxiliary: d.isAuxiliary ?? false,
+              isAuxiliarySupplier: d.isAuxiliarySupplier ?? false,
+            })) || [],
+        }
+      : {
+          tenantId: '',
+          category,
+          operationType,
+          description: '',
+          referenceValue: reference ?? null,
+          isActive: true,
+          details: [],
+        }) as AccountingRule,
     mode: 'onChange',
   });
 
-  const category = useWatch({ control: form.control, name: 'category' });
-  const operationType = useWatch({
-    control: form.control,
-    name: 'operationType',
-  });
+  const selectedCategory = useWatch({ control: form.control, name: 'category' });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'details',
   });
 
-  const operationOptions = useMemo(() => {
-    switch (category) {
-      case 'SAVINGS_BANK':
-        return [
-          { value: 'PAYROLL_CONCEPT', label: 'Concepto Nómina' },
-          { value: 'WITHDRAWAL_TYPE', label: 'Tipo de Retiro' },
-          { value: 'LOAN_TYPE', label: 'Tipo de Préstamo' },
-          { value: 'CREDIT_TYPE', label: 'Tipo de Crédito' },
-          { value: 'CREDIT_PAYMENT', label: 'Pago de Crédito' },
-          { value: 'LOAN_PAYMENT', label: 'Pago de Préstamo' },
-          { value: 'LOAN_DISBURSEMENT', label: 'Desembolso Préstamo' },
-          { value: 'INTEREST_ACCRUAL', label: 'Causación de Intereses' },
-          { value: 'SAVINGS_UPLOAD', label: 'Carga de Haberes' },
-        ];
-      case 'ADMINISTRATIVE':
-        return [
-          { value: 'INVOICE_RECEPTION', label: 'Recepción de Factura' },
-          { value: 'SUPPLIER_ADVANCE', label: 'Anticipo a Proveedor' },
-          { value: 'CREDIT_NOTE', label: 'Nota de Crédito' },
-          { value: 'SUPPLIER_PAYMENT', label: 'Pago a Proveedor' },
-        ];
-      case 'BANKING':
-        return [
-          {
-            value: 'TRANSFER_BETWEEN_ACCOUNTS',
-            label: 'Transferencia entre Cuentas',
-          },
-          { value: 'BANK_DEBIT_NOTE', label: 'Nota de Débito Bancaria' },
-          { value: 'BANK_CREDIT_NOTE', label: 'Nota de Crédito Bancaria' },
-          {
-            value: 'CHECK_ISSUANCE_PAYMENT',
-            label: 'Emisión de Cheque / Pago',
-          },
-          {
-            value: 'EMPLOYER_DEPOSIT_RECEPTION',
-            label: 'Recepción Depósito Patronal',
-          },
-          {
-            value: 'LOAN_COLLECTION_PAYROLL',
-            label: 'Recaudación Préstamos (Nómina)',
-          },
-          {
-            value: 'LOAN_COLLECTION_WINDOW',
-            label: 'Cobro de Préstamo (Ventanilla)',
-          },
-          {
-            value: 'CONTRIBUTION_INCOME_PAYROLL',
-            label: 'Ingreso por Aportes (Nómina)',
-          },
-          { value: 'BANK_INITIAL_BALANCE', label: 'Carga de Saldo Inicial' },
-          { value: 'BANK_FEE', label: 'Comisión por Cuenta' },
-          { value: 'OTHER_BANKING', label: 'Otros' },
-        ];
-      case 'ACCOUNTING':
-        return [
-          {
-            value: 'FISCAL_YEAR_CLOSING',
-            label: 'Cierre de Ejercicio (Anual)',
-          },
-          { value: 'EXCHANGE_DIFFERENCE', label: 'Diferencia de Cambio' },
-          { value: 'ASSET_DEPRECIATION', label: 'Depreciación de Activos' },
-          { value: 'EXPENSE_AMORTIZATION', label: 'Amortización de Gastos' },
-          { value: 'MANUAL_ADJUSTMENT', label: 'Ajuste Manual' },
-        ];
-      case 'INVENTORY':
-        return [
-          { value: 'GOODS_RECEIPT', label: 'Recepción de Mercancía' },
-          {
-            value: 'INVENTORY_ADJUSTMENT_NEG',
-            label: 'Ajuste de Inventario (-)',
-          },
-          { value: 'SALE_OUTPUT', label: 'Salida por Venta' },
-          {
-            value: 'WAREHOUSE_TRANSFER',
-            label: 'Transferencia entre Almacenes',
-          },
-        ];
-      default:
-        return [];
-    }
-  }, [category]);
+  const operationOptions = useMemo(
+    () => operationsByCategory[selectedCategory] || [],
+    [selectedCategory],
+  );
 
-  const roleOptions = useMemo(() => {
-    switch (category) {
-      case 'SAVINGS_BANK':
-        return [
-          { value: 'ASSOCIATED_SAVINGS', label: 'Ahorro Asociados (Haberes)' },
-          { value: 'EMPLOYER_CONTRIBUTION', label: 'Aporte Patrono (Haberes)' },
-          { value: 'VOLUNTARY_SAVINGS', label: 'Ahorro Voluntario (Haberes)' },
-          {
-            value: 'PARTIAL_WITHDRAWAL_SAVINGS',
-            label: 'Retiro Parcial (Haberes)',
-          },
-          {
-            value: 'SPECIAL_WITHDRAWAL_SAVINGS',
-            label: 'Retiro Especial / Consumo (Haberes)',
-          },
-          {
-            value: 'DIVIDENDS_PAYABLE',
-            label: 'Dividendos / Excedentes por Pagar',
-          },
-          { value: 'SAVINGS_RECEIVABLE', label: 'Ahorro x Cobrar (Activo)' },
-          { value: 'EMPLOYER_RECEIVABLE', label: 'Aporte x Cobrar (Activo)' },
-          { value: 'LOAN_PRINCIPAL', label: 'Préstamo Capital (Activo)' },
-          { value: 'CREDIT_PRINCIPAL', label: 'Crédito Capital (CP/LP)' },
-          {
-            value: 'OPERATION_COUNTERPART',
-            label: 'Inventario / Cuenta x Pagar',
-          },
-          { value: 'BANK_ACCOUNT', label: 'Banco Institución' },
-          { value: 'CASH_ACCOUNT', label: 'Caja Principal' },
-          { value: 'SERVICE_FEE_INCOME', label: 'Ingresos por Comisiones' },
-          { value: 'LOAN_INTEREST_INCOME', label: 'Ingresos por Intereses' },
-        ];
-      case 'ADMINISTRATIVE':
-        return [
-          { value: 'PURCHASE_VAT', label: 'Iva Compra' },
-          { value: 'SUPPLIER_CONTROL', label: 'Proveedor Control' },
-          { value: 'GASTO_OPERATIVO', label: 'Gasto Operativo' },
-        ];
-      case 'BANKING':
-        return [
-          { value: 'SOURCE_BANK', label: 'Banco Origen' },
-          { value: 'DESTINATION_BANK', label: 'Banco Destino' },
-          { value: 'GENERAL_COUNTERPART', label: 'Contra Partida General' },
-        ];
-      case 'INVENTORY':
-        return [
-          { value: 'INV_ACTIVO', label: 'Activo' },
-          { value: 'INV_COSTO_VENTA', label: 'Costo Venta' },
-        ];
-      case 'ACCOUNTING':
-        return [
-          { value: 'CONT_FISCAL_YEAR_RESULT', label: 'Resultado Ejercicio' },
-          { value: 'CONT_CUENTA_CIERRE', label: 'Cuenta Cierre' },
-        ];
-      default:
-        return [];
-    }
-  }, [category]);
+  const roleOptions = useMemo(
+    () => roleOptionsByCategory[selectedCategory] || [],
+    [selectedCategory],
+  );
 
-  const onSubmit = async (data: AccountingRule) => {
-    saveAccountingRule(data, {
-      onSuccess: () => {
-        form.reset();
-        onSuccess?.();
-      },
-    });
-  };
+  const operationLabel =
+    operationTypeTranslations[operationType] || operationType;
+  const categoryLabel = categoryTranslations[category];
+
+  const headerTitle = referenceLabel
+    ? `${operationLabel} › ${referenceLabel}`
+    : operationLabel;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Categoría</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  disabled={readOnly}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione Categoría" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="SAVINGS_BANK">Caja de Ahorro</SelectItem>
-                    <SelectItem value="ADMINISTRATIVE">
-                      Administrativa
-                    </SelectItem>
-                    <SelectItem value="BANKING">Bancaria</SelectItem>
-                    <SelectItem value="ACCOUNTING">Contable</SelectItem>
-                    <SelectItem value="INVENTORY">Inventario</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="operationType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo de Operación</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  disabled={readOnly}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccione Operación" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {operationOptions.map((op) => (
-                      <SelectItem key={op.value} value={op.value}>
-                        {op.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem className="col-span-2">
-                <FormLabel>Descripción</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Descripción de la regla"
-                    {...field}
-                    value={field.value || ''}
-                    disabled={readOnly}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="isActive"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Estatus</FormLabel>
-                <Select
-                  onValueChange={(value) => field.onChange(value === 'true')}
-                  defaultValue={field.value?.toString()}
-                  disabled={readOnly}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona opción" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="true">Activa</SelectItem>
-                    <SelectItem value="false">Inactiva</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <Separator className="my-4" />
-
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium">Detalles / Movimientos</h4>
-          {!readOnly && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                append({
-                  movementType: 'DEBIT',
-                  accountRole: null,
-                  formula: null,
-                  accountPlanId: null,
-                  isAuxiliary: false,
-                  isAuxiliarySupplier: false,
-                })
-              }
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Detalle
+      <form
+        onSubmit={form.handleSubmit((data) => {
+          const payload: AccountingRule = {
+            ...data,
+            referenceValue: reference ?? data.referenceValue ?? null,
+            tenantId: data.tenantId || '',
+          };
+          saveAccountingRule(payload, {
+            onSuccess: () => {
+              form.reset(payload);
+              onSuccess?.();
+            },
+          });
+        })}
+        className="flex flex-col h-full"
+        key={`${category}-${operationType}-${reference ?? 'static'}-${existingRule?.id ?? 'new'}`}
+      >
+        <div className="flex items-center justify-between px-6 pt-6 pb-2">
+          <div>
+            <h3 className="text-lg font-semibold">
+              {readOnly
+                ? 'Ver Regla Contable'
+                : isEdit
+                  ? 'Editar Regla Contable'
+                  : 'Configurando: ' + headerTitle}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {categoryLabel}
+            </p>
+          </div>
+          {readOnly ? (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cerrar
+            </Button>
+          ) : (
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Guardando...' : 'Guardar'}
             </Button>
           )}
         </div>
 
-        <div className="space-y-4">
-          {fields.map((field, index) => (
-            <div
-              key={field.id}
-              className="flex gap-4 items-end border p-4 rounded-md"
-            >
-              <FormField
-                control={form.control}
-                name={`details.${index}.movementType`}
-                render={({ field }) => (
-                  <FormItem className="min-w-[120px]">
-                    <FormLabel>Tipo</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      disabled={readOnly}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Tipo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="DEBIT">DÉBITO</SelectItem>
-                        <SelectItem value="CREDIT">CRÉDITO</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <Separator />
 
-              <FormField
-                control={form.control}
-                name={`details.${index}.accountRole`}
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormLabel>Rol de Cuenta</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
+        <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
+          <div className="grid grid-cols-4 gap-4">
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={readOnly || isPageMode}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Categoría" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="SAVINGS_BANK">
+                        Caja de Ahorro
+                      </SelectItem>
+                      <SelectItem value="ADMINISTRATIVE">
+                        Administrativa
+                      </SelectItem>
+                      <SelectItem value="BANKING">Bancaria</SelectItem>
+                      <SelectItem value="ACCOUNTING">Contable</SelectItem>
+                      <SelectItem value="INVENTORY">Inventario</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="operationType"
+              render={({ field }) => (
+                <FormItem>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={readOnly || isPageMode}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Operación" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {operationOptions.map((op) => (
+                        <SelectItem key={op.value} value={op.value}>
+                          {op.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem className="col-span-2">
+                  <FormControl>
+                    <Input
+                      placeholder="Descripción de la regla"
+                      className="h-9"
+                      {...field}
                       value={field.value || ''}
                       disabled={readOnly}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione Rol" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {roleOptions.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            {role.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name={`details.${index}.accountPlanId`}
-                render={({ field }) => (
-                  <FormItem className="flex-1 min-w-[200px]">
-                    <FormLabel>Cuenta Específica</FormLabel>
-                    <FormControl>
-                      {isLoadingAccounts ? (
-                        <Input placeholder="Cargando..." disabled />
-                      ) : (
-                        <SelectSearchable
-                          options={
-                            accountingAccounts?.map((account: any) => ({
-                              value: account.id!.toString(),
-                              label: `${account.code} - ${account.name}`,
-                            })) ?? []
-                          }
-                          onValueChange={(value) =>
-                            field.onChange(
-                              value === 'null' ? null : Number(value),
-                            )
-                          }
-                          placeholder="Seleccionar cuenta"
-                          defaultValue={field.value?.toString() || 'null'}
-                          disabled={readOnly}
-                        />
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name={`details.${index}.isAuxiliary`}
-                render={({ field }) => (
-                  <FormItem className="flex flex-col items-center justify-end space-y-2 pb-2">
-                    <FormLabel className="text-xs">Aux. Socio</FormLabel>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={readOnly}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {!readOnly && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => remove(index)}
-                  className="mb-2"
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
-          ))}
-        </div>
+            />
+          </div>
 
-        <div className="flex justify-end gap-4 mt-6">
-          <Button variant="outline" type="button" onClick={onCancel}>
-            {readOnly ? 'Cerrar' : 'Cancelar'}
-          </Button>
-          {!readOnly && (
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Guardando...' : 'Guardar'}
-            </Button>
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium">Detalles / Movimientos</h4>
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                append({
+                  movementType: 'DEBIT',
+                  accountRole: '',
+                  formula: '',
+                  accountPlanId: null as string | null,
+                  isAuxiliary: false,
+                  isAuxiliarySupplier: false,
+                })
+                }
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Agregar Detalle
+              </Button>
+            )}
+          </div>
+
+          {fields.length > 0 ? (
+            <div className="rounded-md border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[100px]">
+                      Tipo
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                      Rol de Cuenta
+                    </th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">
+                      Cuenta Específica
+                    </th>
+                    <th className="px-3 py-2 text-center font-medium text-muted-foreground w-[80px]">
+                      Aux. Socio
+                    </th>
+                    <th className="px-3 py-2 w-[40px]" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map((field, index) => (
+                    <tr
+                      key={field.id}
+                      className="border-b last:border-b-0 hover:bg-muted/30"
+                    >
+                      <td className="px-3 py-1.5">
+                        <FormField
+                          control={form.control}
+                          name={`details.${index}.movementType`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <Select
+                                onValueChange={f.onChange}
+                                defaultValue={f.value}
+                                disabled={readOnly}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-8 border-0 bg-transparent px-0 shadow-none focus:ring-0">
+                                    <SelectValue placeholder="Tipo" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="DEBIT">DÉBITO</SelectItem>
+                                  <SelectItem value="CREDIT">CRÉDITO</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <FormField
+                          control={form.control}
+                          name={`details.${index}.accountRole`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <Select
+                                onValueChange={f.onChange}
+                                value={f.value || ''}
+                                disabled={readOnly}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-8 border-0 bg-transparent px-0 shadow-none focus:ring-0">
+                                    <SelectValue placeholder="Seleccione Rol" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {roleOptions.map((role) => (
+                                    <SelectItem
+                                      key={role.value}
+                                      value={role.value}
+                                    >
+                                      {role.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <FormField
+                          control={form.control}
+                          name={`details.${index}.accountPlanId`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormControl>
+                                {isLoadingAccounts ? (
+                                  <Input
+                                    placeholder="Cargando..."
+                                    disabled
+                                    className="h-8"
+                                  />
+                                ) : (
+                                  <SelectSearchable
+                                    options={
+                                      accountingAccounts?.map(
+                                        (account: AccountPlan) => ({
+                                          value: String(account.id),
+                                          label: `${account.code} - ${account.name}`,
+                                        }),
+                                      ) ?? []
+                                    }
+                                    onValueChange={(value) =>
+                                      f.onChange(
+                                        value === 'null' ? null : value,
+                                      )
+                                    }
+                                    placeholder="Seleccionar cuenta"
+                                    defaultValue={
+                                      f.value?.toString() || 'null'
+                                    }
+                                    disabled={readOnly}
+                                  />
+                                )}
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </td>
+                      <td className="px-3 py-1.5 text-center">
+                        <FormField
+                          control={form.control}
+                          name={`details.${index}.isAuxiliary`}
+                          render={({ field: f }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Switch
+                                  checked={f.value}
+                                  onCheckedChange={f.onChange}
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </td>
+                      <td className="px-1 py-1.5">
+                        {!readOnly && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => remove(index)}
+                          >
+                            <Trash className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4 text-center border rounded-md">
+              No hay detalles configurados. Agregue al menos un movimiento.
+            </p>
           )}
         </div>
       </form>

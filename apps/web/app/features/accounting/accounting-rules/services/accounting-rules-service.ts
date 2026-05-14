@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import {
   accountingRuleApiResponseSchema,
+  accountingRuleApiSchema,
   accountingRuleDeleteResponseSchema,
   accountingRuleListApiResponseSchema,
 } from '../schemas/accounting-rule-api';
@@ -9,7 +10,7 @@ import type { AccountingRule } from '../schemas/accounting-rule.schema';
 export class AccountingRulesService {
   static async getAll() {
     const response = await apiClient.get(`/accounting-rules`);
-    return accountingRuleListApiResponseSchema.parse(response.data).data;
+    return accountingRuleApiSchema.parse(response.data);
   }
 
   static async getPaginated(params: {

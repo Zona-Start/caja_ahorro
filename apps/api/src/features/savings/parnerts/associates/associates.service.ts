@@ -5,7 +5,7 @@ import {
 } from '@/database/schema/tables/savings';
 import { associateHaberesBalance } from '@/database/schema/views';
 import { AuditHelper } from '@/features/audit/audit-event.service';
-import { StatusEnum } from '@/types/enum';
+import { CurrencyCodeEnum, StatusEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -19,6 +19,10 @@ import * as ExcelJS from 'exceljs';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/schema';
 import { bankDirectory } from 'src/database/schema';
+import {
+  CreateAssociateDto,
+  UpdateAssociateDto,
+} from './dto/create-associate.zod.dto';
 import { FilterAssociateDto } from './dto/filter-associate.zod.dto';
 import { Associates } from './entities/entity';
 
@@ -30,7 +34,7 @@ export class AssociatesService {
     private readonly pdfService: PdfGeneratorService,
   ) {}
 
-  async create(tenantId: string, userId: string, dto: any) {
+  async create(tenantId: string, userId: string, dto: CreateAssociateDto) {
     const key = 'DEFAULT_CURRENCY';
     try {
       const result = await this.drizzle.transaction(async (tx) => {
@@ -71,7 +75,7 @@ export class AssociatesService {
           dateGraduation:
             dto.dateGraduation?.toISOString()?.split('T')[0] || null,
           discountFrequencyId: dto.discountFrequencyId,
-          status: dto.status ?? 'ACTIVE',
+          status: dto.status ?? StatusEnum.ACTIVE,
           isPayrollCredit: dto.isPayrollCredit ?? false,
           localityId: dto.localityId,
           phone: dto.phone,
@@ -113,11 +117,11 @@ export class AssociatesService {
         const associateAccountData = {
           associateId,
           accountNumber: dto.accountNumber,
-          currencyCode: setting[0].value,
+          currencyCode: setting.value as CurrencyCodeEnum,
           balance: '0',
           openingDate: new Date().toISOString().split('T')[0],
           bankDirectoryId: dto.bankDirectoryId,
-          status: dto.status ?? 'ACTIVE',
+          status: dto.status ?? StatusEnum.ACTIVE,
           createdById: userId,
         };
 
@@ -141,9 +145,10 @@ export class AssociatesService {
       });
 
       // Registra el log auditoria
-      await this.auditHelper.logCreate(userId, 'associates', result[0], {
-        targetId: result[0].id,
+      await this.auditHelper.logCreate(userId, 'associate', result, {
+        targetId: result.associate.id,
         description: `Asociado creado: ${result.associate.fullname} (${result.associate.cedula})`,
+        tenantId: tenantId,
       });
 
       return {
@@ -446,7 +451,12 @@ export class AssociatesService {
     };
   }
 
-  async update(tenantId: string, userId: string, id: string, dto: any) {
+  async update(
+    tenantId: string,
+    userId: string,
+    id: string,
+    dto: UpdateAssociateDto,
+  ) {
     const key = 'DEFAULT_CURRENCY';
     try {
       const result = await this.drizzle.transaction(async (tx) => {
@@ -480,22 +490,6 @@ export class AssociatesService {
           );
         }
 
-        const existingAssociate = await tx
-          .select()
-          .from(associates)
-          .where(
-            and(
-              eq(associates.cedula, dto.cedula!),
-              eq(associates.tenantId, tenantId),
-            ),
-          );
-
-        if (existingAssociate.length === 0) {
-          throw new NotFoundException(
-            `Associate with the ID ${dto.cedula} not exists`,
-          );
-        }
-
         const associateData: any = {
           cedula: dto.cedula,
           fullname: dto.fullname,
@@ -523,6 +517,8 @@ export class AssociatesService {
             delete associateData[key];
           }
         });
+
+        console.log('associateData', associateData);
 
         const updateAssociate = await tx
           .update(associates)
@@ -557,8 +553,8 @@ export class AssociatesService {
         if (dto.accountNumber !== undefined) {
           associateAccountData.accountNumber = dto.accountNumber;
         }
-        if (setting[0]?.value) {
-          associateAccountData.currencyCode = setting[0].value;
+        if (setting?.value) {
+          associateAccountData.currencyCode = setting.value;
         }
         if (dto.bankDirectoryId !== undefined) {
           associateAccountData.bankDirectoryId = dto.bankDirectoryId;
@@ -566,6 +562,8 @@ export class AssociatesService {
         if (dto.status !== undefined) {
           associateAccountData.status = dto.status;
         }
+
+        console.log('associateAccountData', associateAccountData);
 
         const updateAsociateAccount = await tx
           .update(associateAccounts)
@@ -585,6 +583,13 @@ export class AssociatesService {
           associate: updateAssociate[0],
           associateAccount: updateAsociateAccount[0] ?? null,
         };
+      });
+
+      // Registra el log auditoria
+      await this.auditHelper.logUpdate(userId, 'associate', result, {
+        targetId: result.associate.id,
+        description: `Asociado Actualizado: ${result.associate.fullname} (${result.associate.cedula})`,
+        tenantId: tenantId,
       });
 
       return {
@@ -608,6 +613,36 @@ export class AssociatesService {
   }
 
   async remove(tenantId: string, userId: string, id: string) {
+    const existingAssociate = await this.findOne(tenantId, id);
+    if (!existingAssociate) {
+      throw new NotFoundException(`Associate with ID ${id} not found`);
+    }
+
+    const associateAccount =
+      await this.drizzle.query.associateAccounts.findFirst({
+        where: eq(schema.associateAccounts.associateId, id),
+      });
+
+    const movements =
+      await this.drizzle.query.associateAccountMovements.findMany({
+        where: eq(
+          schema.associateAccountMovements.associateAccountId,
+          associateAccount?.id ?? '',
+        ),
+      });
+
+    if (movements.length > 0) {
+      throw new BadRequestException(
+        'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
+      );
+    }
+
+    await this.drizzle.delete(associates).where(eq(associates.id, id));
+
+    return { message: 'Associate set to INACTIVE successfully' };
+  }
+
+  async inactive(tenantId: string, userId: string, id: string) {
     const existingAssociate = await this.findOne(tenantId, id);
     if (!existingAssociate) {
       throw new NotFoundException(`Associate with ID ${id} not found`);
@@ -676,6 +711,13 @@ export class AssociatesService {
         'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
       );
     }
+
+    // Registra el log auditoria
+    await this.auditHelper.logUpdate(userId, 'associate', existingAssociate, {
+      targetId: existingAssociate.id,
+      description: `Asociado INACTIVO: ${existingAssociate.fullname} (${existingAssociate.cedula})`,
+      tenantId: tenantId,
+    });
 
     await this.drizzle
       .update(associates)
@@ -844,9 +886,10 @@ export class AssociatesService {
       });
 
       // Registra el log auditoria
-      await this.auditHelper.logCreate(userId, 'associates', rows, {
+      await this.auditHelper.logCreate(userId, 'associate', rows, {
         targetId: `${total}`,
         description: `Carga masiva de asociados: ${total} registros en archivo, ${inserted} insertados, ${skipped} omitidos (ya existían).`,
+        tenantId: tenantId,
       });
 
       return { total, inserted, skipped };
