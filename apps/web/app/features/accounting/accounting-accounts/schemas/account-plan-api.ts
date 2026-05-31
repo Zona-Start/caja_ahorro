@@ -1,7 +1,7 @@
 import z from 'zod';
 
 export const accountPlanApiResponseSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().uuid().optional(),
   tenantId: z.string().optional(),
   code: z.string(),
   name: z.string(),
@@ -18,11 +18,11 @@ export const accountPlanApiResponseSchema = z.object({
   level: z.union([z.number(), z.string()]).nullable(),
   allowsMovements: z.boolean(),
   isActive: z.boolean(),
-  parentAccountId: z.union([z.number(), z.string(), z.null()]).nullable(),
+  parentAccountId: z.string().uuid().nullable(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
-  createdById: z.union([z.number(), z.string(), z.null()]).optional(),
-  updateById: z.union([z.number(), z.string(), z.null()]).optional(),
+  createdById: z.string().uuid().optional().nullable(),
+  updateById: z.string().uuid().optional().nullable(),
 });
 
 export type AccountPlanApiResponse = z.infer<

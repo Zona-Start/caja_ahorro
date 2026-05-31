@@ -1,4 +1,5 @@
 import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -22,6 +23,7 @@ import {
   type CategoryMutation,
   categoryMutationSchema,
   CATEGORY_TYPES,
+  TYPE_LABELS,
 } from '../schemas/categories.schema';
 
 interface CategoriesFormProps {
@@ -52,6 +54,29 @@ export function CategoriesForm({
     mode: 'onChange',
   });
 
+  const watchedName = form.watch('name');
+  const watchedType = form.watch('type');
+
+  const isPayrollType = watchedType === CATEGORY_TYPES.PAYROLL_TYPE;
+
+  useEffect(() => {
+    if (!isPayrollType && watchedName) {
+      const generatedCode = watchedName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
+      form.setValue('code', generatedCode, { shouldValidate: true });
+    }
+  }, [watchedName, isPayrollType, form]);
+
+  useEffect(() => {
+    if (isPayrollType) {
+      form.setValue('code', defaultValues?.code || '', { shouldValidate: true });
+    }
+  }, [isPayrollType, defaultValues?.code, form]);
+
   const onSubmit = async (data: CategoryMutation) => {
     saveCategory(data, {
       onSuccess: () => {
@@ -61,7 +86,7 @@ export function CategoriesForm({
     });
   };
 
-  const categoryTypesEntries = Object.entries(CATEGORY_TYPES);
+  const categoryTypeValues = Object.values(CATEGORY_TYPES);
 
   return (
     <Form {...form}>
@@ -75,18 +100,18 @@ export function CategoriesForm({
                 <FormLabel>Tipo</FormLabel>
                 <Select
                   onValueChange={field.onChange}
-                  defaultValue={field.value}
+                  value={field.value}
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecciona un tipo" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {categoryTypesEntries.map(([value, label]) => (
+                    {categoryTypeValues.map((value) => (
                       <SelectItem key={value} value={value}>
-                        {label}
+                        {TYPE_LABELS[value] || value}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -96,19 +121,33 @@ export function CategoriesForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="code"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Código</FormLabel>
-                <FormControl>
-                  <Input {...field} disabled={disabled} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {isPayrollType ? (
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Código</FormLabel>
+                  <FormControl>
+                    <Input {...field} disabled={disabled} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ) : (
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem className="hidden">
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}
@@ -146,11 +185,11 @@ export function CategoriesForm({
                 <FormLabel>Estado</FormLabel>
                 <Select
                   onValueChange={(value) => field.onChange(value === 'true')}
-                  defaultValue={String(field.value ?? true)}
+                  value={String(field.value ?? true)}
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecciona estado" />
                     </SelectTrigger>
                   </FormControl>

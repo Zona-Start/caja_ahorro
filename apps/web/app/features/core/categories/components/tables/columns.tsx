@@ -1,6 +1,6 @@
 import { type ColumnDef } from '@tanstack/react-table';
 import type { Category } from '../../schemas/categories.schema';
-import { CATEGORY_TYPES } from '../../schemas/categories.schema';
+import { TYPE_LABELS } from '../../schemas/categories.schema';
 import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<Category>[] = [
@@ -9,8 +9,7 @@ export const columns: ColumnDef<Category>[] = [
     header: 'Tipo',
     cell: ({ getValue }) => {
       const value = getValue<string>();
-      const label = CATEGORY_TYPES[value as keyof typeof CATEGORY_TYPES] || value;
-      return label;
+      return TYPE_LABELS[value] || value;
     },
   },
   {
@@ -20,11 +19,6 @@ export const columns: ColumnDef<Category>[] = [
   {
     accessorKey: 'name',
     header: 'Nombre',
-  },
-  {
-    accessorKey: 'description',
-    header: 'Descripción',
-    cell: ({ getValue }) => getValue() || '-',
   },
   {
     accessorKey: 'isActive',

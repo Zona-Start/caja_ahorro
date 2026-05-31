@@ -69,7 +69,7 @@ export const auditEvents = auditSchema.table(
 
     // Aplicamos los Enums aquí
     action: auditActionsEnum('action').notNull(),
-    targetType: auditTargetTypesEnum('target_type').notNull(),
+    targetType: t.varchar('target_type').notNull(),
 
     targetId: t.text('target_id'),
     targetCedula: t.varchar('target_cedula', { length: 20 }),

@@ -23,7 +23,7 @@ export type BankAccount = z.infer<typeof bankAccountSchema>;
 
 export const bankAccountService = {
   getAll: async () => {
-    const response = await apiClient.get('/savings-banks/bank-accounts');
+    const response = await apiClient.get('/bakings/bank-accounts');
     const result = bankAccountsResponseSchema.parse(response.data);
     return {
       data: result.data || [],

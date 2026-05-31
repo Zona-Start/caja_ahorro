@@ -89,7 +89,7 @@ export class AccountingRulesService {
   }
 
   static async create(payload: AccountingRule) {
-    const { id, ...payloadWithoutId } = payload;
+    const { id, tenantId, ...payloadWithoutId } = payload;
     const response = await apiClient.post(
       '/accounting-rules',
       payloadWithoutId,

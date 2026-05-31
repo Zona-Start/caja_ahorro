@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const accountPlanSchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number(),
+  id: z.string().uuid().optional(),
+  tenantId: z.string().optional(),
   code: z.string(),
   name: z
     .string()
@@ -23,11 +23,11 @@ export const accountPlanSchema = z.object({
     .max(4, 'El nivel no puede ser mayor a 4'),
   allowsMovements: z.boolean(),
   isActive: z.boolean(),
-  parentAccountId: z.number().nullable(),
+  parentAccountId: z.string().uuid().nullable(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
-  createdById: z.number().optional(),
-  updateById: z.number().optional(),
+  createdById: z.string().uuid().optional(),
+  updateById: z.string().uuid().optional(),
 });
 
 export type AccountPlan = z.infer<typeof accountPlanSchema>;

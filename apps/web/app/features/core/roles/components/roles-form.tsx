@@ -46,6 +46,7 @@ export function RolesForm({
       page: 1,
       limit: 100,
       isActive: 'true',
+      search: ''
     },
     isSystemAdmin,
   );
@@ -124,8 +125,8 @@ export function RolesForm({
                         <SelectValue placeholder="Seleccionar tenant">
                           {field.value
                             ? tenantsData?.data?.find(
-                                (t) => t.id === field.value,
-                              )?.name
+                              (t) => t.id === field.value,
+                            )?.name
                             : 'Seleccionar tenant'}
                         </SelectValue>
                       </SelectTrigger>

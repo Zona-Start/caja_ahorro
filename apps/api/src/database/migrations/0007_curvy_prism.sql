@@ -1,0 +1,1 @@
+ALTER TYPE "audit"."audit_target_type" ADD VALUE 'module_setting';

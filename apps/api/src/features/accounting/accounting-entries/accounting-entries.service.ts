@@ -25,7 +25,7 @@ export class AccountingEntriesService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly accountingCyclesService: AccountingCyclesService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
   async findAllPaginated(tenantId: string, dto: FilterAccountingEntryDto) {
@@ -304,17 +304,17 @@ export class AccountingEntriesService {
     const detailsForValidation = (
       dto.details
         ? dto.details.map((d) => ({
-            accountPlanId: d.accountPlanId!,
-            debit: Number(d.debit || 0),
-            credit: Number(d.credit || 0),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId!,
+          debit: Number(d.debit || 0),
+          credit: Number(d.credit || 0),
+          description: d.description ?? existing.description,
+        }))
         : existing.details.map((d) => ({
-            accountPlanId: d.accountPlanId,
-            debit: Number(d.debit),
-            credit: Number(d.credit),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId,
+          debit: Number(d.debit),
+          credit: Number(d.credit),
+          description: d.description ?? existing.description,
+        }))
     ) as any;
 
     await this.validateAccountingEntry(
@@ -482,7 +482,7 @@ export class AccountingEntriesService {
     tenantId: string,
     dto: CreateAccountingEntryDto,
     tx?: NodePgDatabase<typeof schema>,
-  ): Promise<AccountingEntryWithDetails> {
+  ) {
     await this.validateAccountingEntry(
       tenantId,
       dto.accountingCycleId,
@@ -502,7 +502,7 @@ export class AccountingEntriesService {
           ...dto,
           tenantId, // Asegúrate de incluir el tenantId
           voucherNo: voucherNo,
-          entryDate: dto.entryDate.toISOString().split('T')[0],
+          entryDate: new Date(dto.entryDate).toISOString().split('T')[0],
           status: 'DRAFT',
           createdById: userId,
         })
@@ -532,11 +532,12 @@ export class AccountingEntriesService {
         ...entry,
         // Drizzle devuelve la fecha como string de la DB, convertimos a Date
         entryDate: entry.entryDate,
+        voucherNo: entry.voucherNo?.toString().padStart(8, '0'),
         postedAt: entry.postedAt ? new Date(entry.postedAt) : null,
         updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null,
         // Usamos los detalles devueltos por la DB, no los del mapa original
         details: insertedDetails,
-      } as AccountingEntryWithDetails;
+      };
     });
   }
 

@@ -93,7 +93,7 @@ function EntitySelector({
         (w: { id: string; description: string }) => ({
           value: w.id,
           label: w.description,
-          configured: configuredRefs.has(w.id),
+          configured: configuredRefs.has(w.description),
         }),
       );
     }
@@ -101,21 +101,21 @@ function EntitySelector({
       return loanData.data.map((l: { id: number; name: string }) => ({
         value: String(l.id),
         label: l.name,
-        configured: configuredRefs.has(String(l.id)),
+        configured: configuredRefs.has(l.name),
       }));
     }
     if (operation === 'CREDIT_TYPE' && creditData?.data) {
       return creditData.data.map((c: { id: number; name: string }) => ({
         value: String(c.id),
         label: c.name,
-        configured: configuredRefs.has(String(c.id)),
+        configured: configuredRefs.has(c.name),
       }));
     }
     if (operation === 'PAYROLL_CONCEPT' && payrollData) {
       return payrollData.map((p: { id: string; name: string }) => ({
         value: p.id,
         label: p.name,
-        configured: configuredRefs.has(p.id),
+        configured: configuredRefs.has(p.name),
       }));
     }
     return [];
@@ -241,6 +241,7 @@ export function AccountingRulesLayout() {
         <div className="flex flex-1 flex-col overflow-hidden bg-muted/20">
           {showForm ? (
             <AccountingRuleForm
+              key={`${category}-${operation}-${reference ?? 'static'}`}
               category={category}
               operationType={operation}
               reference={reference}

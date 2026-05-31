@@ -2,6 +2,7 @@ import z from 'zod';
 import { accountingRuleSchema } from './accounting-rule.schema';
 
 export const accountingRuleApiResponseSchema = z.object({
+  message: z.string().optional(),
   data: accountingRuleSchema,
 });
 
@@ -39,17 +40,17 @@ export const accountingRuleDetailApiSchema = z.object({
 export const accountingRuleApiSchema = z.array(
   z.object({
     id: z.string().optional(),
-    companyId: z.number(),
+    companyId: z.number().optional().nullable(),
     category: z.string(),
     operationType: z.string().min(1, 'El tipo de operación es requerido'),
     referenceValue: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     isActive: z.boolean().nullable().default(true),
     details: z.array(accountingRuleDetailApiSchema).optional(),
-    createdAt: z.string(),
-    updatedAt: z.string().nullable(),
+    createdAt: z.string().optional().nullable(),
+    updatedAt: z.string().optional().nullable(),
     tenantId: z.string(),
-    createdById: z.string().nullable(),
-    updatedById: z.string().nullable(),
+    createdById: z.string().optional().nullable(),
+    updatedById: z.string().optional().nullable(),
   }),
 );

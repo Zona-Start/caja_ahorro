@@ -4,6 +4,7 @@ import { LoansFeaturesModule } from './loans/loans.module';
 import { AssociatesFeaturesModule } from './parnerts/associatesFeatures.module';
 import { SettlementAssociateModule } from './settlement/settlement-associate.module';
 import { WithdrawalFeaturesModule } from './withdrawalls/withdrawal.module';
+import { IndividualLoadModule } from './assets/individual-load/individual-load.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { WithdrawalFeaturesModule } from './withdrawalls/withdrawal.module';
     WithdrawalFeaturesModule,
     AssociatesFeaturesModule,
     SettlementAssociateModule,
+    IndividualLoadModule
   ],
 })
-export class SavingsFeaturesModule {}
+export class SavingsFeaturesModule { }

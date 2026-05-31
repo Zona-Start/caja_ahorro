@@ -1,8 +1,8 @@
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
+import { Input } from '@repo/shadcn/input';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAccountingCycles } from '../../../accounting-cycles/hooks/use-accounting-cycles-query';
 import { AccountingEntryModal } from '../accounting-entry-modal';
 import { useAccountingEntriesFilters } from '../../hooks/use-accounting-entries-filters';
@@ -18,6 +18,21 @@ export default function AccountingEntryTableAction() {
   const { filters, setFilters } = useAccountingEntriesFilters();
   const { data: cycles } = useAccountingCycles();
 
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
+
   const cycleOptions =
     cycles?.map((cycle: any) => ({
       value: cycle.id!.toString(),
@@ -27,12 +42,11 @@ export default function AccountingEntryTableAction() {
   return (
     <div className="flex items-center justify-between mt-4 ">
       <div className="flex items-center gap-4 flex-grow">
-        <DataTableSearch
-          title="Buscar por descripción..."
-          searchKey="description"
-          searchQuery={filters.search || ''}
-          setSearchQuery={(v) => setFilters({ search: v, page: 1 })}
-          setPage={(p) => setFilters({ page: p })}
+        <Input
+          placeholder="Buscar por descripción..."
+          value={searchValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="w-72 md:max-w-sm"
         />
         <DataTableFilterBox
           filterKey="status"
@@ -45,8 +59,8 @@ export default function AccountingEntryTableAction() {
           filterKey="accountingCycleId"
           title="Ciclo Contable"
           options={cycleOptions}
-          setFilterValue={(v) => setFilters({ accountingCycleId: v ? Number(v) : undefined, page: 1 })}
-          filterValue={filters.accountingCycleId?.toString() ?? ''}
+          setFilterValue={(v) => setFilters({ accountingCycleId: v, page: 1 })}
+          filterValue={filters.accountingCycleId || ''}
         />
       </div>
       <Button onClick={() => setOpen(true)} size="sm">

@@ -9,8 +9,8 @@ export const categorySchema = z.object({
   metadata: z.record(z.any()).nullable().optional(),
   isActive: z.boolean(),
   tenantId: z.string(),
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
   createdById: z.string().nullable().optional(),
   updatedById: z.string().nullable().optional(),
 });
@@ -23,6 +23,10 @@ export const categoryMutationSchema = z.object({
   description: z.string().optional(),
   metadata: z.record(z.any()).optional(),
   isActive: z.boolean().default(true),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  createdById: z.string().nullable().optional(),
+  updatedById: z.string().nullable().optional(),
 });
 
 export const CATEGORY_TYPES = {
@@ -36,6 +40,18 @@ export const CATEGORY_TYPES = {
   ACCOUNT_TYPE: 'account_type',
   TRANSACTION_TYPE: 'transaction_type',
 } as const;
+
+export const TYPE_LABELS: Record<string, string> = {
+  associate_type: 'Tipo de Asociado',
+  discount_frequency: 'Frecuencia de Descuento',
+  payroll_type: 'Tipo de Nómina',
+  nationality: 'Nacionalidad',
+  gender: 'Género',
+  document_type: 'Tipo de Documento',
+  civil_status: 'Estado Civil',
+  account_type: 'Tipo de Cuenta',
+  transaction_type: 'Tipo de Transacción',
+};
 
 export type Category = z.infer<typeof categorySchema>;
 export type CategoryMutation = z.infer<typeof categoryMutationSchema>;

@@ -116,7 +116,7 @@ export function LoadAssetsSearch() {
     }
 
     queryClient.removeQueries({
-      queryKey: QUERY_KEYS.individualLoad.all(),
+      queryKey: QUERY_KEYS.individualLoad.all,
     });
 
     setRestrictions([]);
@@ -128,7 +128,7 @@ export function LoadAssetsSearch() {
   const handleClear = useCallback(() => {
     clearAll();
     queryClient.removeQueries({
-      queryKey: QUERY_KEYS.individualLoad.all(),
+      queryKey: QUERY_KEYS.individualLoad.all,
     });
     setSubmittedSearchTerm('');
   }, [clearAll, queryClient]);

@@ -211,6 +211,39 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Bancos',
+    items: [
+      {
+        label: 'Directorio',
+        href: '/dashboard/configuracion/bancos',
+        icon: Landmark,
+        requiresPermission: {
+          resource: 'banking:directory',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Cuentas Bancarias',
+        href: '/dashboard/configuracion/cuentas-bancarias',
+        icon: Landmark,
+        requiresPermission: {
+          resource: 'banking:accounts',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Mov. Bancarios',
+        href: '/dashboard/configuracion/movimientos-bancarios',
+        icon: ArrowRightLeft,
+        requiresPermission: {
+          resource: 'banking:movements',
+          action: 'read',
+        },
+      },
+
+    ],
+  },
+  {
     label: 'Inventario',
     items: [
       {
@@ -346,7 +379,7 @@ export const navGroups: NavGroup[] = [
         icon: Lock,
         requiresPermission: {
           resource: 'iam:permissions',
-          action: 'read',
+          action: 'create',
         },
       },
       {
@@ -396,33 +429,6 @@ export const navGroups: NavGroup[] = [
         icon: Settings,
         requiresPermission: {
           resource: 'system:currencies',
-          action: 'read',
-        },
-      },
-      {
-        label: 'Bancos',
-        href: '/dashboard/configuracion/bancos',
-        icon: Landmark,
-        requiresPermission: {
-          resource: 'banking:directory',
-          action: 'read',
-        },
-      },
-      {
-        label: 'Cuentas Bancarias',
-        href: '/dashboard/configuracion/cuentas-bancarias',
-        icon: Landmark,
-        requiresPermission: {
-          resource: 'banking:accounts',
-          action: 'read',
-        },
-      },
-      {
-        label: 'Mov. Bancarios',
-        href: '/dashboard/configuracion/movimientos-bancarios',
-        icon: ArrowRightLeft,
-        requiresPermission: {
-          resource: 'banking:movements',
           action: 'read',
         },
       },

@@ -30,7 +30,7 @@ export class AccountingRulesController {
   constructor(
     private readonly accountingRulesService: AccountingRulesService,
     private readonly tenantContext: TenantContextService,
-  ) {}
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Create a new accounting rule' })
@@ -38,16 +38,19 @@ export class AccountingRulesController {
     status: 201,
     description: 'Accounting rule created successfully.',
   })
-  create(
+  async create(
     @Req() req: Request,
-    @Body(new ZodValidatorPipe(CreateAccountingRuleSchema))
-    dto: CreateAccountingRuleDto,
+    @Body() dto: CreateAccountingRuleDto,
   ) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(
       req,
       dto,
     );
-    return this.accountingRulesService.create(targetTenantId, userId, dto);
+    const result = await this.accountingRulesService.create(targetTenantId, userId, dto);
+    return {
+      message: 'accounting rule created successfully',
+      data: result,
+    }
   }
 
   @Get()

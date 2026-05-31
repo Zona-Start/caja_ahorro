@@ -22,7 +22,7 @@ export class CreditTypesService {
     @Inject(DRIZZLE_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   async create(
     dto: CreateCreditTypeDto,
@@ -205,23 +205,6 @@ export class CreditTypesService {
   ): Promise<CreditTypeSelect> {
     const existing = await this.findOne(id, tenantId);
 
-    if (dto.name && dto.name.toUpperCase() !== existing.name) {
-      const duplicate = await this.db
-        .select()
-        .from(creditsTypes)
-        .where(
-          and(
-            eq(creditsTypes.name, dto.name.toUpperCase()),
-            eq(creditsTypes.tenantId, existing.tenantId),
-          ),
-        );
-
-      if (duplicate) {
-        throw new BadRequestException(
-          `Credit type with name "${dto.name}" already exists`,
-        );
-      }
-    }
 
     const updateData: Record<string, unknown> = {
       updatedById: userId,

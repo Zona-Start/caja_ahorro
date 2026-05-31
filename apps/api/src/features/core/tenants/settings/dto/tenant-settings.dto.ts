@@ -4,6 +4,7 @@ import { z } from 'zod';
 export const CreateTenantSettingSchema = z.object({
   key: z.string().min(1).max(100),
   value: z.string().optional(),
+  description: z.string().max(255).optional(),
   category: z.string().max(50).default('general'),
 });
 
@@ -19,6 +20,6 @@ export const TenantSettingQuerySchema = z.object({
   limit: z.number().int().positive().max(100).default(20),
 });
 
-export class CreateTenantSettingDto extends createZodDto(CreateTenantSettingSchema) {}
-export class UpdateTenantSettingDto extends createZodDto(UpdateTenantSettingSchema) {}
-export class TenantSettingQueryDto extends createZodDto(TenantSettingQuerySchema) {}
+export class CreateTenantSettingDto extends createZodDto(CreateTenantSettingSchema) { }
+export class UpdateTenantSettingDto extends createZodDto(UpdateTenantSettingSchema) { }
+export class TenantSettingQueryDto extends createZodDto(TenantSettingQuerySchema) { }

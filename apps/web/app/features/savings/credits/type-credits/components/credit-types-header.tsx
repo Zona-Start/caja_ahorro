@@ -1,9 +1,3 @@
-import type { Metadata } from 'react';
-
-export const metadata: Metadata = {
-  title: 'Tipos de Créditos',
-};
-
 export function CreditTypesHeader() {
   return (
     <div className="flex flex-col gap-1">

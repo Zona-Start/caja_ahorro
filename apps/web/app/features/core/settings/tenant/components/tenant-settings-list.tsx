@@ -8,7 +8,7 @@ export default function TenantSettingsList() {
   const { data, isLoading } = useTenantSettingsQuery();
 
   if (isLoading) {
-    return <DataTableSkeleton columnCount={5} rowCount={10} />;
+    return <DataTableSkeleton columnCount={3} rowCount={10} />;
   }
 
   const settingsData = data || [];

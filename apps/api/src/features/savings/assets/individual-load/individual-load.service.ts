@@ -34,7 +34,7 @@ export class IndividualLoadService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly accountingEntriesService: AccountingEntriesService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   async create(tenantId: string, userId: string, dto: CreateIndividualLoadDto) {
     return this.drizzle.transaction(async (tx) => {
@@ -123,41 +123,49 @@ export class IndividualLoadService {
 
       const mainMovementId = results[0].referenceNumber;
 
-      const dataBank = {
-        movement: {
-          bankAccountId: dto.bankAccountId,
-          transactionDate: dto.transactionDate ?? new Date(),
-          paymentMethod: dto.paymentMethod as paymentMethodEnum,
-          description:
-            dto.description ??
-            `Abono a cuenta: ${account.associate_accounts.accountNumber}`,
-          bankReference: dto.referenceNumber,
-          category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
-          creditAmount: totalAmount,
-          debitAmount: 0,
-          createdById: userId,
-        },
-        links: results.map((m) => ({
-          internalRecordType: 'MEMBER_CONTRIBUTION' as const,
-          internalRecordId: m.id,
-        })),
-      };
+      const hasBankingDetails =
+        dto.bankAccountId && dto.paymentMethod && dto.referenceNumber;
 
-      const bankResult = await this.bankMovementsService.createAndReconcile(
-        dataBank,
-        userId,
-        tenantId,
-        tx,
-      );
+      if (hasBankingDetails) {
+        const dataBank = {
+          movement: {
+            bankAccountId: dto.bankAccountId!,
+            transactionDate: dto.transactionDate ?? new Date(),
+            paymentMethod: dto.paymentMethod as paymentMethodEnum,
+            description:
+              dto.description ??
+              `Abono a cuenta: ${account.associate_accounts.accountNumber}`,
+            bankReference: dto.referenceNumber ?? undefined,
+            category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
+            creditAmount: totalAmount,
+            debitAmount: 0,
+            createdById: userId,
+          },
+          links: results.map((m) => ({
+            internalRecordType: 'MEMBER_CONTRIBUTION' as const,
+            internalRecordId: m.id,
+          })),
+        };
 
-      for (const m of results) {
-        await tx
-          .update(schema.associateAccountMovements)
-          .set({
-            referenceId: bankResult.movement.id.toString(),
-            referenceType: 'BANK_TRANSACTION',
-          })
-          .where(eq(schema.associateAccountMovements.id, m.id));
+        const bankResult = await this.bankMovementsService.createAndReconcile(
+          dataBank,
+          userId,
+          tenantId,
+          tx,
+        );
+
+        console.log('llegue aqui');
+
+
+        for (const m of results) {
+          await tx
+            .update(schema.associateAccountMovements)
+            .set({
+              referenceId: bankResult.movement.id.toString(),
+              referenceType: 'BANK_TRANSACTION',
+            })
+            .where(eq(schema.associateAccountMovements.id, m.id));
+        }
       }
 
       try {
@@ -181,41 +189,41 @@ export class IndividualLoadService {
             originType: 'SAVINGS_LOAD',
             roleAliases: isEmployerContribution
               ? {
-                  SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-                  EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
-                }
+                SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+                EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
+              }
               : {
-                  BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
-                },
+                BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
+              },
             items: [
               {
                 associateId: account.associates.id,
                 amounts: isEmployerContribution
                   ? {
-                      ASSOCIATED_SAVINGS: dto.associateAmount ?? 0,
-                      EMPLOYER_CONTRIBUTION: dto.employerAmount ?? 0,
-                    }
+                    ASSOCIATED_SAVINGS: dto.associateAmount ?? 0,
+                    EMPLOYER_CONTRIBUTION: dto.employerAmount ?? 0,
+                  }
                   : {
-                      VOLUNTARY_SAVINGS: dto.amount ?? 0,
-                    },
+                    VOLUNTARY_SAVINGS: dto.amount ?? 0,
+                  },
                 descriptions: isEmployerContribution
                   ? {
-                      ASSOCIATED_SAVINGS: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                      EMPLOYER_CONTRIBUTION: `APORTE DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                    }
+                    ASSOCIATED_SAVINGS: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                    EMPLOYER_CONTRIBUTION: `APORTE DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                  }
                   : {
-                      VOLUNTARY_SAVINGS: `AHORRO VOLUNTARIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                    },
+                    VOLUNTARY_SAVINGS: `AHORRO VOLUNTARIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                  },
               },
             ],
             globalDescriptions: isEmployerContribution
               ? {
-                  ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                  EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                }
+                ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+                EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+              }
               : {
-                  VOLUNTARY_SAVINGS: `APORTES VOLUNTARIOS DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                },
+                VOLUNTARY_SAVINGS: `APORTES VOLUNTARIOS DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
+              },
           },
           tx,
         );
@@ -521,23 +529,23 @@ export class IndividualLoadService {
               roleAliases:
                 typeCell === 'APORTE EMPLEADOS'
                   ? {
-                      SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-                      EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
-                    }
+                    SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+                    EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
+                  }
                   : {
-                      SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-                    },
+                    SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+                  },
 
               items: accountingItems,
               globalDescriptions:
                 typeCell === 'APORTE EMPLEADOS'
                   ? {
-                      ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${dateCell}`,
-                      EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${dateCell}`,
-                    }
+                    ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${dateCell}`,
+                    EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${dateCell}`,
+                  }
                   : {
-                      ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateCell}`,
-                    },
+                    ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateCell}`,
+                  },
             },
             tx,
           );

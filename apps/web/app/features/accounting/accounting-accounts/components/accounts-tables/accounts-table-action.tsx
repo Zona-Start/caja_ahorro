@@ -1,8 +1,8 @@
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
+import { Input } from '@repo/shadcn/input';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AccountPlanModal } from '../account-plan-modal';
 import { useAccountingAccountsFilters } from '../../hooks/use-accounting-accounts-filters';
 import {
@@ -28,15 +28,29 @@ export default function AccountsTableAction() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = useAccountingAccountsFilters();
 
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
+
   return (
     <div className="flex items-center justify-between mt-4 ">
       <div className="flex items-center gap-4 flex-grow">
-        <DataTableSearch
-          title="Buscar por código o nombre"
-          searchKey="search"
-          searchQuery={filters.search || ''}
-          setSearchQuery={(v) => setFilters({ search: v, page: 1 })}
-          setPage={(p) => setFilters({ page: p })}
+        <Input
+          placeholder="Buscar por código o nombre..."
+          value={searchValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="w-72 md:max-w-sm"
         />
         <DataTableFilterBox
           filterKey="type"

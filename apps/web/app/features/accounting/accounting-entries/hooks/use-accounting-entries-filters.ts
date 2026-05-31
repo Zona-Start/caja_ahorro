@@ -6,7 +6,7 @@ export const accountingEntriesFilterSchema = z.object({
   limit: z.coerce.number().default(10),
   search: z.string().optional(),
   status: z.string().optional(),
-  accountingCycleId: z.coerce.number().optional(),
+  accountingCycleId: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   sortBy: z.string().optional(),

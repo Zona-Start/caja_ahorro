@@ -1,4 +1,4 @@
-import { AlertModal } from '@/components/modal/alert-modal';
+
 import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
@@ -33,6 +33,7 @@ import { useForm } from 'react-hook-form';
 import { ASSOCIATE_MOVEMENT_TYPES } from '../schemas/individual-load-options';
 import { formSchema, type LoadAssest } from '../schemas/individual-load-schema';
 import { useIndividualLoadStore } from '../store/individual-load-store';
+import { AlertModal } from '@/components/shared/alert-modal';
 
 interface LoadAssetsFormProps {
   isSubmitting: boolean;
@@ -67,8 +68,8 @@ export function LoadAssetsForm({
       associateAmount: 0,
       transactionDate: new Date(),
       description: '',
-      bankAccountId: 0,
-      paymentMethod: 'BANK_TRANSFER',
+      bankAccountId: undefined,
+      paymentMethod: undefined,
       referenceNumber: '',
       includeBankingDetails: true,
     },
@@ -92,7 +93,8 @@ export function LoadAssetsForm({
         associateAmount: 0,
         transactionDate: new Date(),
         description: '',
-        paymentMethod: 'BANK_TRANSFER',
+        bankAccountId: undefined,
+        paymentMethod: undefined,
         referenceNumber: '',
         includeBankingDetails: true,
       });
@@ -204,16 +206,18 @@ export function LoadAssetsForm({
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
                                 Bs.
                               </span>
-                              <Input
-                                type="number"
-                                step="0.01"
+                               <Input
                                 className="pl-10 text-xl font-black h-12"
-                                placeholder="0.00"
-                                {...field}
-                                value={field.value ?? ''}
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
+                                placeholder="0,00"
+                                value={(field.value || 0).toLocaleString('es-ES', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                                onChange={(e) => {
+                                  const digits = e.target.value.replace(/\D/g, '');
+                                  field.onChange(parseInt(digits || '0', 10) / 100);
+                                }}
+                                onFocus={(e) => e.target.select()}
                                 disabled={isFormDisabled}
                               />
                             </div>
@@ -235,16 +239,18 @@ export function LoadAssetsForm({
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">
                                 Bs.
                               </span>
-                              <Input
-                                type="number"
-                                step="0.01"
+                               <Input
                                 className="pl-10 text-xl font-black h-12"
-                                placeholder="0.00"
-                                {...field}
-                                value={field.value ?? ''}
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
+                                placeholder="0,00"
+                                value={(field.value || 0).toLocaleString('es-ES', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                                onChange={(e) => {
+                                  const digits = e.target.value.replace(/\D/g, '');
+                                  field.onChange(parseInt(digits || '0', 10) / 100);
+                                }}
+                                onFocus={(e) => e.target.select()}
                                 disabled={isFormDisabled}
                               />
                             </div>
@@ -269,15 +275,17 @@ export function LoadAssetsForm({
                               Bs.
                             </span>
                             <Input
-                              type="number"
-                              step="0.01"
                               className="pl-10 text-xl font-black h-12"
-                              placeholder="0.00"
-                              {...field}
-                              value={field.value ?? ''}
-                              onChange={(e) =>
-                                field.onChange(Number(e.target.value))
-                              }
+                              placeholder="0,00"
+                              value={(field.value || 0).toLocaleString('es-ES', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}
+                              onChange={(e) => {
+                                const digits = e.target.value.replace(/\D/g, '');
+                                field.onChange(parseInt(digits || '0', 10) / 100);
+                              }}
+                              onFocus={(e) => e.target.select()}
                               disabled={isFormDisabled}
                             />
                           </div>
@@ -314,8 +322,8 @@ export function LoadAssetsForm({
                     Datos Bancarios
                   </h3>
                   <p className="text-xs text-muted-foreground italic">
-                    * Estos campos son ahora obligatorios para procesar la
-                    carga.
+                    * Estos campos son opcionales. Si no los completa, no se
+                    generará el movimiento bancario.
                   </p>
                 </div>
 

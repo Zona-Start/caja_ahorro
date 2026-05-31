@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
+import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
 import { useSaveLoanTypeMutation } from '../hooks/use-type-loans-mutation';
 import {
   type LoanTypeMutation,
@@ -39,6 +40,15 @@ export function LoanTypesForm({
   disabled = false,
 }: LoanTypesFormProps) {
   const { mutate: saveLoanType, isPending: isSaving } = useSaveLoanTypeMutation();
+  const { data: payrollTypes, isLoading: isLoadingPayroll } = useCategoriesByTypeQuery('payroll_type');
+
+  const toNumeric = (val: unknown): number | undefined => {
+    if (val === null || val === undefined || val === '') return undefined;
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  };
+
+  const isEdit = !!defaultValues?.id;
 
   const form = useForm<LoanTypeMutation>({
     resolver: zodResolver(loanTypeMutationSchema),
@@ -46,21 +56,21 @@ export function LoanTypesForm({
       id: defaultValues?.id,
       name: defaultValues?.name || '',
       description: defaultValues?.description || '',
-      interestRate: defaultValues?.interestRate ?? 0,
+      interestRate: isEdit ? (toNumeric(defaultValues?.interestRate) ?? 0) : 0,
       termType: defaultValues?.termType || 'Plazos',
-      termUnits: defaultValues?.termUnits ?? 1,
-      cancellationPercentage: defaultValues?.cancellationPercentage ?? undefined,
+      termUnits: isEdit ? (toNumeric(defaultValues?.termUnits) ?? 1) : 0,
+      cancellationPercentage: isEdit ? toNumeric(defaultValues?.cancellationPercentage) : 0,
       loanAccountChartId: defaultValues?.loanAccountChartId ?? undefined,
       interestEarnedAccountChartId: defaultValues?.interestEarnedAccountChartId ?? undefined,
       specialQuotaAccountChartId: defaultValues?.specialQuotaAccountChartId ?? undefined,
       expenseAccountChartId: defaultValues?.expenseAccountChartId ?? undefined,
-      specialQuotaNumber: defaultValues?.specialQuotaNumber ?? undefined,
-      specialQuotaPercentage: defaultValues?.specialQuotaPercentage ?? undefined,
-      maxLoanAmount: defaultValues?.maxLoanAmount ?? undefined,
-      minLoanAmount: defaultValues?.minLoanAmount ?? undefined,
+      specialQuotaNumber: isEdit ? toNumeric(defaultValues?.specialQuotaNumber) : 0,
+      specialQuotaPercentage: isEdit ? toNumeric(defaultValues?.specialQuotaPercentage) : 0,
+      maxLoanAmount: isEdit ? toNumeric(defaultValues?.maxLoanAmount) : 0,
+      minLoanAmount: isEdit ? toNumeric(defaultValues?.minLoanAmount) : 0,
       payrollTypeId: defaultValues?.payrollTypeId ?? undefined,
-      administrativeExpensePercentage: defaultValues?.administrativeExpensePercentage ?? undefined,
-      minimumSeniorityMonths: defaultValues?.minimumSeniorityMonths ?? undefined,
+      administrativeExpensePercentage: isEdit ? toNumeric(defaultValues?.administrativeExpensePercentage) : 0,
+      minimumSeniorityMonths: isEdit ? toNumeric(defaultValues?.minimumSeniorityMonths) : 0,
       acceptsDebitBalance: defaultValues?.acceptsDebitBalance ?? false,
       acceptsGuarantors: defaultValues?.acceptsGuarantors ?? false,
       acceptsAvailability: defaultValues?.acceptsAvailability ?? false,
@@ -123,6 +133,7 @@ export function LoanTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -144,7 +155,7 @@ export function LoanTypesForm({
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className='w-full'>
                       <SelectValue placeholder="Selecciona tipo" />
                     </SelectTrigger>
                   </FormControl>
@@ -163,12 +174,13 @@ export function LoanTypesForm({
             name="termUnits"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Unidades del Plazo</FormLabel>
+                <FormLabel>Número de cuotas o plazos</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="1"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={disabled}
                   />
@@ -183,7 +195,7 @@ export function LoanTypesForm({
             name="cancellationPercentage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>% Cancelación</FormLabel>
+                <FormLabel>% Cancelación (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -191,6 +203,7 @@ export function LoanTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -205,7 +218,7 @@ export function LoanTypesForm({
             name="administrativeExpensePercentage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>% Gasto Administrativo</FormLabel>
+                <FormLabel>% Gasto Administrativo (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -213,6 +226,7 @@ export function LoanTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -227,12 +241,13 @@ export function LoanTypesForm({
             name="minimumSeniorityMonths"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Antigüedad Mínima (meses)</FormLabel>
+                <FormLabel>Antigüedad Mínima en la Caja (meses)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={disabled}
                   />
@@ -247,12 +262,13 @@ export function LoanTypesForm({
             name="minLoanAmount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Monto Mínimo</FormLabel>
+                <FormLabel>Monto Mínimo (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -267,12 +283,13 @@ export function LoanTypesForm({
             name="maxLoanAmount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Monto Máximo</FormLabel>
+                <FormLabel>Monto Máximo (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -287,12 +304,13 @@ export function LoanTypesForm({
             name="specialQuotaNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Número Cuota Especial</FormLabel>
+                <FormLabel>Número Cuota Especial (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={disabled}
                   />
@@ -307,7 +325,7 @@ export function LoanTypesForm({
             name="specialQuotaPercentage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>% Cuota Especial</FormLabel>
+                <FormLabel>% Cuota Especial (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -315,10 +333,41 @@ export function LoanTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="payrollTypeId"
+            render={({ field }) => (
+              <FormItem className="md:col-span-2">
+                <FormLabel>Tipo de Nómina (Opcional)</FormLabel>
+                <Select
+                  onValueChange={(val) => field.onChange(val === 'none' ? null : val)}
+                  value={field.value || 'none'}
+                  disabled={disabled || isLoadingPayroll}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={isLoadingPayroll ? "Cargando tipos de nómina..." : "Selecciona un tipo de nómina"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Ninguno / No aplica</SelectItem>
+                    {payrollTypes?.map((payroll) => (
+                      <SelectItem key={payroll.id} value={payroll.id}>
+                        {payroll.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -332,7 +381,7 @@ export function LoanTypesForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                 <div className="space-y-0.5">
-                  <FormLabel>Acepta Débito</FormLabel>
+                  <FormLabel>Acepta Saldo Deudor</FormLabel>
                 </div>
                 <FormControl>
                   <Switch
@@ -352,7 +401,7 @@ export function LoanTypesForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                 <div className="space-y-0.5">
-                  <FormLabel>Acepta Avales</FormLabel>
+                  <FormLabel>Acepta Fiadores</FormLabel>
                 </div>
                 <FormControl>
                   <Switch
@@ -372,7 +421,7 @@ export function LoanTypesForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                 <div className="space-y-0.5">
-                  <FormLabel>Acepta Disponibilidad</FormLabel>
+                  <FormLabel>Afecta Disponibilidad</FormLabel>
                 </div>
                 <FormControl>
                   <Switch

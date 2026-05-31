@@ -12,7 +12,10 @@ const mapFiltersToApiParams = (filters: CategoriesFilters) => ({
   limit: filters.limit,
   search: filters.search || undefined,
   type: filters.type || undefined,
-  isActive: filters.isActive,
+  isActive:
+    filters.isActive !== undefined
+      ? filters.isActive === 'true'
+      : undefined,
 });
 
 export function useCategoriesQuery(

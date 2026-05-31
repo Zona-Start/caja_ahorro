@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
 export const accountingEntryDetailApiSchema = z.object({
-  id: z.number().optional(),
-  accountPlanId: z.number(),
+  id: z.string().optional(),
+  accountPlanId: z.string(),
   debit: z.string(),
   credit: z.string(),
   description: z.string().optional(),
   createdAt: z.string().optional().nullable(),
   updatedAt: z.string().optional().nullable(),
-  createdById: z.number().optional().nullable(),
-  updatedById: z.number().optional().nullable(),
+  createdById: z.string().optional().nullable(),
+  updatedById: z.string().optional().nullable(),
   account: z
     .object({
       code: z.string(),
@@ -19,9 +19,9 @@ export const accountingEntryDetailApiSchema = z.object({
 });
 
 export const accountingEntryApiSchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number(),
-  accountingCycleId: z.number(),
+  id: z.string().optional(),
+  tenantId: z.string().optional(),
+  accountingCycleId: z.string(),
   entryDate: z.string(),
   description: z.string(),
   voucherNo: z.string().optional().nullable(),
@@ -31,6 +31,8 @@ export const accountingEntryApiSchema = z.object({
   postedAt: z.string().optional().nullable(),
   createdAt: z.string().optional().nullable(),
   currencyCode: z.string(),
+  createdById: z.string().optional().nullable(),
+  updatedById: z.string().optional().nullable(),
   details: z.array(accountingEntryDetailApiSchema),
 });
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const loanTypeSchema = z.object({
-  id: z.number(),
+  id: z.string().uuid().optional(),
   name: z.string(),
   description: z.string().nullable().optional(),
   interestRate: z.number().min(0).max(100),
@@ -28,20 +28,26 @@ export const loanTypeSchema = z.object({
 });
 
 export const loanTypeMutationSchema = z.object({
-  id: z.number().optional(),
+  id: z.string().uuid().optional(),
   name: z.string().min(1, 'El nombre es requerido').max(100),
   description: z.string().optional(),
   interestRate: z
-    .number()
+    .number({
+      required_error: 'La tasa de interés es requerida',
+      invalid_type_error: 'La tasa de interés debe ser un número',
+    })
     .min(0, 'La tasa de interés debe ser mayor o igual a 0')
     .max(100, 'La tasa de interés no puede superar 100%'),
   termType: z.enum(['Plazos', 'Cuotas'], {
     required_error: 'El tipo de plazo es requerido',
   }),
   termUnits: z
-    .number()
-    .int()
-    .positive('Las unidades del plazo deben ser un número positivo'),
+    .number({
+      required_error: 'El número de cuotas o plazos es requerido',
+      invalid_type_error: 'El número de cuotas o plazos debe ser un número',
+    })
+    .int('El número de cuotas o plazos debe ser un número entero')
+    .positive('El número de cuotas o plazos debe ser un número positivo'),
   cancellationPercentage: z
     .number()
     .min(0)

@@ -1,0 +1,1 @@
+ALTER TABLE "tenant"."tenant_settings" DROP COLUMN "label";

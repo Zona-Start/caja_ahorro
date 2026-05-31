@@ -11,7 +11,7 @@ import {
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTenantsQuery } from '../../tenants/hooks/use-tenants-queries';
 import { useRolesFilters } from '../hooks/use-roles-filters';
 import { useRolesQuery } from '../hooks/use-roles-queries';
@@ -26,6 +26,21 @@ export default function RolesList() {
   const { filters, setFilters } = useRolesFilters();
   const { data, isLoading } = useRolesQuery(filters);
   const [openModal, setOpenModal] = useState(false);
+
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
 
   const { data: tenantsData } = useTenantsQuery(
     { page: 1, limit: 100, isActive: 'true' },
@@ -69,8 +84,8 @@ export default function RolesList() {
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Input
             placeholder="Buscar roles..."
-            value={filters.search || ''}
-            onChange={(e) => setFilters({ search: e.target.value, page: 1 })}
+            value={searchValue}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full sm:w-[250px]"
           />
           {isSystemAdmin && (

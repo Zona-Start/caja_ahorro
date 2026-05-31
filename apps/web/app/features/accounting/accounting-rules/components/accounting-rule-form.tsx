@@ -18,8 +18,8 @@ import {
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { Separator } from '@repo/shadcn/separator';
 import { Switch } from '@repo/shadcn/switch';
-import { Plus, Trash } from 'lucide-react';
-import { useMemo } from 'react';
+import { Loader2, Plus, Trash } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useAccountingAccounts } from '../../accounting-accounts/hooks/use-accounting-accounts-query';
 import { useAllAccountingRules } from '../hooks/use-all-accounting-rules';
@@ -75,28 +75,38 @@ export function AccountingRuleForm({
 
   const { mutate: saveAccountingRule, isPending: isSaving } =
     useAccountingRuleMutation();
-  const { data: allRules } = useAllAccountingRules();
+  const { data: allRules, isLoading: isLoadingRules } = useAllAccountingRules();
   const { data: accountingAccounts, isLoading: isLoadingAccounts } =
     useAccountingAccounts();
 
-  const { data: withdrawalTypes } = useWithdrawalTypesQuery(
+  const { data: withdrawalTypes, isLoading: isLoadingWithdrawals } = useWithdrawalTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
     operationType === 'WITHDRAWAL_TYPE' && !!reference,
   );
-  const { data: loanTypes } = useLoanTypesQuery(
+  const { data: loanTypes, isLoading: isLoadingLoans } = useLoanTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
     operationType === 'LOAN_TYPE' && !!reference,
   );
-  const { data: creditTypes } = useCreditTypesQuery(
+  const { data: creditTypes, isLoading: isLoadingCredits } = useCreditTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
     operationType === 'CREDIT_TYPE' && !!reference,
   );
-  const { data: payrollTypes } = useCategoriesByTypeQuery(
+  const { data: payrollTypes, isLoading: isLoadingPayroll } = useCategoriesByTypeQuery(
     'payroll_type',
     operationType === 'PAYROLL_CONCEPT' && !!reference,
   );
 
+  const isLoadingData = isLoadingRules || isLoadingAccounts ||
+    (operationType === 'WITHDRAWAL_TYPE' && !!reference && isLoadingWithdrawals) ||
+    (operationType === 'LOAN_TYPE' && !!reference && isLoadingLoans) ||
+    (operationType === 'CREDIT_TYPE' && !!reference && isLoadingCredits) ||
+    (operationType === 'PAYROLL_CONCEPT' && !!reference && isLoadingPayroll);
+
   const referenceLabel = useMemo(() => {
+    // For non-dynamic (fixed) operations, use the fixed referenceValue from the operation definition
+    if (opDef && !opDef.isDynamic && opDef.referenceValue) {
+      return opDef.referenceValue;
+    }
     if (!reference || !opDef?.isDynamic) return null;
     if (operationType === 'WITHDRAWAL_TYPE') {
       const found = withdrawalTypes?.data?.find(
@@ -125,16 +135,24 @@ export function AccountingRuleForm({
     return reference;
   }, [reference, operationType, opDef, withdrawalTypes, loanTypes, creditTypes, payrollTypes]);
 
+  // Resolve the effective referenceValue: for fixed ops use opDef.referenceValue, for dynamic use referenceLabel/reference
+  const effectiveReferenceValue = useMemo(() => {
+    if (opDef && !opDef.isDynamic && opDef.referenceValue) {
+      return opDef.referenceValue;
+    }
+    return referenceLabel || reference || null;
+  }, [opDef, referenceLabel, reference]);
+
   const existingRule = useMemo(() => {
     if (defaultValues?.id) return defaultValues as AccountingRule;
     if (!allRules || !operationType) return undefined;
 
-    if (opDef?.isDynamic && reference) {
+    if (effectiveReferenceValue) {
       return allRules.find(
         (r) =>
           r.category === category &&
           r.operationType === operationType &&
-          r.referenceValue === reference,
+          r.referenceValue === effectiveReferenceValue,
       );
     }
 
@@ -144,7 +162,7 @@ export function AccountingRuleForm({
         r.operationType === operationType &&
         !r.referenceValue,
     );
-  }, [allRules, category, operationType, reference, opDef, defaultValues]);
+  }, [allRules, category, operationType, effectiveReferenceValue, opDef, defaultValues]);
 
   const isEdit = !!existingRule?.id;
 
@@ -152,31 +170,61 @@ export function AccountingRuleForm({
     resolver: zodResolver(accountingRuleSchema),
     defaultValues: (existingRule
       ? {
-          id: existingRule.id,
-          tenantId: existingRule.tenantId ?? '',
-          category: existingRule.category,
-          operationType: existingRule.operationType,
-          description: existingRule.description ?? '',
-          referenceValue: existingRule.referenceValue ?? null,
-          isActive: existingRule.isActive ?? true,
-          details:
-            existingRule.details?.map((d) => ({
-              ...d,
-              isAuxiliary: d.isAuxiliary ?? false,
-              isAuxiliarySupplier: d.isAuxiliarySupplier ?? false,
-            })) || [],
-        }
+        id: existingRule.id,
+        tenantId: existingRule.tenantId ?? '',
+        category: existingRule.category,
+        operationType: existingRule.operationType,
+        description: existingRule.description ?? '',
+        referenceValue: existingRule.referenceValue ?? null,
+        isActive: existingRule.isActive ?? true,
+        details:
+          existingRule.details?.map((d) => ({
+            ...d,
+            isAuxiliary: d.isAuxiliary ?? false,
+            isAuxiliarySupplier: d.isAuxiliarySupplier ?? false,
+          })) || [],
+      }
       : {
-          tenantId: '',
-          category,
-          operationType,
-          description: '',
-          referenceValue: reference ?? null,
-          isActive: true,
-          details: [],
-        }) as AccountingRule,
+        tenantId: '',
+        category,
+        operationType,
+        description: '',
+        referenceValue: effectiveReferenceValue,
+        isActive: true,
+        details: [],
+      }) as AccountingRule,
     mode: 'onChange',
   });
+
+  useEffect(() => {
+    if (existingRule) {
+      form.reset({
+        id: existingRule.id,
+        tenantId: existingRule.tenantId ?? '',
+        category: existingRule.category as Category,
+        operationType: existingRule.operationType,
+        description: existingRule.description ?? '',
+        referenceValue: existingRule.referenceValue ?? null,
+        isActive: existingRule.isActive ?? true,
+        details:
+          existingRule.details?.map((d) => ({
+            ...d,
+            isAuxiliary: d.isAuxiliary ?? false,
+            isAuxiliarySupplier: d.isAuxiliarySupplier ?? false,
+          })) || [],
+      });
+    } else {
+      form.reset({
+        tenantId: '',
+        category,
+        operationType,
+        description: '',
+        referenceValue: effectiveReferenceValue,
+        isActive: true,
+        details: [],
+      });
+    }
+  }, [existingRule, category, operationType, reference, referenceLabel, form]);
 
   const selectedCategory = useWatch({ control: form.control, name: 'category' });
 
@@ -185,10 +233,10 @@ export function AccountingRuleForm({
     name: 'details',
   });
 
-  const operationOptions = useMemo(
-    () => operationsByCategory[selectedCategory] || [],
-    [selectedCategory],
-  );
+  // const operationOptions = useMemo(
+  //   () => operationsByCategory[selectedCategory] || [],
+  //   [selectedCategory],
+  // );
 
   const roleOptions = useMemo(
     () => roleOptionsByCategory[selectedCategory] || [],
@@ -203,14 +251,32 @@ export function AccountingRuleForm({
     ? `${operationLabel} › ${referenceLabel}`
     : operationLabel;
 
+
+  if (isLoadingData) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground">Cargando datos...</p>
+      </div>
+    );
+  }
+
   return (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit((data) => {
+          const sanitizedDetails = data.details?.map((d) => ({
+            ...d,
+            accountPlanId: d.accountPlanId && d.accountPlanId !== '' && d.accountPlanId !== 'null' ? d.accountPlanId : null,
+            accountRole: d.accountRole && d.accountRole !== '' ? d.accountRole : null,
+            formula: d.formula && d.formula !== '' ? d.formula : null,
+          })) || [];
+
           const payload: AccountingRule = {
             ...data,
-            referenceValue: reference ?? data.referenceValue ?? null,
+            referenceValue: effectiveReferenceValue,
             tenantId: data.tenantId || '',
+            details: sanitizedDetails,
           };
           saveAccountingRule(payload, {
             onSuccess: () => {
@@ -249,8 +315,8 @@ export function AccountingRuleForm({
         <Separator />
 
         <div className="flex-1 overflow-auto px-6 py-4 space-y-4">
-          <div className="grid grid-cols-4 gap-4">
-            <FormField
+          <div className="grid grid-cols-2 gap-4">
+            {/* <FormField
               control={form.control}
               name="category"
               render={({ field }) => (
@@ -261,7 +327,7 @@ export function AccountingRuleForm({
                     disabled={readOnly || isPageMode}
                   >
                     <FormControl>
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="h-9 w-full">
                         <SelectValue placeholder="Categoría" />
                       </SelectTrigger>
                     </FormControl>
@@ -269,8 +335,8 @@ export function AccountingRuleForm({
                       <SelectItem value="SAVINGS_BANK">
                         Caja de Ahorro
                       </SelectItem>
-                      <SelectItem value="ADMINISTRATIVE">
-                        Administrativa
+                      <SelectItem value="PURCHASING">
+                        Compras
                       </SelectItem>
                       <SelectItem value="BANKING">Bancaria</SelectItem>
                       <SelectItem value="ACCOUNTING">Contable</SelectItem>
@@ -293,7 +359,7 @@ export function AccountingRuleForm({
                     disabled={readOnly || isPageMode}
                   >
                     <FormControl>
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="h-9 w-full">
                         <SelectValue placeholder="Operación" />
                       </SelectTrigger>
                     </FormControl>
@@ -308,7 +374,7 @@ export function AccountingRuleForm({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
 
             <FormField
               control={form.control}
@@ -340,14 +406,14 @@ export function AccountingRuleForm({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                append({
-                  movementType: 'DEBIT',
-                  accountRole: '',
-                  formula: '',
-                  accountPlanId: null as string | null,
-                  isAuxiliary: false,
-                  isAuxiliarySupplier: false,
-                })
+                  append({
+                    movementType: 'DEBIT',
+                    accountRole: '',
+                    formula: '',
+                    accountPlanId: null as string | null,
+                    isAuxiliary: false,
+                    isAuxiliarySupplier: false,
+                  })
                 }
               >
                 <Plus className="mr-1 h-4 w-4" />
@@ -357,32 +423,20 @@ export function AccountingRuleForm({
           </div>
 
           {fields.length > 0 ? (
-            <div className="rounded-md border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground w-[100px]">
-                      Tipo
-                    </th>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                      Rol de Cuenta
-                    </th>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                      Cuenta Específica
-                    </th>
-                    <th className="px-3 py-2 text-center font-medium text-muted-foreground w-[80px]">
-                      Aux. Socio
-                    </th>
-                    <th className="px-3 py-2 w-[40px]" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {fields.map((field, index) => (
-                    <tr
-                      key={field.id}
-                      className="border-b last:border-b-0 hover:bg-muted/30"
-                    >
-                      <td className="px-3 py-1.5">
+            <div className="space-y-4">
+              {fields.map((field, index) => (
+                <div
+                  key={field.id}
+                  className="relative flex items-stretch rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow"
+                >
+                  {/* Inputs Area */}
+                  <div className="flex-1 p-4 space-y-4">
+                    {/* Row 1: Tipo & Rol */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/75">
+                          Tipo
+                        </span>
                         <FormField
                           control={form.control}
                           name={`details.${index}.movementType`}
@@ -394,7 +448,7 @@ export function AccountingRuleForm({
                                 disabled={readOnly}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="h-8 border-0 bg-transparent px-0 shadow-none focus:ring-0">
+                                  <SelectTrigger className="h-9 w-full">
                                     <SelectValue placeholder="Tipo" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -407,8 +461,11 @@ export function AccountingRuleForm({
                             </FormItem>
                           )}
                         />
-                      </td>
-                      <td className="px-3 py-1.5">
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/75">
+                          Rol de Cuenta
+                        </span>
                         <FormField
                           control={form.control}
                           name={`details.${index}.accountRole`}
@@ -420,7 +477,7 @@ export function AccountingRuleForm({
                                 disabled={readOnly}
                               >
                                 <FormControl>
-                                  <SelectTrigger className="h-8 border-0 bg-transparent px-0 shadow-none focus:ring-0">
+                                  <SelectTrigger className="h-9 w-full">
                                     <SelectValue placeholder="Seleccione Rol" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -439,8 +496,15 @@ export function AccountingRuleForm({
                             </FormItem>
                           )}
                         />
-                      </td>
-                      <td className="px-3 py-1.5">
+                      </div>
+                    </div>
+
+                    {/* Row 2: Cuenta & Aux */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/75">
+                          Cuenta Específica
+                        </span>
                         <FormField
                           control={form.control}
                           name={`details.${index}.accountPlanId`}
@@ -451,7 +515,7 @@ export function AccountingRuleForm({
                                   <Input
                                     placeholder="Cargando..."
                                     disabled
-                                    className="h-8"
+                                    className="h-9"
                                   />
                                 ) : (
                                   <SelectSearchable
@@ -480,41 +544,48 @@ export function AccountingRuleForm({
                             </FormItem>
                           )}
                         />
-                      </td>
-                      <td className="px-3 py-1.5 text-center">
-                        <FormField
-                          control={form.control}
-                          name={`details.${index}.isAuxiliary`}
-                          render={({ field: f }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Switch
-                                  checked={f.value}
-                                  onCheckedChange={f.onChange}
-                                  disabled={readOnly}
-                                />
-                              </FormControl>
-                            </FormItem>
-                          )}
-                        />
-                      </td>
-                      <td className="px-1 py-1.5">
-                        {!readOnly && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => remove(index)}
-                          >
-                            <Trash className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                      <div className="space-y-1.5 flex flex-col justify-end">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/75 text-center block mb-1">
+                          Aux. Socio
+                        </span>
+                        <div className="flex justify-center items-center h-9">
+                          <FormField
+                            control={form.control}
+                            name={`details.${index}.isAuxiliary`}
+                            render={({ field: f }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Switch
+                                    checked={f.value}
+                                    onCheckedChange={f.onChange}
+                                    disabled={readOnly}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delete Button Area */}
+                  {!readOnly && (
+                    <div className="flex items-center justify-center border-l bg-muted/10 px-3 hover:bg-destructive/10 transition-colors group rounded-r-lg">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 text-muted-foreground group-hover:text-destructive transition-colors"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             <p className="text-sm text-muted-foreground py-4 text-center border rounded-md">

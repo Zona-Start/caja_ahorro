@@ -60,6 +60,7 @@ export function UsersForm({
     {
       page: 1,
       limit: 100,
+      search: '',
       isActive: 'true',
     },
     isSystemAdmin
@@ -256,7 +257,7 @@ export function UsersForm({
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Seleccionar estado" />
                     </SelectTrigger>
                   </FormControl>
@@ -327,7 +328,7 @@ export function UsersForm({
                   }
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Seleccionar rol" />
                     </SelectTrigger>
                   </FormControl>

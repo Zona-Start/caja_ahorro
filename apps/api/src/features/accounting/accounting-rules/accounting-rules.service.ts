@@ -14,7 +14,7 @@ export class AccountingRulesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   async create(
     tenantId: string,

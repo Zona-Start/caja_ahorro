@@ -8,10 +8,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTenantsQuery } from '../../tenants/hooks/use-tenants-queries';
 import { useUsersFilters } from '../hooks/use-users-filters';
 import { useUsersQuery } from '../hooks/use-users-queries';
@@ -19,13 +20,34 @@ import { usersColumns } from './tables/users-columns';
 import { UsersHeader } from './users-header';
 import { UsersModal } from './users-modal';
 
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Activo' },
+  { value: 'inactive', label: 'Inactivo' },
+  { value: 'blocked', label: 'Bloqueado' },
+];
+
 export default function UsersList() {
   const { user } = useAuthStore();
   const isSystemAdmin = user?.isSystemAdmin ?? false;
 
-  const { filters, setFilters, clearFilters } = useUsersFilters();
+  const { filters, setFilters } = useUsersFilters();
   const { data, isLoading } = useUsersQuery(filters);
   const [openModal, setOpenModal] = useState(false);
+
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
 
   const { data: tenantsData } = useTenantsQuery(
     { page: 1, limit: 100, isActive: 'true' },
@@ -54,29 +76,17 @@ export default function UsersList() {
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Input
             placeholder="Buscar usuarios..."
-            value={filters.search || ''}
-            onChange={(e) => setFilters({ search: e.target.value, page: 1 })}
+            value={searchValue}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full sm:w-[250px]"
           />
-          <Select
-            value={filters.status || 'all'}
-            onValueChange={(value) =>
-              setFilters({
-                status: value === 'all' ? undefined : value,
-                page: 1,
-              })
-            }
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Estado" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="active">Activo</SelectItem>
-              <SelectItem value="inactive">Inactivo</SelectItem>
-              <SelectItem value="blocked">Bloqueado</SelectItem>
-            </SelectContent>
-          </Select>
+          <DataTableFilterBox
+            filterKey="status"
+            title="Estado"
+            options={STATUS_OPTIONS}
+            setFilterValue={(v) => setFilters({ status: v, page: 1 })}
+            filterValue={filters.status || ''}
+          />
           {isSystemAdmin && (
             <Select
               value={filters.tenantId || 'all'}

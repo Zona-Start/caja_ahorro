@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const creditTypeSchema = z.object({
-  id: z.number(),
+  id: z.string().uuid().optional(),
   name: z.string(),
   description: z.string().nullable().optional(),
   interestRate: z.number().min(0).max(100),
@@ -28,19 +28,25 @@ export const creditTypeSchema = z.object({
 });
 
 export const creditTypeMutationSchema = z.object({
-  id: z.number().optional(),
+  id: z.string().uuid().optional(),
   name: z.string().min(1, 'El nombre es requerido').max(100),
   description: z.string().optional(),
   interestRate: z
-    .number()
+    .number({
+      required_error: 'La tasa de interés es requerida',
+      invalid_type_error: 'La tasa de interés debe ser un número',
+    })
     .min(0, 'La tasa de interés debe ser mayor o igual a 0')
     .max(100, 'La tasa de interés no puede superar 100%'),
   termType: z.enum(['Plazos', 'Cuotas'], {
     required_error: 'El tipo de plazo es requerido',
   }),
   termUnits: z
-    .number()
-    .int()
+    .number({
+      required_error: 'Las unidades del plazo son requeridas',
+      invalid_type_error: 'Las unidades del plazo deben ser un número',
+    })
+    .int('Las unidades del plazo deben ser un número entero')
     .positive('Las unidades del plazo deben ser un número positivo'),
   cancellationPercentage: z
     .number()
@@ -56,7 +62,13 @@ export const creditTypeMutationSchema = z.object({
   maxCreditAmount: z.number().min(0).optional(),
   minCreditAmount: z.number().min(0).optional(),
   payrollTypeId: z.string().uuid('Debe ser un UUID válido').optional().nullable(),
-  administrativeExpensePercentage: z.number().min(0).max(100).optional(),
+  administrativeExpensePercentage: z
+    .number({
+      required_error: 'El porcentaje de gasto administrativo es requerido',
+      invalid_type_error: 'El porcentaje de gasto administrativo debe ser un número',
+    })
+    .min(0, 'El porcentaje de gasto administrativo debe ser mayor o igual a 0')
+    .max(100, 'El porcentaje de gasto administrativo no puede superar 100%'),
   minimumSeniorityMonths: z.number().int().min(0).optional(),
   acceptsDebitBalance: z.boolean().default(false),
   acceptsGuarantors: z.boolean().default(false),

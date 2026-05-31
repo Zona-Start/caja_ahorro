@@ -4,8 +4,8 @@ import { ENTRY_STATUS } from './accounting-entry-options';
 const statusEnum = z.enum(Object.keys(ENTRY_STATUS) as [string, ...string[]]);
 
 export const accountingEntryDetailSchema = z.object({
-  id: z.number().optional(),
-  accountPlanId: z.number({ required_error: 'La cuenta es requerida.' }),
+  id: z.string().optional(),
+  accountPlanId: z.string({ required_error: 'La cuenta es requerida.' }),
   debit: z.number().min(0, 'El débito debe ser un valor positivo.'),
   credit: z.number().min(0, 'El crédito debe ser un valor positivo.'),
   description: z.string().optional(),
@@ -18,9 +18,9 @@ export const accountingEntryDetailSchema = z.object({
 });
 
 export const accountingEntrySchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number(),
-  accountingCycleId: z.number({
+  id: z.string().optional(),
+  tenantId: z.string().optional(),
+  accountingCycleId: z.string({
     required_error: 'El ciclo contable es requerido.',
   }),
   entryDate: z.coerce.date({ required_error: 'La fecha es requerida.' }),
@@ -30,7 +30,7 @@ export const accountingEntrySchema = z.object({
   originType: z.string().optional(),
   status: statusEnum.optional(),
   postedAt: z.coerce.date().optional(),
-  createdAt: z.string().optional(),
+  createdAt: z.string().optional().nullable(),
   currencyCode: z.string().min(1, 'La moneda es requerida.'),
   details: z
     .array(accountingEntryDetailSchema)

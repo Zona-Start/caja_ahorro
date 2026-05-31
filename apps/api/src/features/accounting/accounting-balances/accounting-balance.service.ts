@@ -22,7 +22,7 @@ export class AccountingBalanceService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   async bootstrapping(
     userId: string,
@@ -62,7 +62,7 @@ export class AccountingBalanceService {
         });
       }
       const totalBalance = finalRows.reduce((sum, row) => {
-        const val = row.balance ?? row.SALDO_ACTUAL ?? row.saldo_actual ?? 0;
+        const val = row.balance ?? row.SALDO_ACTUAL ?? row.saldo_actual ?? row.SALDO ?? row.saldo ?? 0;
         return sum + Number(val);
       }, 0);
 
@@ -132,20 +132,39 @@ export class AccountingBalanceService {
 
     for (const item of uniqueBalances) {
       const account = accountMap.get(item.accountCode);
+      if (!account || !account.allowsMovements) continue;
+
       const amount = Number(item.balance);
 
-      if (!account) continue;
-
-      if (!account.allowsMovements) continue;
-
-      if (amount > 0) {
-        totalDebits += amount;
-      } else {
-        totalCredits += Math.abs(amount);
+      // --- LOGICA CORREGIDA PARA DETERMINAR DEBITOS Y CREDITOS ---
+      // Evaluamos según la naturaleza de la cuenta en el sistema, no solo por el signo del Excel.
+      if (account.nature === 'DEBIT') {
+        if (amount >= 0) {
+          totalDebits += amount;
+        } else {
+          // Un saldo negativo en una cuenta deudora actúa como un crédito
+          totalCredits += Math.abs(amount);
+        }
+      } else if (account.nature === 'CREDIT') {
+        if (amount <= 0) {
+          // Si el sistema viejo exportó los créditos en negativo (ej: -43819560.38)
+          totalCredits += Math.abs(amount);
+        } else {
+          // Si el sistema viejo exportó los créditos en positivo (ej: 387419.35 de pasivo)
+          totalCredits += amount;
+        }
       }
 
+      // Definir cómo se guardará en la base de datos de acuerdo a tu arquitectura.
+      // (Habitualmente los saldos en la tabla base se guardan respetando su signo natural o absolutos)
       let balanceToStore = amount;
-      if (account.nature === 'CREDIT') balanceToStore = -amount;
+      if (account.nature === 'CREDIT' && amount > 0) {
+        // Si tu backend espera los créditos firmados en negativo internamente:
+        balanceToStore = -amount;
+      } else if (account.nature === 'CREDIT' && amount < 0) {
+        // Si ya venía negativo del excel, lo dejamos igual
+        balanceToStore = amount;
+      }
 
       payloadToInsert.push({
         tenantId,
@@ -160,24 +179,32 @@ export class AccountingBalanceService {
       });
     }
 
-    const diff = Math.abs(totalDebits - totalCredits);
-    if (diff > 1.0) throw new ConflictException(`Initial Load Imbalance`);
+    // Evitamos problemas de precisión decimal multiplicando por 100 antes de restar
+    const diff = Math.abs(Math.round(totalDebits * 100) - Math.round(totalCredits * 100)) / 100;
+
+    // Si la diferencia es mayor a 1 unidad monetaria (o un centavo, según tu nivel de tolerancia)
+    if (diff > 1.0) {
+      throw new ConflictException(
+        `Initial Load Imbalance. Total Debits: ${totalDebits.toFixed(2)}, Total Credits: ${totalCredits.toFixed(2)}. Difference: ${diff.toFixed(2)}`
+      );
+    }
 
     return this.drizzle.transaction(async (tx) => {
       if (payloadToInsert.length > 0) {
         await tx.insert(schema.accountBalances).values(payloadToInsert);
       }
-      // Registra el log auditoria
+
+      // Registra el log de auditoría
       await this.auditHelper.logCreate(
         tenantId,
         'accountBalances',
         payloadToInsert[0],
         {
           targetId: payloadToInsert[0].id,
-          description: `Created Account Balance ${payloadToInsert[0].initialBalance}`,
+          description: `Initial balances loaded successfully. Total registered: ${payloadToInsert.length} accounts.`,
         },
       );
-      return { message: 'Success' };
+      return { message: 'Success', processedAccounts: payloadToInsert.length };
     });
   }
 

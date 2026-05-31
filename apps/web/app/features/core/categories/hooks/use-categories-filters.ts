@@ -2,11 +2,11 @@ import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 
 export const categoriesFilterSchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(10),
+  page: z.coerce.number().int().positive().default(1).optional(),
+  limit: z.coerce.number().int().positive().max(100).default(10).optional(),
   search: z.string().optional(),
   type: z.string().optional(),
-  isActive: z.coerce.boolean().optional(),
+  isActive: z.string().optional(),
 });
 
 export type CategoriesFilters = z.infer<typeof categoriesFilterSchema>;

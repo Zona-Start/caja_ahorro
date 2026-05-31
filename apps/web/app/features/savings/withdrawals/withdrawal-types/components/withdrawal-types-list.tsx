@@ -3,7 +3,7 @@ import { Input } from '@repo/shadcn/input';
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWithdrawalTypesFilters } from '../hooks/use-withdrawal-types-filters';
 import { useWithdrawalTypesQuery } from '../hooks/use-withdrawal-types-query';
 import { columns } from './withdrawal-types-tables/columns';
@@ -14,6 +14,21 @@ export default function WithdrawalTypesList() {
   const { filters, setFilters } = useWithdrawalTypesFilters();
   const { data, isLoading } = useWithdrawalTypesQuery(filters);
   const [openModal, setOpenModal] = useState(false);
+
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={8} rowCount={filters.limit} />;
@@ -29,8 +44,8 @@ export default function WithdrawalTypesList() {
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Input
             placeholder="Buscar tipos de retiros..."
-            value={filters.search || ''}
-            onChange={(e) => setFilters({ search: e.target.value })}
+            value={searchValue}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full sm:w-[300px]"
           />
         </div>

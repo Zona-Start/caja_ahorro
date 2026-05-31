@@ -8,7 +8,7 @@ export function ModuleSettingsHeader({ count }: ModuleSettingsHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <Heading
-        title={`Parámetros por Módulo (${count ?? 0})`}
+        title="Parámetros por Módulo"
         description="Gestiona los parámetros de configuración por módulo"
       />
     </div>

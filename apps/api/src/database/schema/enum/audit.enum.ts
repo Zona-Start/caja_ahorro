@@ -25,6 +25,16 @@ export const auditTargetTypesEnum = auditSchema.enum('audit_target_type', [
   'transaction',
   'report',
   'settings',
+  'accounting_rule',
+  'module_setting',
+  'withdrawal',
+  'withdrawal_type',
+  'loan',
+  'loan_type',
+  'loan_payment',
+  'credit_request',
+  'credit_payment',
+  'credit_type'
 ]);
 
 export const severityLevelsEnum = auditSchema.enum('severity_level', [

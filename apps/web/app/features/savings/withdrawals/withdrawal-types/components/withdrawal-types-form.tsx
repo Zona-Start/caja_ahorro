@@ -40,17 +40,21 @@ export function WithdrawalTypesForm({
     CATEGORY_TYPES.DISCOUNT_FREQUENCY,
   );
 
+  const toNumeric = (val: unknown): number | undefined => {
+    if (val === null || val === undefined || val === '') return undefined;
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  };
+
   const form = useForm<WithdrawalTypeMutation>({
     resolver: zodResolver(withdrawalTypeMutationSchema),
     defaultValues: {
       id: defaultValues?.id,
       description: defaultValues?.description || '',
-      withdrawalPercentage: defaultValues?.withdrawalPercentage ?? undefined,
-      administrativeFeePercentage:
-        defaultValues?.administrativeFeePercentage ?? undefined,
-      withdrawalLimitQuantity:
-        defaultValues?.withdrawalLimitQuantity ?? undefined,
-      minimumAntiquityDays: defaultValues?.minimumAntiquityDays ?? undefined,
+      withdrawalPercentage: toNumeric(defaultValues?.withdrawalPercentage),
+      administrativeFeePercentage: toNumeric(defaultValues?.administrativeFeePercentage),
+      withdrawalLimitQuantity: toNumeric(defaultValues?.withdrawalLimitQuantity),
+      minimumAntiquityDays: toNumeric(defaultValues?.minimumAntiquityDays),
       withdrawalFrequencyRelation:
         defaultValues?.withdrawalFrequencyRelation ?? undefined,
       accountDebit: defaultValues?.accountDebit ?? undefined,

@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
 import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { usePermissions } from '@/hooks/use-permissions';
 import { ModuleSetting } from '../../schemas/module-settings.schema';
 import { useDeleteModuleSettingMutation } from '../../hooks/use-module-settings-mutations';
 import { ModuleSettingsModal } from '../module-settings-modal';
@@ -23,7 +24,10 @@ export function ModuleSettingsCellAction({ data }: ModuleSettingsCellActionProps
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
 
+  const { can } = usePermissions();
   const deleteMutation = useDeleteModuleSettingMutation();
+
+  const canDelete = can('system:modules', 'delete', 'all');
 
   const onConfirmDelete = async () => {
     try {
@@ -77,14 +81,18 @@ export function ModuleSettingsCellAction({ data }: ModuleSettingsCellActionProps
             <Edit className="mr-2 h-4 w-4" />
             Editar
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setOpenDelete(true)}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

@@ -1,8 +1,8 @@
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
+import { Input } from '@repo/shadcn/input';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AccountingCycleModal } from '../accounting-cycle-modal';
 import { useAccountingCyclesFilters } from '../../hooks/use-accounting-cycles-filters';
 import { CYCLE_STATUS_OPTIONS } from '../../schemas/accounting-cycle-options';
@@ -18,15 +18,29 @@ export default function AccountingCycleTableAction() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = useAccountingCyclesFilters();
 
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
+
   return (
     <div className="flex items-center justify-between mt-4 ">
       <div className="flex items-center gap-4 flex-grow">
-        <DataTableSearch
-          title="Buscar por descripción"
-          searchKey="description"
-          searchQuery={filters.search || ''}
-          setSearchQuery={(v) => setFilters({ search: v, page: 1 })}
-          setPage={(p) => setFilters({ page: p })}
+        <Input
+          placeholder="Buscar por descripción..."
+          value={searchValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="w-72 md:max-w-sm"
         />
         <DataTableFilterBox
           filterKey="status"

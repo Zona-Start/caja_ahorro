@@ -55,8 +55,11 @@ export function AccountPlanForm({
       accountType: defaultValues?.accountType || 'ASSET',
       level: defaultValues?.level || 1,
       id: defaultValues?.id,
-      companyId: defaultValues?.companyId || 1,
-      parentAccountId: defaultValues?.parentAccountId || null,
+      tenantId: defaultValues?.tenantId || '',
+      parentAccountId:
+        defaultValues?.parentAccountId && typeof defaultValues.parentAccountId === 'string'
+          ? defaultValues.parentAccountId
+          : null,
       allowsMovements: defaultValues?.allowsMovements || false,
       isActive: defaultValues?.isActive || true,
       nature: defaultValues?.nature || 'DEBIT',
@@ -98,6 +101,7 @@ export function AccountPlanForm({
       },
     });
   };
+
 
   return (
     <Form {...form}>
@@ -208,7 +212,11 @@ export function AccountPlanForm({
                     })) || []
                   }
                   onValueChange={(value) =>
-                    field.onChange(value === 'null' ? null : Number(value))
+                    field.onChange(
+                      value && value !== 'null' && value !== 'NaN'
+                        ? value
+                        : null,
+                    )
                   }
                   placeholder="Selecciona una cuenta padre"
                   defaultValue={field.value?.toString() || 'null'}

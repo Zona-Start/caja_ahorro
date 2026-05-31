@@ -15,31 +15,20 @@ export const columns: ColumnDef<CreditType>[] = [
   {
     accessorKey: 'interestRate',
     header: 'Tasa Interés',
-    cell: ({ getValue }) => `${Number(getValue()).toFixed(2)} %`,
+    cell: ({ getValue }) => `${Number(getValue())} %`,
   },
   {
     accessorKey: 'termType',
-    header: 'Tipo Plazo',
+    header: 'Tipo',
   },
   {
     accessorKey: 'termUnits',
-    header: 'Unidades',
+    header: 'Cantidad',
   },
   {
-    accessorKey: 'minCreditAmount',
-    header: 'Monto Mín',
-    cell: ({ getValue }) => {
-      const value = getValue();
-      return value != null ? `$${Number(value).toLocaleString()}` : '-';
-    },
-  },
-  {
-    accessorKey: 'maxCreditAmount',
-    header: 'Monto Máx',
-    cell: ({ getValue }) => {
-      const value = getValue();
-      return value != null ? `$${Number(value).toLocaleString()}` : '-';
-    },
+    accessorKey: 'administrativeExpensePercentage',
+    header: '% Gasto Admin',
+    cell: ({ getValue }) => `${Number(getValue())} %`,
   },
   {
     id: 'actions',

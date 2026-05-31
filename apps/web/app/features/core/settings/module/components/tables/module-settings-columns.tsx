@@ -4,31 +4,22 @@ import { ModuleSettingsCellAction } from './module-settings-cell-action';
 
 export const moduleSettingsColumns: ColumnDef<ModuleSetting>[] = [
   {
-    accessorKey: 'module',
-    header: 'Módulo',
-  },
-  {
-    accessorKey: 'submodule',
-    header: 'Submódulo',
-    cell: ({ row }) => row.original.submodule || 'N/A',
-  },
-  {
-    accessorKey: 'key',
-    header: 'Clave',
+    accessorKey: 'description',
+    header: 'Descripción',
+    cell: ({ row }) => row.original.description || 'N/A',
   },
   {
     accessorKey: 'value',
     header: 'Valor',
-    cell: ({ row }) => (
-      <span className="max-w-[200px] truncate block" title={row.original.value}>
-        {row.original.value}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'description',
-    header: 'Descripción',
-    cell: ({ row }) => row.original.description || 'N/A',
+    cell: ({ row }) => {
+      const raw = row.original.value;
+      const display = raw === 'true' ? 'Sí' : raw === 'false' ? 'No' : raw;
+      return (
+        <span className="max-w-[200px] truncate block" title={display}>
+          {display}
+        </span>
+      );
+    },
   },
   {
     id: 'actions',

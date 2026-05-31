@@ -1,8 +1,4 @@
-import { type Metadata } from 'react';
 
-export const metadata: Metadata = {
-  title: 'Tipos de Préstamos',
-};
 
 export function LoanTypesHeader() {
   return (

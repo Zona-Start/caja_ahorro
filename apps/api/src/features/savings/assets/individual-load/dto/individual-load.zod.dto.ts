@@ -10,9 +10,9 @@ export const CreateIndividualLoadSchema = z.object({
   associateAmount: z.number().nonnegative().optional(),
   transactionDate: z.coerce.date().optional(),
   description: z.string().optional(),
-  bankAccountId: z.string().uuid(),
-  paymentMethod: z.nativeEnum(paymentMethodEnum),
-  referenceNumber: z.string().min(1),
+  bankAccountId: z.string().uuid().optional().nullable(),
+  paymentMethod: z.nativeEnum(paymentMethodEnum).optional(),
+  referenceNumber: z.string().optional().nullable(),
 });
 
 export type CreateIndividualLoadDto = z.infer<typeof CreateIndividualLoadSchema>;
@@ -21,9 +21,9 @@ export const BulkIndividualLoadSchema = z.object({
   tenantId: z.string().uuid().optional(),
   transactionDate: z.coerce.date().optional(),
   description: z.string().optional(),
-  bankAccountId: z.string().uuid().optional(),
-  paymentMethod: z.nativeEnum(paymentMethodEnum).optional(),
-  referenceNumber: z.string().min(1).optional(),
+  bankAccountId: z.string().uuid().optional().nullable(),
+  paymentMethod: z.nativeEnum(paymentMethodEnum).optional().nullable(),
+  referenceNumber: z.string().optional().nullable(),
 });
 
 export type BulkIndividualLoadDto = z.infer<typeof BulkIndividualLoadSchema>;

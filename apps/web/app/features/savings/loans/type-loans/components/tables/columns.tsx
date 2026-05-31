@@ -15,7 +15,7 @@ export const columns: ColumnDef<LoanType>[] = [
   {
     accessorKey: 'interestRate',
     header: 'Tasa Interés',
-    cell: ({ getValue }) => `${Number(getValue()).toFixed(2)} %`,
+    cell: ({ getValue }) => `${Number(getValue())} %`,
   },
   {
     accessorKey: 'termType',
@@ -26,20 +26,9 @@ export const columns: ColumnDef<LoanType>[] = [
     header: 'Unidades',
   },
   {
-    accessorKey: 'minLoanAmount',
-    header: 'Monto Mín',
-    cell: ({ getValue }) => {
-      const value = getValue();
-      return value != null ? `$${Number(value).toLocaleString()}` : '-';
-    },
-  },
-  {
-    accessorKey: 'maxLoanAmount',
-    header: 'Monto Máx',
-    cell: ({ getValue }) => {
-      const value = getValue();
-      return value != null ? `$${Number(value).toLocaleString()}` : '-';
-    },
+    accessorKey: 'administrativeExpensePercentage',
+    header: '% Gasto Administrativo',
+    cell: ({ getValue }) => `${Number(getValue())} %`,
   },
   {
     id: 'actions',

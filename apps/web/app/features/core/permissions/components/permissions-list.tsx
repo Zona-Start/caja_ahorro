@@ -3,7 +3,7 @@ import { Input } from '@repo/shadcn/input';
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePermissionsFilters } from '../hooks/use-permissions-filters';
 import { usePermissionsQuery } from '../hooks/use-permissions-queries';
 import { PermissionsHeader } from './permissions-header';
@@ -11,9 +11,24 @@ import { PermissionsModal } from './permissions-modal';
 import { permissionsColumns } from './tables/permissions-columns';
 
 export default function PermissionsList() {
-  const { filters, setFilters, clearFilters } = usePermissionsFilters();
+  const { filters, setFilters } = usePermissionsFilters();
   const { data, isLoading } = usePermissionsQuery(filters);
   const [openModal, setOpenModal] = useState(false);
+
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={7} rowCount={filters.limit} />;
@@ -28,8 +43,8 @@ export default function PermissionsList() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Input
           placeholder="Buscar permisos..."
-          value={filters.search || ''}
-          onChange={(e) => setFilters({ search: e.target.value, page: 1 })}
+          value={searchValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full sm:w-[250px]"
         />
 

@@ -1,3 +1,4 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 export const CreateAccountingRuleDetailSchema = z.object({
@@ -5,14 +6,14 @@ export const CreateAccountingRuleDetailSchema = z.object({
   ruleId: z.string().uuid().optional(),
   accountRole: z.string().optional(),
   movementType: z.enum(['DEBIT', 'CREDIT']),
-  formula: z.string().optional(),
-  accountPlanId: z.string().uuid().optional(),
+  formula: z.string().nullable().optional(),
+  accountPlanId: z.string().uuid().nullable().optional(),
   isAuxiliary: z.boolean().default(false).optional(),
   isAuxiliarySupplier: z.boolean().default(false).optional(),
 });
 
 export const CreateAccountingRuleSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().optional(),
   category: z.string().min(1),
   operationType: z.string().min(1),
   referenceValue: z.string().optional(),
@@ -21,6 +22,7 @@ export const CreateAccountingRuleSchema = z.object({
   details: z.array(CreateAccountingRuleDetailSchema),
 });
 
-export type CreateAccountingRuleDto = z.infer<
-  typeof CreateAccountingRuleSchema
->;
+
+
+export class CreateAccountingRuleDto extends createZodDto(CreateAccountingRuleSchema) { }
+

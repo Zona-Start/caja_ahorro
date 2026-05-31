@@ -10,7 +10,7 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -42,7 +42,7 @@ export function AccountingEntryForm({
     resolver: zodResolver(accountingEntrySchema),
     defaultValues: {
       id: defaultValues?.id,
-      companyId: 1,
+      tenantId: defaultValues?.tenantId,
       accountingCycleId: defaultValues?.accountingCycleId,
       entryDate: defaultValues?.entryDate
         ? new Date(defaultValues?.entryDate)
@@ -50,8 +50,8 @@ export function AccountingEntryForm({
       description: defaultValues?.description || '',
       currencyCode: 'VES',
       details: defaultValues?.details || [
-        { accountPlanId: 0, debit: 0, credit: 0, description: '' },
-        { accountPlanId: 0, debit: 0, credit: 0, description: '' },
+        { accountPlanId: '', debit: 0, credit: 0, description: '' },
+        { accountPlanId: '', debit: 0, credit: 0, description: '' },
       ],
     },
     mode: 'onChange',
@@ -124,7 +124,7 @@ export function AccountingEntryForm({
                       label: cycle.description,
                     })) || []
                   }
-                  onValueChange={(value) => field.onChange(Number(value))}
+                  onValueChange={field.onChange}
                   placeholder="Seleccione un ciclo"
                   defaultValue={field.value?.toString()}
                 />
@@ -172,10 +172,10 @@ export function AccountingEntryForm({
                             label: `${acc.code} - ${acc.name}`,
                           })) || []
                       }
-                      onValueChange={(value) => field.onChange(Number(value))}
+                      onValueChange={field.onChange}
                       placeholder="Seleccione una cuenta"
                       defaultValue={
-                        field.value > 0 ? field.value.toString() : undefined
+                        field.value !== "" ? field.value.toString() : undefined
                       }
                     />
                     <FormMessage />
@@ -200,12 +200,17 @@ export function AccountingEntryForm({
                   <FormItem className="col-span-2">
                     <FormControl>
                       <Input
-                        type="number"
                         className="text-right"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        }
+                        value={(field.value || 0).toLocaleString('es-ES', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '');
+                          const value = parseInt(digits || '0', 10) / 100;
+                          field.onChange(value);
+                        }}
+                        onFocus={(e) => e.target.select()}
                       />
                     </FormControl>
                   </FormItem>
@@ -218,12 +223,17 @@ export function AccountingEntryForm({
                   <FormItem className="col-span-2">
                     <FormControl>
                       <Input
-                        type="number"
                         className="text-right"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
-                        }
+                        value={(field.value || 0).toLocaleString('es-ES', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '');
+                          const value = parseInt(digits || '0', 10) / 100;
+                          field.onChange(value);
+                        }}
+                        onFocus={(e) => e.target.select()}
                       />
                     </FormControl>
                   </FormItem>
@@ -248,7 +258,7 @@ export function AccountingEntryForm({
             size="sm"
             onClick={() =>
               append({
-                accountPlanId: 0,
+                accountPlanId: '',
                 debit: 0,
                 credit: 0,
                 description: '',

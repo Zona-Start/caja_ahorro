@@ -1,0 +1,1 @@
+ALTER TABLE "tenant"."tenant_settings" ADD COLUMN "label" varchar(255);

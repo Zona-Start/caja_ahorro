@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { Button } from '@repo/shadcn/button';
 import { Input } from '@repo/shadcn/input';
 import { Plus } from 'lucide-react';
+import { usePermissions } from '@/hooks/use-permissions';
 import { useModuleSettingsQuery } from '../hooks/use-module-settings-queries';
 import { useModuleSettingsFilters } from '../hooks/use-module-settings-filters';
 import { moduleSettingsColumns } from './tables/module-settings-columns';
@@ -14,9 +15,27 @@ export default function ModuleSettingsList() {
   const { filters, setFilters } = useModuleSettingsFilters();
   const { data, isLoading } = useModuleSettingsQuery(filters);
   const [openModal, setOpenModal] = useState(false);
+  const { can } = usePermissions();
+
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSearchValue(filters.search || '');
+  }, [filters.search]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setFilters({ search: value || undefined, page: 1 });
+    }, 400);
+  };
+
+  const canCreate = can('system:modules', 'create', 'all');
 
   if (isLoading) {
-    return <DataTableSkeleton columnCount={6} rowCount={filters.limit} />;
+    return <DataTableSkeleton columnCount={3} rowCount={filters.limit} />;
   }
 
   const settingsData = data?.data || [];
@@ -28,15 +47,17 @@ export default function ModuleSettingsList() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Input
           placeholder="Buscar parámetros..."
-          value={filters.search || ''}
-          onChange={(e) => setFilters({ search: e.target.value, page: 1 })}
+          value={searchValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="w-full sm:w-[250px]"
         />
 
-        <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Parámetro
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Parámetro
+          </Button>
+        )}
       </div>
 
       <DataTable

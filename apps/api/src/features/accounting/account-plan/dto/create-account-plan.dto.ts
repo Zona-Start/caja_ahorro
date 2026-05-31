@@ -4,7 +4,7 @@ import { createZodDto } from 'nestjs-zod';
 
 // Definimos el esquema de validación
 export const CreateAccountPlanSchema = z.object({
-  tenantId: z.string().uuid().optional().describe("Tenant ID (opcional para superadmins)"),
+  tenantId: z.string().optional().describe("Tenant ID (opcional para superadmins)"),
   code: z.string()
     .min(1, "El código es requerido")
     .max(50, "El código no puede exceder los 50 caracteres"),
@@ -26,4 +26,4 @@ export const CreateAccountPlanSchema = z.object({
 });
 
 // Creamos la clase DTO compatible con NestJS y Swagger
-export class CreateAccountPlanDto extends createZodDto(CreateAccountPlanSchema) {}
+export class CreateAccountPlanDto extends createZodDto(CreateAccountPlanSchema) { }

@@ -8,7 +8,7 @@ export function TenantSettingsHeader({ count }: TenantSettingsHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <Heading
-        title={`Parámetros General (${count ?? 0})`}
+        title="Parámetros General"
         description="Gestiona los parámetros de configuración de tu organización"
       />
     </div>

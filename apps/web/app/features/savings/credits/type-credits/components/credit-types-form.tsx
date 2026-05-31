@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { useSaveCreditTypeMutation } from '../hooks/use-credit-types-mutation';
+import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
 import {
   type CreditTypeMutation,
   creditTypeMutationSchema,
@@ -38,6 +39,15 @@ export function CreditTypesForm({
   disabled = false,
 }: CreditTypesFormProps) {
   const { mutate: saveCreditType, isPending: isSaving } = useSaveCreditTypeMutation();
+  const { data: payrollTypes, isLoading: isLoadingPayroll } = useCategoriesByTypeQuery('payroll_type');
+
+  const toNumeric = (val: unknown): number | undefined => {
+    if (val === null || val === undefined || val === '') return undefined;
+    const num = Number(val);
+    return isNaN(num) ? undefined : num;
+  };
+
+  const isEdit = !!defaultValues?.id;
 
   const form = useForm<CreditTypeMutation>({
     resolver: zodResolver(creditTypeMutationSchema),
@@ -45,21 +55,21 @@ export function CreditTypesForm({
       id: defaultValues?.id,
       name: defaultValues?.name || '',
       description: defaultValues?.description || '',
-      interestRate: defaultValues?.interestRate ?? 0,
+      interestRate: isEdit ? (toNumeric(defaultValues?.interestRate) ?? 0) : 0,
       termType: defaultValues?.termType || 'Plazos',
-      termUnits: defaultValues?.termUnits ?? 1,
-      cancellationPercentage: defaultValues?.cancellationPercentage ?? undefined,
+      termUnits: isEdit ? (toNumeric(defaultValues?.termUnits) ?? 1) : 0,
+      cancellationPercentage: isEdit ? toNumeric(defaultValues?.cancellationPercentage) : 0,
       creditAccountChartId: defaultValues?.creditAccountChartId ?? undefined,
       interestEarnedAccountChartId: defaultValues?.interestEarnedAccountChartId ?? undefined,
       specialQuotaAccountChartId: defaultValues?.specialQuotaAccountChartId ?? undefined,
       expenseAccountChartId: defaultValues?.expenseAccountChartId ?? undefined,
-      specialQuotaNumber: defaultValues?.specialQuotaNumber ?? undefined,
-      specialQuotaPercentage: defaultValues?.specialQuotaPercentage ?? undefined,
-      maxCreditAmount: defaultValues?.maxCreditAmount ?? undefined,
-      minCreditAmount: defaultValues?.minCreditAmount ?? undefined,
+      specialQuotaNumber: isEdit ? toNumeric(defaultValues?.specialQuotaNumber) : 0,
+      specialQuotaPercentage: isEdit ? toNumeric(defaultValues?.specialQuotaPercentage) : 0,
+      maxCreditAmount: isEdit ? toNumeric(defaultValues?.maxCreditAmount) : 0,
+      minCreditAmount: isEdit ? toNumeric(defaultValues?.minCreditAmount) : 0,
       payrollTypeId: defaultValues?.payrollTypeId ?? undefined,
-      administrativeExpensePercentage: defaultValues?.administrativeExpensePercentage ?? undefined,
-      minimumSeniorityMonths: defaultValues?.minimumSeniorityMonths ?? undefined,
+      administrativeExpensePercentage: isEdit ? toNumeric(defaultValues?.administrativeExpensePercentage) : 0,
+      minimumSeniorityMonths: isEdit ? toNumeric(defaultValues?.minimumSeniorityMonths) : 0,
       acceptsDebitBalance: defaultValues?.acceptsDebitBalance ?? false,
       acceptsGuarantors: defaultValues?.acceptsGuarantors ?? false,
       acceptsAvailability: defaultValues?.acceptsAvailability ?? false,
@@ -100,7 +110,7 @@ export function CreditTypesForm({
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Descripción</FormLabel>
+                <FormLabel>Descripción (Opcional)</FormLabel>
                 <FormControl>
                   <Input {...field} disabled={disabled} />
                 </FormControl>
@@ -122,6 +132,7 @@ export function CreditTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -136,14 +147,14 @@ export function CreditTypesForm({
             name="termType"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Tipo de Plazo</FormLabel>
+                <FormLabel>Plazos o Cuotas</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Selecciona tipo" />
                     </SelectTrigger>
                   </FormControl>
@@ -162,12 +173,13 @@ export function CreditTypesForm({
             name="termUnits"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Unidades del Plazo</FormLabel>
+                <FormLabel>Nùmero de Cuotas o Plazos</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="1"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={disabled}
                   />
@@ -182,7 +194,7 @@ export function CreditTypesForm({
             name="cancellationPercentage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>% Cancelación</FormLabel>
+                <FormLabel>% de Cancelación (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -190,6 +202,7 @@ export function CreditTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -204,7 +217,7 @@ export function CreditTypesForm({
             name="administrativeExpensePercentage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>% Gasto Administrativo</FormLabel>
+                <FormLabel>% Gasto Administrativo (Opcional)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -212,6 +225,7 @@ export function CreditTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -226,12 +240,13 @@ export function CreditTypesForm({
             name="minimumSeniorityMonths"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Antigüedad Mínima (meses)</FormLabel>
+                <FormLabel>Antigüedad en la Caja (meses)</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={disabled}
                   />
@@ -252,6 +267,7 @@ export function CreditTypesForm({
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -272,6 +288,7 @@ export function CreditTypesForm({
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
@@ -292,6 +309,7 @@ export function CreditTypesForm({
                     type="number"
                     min="0"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                     disabled={disabled}
                   />
@@ -314,10 +332,41 @@ export function CreditTypesForm({
                     min="0"
                     max="100"
                     {...field}
+                    value={field.value ?? ''}
                     onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                     disabled={disabled}
                   />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="payrollTypeId"
+            render={({ field }) => (
+              <FormItem className="md:col-span-2">
+                <FormLabel>Tipo de Nómina (Opcional)</FormLabel>
+                <Select
+                  onValueChange={(val) => field.onChange(val === 'none' ? null : val)}
+                  value={field.value || 'none'}
+                  disabled={disabled || isLoadingPayroll}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={isLoadingPayroll ? "Cargando tipos de nómina..." : "Selecciona un tipo de nómina"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Ninguno / No aplica</SelectItem>
+                    {payrollTypes?.map((payroll) => (
+                      <SelectItem key={payroll.id} value={payroll.id}>
+                        {payroll.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -331,7 +380,7 @@ export function CreditTypesForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                 <div className="space-y-0.5">
-                  <FormLabel>Acepta Débito</FormLabel>
+                  <FormLabel>Acepta Saldo Deudor</FormLabel>
                 </div>
                 <FormControl>
                   <Switch
@@ -351,7 +400,7 @@ export function CreditTypesForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                 <div className="space-y-0.5">
-                  <FormLabel>Acepta Avales</FormLabel>
+                  <FormLabel>Acepta Fiadores</FormLabel>
                 </div>
                 <FormControl>
                   <Switch
@@ -371,7 +420,7 @@ export function CreditTypesForm({
             render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                 <div className="space-y-0.5">
-                  <FormLabel>Acepta Disponibilidad</FormLabel>
+                  <FormLabel>Afecta Disponibilidad</FormLabel>
                 </div>
                 <FormControl>
                   <Switch
