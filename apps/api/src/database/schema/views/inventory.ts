@@ -7,7 +7,7 @@ import { inventoryMovements } from '../tables';
 export const inventoryAvailability = inventorySchema.view(
   'inventory_availability',
   {
-    itemId: integer('item_id').notNull(),
+    itemId: uuid('item_id').notNull(),
     itemType: varchar('item_type', { length: 50 }).notNull(),
     availableQuantity: integer('available_quantity').notNull(),
     tenantId: uuid('tenant_id').notNull(),

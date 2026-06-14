@@ -5,6 +5,7 @@ import { AccountingCyclesModule } from './accounting-cycles/accounting-cycles.mo
 import { AccountingEntriesModule } from './accounting-entries/accounting-entries.module';
 //import { AccountingReportsModule } from './accounting-reports/accounting-reports.module';
 import { AccountingRulesModule } from './accounting-rules/accounting-rules.module';
+import { GlobalAccountingSubscriber } from './subscribers/global-accounting.subscriber';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AccountingRulesModule } from './accounting-rules/accounting-rules.modul
     AccountingRulesModule,
     // AccountingReportsModule,
   ],
+  providers: [GlobalAccountingSubscriber],
   exports: [AccountPlanModule, AccountingEntriesModule],
 })
 export class AccountingFeaturesModule {}

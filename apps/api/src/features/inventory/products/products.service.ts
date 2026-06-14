@@ -239,7 +239,7 @@ export class ProductsService {
         .where(
           inArray(
             schema.inventoryAvailability.itemId,
-            productIds.map((id) => parseInt(id.replace(/-/g, '').slice(-6), 16)),
+            productIds,
           ),
         );
     }
@@ -362,7 +362,7 @@ export class ProductsService {
       .where(
         eq(
           schema.inventoryAvailability.itemId,
-          parseInt(id.replace(/-/g, '').slice(-6), 16),
+          id,
         ),
       );
 
@@ -480,7 +480,7 @@ export class ProductsService {
     const [existSale] = await this.db
       .select()
       .from(schema.creditItemSales)
-      .where(eq(schema.creditItemSales.itemId, parseInt(id, 10)));
+      .where(eq(schema.creditItemSales.itemId, id));
 
     if (existSale) {
       throw new BadRequestException(
@@ -491,7 +491,7 @@ export class ProductsService {
     const [existPurchase] = await this.db
       .select()
       .from(schema.purchaseOrderItems)
-      .where(eq(schema.purchaseOrderItems.itemId, parseInt(id, 10)));
+      .where(eq(schema.purchaseOrderItems.itemId, id));
 
     if (existPurchase) {
       throw new BadRequestException(

@@ -314,7 +314,7 @@ export class ServicesService {
     const [existPurchaseOrder] = await this.db
       .select()
       .from(schema.purchaseOrderItems)
-      .where(eq(schema.purchaseOrderItems.itemId, parseInt(id, 10)));
+      .where(eq(schema.purchaseOrderItems.itemId, id));
 
     if (existPurchaseOrder) {
       throw new BadRequestException(
@@ -325,7 +325,7 @@ export class ServicesService {
     const [existSupplierInvoice] = await this.db
       .select()
       .from(schema.supplierInvoiceItems)
-      .where(eq(schema.supplierInvoiceItems.itemId, parseInt(id, 10)));
+      .where(eq(schema.supplierInvoiceItems.itemId, id));
 
     if (existSupplierInvoice) {
       throw new BadRequestException(

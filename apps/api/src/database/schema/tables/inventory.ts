@@ -288,7 +288,7 @@ export const inventoryMovements = inventorySchema.table('inventory_movements', {
     .notNull(),
   description: text('description'),
   movementDate: date('movement_date').defaultNow(),
-  itemId: integer('item_id').notNull(),
+  itemId: uuid('item_id').notNull(),
   itemType: varchar('item_type', {
     enum: ['PRODUCT', 'FIXED_ASSET'],
   }).notNull(),

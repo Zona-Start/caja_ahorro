@@ -4,6 +4,7 @@ import { InventoriesCategoriesModule } from './inventories-categories/inventorie
 import { InventoryMovementsModule } from './inventory-movements/inventory-movements.module';
 import { ProductsModule } from './products/products.module';
 import { ServicesModule } from './services/services.module';
+import { GlobalInventorySubscriber } from './subscribers/global-inventory.subscriber';
 
 @Module({
   imports: [
@@ -13,5 +14,6 @@ import { ServicesModule } from './services/services.module';
     FixedAssetsModule,
     InventoryMovementsModule,
   ],
+  providers: [GlobalInventorySubscriber],
 })
 export class InventoryFeatureModule {}

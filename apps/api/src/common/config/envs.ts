@@ -23,6 +23,7 @@ export const envVarsSchema = z.object({
     .int()
     .positive()
     .default(15000),
+  REDIS_URL: z.string().url().optional(),
 });
 
 // Extraemos el tipo de Zod para tener autocompletado estricto en el ConfigService

@@ -486,7 +486,7 @@ export class FixedAssetsService {
     const [exitPurchaseOrder] = await this.db
       .select()
       .from(schema.purchaseOrderItems)
-      .where(eq(schema.purchaseOrderItems.itemId, parseInt(id, 10)))
+      .where(eq(schema.purchaseOrderItems.itemId, id))
       .limit(1);
 
     if (exitPurchaseOrder) {
@@ -498,7 +498,7 @@ export class FixedAssetsService {
     const [exitSupplierInvoice] = await this.db
       .select()
       .from(schema.supplierInvoiceItems)
-      .where(eq(schema.supplierInvoiceItems.itemId, parseInt(id, 10)))
+      .where(eq(schema.supplierInvoiceItems.itemId, id))
       .limit(1);
 
     if (exitSupplierInvoice) {

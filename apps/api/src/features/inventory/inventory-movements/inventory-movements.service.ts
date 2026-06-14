@@ -57,7 +57,7 @@ export class InventoryMovementsService {
           .insert(inventoryMovements)
           .values({
             tenantId,
-            itemId: parseInt(item.itemId, 10),
+            itemId: item.itemId,
             itemType: item.itemType,
             movementType: dto.movementType,
             quantity: item.quantity,
@@ -117,7 +117,7 @@ export class InventoryMovementsService {
 
     if (itemId) {
       searchConditions.push(
-        eq(inventoryMovements.itemId, parseInt(itemId, 10)),
+        eq(inventoryMovements.itemId, itemId),
       );
     }
 
@@ -241,7 +241,7 @@ export class InventoryMovementsService {
     availableQuantity: number;
   }> {
     const conditions: SQL<unknown>[] = [
-      eq(inventoryMovements.itemId, parseInt(itemId, 10)),
+      eq(inventoryMovements.itemId, itemId),
       eq(inventoryMovements.itemType, itemType),
     ];
 

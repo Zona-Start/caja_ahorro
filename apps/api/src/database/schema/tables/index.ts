@@ -30,12 +30,20 @@ export {
 export {
   categories,
   currencies,
+  deadLetterQueue,
+  eventOutbox,
+  eventStore,
   exchangeRates,
   globalSettings,
   localities,
   moduleSettings,
   municipalities,
   parishes,
+  processedEvents,
+  projectionCheckpoints,
+  projectionInventoryStock,
+  projectionLedgerBalances,
+  projectionLoanBalances,
   states,
 } from './core';
 export {

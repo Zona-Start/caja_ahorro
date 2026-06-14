@@ -518,7 +518,7 @@ export class SupplierInvoicesService {
     const totalInvoicedPerItem = new Map<string, number>();
 
     const getUniqueKey = (item: {
-      itemId: number | null;
+      itemId: string | null;
       lineType: string;
       description: string | null;
     }): string => {
@@ -1117,7 +1117,7 @@ export class SupplierInvoicesService {
     let totalInvoicedPerItem = new Map<string, number>();
 
     const getUniqueKey = (item: {
-      itemId: number | null;
+      itemId: string | null;
       lineType: string;
       description: string | null;
     }): string => {

@@ -184,7 +184,5 @@ export const paymentStatusEnum = savingsSchema.enum('payment_status', [
   'DONE',
 ]);
 
-export const paymentStatus = savingsSchema.enum('payment_status', [
-  'DONE',
-  'CANCELED',
-]);
+export const paymentStatus = paymentStatusEnum;
+

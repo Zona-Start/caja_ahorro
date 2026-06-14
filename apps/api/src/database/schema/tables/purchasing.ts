@@ -107,7 +107,7 @@ export const purchaseOrderItems = purchasingSchema.table(
       .notNull()
       .references(() => purchaseOrders.id, { onDelete: 'cascade' }),
     lineType: purchaseOrderTypeEnum('line_type').notNull(),
-    itemId: integer('itemId'),
+    itemId: uuid('itemId'),
     // Datos genéricos del ítem comprado
     description: varchar('description', { length: 255 }),
     quantity: integer('quantity').notNull(),
@@ -180,7 +180,7 @@ export const supplierInvoiceItems = purchasingSchema.table(
       .references(() => supplierInvoices.id, { onDelete: 'cascade' }),
 
     lineType: purchaseOrderTypeEnum('line_type').notNull(),
-    itemId: integer('item_id'), // Puede ser producto, servicio o activo fijo
+    itemId: uuid('item_id'), // Puede ser producto, servicio o activo fijo
     expenseAccountId: uuid('expense_account_id').references(
       () => accountPlan.id,
     ),

@@ -4,7 +4,7 @@ import { creditModalityTypeEnum } from '@/types/enum';
 export const CreditItemSchema = z.object({
   agreedSellingPrice: z.number().positive(),
   itemDescription: z.string().optional(),
-  itemId: z.number().int().positive().optional(),
+  itemId: z.string().uuid().optional(),
   itemType: z.enum(['PRODUCT', 'SERVICE', 'EXTERNAL']),
   quantity: z.number().int().positive(),
   saleDate: z.coerce.date(),

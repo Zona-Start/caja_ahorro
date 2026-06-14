@@ -314,7 +314,7 @@ export class CreditManagementService {
           dto.creditItems.map((item: CreditItemDto) => ({
             tenantId,
             creditId: ins.id,
-            itemId: Number(item.itemId ?? 0),
+            itemId: item.itemId ?? null,
             itemDescription: item.itemDescription ?? null,
             agreedSellingPrice: String(item.agreedSellingPrice),
             quantity: Number(item.quantity),

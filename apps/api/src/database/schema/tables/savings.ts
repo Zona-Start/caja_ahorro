@@ -950,7 +950,7 @@ export const creditItemSales = savingsSchema.table(
     itemType: varchar('item_type', {
       enum: ['PRODUCT', 'SERVICE', 'EXTERNAL'],
     }).notNull(),
-    itemId: integer('item_id').notNull(), // id en products o services
+    itemId: uuid('item_id'), // id en products o services
 
     quantity: integer('quantity').notNull().default(1),
     agreedSellingPrice: numeric('agreed_selling_price', {

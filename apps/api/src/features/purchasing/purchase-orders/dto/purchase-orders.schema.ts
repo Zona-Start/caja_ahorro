@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const PurchaseOrderItemSchema = z.object({
   lineType: z.string(),
-  itemId: z.number().int().positive().optional(),
+  itemId: z.string().uuid().optional(),
   description: z.string().optional(),
   quantity: z.number().int().positive(),
   unitCost: z.coerce.number(),

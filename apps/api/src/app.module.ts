@@ -21,6 +21,8 @@ import {
 } from './common/middlewares';
 import { DrizzleModule } from './database/drizzle.module';
 import { SeedModule } from './database/seeds/seed.module';
+import { EventBusModule } from './shared/event-bus';
+import { ProjectionModule } from './shared/projections';
 import { AccountingFeaturesModule } from './features/accounting/accounting.module';
 import { AuditModule } from './features/audit/audit.module';
 import { AuthModule } from './features/auth/auth.module';
@@ -66,16 +68,17 @@ import { SavingsFeaturesModule } from './features/savings/savings.module';
       global: true,
     }),
     ConfigModule.forRoot({
-      isGlobal: true, // Disponible en todos los módulos sin necesidad de importarlo
+      isGlobal: true,
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
-      validate: validateEnv, // <-- NestJS pasará el objeto parseado por Zod antes de arrancar
+      validate: validateEnv,
     }),
     EventEmitterModule.forRoot(),
     ClsModule.forRoot({
       global: true,
       middleware: { mount: true },
     }),
-    //NodeMailerModule,
+    EventBusModule,
+    ProjectionModule,
     LoggerModule,
     ThrottleModule,
     DrizzleModule,
@@ -87,9 +90,7 @@ import { SavingsFeaturesModule } from './features/savings/savings.module';
     SeedModule,
     SavingsFeaturesModule,
     InventoryFeatureModule,
-    BankingsModule,
     PurchasingFeaturesModule,
-    //ReportsModule,
   ],
 })
 export class AppModule implements NestModule {

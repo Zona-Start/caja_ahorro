@@ -33,7 +33,7 @@ export class PurchaseOrdersService {
   ) {}
 
   private async getItemNameByType(
-    itemId: number | null | undefined,
+    itemId: string | null | undefined,
     lineType: string,
     db: any,
   ): Promise<string | null> {
@@ -73,7 +73,7 @@ export class PurchaseOrdersService {
   private validateOrderItems(
     items?: {
       lineType: string;
-      itemId?: number;
+      itemId?: string;
       description?: string;
       quantity?: number;
       unitCost?: number;
