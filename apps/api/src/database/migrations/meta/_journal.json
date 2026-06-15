@@ -1,96 +1,26 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
+  "version": "6",
+  "dialect": "pg",
   "entries": [
     {
       "idx": 0,
       "version": "7",
-      "when": 1778020602071,
-      "tag": "0000_curly_shockwave",
+      "when": 1781489248583,
+      "tag": "0000_futuristic_ikaris",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1778027181039,
-      "tag": "0001_tan_greymalkin",
+      "when": 1781549920217,
+      "tag": "0001_concerned_deathbird",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1778189899657,
-      "tag": "0002_jazzy_darkstar",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1778506104170,
-      "tag": "0003_abnormal_namora",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1778681585500,
-      "tag": "0004_flawless_luke_cage",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1778681610096,
-      "tag": "0005_supreme_morg",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1779550517793,
-      "tag": "0006_motionless_bedlam",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1779581913434,
-      "tag": "0007_curvy_prism",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1779584751708,
-      "tag": "0008_empty_kree",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1779585174350,
-      "tag": "0009_wooden_tenebrous",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1779812287277,
-      "tag": "0010_puzzling_deadpool",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1779812680951,
-      "tag": "0011_freezing_bruce_banner",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1779812712407,
-      "tag": "0012_far_mantis",
+      "when": 1781551140869,
+      "tag": "0002_flawless_tony_stark",
       "breakpoints": true
     }
   ]

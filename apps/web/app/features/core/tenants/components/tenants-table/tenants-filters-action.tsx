@@ -43,7 +43,7 @@ export function TenantsFiltersAction({
   }, [filters.search]);
 
   const hasActiveFilters =
-    !!filters.search || filters.isActive !== 'true';
+    !!filters.search || filters.isActive !== 'true' || filters.businessType !== 'all';
 
   const handleClear = () => {
     setSearchValue('');
@@ -59,6 +59,24 @@ export function TenantsFiltersAction({
           onChange={(e) => setSearchValue(e.target.value)}
           className="w-full sm:w-[250px]"
         />
+        <Select
+          value={filters.businessType}
+          onValueChange={(value) =>
+            setFilters({
+              businessType: value as 'all' | 'CAJA_AHORRO' | 'EMPRESA_COMERCIAL',
+              page: 1,
+            })
+          }
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="CAJA_AHORRO">Caja de Ahorro</SelectItem>
+            <SelectItem value="EMPRESA_COMERCIAL">Empresa Comercial</SelectItem>
+          </SelectContent>
+        </Select>
         <Select
           value={filters.isActive}
           onValueChange={(value) =>

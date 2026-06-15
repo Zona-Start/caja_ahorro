@@ -10,6 +10,7 @@ import { tenantsColumns } from './tenants-table/tenants-columns';
 import { TenantsFiltersAction } from './tenants-table/tenants-filters-action';
 import { TenantsHeader } from './tenants-header';
 import { TenantsModal } from './tenants-modal';
+import { TenantsDetailModal } from './tenants-detail-modal';
 
 export default function TenantsList() {
   const { filters, setFilters, clearFilters } = useTenantsFilters();
@@ -42,6 +43,7 @@ export default function TenantsList() {
       />
 
       <TenantsModal />
+      <TenantsDetailModal />
     </div>
   );
 }

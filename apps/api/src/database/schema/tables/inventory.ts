@@ -7,20 +7,25 @@ import {
   numeric,
   pgSchema,
   text,
+  timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
 import {
   fixedAssetsInventoryStatus,
-  movementTypeInventory,
+  inventoryMovementStatusEnum,
+  movementTypeInventoryEnum,
   priceTypeEnum,
   productStatus,
   statusSuppliers,
   unitOfMeasureEnum,
 } from '../enum';
-import { supplierInvoices, suppliers } from './purchasing';
+import { purchaseOrderItems, purchaseOrders, supplierInvoices, suppliers } from './purchasing';
 import { tenants } from './tenants';
 import { inventorySchema } from "../_schemas";
+import { associates } from './savings';
+import { accountingEntries } from './accounting';
 
 
 // Tabla para las categorías de los productos que se venden
@@ -57,7 +62,7 @@ export const products = inventorySchema.table(
     categoryId: uuid('category_id')
       .notNull()
       .references(() => inventoriesCategories.id, { onDelete: 'restrict' }),
-
+    internalCode: varchar('internal_code', { length: 50 }).notNull().unique(),
     sku: varchar('sku', { length: 50 }).notNull().unique(), // Código SKU interno del producto (Ej: REF001)
     name: varchar('name', { length: 255 }).notNull(), // Nombre del producto (Ej: "Refrigerador 250L")
     description: text('description'),
@@ -133,12 +138,13 @@ export const services = inventorySchema.table('services', {
     })
     .notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  serviceCode: varchar('service_code', { length: 50 }).notNull().unique(), // Código interno de inventario del activo (Ej: OFI001, COMP002)
+  internalCode: varchar('internal_code', { length: 50 }).notNull().unique(),
   categoryId: uuid('category_id')
     .notNull()
     .references(() => inventoriesCategories.id, { onDelete: 'restrict' }),
   description: text('description'),
   status: statusSuppliers('status').notNull().default('ACTIVE'),
+  serviceType: varchar('service_type', { length: 50 }).notNull(),
   ...timestamps,
 });
 
@@ -279,28 +285,75 @@ export const fixedAssetsPrices = inventorySchema.table('fixed_assets_prices', {
 });
 
 /* ---------- 7.  MOVIMIENTOS DE INVENTARIO ---------- */
-export const inventoryMovements = inventorySchema.table('inventory_movements', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id')
-    .references(() => tenants.id, {
-      onDelete: 'cascade',
-    })
-    .notNull(),
-  description: text('description'),
-  movementDate: date('movement_date').defaultNow(),
-  itemId: uuid('item_id').notNull(),
-  itemType: varchar('item_type', {
-    enum: ['PRODUCT', 'FIXED_ASSET'],
-  }).notNull(),
-  movementNumber: varchar('movement_number', { length: 50 }).notNull(),
-  movementType: movementTypeInventory('movement_type').notNull(),
-  quantity: integer('quantity').notNull(),
-  unitCost: numeric('unit_cost', { precision: 18, scale: 2 }),
-  documentType: varchar('document_type', { length: 50 }), // COMPRA, VENTA, NC, ND, AJUSTE…
-  documentNumber: varchar('document_number', { length: 50 }),
-  supplierInvoiceId: uuid('supplier_invoice_id').references(
-    () => supplierInvoices.id,
-  ),
-  notes: text('notes'),
-  ...timestamps,
-});
+export const inventoryMovements = inventorySchema.table(
+  'inventory_movements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+
+    movementNumber: varchar('movement_number', { length: 50 }).notNull(),
+    movementType: movementTypeInventoryEnum('movement_type').notNull(),
+    movementDate: timestamp('movement_date').defaultNow().notNull(),
+
+    status: inventoryMovementStatusEnum('status').notNull().default('draft'),
+    description: text('description'),
+
+    // Referencias opcionales de documentos de origen / destino
+    purchaseOrderId: uuid('purchase_order_id').references(() => purchaseOrders.id, { onDelete: 'set null' }),
+    supplierId: uuid('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
+    invoiceNumber: varchar('invoice_number', { length: 50 }),
+    associateId: uuid('associate_id').references(() => associates.id, { onDelete: 'set null' }),
+
+    // Autorreferencia para trazabilidad (ej. una devolución que apunta al movimiento original)
+    originMovementId: uuid('origin_movement_id').references((): any => inventoryMovements.id, { onDelete: 'set null' }),
+
+    // Enlaces de integración financiera
+    creditId: uuid('credit_id'), // Añade la referencia .references(() => credits.id) si aplica
+    accountingEntryId: uuid('accounting_entry_id').references(() => accountingEntries.id, { onDelete: 'set null' }),
+
+    // Auditoría avanzada de estados
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+    cancelledBy: uuid('cancelled_by'),
+    cancelledAt: timestamp('cancelled_at'),
+
+    ...timestamps,
+  },
+  (table) => [
+    // Índices compuestos optimizados para multi-tenant reflejando tu diseño de Convex
+    uniqueIndex('inv_mov_tenant_number_idx').on(table.tenantId, table.movementNumber),
+    index('inv_mov_tenant_type_idx').on(table.tenantId, table.movementType),
+    index('inv_mov_tenant_date_idx').on(table.tenantId, table.movementDate),
+  ]
+);
+
+/* ---------- 7.2. DETALLE: ÍTEMS DEL MOVIMIENTO (DETALLE) ---------- */
+export const inventoryMovementItems = inventorySchema.table(
+  'inventory_movement_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    movementId: uuid('movement_id')
+      .notNull()
+      .references(() => inventoryMovements.id, { onDelete: 'cascade' }),
+
+    // ID del producto o ítem de inventario
+    productId: uuid('product_id').notNull(), // Añade .references(() => products.id) si tienes la tabla products suelta
+
+    quantity: integer('quantity').notNull(),
+
+    // Mantenemos alta precisión numérica para costos en el ERP (precision: 18, scale: 6)
+    unitCost: numeric('unit_cost', { precision: 18, scale: 6 }).notNull().default('0.000000'),
+    totalCost: numeric('total_cost', { precision: 18, scale: 6 }).notNull().default('0.000000'),
+
+    // Enlace opcional a la línea de la orden de compra original
+    purchaseOrderItemId: uuid('purchase_order_item_id').references(() => purchaseOrderItems.id, { onDelete: 'set null' }),
+
+    ...timestamps,
+  },
+  (table) => [
+    index('inv_mov_items_movement_idx').on(table.movementId),
+    index('inv_mov_items_product_idx').on(table.productId),
+  ]
+);

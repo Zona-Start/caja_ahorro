@@ -1,7 +1,12 @@
 import { Badge } from '@repo/shadcn/badge';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Tenant } from '../../schemas/tenants.schema';
+import type { Tenant } from '../../schemas/tenants.schema';
 import { TenantsCellAction } from './tenants-cell-action';
+
+const businessTypeLabels: Record<string, string> = {
+  CAJA_AHORRO: 'Caja de Ahorro',
+  EMPRESA_COMERCIAL: 'Empresa Comercial',
+};
 
 export const tenantsColumns: ColumnDef<Tenant>[] = [
   {
@@ -11,6 +16,11 @@ export const tenantsColumns: ColumnDef<Tenant>[] = [
   {
     accessorKey: 'rif',
     header: 'RIF',
+  },
+  {
+    accessorKey: 'businessType',
+    header: 'Tipo',
+    cell: ({ row }) => businessTypeLabels[row.original.businessType] ?? row.original.businessType,
   },
   {
     accessorKey: 'email',

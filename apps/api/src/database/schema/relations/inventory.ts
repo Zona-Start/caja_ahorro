@@ -3,6 +3,7 @@ import {
   fixedAssets,
   fixedAssetsPrices,
   inventoriesCategories,
+  inventoryMovementItems,
   inventoryMovements,
   productPrices,
   products,
@@ -28,7 +29,7 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   }),
   prices: many(productPrices),
   suppliers: many(productServiceSuppliers),
-  movements: many(inventoryMovements, { relationName: 'productMovements' }),
+  movementItems: many(inventoryMovementItems),
 }));
 
 export const productPricesRelations = relations(productPrices, ({ one }) => ({
@@ -69,7 +70,7 @@ export const fixedAssetsRelations = relations(fixedAssets, ({ one, many }) => ({
   }),
   prices: many(fixedAssetsPrices),
   suppliers: many(productServiceSuppliers),
-  movements: many(inventoryMovements, { relationName: 'fixedAssetMovements' }),
+  movementItems: many(inventoryMovementItems),
 }));
 
 export const fixedAssetsPricesRelations = relations(
@@ -110,16 +111,21 @@ export const productServiceSuppliersRelations = relations(
 
 export const inventoryMovementsRelations = relations(
   inventoryMovements,
+  ({ many }) => ({
+    items: many(inventoryMovementItems),
+  }),
+);
+
+export const inventoryMovementItemsRelations = relations(
+  inventoryMovementItems,
   ({ one }) => ({
-    product: one(products, {
-      fields: [inventoryMovements.itemId],
-      references: [products.id],
-      relationName: 'productMovements',
+    movement: one(inventoryMovements, {
+      fields: [inventoryMovementItems.movementId],
+      references: [inventoryMovements.id],
     }),
-    fixedAsset: one(fixedAssets, {
-      fields: [inventoryMovements.itemId],
-      references: [fixedAssets.id],
-      relationName: 'fixedAssetMovements',
+    product: one(products, {
+      fields: [inventoryMovementItems.productId],
+      references: [products.id],
     }),
   }),
 );

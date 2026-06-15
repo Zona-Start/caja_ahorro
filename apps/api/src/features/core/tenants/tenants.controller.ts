@@ -12,6 +12,8 @@ import {
   Request as Req,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { ConfigureIntegrationDto, TenantIntegrationQueryDto } from './dto/tenant-integrations.dto';
+import { TenantModuleQueryDto, ToggleModuleDto } from './dto/tenant-modules.dto';
 import {
   CreateTenantDto,
   TenantQueryDto,
@@ -54,8 +56,9 @@ export class TenantsController {
 
   @Post()
   @Permissions({ resource: 'tenants', action: 'create', scope: 'global' })
-  async create(@Body() dto: CreateTenantDto) {
-    return this.tenantsService.create(dto);
+  async create(@Body() dto: CreateTenantDto, @Req() req: Request) {
+    const { userId } = this.tenantService.getTenantContext(req, dto);
+    return this.tenantsService.create(dto, userId);
   }
 
   @Patch(':id')
@@ -65,14 +68,52 @@ export class TenantsController {
     @Body() dto: UpdateTenantDto,
     @Req() req: Request,
   ) {
-    const { targetTenantId, isSystemAdmin } =
+    const { targetTenantId, isSystemAdmin, userId } =
       this.tenantService.getTenantContext(req, id);
-    return this.tenantsService.update(id, dto, isSystemAdmin, targetTenantId);
+    return this.tenantsService.update(id, dto, isSystemAdmin, targetTenantId, userId);
   }
 
   @Delete(':id')
   @Permissions({ resource: 'tenants', action: 'delete', scope: 'global' })
   async remove(@Param('id') id: string) {
     return this.tenantsService.remove(id);
+  }
+
+  @Get(':id/modules')
+  @Permissions({ resource: 'tenants', action: 'read', scope: 'global' })
+  async listModules(
+    @Param('id') id: string,
+    @Query() query: TenantModuleQueryDto,
+  ) {
+    return this.tenantsService.listModules(id, query.status);
+  }
+
+  @Post(':id/modules')
+  @Permissions({ resource: 'tenants', action: 'update', scope: 'global' })
+  async toggleModule(
+    @Param('id') id: string,
+    @Body() dto: ToggleModuleDto,
+    @Req() req: Request,
+  ) {
+    const { userId } = this.tenantService.getTenantContext(req, dto);
+    return this.tenantsService.toggleModule(id, dto, userId);
+  }
+
+  @Get(':id/integrations')
+  @Permissions({ resource: 'tenants', action: 'read', scope: 'global' })
+  async listIntegrations(
+    @Param('id') id: string,
+    @Query() query: TenantIntegrationQueryDto,
+  ) {
+    return this.tenantsService.listIntegrations(id, query.isEnabled);
+  }
+
+  @Post(':id/integrations')
+  @Permissions({ resource: 'tenants', action: 'update', scope: 'global' })
+  async configureIntegration(
+    @Param('id') id: string,
+    @Body() dto: ConfigureIntegrationDto,
+  ) {
+    return this.tenantsService.configureIntegration(id, dto);
   }
 }

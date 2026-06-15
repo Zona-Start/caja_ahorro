@@ -34,7 +34,7 @@ export class ServicesService {
   ): Promise<{
     id: string;
     name: string;
-    serviceCode: string;
+    internalCode: string;
     categoryId: string;
     status: string;
   }> {
@@ -70,7 +70,8 @@ export class ServicesService {
         .values({
           tenantId,
           name: dto.name,
-          serviceCode: await this.generateCode.generateGlobalCode(
+          serviceType: dto.serviceType,
+          internalCode: await this.generateCode.generateGlobalCode(
             'DOC_SRV',
             tenantId,
             'inventory',
@@ -84,7 +85,7 @@ export class ServicesService {
         .returning({
           id: services.id,
           name: services.name,
-          serviceCode: services.serviceCode,
+          internalCode: services.internalCode,
           categoryId: services.categoryId,
           status: services.status,
         });
@@ -170,7 +171,7 @@ export class ServicesService {
         id: services.id,
         name: services.name,
         description: services.description,
-        serviceCode: services.serviceCode,
+        internalCode: services.internalCode,
         categoryId: services.categoryId,
         categoryName: schema.inventoriesCategories.name,
         status: services.status,

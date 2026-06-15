@@ -1,0 +1,13 @@
+import type { AccountEntry } from '../template.types';
+
+export function computeParentCode(code: string): string | undefined {
+  if (code.match(/^\d+\.\d{2}\.00\.00$/)) return ${code.split('.')[0]}.00.00.00;
+  const s = code.split('.');
+  if (code.match(/^\d+\.\d{2}\.\d{2}\.00$/)) return ${s[0]}..00.00;
+  if (code.match(/^\d+\.\d{2}\.\d{2}\.\d{2}$/)) return ${s[0]}...00;
+  if (code.match(/^\d+\.\d{2}\.\d{2}\.\d{2}\.\d{3}$/)) return ${s[0]}...;
+  return undefined;
+}
+
+export const ACCOUNTS: AccountEntry[] = [
+

@@ -3,6 +3,7 @@ import {
   PermissionsGuard,
   RolesGuard,
   TenantGuard,
+  TenantModulesGuard,
 } from '@/common/guards';
 import { LoggerModule, ThrottleModule } from '@/common/modules';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
@@ -45,6 +46,10 @@ import { SavingsFeaturesModule } from './features/savings/savings.module';
     {
       provide: APP_GUARD,
       useClass: TenantGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TenantModulesGuard,
     },
     {
       provide: APP_GUARD,

@@ -17,6 +17,8 @@ export const tenantsListLoader =
       search: filters.search || undefined,
       isActive:
         filters.isActive === 'all' ? undefined : filters.isActive === 'true',
+      businessType:
+        filters.businessType === 'all' ? undefined : filters.businessType,
     };
 
     await queryClient.ensureQueryData({

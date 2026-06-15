@@ -1,10 +1,25 @@
 import { relations } from 'drizzle-orm';
-import { tenants, tenantSettings } from '../tables/tenants';
-import { currencies, exchangeRates, categories, states, municipalities, parishes, localities } from '../tables/core';
+import {
+  tenants,
+  tenantModuleIntegrations,
+  tenantModules,
+  tenantSettings,
+} from '../tables/tenants';
+import {
+  categories,
+  currencies,
+  exchangeRates,
+  localities,
+  municipalities,
+  parishes,
+  states,
+} from '../tables/core';
 import { accountPlan } from '../tables/accounting';
 
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   tenantSettings: many(tenantSettings),
+  tenantModules: many(tenantModules),
+  tenantModuleIntegrations: many(tenantModuleIntegrations),
   currencies: many(currencies),
   exchangeRates: many(exchangeRates),
   categories: many(categories),
@@ -21,3 +36,20 @@ export const tenantSettingsRelations = relations(tenantSettings, ({ one }) => ({
     references: [tenants.id],
   }),
 }));
+
+export const tenantModulesRelations = relations(tenantModules, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [tenantModules.tenantId],
+    references: [tenants.id],
+  }),
+}));
+
+export const tenantModuleIntegrationsRelations = relations(
+  tenantModuleIntegrations,
+  ({ one }) => ({
+    tenant: one(tenants, {
+      fields: [tenantModuleIntegrations.tenantId],
+      references: [tenants.id],
+    }),
+  }),
+);

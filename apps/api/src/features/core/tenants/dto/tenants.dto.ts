@@ -1,10 +1,18 @@
-import { createZodDto } from "nestjs-zod";
-import { z } from "zod";
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
+
+const MODULE_CODES = [
+  'ACCOUNTING', 'LOANS', 'CREDITS', 'SAVINGS', 'INVENTORY',
+  'PURCHASING', 'BILLING', 'BANKING', 'TREASURY', 'HR_PAYROLL',
+  'AUDIT',
+] as const;
 
 export const CreateTenantSchema = z.object({
   name: z.string().min(1).max(255),
   rif: z.string().min(1).max(20),
   email: z.string().email().min(1).max(100),
+  businessType: z.enum(['CAJA_AHORRO', 'EMPRESA_COMERCIAL']).default('CAJA_AHORRO'),
+  moduleCodes: z.array(z.enum(MODULE_CODES)).optional(),
   address: z.string().optional(),
   phone: z.string().max(50).optional(),
   contactName: z.string().max(255).optional(),
@@ -16,6 +24,8 @@ export const CreateTenantSchema = z.object({
 export const UpdateTenantSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   email: z.string().email().min(1).max(100).optional(),
+  businessType: z.enum(['CAJA_AHORRO', 'EMPRESA_COMERCIAL']).optional(),
+  moduleCodes: z.array(z.enum(MODULE_CODES)).optional(),
   address: z.string().optional(),
   phone: z.string().max(50).optional(),
   contactName: z.string().max(255).optional(),
@@ -25,8 +35,8 @@ export const UpdateTenantSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export class CreateTenantDto extends createZodDto(CreateTenantSchema) {}
-export class UpdateTenantDto extends createZodDto(UpdateTenantSchema) {}
+export class CreateTenantDto extends createZodDto(CreateTenantSchema) { }
+export class UpdateTenantDto extends createZodDto(UpdateTenantSchema) { }
 
 export const TenantQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
@@ -34,8 +44,9 @@ export const TenantQuerySchema = z.object({
   search: z.string().optional(),
   isActive: z.preprocess(
     (val) => (val === 'true' ? true : val === 'false' ? false : val),
-    z.boolean().optional()
+    z.boolean().optional(),
   ),
+  businessType: z.enum(['CAJA_AHORRO', 'EMPRESA_COMERCIAL']).optional(),
 });
 
-export class TenantQueryDto extends createZodDto(TenantQuerySchema) {}
+export class TenantQueryDto extends createZodDto(TenantQuerySchema) { }

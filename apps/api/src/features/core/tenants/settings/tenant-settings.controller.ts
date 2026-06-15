@@ -6,11 +6,12 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   Req,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { UpdateTenantSettingDto } from './dto/tenant-settings.dto';
+import { CreateTenantSettingDto, UpdateTenantSettingDto } from './dto/tenant-settings.dto';
 import { TenantSettingsService } from './tenant-settings.service';
 
 @Controller('core/tenants-settings')
@@ -27,10 +28,7 @@ export class TenantSettingsController {
     scope: 'tenant',
   })
   async findAll(@Req() req: Request, @Query() tenantId?: string) {
-    const { targetTenantId } = this.tenantService.getTenantContext(
-      req,
-      tenantId,
-    );
+    const { targetTenantId } = this.tenantService.getTenantContext(req, tenantId);
     return this.tenantSettingsService.findAllByTenant(targetTenantId);
   }
 
@@ -45,13 +43,28 @@ export class TenantSettingsController {
     @Req() req: Request,
     @Query() tenantId?: string,
   ) {
-    const { targetTenantId } = this.tenantService.getTenantContext(
-      req,
-      tenantId,
-    );
+    const { targetTenantId } = this.tenantService.getTenantContext(req, tenantId);
     return this.tenantSettingsService.findByTenantAndCategory(
       targetTenantId,
       category,
+    );
+  }
+
+  @Get('module/:moduleCode')
+  @Permissions({
+    resource: 'system:tenants-systems',
+    action: 'read',
+    scope: 'tenant',
+  })
+  async findByModule(
+    @Param('moduleCode') moduleCode: string,
+    @Req() req: Request,
+    @Query() tenantId?: string,
+  ) {
+    const { targetTenantId } = this.tenantService.getTenantContext(req, tenantId);
+    return this.tenantSettingsService.findByTenantAndModule(
+      targetTenantId,
+      moduleCode,
     );
   }
 
@@ -66,15 +79,23 @@ export class TenantSettingsController {
     @Req() req: Request,
     @Query() tenantId?: string,
   ) {
-    const { targetTenantId } = this.tenantService.getTenantContext(
-      req,
-      tenantId,
-    );
-    const setting = await this.tenantSettingsService.findById(
-      id,
-      targetTenantId,
-    );
-    return setting;
+    const { targetTenantId } = this.tenantService.getTenantContext(req, tenantId);
+    return this.tenantSettingsService.findById(id, targetTenantId);
+  }
+
+  @Post()
+  @Permissions({
+    resource: 'system:tenants-systems',
+    action: 'create',
+    scope: 'tenant',
+  })
+  async create(
+    @Body() dto: CreateTenantSettingDto,
+    @Req() req: Request,
+    @Query() tenantId?: string,
+  ) {
+    const { targetTenantId } = this.tenantService.getTenantContext(req, tenantId);
+    return this.tenantSettingsService.create(targetTenantId, dto);
   }
 
   @Patch(':id')
@@ -88,10 +109,7 @@ export class TenantSettingsController {
     @Body() dto: UpdateTenantSettingDto,
     @Req() req: Request,
   ) {
-    const { targetTenantId, userId } = this.tenantService.getTenantContext(
-      req,
-      dto,
-    );
+    const { targetTenantId, userId } = this.tenantService.getTenantContext(req, dto);
     return this.tenantSettingsService.update(id, dto, targetTenantId, userId);
   }
 }

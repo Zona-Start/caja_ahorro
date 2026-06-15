@@ -2,7 +2,6 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
   permissionActionEnum,
-  permissionResourceEnum,
   permissions,
   permissionScopeEnum,
   rolePermissions,
@@ -13,16 +12,16 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-type ResourceType = (typeof permissionResourceEnum.enumValues)[number];
-type ActionType = (typeof permissionActionEnum.enumValues)[number];
-type ScopeType = (typeof permissionScopeEnum.enumValues)[number];
+
+type ActionType = (typeof permissionActionEnum)[number];
+type ScopeType = (typeof permissionScopeEnum)[number];
 
 @Injectable()
 export class AssignmentsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   private async checkRoleOwnership(roleId: string, tenantId?: string) {
     const role = await this.db.query.roles.findFirst({
@@ -81,7 +80,7 @@ export class AssignmentsService {
       } else if (param.resource && param.action) {
         const found = await this.db.query.permissions.findFirst({
           where: and(
-            eq(permissions.resource, param.resource as ResourceType),
+            eq(permissions.resource, param.resource),
             eq(permissions.action, param.action as ActionType),
             param.scope
               ? eq(permissions.scope, param.scope as ScopeType)
@@ -132,7 +131,7 @@ export class AssignmentsService {
       } else {
         const found = await this.db.query.permissions.findFirst({
           where: and(
-            eq(permissions.resource, param.resource as ResourceType),
+            eq(permissions.resource, param.resource),
             eq(permissions.action, param.action as ActionType),
             param.scope
               ? eq(permissions.scope, param.scope as ScopeType)

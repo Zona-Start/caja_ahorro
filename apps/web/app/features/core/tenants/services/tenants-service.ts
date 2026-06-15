@@ -12,6 +12,7 @@ export interface TenantsQueryParams {
   limit?: number;
   search?: string;
   isActive?: boolean;
+  businessType?: string;
 }
 
 export interface TenantsPaginatedResponse {
@@ -33,6 +34,7 @@ const buildQueryParams = (params: TenantsQueryParams): string => {
     ...(params.isActive !== undefined
       ? { isActive: String(params.isActive) }
       : {}),
+    ...(params.businessType ? { businessType: params.businessType } : {}),
   });
 
   return query.toString();
@@ -102,6 +104,26 @@ export const tenantsService = {
     return payload.id
       ? tenantsService.update(payload)
       : tenantsService.create(payload);
+  },
+
+  enableModule: async (tenantId: string, moduleCode: string) => {
+    const response = await apiClient.post(`/core/tenants/${tenantId}/modules`, {
+      moduleCode,
+      status: 'ENABLED',
+    });
+    return response.data;
+  },
+
+  enableModules: async (tenantId: string, moduleCodes: string[]) => {
+    const results = await Promise.all(
+      moduleCodes.map((code) => tenantsService.enableModule(tenantId, code)),
+    );
+    return results;
+  },
+
+  getModules: async (tenantId: string) => {
+    const response = await apiClient.get(`/core/tenants/${tenantId}/modules`);
+    return response.data as Array<{ id: string; moduleCode: string; status: string }>;
   },
 };
 

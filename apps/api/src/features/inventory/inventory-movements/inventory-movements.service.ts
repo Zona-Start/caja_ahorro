@@ -1,7 +1,7 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { inventoryMovements } from '@/database/schema/tables/inventory';
+import { inventoryMovementItems, inventoryMovements } from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
@@ -25,64 +25,50 @@ export class InventoryMovementsService {
     tenantId: string,
     userId: string,
     tx?: NodePgDatabase<typeof schema>,
-  ): Promise<InventoryMovementSelect[]> {
-    const transactionTypes =
-      dto.movementType === 'IN'
-        ? 'DOC_INV_ENT'
-        : dto.movementType === 'OUT'
-          ? 'DOC_INV_SAL'
-          : 'DOC_INV_AJU';
-
-    const subModuleType =
-      dto.movementType === 'IN'
-        ? 'stock_entries'
-        : dto.movementType === 'OUT'
-          ? 'stock_outputs'
-          : 'stock_adjustments';
-
+  ) {
     const movementNumber = await this.generateCodeService.generateNextReference(
-      transactionTypes,
+      'DOC_INV',
       tenantId,
       'inventory',
-      subModuleType,
+      'stock_movements',
     );
-
-    const results: InventoryMovementSelect[] = [];
 
     const currentTx = tx || this.db;
 
-    await currentTx.transaction(async (tx) => {
-      for (const item of dto.items) {
-        const [inserted] = await tx
-          .insert(inventoryMovements)
-          .values({
-            tenantId,
-            itemId: item.itemId,
-            itemType: item.itemType,
-            movementType: dto.movementType,
+    const result = await currentTx.transaction(async (tx) => {
+      const [movement] = await tx
+        .insert(inventoryMovements)
+        .values({
+          tenantId,
+          movementType: dto.movementType as any,
+          movementNumber,
+          description: dto.description ?? null,
+          createdById: userId,
+        })
+        .returning();
+
+      if (dto.items.length > 0) {
+        await tx.insert(inventoryMovementItems).values(
+          dto.items.map((item) => ({
+            movementId: movement.id,
+            productId: item.productId,
             quantity: item.quantity,
-            unitCost: item.unitCost?.toString() ?? null,
-            description: dto.description ?? null,
-            documentType: dto.documentType ?? null,
-            documentNumber: dto.documentNumber ?? null,
-            notes: dto.notes ?? null,
-            movementNumber,
-            supplierInvoiceId: dto.supplierInvoiceId ?? null,
-            createdById: userId,
-          })
-          .returning();
-
-        results.push(inserted);
+            unitCost: (item.unitCost ?? 0).toString(),
+            totalCost: ((item.unitCost ?? 0) * item.quantity).toString(),
+          })),
+        );
       }
+
+      return movement;
     });
 
-    await this.auditHelper.logCreate(userId, 'inventory_movement', results[0], {
+    await this.auditHelper.logCreate(userId, 'inventory_movement', result, {
       tenantId,
-      targetId: results[0].id,
-      description: `Created inventory movement ${movementNumber} with ${results.length} items`,
+      targetId: result.id,
+      description: `Created inventory movement ${movementNumber}`,
     });
 
-    return results;
+    return result;
   }
 
   async findAllByPagination(
@@ -98,11 +84,8 @@ export class InventoryMovementsService {
       search = '',
       sortBy = 'id',
       sortOrder = 'asc',
-      itemId,
-      itemType,
+      productId,
       movementType,
-      documentType,
-      documentNumber,
     } = paginationDto || {};
 
     const offset = (page - 1) * limit;
@@ -115,32 +98,12 @@ export class InventoryMovementsService {
       );
     }
 
-    if (itemId) {
-      searchConditions.push(
-        eq(inventoryMovements.itemId, itemId),
-      );
-    }
-
-    if (itemType) {
-      searchConditions.push(eq(inventoryMovements.itemType, itemType));
-    }
-
     if (movementType) {
       searchConditions.push(
         eq(
           inventoryMovements.movementType,
           movementType as (typeof inventoryMovements.$inferInsert)['movementType'],
         ),
-      );
-    }
-
-    if (documentType) {
-      searchConditions.push(eq(inventoryMovements.documentType, documentType));
-    }
-
-    if (documentNumber) {
-      searchConditions.push(
-        eq(inventoryMovements.documentNumber, documentNumber),
       );
     }
 
@@ -231,18 +194,14 @@ export class InventoryMovementsService {
   }
 
   async getItemStock(
-    itemId: string,
-    itemType: 'PRODUCT' | 'FIXED_ASSET',
+    productId: string,
     tenantId: string | null,
   ): Promise<{
     currentQuantity: number;
-    committedQuantity: number;
-    orderedQuantity: number;
     availableQuantity: number;
   }> {
     const conditions: SQL<unknown>[] = [
-      eq(inventoryMovements.itemId, itemId),
-      eq(inventoryMovements.itemType, itemType),
+      eq(inventoryMovementItems.productId, productId),
     ];
 
     if (tenantId) {
@@ -251,32 +210,21 @@ export class InventoryMovementsService {
 
     const [stock] = await this.db
       .select({
-        inflow: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} IN ('IN', 'ADJUST_IN', 'RECEIVED') THEN ${inventoryMovements.quantity} ELSE 0 END), 0)`,
-        outflow: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} IN ('OUT', 'ADJUST_OUT') THEN ${inventoryMovements.quantity} ELSE 0 END), 0)`,
-        committed: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} = 'COMMIT' THEN ${inventoryMovements.quantity} ELSE 0 END), 0)`,
-        uncommitted: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} = 'UN_COMMIT' THEN ${inventoryMovements.quantity} ELSE 0 END), 0)`,
-        ordered: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} = 'ORDERED' THEN ${inventoryMovements.quantity} ELSE 0 END), 0)`,
-        received: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} = 'RECEIVED' THEN ${inventoryMovements.quantity} ELSE 0 END), 0)`,
+        inflow: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} IN ('PURCHASE_RECEIPT','CUSTOMER_RETURN','INTERNAL_TRANSFER_IN','INVENTORY_ADJUSTMENT_IN','PRODUCTION_OUTPUT') THEN ${inventoryMovementItems.quantity} ELSE 0 END), 0)`,
+        outflow: sql<number>`COALESCE(SUM(CASE WHEN ${inventoryMovements.movementType} IN ('SUPPLIER_RETURN','STOCK_DELIVERY','INTERNAL_TRANSFER_OUT','INVENTORY_ADJUSTMENT_OUT','STOCK_WASTE','INTERNAL_CONSUMPTION','PRODUCTION_CONSUMPTION') THEN ${inventoryMovementItems.quantity} ELSE 0 END), 0)`,
       })
-      .from(inventoryMovements)
+      .from(inventoryMovementItems)
+      .innerJoin(inventoryMovements, eq(inventoryMovementItems.movementId, inventoryMovements.id))
       .where(and(...conditions));
 
     const inflow = stock?.inflow ?? 0;
     const outflow = stock?.outflow ?? 0;
-    const committed = stock?.committed ?? 0;
-    const uncommitted = stock?.uncommitted ?? 0;
-    const ordered = stock?.ordered ?? 0;
-    const received = stock?.received ?? 0;
 
     const currentQuantity = inflow - outflow;
-    const committedQuantity = committed - uncommitted;
-    const orderedQuantity = ordered - received;
-    const availableQuantity = currentQuantity - committedQuantity;
+    const availableQuantity = currentQuantity;
 
     return {
       currentQuantity,
-      committedQuantity,
-      orderedQuantity,
       availableQuantity,
     };
   }

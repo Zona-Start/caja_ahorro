@@ -1,0 +1,1 @@
+ALTER TABLE "core"."module_settings" ADD COLUMN "is_active" boolean DEFAULT true;

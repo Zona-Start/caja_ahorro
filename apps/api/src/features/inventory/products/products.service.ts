@@ -58,17 +58,19 @@ export class ProductsService {
       throw new NotFoundException('Category not found');
     }
 
+    const code = await this.generateCode.generateGlobalCode(
+      'DOC_PRD',
+      tenantId,
+      'inventory',
+      'products',
+    );
     const [result] = await this.db
       .insert(products)
       .values({
         tenantId,
         categoryId: dto.categoryId,
-        sku: await this.generateCode.generateGlobalCode(
-          'DOC_PRD',
-          tenantId,
-          'inventory',
-          'products',
-        ),
+        internalCode: code,
+        sku: code,
         name: dto.name,
         description: dto.description ?? null,
         brand: dto.brand ?? null,

@@ -34,7 +34,13 @@ export function useSaveTenantMutation(): UseMutationResult<
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (payload) => tenantsService.save(payload),
+    mutationFn: async (payload) => {
+      const tenant = await tenantsService.save(payload);
+      if (!payload.id && payload.moduleCodes && payload.moduleCodes.length > 0) {
+        await tenantsService.enableModules(tenant.id, payload.moduleCodes);
+      }
+      return tenant;
+    },
     onSuccess: (tenant, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tenants.all });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tenants.count() });

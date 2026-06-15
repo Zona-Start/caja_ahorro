@@ -100,6 +100,7 @@ export {
   fixedAssets,
   fixedAssetsPrices,
   inventoriesCategories,
+  inventoryMovementItems,
   inventoryMovements,
   productPrices,
   productServiceSuppliers,
@@ -110,4 +111,9 @@ export {
 
 export { timestamps, timestampsShort } from '../timestamps';
 
-export { tenantSettings, tenants } from './tenants';
+export {
+  tenantModuleIntegrations,
+  tenantModules,
+  tenantSettings,
+  tenants,
+} from './tenants';

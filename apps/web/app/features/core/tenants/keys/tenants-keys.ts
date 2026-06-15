@@ -9,4 +9,5 @@ export const TENANTS_KEYS = {
   detail: (id: string) => [...TENANTS_KEYS.details(), id] as const,
   byRif: (rif: string) => [...TENANTS_KEYS.all, 'byRif', rif] as const,
   count: () => [...TENANTS_KEYS.all, 'count'] as const,
+  modules: (id: string) => [...TENANTS_KEYS.all, 'modules', id] as const,
 };

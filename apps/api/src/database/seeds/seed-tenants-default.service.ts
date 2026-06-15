@@ -5,6 +5,7 @@ import {
   moduleSettings,
   rolePermissions,
   roles,
+  tenantModules,
   tenantSettings,
 } from '@/database/schema'; // Ajusta la ruta a tu schema
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -12,36 +13,15 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from '../drizzle-provider';
 
-// IMPORTANTE: Importa aquí tus arrays de rawAccounts
-import { CategoriesSeed } from './default-tenant/categories.seed';
-import {
-  DEFAULT_MODULE_SETTINGS,
-  DEFAULT_TENANT_SETTINGS,
-} from './default-tenant/default-settings.data';
-import {
-  rawAccounts1,
-  rawAccounts2,
-  rawAccounts3,
-  rawAccounts4,
-  rawAccounts5,
-  rawAccounts6,
-  rawAccounts7,
-} from './default-tenant/raw-accounts';
-import { DEFAULT_ROLES } from './default-tenant/roles';
+import { getTemplate } from './default-tenant/templates/index';
+import type { AccountEntry } from './default-tenant/templates/template.types';
 
-interface RawAccount {
-  code: string;
-  aux?: string;
-  name: string;
-  allowsMovements: boolean;
-  parentCode?: string | null;
-}
-
-// Define la interfaz del payload que enviará tu controlador/servicio de Tenants
 export class TenantCreatedEvent {
   constructor(
-    public readonly tenantId: string, // UUID del nuevo tenant
-    public readonly systemUserId?: string, // Opcional: UUID del usuario sistema/creador
+    public readonly tenantId: string,
+    public readonly businessType: string = 'CAJA_AHORRO',
+    public readonly moduleCodes?: string[],
+    public readonly systemUserId?: string,
   ) {}
 }
 
@@ -60,16 +40,22 @@ export class AccountPlanSeederService {
   @OnEvent('tenant.created')
   async handleTenantCreated(payload: TenantCreatedEvent) {
     this.logger.log(
-      `Iniciando seeding del Plan de Cuentas para el Tenant: ${payload.tenantId}`,
+      `Iniciando seeding para Tenant: ${payload.tenantId} (businessType: ${payload.businessType})`,
     );
     try {
-      await this.seedAllAccountPlanData(payload.tenantId, payload.systemUserId);
-      await this.seedRoles(payload.tenantId, payload.systemUserId);
-      await this.seedDefaultCategories(payload.tenantId, payload.systemUserId);
-      await this.seedTenantSettings(payload.tenantId, payload.systemUserId);
-      await this.seedModuleSettings(payload.tenantId, payload.systemUserId);
+      const template = getTemplate(payload.businessType);
+      const activeModules = payload.moduleCodes?.length
+        ? payload.moduleCodes
+        : template.defaultModules;
+
+      await this.provisionModules(payload.tenantId, activeModules, payload.systemUserId);
+      await this.seedAllAccountPlanData(payload.tenantId, template, payload.systemUserId);
+      await this.seedRoles(payload.tenantId, template, payload.systemUserId);
+      await this.seedDefaultCategories(payload.tenantId, payload.systemUserId, template);
+      await this.seedTenantSettings(payload.tenantId, payload.systemUserId, template);
+      await this.seedModuleSettings(payload.tenantId, payload.systemUserId, template, activeModules);
       this.logger.log(
-        `✅ Seeding del Plan de Cuentas completado para el Tenant: ${payload.tenantId}`,
+        `✅ Seeding completado para Tenant: ${payload.tenantId} con módulos: ${activeModules.join(', ')}`,
       );
     } catch (error) {
       this.logger.error(
@@ -79,84 +65,70 @@ export class AccountPlanSeederService {
     }
   }
 
+  private async provisionModules(tenantId: string, moduleCodes: string[], userId?: string) {
+    this.logger.log(`Provisionando ${moduleCodes.length} módulos para tenant: ${tenantId}`);
+    const values = moduleCodes.map((code) => ({
+      tenantId,
+      moduleCode: code as any,
+      status: 'ENABLED' as const,
+      activatedBy: userId || null,
+      activatedAt: new Date(),
+      createdById: userId || null,
+      updatedById: userId || null,
+    }));
+    if (values.length > 0) {
+      await this.db.insert(tenantModules).values(values).onConflictDoNothing({
+        target: [tenantModules.tenantId, tenantModules.moduleCode],
+      });
+    }
+  }
+
   private async seedAllAccountPlanData(
     tenantId: string,
+    template: any,
     systemUserId?: string,
   ) {
-    // 1. CONSOLIDAR TODOS LOS DATOS CRUDOS
-    const allRawAccounts: RawAccount[] = [
-      { code: '100-00-00-00', name: 'ACTIVOS', allowsMovements: false },
-      { code: '200-00-00-00', name: 'PASIVOS', allowsMovements: false },
-      { code: '300-00-00-00', name: 'PATRIMONIO', allowsMovements: false },
-      { code: '400-00-00-00', name: 'INGRESOS', allowsMovements: false },
-      { code: '500-00-00-00', name: 'EGRESOS', allowsMovements: false },
-      {
-        code: '600-00-00-00',
-        name: 'CUENTAS DE ORDEN DEUDORAS',
-        allowsMovements: false,
-      },
-      {
-        code: '700-00-00-00',
-        name: 'CUENTAS DE ORDEN ACREEDORAS',
-        allowsMovements: false,
-      },
-      ...rawAccounts1,
-      ...rawAccounts2,
-      ...rawAccounts3,
-      ...rawAccounts4,
-      ...rawAccounts5,
-      ...rawAccounts6,
-      ...rawAccounts7,
-    ];
+    const accountsToInsert: AccountEntry[] = template?.accounts ?? [];
 
-    // 2. PROCESAR Y ORDENAR LAS CUENTAS
-    const accountsToInsert = this.processAccounts(allRawAccounts);
+    if (accountsToInsert.length === 0) {
+      this.logger.warn(`No accounts defined in template for tenant: ${tenantId}`);
+      return;
+    }
 
-    // 3. INSERCIÓN EN BASE DE DATOS
-    // Nota: Como estamos en BD modernas/UUID, la caché ahora es string (UUID)
+    const sorted = [...accountsToInsert].sort((a, b) => a.level - b.level);
+
     const parentIdCache: Record<string, string> = {};
 
-    for (const acc of accountsToInsert) {
+    for (const acc of sorted) {
       const parentAccountId = acc.parentCode
         ? parentIdCache[acc.parentCode] || null
         : null;
 
-      const accountType = this.determineAccountType(acc.code);
-      const nature = this.determineAccountNature(acc.code);
-
       const [insertedAccount] = await this.db
         .insert(accountPlan)
         .values({
-          tenantId: tenantId, // ✅ Usamos el UUID del tenant inyectado
+          tenantId,
           code: acc.code,
           name: acc.name,
-          description: acc.description,
-          accountType: accountType as any,
-          nature: nature as any,
+          description: null,
+          accountType: acc.accountType,
+          nature: acc.nature,
           level: acc.level,
           allowsMovements: acc.allowsMovements,
-          parentAccountId: parentAccountId,
-          isActive: true,
-          // Si tienes auditoría de quién creó el registro, usa el ID inyectado o uno nulo
-          createdBy: systemUserId || null,
-          updatedBy: systemUserId || null,
+          parentAccountId,
+          isActive: acc.isActive,
+          createdById: systemUserId || null,
+          updatedById: systemUserId || null,
         })
-        .onConflictDoNothing({
-          // Opcional: Especifica el target de conflicto si tienes un Unique Index (ej. tenantId + code)
-          // target: [accountPlan.tenantId, accountPlan.code]
-        })
+        .onConflictDoNothing()
         .returning({ id: accountPlan.id, code: accountPlan.code });
 
       if (insertedAccount) {
         parentIdCache[acc.code] = insertedAccount.id;
       } else if (acc.code) {
-        // Si ya existía (ej. si el evento se dispara dos veces), buscamos su ID
         const existingAccount = await this.db.query.accountPlan.findFirst({
           where: (ap, { eq, and }) =>
-            and(
-              eq(ap.code, acc.code),
-              eq(ap.tenantId, tenantId), // Importante aislar por tenant
-            ),
+            and(eq(ap.code, acc.code), eq(ap.tenantId, tenantId)),
           columns: { id: true },
         });
         if (existingAccount) {
@@ -166,130 +138,18 @@ export class AccountPlanSeederService {
     }
   }
 
-  // === MÉTODOS PRIVADOS DE LÓGICA (Tus funciones encapsuladas) ===
-
-  private processAccounts(accounts: RawAccount[]) {
-    const processed = accounts.map((acc) => {
-      const baseCode = this.formatCode(acc.code);
-      const finalCode = acc.aux ? `${baseCode}.${acc.aux}` : baseCode;
-
-      const parentCode = acc.parentCode
-        ? acc.parentCode
-        : acc.aux
-          ? baseCode
-          : this.getParentCode(finalCode);
-
-      const level = this.determineAccountLevel(finalCode);
-
-      return {
-        code: finalCode,
-        name: acc.name,
-        description: acc.aux
-          ? `Cuenta auxiliar ${acc.aux} de ${baseCode}`
-          : null,
-        allowsMovements: acc.allowsMovements,
-        parentCode: parentCode,
-        level: level,
-      };
-    });
-
-    processed.sort((a, b) => a.level - b.level);
-    return processed;
-  }
-
-  private formatCode(code: string): string {
-    const parts = code.split('-');
-    return `${parts[0]}.${parts[1]}.${parts[2]}.${parts[3]}`;
-  }
-
-  private determineAccountLevel(code: string): number {
-    const parts = code.split('.');
-    let level = 0;
-    if (parts[0] && parts[0] !== '000') level = 1;
-    if (parts[1] && parts[1] !== '00') level = 2;
-    if (parts[2] && parts[2] !== '00') level = 3;
-    if (parts[3] && parts[3] !== '00') level = 4;
-    if (parts.length > 4 && parts[4] && parts[4] !== '000') level = 5;
-    return level;
-  }
-
-  private getParentCode(formattedCode: string): string | null {
-    const parts = formattedCode.split('.');
-    let parentCodeParts: string[] = [...parts];
-
-    if (parts.length === 5) {
-      parentCodeParts.pop();
-      return parentCodeParts.join('.');
-    }
-
-    let lastNonZeroIndex = -1;
-    for (let i = parts.length - 1; i >= 0; i--) {
-      if (parts[i] !== '00' && parts[i] !== '000') {
-        lastNonZeroIndex = i;
-        break;
-      }
-    }
-
-    if (lastNonZeroIndex <= 0) return null;
-
-    const parentParts = [...parts];
-    parentParts[lastNonZeroIndex] = '00';
-    for (let i = lastNonZeroIndex + 1; i < parentParts.length; i++) {
-      parentParts[i] = '00';
-    }
-    return parentParts.join('.');
-  }
-
-  private determineAccountType(code: string): string {
-    const mainGroup = code.split('.')[0];
-    if (mainGroup.startsWith('1')) return 'ASSET';
-    if (mainGroup.startsWith('2')) return 'LIABILITY';
-    if (mainGroup.startsWith('3')) return 'EQUITY';
-    if (mainGroup.startsWith('4')) return 'REVENUE';
-    if (mainGroup.startsWith('5')) return 'EXPENSE';
-    if (mainGroup.startsWith('6') || mainGroup.startsWith('7'))
-      return 'MEMORANDUM';
-    return 'MEMORANDUM';
-  }
-
-  private determineAccountNature(code: string): string {
-    const mainGroup = code.split('.')[0];
-
-    if (mainGroup.startsWith('1') || mainGroup.startsWith('5')) return 'DEBIT';
-    if (
-      mainGroup.startsWith('2') ||
-      mainGroup.startsWith('3') ||
-      mainGroup.startsWith('4')
-    )
-      return 'CREDIT';
-
-    if (mainGroup.startsWith('6')) {
-      const subGroup = code.split('.')[1];
-      if (subGroup.startsWith('1')) return 'DEBIT';
-      if (subGroup.startsWith('2')) return 'CREDIT';
-    }
-
-    if (mainGroup.startsWith('7')) {
-      const subGroup = code.split('.')[1];
-      if (subGroup.startsWith('11') || subGroup.startsWith('13'))
-        return 'CREDIT';
-      if (subGroup.startsWith('12') || subGroup.startsWith('14'))
-        return 'DEBIT';
-    }
-
-    if (code.startsWith('139') || code.startsWith('159')) return 'CREDIT';
-
-    return 'DEBIT';
-  }
-
-  private async seedRoles(tenantId: string, idSuperadmin: string | undefined) {
+  private async seedRoles(
+    tenantId: string,
+    template: any,
+    idSuperadmin: string | undefined,
+  ) {
     this.logger.log(`Sembrando roles por defecto para tenant: ${tenantId}`);
 
-    // ✅ OPTIMIZACIÓN 1: Traemos todos los permisos del catálogo UNA SOLA VEZ a memoria.
-    // Como son pocos (unos 50-100), es súper rápido y evitamos golpear la BD repetidas veces.
     const allPermissions = await this.db.query.permissions.findMany();
 
-    for (const roleData of DEFAULT_ROLES) {
+    const roleList = template.roles;
+
+    for (const roleData of roleList) {
       // ✅ CORRECCIÓN CRÍTICA: Buscar si el rol existe, pero AISLADO POR TENANT
       const existingRole = await this.db.query.roles.findFirst({
         where: (rolesTable, { eq, and }) =>
@@ -380,8 +240,13 @@ export class AccountPlanSeederService {
     }
   }
 
-  private async seedDefaultCategories(tenantId: string, systemUserId?: string) {
-    for (const cat of CategoriesSeed) {
+  private async seedDefaultCategories(
+    tenantId: string,
+    systemUserId?: string,
+    template?: any,
+  ) {
+    const cats = template?.categories ?? [];
+    for (const cat of cats) {
       const existing = await this.db.query.categories.findFirst({
         where: (c, { and, eq }) =>
           and(eq(c.type, cat.type), eq(c.code, cat.code)),
@@ -398,25 +263,25 @@ export class AccountPlanSeederService {
           createdById: systemUserId || null,
           updatedById: systemUserId || null,
         });
-
-        this.logger.log(`Created '${cat.name}' category.`);
-      } else {
-        this.logger.log(
-          `Category '${cat.name}' already exists for this tenant`,
-        );
-        continue;
       }
     }
   }
 
-  private async seedTenantSettings(tenantId: string, userId?: string) {
-    this.logger.log(`Sembrando Tenant Settings para: ${tenantId}`);
+  private async seedTenantSettings(
+    tenantId: string,
+    userId?: string,
+    template?: any,
+  ) {
+    const settings = template?.settings ?? [];
 
-    const settingsToInsert = DEFAULT_TENANT_SETTINGS.map((setting) => ({
-      ...setting,
+    const settingsToInsert = settings.map((setting: any) => ({
+      key: setting.key,
+      value: setting.value,
+      description: setting.description,
+      category: setting.category,
       tenantId,
-      createdBy: userId || null,
-      updatedBy: userId || null,
+      createdById: userId || null,
+      updatedById: userId || null,
     }));
 
     if (settingsToInsert.length > 0) {
@@ -424,17 +289,37 @@ export class AccountPlanSeederService {
         .insert(tenantSettings)
         .values(settingsToInsert)
         .onConflictDoNothing({
-          target: [tenantSettings.tenantId, tenantSettings.key], // Evita duplicados
+          target: [tenantSettings.tenantId, tenantSettings.key],
         });
     }
   }
 
-  private async seedModuleSettings(tenantId: string, userId?: string) {
-    this.logger.log(`Sembrando Module Settings para: ${tenantId}`);
+  private async seedModuleSettings(
+    tenantId: string,
+    userId?: string,
+    template?: any,
+    activeModules?: string[],
+  ) {
+    const allModuleSettings = template?.moduleSettings ?? [];
 
-    const moduleSettingsToInsert = DEFAULT_MODULE_SETTINGS.map((setting) => ({
-      ...setting,
+    const filtered = activeModules?.length
+      ? allModuleSettings.filter((s: any) => {
+          const moduleUpper = s.module.toUpperCase();
+          if (moduleUpper === 'PORTFOLIO') {
+            return activeModules.includes('LOANS') || activeModules.includes('CREDITS');
+          }
+          return activeModules.includes(moduleUpper);
+        })
+      : allModuleSettings;
+
+    const moduleSettingsToInsert = filtered.map((setting: any) => ({
+      module: setting.module,
+      submodule: setting.submodule,
+      key: setting.key,
+      value: setting.value,
+      description: setting.description,
       tenantId,
+      isActive: true,
       createdBy: userId || null,
       updatedBy: userId || null,
     }));

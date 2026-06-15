@@ -27,6 +27,10 @@ describe('TenantSettingsService', () => {
       providers: [
         TenantSettingsService,
         { provide: 'DB', useValue: db },
+        {
+          provide: 'TenantProvisioningService',
+          useValue: { isModuleActive: jest.fn().mockResolvedValue(true) },
+        },
       ],
     }).compile();
 
@@ -50,14 +54,14 @@ describe('TenantSettingsService', () => {
       db.query.tenantSettings.findFirst.mockResolvedValue(mockSetting);
       db.returning.mockResolvedValue([{ ...mockSetting, value: 'new' }]);
 
-      const result = await service.update('1', { value: 'new' });
+      const result = await service.update('1', { value: 'new' }, 'tenant-a');
       expect(result.value).toBe('new');
       expect(db.update).toHaveBeenCalled();
     });
 
     it('should throw NotFoundException if setting not found', async () => {
       db.query.tenantSettings.findFirst.mockResolvedValue(null);
-      await expect(service.update('999', { value: 'new' })).rejects.toThrow(NotFoundException);
+      await expect(service.update('999', { value: 'new' }, 'tenant-a')).rejects.toThrow(NotFoundException);
     });
   });
 });

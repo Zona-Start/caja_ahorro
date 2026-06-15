@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { integer, uuid, varchar } from 'drizzle-orm/pg-core';
 import { inventorySchema } from '../_schemas';
-import { inventoryMovements } from '../tables';
+import { inventoryMovementItems, inventoryMovements } from '../tables';
 
 //Cantidad disponible por ítem según movimientos de inventario.
 export const inventoryAvailability = inventorySchema.view(
@@ -14,16 +14,17 @@ export const inventoryAvailability = inventorySchema.view(
   },
 ).as(sql`
   SELECT
-    item_id,
-    item_type,
+    imi.product_id AS item_id,
+    'PRODUCT' AS item_type,
     SUM(
       CASE
-        WHEN movement_type IN ('IN','ADJUST_IN') THEN quantity
-        WHEN movement_type IN ('OUT','ADJUST_OUT') THEN -quantity
-        ELSE quantity
+        WHEN im.movement_type IN ('PURCHASE_RECEIPT','CUSTOMER_RETURN','INTERNAL_TRANSFER_IN','INVENTORY_ADJUSTMENT_IN','PRODUCTION_OUTPUT') THEN imi.quantity
+        WHEN im.movement_type IN ('SUPPLIER_RETURN','STOCK_DELIVERY','INTERNAL_TRANSFER_OUT','INVENTORY_ADJUSTMENT_OUT','STOCK_WASTE','INTERNAL_CONSUMPTION','PRODUCTION_CONSUMPTION') THEN -imi.quantity
+        ELSE 0
       END
     ) AS available_quantity,
-    tenant_id
-  FROM ${inventoryMovements}
-  GROUP BY item_id, item_type, tenant_id
+    im.tenant_id
+  FROM ${inventoryMovements} im
+  INNER JOIN ${inventoryMovementItems} imi ON imi.movement_id = im.id
+  GROUP BY imi.product_id, im.tenant_id
 `);

@@ -53,6 +53,7 @@ export const moduleSettings = coreSchema.table(
     value: text('value'),
     description: text('description'),
     isEncrypted: boolean('is_encrypted').default(false),
+    isActive: boolean('is_active').default(true),
     createdBy: uuid('created_by'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedBy: uuid('updated_by'),

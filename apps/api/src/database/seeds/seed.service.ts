@@ -42,8 +42,6 @@ export class SeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    this.logger.log('valore :', this.configService.get<boolean>('RUN_SEED'));
-
     const shouldSeed = this.configService.get<boolean>('RUN_SEED');
 
     if (!shouldSeed) {
@@ -51,15 +49,29 @@ export class SeedService implements OnModuleInit {
       return;
     }
 
+    const alreadySeeded = await this.isGloballySeeded();
+    if (alreadySeeded) {
+      this.logger.log('Global seed already executed, skipping.');
+      return;
+    }
+
     this.logger.log('Seed enabled, running...');
     await this.seed();
+  }
+
+  private async isGloballySeeded(): Promise<boolean> {
+    try {
+      const count = await this.db.$count(globalSettings);
+      return count > 0;
+    } catch {
+      return false;
+    }
   }
 
   async seed() {
     this.logger.log('Starting database seed...');
 
     try {
-
       await this.seedSuperadmin();
       await this.seedPermissions();
       await this.seedGlobalSettings();

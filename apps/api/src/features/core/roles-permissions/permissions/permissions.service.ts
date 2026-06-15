@@ -2,7 +2,6 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
   permissionActionEnum,
-  permissionResourceEnum,
   permissions,
   permissionScopeEnum,
 } from '@/database/schema';
@@ -18,16 +17,15 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreatePermissionDto } from './dtos/create-permission.dto';
 import { PermissionPaginationDto } from './dtos/permission-pagination.dto';
 
-type ResourceType = (typeof permissionResourceEnum.enumValues)[number];
-type ActionType = (typeof permissionActionEnum.enumValues)[number];
-type ScopeType = (typeof permissionScopeEnum.enumValues)[number];
+type ActionType = (typeof permissionActionEnum)[number];
+type ScopeType = (typeof permissionScopeEnum)[number];
 
 @Injectable()
 export class PermissionsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   async findAll(): Promise<any[]> {
     return await this.db.query.permissions.findMany({
@@ -69,7 +67,7 @@ export class PermissionsService {
     }
 
     if (resource) {
-      searchConditions.push(eq(permissions.resource, resource as ResourceType));
+      searchConditions.push(eq(permissions.resource, resource));
     }
 
     if (action) {
@@ -134,7 +132,7 @@ export class PermissionsService {
   ): Promise<any | null> {
     return await this.db.query.permissions.findFirst({
       where: and(
-        eq(permissions.resource, resource as ResourceType),
+        eq(permissions.resource, resource),
         eq(permissions.action, action as ActionType),
         scope ? eq(permissions.scope, scope as ScopeType) : undefined,
       ),
@@ -161,7 +159,7 @@ export class PermissionsService {
       .insert(permissions)
       .values({
         name: createPermissionDto.name,
-        resource: createPermissionDto.resource as ResourceType,
+        resource: createPermissionDto.resource,
         action: createPermissionDto.action as ActionType,
         scope: createPermissionDto.scope as ScopeType,
         description: createPermissionDto.description,

@@ -2,18 +2,19 @@ import {
   parseAsInteger,
   parseAsString,
   parseAsStringLiteral,
-  useQueryState,
+  useQueryStates,
 } from 'nuqs';
 import { z } from 'zod';
 
 const activeOptions = ['all', 'true', 'false'] as const;
+const businessTypeOptions = ['all', 'CAJA_AHORRO', 'EMPRESA_COMERCIAL'] as const;
 
-// Schema kept for the loader (server-side URL parsing)
 export const tenantsFilterSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
   search: z.string().optional(),
   isActive: z.enum(activeOptions).default('true'),
+  businessType: z.enum(businessTypeOptions).optional(),
 });
 
 export interface TenantsFilters {
@@ -21,39 +22,42 @@ export interface TenantsFilters {
   limit: number;
   search: string;
   isActive: (typeof activeOptions)[number];
+  businessType?: (typeof businessTypeOptions)[number];
 }
 
 export function useTenantsFilters() {
-  const [page, setPage] = useQueryState('page', parseAsInteger.withDefault(1));
-  const [limit] = useQueryState('limit', parseAsInteger.withDefault(10));
-  const [search, setSearch] = useQueryState(
-    'search',
-    parseAsString.withDefault(''),
-  );
-  const [isActive, setIsActive] = useQueryState(
-    'isActive',
-    parseAsStringLiteral(activeOptions).withDefault('true'),
+  const [filters, setFilters] = useQueryStates(
+    {
+      page: parseAsInteger.withDefault(1),
+      limit: parseAsInteger.withDefault(10),
+      search: parseAsString.withDefault(''),
+      isActive: parseAsStringLiteral(activeOptions).withDefault('true'),
+      businessType: parseAsStringLiteral(businessTypeOptions).withDefault('all'),
+    },
+    { shallow: false },
   );
 
-  const filters: TenantsFilters = { page, limit, search, isActive };
-
-  const setFilters = (newFilters: Partial<TenantsFilters>) => {
-    if (newFilters.search !== undefined) setSearch(newFilters.search || null);
-    if (newFilters.isActive !== undefined)
-      setIsActive(newFilters.isActive ?? null);
-    // Reset page to 1 when changing filters, unless page is explicitly set
-    if (newFilters.page !== undefined) {
-      setPage(newFilters.page);
-    } else {
-      setPage(1);
-    }
+  const updateFilters = (newFilters: Partial<TenantsFilters>) => {
+    const resetPage = newFilters.page === undefined;
+    setFilters({
+      ...filters,
+      ...newFilters,
+      page: resetPage ? 1 : (newFilters.page ?? filters.page),
+      search: newFilters.search !== undefined ? newFilters.search : filters.search,
+      isActive: newFilters.isActive !== undefined ? newFilters.isActive : filters.isActive,
+      businessType: newFilters.businessType !== undefined ? (newFilters.businessType ?? 'all') : filters.businessType,
+      limit: newFilters.limit ?? filters.limit,
+    });
   };
 
   const clearFilters = () => {
-    setPage(1);
-    setSearch(null);
-    setIsActive('true');
+    setFilters({
+      page: 1,
+      search: null,
+      isActive: 'true',
+      businessType: 'all',
+    });
   };
 
-  return { filters, setFilters, clearFilters };
+  return { filters, setFilters: updateFilters, clearFilters };
 }

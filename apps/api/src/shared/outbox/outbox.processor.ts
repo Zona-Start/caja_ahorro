@@ -7,7 +7,8 @@ import { eventOutbox } from '@/database/schema';
 import { eq, and, lte, asc, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@/database/schema';
-import { EventStoreService, type EventEnvelope } from '@/shared/event-bus';
+import { EventStoreService } from '@/shared/event-bus/event-store.service';
+import type { EventEnvelope } from '@/shared/event-bus/event-envelope';
 
 const LOG = 'outbox';
 

@@ -1,766 +1,204 @@
-// export const DEFAULT_PERMISSIONS = [
-//   // ==========================================
-//   // MÓDULO IAM (Identidad y Accesos del Tenant)
-//   // Uso principal: Rol Admin
-//   // ==========================================
-//   {
-//     resource: "iam:users",
-//     action: "create",
-//     name: "Crear Usuarios",
-//     description:
-//       "Permite registrar nuevos usuarios y darles acceso a la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:users",
-//     action: "read",
-//     name: "Consultar Usuarios",
-//     description:
-//       "Permite ver la lista de usuarios y sus perfiles dentro de la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:users",
-//     action: "update",
-//     name: "Editar Usuarios",
-//     description:
-//       "Permite modificar datos, bloquear o reactivar usuarios de la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:users",
-//     action: "delete",
-//     name: "Eliminar Usuarios",
-//     description: "Permite eliminar usuarios de la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:roles",
-//     action: "create",
-//     name: "Crear Roles Personalizados",
-//     description: "Permite diseñar nuevos roles a la medida para la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:roles",
-//     action: "read",
-//     name: "Consultar Roles",
-//     description:
-//       "Permite ver la lista de roles y los permisos que tienen asignados.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:roles",
-//     action: "update",
-//     name: "Editar Roles",
-//     description: "Permite editar los roles de la organización.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:roles",
-//     action: "delete",
-//     name: "Eliminar Roles",
-//     description: "Permite eliminar roles de la organización.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "iam:sessions",
-//     action: "delete",
-//     name: "Revocar Sesiones",
-//     description:
-//       "Permite forzar el cierre de sesión de un usuario de la empresa por seguridad.",
-//     scope: "global",
-//   },
-
-//   // ==========================================
-//   // MÓDULO SYSTEM (Configuración y Parametrización del Tenant)
-//   // Uso principal: Rol Admin
-//   // ==========================================
-//   {
-//     resource: "system:tenants-systems",
-//     action: "read",
-//     name: "Consultar Parámetros de Organización",
-//     description: "Consultar los parámetros generales por organización.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "system:tenants-systems",
-//     action: "update",
-//     name: "Editar Datos de Empresa",
-//     description:
-//       "Permite modificar los datos y configuraciones base de la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "system:modules",
-//     action: "read",
-//     name: "Consultar Parámetros de Módulos",
-//     description: "Permite consultar los parámetros por módulos.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "system:modules",
-//     action: "update",
-//     name: "Editar Parámetros de Módulos",
-//     description: "Permite actualizar los parámetros específicos por módulos.",
-//     scope: "tenant",
-//   },
-
-//   // ==========================================
-//   // MÓDULO SAVINGS (Caja de Ahorro / Asociados)
-//   // Uso: Asistentes (CRUD básico), Ejecutivos (Aprobaciones)
-//   // ==========================================
-//   {
-//     resource: "savings:members",
-//     action: "create",
-//     name: "Registrar Asociado",
-//     description:
-//       "Permite dar de alta a un nuevo asociado en la caja de ahorro.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:members",
-//     action: "read",
-//     name: "Consultar Asociados",
-//     description:
-//       "Permite ver el expediente, estado de cuenta y datos del asociado.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:contributions",
-//     action: "create",
-//     name: "Carga Manual de Haberes",
-//     description: "Permite cargar aportes y retenciones por nómina manualmente.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:contributions",
-//     action: "read",
-//     name: "Consultar Haberes",
-//     description: "Permite consultar aportes y retenciones por nómina.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:contributions",
-//     action: "mass_upload",
-//     name: "Carga Masiva de Haberes",
-//     description:
-//       "Permite subir archivos (Excel/CSV) para cargar aportes y retenciones por nómina.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:withdrawals",
-//     action: "create",
-//     name: "Cargar Solicitud de Retiro",
-//     description:
-//       "Permite registrar una solicitud de retiro de haberes (requiere aprobación).",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:withdrawals",
-//     action: "approve",
-//     name: "Aprobar Retiros",
-//     description:
-//       "Permite a nivel gerencial dar el visto bueno a un retiro de haberes.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:liquidations",
-//     action: "process",
-//     name: "Procesar Liquidación",
-//     description:
-//       "Permite calcular y cerrar definitivamente los haberes de un asociado que se retira.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "savings:liquidations",
-//     action: "disburse",
-//     name: "Desembolsar Liquidación",
-//     description:
-//       "Permite ejecutar la orden de pago y afectar el saldo en banco para una liquidación.",
-//     scope: "tenant",
-//   },
-
-//   // ==========================================
-//   // MÓDULO PORTFOLIO (Cartera y Préstamos)
-//   // Uso: Asistentes (Carga), Ejecutivos (Aprobación/Desembolso)
-//   // ==========================================
-//   {
-//     resource: "portfolio:loans",
-//     action: "create",
-//     name: "Cargar Solicitud de Préstamo",
-//     description:
-//       "Permite registrar una nueva solicitud de préstamo para un asociado.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "portfolio:loans",
-//     action: "approve",
-//     name: "Aprobar Préstamos",
-//     description:
-//       "Permite evaluar y aprobar o rechazar solicitudes de préstamos.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "portfolio:loans",
-//     action: "disburse",
-//     name: "Desembolsar Préstamos",
-//     description:
-//       "Permite liberar los fondos de un préstamo aprobado a la cuenta del asociado.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "portfolio:payments",
-//     action: "create",
-//     name: "Cargar Pagos/Abonos",
-//     description:
-//       "Permite registrar pagos manuales a las cuotas de los préstamos.",
-//     scope: "tenant",
-//   },
-
-//   // ==========================================
-//   // MÓDULO ACCOUNTING (Contabilidad)
-//   // Uso: Contador (Accountant)
-//   // ==========================================
-//   {
-//     resource: "accounting:chart_of_accounts",
-//     action: "create",
-//     name: "Crear Cuentas Contables",
-//     description:
-//       "Permite agregar nuevas cuentas al plan de cuentas de la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:chart_of_accounts",
-//     action: "read",
-//     name: "Consultar Plan de Cuentas",
-//     description: "Permite visualizar la estructura contable y saldos actuales.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:chart_of_accounts",
-//     action: "update",
-//     name: "Actualizar Plan de Cuentas",
-//     description: "Permite actualizar la estructura contable y saldos actuales.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:chart_of_accounts",
-//     action: "delete",
-//     name: "Eliminar Plan de Cuentas",
-//     description: "Permite eliminar la estructura contable y saldos actuales.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:journal_entries",
-//     action: "create",
-//     name: "Crear Asientos Contables",
-//     description:
-//       "Permite registrar comprobantes de diario manuales (en borrador).",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:journal_entries",
-//     action: "read",
-//     name: "Consultar Asientos Contables",
-//     description:
-//       "Permite consultar comprobantes de diario manuales (en borrador).",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:journal_entries",
-//     action: "approve",
-//     name: "Mayorizar Asientos (Postear)",
-//     description:
-//       "Permite aprobar un asiento contable para que afecte definitivamente los saldos.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:cycles",
-//     action: "process",
-//     name: "Cierre de Mes/Ejercicio",
-//     description:
-//       "Permite ejecutar los procesos de cierre contable y cálculo de utilidades.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "accounting:reports",
-//     action: "read",
-//     name: "Generar Estados Financieros",
-//     description:
-//       "Permite emitir Balance General, Estado de Resultados y libros contables.",
-//     scope: "tenant",
-//   },
-
-//   // ==========================================
-//   // MÓDULO BANKING (Bancos y Tesorería)
-//   // Uso: Contador (Accountant) y Admin
-//   // ==========================================
-//   {
-//     resource: "banking:accounts",
-//     action: "create",
-//     name: "Registrar Cuentas Bancarias",
-//     description:
-//       "Permite configurar las cuentas bancarias propias de la empresa.",
-//     scope: "global",
-//   },
-//   {
-//     resource: "banking:accounts",
-//     action: "read",
-//     name: "Consultar Cuentas Bancarias",
-//     description:
-//       "Permite consultar las cuentas bancarias propias de la empresa.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "banking:transactions",
-//     action: "create",
-//     name: "Registrar Movimientos Bancarios",
-//     description:
-//       "Permite registrar notas de débito, crédito y transferencias manuales.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "banking:reconciliation",
-//     action: "process",
-//     name: "Conciliar Bancos",
-//     description:
-//       "Permite ejecutar el proceso de conciliación entre el extracto bancario y el libro mayor.",
-//     scope: "tenant",
-//   },
-
-//   // ==========================================
-//   // CATÁLOGOS LOCALES (Propios de la empresa)
-//   // ==========================================
-//   {
-//     resource: "catalog:categories",
-//     action: "create",
-//     name: "Crear Categorías Locales",
-//     description:
-//       "Permite parametrizar agrupaciones (ej. tipos de préstamos, departamentos).",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "catalog:categories",
-//     action: "read",
-//     name: "Consultar Categorías",
-//     description: "Permite consultar las categorías registradas.",
-//     scope: "tenant",
-//   },
-//   {
-//     resource: "catalog:exchange_rates",
-//     action: "read",
-//     name: "Consultar Tasas de Cambio",
-//     description:
-//       "Permite visualizar el histórico de tasas de cambio (Solo lectura de data global).",
-//     scope: "global",
-//   },
-// ] as const;
-
 export const DEFAULT_PERMISSIONS = [
   // ==========================================
-  // MÓDULO IAM (Identidad y Accesos del Tenant)
-  // Uso principal: Rol Admin
+  // MODULO: IAM (Identity & Access Management)
   // ==========================================
-  {
-    resource: 'iam:users',
-    action: 'create',
-    name: 'Crear Usuarios',
-    description:
-      'Permite registrar nuevos usuarios y darles acceso a la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:users',
-    action: 'read',
-    name: 'Consultar Usuarios',
-    description:
-      'Permite ver la lista de usuarios y sus perfiles dentro de la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:users',
-    action: 'update',
-    name: 'Editar Usuarios',
-    description:
-      'Permite modificar datos, bloquear o reactivar usuarios de la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:users',
-    action: 'delete',
-    name: 'Eliminar Usuarios',
-    description: 'Permite eliminar usuarios de la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:roles',
-    action: 'create',
-    name: 'Crear Roles Personalizados',
-    description: 'Permite diseñar nuevos roles a la medida para la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:roles',
-    action: 'read',
-    name: 'Consultar Roles',
-    description:
-      'Permite ver la lista de roles y los permisos que tienen asignados.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:roles',
-    action: 'update',
-    name: 'Editar Roles',
-    description: 'Permite editar los roles de la organización.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:roles',
-    action: 'delete',
-    name: 'Eliminar Roles',
-    description: 'Permite eliminar roles de la organización.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'iam:sessions',
-    action: 'delete',
-    name: 'Revocar Sesiones',
-    description:
-      'Permite forzar el cierre de sesión de un usuario de la empresa por seguridad.',
-    scope: 'global',
-  },
+  { resource: 'iam:users', action: 'create', name: 'Crear Usuarios', description: 'Registrar nuevos usuarios en el tenant.', scope: 'tenant' },
+  { resource: 'iam:users', action: 'read', name: 'Consultar Usuarios', description: 'Ver lista de usuarios y perfiles.', scope: 'tenant' },
+  { resource: 'iam:users', action: 'update', name: 'Editar Usuarios', description: 'Modificar datos y estado de usuarios.', scope: 'tenant' },
+  { resource: 'iam:users', action: 'delete', name: 'Eliminar Usuarios', description: 'Eliminar usuarios del tenant.', scope: 'tenant' },
+  { resource: 'iam:roles', action: 'create', name: 'Crear Roles', description: 'Diseñar nuevos roles personalizados.', scope: 'tenant' },
+  { resource: 'iam:roles', action: 'read', name: 'Consultar Roles', description: 'Ver roles y sus permisos asignados.', scope: 'tenant' },
+  { resource: 'iam:roles', action: 'update', name: 'Editar Roles', description: 'Modificar roles y asignación de permisos.', scope: 'tenant' },
+  { resource: 'iam:roles', action: 'delete', name: 'Eliminar Roles', description: 'Eliminar roles del tenant.', scope: 'tenant' },
+  { resource: 'iam:permissions', action: 'read', name: 'Consultar Permisos', description: 'Ver catálogo de permisos del sistema.', scope: 'tenant' },
+  { resource: 'iam:sessions', action: 'read', name: 'Consultar Sesiones', description: 'Ver sesiones activas de usuarios.', scope: 'tenant' },
+  { resource: 'iam:sessions', action: 'delete', name: 'Revocar Sesiones', description: 'Forzar cierre de sesión de usuarios.', scope: 'global' },
 
   // ==========================================
-  // MÓDULO SYSTEM (Configuración y Parametrización del Tenant)
-  // Uso principal: Rol Admin
+  // MODULO: SYSTEM (Configuracion Global)
   // ==========================================
-  {
-    resource: 'system:tenants-systems',
-    action: 'read',
-    name: 'Consultar Parámetros de Organización',
-    description: 'Consultar los parámetros generales por organización.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'system:tenants-systems',
-    action: 'update',
-    name: 'Editar Datos de Empresa',
-    description:
-      'Permite modificar los datos y configuraciones base de la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'system:modules',
-    action: 'read',
-    name: 'Consultar Parámetros de Módulos',
-    description: 'Permite consultar los parámetros por módulos.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'system:modules',
-    action: 'update',
-    name: 'Editar Parámetros de Módulos',
-    description: 'Permite actualizar los parámetros específicos por módulos.',
-    scope: 'tenant',
-  },
+  { resource: 'system:tenants', action: 'read', name: 'Consultar Tenants', description: 'Ver organizaciones registradas (SuperAdmin).', scope: 'global' },
+  { resource: 'system:tenants', action: 'create', name: 'Crear Tenants', description: 'Registrar nuevas organizaciones (SuperAdmin).', scope: 'global' },
+  { resource: 'system:tenants', action: 'update', name: 'Editar Tenants', description: 'Modificar datos de organizaciones (SuperAdmin).', scope: 'global' },
+  { resource: 'system:tenants', action: 'delete', name: 'Desactivar Tenants', description: 'Desactivar organizaciones (SuperAdmin).', scope: 'global' },
+  { resource: 'system:tenants-systems', action: 'read', name: 'Consultar Config. Empresa', description: 'Ver parámetros generales del tenant.', scope: 'tenant' },
+  { resource: 'system:tenants-systems', action: 'update', name: 'Editar Config. Empresa', description: 'Modificar parámetros base del tenant.', scope: 'tenant' },
+  { resource: 'system:global', action: 'read', name: 'Consultar Config. Global', description: 'Ver configuraciones globales del sistema.', scope: 'global' },
+  { resource: 'system:global', action: 'update', name: 'Editar Config. Global', description: 'Modificar configuraciones globales.', scope: 'global' },
+  { resource: 'system:currencies', action: 'read', name: 'Consultar Monedas', description: 'Ver monedas disponibles en el sistema.', scope: 'global' },
+  { resource: 'system:modules', action: 'read', name: 'Consultar Módulos', description: 'Ver parámetros de módulos del tenant.', scope: 'tenant' },
+  { resource: 'system:modules', action: 'update', name: 'Editar Módulos', description: 'Actualizar parámetros de módulos.', scope: 'tenant' },
 
   // ==========================================
-  // MÓDULO SAVINGS (Caja de Ahorro / Asociados)
-  // Uso: Asistentes (CRUD básico), Ejecutivos (Aprobaciones)
+  // MODULO: SAVINGS (Caja de Ahorro)
   // ==========================================
-  {
-    resource: 'savings:members',
-    action: 'create',
-    name: 'Registrar Asociado',
-    description:
-      'Permite dar de alta a un nuevo asociado en la caja de ahorro.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:members',
-    action: 'read',
-    name: 'Consultar Asociados',
-    description:
-      'Permite ver el expediente, estado de cuenta y datos del asociado.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:contributions',
-    action: 'create',
-    name: 'Carga Manual de Haberes',
-    description: 'Permite cargar aportes y retenciones por nómina manualmente.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:contributions',
-    action: 'read',
-    name: 'Consultar Haberes',
-    description: 'Permite consultar aportes y retenciones por nómina.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:contributions',
-    action: 'mass_upload',
-    name: 'Carga Masiva de Haberes',
-    description:
-      'Permite subir archivos (Excel/CSV) para cargar aportes y retenciones por nómina.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:withdrawals',
-    action: 'create',
-    name: 'Cargar Solicitud de Retiro',
-    description:
-      'Permite registrar una solicitud de retiro de haberes (requiere aprobación).',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:withdrawals',
-    action: 'approve',
-    name: 'Aprobar Retiros',
-    description:
-      'Permite a nivel gerencial dar el visto bueno a un retiro de haberes.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:liquidations',
-    action: 'process',
-    name: 'Procesar Liquidación',
-    description:
-      'Permite calcular y cerrar definitivamente los haberes de un asociado que se retira.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'savings:liquidations',
-    action: 'disburse',
-    name: 'Desembolsar Liquidación',
-    description:
-      'Permite ejecutar la orden de pago y afectar el saldo en banco para una liquidación.',
-    scope: 'tenant',
-  },
+  { resource: 'savings:members', action: 'create', name: 'Registrar Asociado', description: 'Dar de alta un nuevo asociado.', scope: 'tenant' },
+  { resource: 'savings:members', action: 'read', name: 'Consultar Asociados', description: 'Ver expediente y datos del asociado.', scope: 'tenant' },
+  { resource: 'savings:members', action: 'update', name: 'Editar Asociado', description: 'Modificar datos del asociado.', scope: 'tenant' },
+  { resource: 'savings:members', action: 'delete', name: 'Desactivar Asociado', description: 'Desactivar asociado del sistema.', scope: 'tenant' },
+  { resource: 'savings:contributions', action: 'create', name: 'Carga Manual de Haberes', description: 'Registrar aportes y retenciones manualmente.', scope: 'tenant' },
+  { resource: 'savings:contributions', action: 'read', name: 'Consultar Haberes', description: 'Ver aportes y retenciones.', scope: 'tenant' },
+  { resource: 'savings:contributions', action: 'update', name: 'Editar Haberes', description: 'Modificar aportes y retenciones.', scope: 'tenant' },
+  { resource: 'savings:contributions', action: 'mass_upload', name: 'Carga Masiva de Haberes', description: 'Subir Excel/CSV de aportes por nómina.', scope: 'tenant' },
+  { resource: 'savings:contributions', action: 'mass_disburse', name: 'Desembolso Masivo de Haberes', description: 'Procesar pago masivo de haberes.', scope: 'tenant' },
+  { resource: 'savings:withdrawals', action: 'create', name: 'Solicitar Retiro', description: 'Registrar solicitud de retiro de haberes.', scope: 'tenant' },
+  { resource: 'savings:withdrawals', action: 'read', name: 'Consultar Retiros', description: 'Ver solicitudes de retiro.', scope: 'tenant' },
+  { resource: 'savings:withdrawals', action: 'update', name: 'Editar Retiro', description: 'Modificar solicitud de retiro.', scope: 'tenant' },
+  { resource: 'savings:withdrawals', action: 'approve', name: 'Aprobar Retiros', description: 'Aprobar solicitudes de retiro.', scope: 'tenant' },
+  { resource: 'savings:withdrawals', action: 'reject', name: 'Rechazar Retiros', description: 'Rechazar solicitudes de retiro.', scope: 'tenant' },
+  { resource: 'savings:withdrawals', action: 'disburse', name: 'Desembolsar Retiro', description: 'Ejecutar pago del retiro aprobado.', scope: 'tenant' },
+  { resource: 'savings:withdrawal-types', action: 'create', name: 'Crear Tipo de Retiro', description: 'Configurar tipos de retiro.', scope: 'tenant' },
+  { resource: 'savings:withdrawal-types', action: 'read', name: 'Consultar Tipos de Retiro', description: 'Ver tipos de retiro configurados.', scope: 'tenant' },
+  { resource: 'savings:withdrawal-types', action: 'update', name: 'Editar Tipo de Retiro', description: 'Modificar configuración de tipo de retiro.', scope: 'tenant' },
+  { resource: 'savings:withdrawal-types', action: 'delete', name: 'Eliminar Tipo de Retiro', description: 'Eliminar tipo de retiro.', scope: 'tenant' },
+  { resource: 'savings:liquidations', action: 'create', name: 'Iniciar Liquidación', description: 'Registrar solicitud de liquidación.', scope: 'tenant' },
+  { resource: 'savings:liquidations', action: 'read', name: 'Consultar Liquidaciones', description: 'Ver expedientes de liquidación.', scope: 'tenant' },
+  { resource: 'savings:liquidations', action: 'update', name: 'Editar Liquidación', description: 'Modificar datos de liquidación.', scope: 'tenant' },
+  { resource: 'savings:liquidations', action: 'approve', name: 'Aprobar Liquidación', description: 'Aprobar solicitud de liquidación.', scope: 'tenant' },
+  { resource: 'savings:liquidations', action: 'reject', name: 'Rechazar Liquidación', description: 'Rechazar solicitud de liquidación.', scope: 'tenant' },
+  { resource: 'savings:liquidations', action: 'process', name: 'Calcular Liquidación', description: 'Calcular haberes definitivos del asociado.', scope: 'tenant' },
+  { resource: 'savings:liquidations', action: 'disburse', name: 'Desembolsar Liquidación', description: 'Ejecutar pago de liquidación.', scope: 'tenant' },
+  { resource: 'savings:configuration', action: 'read', name: 'Consultar Config. Ahorros', description: 'Ver parámetros del módulo de ahorros.', scope: 'tenant' },
+  { resource: 'savings:configuration', action: 'update', name: 'Editar Config. Ahorros', description: 'Modificar parámetros del módulo de ahorros.', scope: 'tenant' },
 
   // ==========================================
-  // MÓDULO PORTFOLIO (Cartera y Préstamos)
-  // Uso: Asistentes (Carga), Ejecutivos (Aprobación/Desembolso)
+  // MODULO: PORTFOLIO (Préstamos y Créditos)
   // ==========================================
-  {
-    resource: 'portfolio:loans',
-    action: 'create',
-    name: 'Cargar Solicitud de Préstamo',
-    description:
-      'Permite registrar una nueva solicitud de préstamo para un asociado.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'portfolio:loans',
-    action: 'approve',
-    name: 'Aprobar Préstamos',
-    description:
-      'Permite evaluar y aprobar o rechazar solicitudes de préstamos.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'portfolio:loans',
-    action: 'disburse',
-    name: 'Desembolsar Préstamos',
-    description:
-      'Permite liberar los fondos de un préstamo aprobado a la cuenta del asociado.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'portfolio:payments',
-    action: 'create',
-    name: 'Cargar Pagos/Abonos',
-    description:
-      'Permite registrar pagos manuales a las cuotas de los préstamos.',
-    scope: 'tenant',
-  },
+  { resource: 'portfolio:loans', action: 'create', name: 'Solicitar Préstamo', description: 'Registrar nueva solicitud de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:loans', action: 'read', name: 'Consultar Préstamos', description: 'Ver solicitudes y préstamos activos.', scope: 'tenant' },
+  { resource: 'portfolio:loans', action: 'update', name: 'Editar Préstamo', description: 'Modificar datos de la solicitud.', scope: 'tenant' },
+  { resource: 'portfolio:loans', action: 'approve', name: 'Aprobar Préstamo', description: 'Evaluar y aprobar solicitud.', scope: 'tenant' },
+  { resource: 'portfolio:loans', action: 'reject', name: 'Rechazar Préstamo', description: 'Rechazar solicitud de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:loans', action: 'disburse', name: 'Desembolsar Préstamo', description: 'Liberar fondos del préstamo aprobado.', scope: 'tenant' },
+  { resource: 'portfolio:loans', action: 'process', name: 'Procesar Préstamo', description: 'Ejecutar cálculos y contabilidad del préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:loans-types', action: 'create', name: 'Crear Tipo de Préstamo', description: 'Configurar tipo de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:loans-types', action: 'read', name: 'Consultar Tipos de Préstamo', description: 'Ver tipos de préstamo configurados.', scope: 'tenant' },
+  { resource: 'portfolio:loans-types', action: 'update', name: 'Editar Tipo de Préstamo', description: 'Modificar configuración de tipo de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:loans-types', action: 'delete', name: 'Eliminar Tipo de Préstamo', description: 'Eliminar tipo de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:credits', action: 'create', name: 'Solicitar Crédito', description: 'Registrar nueva solicitud de crédito comercial.', scope: 'tenant' },
+  { resource: 'portfolio:credits', action: 'read', name: 'Consultar Créditos', description: 'Ver solicitudes y créditos activos.', scope: 'tenant' },
+  { resource: 'portfolio:credits', action: 'update', name: 'Editar Crédito', description: 'Modificar datos de la solicitud.', scope: 'tenant' },
+  { resource: 'portfolio:credits', action: 'approve', name: 'Aprobar Crédito', description: 'Evaluar y aprobar solicitud de crédito.', scope: 'tenant' },
+  { resource: 'portfolio:credits', action: 'reject', name: 'Rechazar Crédito', description: 'Rechazar solicitud de crédito.', scope: 'tenant' },
+  { resource: 'portfolio:credits', action: 'disburse', name: 'Desembolsar Crédito', description: 'Liberar fondos del crédito aprobado.', scope: 'tenant' },
+  { resource: 'portfolio:credits', action: 'process', name: 'Procesar Crédito', description: 'Ejecutar cálculos y contabilidad del crédito.', scope: 'tenant' },
+  { resource: 'portfolio:credits-types', action: 'create', name: 'Crear Tipo de Crédito', description: 'Configurar tipo de crédito comercial.', scope: 'tenant' },
+  { resource: 'portfolio:credits-types', action: 'read', name: 'Consultar Tipos de Crédito', description: 'Ver tipos de crédito configurados.', scope: 'tenant' },
+  { resource: 'portfolio:credits-types', action: 'update', name: 'Editar Tipo de Crédito', description: 'Modificar tipo de crédito.', scope: 'tenant' },
+  { resource: 'portfolio:credits-types', action: 'delete', name: 'Eliminar Tipo de Crédito', description: 'Eliminar tipo de crédito.', scope: 'tenant' },
+  { resource: 'portfolio:payments-loans', action: 'create', name: 'Registrar Pago de Préstamo', description: 'Cargar pago/abono a cuota de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:payments-loans', action: 'read', name: 'Consultar Pagos de Préstamo', description: 'Ver historial de pagos de préstamos.', scope: 'tenant' },
+  { resource: 'portfolio:payments-loans', action: 'approve', name: 'Aprobar Pago de Préstamo', description: 'Validar y confirmar pago de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:payments-loans', action: 'reject', name: 'Rechazar Pago de Préstamo', description: 'Rechazar o revertir pago de préstamo.', scope: 'tenant' },
+  { resource: 'portfolio:payments-credits', action: 'create', name: 'Registrar Pago de Crédito', description: 'Cargar pago/abono a cuota de crédito.', scope: 'tenant' },
+  { resource: 'portfolio:payments-credits', action: 'read', name: 'Consultar Pagos de Crédito', description: 'Ver historial de pagos de créditos.', scope: 'tenant' },
+  { resource: 'portfolio:payments-credits', action: 'approve', name: 'Aprobar Pago de Crédito', description: 'Validar y confirmar pago de crédito.', scope: 'tenant' },
+  { resource: 'portfolio:payments-credits', action: 'reject', name: 'Rechazar Pago de Crédito', description: 'Rechazar o revertir pago de crédito.', scope: 'tenant' },
+  { resource: 'portfolio:products', action: 'create', name: 'Crear Producto Financiero', description: 'Configurar productos financieros.', scope: 'tenant' },
+  { resource: 'portfolio:products', action: 'read', name: 'Consultar Productos', description: 'Ver productos financieros disponibles.', scope: 'tenant' },
+  { resource: 'portfolio:products', action: 'update', name: 'Editar Producto', description: 'Modificar configuración de producto.', scope: 'tenant' },
+  { resource: 'portfolio:products', action: 'delete', name: 'Eliminar Producto', description: 'Eliminar producto financiero.', scope: 'tenant' },
 
   // ==========================================
-  // MÓDULO ACCOUNTING (Contabilidad)
-  // Uso: Contador (Accountant)
+  // MODULO: ACCOUNTING (Contabilidad)
   // ==========================================
-  {
-    resource: 'accounting:chart_of_accounts',
-    action: 'create',
-    name: 'Crear Cuentas Contables',
-    description:
-      'Permite agregar nuevas cuentas al plan de cuentas de la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:chart_of_accounts',
-    action: 'read',
-    name: 'Consultar Plan de Cuentas',
-    description: 'Permite visualizar la estructura contable y saldos actuales.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:chart_of_accounts',
-    action: 'update',
-    name: 'Actualizar Plan de Cuentas',
-    description: 'Permite actualizar la estructura contable y saldos actuales.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:chart_of_accounts',
-    action: 'delete',
-    name: 'Eliminar Plan de Cuentas',
-    description: 'Permite eliminar la estructura contable y saldos actuales.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:journal_entries',
-    action: 'create',
-    name: 'Crear Asientos Contables',
-    description:
-      'Permite registrar comprobantes de diario manuales (en borrador).',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:journal_entries',
-    action: 'read',
-    name: 'Consultar Asientos Contables',
-    description:
-      'Permite consultar comprobantes de diario manuales (en borrador).',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:journal_entries',
-    action: 'approve',
-    name: 'Mayorizar Asientos (Postear)',
-    description:
-      'Permite aprobar un asiento contable para que afecte definitivamente los saldos.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:cycles',
-    action: 'read',
-    name: 'Consultar Ciclos Contables',
-    description: 'Consultar los ciclos contables de la organización',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:cycles',
-    action: 'update',
-    name: 'Editar Ciclos Contables',
-    description: 'Permite editar los ciclos contables',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:cycles',
-    action: 'delete',
-    name: 'Eliminar Ciclos Contables',
-    description: 'Permite eliminar o cancelar los ciclos contables',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:cycles',
-    action: 'process',
-    name: 'Cierre de Mes/Ejercicio',
-    description:
-      'Permite ejecutar los procesos de cierre contable y cálculo de utilidades.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:rules',
-    action: 'read',
-    name: 'Consultar Reglas Contables',
-    description: 'Permite Consultar Reglas Contables',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:rules',
-    action: 'create',
-    name: 'Crear Reglas Contables',
-    description: 'Permite Crear Reglas Contables',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:rules',
-    action: 'update',
-    name: 'Editar Reglas Contables',
-    description: 'Permite Editar Reglas Contables',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:rules',
-    action: 'delete',
-    name: 'Eliminar Reglas Contables',
-    description: 'Permite Eliminar Reglas Contables',
-    scope: 'tenant',
-  },
-  {
-    resource: 'accounting:reports',
-    action: 'read',
-    name: 'Generar Estados Financieros',
-    description:
-      'Permite emitir Balance General, Estado de Resultados y libros contables.',
-    scope: 'tenant',
-  },
+  { resource: 'accounting:chart_of_accounts', action: 'create', name: 'Crear Cuenta Contable', description: 'Agregar cuentas al plan de cuentas.', scope: 'tenant' },
+  { resource: 'accounting:chart_of_accounts', action: 'read', name: 'Consultar Plan de Cuentas', description: 'Ver estructura contable y saldos.', scope: 'tenant' },
+  { resource: 'accounting:chart_of_accounts', action: 'update', name: 'Editar Cuenta Contable', description: 'Modificar cuenta del plan de cuentas.', scope: 'tenant' },
+  { resource: 'accounting:chart_of_accounts', action: 'delete', name: 'Eliminar Cuenta Contable', description: 'Eliminar cuenta del plan de cuentas.', scope: 'tenant' },
+  { resource: 'accounting:rules', action: 'create', name: 'Crear Regla Contable', description: 'Configurar reglas de contabilización automática.', scope: 'tenant' },
+  { resource: 'accounting:rules', action: 'read', name: 'Consultar Reglas Contables', description: 'Ver reglas de contabilización.', scope: 'tenant' },
+  { resource: 'accounting:rules', action: 'update', name: 'Editar Regla Contable', description: 'Modificar regla de contabilización.', scope: 'tenant' },
+  { resource: 'accounting:rules', action: 'delete', name: 'Eliminar Regla Contable', description: 'Eliminar regla de contabilización.', scope: 'tenant' },
+  { resource: 'accounting:journal_entries', action: 'create', name: 'Crear Asiento Contable', description: 'Registrar comprobante de diario.', scope: 'tenant' },
+  { resource: 'accounting:journal_entries', action: 'read', name: 'Consultar Asientos', description: 'Ver comprobantes de diario.', scope: 'tenant' },
+  { resource: 'accounting:journal_entries', action: 'update', name: 'Editar Asiento', description: 'Modificar asiento en estado borrador.', scope: 'tenant' },
+  { resource: 'accounting:journal_entries', action: 'approve', name: 'Postear Asiento', description: 'Aprobar/contabilizar asiento definitivo.', scope: 'tenant' },
+  { resource: 'accounting:journal_entries', action: 'reject', name: 'Rechazar Asiento', description: 'Rechazar o anular asiento contable.', scope: 'tenant' },
+  { resource: 'accounting:cycles', action: 'create', name: 'Abrir Ciclo Contable', description: 'Iniciar nuevo período contable.', scope: 'tenant' },
+  { resource: 'accounting:cycles', action: 'read', name: 'Consultar Ciclos', description: 'Ver ciclos contables.', scope: 'tenant' },
+  { resource: 'accounting:cycles', action: 'update', name: 'Editar Ciclo Contable', description: 'Modificar datos del ciclo.', scope: 'tenant' },
+  { resource: 'accounting:cycles', action: 'delete', name: 'Cancelar Ciclo', description: 'Cancelar o anular ciclo contable.', scope: 'tenant' },
+  { resource: 'accounting:cycles', action: 'process', name: 'Cerrar Ciclo', description: 'Ejecutar cierre contable mensual/anual.', scope: 'tenant' },
+  { resource: 'accounting:reports', action: 'read', name: 'Generar Estados Financieros', description: 'Emitir Balance General, Edo. Resultados y libros.', scope: 'tenant' },
+  { resource: 'accounting:reports', action: 'execute', name: 'Exportar Reportes', description: 'Exportar reportes contables a PDF/Excel.', scope: 'tenant' },
+  { resource: 'accounting:balances', action: 'read', name: 'Consultar Saldos', description: 'Ver saldos de cuentas contables.', scope: 'tenant' },
 
   // ==========================================
-  // MÓDULO BANKING (Bancos y Tesorería)
-  // Uso: Contador (Accountant) y Admin
+  // MODULO: BANKING (Bancos y Tesorería)
   // ==========================================
-  {
-    resource: 'banking:accounts',
-    action: 'create',
-    name: 'Registrar Cuentas Bancarias',
-    description:
-      'Permite configurar las cuentas bancarias propias de la empresa.',
-    scope: 'global',
-  },
-  {
-    resource: 'banking:accounts',
-    action: 'read',
-    name: 'Consultar Cuentas Bancarias',
-    description:
-      'Permite consultar las cuentas bancarias propias de la empresa.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'banking:transactions',
-    action: 'create',
-    name: 'Registrar Movimientos Bancarios',
-    description:
-      'Permite registrar notas de débito, crédito y transferencias manuales.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'banking:reconciliation',
-    action: 'process',
-    name: 'Conciliar Bancos',
-    description:
-      'Permite ejecutar el proceso de conciliación entre el extracto bancario y el libro mayor.',
-    scope: 'tenant',
-  },
+  { resource: 'banking:directory', action: 'read', name: 'Consultar Directorio Bancos', description: 'Ver catálogo de bancos del sistema.', scope: 'global' },
+  { resource: 'banking:accounts', action: 'create', name: 'Registrar Cuenta Bancaria', description: 'Configurar cuentas bancarias del tenant.', scope: 'tenant' },
+  { resource: 'banking:accounts', action: 'read', name: 'Consultar Cuentas Bancarias', description: 'Ver cuentas bancarias del tenant.', scope: 'tenant' },
+  { resource: 'banking:accounts', action: 'update', name: 'Editar Cuenta Bancaria', description: 'Modificar datos de cuenta bancaria.', scope: 'tenant' },
+  { resource: 'banking:accounts', action: 'delete', name: 'Desactivar Cuenta Bancaria', description: 'Desactivar cuenta bancaria.', scope: 'tenant' },
+  { resource: 'banking:transactions', action: 'create', name: 'Registrar Transacción Bancaria', description: 'Registrar movimientos bancarios manuales.', scope: 'tenant' },
+  { resource: 'banking:transactions', action: 'read', name: 'Consultar Transacciones', description: 'Ver movimientos bancarios.', scope: 'tenant' },
+  { resource: 'banking:transactions', action: 'update', name: 'Editar Transacción', description: 'Modificar transacción bancaria.', scope: 'tenant' },
+  { resource: 'banking:transactions', action: 'approve', name: 'Aprobar Transacción', description: 'Validar y confirmar transacción bancaria.', scope: 'tenant' },
+  { resource: 'banking:reconciliation', action: 'read', name: 'Consultar Conciliaciones', description: 'Ver procesos de conciliación.', scope: 'tenant' },
+  { resource: 'banking:reconciliation', action: 'process', name: 'Ejecutar Conciliación', description: 'Ejecutar conciliación bancaria.', scope: 'tenant' },
+  { resource: 'banking:reconciliation', action: 'approve', name: 'Aprobar Conciliación', description: 'Validar y cerrar conciliación.', scope: 'tenant' },
 
   // ==========================================
-  // CATÁLOGOS LOCALES (Propios de la empresa)
+  // MODULO: INVENTORY (Inventario)
   // ==========================================
-  {
-    resource: 'catalog:categories',
-    action: 'create',
-    name: 'Crear Categorías Locales',
-    description:
-      'Permite parametrizar agrupaciones (ej. tipos de préstamos, departamentos).',
-    scope: 'tenant',
-  },
-  {
-    resource: 'catalog:categories',
-    action: 'read',
-    name: 'Consultar Categorías',
-    description: 'Permite consultar las categorías registradas.',
-    scope: 'tenant',
-  },
-  {
-    resource: 'catalog:exchange_rates',
-    action: 'read',
-    name: 'Consultar Tasas de Cambio',
-    description:
-      'Permite visualizar el histórico de tasas de cambio (Solo lectura de data global).',
-    scope: 'global',
-  },
+  { resource: 'inventory:products', action: 'create', name: 'Crear Producto', description: 'Registrar nuevo producto en catálogo.', scope: 'tenant' },
+  { resource: 'inventory:products', action: 'read', name: 'Consultar Productos', description: 'Ver catálogo de productos.', scope: 'tenant' },
+  { resource: 'inventory:products', action: 'update', name: 'Editar Producto', description: 'Modificar datos del producto.', scope: 'tenant' },
+  { resource: 'inventory:products', action: 'delete', name: 'Desactivar Producto', description: 'Desactivar producto del catálogo.', scope: 'tenant' },
+  { resource: 'inventory:services', action: 'create', name: 'Crear Servicio', description: 'Registrar nuevo servicio en catálogo.', scope: 'tenant' },
+  { resource: 'inventory:services', action: 'read', name: 'Consultar Servicios', description: 'Ver catálogo de servicios.', scope: 'tenant' },
+  { resource: 'inventory:services', action: 'update', name: 'Editar Servicio', description: 'Modificar datos del servicio.', scope: 'tenant' },
+  { resource: 'inventory:services', action: 'delete', name: 'Desactivar Servicio', description: 'Desactivar servicio del catálogo.', scope: 'tenant' },
+  { resource: 'inventory:assets', action: 'create', name: 'Registrar Activo Fijo', description: 'Dar de alta un activo fijo.', scope: 'tenant' },
+  { resource: 'inventory:assets', action: 'read', name: 'Consultar Activos Fijos', description: 'Ver registro de activos fijos.', scope: 'tenant' },
+  { resource: 'inventory:assets', action: 'update', name: 'Editar Activo Fijo', description: 'Modificar datos del activo fijo.', scope: 'tenant' },
+  { resource: 'inventory:assets', action: 'delete', name: 'Desincorporar Activo Fijo', description: 'Dar de baja un activo fijo.', scope: 'tenant' },
+  { resource: 'inventory:stock', action: 'read', name: 'Consultar Stock', description: 'Ver niveles de inventario.', scope: 'tenant' },
+  { resource: 'inventory:stock', action: 'update', name: 'Ajustar Stock', description: 'Realizar ajustes de inventario.', scope: 'tenant' },
+  { resource: 'inventory:stock', action: 'process', name: 'Procesar Movimientos', description: 'Ejecutar movimientos de entrada/salida.', scope: 'tenant' },
+
+  // ==========================================
+  // MODULO: PURCHASING (Compras)
+  // ==========================================
+  { resource: 'purchasing:orders', action: 'create', name: 'Crear Orden de Compra', description: 'Registrar nueva orden de compra.', scope: 'tenant' },
+  { resource: 'purchasing:orders', action: 'read', name: 'Consultar Órdenes', description: 'Ver órdenes de compra.', scope: 'tenant' },
+  { resource: 'purchasing:orders', action: 'update', name: 'Editar Orden', description: 'Modificar orden de compra.', scope: 'tenant' },
+  { resource: 'purchasing:orders', action: 'delete', name: 'Cancelar Orden', description: 'Cancelar orden de compra.', scope: 'tenant' },
+  { resource: 'purchasing:orders', action: 'approve', name: 'Aprobar Orden', description: 'Aprobar orden de compra.', scope: 'tenant' },
+  { resource: 'purchasing:orders', action: 'receive', name: 'Recibir Orden', description: 'Registrar recepción de mercancía.', scope: 'tenant' },
+  { resource: 'purchasing:providers', action: 'create', name: 'Registrar Proveedor', description: 'Dar de alta un nuevo proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:providers', action: 'read', name: 'Consultar Proveedores', description: 'Ver catálogo de proveedores.', scope: 'tenant' },
+  { resource: 'purchasing:providers', action: 'update', name: 'Editar Proveedor', description: 'Modificar datos del proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:providers', action: 'delete', name: 'Desactivar Proveedor', description: 'Desactivar proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:invoices', action: 'create', name: 'Registrar Factura', description: 'Registrar factura de proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:invoices', action: 'read', name: 'Consultar Facturas', description: 'Ver facturas de proveedores.', scope: 'tenant' },
+  { resource: 'purchasing:invoices', action: 'update', name: 'Editar Factura', description: 'Modificar factura de proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:invoices', action: 'delete', name: 'Anular Factura', description: 'Anular factura de proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:invoices', action: 'approve', name: 'Aprobar Factura', description: 'Validar y contabilizar factura.', scope: 'tenant' },
+  { resource: 'purchasing:invoices', action: 'process', name: 'Contabilizar Factura', description: 'Ejecutar contabilización automática.', scope: 'tenant' },
+  { resource: 'purchasing:payments', action: 'create', name: 'Registrar Pago', description: 'Crear orden de pago a proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:payments', action: 'read', name: 'Consultar Pagos', description: 'Ver pagos a proveedores.', scope: 'tenant' },
+  { resource: 'purchasing:payments', action: 'update', name: 'Editar Pago', description: 'Modificar orden de pago.', scope: 'tenant' },
+  { resource: 'purchasing:payments', action: 'approve', name: 'Aprobar Pago', description: 'Validar orden de pago.', scope: 'tenant' },
+  { resource: 'purchasing:payments', action: 'disburse', name: 'Desembolsar Pago', description: 'Ejecutar el pago al proveedor.', scope: 'tenant' },
+  { resource: 'purchasing:payments', action: 'process', name: 'Procesar Lote de Pagos', description: 'Procesar pagos en lote.', scope: 'tenant' },
+  { resource: 'purchasing:reports', action: 'read', name: 'Consultar Reportes', description: 'Ver reportes de compras.', scope: 'tenant' },
+  { resource: 'purchasing:reports', action: 'execute', name: 'Exportar Reportes Compras', description: 'Exportar reportes de compras.', scope: 'tenant' },
+  { resource: 'purchasing:accounts_payable', action: 'read', name: 'Consultar CxP', description: 'Ver cuentas por pagar.', scope: 'tenant' },
+  { resource: 'purchasing:accounts_payable', action: 'update', name: 'Editar CxP', description: 'Modificar estado de cuentas por pagar.', scope: 'tenant' },
+  { resource: 'purchasing:accounts_payable', action: 'process', name: 'Procesar CxP', description: 'Ejecutar procesos de cuentas por pagar.', scope: 'tenant' },
+
+  // ==========================================
+  // MODULO: CATALOG (Catálogos Globales)
+  // ==========================================
+  { resource: 'catalog:currencies', action: 'read', name: 'Consultar Monedas', description: 'Ver monedas del sistema.', scope: 'global' },
+  { resource: 'catalog:exchange_rates', action: 'read', name: 'Consultar Tasas de Cambio', description: 'Ver histórico de tasas de cambio.', scope: 'global' },
+  { resource: 'catalog:exchange_rates', action: 'update', name: 'Actualizar Tasas', description: 'Modificar tasas de cambio (manual/automático).', scope: 'global' },
+  { resource: 'catalog:categories', action: 'create', name: 'Crear Categoría', description: 'Configurar categorías locales del tenant.', scope: 'tenant' },
+  { resource: 'catalog:categories', action: 'read', name: 'Consultar Categorías', description: 'Ver categorías registradas.', scope: 'tenant' },
+  { resource: 'catalog:categories', action: 'update', name: 'Editar Categoría', description: 'Modificar categoría existente.', scope: 'tenant' },
+  { resource: 'catalog:categories', action: 'delete', name: 'Eliminar Categoría', description: 'Eliminar categoría.', scope: 'tenant' },
+  { resource: 'catalog:geography', action: 'read', name: 'Consultar Geografía', description: 'Ver catálogo de estados/municipios/parroquias.', scope: 'global' },
 ] as const;

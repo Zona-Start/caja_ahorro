@@ -1,15 +1,7 @@
 import * as t from 'drizzle-orm/pg-core';
 import { index } from 'drizzle-orm/pg-core';
-import {
-  auditActionsEnum,
-  auditTargetTypesEnum,
-  severityLevelsEnum,
-  systemEventTypesEnum,
-} from '../enum';
 import { tenants } from './tenants';
-import { auditSchema } from "../_schemas";
-
-
+import { auditSchema } from '../_schemas';
 
 export const AUDIT_ACTIONS = {
   CREATE: 'create',
@@ -67,8 +59,7 @@ export const auditEvents = auditSchema.table(
     userId: t.uuid('user_id'),
     correlationId: t.uuid('correlation_id'),
 
-    // Aplicamos los Enums aquí
-    action: auditActionsEnum('action').notNull(),
+    action: t.varchar('action', { length: 50 }).notNull(),
     targetType: t.varchar('target_type').notNull(),
 
     targetId: t.text('target_id'),
@@ -107,9 +98,8 @@ export const systemEvents = auditSchema.table(
       onDelete: 'cascade',
     }),
 
-    // Aplicamos los Enums aquí
-    severity: severityLevelsEnum('severity').notNull(),
-    eventType: systemEventTypesEnum('event_type').notNull(),
+    severity: t.varchar('severity', { length: 20 }).notNull(),
+    eventType: t.varchar('event_type', { length: 50 }).notNull(),
 
     source: t.varchar('source', { length: 100 }).notNull(),
 

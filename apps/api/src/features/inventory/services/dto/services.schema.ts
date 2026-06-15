@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const CreateServiceSchema = z.object({
   categoryId: z.string().uuid('Category ID inválido'),
   name: z.string().min(1, 'El nombre es requerido').max(255),
+  serviceType: z.string().min(1, 'El tipo de servicio es requerido').max(50),
   description: z.string().optional(),
   supplierCost: z.preprocess(
     (val) => (typeof val === 'string' ? parseFloat(val) : val),

@@ -1,5 +1,6 @@
 export * from './accounting.enum';
 export * from './audit.enum';
+export * from './core.enum';
 export * from './inventory.enum';
 export * from './permission';
 export * from './purchasing.enum';

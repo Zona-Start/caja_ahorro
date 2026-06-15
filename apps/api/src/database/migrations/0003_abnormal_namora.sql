@@ -1,1 +1,0 @@
-ALTER TABLE "treasury"."internal_transaction_bank_links" ALTER COLUMN "internal_record_id" SET DATA TYPE varchar;

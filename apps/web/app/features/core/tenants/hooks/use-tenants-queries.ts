@@ -10,6 +10,8 @@ const mapFiltersToApiParams = (filters: TenantsFilters) => ({
   search: filters.search || undefined,
   isActive:
     filters.isActive === 'all' ? undefined : filters.isActive === 'true',
+  businessType:
+    filters.businessType === 'all' ? undefined : filters.businessType,
 });
 
 export function useTenantsQuery(
@@ -53,6 +55,17 @@ export function useTenantByRifQuery(
     queryFn: () => tenantsService.getByRif(rif),
     enabled: enabled && rif.trim().length > 0,
     retry: false,
+  });
+}
+
+export function useTenantModulesQuery(
+  tenantId: string,
+  enabled: boolean = true,
+): UseQueryResult<Array<{ id: string; moduleCode: string; status: string }>> {
+  return useQuery({
+    queryKey: QUERY_KEYS.tenants.modules(tenantId),
+    queryFn: () => tenantsService.getModules(tenantId),
+    enabled: enabled && !!tenantId,
   });
 }
 

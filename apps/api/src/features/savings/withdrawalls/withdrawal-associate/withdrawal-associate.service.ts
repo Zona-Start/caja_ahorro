@@ -1207,14 +1207,11 @@ export class WithdrawalAssociateService {
           if (item.itemType === 'PRODUCT') {
             await this.inventoryMovementsService.create(
               {
-                movementType: 'OUT',
+                movementType: 'STOCK_DELIVERY',
                 description: `Salida Producto por retiro ${withdrawalTypeRecord?.description} Ref: ${withdrawalRecord.referenceCode}`,
-                documentType: 'VENTA',
-                documentNumber: withdrawalRecord.referenceCode ?? undefined,
                 items: [
                   {
-                    itemId: item.itemId ?? 0,
-                    itemType: 'PRODUCT',
+                    productId: item.itemId ?? 0,
                     quantity: item.quantity,
                     unitCost: Number(item.agreedSellingPrice),
                   },

@@ -1,1 +1,0 @@
-ALTER TABLE "audit"."audit_events" ALTER COLUMN "target_type" SET DATA TYPE varchar;

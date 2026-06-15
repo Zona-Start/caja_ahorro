@@ -12,11 +12,18 @@ const optionalEmailField = (max: number, message: string) =>
     z.string().email(message).max(max, message).optional(),
   );
 
+const moduleCodeValues = [
+  'ACCOUNTING', 'LOANS', 'CREDITS', 'SAVINGS', 'INVENTORY',
+  'PURCHASING', 'BILLING', 'BANKING', 'TREASURY', 'HR_PAYROLL',
+  'AUDIT',
+] as const;
+
 export const tenantSchema = z.object({
   id: z.string(),
   name: z.string(),
   rif: z.string(),
   email: z.string().email(),
+  businessType: z.enum(['CAJA_AHORRO', 'EMPRESA_COMERCIAL']).default('CAJA_AHORRO'),
   address: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   contactName: z.string().nullable().optional(),
@@ -44,6 +51,8 @@ export const tenantMutationSchema = z.object({
     .string()
     .email('El correo electrónico no es válido')
     .max(100, 'El correo no puede superar 100 caracteres'),
+  businessType: z.enum(['CAJA_AHORRO', 'EMPRESA_COMERCIAL']).default('CAJA_AHORRO'),
+  moduleCodes: z.array(z.enum(moduleCodeValues)).optional(),
   address: optionalStringField(
     500,
     'La dirección no puede superar 500 caracteres',

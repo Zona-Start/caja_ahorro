@@ -1,9 +1,10 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { tenantSettings } from '@/database/schema';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { TenantProvisioningService } from '../services/tenant-provisioning.service';
 import {
   CreateTenantSettingDto,
   UpdateTenantSettingDto,
@@ -13,6 +14,7 @@ import {
 export class TenantSettingsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
+    private readonly provisioningService: TenantProvisioningService,
   ) {}
 
   async findAllByTenant(tenantId: string, tx?: NodePgDatabase<typeof schema>) {
@@ -32,7 +34,6 @@ export class TenantSettingsService {
 
     const setting = await db.query.tenantSettings.findFirst({
       where: (s, { eq, and }) => {
-        // Si recibimos tenantId, aplicamos el AND. Si no, solo filtramos por ID.
         return tenantId
           ? and(eq(s.id, id), eq(s.tenantId, tenantId))
           : eq(s.id, id);
@@ -70,12 +71,39 @@ export class TenantSettingsService {
     });
   }
 
+  async findByTenantAndModule(
+    tenantId: string,
+    moduleCode: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.db;
+    return db.query.tenantSettings.findMany({
+      where: (s, { and, eq }) =>
+        and(eq(s.tenantId, tenantId), eq(s.category, moduleCode)),
+      orderBy: (s, { asc }) => [asc(s.key)],
+    });
+  }
+
   async create(
     tenantId: string,
     dto: CreateTenantSettingDto,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.db;
+
+    if (dto.moduleCode) {
+      const isActive = await this.provisioningService.isModuleActive(
+        tenantId,
+        dto.moduleCode,
+        tx,
+      );
+      if (!isActive) {
+        throw new BadRequestException(
+          `Cannot save settings for module ${dto.moduleCode}: module is not active for this tenant`,
+        );
+      }
+    }
+
     const existing = await this.findByTenantAndKey(tenantId, dto.key, tx);
     if (existing)
       throw new Error(
@@ -88,7 +116,7 @@ export class TenantSettingsService {
         tenantId: tenantId,
         key: dto.key,
         value: dto.value,
-        category: dto.category,
+        category: dto.moduleCode ?? dto.category,
       } as unknown as typeof tenantSettings.$inferInsert)
       .returning();
 
@@ -105,13 +133,10 @@ export class TenantSettingsService {
     const db = tx ?? this.db;
     await this.findById(id, tenantId, tx);
 
-    const updateData: Record<string, any> = { updatedAt: new Date() };
-    if (dto.value !== undefined) updateData.value = dto.value;
-
     const [updated] = await db
       .update(tenantSettings)
       .set({
-        ...updateData,
+        value: dto.value,
         updatedById: userId,
       })
       .where(
@@ -138,11 +163,32 @@ export class TenantSettingsService {
     value: string,
     category: string = 'general',
     userId?: string,
+    moduleCode?: string,
     tx?: NodePgDatabase<typeof schema>,
   ) {
+    if (moduleCode) {
+      const isActive = await this.provisioningService.isModuleActive(
+        tenantId,
+        moduleCode,
+        tx,
+      );
+      if (!isActive) {
+        throw new BadRequestException(
+          `Cannot upsert settings for module ${moduleCode}: module is not active`,
+        );
+      }
+    }
+
     const existing = await this.findByTenantAndKey(tenantId, key, tx);
-    if (existing)
-      return this.update(existing.id, { value }, tenantId, userId, tx);
-    return this.create(tenantId, { key, value, category }, tx);
+    if (existing) {
+      await this.update(existing.id, { value }, tenantId, userId, tx);
+      return existing;
+    }
+
+    return this.create(
+      tenantId,
+      { key, value, category: moduleCode ?? category, moduleCode: moduleCode as any },
+      tx,
+    );
   }
 }

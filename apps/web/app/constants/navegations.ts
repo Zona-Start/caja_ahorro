@@ -347,15 +347,6 @@ export const navGroups: NavGroup[] = [
     label: 'Administracion',
     items: [
       {
-        label: 'Clientes',
-        href: '/dashboard/administracion/clientes',
-        icon: Building2,
-        requiresPermission: {
-          resource: 'tenants',
-          action: 'read',
-        },
-      },
-      {
         label: 'Usuarios',
         href: '/dashboard/administracion/usuarios',
         icon: UserCog,
@@ -374,15 +365,6 @@ export const navGroups: NavGroup[] = [
         },
       },
       {
-        label: 'Permisos',
-        href: '/dashboard/administracion/permisos',
-        icon: Lock,
-        requiresPermission: {
-          resource: 'iam:permissions',
-          action: 'create',
-        },
-      },
-      {
         label: 'Categorías',
         href: '/dashboard/administracion/categorias',
         icon: Tag,
@@ -397,11 +379,11 @@ export const navGroups: NavGroup[] = [
     label: 'Configuración',
     items: [
       {
-        label: 'Parámetros Globales',
-        href: '/dashboard/configuracion/parametros-globales',
+        label: 'Parámetros Generales',
+        href: '/dashboard/configuracion/parametros-generales',
         icon: Settings,
         requiresPermission: {
-          resource: 'settings',
+          resource: 'system:tenants-systems',
           action: 'read',
         },
       },
@@ -414,13 +396,37 @@ export const navGroups: NavGroup[] = [
           action: 'read',
         },
       },
+    ],
+  },
+
+  {
+    label: 'Sistema',
+    items: [
       {
-        label: 'Parámetros General',
-        href: '/dashboard/configuracion/parametros-generales',
+        label: 'Parámetros Plataforma',
+        href: '/dashboard/configuracion/parametros-globales',
         icon: Settings,
         requiresPermission: {
-          resource: 'system:tenants-systems',
+          resource: 'settings',
           action: 'read',
+        },
+      },
+      {
+        label: 'Clientes',
+        href: '/dashboard/administracion/clientes',
+        icon: Building2,
+        requiresPermission: {
+          resource: 'tenants',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Permisos',
+        href: '/dashboard/administracion/permisos',
+        icon: Lock,
+        requiresPermission: {
+          resource: 'iam:permissions',
+          action: 'create',
         },
       },
       {

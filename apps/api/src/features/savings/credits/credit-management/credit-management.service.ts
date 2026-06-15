@@ -528,14 +528,11 @@ export class CreditManagementService {
         if (item.itemType === 'PRODUCT') {
           await this.inventoryMovementsService.create(
             {
-              movementType: 'OUT',
+              movementType: 'STOCK_DELIVERY',
               description: `Salida de producto por credito asociado N° ${updatedCredit.customReference}`,
-              documentType: 'VENTA',
-              documentNumber: updatedCredit.customReference ?? undefined,
               items: [
                 {
-                  itemId: String(item.itemId ?? 0),
-                  itemType: 'PRODUCT',
+                  productId: String(item.itemId ?? 0),
                   quantity: item.quantity,
                   unitCost: Number(item.agreedSellingPrice),
                 },

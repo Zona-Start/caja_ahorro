@@ -65,11 +65,10 @@ export class InventoryMovementsController {
   })
   async getItemStock(
     @Req() req: Request,
-    @Param('itemType') itemType: 'PRODUCT' | 'FIXED_ASSET',
-    @Param('itemId') itemId: string,
+    @Param('productId') productId: string,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.getItemStock(itemId, itemType, targetTenantId);
+    return this.service.getItemStock(productId, targetTenantId);
   }
 
   @Get(':id')

@@ -20,19 +20,16 @@ CREATE TYPE "accounting"."account_nature" AS ENUM('DEBIT', 'CREDIT');--> stateme
 CREATE TYPE "accounting"."account_type" AS ENUM('ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'MEMORANDUM');--> statement-breakpoint
 CREATE TYPE "accounting"."cycle_status" AS ENUM('OPEN', 'CLOSED', 'CLOSING', 'PENDING');--> statement-breakpoint
 CREATE TYPE "accounting"."accounting_entry_status" AS ENUM('DRAFT', 'PENDING', 'POSTED', 'CANCELLED');--> statement-breakpoint
-CREATE TYPE "audit"."audit_action" AS ENUM('create', 'read', 'update', 'delete', 'login', 'logout', 'refresh', 'export', 'import');--> statement-breakpoint
-CREATE TYPE "audit"."audit_target_type" AS ENUM('user', 'role', 'permission', 'session', 'associate', 'tenant', 'category', 'account', 'transaction', 'report', 'settings');--> statement-breakpoint
-CREATE TYPE "audit"."severity_level" AS ENUM('debug', 'info', 'warning', 'error', 'critical');--> statement-breakpoint
-CREATE TYPE "audit"."system_event_type" AS ENUM('database_error', 'validation_error', 'authentication_failed', 'authorization_failed', 'rate_limit_exceeded', 'internal_server_error', 'external_api_error', 'cron_job_failed', 'backup_failed');--> statement-breakpoint
+CREATE TYPE "public"."business_type" AS ENUM('CAJA_AHORRO', 'EMPRESA_COMERCIAL');--> statement-breakpoint
+CREATE TYPE "public"."module_code" AS ENUM('ACCOUNTING', 'LOANS', 'CREDITS', 'SAVINGS', 'INVENTORY', 'PURCHASING', 'BILLING', 'BANKING', 'TREASURY', 'HR_PAYROLL', 'SETTLEMENT', 'AUDIT');--> statement-breakpoint
+CREATE TYPE "public"."module_status" AS ENUM('ENABLED', 'DISABLED', 'SETUP_REQUIRED');--> statement-breakpoint
 CREATE TYPE "inventory"."fixed_assets_inventory_status" AS ENUM('ACTIVE', 'UNDER_MAINTENANCE', 'INACTIVE', 'DEREGISTERED');--> statement-breakpoint
+CREATE TYPE "inventory"."inventory_movement_status" AS ENUM('draft', 'completed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "inventory"."invoice_type_enum" AS ENUM('EXPENSE', 'PURCHASE');--> statement-breakpoint
-CREATE TYPE "inventory"."movement_type_inventory" AS ENUM('IN', 'OUT', 'ADJUST_IN', 'ADJUST_OUT', 'TRANSFER', 'COMMIT', 'UN_COMMIT', 'ORDERED', 'RECEIVED');--> statement-breakpoint
+CREATE TYPE "inventory"."movement_type_inventory" AS ENUM('PURCHASE_RECEIPT', 'SUPPLIER_RETURN', 'STOCK_DELIVERY', 'CUSTOMER_RETURN', 'INTERNAL_TRANSFER_OUT', 'INTERNAL_TRANSFER_IN', 'INVENTORY_ADJUSTMENT_IN', 'INVENTORY_ADJUSTMENT_OUT', 'STOCK_WASTE', 'INTERNAL_CONSUMPTION', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_OUTPUT');--> statement-breakpoint
 CREATE TYPE "inventory"."price_type" AS ENUM('COST', 'SELLING', 'OFFER');--> statement-breakpoint
 CREATE TYPE "inventory"."product_status" AS ENUM('AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE');--> statement-breakpoint
 CREATE TYPE "inventory"."unit_of_measure" AS ENUM('UNIT', 'KILOGRAM', 'LITER', 'METER', 'BOX', 'PACK');--> statement-breakpoint
-CREATE TYPE "auth"."permission_action" AS ENUM('read', 'create', 'update', 'delete', 'execute', 'approve', 'reject', 'process', 'disburse', 'mass_upload', 'mass_disburse');--> statement-breakpoint
-CREATE TYPE "auth"."permission_resource" AS ENUM('savings:members', 'savings:contributions', 'savings:withdrawals', 'savings:liquidations', 'savings:configuration', 'portfolio:loans', 'portfolio:credits', 'portfolio:payments', 'portfolio:products', 'accounting:chart_of_accounts', 'accounting:rules', 'accounting:journal_entries', 'accounting:reports', 'accounting:cycles', 'accounting:balances', 'banking:directory', 'banking:accounts', 'banking:transactions', 'banking:reconciliation', 'inventory:products', 'inventory:services', 'inventory:assets', 'inventory:stock', 'purchasing:orders', 'purchasing:providers', 'purchasing:invoices', 'purchasing:payments', 'purchasing:reports', 'purchasing:accounts_payable', 'iam:users', 'iam:roles', 'iam:permissions', 'iam:sessions', 'catalog:currencies', 'catalog:exchange_rates', 'catalog:categories', 'catalog:geography', 'system:tenants', 'system:tenants-systems', 'system:global', 'system:currencies', 'system:modules');--> statement-breakpoint
-CREATE TYPE "auth"."permission_scope" AS ENUM('all', 'team', 'department', 'branch', 'tenant', 'global', 'own');--> statement-breakpoint
 CREATE TYPE "purchasing"."category_suppliers" AS ENUM('ASSETS', 'SERVICE', 'PRODUCTS', 'MATERIALS', 'FURNITURE', 'OTHERS');--> statement-breakpoint
 CREATE TYPE "purchasing"."invoice_suppliers_status" AS ENUM('DRAFT', 'PENDING', 'ACCOUNTED_FOR', 'PAID', 'CANCELLED');--> statement-breakpoint
 CREATE TYPE "purchasing"."payment_accounts_payable" AS ENUM('PENDING', 'IN_PROGRESS', 'PAID', 'CANCELLED', 'EXPIRED');--> statement-breakpoint
@@ -256,7 +253,7 @@ CREATE TABLE "savings"."associates" (
 	"birthdate" date,
 	"admission_date" date NOT NULL,
 	"graduation_date" date,
-	"discount_frequency_id" integer,
+	"discount_frequency_id" uuid,
 	"status" "status_enum" DEFAULT 'ACTIVE' NOT NULL,
 	"is_payroll_credit" boolean DEFAULT false NOT NULL,
 	"locality_id" integer,
@@ -278,8 +275,8 @@ CREATE TABLE "audit"."audit_events" (
 	"tenant_id" uuid,
 	"user_id" uuid,
 	"correlation_id" uuid,
-	"action" "audit"."audit_action" NOT NULL,
-	"target_type" "audit"."audit_target_type" NOT NULL,
+	"action" varchar(50) NOT NULL,
+	"target_type" varchar NOT NULL,
 	"target_id" text,
 	"target_cedula" varchar(20),
 	"changes" jsonb,
@@ -443,7 +440,7 @@ CREATE TABLE "savings"."credit_item_sales" (
 	"tenant_id" uuid NOT NULL,
 	"credit_id" uuid NOT NULL,
 	"item_type" varchar NOT NULL,
-	"item_id" integer NOT NULL,
+	"item_id" uuid,
 	"quantity" integer DEFAULT 1 NOT NULL,
 	"agreed_selling_price" numeric(20, 6) NOT NULL,
 	"sale_date" date DEFAULT now() NOT NULL,
@@ -576,9 +573,55 @@ CREATE TABLE "core"."currencies" (
 	CONSTRAINT "currencies_code_unique" UNIQUE("code")
 );
 --> statement-breakpoint
+CREATE TABLE "core"."dead_letter_queue" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"event_id" uuid NOT NULL,
+	"event_type" varchar(100) NOT NULL,
+	"aggregate_id" varchar(100) NOT NULL,
+	"tenant_id" uuid,
+	"payload" jsonb,
+	"envelope" jsonb NOT NULL,
+	"handler_name" varchar(100) NOT NULL,
+	"error_message" text,
+	"error_stack" text,
+	"retry_count" integer DEFAULT 0 NOT NULL,
+	"max_retries" integer DEFAULT 3 NOT NULL,
+	"status" varchar(20) DEFAULT 'FAILED' NOT NULL,
+	"failed_at" timestamp DEFAULT now() NOT NULL,
+	"last_retry_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "core"."event_outbox" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"event_id" uuid NOT NULL,
+	"event_type" varchar(100) NOT NULL,
+	"aggregate_id" varchar(100) NOT NULL,
+	"tenant_id" uuid,
+	"payload" jsonb,
+	"status" varchar(20) DEFAULT 'PENDING' NOT NULL,
+	"retry_count" integer DEFAULT 0 NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"sent_at" timestamp,
+	CONSTRAINT "event_outbox_event_id_unique" UNIQUE("event_id")
+);
+--> statement-breakpoint
+CREATE TABLE "core"."event_store" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"event_id" uuid NOT NULL,
+	"event_type" varchar(100) NOT NULL,
+	"aggregate_id" varchar(100) NOT NULL,
+	"tenant_id" uuid,
+	"payload" jsonb,
+	"envelope" jsonb NOT NULL,
+	"status" varchar(20) DEFAULT 'PUBLISHED' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "event_store_event_id_unique" UNIQUE("event_id")
+);
+--> statement-breakpoint
 CREATE TABLE "core"."exchange_rates" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"currency_id" uuid NOT NULL,
+	"tenant_id" uuid,
 	"rate" varchar(20) NOT NULL,
 	"source" varchar(50) DEFAULT 'MANUAL',
 	"is_automatic" boolean DEFAULT false,
@@ -652,7 +695,7 @@ CREATE TABLE "treasury"."internal_transaction_bank_links" (
 	"tenant_id" uuid NOT NULL,
 	"bank_transaction_id" uuid NOT NULL,
 	"internal_record_type" varchar(50) NOT NULL,
-	"internal_record_id" integer NOT NULL,
+	"internal_record_id" varchar NOT NULL,
 	"linked_at" timestamp DEFAULT now(),
 	"linked_by" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -674,21 +717,39 @@ CREATE TABLE "inventory"."inventories_categories" (
 	CONSTRAINT "inventories_categories_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
+CREATE TABLE "inventory"."inventory_movement_items" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"movement_id" uuid NOT NULL,
+	"product_id" uuid NOT NULL,
+	"quantity" integer NOT NULL,
+	"unit_cost" numeric(18, 6) DEFAULT '0.000000' NOT NULL,
+	"total_cost" numeric(18, 6) DEFAULT '0.000000' NOT NULL,
+	"purchase_order_item_id" uuid,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" uuid,
+	"updated_by_id" uuid
+);
+--> statement-breakpoint
 CREATE TABLE "inventory"."inventory_movements" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
-	"description" text,
-	"movement_date" date DEFAULT now(),
-	"item_id" integer NOT NULL,
-	"item_type" varchar NOT NULL,
 	"movement_number" varchar(50) NOT NULL,
 	"movement_type" "inventory"."movement_type_inventory" NOT NULL,
-	"quantity" integer NOT NULL,
-	"unit_cost" numeric(18, 2),
-	"document_type" varchar(50),
-	"document_number" varchar(50),
-	"supplier_invoice_id" uuid,
-	"notes" text,
+	"movement_date" timestamp DEFAULT now() NOT NULL,
+	"status" "inventory"."inventory_movement_status" DEFAULT 'draft' NOT NULL,
+	"description" text,
+	"purchase_order_id" uuid,
+	"supplier_id" uuid,
+	"invoice_number" varchar(50),
+	"associate_id" uuid,
+	"origin_movement_id" uuid,
+	"credit_id" uuid,
+	"accounting_entry_id" uuid,
+	"created_by" uuid,
+	"updated_by" uuid,
+	"cancelled_by" uuid,
+	"cancelled_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" uuid,
@@ -952,9 +1013,9 @@ CREATE TABLE "savings"."payment_batches" (
 CREATE TABLE "auth"."permissions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" varchar(100) NOT NULL,
-	"resource" "auth"."permission_resource" NOT NULL,
-	"action" "auth"."permission_action" NOT NULL,
-	"scope" "auth"."permission_scope" DEFAULT 'own' NOT NULL,
+	"resource" varchar(100) NOT NULL,
+	"action" varchar(50) NOT NULL,
+	"scope" varchar(20) DEFAULT 'own' NOT NULL,
 	"description" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
@@ -963,6 +1024,15 @@ CREATE TABLE "auth"."permissions" (
 	"updated_by_id" uuid,
 	"deleted_by" uuid,
 	"deleted_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "core"."processed_events" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"event_id" uuid NOT NULL,
+	"event_type" varchar(100) NOT NULL,
+	"aggregate_id" varchar(100) NOT NULL,
+	"handler_name" varchar(100) NOT NULL,
+	"processed_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "inventory"."product_prices" (
@@ -1003,6 +1073,7 @@ CREATE TABLE "inventory"."products" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
 	"category_id" uuid NOT NULL,
+	"internal_code" varchar(50) NOT NULL,
 	"sku" varchar(50) NOT NULL,
 	"name" varchar(255) NOT NULL,
 	"description" text,
@@ -1020,14 +1091,63 @@ CREATE TABLE "inventory"."products" (
 	"updated_at" timestamp (3),
 	"created_by_id" uuid,
 	"updated_by_id" uuid,
+	CONSTRAINT "products_internal_code_unique" UNIQUE("internal_code"),
 	CONSTRAINT "products_sku_unique" UNIQUE("sku")
+);
+--> statement-breakpoint
+CREATE TABLE "core"."projection_checkpoints" (
+	"projection_name" varchar(100) PRIMARY KEY NOT NULL,
+	"last_event_id" uuid,
+	"last_event_created_at" timestamp,
+	"processed_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "core"."projection_inventory_stock" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_id" uuid NOT NULL,
+	"item_id" uuid NOT NULL,
+	"item_type" varchar(50) NOT NULL,
+	"item_name" varchar(200),
+	"current_quantity" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"committed_quantity" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"available_quantity" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"last_event_id" uuid,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "core"."projection_ledger_balances" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_id" uuid NOT NULL,
+	"account_plan_id" uuid NOT NULL,
+	"account_code" varchar(50),
+	"account_name" varchar(200),
+	"cycle_id" uuid,
+	"total_debit" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"total_credit" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"balance" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"last_event_id" uuid,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "core"."projection_loan_balances" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_id" uuid NOT NULL,
+	"loan_id" uuid NOT NULL,
+	"associate_id" uuid,
+	"associate_name" varchar(200),
+	"total_amount" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"paid_amount" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"pending_balance" numeric(20, 6) DEFAULT '0' NOT NULL,
+	"status" varchar(20),
+	"last_event_id" uuid,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "purchasing"."purchase_order_items" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"purchase_order_id" uuid NOT NULL,
 	"line_type" "purchasing"."purchase_order_type" NOT NULL,
-	"itemId" integer,
+	"itemId" uuid,
 	"description" varchar(255),
 	"quantity" integer NOT NULL,
 	"unit_cost" numeric(18, 6) NOT NULL,
@@ -1105,15 +1225,16 @@ CREATE TABLE "inventory"."services" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
 	"name" varchar(255) NOT NULL,
-	"service_code" varchar(50) NOT NULL,
+	"internal_code" varchar(50) NOT NULL,
 	"category_id" uuid NOT NULL,
 	"description" text,
 	"status" "purchasing"."status_suppliers" DEFAULT 'ACTIVE' NOT NULL,
+	"service_type" varchar(50) NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp (3),
 	"created_by_id" uuid,
 	"updated_by_id" uuid,
-	CONSTRAINT "services_service_code_unique" UNIQUE("service_code")
+	CONSTRAINT "services_internal_code_unique" UNIQUE("internal_code")
 );
 --> statement-breakpoint
 CREATE TABLE "auth"."sessions" (
@@ -1200,7 +1321,7 @@ CREATE TABLE "purchasing"."supplier_invoice_items" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"invoice_id" uuid NOT NULL,
 	"line_type" "purchasing"."purchase_order_type" NOT NULL,
-	"item_id" integer,
+	"item_id" uuid,
 	"expense_account_id" uuid,
 	"description" varchar(255),
 	"quantity" integer NOT NULL,
@@ -1332,8 +1453,8 @@ CREATE TABLE "purchasing"."suppliers" (
 CREATE TABLE "audit"."system_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid,
-	"severity" "audit"."severity_level" NOT NULL,
-	"event_type" "audit"."system_event_type" NOT NULL,
+	"severity" varchar(20) NOT NULL,
+	"event_type" varchar(50) NOT NULL,
 	"source" varchar(100) NOT NULL,
 	"message" text NOT NULL,
 	"stack_trace" text,
@@ -1361,6 +1482,35 @@ CREATE TABLE "auth"."tenant_members" (
 	"updated_by_id" uuid
 );
 --> statement-breakpoint
+CREATE TABLE "tenant"."tenant_module_integrations" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_id" uuid NOT NULL,
+	"source_module" "module_code" NOT NULL,
+	"target_module" "module_code" NOT NULL,
+	"is_enabled" boolean DEFAULT false NOT NULL,
+	"config" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" uuid,
+	"updated_by_id" uuid
+);
+--> statement-breakpoint
+CREATE TABLE "tenant"."tenant_modules" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tenant_id" uuid NOT NULL,
+	"module_code" "module_code" NOT NULL,
+	"status" "module_status" DEFAULT 'ENABLED' NOT NULL,
+	"activated_at" timestamp DEFAULT now() NOT NULL,
+	"activated_by" uuid,
+	"deactivated_at" timestamp,
+	"deactivated_by" uuid,
+	"settings" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp (3),
+	"created_by_id" uuid,
+	"updated_by_id" uuid
+);
+--> statement-breakpoint
 CREATE TABLE "tenant"."tenant_settings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"tenant_id" uuid NOT NULL,
@@ -1379,6 +1529,7 @@ CREATE TABLE "tenant"."tenants" (
 	"name" varchar(255) NOT NULL,
 	"rif" varchar(20) NOT NULL,
 	"email" varchar(100) NOT NULL,
+	"business_type" "business_type" DEFAULT 'CAJA_AHORRO' NOT NULL,
 	"address" text,
 	"phone" varchar(50),
 	"contact_name" varchar(255),
@@ -1490,6 +1641,7 @@ ALTER TABLE "savings"."associate_account_movements" ADD CONSTRAINT "associate_ac
 ALTER TABLE "savings"."associate_accounts" ADD CONSTRAINT "associate_accounts_associate_id_associates_id_fk" FOREIGN KEY ("associate_id") REFERENCES "savings"."associates"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associate_accounts" ADD CONSTRAINT "associate_accounts_bank_id_bank_directory_id_fk" FOREIGN KEY ("bank_id") REFERENCES "treasury"."bank_directory"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_discount_frequency_id_categories_id_fk" FOREIGN KEY ("discount_frequency_id") REFERENCES "core"."categories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_locality_id_states_id_fk" FOREIGN KEY ("locality_id") REFERENCES "core"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_payroll_type_id_categories_id_fk" FOREIGN KEY ("payroll_type_id") REFERENCES "core"."categories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."associates" ADD CONSTRAINT "associates_associated_type_id_categories_id_fk" FOREIGN KEY ("associated_type_id") REFERENCES "core"."categories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1538,6 +1690,7 @@ ALTER TABLE "savings"."credits_types" ADD CONSTRAINT "credits_types_special_quot
 ALTER TABLE "savings"."credits_types" ADD CONSTRAINT "credits_types_expense_account_chart_id_account_plan_id_fk" FOREIGN KEY ("expense_account_chart_id") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."credits_types" ADD CONSTRAINT "credits_types_payroll_type_id_categories_id_fk" FOREIGN KEY ("payroll_type_id") REFERENCES "core"."categories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "core"."exchange_rates" ADD CONSTRAINT "exchange_rates_currency_id_currencies_id_fk" FOREIGN KEY ("currency_id") REFERENCES "core"."currencies"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "core"."exchange_rates" ADD CONSTRAINT "exchange_rates_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets" ADD CONSTRAINT "fixed_assets_category_id_inventories_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "inventory"."inventories_categories"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."fixed_assets_prices" ADD CONSTRAINT "fixed_assets_prices_fixed_assets_id_fixed_assets_id_fk" FOREIGN KEY ("fixed_assets_id") REFERENCES "inventory"."fixed_assets"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1547,8 +1700,14 @@ ALTER TABLE "treasury"."internal_transaction_bank_links" ADD CONSTRAINT "interna
 ALTER TABLE "treasury"."internal_transaction_bank_links" ADD CONSTRAINT "internal_transaction_bank_links_bank_transaction_id_bank_transactions_id_fk" FOREIGN KEY ("bank_transaction_id") REFERENCES "treasury"."bank_transactions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "treasury"."internal_transaction_bank_links" ADD CONSTRAINT "internal_transaction_bank_links_linked_by_users_id_fk" FOREIGN KEY ("linked_by") REFERENCES "auth"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventories_categories" ADD CONSTRAINT "inventories_categories_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movement_items" ADD CONSTRAINT "inventory_movement_items_movement_id_inventory_movements_id_fk" FOREIGN KEY ("movement_id") REFERENCES "inventory"."inventory_movements"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movement_items" ADD CONSTRAINT "inventory_movement_items_purchase_order_item_id_purchase_order_items_id_fk" FOREIGN KEY ("purchase_order_item_id") REFERENCES "purchasing"."purchase_order_items"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_supplier_invoice_id_supplier_invoices_id_fk" FOREIGN KEY ("supplier_invoice_id") REFERENCES "purchasing"."supplier_invoices"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_purchase_order_id_purchase_orders_id_fk" FOREIGN KEY ("purchase_order_id") REFERENCES "purchasing"."purchase_orders"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_supplier_id_suppliers_id_fk" FOREIGN KEY ("supplier_id") REFERENCES "purchasing"."suppliers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_associate_id_associates_id_fk" FOREIGN KEY ("associate_id") REFERENCES "savings"."associates"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_origin_movement_id_inventory_movements_id_fk" FOREIGN KEY ("origin_movement_id") REFERENCES "inventory"."inventory_movements"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movements" ADD CONSTRAINT "inventory_movements_accounting_entry_id_accounting_entries_id_fk" FOREIGN KEY ("accounting_entry_id") REFERENCES "accounting"."accounting_entries"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."liquidations_associates" ADD CONSTRAINT "liquidations_associates_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."liquidations_associates" ADD CONSTRAINT "liquidations_associates_associate_id_associates_id_fk" FOREIGN KEY ("associate_id") REFERENCES "savings"."associates"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."loan_amortization_schedule" ADD CONSTRAINT "loan_amortization_schedule_loan_id_loans_id_fk" FOREIGN KEY ("loan_id") REFERENCES "savings"."loans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -1636,9 +1795,14 @@ ALTER TABLE "purchasing"."supplier_transactions" ADD CONSTRAINT "supplier_transa
 ALTER TABLE "purchasing"."suppliers" ADD CONSTRAINT "suppliers_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "purchasing"."suppliers" ADD CONSTRAINT "suppliers_state_states_id_fk" FOREIGN KEY ("state") REFERENCES "core"."states"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit"."system_events" ADD CONSTRAINT "system_events_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth"."tenant_members" ADD CONSTRAINT "tenant_members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."tenant_members" ADD CONSTRAINT "tenant_members_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth"."tenant_members" ADD CONSTRAINT "tenant_members_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "auth"."roles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tenant"."tenant_module_integrations" ADD CONSTRAINT "tenant_module_integrations_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tenant"."tenant_modules" ADD CONSTRAINT "tenant_modules_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tenant"."tenant_settings" ADD CONSTRAINT "tenant_settings_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth"."user_permissions" ADD CONSTRAINT "user_permissions_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "auth"."user_permissions" ADD CONSTRAINT "user_permissions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."withdrawal_types" ADD CONSTRAINT "withdrawal_types_tenant_id_tenants_id_fk" FOREIGN KEY ("tenant_id") REFERENCES "tenant"."tenants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."withdrawal_types" ADD CONSTRAINT "withdrawal_types_account_debit_account_plan_id_fk" FOREIGN KEY ("account_debit") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "savings"."withdrawal_types" ADD CONSTRAINT "withdrawal_types_expense_account_account_plan_id_fk" FOREIGN KEY ("expense_account") REFERENCES "accounting"."account_plan"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -1728,6 +1892,17 @@ CREATE INDEX "credits_types_interest_earned_account_chart_id_idx" ON "savings"."
 CREATE INDEX "credits_types_special_quota_account_chart_id_idx" ON "savings"."credits_types" USING btree ("special_quota_account_chart_id");--> statement-breakpoint
 CREATE INDEX "credits_types_expense_account_chart_id_idx" ON "savings"."credits_types" USING btree ("expense_account_chart_id");--> statement-breakpoint
 CREATE INDEX "credits_types_payroll_type_id_idx" ON "savings"."credits_types" USING btree ("payroll_type_id");--> statement-breakpoint
+CREATE INDEX "dlq_event_id_idx" ON "core"."dead_letter_queue" USING btree ("event_id");--> statement-breakpoint
+CREATE INDEX "dlq_aggregate_idx" ON "core"."dead_letter_queue" USING btree ("aggregate_id");--> statement-breakpoint
+CREATE INDEX "dlq_handler_idx" ON "core"."dead_letter_queue" USING btree ("handler_name");--> statement-breakpoint
+CREATE INDEX "dlq_status_idx" ON "core"."dead_letter_queue" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "outbox_status_idx" ON "core"."event_outbox" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "outbox_event_type_idx" ON "core"."event_outbox" USING btree ("event_type");--> statement-breakpoint
+CREATE INDEX "outbox_aggregate_idx" ON "core"."event_outbox" USING btree ("aggregate_id");--> statement-breakpoint
+CREATE INDEX "event_store_aggregate_idx" ON "core"."event_store" USING btree ("aggregate_id");--> statement-breakpoint
+CREATE INDEX "event_store_type_idx" ON "core"."event_store" USING btree ("event_type");--> statement-breakpoint
+CREATE INDEX "event_store_tenant_idx" ON "core"."event_store" USING btree ("tenant_id");--> statement-breakpoint
+CREATE INDEX "event_store_created_idx" ON "core"."event_store" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "exchange_rates_currency_idx" ON "core"."exchange_rates" USING btree ("currency_id");--> statement-breakpoint
 CREATE INDEX "exchange_rates_date_idx" ON "core"."exchange_rates" USING btree ("fetched_at");--> statement-breakpoint
 CREATE INDEX "fixed_asset_code_idx" ON "inventory"."fixed_assets" USING btree ("asset_code");--> statement-breakpoint
@@ -1739,6 +1914,11 @@ CREATE INDEX "int_trans_links_bank_trans_id_idx" ON "treasury"."internal_transac
 CREATE INDEX "int_trans_links_internal_record_idx" ON "treasury"."internal_transaction_bank_links" USING btree ("internal_record_type","internal_record_id");--> statement-breakpoint
 CREATE INDEX "inventory_categories_name_idx" ON "inventory"."inventories_categories" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "inventory_categories_group_idx" ON "inventory"."inventories_categories" USING btree ("group");--> statement-breakpoint
+CREATE INDEX "inv_mov_items_movement_idx" ON "inventory"."inventory_movement_items" USING btree ("movement_id");--> statement-breakpoint
+CREATE INDEX "inv_mov_items_product_idx" ON "inventory"."inventory_movement_items" USING btree ("product_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "inv_mov_tenant_number_idx" ON "inventory"."inventory_movements" USING btree ("tenant_id","movement_number");--> statement-breakpoint
+CREATE INDEX "inv_mov_tenant_type_idx" ON "inventory"."inventory_movements" USING btree ("tenant_id","movement_type");--> statement-breakpoint
+CREATE INDEX "inv_mov_tenant_date_idx" ON "inventory"."inventory_movements" USING btree ("tenant_id","movement_date");--> statement-breakpoint
 CREATE UNIQUE INDEX "liquidations_associate_liquidation_uidx" ON "savings"."liquidations_associates" USING btree ("associate_id","liquidation_date");--> statement-breakpoint
 CREATE UNIQUE INDEX "loan_amort_loan_installment_uidx" ON "savings"."loan_amortization_schedule" USING btree ("loan_id","installment_number");--> statement-breakpoint
 CREATE INDEX "loan_amort_due_date_status_idx" ON "savings"."loan_amortization_schedule" USING btree ("due_date","payment_status");--> statement-breakpoint
@@ -1776,12 +1956,18 @@ CREATE INDEX "permissions_resource_idx" ON "auth"."permissions" USING btree ("re
 CREATE INDEX "permissions_action_idx" ON "auth"."permissions" USING btree ("action");--> statement-breakpoint
 CREATE INDEX "permissions_scope_idx" ON "auth"."permissions" USING btree ("scope");--> statement-breakpoint
 CREATE INDEX "permissions_is_active_idx" ON "auth"."permissions" USING btree ("is_active");--> statement-breakpoint
+CREATE UNIQUE INDEX "processed_events_event_handler_idx" ON "core"."processed_events" USING btree ("event_id","handler_name");--> statement-breakpoint
+CREATE INDEX "processed_events_aggregate_idx" ON "core"."processed_events" USING btree ("aggregate_id");--> statement-breakpoint
+CREATE INDEX "processed_events_type_idx" ON "core"."processed_events" USING btree ("event_type");--> statement-breakpoint
 CREATE INDEX "product_idx" ON "inventory"."product_service_suppliers" USING btree ("product_id");--> statement-breakpoint
 CREATE INDEX "service_idx" ON "inventory"."product_service_suppliers" USING btree ("service_id");--> statement-breakpoint
 CREATE INDEX "supplier_idx" ON "inventory"."product_service_suppliers" USING btree ("supplier_id");--> statement-breakpoint
 CREATE INDEX "sales_prod_sku_idx" ON "inventory"."products" USING btree ("sku");--> statement-breakpoint
 CREATE INDEX "sales_prod_name_idx" ON "inventory"."products" USING btree ("sku");--> statement-breakpoint
 CREATE INDEX "sales_prod_cat_id_idx" ON "inventory"."products" USING btree ("category_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "proj_stock_item_idx" ON "core"."projection_inventory_stock" USING btree ("tenant_id","item_id","item_type");--> statement-breakpoint
+CREATE UNIQUE INDEX "proj_ledger_idx" ON "core"."projection_ledger_balances" USING btree ("tenant_id","account_plan_id","cycle_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "proj_loan_tenant_loan_idx" ON "core"."projection_loan_balances" USING btree ("tenant_id","loan_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "po_order_number_idx" ON "purchasing"."purchase_orders" USING btree ("order_number");--> statement-breakpoint
 CREATE INDEX "role_permissions_role_id_idx" ON "auth"."role_permissions" USING btree ("role_id");--> statement-breakpoint
 CREATE INDEX "role_permissions_permission_id_idx" ON "auth"."role_permissions" USING btree ("permission_id");--> statement-breakpoint
@@ -1810,9 +1996,17 @@ CREATE UNIQUE INDEX "tenant_members_user_tenant_idx" ON "auth"."tenant_members" 
 CREATE INDEX "tenant_members_tenant_id_idx" ON "auth"."tenant_members" USING btree ("tenant_id");--> statement-breakpoint
 CREATE INDEX "tenant_members_user_id_idx" ON "auth"."tenant_members" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "tenant_members_role_id_idx" ON "auth"."tenant_members" USING btree ("role_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "tenant_module_integrations_uidx" ON "tenant"."tenant_module_integrations" USING btree ("tenant_id","source_module","target_module");--> statement-breakpoint
+CREATE INDEX "tenant_module_integrations_tenant_idx" ON "tenant"."tenant_module_integrations" USING btree ("tenant_id");--> statement-breakpoint
+CREATE INDEX "tenant_module_integrations_source_idx" ON "tenant"."tenant_module_integrations" USING btree ("source_module");--> statement-breakpoint
+CREATE INDEX "tenant_module_integrations_target_idx" ON "tenant"."tenant_module_integrations" USING btree ("target_module");--> statement-breakpoint
+CREATE UNIQUE INDEX "tenant_modules_tenant_module_idx" ON "tenant"."tenant_modules" USING btree ("tenant_id","module_code");--> statement-breakpoint
+CREATE INDEX "tenant_modules_tenant_idx" ON "tenant"."tenant_modules" USING btree ("tenant_id");--> statement-breakpoint
+CREATE INDEX "tenant_modules_status_idx" ON "tenant"."tenant_modules" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "tenant_settings_tenant_idx" ON "tenant"."tenant_settings" USING btree ("tenant_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "tenant_settings_key_idx" ON "tenant"."tenant_settings" USING btree ("tenant_id","key");--> statement-breakpoint
 CREATE INDEX "tenants_rif_idx" ON "tenant"."tenants" USING btree ("rif");--> statement-breakpoint
+CREATE INDEX "tenants_business_type_idx" ON "tenant"."tenants" USING btree ("business_type");--> statement-breakpoint
 CREATE INDEX "tenants_active_idx" ON "tenant"."tenants" USING btree ("is_active");--> statement-breakpoint
 CREATE UNIQUE INDEX "user_permissions_tenant_user_perm_idx" ON "auth"."user_permissions" USING btree ("tenant_id","user_id","permission_id");--> statement-breakpoint
 CREATE INDEX "user_permissions_tenant_id_idx" ON "auth"."user_permissions" USING btree ("tenant_id");--> statement-breakpoint
@@ -1910,18 +2104,19 @@ CREATE VIEW "accounting"."active_account_balances_view" AS (
 );--> statement-breakpoint
 CREATE VIEW "inventory"."inventory_availability" AS (
   SELECT
-    item_id,
-    item_type,
+    imi.product_id AS item_id,
+    'PRODUCT' AS item_type,
     SUM(
       CASE
-        WHEN movement_type IN ('IN','ADJUST_IN') THEN quantity
-        WHEN movement_type IN ('OUT','ADJUST_OUT') THEN -quantity
-        ELSE quantity
+        WHEN im.movement_type IN ('PURCHASE_RECEIPT','CUSTOMER_RETURN','INTERNAL_TRANSFER_IN','INVENTORY_ADJUSTMENT_IN','PRODUCTION_OUTPUT') THEN imi.quantity
+        WHEN im.movement_type IN ('SUPPLIER_RETURN','STOCK_DELIVERY','INTERNAL_TRANSFER_OUT','INVENTORY_ADJUSTMENT_OUT','STOCK_WASTE','INTERNAL_CONSUMPTION','PRODUCTION_CONSUMPTION') THEN -imi.quantity
+        ELSE 0
       END
     ) AS available_quantity,
-    tenant_id
-  FROM "inventory"."inventory_movements"
-  GROUP BY item_id, item_type, tenant_id
+    im.tenant_id
+  FROM "inventory"."inventory_movements" im
+  INNER JOIN "inventory"."inventory_movement_items" imi ON imi.movement_id = im.id
+  GROUP BY imi.product_id, im.tenant_id
 );--> statement-breakpoint
 CREATE VIEW "purchasing"."supplier_advances_360" AS (
   SELECT

@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { Tenant } from '../../schemas/tenants.schema';
 import { useDeleteTenantMutation } from '../../hooks/use-tenants-mutations';
 import { useTenantsModalStore } from '../../store/tenants-modal-store';
+import { useTenantsDetailStore } from '../../store/tenants-detail-store';
 
 interface TenantsCellActionProps {
   data: Tenant;
@@ -21,6 +22,7 @@ export function TenantsCellAction({ data }: TenantsCellActionProps) {
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const { openModal } = useTenantsModalStore();
+  const { openDetail } = useTenantsDetailStore();
 
   const deleteMutation = useDeleteTenantMutation();
 
@@ -54,7 +56,7 @@ export function TenantsCellAction({ data }: TenantsCellActionProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => openModal('view', data)}>
+          <DropdownMenuItem onClick={() => openDetail(data)}>
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>

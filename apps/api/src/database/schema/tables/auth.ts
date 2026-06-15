@@ -1,11 +1,6 @@
 import { timestamps } from '@/database/timestamps';
 import * as t from 'drizzle-orm/pg-core';
 import { authSchema } from '../_schemas';
-import {
-  permissionActionEnum,
-  permissionResourceEnum,
-  permissionScopeEnum,
-} from '../enum';
 import { tenants } from './tenants';
 
 // Tabla de Usuarios sistema
@@ -65,9 +60,9 @@ export const permissions = authSchema.table(
     id: t.uuid('id').primaryKey().defaultRandom(),
     name: t.varchar('name', { length: 100 }).notNull(),
 
-    resource: permissionResourceEnum('resource').notNull(),
-    action: permissionActionEnum('action').notNull(),
-    scope: permissionScopeEnum('scope').default('own').notNull(),
+    resource: t.varchar('resource', { length: 100 }).notNull(),
+    action: t.varchar('action', { length: 50 }).notNull(),
+    scope: t.varchar('scope', { length: 20 }).default('own').notNull(),
 
     description: t.text('description'),
     isActive: t.boolean('is_active').default(true).notNull(),
@@ -178,7 +173,6 @@ export const rolePermissions = authSchema.table(
 );
 
 // Tabla de Sesiones
-
 export const sessions = authSchema.table(
   'sessions',
   {

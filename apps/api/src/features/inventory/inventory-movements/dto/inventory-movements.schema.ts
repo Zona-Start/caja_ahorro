@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 export const InventoryMovementItemSchema = z.object({
-  itemId: z.string().uuid('Item ID inválido'),
-  itemType: z.enum(['PRODUCT', 'FIXED_ASSET']),
+  productId: z.string().uuid('Product ID inválido'),
   quantity: z.preprocess(
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number().int().positive(),
@@ -14,12 +13,8 @@ export const InventoryMovementItemSchema = z.object({
 });
 
 export const CreateInventoryMovementSchema = z.object({
-  movementType: z.enum(['IN', 'OUT', 'ADJUST_IN', 'ADJUST_OUT', 'TRANSFER', 'COMMIT', 'UN_COMMIT', 'ORDERED', 'RECEIVED']),
+  movementType: z.enum(['PURCHASE_RECEIPT', 'SUPPLIER_RETURN', 'STOCK_DELIVERY', 'CUSTOMER_RETURN', 'INTERNAL_TRANSFER_OUT', 'INTERNAL_TRANSFER_IN', 'INVENTORY_ADJUSTMENT_IN', 'INVENTORY_ADJUSTMENT_OUT', 'STOCK_WASTE', 'INTERNAL_CONSUMPTION', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_OUTPUT']),
   description: z.string().max(255).optional(),
-  documentType: z.string().max(50).optional(),
-  documentNumber: z.string().max(50).optional(),
-  notes: z.string().optional(),
-  supplierInvoiceId: z.string().uuid().optional(),
   items: z.array(InventoryMovementItemSchema).min(1, 'Se requiere al menos un item'),
 });
 
