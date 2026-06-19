@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@repo/shadcn/button';
 import {
   Form,
@@ -18,6 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { useAuthStore } from '@/stores/auth.store';
+import { TENANTS_KEYS } from '../../tenants/keys/tenants-keys';
+import { tenantsService } from '../../tenants/services/tenants-service';
+import type { Tenant } from '../../tenants/schemas/tenants.schema';
 import { useSaveCategoryMutation } from '../hooks/use-categories-mutations';
 import {
   type CategoryMutation,
@@ -39,6 +44,9 @@ export function CategoriesForm({
   defaultValues,
   disabled = false,
 }: CategoriesFormProps) {
+  const user = useAuthStore((s) => s.user);
+  const isSuperAdmin = user?.isSystemAdmin ?? false;
+
   const { mutate: saveCategory, isPending: isSaving } = useSaveCategoryMutation();
 
   const form = useForm<CategoryMutation>({
@@ -50,6 +58,7 @@ export function CategoriesForm({
       name: defaultValues?.name || '',
       description: defaultValues?.description || '',
       isActive: defaultValues?.isActive ?? true,
+      tenantId: defaultValues?.tenantId || '',
     },
     mode: 'onChange',
   });
@@ -87,6 +96,21 @@ export function CategoriesForm({
   };
 
   const categoryTypeValues = Object.values(CATEGORY_TYPES);
+
+  const { data: tenantsData } = useQuery({
+    queryKey: TENANTS_KEYS.list({}),
+    queryFn: () => tenantsService.getAll({ limit: 100 }),
+    enabled: isSuperAdmin,
+  });
+
+  const tenantOptions = useMemo(
+    () =>
+      (tenantsData?.data ?? []).map((t: Tenant) => ({
+        value: t.id,
+        label: t.name,
+      })),
+    [tenantsData],
+  );
 
   return (
     <Form {...form}>
@@ -202,6 +226,37 @@ export function CategoriesForm({
               </FormItem>
             )}
           />
+
+          {isSuperAdmin && (
+            <FormField
+              control={form.control}
+              name="tenantId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ''}
+                    disabled={disabled || !!defaultValues?.id}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecciona un cliente" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {tenantOptions.map((opt: { value: string; label: string }) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         {disabled ? (

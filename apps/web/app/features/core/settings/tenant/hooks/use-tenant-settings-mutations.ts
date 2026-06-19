@@ -6,7 +6,10 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import type { TenantSettingMutation, TenantSetting } from '../schemas/tenant-settings.schema';
+import {
+  type TenantSettingMutation,
+  type TenantSetting,
+} from '../schemas/tenant-settings.schema';
 import { tenantSettingsService } from '../services/tenant-settings-service';
 
 const getErrorMessage = (error: unknown) => {
@@ -37,13 +40,38 @@ export function useUpdateTenantSettingMutation(): UseMutationResult<
     mutationFn: ({ id, payload }) => tenantSettingsService.update(id, payload),
     onSuccess: (setting) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tenantSettings.all });
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.tenantSettings.detail(setting.id),
-      });
 
       toast({
         title: 'Parámetro actualizado',
         description: 'El parámetro se actualizó correctamente.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useCreateTenantSettingMutation(): UseMutationResult<
+  TenantSetting,
+  unknown,
+  TenantSettingMutation
+> {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (payload) => tenantSettingsService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.tenantSettings.all });
+
+      toast({
+        title: 'Parámetro creado',
+        description: 'El parámetro se creó correctamente.',
       });
     },
     onError: (error) => {

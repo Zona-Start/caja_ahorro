@@ -9,12 +9,15 @@ import {
   type SupplierMutation,
 } from '../schemas/suppliers.schema';
 
-const PREFIX = '/administration/suppliers';
+const PREFIX = '/purchasing/suppliers';
 
 export interface SuppliersQueryParams {
   page?: number;
   limit?: number;
   search?: string;
+  tenantId?: string;
+  state?: string;
+  category?: string;
 }
 
 export interface SuppliersPaginatedResponse {
@@ -33,6 +36,9 @@ const buildQueryParams = (params: SuppliersQueryParams): string => {
     page: String(params.page ?? 1),
     limit: String(params.limit ?? 10),
     ...(params.search ? { search: params.search } : {}),
+    ...(params.tenantId ? { tenantId: params.tenantId } : {}),
+    ...(params.state ? { state: params.state } : {}),
+    ...(params.category ? { category: params.category } : {}),
   });
 
   return query.toString();
@@ -99,5 +105,10 @@ export const suppliersService = {
     return payload.id
       ? suppliersService.update(payload)
       : suppliersService.create(payload);
+  },
+
+  toggleStatus: async (id: string): Promise<Supplier> => {
+    const response = await apiClient.patch(`${PREFIX}/${id}/toggle-status`);
+    return supplierSchema.parse(response.data);
   },
 };

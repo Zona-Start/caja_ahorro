@@ -13,6 +13,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import {
+  currencyCodeEnum,
   fixedAssetsInventoryStatus,
   inventoryMovementStatusEnum,
   movementTypeInventoryEnum,
@@ -98,28 +99,43 @@ export const productPrices = inventorySchema.table('product_prices', {
   productId: uuid('product_id')
     .notNull()
     .references(() => products.id, { onDelete: 'cascade' }),
-  suppliersId: uuid('supplier_id').references(() => suppliers.id), // opcional
   priceType: priceTypeEnum('price_type').notNull(),
 
-  /* =========  COSTO  ========= */
-  baseCost: numeric('base_cost', { precision: 18, scale: 6 }), // costo neto factura
-  otherCosts: numeric('other_costs', { precision: 18, scale: 6 }) // flete, seguro, etc.
-    .default('0.00'),
-  purchaseTax: numeric('purchase_tax', { precision: 18, scale: 6 }) // impuesto interno
-    .default('0.00'),
-  /* Costo total = baseCost + otherCosts + purchaseTax */
-  totalCost: numeric('total_cost', { precision: 18, scale: 6 }), // calculado o guardado
+  // 1. Contexto de Moneda y Tasa de Cambio en el momento del cálculo
+  currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+  purchaseExchangeRate: numeric('purchase_exchange_rate', { precision: 18, scale: 6 }).notNull().default('1.000000'),
+  salesExchangeRate: numeric('sales_exchange_rate', { precision: 18, scale: 6 }).notNull().default('1.000000'),
 
-  /* =========  VENTA / OFERTA  ========= */
-  /* Campos usados cuando priceType = 'SELLING' o 'OFFER' */
-  expensePercent: numeric('expense_percent', { precision: 5, scale: 2 }) // % gastos
-    .default('0.00'),
-  profitPercent: numeric('profit_percent', { precision: 5, scale: 2 }) // % utilidad
-    .default('0.00'),
-  salesTaxPercent: numeric('sales_tax_percent', { precision: 5, scale: 2 }) // % IVA o similar
-    .default('0.00'),
-  /* Precio final calculado */
-  finalPrice: numeric('final_price', { precision: 18, scale: 6 }), // precio de lista
+  // 2. Bloque de Costos (Moneda Origen de la transacción)
+  baseCost: numeric('base_cost', { precision: 18, scale: 6 }).notNull().default('0'), // costo neto factura
+  otherCosts: numeric('other_costs', { precision: 18, scale: 6 }).notNull().default('0'), // flete, seguro, etc.
+  purchaseTaxPercent: numeric('purchase_tax_percent', { precision: 5, scale: 2 }).notNull().default('16.00'), // % IVA compra
+  totalCost: numeric('total_cost', { precision: 18, scale: 6 }).notNull().default('0'), // Costo total en moneda origen
+
+  // 3. Bloque de Costos en Bolívares (Calculados/Espejo)
+  baseCostVes: numeric('base_cost_ves', { precision: 18, scale: 6 }).notNull().default('0'),
+  otherCostsVes: numeric('other_costs_ves', { precision: 18, scale: 6 }).notNull().default('0'),
+  totalCostVes: numeric('total_cost_ves', { precision: 18, scale: 6 }).notNull().default('0'),
+
+  // 4. Bloque de Venta y Utilidad (Moneda Origen)
+  profitPercent: numeric('profit_percent', { precision: 5, scale: 2 }).notNull().default('0'), // % utilidad
+  expensePercent: numeric('expense_percent', { precision: 5, scale: 2 }).notNull().default('0'), // % gastos
+  salesTaxPercent: numeric('sales_tax_percent', { precision: 5, scale: 2 }).notNull().default('16.00'), // % IVA venta
+
+  salePrice: numeric('sale_price', { precision: 18, scale: 6 }), // Precio directo en divisa (sin margen)
+  offerSalePrice: numeric('offer_sale_price', { precision: 18, scale: 6 }), // Precio oferta directo en divisa
+  bsPriceAmount: numeric('bs_price_amount', { precision: 18, scale: 6 }), // Monto en divisa para pago en Bs
+
+  finalPriceNet: numeric('final_price_net', { precision: 18, scale: 6 }).notNull().default('0'), // Precio de venta sin IVA
+  finalPriceGross: numeric('final_price_gross', { precision: 18, scale: 6 }).notNull().default('0'), // Precio de venta con IVA
+
+  // 5. Bloque de Venta en Bolívares (Espejo calculado)
+  finalPriceNetVes: numeric('final_price_net_ves', { precision: 18, scale: 6 }).notNull().default('0'),
+  finalPriceGrossVes: numeric('final_price_gross_ves', { precision: 18, scale: 6 }).notNull().default('0'),
+
+  // Backward compatibility alias
+  finalPrice: numeric('final_price', { precision: 18, scale: 6 }),
+
   supplierInvoiceId: uuid('supplier_invoice_id').references(
     () => supplierInvoices.id,
   ),

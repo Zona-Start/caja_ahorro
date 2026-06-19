@@ -56,6 +56,7 @@ export function GlobalSettingsModal({
           onCancel={handleCancel}
           defaultValues={defaultValues}
           disabled={isViewMode}
+          mode={mode}
         />
       </DialogContent>
     </Dialog>

@@ -28,6 +28,8 @@ export const permissionsService = {
     if (filters?.page) params.set('page', String(filters.page));
     if (filters?.limit) params.set('limit', String(filters.limit));
     if (filters?.search) params.set('search', filters.search);
+    if (filters?.resource) params.set('resource', filters.resource);
+    if (filters?.scope) params.set('scope', filters.scope);
 
     const response = await apiClient.get(
       '/core/roles-permissions/permissions/paginated',

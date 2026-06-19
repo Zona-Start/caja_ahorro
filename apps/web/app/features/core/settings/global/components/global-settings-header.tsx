@@ -8,8 +8,8 @@ export function GlobalSettingsHeader({ count }: GlobalSettingsHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <Heading
-        title={`Parámetros Globales (${count ?? 0})`}
-        description="Gestiona los parámetros de configuración global del sistema"
+        title="Parámetros de la Plataforma"
+        description="Gestiona los parámetros globales del la plataforma"
       />
     </div>
   );

@@ -143,6 +143,10 @@ export const DEFAULT_PERMISSIONS = [
   // ==========================================
   // MODULO: INVENTORY (Inventario)
   // ==========================================
+  { resource: 'inventory:categories', action: 'create', name: 'Crear Categoria', description: 'Registrar nueva categoria en catálogo.', scope: 'tenant' },
+  { resource: 'inventory:categories', action: 'read', name: 'Consultar Categorias', description: 'Ver catálogo de categorias.', scope: 'tenant' },
+  { resource: 'inventory:categories', action: 'update', name: 'Editar Categoria', description: 'Modificar datos de la categoria.', scope: 'tenant' },
+  { resource: 'inventory:categories', action: 'delete', name: 'Desactivar Categoria', description: 'Desactivar categoria del catálogo.', scope: 'tenant' },
   { resource: 'inventory:products', action: 'create', name: 'Crear Producto', description: 'Registrar nuevo producto en catálogo.', scope: 'tenant' },
   { resource: 'inventory:products', action: 'read', name: 'Consultar Productos', description: 'Ver catálogo de productos.', scope: 'tenant' },
   { resource: 'inventory:products', action: 'update', name: 'Editar Producto', description: 'Modificar datos del producto.', scope: 'tenant' },

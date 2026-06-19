@@ -73,3 +73,23 @@ export function useDeleteSupplierMutation(): UseMutationResult<
     },
   });
 }
+
+export function useToggleSupplierStatusMutation(): UseMutationResult<
+  Supplier,
+  unknown,
+  string
+> {
+  const queryClient = useQueryClient();
+  const { success, error: errorToast } = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id) => suppliersService.toggleStatus(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.suppliers.all });
+      success('El estado del proveedor fue actualizado correctamente.');
+    },
+    onError: (err) => {
+      errorToast(getErrorMessage(err));
+    },
+  });
+}

@@ -21,13 +21,13 @@ import {
 } from './dto/suppliers.schema';
 import { SuppliersService } from './suppliers.service';
 
-@ApiTags('administration/suppliers')
-@Controller('administration/suppliers')
+@ApiTags('purchasing/suppliers')
+@Controller('purchasing/suppliers')
 export class SuppliersController {
   constructor(
     private readonly suppliersService: SuppliersService,
     private readonly tenantContextService: TenantContextService,
-  ) {}
+  ) { }
 
   @Post()
   @UsePipes(new ZodValidatorPipe(CreateSupplierSchema))
@@ -81,18 +81,27 @@ export class SuppliersController {
   }
 
   @Patch(':id')
-  @UsePipes(new ZodValidatorPipe(UpdateSupplierSchema))
   @ApiOperation({ summary: 'Update a supplier' })
   @ApiResponse({ status: 200, description: 'Supplier updated successfully.' })
   @ApiResponse({ status: 404, description: 'Supplier not found.' })
   async update(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() dto: any,
+    @Body(new ZodValidatorPipe(UpdateSupplierSchema)) dto: any,
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     return this.suppliersService.update(targetTenantId, userId, id, dto);
+  }
+
+  @Patch(':id/toggle-status')
+  @ApiOperation({ summary: 'Toggle supplier status' })
+  @ApiResponse({ status: 200, description: 'Supplier status toggled.' })
+  @ApiResponse({ status: 404, description: 'Supplier not found.' })
+  async toggleStatus(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.suppliersService.toggleStatus(id, targetTenantId, userId);
   }
 
   @Delete(':id')

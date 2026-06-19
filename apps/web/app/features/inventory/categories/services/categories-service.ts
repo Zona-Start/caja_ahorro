@@ -28,6 +28,7 @@ export const categoriesService = {
     if (filters?.limit) params.set('limit', String(filters.limit));
     if (filters?.search) params.set('search', filters.search);
     if (filters?.group) params.set('group', filters.group);
+    if (filters?.tenantId) params.set('tenantId', filters.tenantId);
 
     const response = await apiClient.get('/inventory/categories/paginated', {
       params,

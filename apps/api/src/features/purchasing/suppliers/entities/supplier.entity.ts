@@ -6,13 +6,19 @@ export class Supplier {
   id?: string;
 
   @ApiProperty()
-  code: string;
+  internalCode: string;
 
   @ApiProperty()
   name: string;
 
   @ApiProperty()
   taxId: string;
+
+  @ApiProperty({ required: false })
+  phone?: string | null;
+
+  @ApiProperty({ required: false })
+  email?: string | null;
 
   @ApiProperty({ required: false })
   contactName?: string | null;

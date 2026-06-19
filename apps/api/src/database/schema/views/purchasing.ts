@@ -24,7 +24,7 @@ import {
 export const supplierMaster360 = purchasingSchema.view('supplier_master_360', {
   supplierId: uuid('supplier_id').notNull(),
   tenantId: uuid('tenant_id').notNull(),
-  code: varchar('code', { length: 50 }).notNull(),
+  internalCode: varchar('internal_code', { length: 50 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   taxId: varchar('tax_id', { length: 50 }).notNull(),
   category: text('category').notNull(),
@@ -38,7 +38,7 @@ export const supplierMaster360 = purchasingSchema.view('supplier_master_360', {
   SELECT
     s.id            AS supplier_id,
     s.tenant_id,
-    s.code,
+    s.internal_code,
     s.name,
     s.tax_id,
     s.category::text,
@@ -199,7 +199,7 @@ export const supplierPayments360 = purchasingSchema.view(
 export const supplierTotal360 = purchasingSchema.view('supplier_total_360', {
   supplierId: uuid('supplier_id').notNull(),
   tenantId: uuid('tenant_id').notNull(),
-  code: varchar('code', { length: 50 }).notNull(),
+  internalCode: varchar('internal_code', { length: 50 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   taxId: varchar('tax_id', { length: 50 }).notNull(),
   category: text('category').notNull(),
@@ -247,7 +247,7 @@ export const supplierTotal360 = purchasingSchema.view('supplier_total_360', {
   SELECT
     m.supplier_id,
     m.tenant_id,
-    m.code,
+    m.internal_code,
     m.name,
     m.tax_id,
     m.category,

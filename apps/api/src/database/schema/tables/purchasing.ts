@@ -27,7 +27,7 @@ import {
 import { accountPlan } from './accounting';
 import { states } from './core';
 import { tenants } from './tenants';
-import { bankAccounts } from './treasury';  
+import { bankAccounts } from './treasury';
 import { purchasingSchema } from "../_schemas";
 
 
@@ -41,9 +41,11 @@ export const suppliers = purchasingSchema.table(
         onDelete: 'cascade',
       })
       .notNull(),
-    code: varchar('code', { length: 50 }).unique().notNull(),
+    internalCode: varchar('internal_code', { length: 50 }).unique().notNull(),
     name: varchar('name', { length: 255 }).notNull(), // Nombre del proveedor
     taxId: varchar('tax_id', { length: 50 }).unique().notNull(), // RIF, RUC, NIT, o equivalente fiscal
+    phone: varchar('phone', { length: 50 }),
+    email: varchar('email', { length: 255 }),
     contactName: varchar('contact_name', { length: 255 }),
     contactEmail: varchar('contact_email', { length: 255 }),
     contactPhone: varchar('contact_phone', { length: 50 }),
@@ -51,7 +53,7 @@ export const suppliers = purchasingSchema.table(
       onDelete: 'set null',
     }),
     address: text('address'),
-    category: categorySuppliers('category').notNull(),
+    category: varchar('category', { length: 50 }).notNull(),
     status: statusSuppliers('status').notNull().default('ACTIVE'), // Para proveedores que ya no usamos
 
     ...timestamps,

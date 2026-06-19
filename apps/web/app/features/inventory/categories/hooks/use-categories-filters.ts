@@ -6,6 +6,7 @@ export const categoriesFilterSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
   search: z.string().optional(),
   group: z.string().optional(),
+  tenantId: z.string().optional(),
 });
 
 export type CategoriesFilters = z.infer<typeof categoriesFilterSchema>;

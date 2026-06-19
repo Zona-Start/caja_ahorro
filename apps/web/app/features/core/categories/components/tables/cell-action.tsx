@@ -9,31 +9,31 @@ import {
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
 import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
-import { useCategoryQuery } from '../../hooks/use-categories-queries';
 import { useDeleteCategoryMutation } from '../../hooks/use-categories-mutations';
 import type { Category } from '../../schemas/categories.schema';
 import { CategoriesModal } from '../categories-modal';
+import { CategoriesViewModal } from '../categories-view-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: Category;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const user = useAuthStore((s) => s.user);
+  const isSuperAdmin = user?.isSystemAdmin ?? false;
+
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
 
-  const { mutate: deleteCategory } = useDeleteCategoryMutation();
-  const { data: categoryData } = useCategoryQuery(
-    data.id,
-    openView || openEdit,
-  );
+  const { mutateAsync: deleteCategory } = useDeleteCategoryMutation();
 
   const onConfirm = async () => {
     try {
       setLoading(true);
-      deleteCategory(data.id);
+      await deleteCategory(data.id);
       setOpenDelete(false);
     } catch (error) {
       console.error('Error:', error);
@@ -60,11 +60,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         mode="edit"
       />
 
-      <CategoriesModal
+      <CategoriesViewModal
         open={openView}
         onOpenChange={setOpenView}
-        defaultValues={data}
-        mode="view"
+        data={data}
       />
 
       <DropdownMenu>
@@ -82,14 +81,18 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Edit className="mr-2 h-4 w-4" />
             Editar
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {isSuperAdmin && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setOpenDelete(true)}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

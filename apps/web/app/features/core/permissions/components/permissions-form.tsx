@@ -95,7 +95,7 @@ export function PermissionsForm({
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Seleccionar recurso" />
                     </SelectTrigger>
                   </FormControl>
@@ -124,7 +124,7 @@ export function PermissionsForm({
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Seleccionar acción" />
                     </SelectTrigger>
                   </FormControl>
@@ -153,7 +153,7 @@ export function PermissionsForm({
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Seleccionar alcance" />
                     </SelectTrigger>
                   </FormControl>

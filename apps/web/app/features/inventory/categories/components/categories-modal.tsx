@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -5,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import type { Category } from '../schemas/categories.schema';
+import type { Category, CategoryMutation } from '../schemas/categories.schema';
 import { CategoriesForm } from './categories-form';
 
 interface CategoriesModalProps {
@@ -15,12 +16,25 @@ interface CategoriesModalProps {
   mode?: 'create' | 'edit' | 'view';
 }
 
+function toFormValues(data?: Category): Partial<CategoryMutation> {
+  if (!data) return {};
+  return {
+    id: data.id,
+    name: data.name,
+    group: data.group,
+    description: data.description ?? undefined,
+    tenantId: data.tenantId,
+  };
+}
+
 export function CategoriesModal({
   open,
   onOpenChange,
   defaultValues,
   mode = 'create',
 }: CategoriesModalProps) {
+  const formValues = useMemo(() => toFormValues(defaultValues), [defaultValues]);
+
   const handleSuccess = () => {
     onOpenChange(false);
   };
@@ -54,7 +68,7 @@ export function CategoriesModal({
         <CategoriesForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
-          defaultValues={defaultValues}
+          defaultValues={formValues}
           disabled={isViewMode}
         />
       </DialogContent>

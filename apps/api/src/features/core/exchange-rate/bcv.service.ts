@@ -9,12 +9,12 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 @Injectable()
 export class BcvService implements OnModuleInit {
   private readonly logger = new Logger(BcvService.name);
-  private readonly BCV_URL = 'https://www.bcv.org.ve/servicio/indicadores';
+  private readonly BCV_URL = 'https://www.bcv.org.ve/';
 
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.logger.log('BCV Service initialized');
@@ -90,6 +90,24 @@ export class BcvService implements OnModuleInit {
     } catch {
       return '1';
     }
+  }
+
+  async getLatestRate(
+    currencyCode: 'USD' | 'EUR',
+  ): Promise<{ rate: string; fetchedAt: Date } | null> {
+    const currency = await this.db.query.currencies.findFirst({
+      where: (c, { eq }) => eq(c.code, currencyCode),
+    });
+    if (!currency) return null;
+
+    const rate = await this.db.query.exchangeRates.findFirst({
+      where: (r, { eq }) => eq(r.currencyId, currency.id),
+      orderBy: (r, { desc }) => [desc(r.fetchedAt)],
+    });
+
+    if (!rate) return null;
+
+    return { rate: rate.rate, fetchedAt: rate.fetchedAt! };
   }
 
   async getTodayRate(): Promise<string | null> {

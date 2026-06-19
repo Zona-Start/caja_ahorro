@@ -1,7 +1,13 @@
 import { Badge } from '@repo/shadcn/badge';
 import type { ColumnDef } from '@tanstack/react-table';
-import { GlobalSetting } from '../../schemas/global-settings.schema';
+import type { GlobalSetting } from '../../schemas/global-settings.schema';
 import { GlobalSettingsCellAction } from './global-settings-cell-action';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  general: 'General',
+  notification: 'Notificaciones',
+  security: 'Seguridad',
+};
 
 export const globalSettingsColumns: ColumnDef<GlobalSetting>[] = [
   {
@@ -27,7 +33,7 @@ export const globalSettingsColumns: ColumnDef<GlobalSetting>[] = [
     header: 'Categoría',
     cell: ({ row }) => (
       <Badge variant="outline">
-        {row.original.category || 'general'}
+        {CATEGORY_LABELS[row.original.category ?? 'general'] ?? row.original.category}
       </Badge>
     ),
   },

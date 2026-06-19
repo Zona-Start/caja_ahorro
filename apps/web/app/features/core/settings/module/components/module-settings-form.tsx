@@ -16,8 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/stores/auth.store';
+import { TENANTS_KEYS } from '../../../tenants/keys/tenants-keys';
+import { tenantsService } from '../../../tenants/services/tenants-service';
 import { useSaveModuleSettingMutation } from '../hooks/use-module-settings-mutations';
 import {
   type ModuleSettingMutation,
@@ -39,8 +42,6 @@ const MODULE_OPTIONS = [
   { value: 'banking', label: 'Banca' },
   { value: 'inventory', label: 'Inventario' },
   { value: 'purchasing', label: 'Compras' },
-  { value: 'iam', label: 'Gestión de Usuarios' },
-  { value: 'system', label: 'Sistema' },
 ];
 
 const FREQUENCY_OPTIONS = [
@@ -63,8 +64,21 @@ export function ModuleSettingsForm({
   const user = useAuthStore((s) => s.user);
   const isSystemAdmin = user?.isSystemAdmin ?? false;
 
-  const isEditOrView = mode === 'edit' || mode === 'view';
-  const showAllFields = !isEditOrView || isSystemAdmin;
+  const isCreateMode = mode === 'create';
+  const isViewMode = mode === 'view';
+  const showAllFields = isCreateMode || isSystemAdmin;
+
+  const { data: tenantsData } = useQuery({
+    queryKey: TENANTS_KEYS.list({}),
+    queryFn: () => tenantsService.getAll({ limit: 100 }),
+    enabled: isSystemAdmin || isCreateMode,
+  });
+
+  const tenantOptions =
+    tenantsData?.data.map((t) => ({
+      value: t.id,
+      label: t.name,
+    })) ?? [];
 
   const form = useForm<ModuleSettingMutation>({
     resolver: zodResolver(moduleSettingMutationSchema),
@@ -110,14 +124,25 @@ export function ModuleSettingsForm({
                 name="tenantId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tenant</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="UUID del tenant"
-                        {...field}
-                        disabled={disabled}
-                      />
-                    </FormControl>
+                    <FormLabel>Cliente</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={disabled || !isCreateMode}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un cliente" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {tenantOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -185,6 +210,22 @@ export function ModuleSettingsForm({
             </>
           )}
 
+          {isViewMode && !showAllFields && (
+            <FormField
+              control={form.control}
+              name="tenantId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cliente</FormLabel>
+                  <FormControl>
+                    <Input {...field} disabled value={field.value} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
           <FormField
             control={form.control}
             name="description"
@@ -195,7 +236,7 @@ export function ModuleSettingsForm({
                   <Input
                     placeholder="Descripción del parámetro"
                     {...field}
-                    disabled={disabled}
+                    disabled={disabled || !showAllFields}
                   />
                 </FormControl>
                 <FormMessage />

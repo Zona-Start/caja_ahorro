@@ -96,8 +96,8 @@ export class CategoriesController {
     action: 'delete',
     scope: 'tenant',
   })
-  async remove(@Param('id') id: string, @Req() req: Request) {
-    const { targetTenantId } = this.tenantService.getTenantContext(req);
+  async remove(@Param('id') id: string, @Query('tenantId') tenantId: string, @Req() req: Request) {
+    const { targetTenantId } = this.tenantService.getTenantContext(req, tenantId);
     return this.categoriesService.remove(id, targetTenantId);
   }
 }

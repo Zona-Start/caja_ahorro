@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuthStore } from '@/stores/auth.store';
 import { AlertModal } from '@/components/shared/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -9,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
 import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
-import { usePermissions } from '@/hooks/use-permissions';
 import { ModuleSetting } from '../../schemas/module-settings.schema';
 import { useDeleteModuleSettingMutation } from '../../hooks/use-module-settings-mutations';
 import { ModuleSettingsModal } from '../module-settings-modal';
@@ -19,15 +19,16 @@ interface ModuleSettingsCellActionProps {
 }
 
 export function ModuleSettingsCellAction({ data }: ModuleSettingsCellActionProps) {
+  const user = useAuthStore((s) => s.user);
+  const isSuperAdmin = user?.isSystemAdmin ?? false;
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
 
-  const { can } = usePermissions();
   const deleteMutation = useDeleteModuleSettingMutation();
 
-  const canDelete = can('system:modules', 'delete', 'all');
+  const canDelete = isSuperAdmin;
 
   const onConfirmDelete = async () => {
     try {
@@ -73,10 +74,10 @@ export function ModuleSettingsCellAction({ data }: ModuleSettingsCellActionProps
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setOpenView(true)}>
+          {/* <DropdownMenuItem onClick={() => setOpenView(true)}>
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
-          </DropdownMenuItem>
+          </DropdownMenuItem> */}
           <DropdownMenuItem onClick={() => setOpenEdit(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Editar

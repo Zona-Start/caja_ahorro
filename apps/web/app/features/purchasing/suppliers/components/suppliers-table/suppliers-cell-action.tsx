@@ -8,9 +8,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
-import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Ban, Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { Supplier } from '../../schemas/suppliers.schema';
-import { useDeleteSupplierMutation } from '../../hooks/use-suppliers-mutations';
+import {
+  useDeleteSupplierMutation,
+  useToggleSupplierStatusMutation,
+} from '../../hooks/use-suppliers-mutations';
 import { useSuppliersModalStore } from '../../store/suppliers-modal.store';
 
 interface SuppliersCellActionProps {
@@ -20,9 +23,11 @@ interface SuppliersCellActionProps {
 export function SuppliersCellAction({ data }: SuppliersCellActionProps) {
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openToggle, setOpenToggle] = useState(false);
   const { openModal } = useSuppliersModalStore();
 
   const deleteMutation = useDeleteSupplierMutation();
+  const toggleMutation = useToggleSupplierStatusMutation();
 
   const onConfirmDelete = async () => {
     try {
@@ -36,6 +41,20 @@ export function SuppliersCellAction({ data }: SuppliersCellActionProps) {
     }
   };
 
+  const onConfirmToggle = async () => {
+    try {
+      setLoading(true);
+      await toggleMutation.mutateAsync(data.id);
+      setOpenToggle(false);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isActive = data.status === 'ACTIVE';
+
   return (
     <>
       <AlertModal
@@ -45,6 +64,17 @@ export function SuppliersCellAction({ data }: SuppliersCellActionProps) {
         loading={loading}
         title="¿Estás seguro de eliminar este proveedor?"
         description="Esta acción no se puede deshacer. El proveedor será eliminado permanentemente."
+      />
+
+      <AlertModal
+        isOpen={openToggle}
+        onClose={() => setOpenToggle(false)}
+        onConfirm={onConfirmToggle}
+        loading={loading}
+        title={isActive ? '¿Desactivar este proveedor?' : '¿Activar este proveedor?'}
+        description={isActive
+          ? 'El proveedor será desactivado y no aparecerá en selecciones activas.'
+          : 'El proveedor será activado y estará disponible nuevamente.'}
       />
 
       <DropdownMenu>
@@ -61,6 +91,11 @@ export function SuppliersCellAction({ data }: SuppliersCellActionProps) {
           <DropdownMenuItem onClick={() => openModal('edit', data)}>
             <Edit className="mr-2 h-4 w-4" />
             Editar
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setOpenToggle(true)}>
+            <Ban className="mr-2 h-4 w-4" />
+            {isActive ? 'Desactivar' : 'Activar'}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

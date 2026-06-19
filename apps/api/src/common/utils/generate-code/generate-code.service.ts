@@ -14,7 +14,7 @@ import { moduleSettings } from 'src/database/schema/tables/core';
 export class GenerateCodeService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-  ) {}
+  ) { }
 
   private findSetting(
     tx: NodePgDatabase<typeof schema>,
@@ -155,19 +155,19 @@ export class GenerateCodeService {
         .for('update')
         .limit(1);
 
-      // if (!setting) {
-      //   await transaction.insert(moduleSettings).values({
-      //     tenantId,
-      //     module,
-      //     submodule,
-      //     key,
-      //     value: '1',
-      //     description: `${prefix} sequence ${year} for tenant ${tenantId}`,
-      //   });
-      //   return `${prefix}-${year}-000001`;
-      // }
+      if (!setting) {
+        await transaction.insert(moduleSettings).values({
+          tenantId,
+          module,
+          submodule,
+          key,
+          value: '1',
+          description: `${prefix} sequence ${year} for tenant ${tenantId}`,
+        });
+        return `${prefix}-${year}-000001`;
+      }
 
-      const next = parseInt(setting?.value || '0', 10) + 1;
+      const next = parseInt(setting.value ?? '0', 10) + 1;
       const nextStr = next.toString().padStart(6, '0');
 
       await transaction
@@ -175,7 +175,8 @@ export class GenerateCodeService {
         .set({ value: next.toString(), updatedAt: new Date() })
         .where(eq(moduleSettings.id, setting.id));
 
-      return `${prefix}-${year}-${nextStr}`;
+      // return `${prefix}-${year}-${nextStr}`;
+      return `${prefix}-${nextStr}`;
     });
   }
 

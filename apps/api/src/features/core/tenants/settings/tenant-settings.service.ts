@@ -2,11 +2,12 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { tenantSettings } from '@/database/schema';
 import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ilike, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { TenantProvisioningService } from '../services/tenant-provisioning.service';
 import {
   CreateTenantSettingDto,
+  TenantSettingQueryDto,
   UpdateTenantSettingDto,
 } from './dto/tenant-settings.dto';
 
@@ -15,7 +16,63 @@ export class TenantSettingsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly provisioningService: TenantProvisioningService,
-  ) {}
+  ) { }
+
+  async findAll(
+    tenantId: string | null,
+    dto: TenantSettingQueryDto,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
+    const db = tx ?? this.db;
+    const { page = 1, limit = 10, search, category, key } = dto;
+    const offset = (page - 1) * limit;
+
+    const conditions: SQL[] = [];
+
+    if (tenantId) conditions.push(eq(tenantSettings.tenantId, tenantId));
+
+    if (category) conditions.push(eq(tenantSettings.category, category));
+
+    if (key) conditions.push(eq(tenantSettings.key, key));
+
+    if (search && search.trim() !== '') {
+      const searchTerm = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(tenantSettings.key, searchTerm),
+          ilike(tenantSettings.value, searchTerm),
+          ilike(tenantSettings.description, searchTerm),
+        ) as SQL,
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const data = await db.query.tenantSettings.findMany({
+      where: whereClause,
+      orderBy: (s, { asc }) => [asc(s.category), asc(s.key)],
+      limit,
+      offset,
+    });
+
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(tenantSettings)
+      .where(whereClause);
+
+    const totalItems = Number(totalResult?.count || 0);
+
+    return {
+      data,
+      meta: {
+        totalItems,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page,
+      },
+    };
+  }
 
   async findAllByTenant(tenantId: string, tx?: NodePgDatabase<typeof schema>) {
     const db = tx ?? this.db;
@@ -71,22 +128,11 @@ export class TenantSettingsService {
     });
   }
 
-  async findByTenantAndModule(
-    tenantId: string,
-    moduleCode: string,
-    tx?: NodePgDatabase<typeof schema>,
-  ) {
-    const db = tx ?? this.db;
-    return db.query.tenantSettings.findMany({
-      where: (s, { and, eq }) =>
-        and(eq(s.tenantId, tenantId), eq(s.category, moduleCode)),
-      orderBy: (s, { asc }) => [asc(s.key)],
-    });
-  }
 
   async create(
     tenantId: string,
     dto: CreateTenantSettingDto,
+    userId?: string,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.db;
@@ -116,7 +162,10 @@ export class TenantSettingsService {
         tenantId: tenantId,
         key: dto.key,
         value: dto.value,
+        description: dto.description,
         category: dto.moduleCode ?? dto.category,
+        createdById: userId,
+
       } as unknown as typeof tenantSettings.$inferInsert)
       .returning();
 
@@ -126,12 +175,15 @@ export class TenantSettingsService {
   async update(
     id: string,
     dto: UpdateTenantSettingDto,
-    tenantId: string,
+    tenantId: string | undefined,
     userId?: string,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.db;
     await this.findById(id, tenantId, tx);
+
+    const whereConditions: SQL[] = [eq(tenantSettings.id, id)];
+    if (tenantId) whereConditions.push(eq(tenantSettings.tenantId, tenantId));
 
     const [updated] = await db
       .update(tenantSettings)
@@ -139,10 +191,13 @@ export class TenantSettingsService {
         value: dto.value,
         updatedById: userId,
       })
-      .where(
-        and(eq(tenantSettings.id, id), eq(tenantSettings.tenantId, tenantId)),
-      )
+      .where(and(...whereConditions))
       .returning();
+
+    if (!updated) {
+      throw new NotFoundException(`Tenant setting with ID ${id} not found`);
+    }
+
     return updated;
   }
 
@@ -188,6 +243,7 @@ export class TenantSettingsService {
     return this.create(
       tenantId,
       { key, value, category: moduleCode ?? category, moduleCode: moduleCode as any },
+      userId,
       tx,
     );
   }

@@ -1,6 +1,8 @@
 import { useAuthStore } from '@/stores/auth.store';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
+import { Checkbox } from '@repo/shadcn/checkbox';
 import {
   Form,
   FormControl,
@@ -18,9 +20,10 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { Switch } from '@repo/shadcn/switch';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTenantsQuery } from '../../tenants/hooks/use-tenants-queries';
+import { groupPermissions } from '../../roles/components/permission-groups';
 import { useSaveUserMutation } from '../hooks/use-users-mutations';
 import {
   useAllPermissions,
@@ -130,6 +133,36 @@ export function UsersForm({
     }
   }, [defaultValues?.roleId]);
 
+  const watchSpecialPermissionIds = form.watch('specialPermissionIds') || [];
+
+  const groupedPermissions = useMemo(
+    () => (permissionsToShow ? groupPermissions(permissionsToShow) : []),
+    [permissionsToShow],
+  );
+
+  function handleGroupToggle(permissionIds: string[], checked: boolean) {
+    const current = watchSpecialPermissionIds;
+    if (checked) {
+      const merged = new Set([...current, ...permissionIds]);
+      form.setValue('specialPermissionIds', Array.from(merged), { shouldValidate: true });
+    } else {
+      form.setValue(
+        'specialPermissionIds',
+        current.filter((id) => !permissionIds.includes(id)),
+        { shouldValidate: true },
+      );
+    }
+  }
+
+  function isGroupFullySelected(permissionIds: string[]): boolean {
+    return permissionIds.every((id) => watchSpecialPermissionIds.includes(id));
+  }
+
+  function isGroupPartiallySelected(permissionIds: string[]): boolean {
+    const some = permissionIds.some((id) => watchSpecialPermissionIds.includes(id));
+    return some && !isGroupFullySelected(permissionIds);
+  }
+
   const onSubmit = (data: UserMutation) => {
     const isAdmin = data.isSystemAdmin === true;
     let submitData: UserMutation;
@@ -167,8 +200,8 @@ export function UsersForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4 flex-1 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shrink-0">
           <FormField
             control={form.control}
             name="username"
@@ -278,7 +311,7 @@ export function UsersForm({
               name="tenantId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tenant</FormLabel>
+                  <FormLabel>Empresa</FormLabel>
                   <Select
                     onValueChange={(value) => {
                       field.onChange(value);
@@ -290,7 +323,7 @@ export function UsersForm({
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar tenant" />
+                        <SelectValue placeholder="Seleccionar empresa" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -375,13 +408,13 @@ export function UsersForm({
         </div>
 
         {!disabled && !form.watch('isSystemAdmin') && (
-          <div className="border-t pt-4 mt-4">
+          <div className={`border-t pt-4 ${showSpecialPermissions ? 'flex flex-col min-h-0 flex-1' : ''}`}>
             <FormField
               control={form.control}
               name="specialPermissionIds"
               render={() => (
-                <FormItem>
-                  <div className="flex items-center justify-between mb-3">
+                <FormItem className={showSpecialPermissions ? 'flex flex-col min-h-0 flex-1' : ''}>
+                  <div className="flex items-center justify-between mb-3 shrink-0">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">
                         Permisos Especiales
@@ -399,56 +432,95 @@ export function UsersForm({
                   {showSpecialPermissions && (
                     <>
                       {isLoadingPerms ? (
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground shrink-0">
                           Cargando permisos...
                         </div>
                       ) : permissionsError ? (
-                        <div className="text-sm text-red-500">
+                        <div className="text-sm text-red-500 shrink-0">
                           Error al cargar permisos. Intente de nuevo.
                         </div>
-                      ) : permissionsToShow && permissionsToShow.length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2 max-h-[200px] overflow-y-auto border rounded-md p-3">
-                          {permissionsToShow.map((permission) => (
-                            <FormField
-                              key={permission.id}
-                              control={form.control}
-                              name="specialPermissionIds"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                                  <FormControl>
-                                    <input
-                                      type="checkbox"
-                                      className="w-4 h-4"
-                                      checked={field.value?.includes(
-                                        permission.id,
-                                      )}
-                                      onChange={(e) => {
-                                        const current = field.value || [];
-                                        if (e.target.checked) {
-                                          field.onChange([
-                                            ...current,
-                                            permission.id,
-                                          ]);
-                                        } else {
-                                          field.onChange(
-                                            current.filter(
-                                              (id) => id !== permission.id,
-                                            ),
-                                          );
+                      ) : groupedPermissions.length > 0 ? (
+                        <div className="flex-1 min-h-0 overflow-y-auto rounded-md border p-4">
+                          <div className="space-y-4">
+                            {groupedPermissions.map((group) => {
+                              const groupIds = group.permissions.map((p) => p.id);
+                              const allSelected = isGroupFullySelected(groupIds);
+                              const partialSelected = isGroupPartiallySelected(groupIds);
+
+                              return (
+                                <Card key={group.prefix}>
+                                  <CardHeader className="py-3 px-4">
+                                    <div className="flex items-center gap-3">
+                                      <Checkbox
+                                        checked={allSelected}
+                                        onCheckedChange={(checked) =>
+                                          handleGroupToggle(
+                                            groupIds,
+                                            checked === true,
+                                          )
                                         }
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="text-sm font-normal cursor-pointer">
-                                    {permission.name}
-                                  </FormLabel>
-                                </FormItem>
-                              )}
-                            />
-                          ))}
+                                        aria-label={`Seleccionar todos ${group.label}`}
+                                      />
+                                      <CardTitle className="text-sm font-semibold">
+                                        {group.label}
+                                      </CardTitle>
+                                      <span className="text-xs text-muted-foreground ml-auto">
+                                        {groupIds.filter((id) =>
+                                          watchSpecialPermissionIds.includes(id),
+                                        ).length}{' '}
+                                        / {groupIds.length}
+                                      </span>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent className="py-2 px-4 grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                    {group.permissions.map((permission) => {
+                                      const checked = watchSpecialPermissionIds.includes(
+                                        permission.id,
+                                      );
+                                      return (
+                                        <FormField
+                                          key={permission.id}
+                                          control={form.control}
+                                          name="specialPermissionIds"
+                                          render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0 py-1">
+                                              <FormControl>
+                                                <Checkbox
+                                                  checked={checked}
+                                                  onCheckedChange={(c) => {
+                                                    const current = field.value || [];
+                                                    if (c) {
+                                                      field.onChange([
+                                                        ...current,
+                                                        permission.id,
+                                                      ]);
+                                                    } else {
+                                                      field.onChange(
+                                                        current.filter(
+                                                          (id) =>
+                                                            id !== permission.id,
+                                                        ),
+                                                      );
+                                                    }
+                                                  }}
+                                                />
+                                              </FormControl>
+                                              <FormLabel className="text-sm font-normal cursor-pointer leading-none">
+                                                {permission.name}
+                                              </FormLabel>
+                                            </FormItem>
+                                          )}
+                                        />
+                                      );
+                                    })}
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
+                          </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-sm text-muted-foreground shrink-0">
                           No hay permisos disponibles.
                         </div>
                       )}
@@ -461,7 +533,7 @@ export function UsersForm({
           </div>
         )}
 
-        <div className="flex justify-end gap-4 pt-4">
+        <div className="flex justify-end gap-4 pt-4 shrink-0">
           {disabled ? (
             <Button type="button" onClick={onCancel}>
               Cerrar

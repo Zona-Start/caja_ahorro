@@ -1,30 +1,15 @@
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@repo/shadcn/button';
-import { Input } from '@repo/shadcn/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@repo/shadcn/select';
-import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { useTenantsQuery } from '../../tenants/hooks/use-tenants-queries';
+import { useState } from 'react';
 import { useUsersFilters } from '../hooks/use-users-filters';
 import { useUsersQuery } from '../hooks/use-users-queries';
 import { usersColumns } from './tables/users-columns';
+import { UsersFiltersAction } from './tables/users-filters-action';
 import { UsersHeader } from './users-header';
 import { UsersModal } from './users-modal';
-
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'Activo' },
-  { value: 'inactive', label: 'Inactivo' },
-  { value: 'blocked', label: 'Bloqueado' },
-];
 
 export default function UsersList() {
   const { user } = useAuthStore();
@@ -33,26 +18,6 @@ export default function UsersList() {
   const { filters, setFilters } = useUsersFilters();
   const { data, isLoading } = useUsersQuery(filters);
   const [openModal, setOpenModal] = useState(false);
-
-  const [searchValue, setSearchValue] = useState(filters.search || '');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setSearchValue(filters.search || '');
-  }, [filters.search]);
-
-  const handleSearchChange = (value: string) => {
-    setSearchValue(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setFilters({ search: value || undefined, page: 1 });
-    }, 400);
-  };
-
-  const { data: tenantsData } = useTenantsQuery(
-    { page: 1, limit: 100, isActive: 'true' },
-    isSystemAdmin,
-  );
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={6} rowCount={filters.limit} />;
@@ -73,44 +38,7 @@ export default function UsersList() {
       <UsersHeader />
 
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Input
-            placeholder="Buscar usuarios..."
-            value={searchValue}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full sm:w-[250px]"
-          />
-          <DataTableFilterBox
-            filterKey="status"
-            title="Estado"
-            options={STATUS_OPTIONS}
-            setFilterValue={(v) => setFilters({ status: v, page: 1 })}
-            filterValue={filters.status || ''}
-          />
-          {isSystemAdmin && (
-            <Select
-              value={filters.tenantId || 'all'}
-              onValueChange={(value) =>
-                setFilters({
-                  tenantId: value === 'all' ? undefined : value,
-                  page: 1,
-                })
-              }
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Tenant" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los Tenants</SelectItem>
-                {tenantsData?.data?.map((tenant) => (
-                  <SelectItem key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
+        <UsersFiltersAction filters={filters} setFilters={setFilters} />
 
         <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />

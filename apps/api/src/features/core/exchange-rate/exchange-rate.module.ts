@@ -1,11 +1,15 @@
 import { DrizzleModule } from '@/database/drizzle.module';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
+import { SettingsModule } from '@/features/core/settings/settings.module';
+import { BcvScraperService } from './bcv-scraper.service';
 import { BcvService } from './bcv.service';
+import { ExchangeRatesController } from './exchange-rate.controller';
 
 @Module({
-  imports: [ConfigModule, DrizzleModule],
-  providers: [BcvService],
-  exports: [BcvService],
+  imports: [DrizzleModule, ScheduleModule.forRoot(), SettingsModule],
+  controllers: [ExchangeRatesController],
+  providers: [BcvService, BcvScraperService],
+  exports: [BcvService, BcvScraperService],
 })
 export class ExchangeRateModule {}

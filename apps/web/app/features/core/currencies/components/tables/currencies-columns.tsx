@@ -5,30 +5,20 @@ import { CurrenciesCellAction } from './currencies-cell-action';
 
 export const currenciesColumns: ColumnDef<Currency>[] = [
   {
-    accessorKey: 'code',
-    header: 'Código',
-    cell: ({ row }) => (
-      <Badge variant="secondary">{row.original.code}</Badge>
-    ),
-  },
-  {
     accessorKey: 'name',
     header: 'Nombre',
   },
   {
+    accessorKey: 'code',
+    header: 'Código',
+    cell: ({ row }) => (
+      <Badge variant="default">{row.original.code}</Badge>
+    ),
+  },
+
+  {
     accessorKey: 'symbol',
     header: 'Símbolo',
-  },
-  {
-    accessorKey: 'isBase',
-    header: 'Base',
-    cell: ({ row }) => (
-      row.original.isBase ? (
-        <Badge variant="default">Base</Badge>
-      ) : (
-        <span className="text-muted-foreground">-</span>
-      )
-    ),
   },
   {
     accessorKey: 'isActive',

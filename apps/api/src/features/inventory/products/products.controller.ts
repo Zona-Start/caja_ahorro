@@ -80,6 +80,17 @@ export class ProductsController {
     return this.service.findAllProducts(targetTenantId);
   }
 
+  @Get('defaults')
+  @Permissions({
+    resource: 'inventory:products',
+    action: 'read',
+    scope: 'tenant',
+  })
+  async getDefaults(@Req() req: Request) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.service.getDefaults(targetTenantId);
+  }
+
   @Get(':id')
   @Permissions({
     resource: 'inventory:products',

@@ -8,8 +8,14 @@ export const CATEGORY_OPTIONS = [
 ] as const;
 
 export const STATUS_OPTIONS = [
-  { label: 'Activo', value: 'active' },
-  { label: 'Inactivo', value: 'inactive' },
-  { label: 'Suspendido', value: 'suspended' },
-  { label: 'En Revisión', value: 'under_review' },
+  { label: 'Activo', value: 'ACTIVE' },
+  { label: 'Inactivo', value: 'INACTIVE' },
+] as const;
+
+export const VENEZUELAN_STATES = [
+  'Amazonas', 'Anzoátegui', 'Apure', 'Aragua', 'Barinas',
+  'Bolívar', 'Carabobo', 'Cojedes', 'Delta Amacuro', 'Distrito Capital',
+  'Falcón', 'Guárico', 'Lara', 'La Guaira', 'Mérida',
+  'Miranda', 'Monagas', 'Nueva Esparta', 'Portuguesa', 'Sucre',
+  'Táchira', 'Trujillo', 'Yaracuy', 'Zulia',
 ] as const;

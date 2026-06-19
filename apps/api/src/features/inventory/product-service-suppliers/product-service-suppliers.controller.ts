@@ -26,11 +26,11 @@ export class ProductServiceSuppliersController {
   constructor(
     private readonly service: ProductServiceSuppliersService,
     private readonly tenantContextService: TenantContextService,
-  ) {}
+  ) { }
 
   @Post()
   @Permissions({
-    resource: 'inventory:product_service_suppliers',
+    resource: 'inventory:products',
     action: 'create',
     scope: 'tenant',
   })
@@ -49,7 +49,7 @@ export class ProductServiceSuppliersController {
 
   @Get()
   @Permissions({
-    resource: 'inventory:product_service_suppliers',
+    resource: 'inventory:products',
     action: 'read',
     scope: 'tenant',
   })
@@ -66,7 +66,7 @@ export class ProductServiceSuppliersController {
 
   @Get(':id')
   @Permissions({
-    resource: 'inventory:product_service_suppliers',
+    resource: 'inventory:products',
     action: 'read',
     scope: 'tenant',
   })
@@ -76,7 +76,7 @@ export class ProductServiceSuppliersController {
 
   @Patch(':id')
   @Permissions({
-    resource: 'inventory:product_service_suppliers',
+    resource: 'inventory:products',
     action: 'update',
     scope: 'tenant',
   })
@@ -98,7 +98,7 @@ export class ProductServiceSuppliersController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Permissions({
-    resource: 'inventory:product_service_suppliers',
+    resource: 'inventory:products',
     action: 'delete',
     scope: 'tenant',
   })

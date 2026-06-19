@@ -37,7 +37,7 @@ export const rolesColumns: ColumnDef<Role>[] = [
   {
     id: 'tenant',
     accessorFn: (row) => row.tenant?.name || row.tenantId || '',
-    header: 'Tenant',
+    header: 'Empresa',
     cell: ({ row }) => row.original.tenant?.name || row.original.tenantId || 'N/A',
   },
   {

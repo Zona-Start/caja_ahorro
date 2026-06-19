@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth.store';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -17,7 +18,10 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { Textarea } from '@repo/shadcn/textarea';
+import { useQuery } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import { TENANTS_KEYS } from '../../../core/tenants/keys/tenants-keys';
+import { tenantsService } from '../../../core/tenants/services/tenants-service';
 import { useSaveCategoryMutation } from '../hooks/use-categories-mutations';
 import {
   type CategoryMutation,
@@ -38,8 +42,17 @@ export function CategoriesForm({
   defaultValues,
   disabled = false,
 }: CategoriesFormProps) {
+  const { user } = useAuthStore();
+  const isSystemAdmin = user?.isSystemAdmin ?? false;
+
   const { mutate: saveCategory, isPending: isSaving } =
     useSaveCategoryMutation();
+
+  const { data: tenantsData } = useQuery({
+    queryKey: TENANTS_KEYS.list({}),
+    queryFn: () => tenantsService.getAll({ limit: 100 }),
+    enabled: isSystemAdmin,
+  });
 
   const form = useForm<CategoryMutation>({
     resolver: zodResolver(categoryMutationSchema),
@@ -48,6 +61,7 @@ export function CategoriesForm({
       name: defaultValues?.name || '',
       group: defaultValues?.group || '',
       description: defaultValues?.description || '',
+      tenantId: defaultValues?.tenantId || '',
     },
   });
 
@@ -63,6 +77,37 @@ export function CategoriesForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {isSystemAdmin && (
+            <FormField
+              control={form.control}
+              name="tenantId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Empresa</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={disabled}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Seleccionar empresa" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {tenantsData?.data?.map((tenant) => (
+                        <SelectItem key={tenant.id} value={tenant.id}>
+                          {tenant.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
           <FormField
             control={form.control}
             name="name"
@@ -93,7 +138,7 @@ export function CategoriesForm({
                   disabled={disabled}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Seleccionar grupo" />
                     </SelectTrigger>
                   </FormControl>

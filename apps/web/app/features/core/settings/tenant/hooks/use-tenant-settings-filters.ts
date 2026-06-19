@@ -2,6 +2,10 @@ import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 
 export const tenantSettingsFilterSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  search: z.string().optional(),
+  tenantId: z.string().optional(),
   category: z.string().optional(),
 });
 
@@ -25,11 +29,17 @@ export function useTenantSettingsFilters() {
       }
     });
 
+    if (!('page' in newFilters)) {
+      params.set('page', '1');
+    }
+
     setSearchParams(params, { preventScrollReset: true });
   };
 
   const clearFilters = () => {
     const params = new URLSearchParams();
+    params.set('page', '1');
+    params.set('limit', '10');
     setSearchParams(params, { preventScrollReset: true });
   };
 

@@ -31,7 +31,8 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     { key: 'ACCOUNTING_AUTO_POSTING_MASTER', value: 'true', description: 'Generar asiento contable en todos los modulos', category: 'accounting' },
     { key: 'INTEREST_RATE_SAVINGS', value: '0.5', description: 'Tasa de interés anual para ahorros (%)', category: 'savings' },
     { key: 'MAX_WITHDRAWAL_PERCENTAGE', value: '80', description: 'Porcentaje máximo de retiro sobre saldo', category: 'savings' },
-    { key: 'MIN_CONTRIBUTION_AMOUNT', value: '1', description: 'Monto mínimo de aporte', category: 'savings' },
+    { key: 'PRICING_CURRENCY_MODE', value: 'SINGLE_BASE', description: 'Tipo de Manejo de inventario', category: 'general' },
+    { key: 'USE_DIFFERENTIAL_RATES', value: 'false', description: 'Uso de Tasas Diferentes', category: 'general' },
   ],
 
   moduleSettings: [

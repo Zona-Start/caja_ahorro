@@ -7,6 +7,7 @@ export const moduleSettingsFilterSchema = z.object({
   search: z.string().optional(),
   module: z.string().optional(),
   submodule: z.string().optional(),
+  tenantId: z.string().optional(),
 });
 
 export type ModuleSettingsFilters = z.infer<typeof moduleSettingsFilterSchema>;

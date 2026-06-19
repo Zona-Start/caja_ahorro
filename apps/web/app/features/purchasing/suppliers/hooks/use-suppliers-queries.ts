@@ -8,6 +8,9 @@ const mapFiltersToApiParams = (filters: SuppliersFilters) => ({
   page: filters.page,
   limit: filters.limit,
   search: filters.search || undefined,
+  tenantId: filters.tenantId || undefined,
+  state: filters.state || undefined,
+  category: filters.category || undefined,
 });
 
 export function useSuppliersQuery(

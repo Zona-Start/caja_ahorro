@@ -11,6 +11,7 @@ export interface CategoriesQueryParams {
   search?: string;
   type?: string;
   isActive?: boolean;
+  tenantId?: string;
 }
 
 export interface CategoriesPaginatedResponse {
@@ -28,6 +29,7 @@ const buildQueryParams = (params: CategoriesQueryParams): string => {
     ...(params.search ? { search: params.search } : {}),
     ...(params.type ? { type: params.type } : {}),
     ...(params.isActive !== undefined ? { isActive: String(params.isActive) } : {}),
+    ...(params.tenantId ? { tenantId: params.tenantId } : {}),
   });
   return query.toString();
 };

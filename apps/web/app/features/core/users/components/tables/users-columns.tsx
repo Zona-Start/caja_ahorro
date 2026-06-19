@@ -57,7 +57,7 @@ export const usersColumns: ColumnDef<User>[] = [
   {
     id: 'tenant',
     accessorFn: (row) => row.tenantMembers?.[0]?.tenant?.name || '',
-    header: 'Tenant',
+    header: 'Empresa',
     cell: ({ row }) => {
       const members = row.original.tenantMembers || [];
       const tenantName = members[0]?.tenant?.name || 'N/A';

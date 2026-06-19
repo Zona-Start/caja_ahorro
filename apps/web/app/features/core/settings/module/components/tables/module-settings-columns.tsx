@@ -1,8 +1,8 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { ModuleSetting } from '../../schemas/module-settings.schema';
+import type { ModuleSetting } from '../../schemas/module-settings.schema';
 import { ModuleSettingsCellAction } from './module-settings-cell-action';
 
-export const moduleSettingsColumns: ColumnDef<ModuleSetting>[] = [
+const baseColumns: ColumnDef<ModuleSetting>[] = [
   {
     accessorKey: 'description',
     header: 'Descripción',
@@ -31,3 +31,26 @@ export const moduleSettingsColumns: ColumnDef<ModuleSetting>[] = [
     ),
   },
 ];
+
+export function createModuleSettingsColumns(
+  isSuperAdmin: boolean,
+  tenantNames?: Record<string, string>,
+): ColumnDef<ModuleSetting>[] {
+  if (!isSuperAdmin) return baseColumns;
+
+  return [
+    {
+      accessorKey: 'tenantId',
+      header: 'Cliente',
+      cell: ({ row }) => {
+        const name = tenantNames?.[row.original.tenantId];
+        return (
+          <span className="truncate block max-w-[200px]" title={name ?? row.original.tenantId}>
+            {name ?? row.original.tenantId.slice(0, 8) + '...'}
+          </span>
+        );
+      },
+    },
+    ...baseColumns,
+  ];
+}

@@ -4,6 +4,8 @@ export const CreateSupplierSchema = z.object({
   tenantId: z.string().uuid().optional(),
   name: z.string().min(1),
   taxId: z.string().min(1),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
   contactName: z.string().optional(),
   contactEmail: z.string().email().optional(),
   contactPhone: z.string().optional(),
@@ -20,7 +22,9 @@ export const FilterSupplierSchema = z.object({
   name: z.string().optional(),
   taxId: z.string().optional(),
   category: z.string().optional(),
+  state: z.coerce.number().int().optional(),
   status: z.string().optional(),
+  tenantId: z.string().uuid().optional(),
 });
 
 export const UpdateSupplierSchema = CreateSupplierSchema.partial();

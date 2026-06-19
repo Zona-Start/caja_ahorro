@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const MODULE_CODES = [
   'ACCOUNTING', 'LOANS', 'CREDITS', 'SAVINGS', 'INVENTORY',
-  'PURCHASING', 'BILLING', 'BANKING', 'TREASURY', 'HR_PAYROLL',
+  'PURCHASING', 'SALES', 'BANKING', 'TREASURY', 'HR_PAYROLL',
   'AUDIT',
 ] as const;
 

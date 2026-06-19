@@ -2,7 +2,12 @@ import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { Input } from '@repo/shadcn/input';
 import { Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
+import type { Tenant } from '../../../tenants/schemas/tenants.schema';
+import { TENANTS_KEYS } from '../../../tenants/keys/tenants-keys';
+import { tenantsService } from '../../../tenants/services/tenants-service';
 import { useCategoriesFilters } from '../../hooks/use-categories-filters';
 import { CATEGORY_TYPES, TYPE_LABELS } from '../../schemas/categories.schema';
 import { CategoriesModal } from '../categories-modal';
@@ -21,6 +26,9 @@ export default function CategoriesTableAction() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = useCategoriesFilters();
 
+  const user = useAuthStore((s) => s.user);
+  const isSuperAdmin = user?.isSystemAdmin ?? false;
+
   const [searchValue, setSearchValue] = useState(filters.search || '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -35,6 +43,21 @@ export default function CategoriesTableAction() {
       setFilters({ search: value || undefined, page: 1 });
     }, 400);
   };
+
+  const { data: tenantsData } = useQuery({
+    queryKey: TENANTS_KEYS.list({}),
+    queryFn: () => tenantsService.getAll({ limit: 100 }),
+    enabled: isSuperAdmin,
+  });
+
+  const tenantOptions = useMemo(
+    () =>
+      (tenantsData?.data ?? []).map((t: Tenant) => ({
+        value: t.id,
+        label: t.name,
+      })) ?? [],
+    [tenantsData],
+  );
 
   return (
     <div className="flex items-center justify-between mt-4">
@@ -59,6 +82,17 @@ export default function CategoriesTableAction() {
           setFilterValue={(v) => setFilters({ isActive: v, page: 1 })}
           filterValue={filters.isActive || ''}
         />
+        {isSuperAdmin && (
+          <DataTableFilterBox
+            filterKey="tenantId"
+            title="Cliente"
+            options={tenantOptions}
+            setFilterValue={(v) =>
+              setFilters({ tenantId: v || undefined, page: 1 })
+            }
+            filterValue={filters.tenantId || ''}
+          />
+        )}
       </div>
       <Button onClick={() => setOpen(true)} size="sm">
         <Plus className="mr-2 h-4 w-4" /> Nueva Categoría

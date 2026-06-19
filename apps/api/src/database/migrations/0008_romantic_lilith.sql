@@ -1,0 +1,1 @@
+ALTER TABLE "inventory"."product_prices" ADD COLUMN "currency_code" "currency_code" DEFAULT 'VES' NOT NULL;

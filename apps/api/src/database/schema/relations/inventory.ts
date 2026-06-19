@@ -37,10 +37,6 @@ export const productPricesRelations = relations(productPrices, ({ one }) => ({
     fields: [productPrices.productId],
     references: [products.id],
   }),
-  supplier: one(suppliers, {
-    fields: [productPrices.suppliersId],
-    references: [suppliers.id],
-  }),
 }));
 
 export const servicesRelations = relations(services, ({ one, many }) => ({

@@ -6,6 +6,7 @@ export const CreateProductSchema = z.object({
   description: z.string().optional(),
   brand: z.string().max(100).optional(),
   model: z.string().max(100).optional(),
+  sku: z.string().max(50).optional(),
   stockMin: z.preprocess(
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number().int().min(0).default(0),
@@ -18,8 +19,19 @@ export const CreateProductSchema = z.object({
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number().int().min(0).default(0),
   ),
-  status: z.enum(['AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE']).default('DISABLED'),
+  status: z.enum(['AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE']).default('COMMING_SOON'),
   unitOfMeasure: z.enum(['UNIT', 'KILOGRAM', 'LITER', 'METER', 'BOX', 'PACK']).optional(),
+
+  // Pricing fields (mapped to product_prices)
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).default('VES'),
+  purchaseExchangeRate: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(1),
+  ),
+  salesExchangeRate: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(1),
+  ),
   supplierCost: z.preprocess(
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0),
@@ -28,19 +40,37 @@ export const CreateProductSchema = z.object({
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).default(0),
   ),
+  purchaseTaxPercent: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(16),
+  ),
   profitSale: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(0),
+  ),
+  expensePercent: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(0),
+  ),
+  salesTaxPercent: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(16),
+  ),
+  salePrice: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).optional(),
+  ),
+  offerSalePrice: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).optional(),
+  ),
+  offerStartDate: z.string().optional(),
+  offerEndDate: z.string().optional(),
+  bsPriceAmount: z.preprocess(
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).optional(),
   ),
   profitSupply: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number().min(0).optional(),
-  ),
-  purchaseTax: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number().min(0).optional(),
-  ),
-  saleTax: z.preprocess(
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).optional(),
   ),

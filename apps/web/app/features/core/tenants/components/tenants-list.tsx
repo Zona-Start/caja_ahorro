@@ -1,5 +1,7 @@
+import { Button } from '@repo/shadcn/button';
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
+import { Plus } from 'lucide-react';
 import { useTenantsFilters } from '../hooks/use-tenants-filters';
 import {
   useTenantActiveCountQuery,
@@ -13,7 +15,7 @@ import { TenantsModal } from './tenants-modal';
 import { TenantsDetailModal } from './tenants-detail-modal';
 
 export default function TenantsList() {
-  const { filters, setFilters, clearFilters } = useTenantsFilters();
+  const { filters, setFilters } = useTenantsFilters();
   const { data, isLoading } = useTenantsQuery(filters);
   const { data: count } = useTenantActiveCountQuery();
   const { openModal } = useTenantsModalStore();
@@ -28,12 +30,16 @@ export default function TenantsList() {
     <div className="space-y-4">
       <TenantsHeader />
 
-      <TenantsFiltersAction
-        filters={filters}
-        setFilters={setFilters}
-        clearFilters={clearFilters}
-        onCreateClick={() => openModal('create')}
-      />
+      <div className="flex items-center justify-between">
+        <TenantsFiltersAction
+          filters={filters}
+          setFilters={setFilters}
+        />
+        <Button onClick={() => openModal('create')} size="sm">
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo Cliente
+        </Button>
+      </div>
 
       <DataTable
         columns={tenantsColumns}

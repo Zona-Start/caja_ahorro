@@ -14,7 +14,7 @@ const optionalEmailField = (max: number, message: string) =>
 
 const moduleCodeValues = [
   'ACCOUNTING', 'LOANS', 'CREDITS', 'SAVINGS', 'INVENTORY',
-  'PURCHASING', 'BILLING', 'BANKING', 'TREASURY', 'HR_PAYROLL',
+  'PURCHASING', 'SALES', 'BANKING', 'TREASURY', 'HR_PAYROLL',
   'AUDIT',
 ] as const;
 

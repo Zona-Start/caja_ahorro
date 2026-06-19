@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { type Category } from '../../schemas/categories.schema';
 import { useDeleteCategoryMutation } from '../../hooks/use-categories-mutations';
 import { useCategoriesModalStore } from '../../store/categories-modal.store';
+import { CategoriesViewModal } from '../categories-view-modal';
 
 interface CategoriesCellActionProps {
   data: Category;
@@ -20,6 +21,7 @@ interface CategoriesCellActionProps {
 export function CategoriesCellAction({ data }: CategoriesCellActionProps) {
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openView, setOpenView] = useState(false);
   const { openModal } = useCategoriesModalStore();
 
   const deleteMutation = useDeleteCategoryMutation();
@@ -47,6 +49,12 @@ export function CategoriesCellAction({ data }: CategoriesCellActionProps) {
         description="La categoría será eliminada del sistema. Esta acción no se puede deshacer."
       />
 
+      <CategoriesViewModal
+        open={openView}
+        onOpenChange={setOpenView}
+        data={data}
+      />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="h-8 w-8 p-0">
@@ -54,7 +62,7 @@ export function CategoriesCellAction({ data }: CategoriesCellActionProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => openModal('view', data)}>
+          <DropdownMenuItem onClick={() => setOpenView(true)}>
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>

@@ -9,9 +9,10 @@ import {
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
 import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
-import { GlobalSetting } from '../../schemas/global-settings.schema';
+import type { GlobalSetting } from '../../schemas/global-settings.schema';
 import { useDeleteGlobalSettingMutation } from '../../hooks/use-global-settings-mutations';
 import { GlobalSettingsModal } from '../global-settings-modal';
+import { GlobalSettingsViewModal } from '../global-settings-view-modal';
 
 interface GlobalSettingsCellActionProps {
   data: GlobalSetting;
@@ -55,11 +56,10 @@ export function GlobalSettingsCellAction({ data }: GlobalSettingsCellActionProps
         mode="edit"
       />
 
-      <GlobalSettingsModal
+      <GlobalSettingsViewModal
         open={openView}
         onOpenChange={setOpenView}
-        defaultValues={data}
-        mode="view"
+        data={data}
       />
 
       <DropdownMenu>

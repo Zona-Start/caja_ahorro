@@ -9,9 +9,10 @@ import {
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
 import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
-import { Role } from '../../schemas/roles.schema';
+import type { Role } from '../../schemas/roles.schema';
 import { useDeleteRoleMutation } from '../../hooks/use-roles-mutations';
 import { RolesModal } from '../roles-modal';
+import { RolesViewModal } from '../roles-view-modal';
 
 interface RolesCellActionProps {
   data: Role;
@@ -55,11 +56,10 @@ export function RolesCellAction({ data }: RolesCellActionProps) {
         mode="edit"
       />
 
-      <RolesModal
+      <RolesViewModal
         open={openView}
         onOpenChange={setOpenView}
-        defaultValues={data}
-        mode="view"
+        data={data}
       />
 
       <DropdownMenu>

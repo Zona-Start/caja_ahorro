@@ -16,6 +16,7 @@ const mapFiltersToApiParams = (filters: CategoriesFilters) => ({
     filters.isActive !== undefined
       ? filters.isActive === 'true'
       : undefined,
+  tenantId: filters.tenantId || undefined,
 });
 
 export function useCategoriesQuery(

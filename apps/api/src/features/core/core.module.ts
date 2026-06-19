@@ -46,4 +46,4 @@ import { UsersService } from './users/users.service';
     CryptographyService,
   ],
 })
-export class CoreModule {}
+export class CoreModule { }

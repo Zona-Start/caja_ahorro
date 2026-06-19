@@ -9,6 +9,13 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@repo/shadcn/select';
 import { useForm } from 'react-hook-form';
 import { useSaveGlobalSettingMutation } from '../hooks/use-global-settings-mutations';
 import {
@@ -16,28 +23,32 @@ import {
   globalSettingMutationSchema,
 } from '../schemas/global-settings.schema';
 
+const CATEGORY_OPTIONS = [
+  { value: 'general', label: 'General' },
+  { value: 'notification', label: 'Notificaciones' },
+  { value: 'security', label: 'Seguridad' },
+  { value: 'system', label: 'Sistema' },
+] as const;
+
 interface GlobalSettingsFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   defaultValues?: Partial<GlobalSettingMutation>;
   disabled?: boolean;
+  mode?: 'create' | 'edit' | 'view';
 }
-
-const CATEGORY_OPTIONS = [
-  { value: 'general', label: 'General' },
-  { value: 'security', label: 'Seguridad' },
-  { value: 'notification', label: 'Notificaciones' },
-  { value: 'integration', label: 'Integraciones' },
-  { value: 'billing', label: 'Facturación' },
-];
 
 export function GlobalSettingsForm({
   onSuccess,
   onCancel,
   defaultValues,
   disabled = false,
+  mode = 'create',
 }: GlobalSettingsFormProps) {
   const { mutate: saveSetting, isPending: isSaving } = useSaveGlobalSettingMutation();
+
+  const isEditMode = mode === 'edit';
+  const isViewMode = mode === 'view';
 
   const form = useForm<GlobalSettingMutation>({
     resolver: zodResolver(globalSettingMutationSchema),
@@ -72,7 +83,7 @@ export function GlobalSettingsForm({
                   <Input
                     placeholder="Ej: max_login_attempts"
                     {...field}
-                    disabled={disabled}
+                    disabled={disabled || isEditMode}
                   />
                 </FormControl>
                 <FormMessage />
@@ -104,19 +115,24 @@ export function GlobalSettingsForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Categoría</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Categoría"
-                    {...field}
-                    disabled={disabled}
-                    list="category-options"
-                  />
-                </FormControl>
-                <datalist id="category-options">
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value} />
-                  ))}
-                </datalist>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value || 'general'}
+                  disabled={isViewMode}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -142,7 +158,7 @@ export function GlobalSettingsForm({
         </div>
 
         <div className="flex justify-end gap-4 pt-4">
-          {disabled ? (
+          {isViewMode ? (
             <Button type="button" onClick={onCancel}>
               Cerrar
             </Button>

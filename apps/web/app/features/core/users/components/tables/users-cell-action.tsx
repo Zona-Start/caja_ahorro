@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { User } from '../../schemas/users.schema';
 import { useDeleteUserMutation } from '../../hooks/use-users-mutations';
 import { UsersModal } from '../users-modal';
+import { UsersViewModal } from '../users-view-modal';
 
 interface UsersCellActionProps {
   data: User;
@@ -64,11 +65,10 @@ export function UsersCellAction({ data }: UsersCellActionProps) {
         mode="edit"
       />
 
-      <UsersModal
+      <UsersViewModal
         open={openView}
         onOpenChange={setOpenView}
-        defaultValues={getDefaultValuesForEdit()}
-        mode="view"
+        data={data}
       />
 
       <DropdownMenu>

@@ -2,6 +2,7 @@ import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { products } from '@/database/schema/tables/inventory';
+import { tenantSettings } from '@/database/schema/tables';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { ProductPricesService } from '@/features/inventory/product-prices/product-prices.service';
 import {
@@ -14,6 +15,7 @@ import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ProductPaginationDto } from './dto/pagination-product.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/products.schema';
+import { CurrencyCodeEnum } from '@/types/enum';
 
 type ProductSelect = typeof products.$inferSelect;
 
@@ -25,7 +27,7 @@ export class ProductsService {
     private readonly generateCode: GenerateCodeService,
     private readonly productPricesService: ProductPricesService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   async create(
     dto: CreateProductDto,
@@ -58,78 +60,98 @@ export class ProductsService {
       throw new NotFoundException('Category not found');
     }
 
-    const code = await this.generateCode.generateGlobalCode(
-      'DOC_PRD',
-      tenantId,
-      'inventory',
-      'products',
-    );
-    const [result] = await this.db
-      .insert(products)
-      .values({
-        tenantId,
-        categoryId: dto.categoryId,
-        internalCode: code,
-        sku: code,
-        name: dto.name,
-        description: dto.description ?? null,
-        brand: dto.brand ?? null,
-        model: dto.model ?? null,
-        stockMin: dto.stockMin,
-        stockMax: dto.stockMax,
-        reorderPoint: dto.reorderPoint,
-        status: dto.status as (typeof products.$inferInsert)['status'],
-        unitOfMeasure: dto.unitOfMeasure ?? null,
-        createdById: userId,
-      })
-      .returning({
-        id: products.id,
-        sku: products.sku,
-        name: products.name,
-        status: products.status,
-      });
+    console.log(dto);
 
-    if (dto.supplierCost !== 0) {
-      await this.productPricesService.create(
-        {
-          productId: result.id,
-          priceType: 'SELLING',
-          baseCost: dto.supplierCost,
-          otherCosts: dto.otherCosts,
-          purchaseTax: dto.purchaseTax,
-          saleTax: dto.saleTax,
-          profitPercent: dto.profitSale,
-          isActive: true,
-        },
-        userId,
+    const transaction = await this.db.transaction(async (tx) => {
+
+      const code = await this.generateCode.generateGlobalCode(
+        'PRD',
         tenantId,
+        'inventory',
+        'products',
+        tx
       );
+      const [result] = await tx
+        .insert(products)
+        .values({
+          tenantId,
+          categoryId: dto.categoryId,
+          internalCode: code,
+          sku: dto.sku ?? code,
+          name: dto.name,
+          description: dto.description ?? null,
+          brand: dto.brand ?? null,
+          model: dto.model ?? null,
+          stockMin: dto.stockMin,
+          stockMax: dto.stockMax,
+          reorderPoint: dto.reorderPoint,
+          status: dto.status as (typeof products.$inferInsert)['status'],
+          unitOfMeasure: dto.unitOfMeasure ?? null,
+          createdById: userId,
+        })
+        .returning({
+          id: products.id,
+          sku: products.sku,
+          name: products.name,
+          status: products.status,
+        });
 
-      if ((dto.profitSupply ?? 0) > 0) {
+
+
+
+      if (dto.supplierCost !== 0 || (dto.currencyCode && dto.currencyCode !== 'VES') || (dto.salePrice ?? 0) > 0) {
+        const priceBase = {
+          productId: result.id,
+          currencyCode: dto.currencyCode as CurrencyCodeEnum,
+          purchaseExchangeRate: dto.purchaseExchangeRate ?? 1,
+          salesExchangeRate: dto.salesExchangeRate ?? 1,
+          baseCost: dto.supplierCost ?? 0,
+          otherCosts: dto.otherCosts ?? 0,
+          purchaseTaxPercent: dto.purchaseTaxPercent ?? 16,
+          profitPercent: dto.profitSale ?? 0,
+          expensePercent: dto.expensePercent ?? 0,
+          salesTaxPercent: dto.salesTaxPercent ?? 16,
+          salePrice: dto.salePrice,
+          offerSalePrice: dto.offerSalePrice,
+          bsPriceAmount: dto.bsPriceAmount,
+          isActive: true,
+        };
+
         await this.productPricesService.create(
-          {
-            productId: result.id,
-            priceType: 'OFFER',
-            baseCost: dto.supplierCost,
-            otherCosts: dto.otherCosts,
-            purchaseTax: dto.purchaseTax,
-            saleTax: dto.saleTax,
-            profitPercent: dto.profitSupply,
-            isActive: true,
-          },
+          { ...priceBase, priceType: 'SELLING' },
           userId,
           tenantId,
+          tx
         );
-      }
-    }
 
-    await this.auditHelper.logCreate(userId, 'product', result, {
+        if ((dto.profitSupply ?? 0) > 0 || (dto.offerSalePrice ?? 0) > 0) {
+          const offerBase: Record<string, unknown> = dto.offerSalePrice
+            ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice }
+            : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0 };
+          await this.productPricesService.create(
+            { ...offerBase, startDate: dto.offerStartDate, endDate: dto.offerEndDate } as any,
+            userId,
+            tenantId,
+            tx
+          );
+        }
+      }
+
+      return result
+
+    })
+
+
+    if (!transaction) {
+      throw new BadRequestException('Product not created');
+    }
+    await this.auditHelper.logCreate(userId, 'product', transaction, {
       tenantId,
-      targetId: result.id,
-      description: `Created product ${result.name}`,
+      targetId: transaction.id,
+      description: `Created product ${transaction.name}`,
     });
 
-    return result;
+    return transaction;
   }
 
   async findAllByPagination(
@@ -222,6 +244,11 @@ export class ProductsService {
         .select({
           productId: schema.productPrices.productId,
           totalCost: schema.productPrices.totalCost,
+          totalCostVes: schema.productPrices.totalCostVes,
+          finalPriceNet: schema.productPrices.finalPriceNet,
+          finalPriceGross: schema.productPrices.finalPriceGross,
+          finalPriceNetVes: schema.productPrices.finalPriceNetVes,
+          finalPriceGrossVes: schema.productPrices.finalPriceGrossVes,
           finalPrice: schema.productPrices.finalPrice,
         })
         .from(schema.productPrices)
@@ -260,6 +287,11 @@ export class ProductsService {
       return {
         ...product,
         totalCost: priceInfo?.totalCost ?? null,
+        totalCostVes: priceInfo?.totalCostVes ?? null,
+        finalPriceNet: priceInfo?.finalPriceNet ?? null,
+        finalPriceGross: priceInfo?.finalPriceGross ?? null,
+        finalPriceNetVes: priceInfo?.finalPriceNetVes ?? null,
+        finalPriceGrossVes: priceInfo?.finalPriceGrossVes ?? null,
         finalPrice: priceInfo?.finalPrice ?? null,
         available: availabilityInfo?.availableQuantity ?? 0,
       };
@@ -342,13 +374,27 @@ export class ProductsService {
       .select({
         productPriceId: schema.productPrices.id,
         priceType: schema.productPrices.priceType,
+        currencyCode: schema.productPrices.currencyCode,
+        purchaseExchangeRate: schema.productPrices.purchaseExchangeRate,
+        salesExchangeRate: schema.productPrices.salesExchangeRate,
         baseCost: schema.productPrices.baseCost,
         otherCosts: schema.productPrices.otherCosts,
-        purchaseTax: schema.productPrices.purchaseTax,
+        purchaseTaxPercent: schema.productPrices.purchaseTaxPercent,
         totalCost: schema.productPrices.totalCost,
+        baseCostVes: schema.productPrices.baseCostVes,
+        otherCostsVes: schema.productPrices.otherCostsVes,
+        totalCostVes: schema.productPrices.totalCostVes,
         expensePercent: schema.productPrices.expensePercent,
         profitPercent: schema.productPrices.profitPercent,
         salesTaxPercent: schema.productPrices.salesTaxPercent,
+        salePrice: schema.productPrices.salePrice,
+        bsPriceAmount: schema.productPrices.bsPriceAmount,
+        finalPriceNet: schema.productPrices.finalPriceNet,
+        finalPriceGross: schema.productPrices.finalPriceGross,
+        finalPriceNetVes: schema.productPrices.finalPriceNetVes,
+        finalPriceGrossVes: schema.productPrices.finalPriceGrossVes,
+        startDate: schema.productPrices.startDate,
+        endDate: schema.productPrices.endDate,
       })
       .from(schema.productPrices)
       .where(
@@ -401,6 +447,7 @@ export class ProductsService {
     if (dto.unitOfMeasure !== undefined)
       updateData.unitOfMeasure = dto.unitOfMeasure;
     if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.sku !== undefined) updateData.sku = dto.sku;
 
     const whereConditions = [eq(products.id, id)];
     if (tenantId) {
@@ -422,34 +469,36 @@ export class ProductsService {
       throw new NotFoundException('Product not found after update');
     }
 
-    if ((dto.supplierCost ?? 0) > 0) {
+    if ((dto.supplierCost ?? 0) > 0 || (dto.currencyCode && dto.currencyCode !== 'VES') || (dto.salePrice ?? 0) > 0) {
+      const priceBase = {
+        productId: id,
+        currencyCode: dto.currencyCode ?? 'VES',
+        purchaseExchangeRate: dto.purchaseExchangeRate ?? 1,
+        salesExchangeRate: dto.salesExchangeRate ?? 1,
+        baseCost: dto.supplierCost ?? 0,
+        otherCosts: dto.otherCosts ?? 0,
+        purchaseTaxPercent: dto.purchaseTaxPercent ?? 16,
+        profitPercent: dto.profitSale ?? 0,
+        expensePercent: dto.expensePercent ?? 0,
+        salesTaxPercent: dto.salesTaxPercent ?? 16,
+        salePrice: dto.salePrice,
+        offerSalePrice: dto.offerSalePrice,
+        bsPriceAmount: dto.bsPriceAmount,
+        isActive: true,
+      };
+
       await this.productPricesService.create(
-        {
-          productId: id,
-          priceType: 'SELLING',
-          baseCost: dto.supplierCost ?? 0,
-          otherCosts: dto.otherCosts ?? 0,
-          purchaseTax: dto.purchaseTax,
-          saleTax: dto.saleTax,
-          profitPercent: dto.profitSale,
-          isActive: true,
-        },
+        { ...priceBase, priceType: 'SELLING' },
         userId,
         existingProduct.tenantId,
       );
 
-      if ((dto.profitSupply ?? 0) > 0) {
+      if ((dto.profitSupply ?? 0) > 0 || (dto.offerSalePrice ?? 0) > 0) {
+        const offerBase: Record<string, unknown> = dto.offerSalePrice
+          ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice }
+          : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0 };
         await this.productPricesService.create(
-          {
-            productId: id,
-            priceType: 'OFFER',
-            baseCost: dto.supplierCost ?? 0,
-            otherCosts: dto.otherCosts ?? 0,
-            purchaseTax: dto.purchaseTax,
-            saleTax: dto.saleTax,
-            profitPercent: dto.profitSupply,
-            isActive: true,
-          },
+          { ...offerBase, startDate: dto.offerStartDate, endDate: dto.offerEndDate } as any,
           userId,
           existingProduct.tenantId,
         );
@@ -513,5 +562,30 @@ export class ProductsService {
       targetId: id,
       description: `Deleted product ${existingProduct.name}`,
     });
+  }
+
+  async getDefaults(tenantId: string): Promise<Record<string, unknown>> {
+    const keys = ['TAX_PURCHASES', 'TAX_SALES', 'UTILITY-PRODUCT', 'EXPENDITURE-PRODUCT'];
+    const rows = await this.db
+      .select()
+      .from(tenantSettings)
+      .where(
+        and(
+          eq(tenantSettings.tenantId, tenantId),
+          inArray(tenantSettings.key, keys),
+        ),
+      );
+
+    const map: Record<string, string> = {};
+    for (const row of rows) {
+      map[row.key] = row.value ?? '';
+    }
+
+    return {
+      taxPurchases: Number(map.TAX_PURCHASES) || 16,
+      taxSales: Number(map.TAX_SALES) || 16,
+      utilityProduct: Number(map['UTILITY-PRODUCT']) || 0,
+      expenditureProduct: Number(map['EXPENDITURE-PRODUCT']) || 0,
+    };
   }
 }

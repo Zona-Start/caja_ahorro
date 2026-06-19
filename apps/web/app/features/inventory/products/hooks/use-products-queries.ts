@@ -32,3 +32,11 @@ export function useCategoriesQuery() {
     },
   });
 }
+
+export function useProductDefaults() {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.products.all, 'defaults'] as const,
+    queryFn: () => ProductsService.getDefaults(),
+    staleTime: 5 * 60 * 1000,
+  });
+}

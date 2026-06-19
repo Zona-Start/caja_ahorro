@@ -176,14 +176,18 @@ export class CategoriesService {
 
   async remove(
     id: string,
-    tenantId: string,
+    tenantId?: string,
     tx?: NodePgDatabase<typeof schema>,
   ) {
     const db = tx ?? this.db;
     const previous = await this.findById(id, tenantId, db);
+
+    const conditions: SQL[] = [eq(categories.id, id)];
+    if (tenantId) conditions.push(eq(categories.tenantId, tenantId));
+
     await db
       .delete(categories)
-      .where(and(eq(categories.id, id), eq(categories.tenantId, tenantId)));
+      .where(and(...conditions));
 
     await this.auditHelper.logDelete(previous.tenantId, 'category', previous, {
       targetId: id,

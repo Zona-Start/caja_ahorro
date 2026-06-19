@@ -12,7 +12,7 @@ interface TenantSettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultValues?: Partial<TenantSettingMutation>;
-  mode?: 'edit' | 'view';
+  mode?: 'create' | 'edit' | 'view';
 }
 
 export function TenantSettingsModal({
@@ -30,18 +30,26 @@ export function TenantSettingsModal({
   };
 
   const isViewMode = mode === 'view';
+  const isEditMode = mode === 'edit';
+  const isCreateMode = mode === 'create';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode ? 'Detalles del Parámetro' : 'Editar Parámetro'}
+            {isViewMode
+              ? 'Detalles del Parámetro'
+              : isCreateMode
+                ? 'Nuevo Parámetro'
+                : 'Editar Parámetro'}
           </DialogTitle>
           <DialogDescription>
             {isViewMode
               ? 'Información del parámetro.'
-              : 'Actualiza el valor del parámetro.'}
+              : isCreateMode
+                ? 'Crea un nuevo parámetro de configuración.'
+                : 'Actualiza el valor del parámetro.'}
           </DialogDescription>
         </DialogHeader>
         <TenantSettingsForm
@@ -49,6 +57,7 @@ export function TenantSettingsModal({
           onCancel={handleCancel}
           defaultValues={defaultValues}
           disabled={isViewMode}
+          mode={isCreateMode ? 'create' : 'edit'}
         />
       </DialogContent>
     </Dialog>

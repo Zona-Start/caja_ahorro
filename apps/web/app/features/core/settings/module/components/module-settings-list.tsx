@@ -1,38 +1,60 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { Button } from '@repo/shadcn/button';
-import { Input } from '@repo/shadcn/input';
 import { Plus } from 'lucide-react';
-import { usePermissions } from '@/hooks/use-permissions';
+import { useQuery } from '@tanstack/react-query';
+import { useAuthStore } from '@/stores/auth.store';
+import { TENANTS_KEYS } from '../../../tenants/keys/tenants-keys';
+import { tenantsService } from '../../../tenants/services/tenants-service';
 import { useModuleSettingsQuery } from '../hooks/use-module-settings-queries';
 import { useModuleSettingsFilters } from '../hooks/use-module-settings-filters';
-import { moduleSettingsColumns } from './tables/module-settings-columns';
+import { createModuleSettingsColumns } from './tables/module-settings-columns';
 import { ModuleSettingsModal } from './module-settings-modal';
 import { ModuleSettingsHeader } from './module-settings-header';
+import { ModuleSettingsFiltersAction, SUBMODULE_LABELS } from './tables/module-settings-filters-action';
 
 export default function ModuleSettingsList() {
+  const user = useAuthStore((s) => s.user);
+  const isSuperAdmin = user?.isSystemAdmin ?? false;
+
   const { filters, setFilters } = useModuleSettingsFilters();
   const { data, isLoading } = useModuleSettingsQuery(filters);
   const [openModal, setOpenModal] = useState(false);
-  const { can } = usePermissions();
 
-  const [searchValue, setSearchValue] = useState(filters.search || '');
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { data: tenantsData } = useQuery({
+    queryKey: TENANTS_KEYS.list({}),
+    queryFn: () => tenantsService.getAll({ limit: 100 }),
+    enabled: isSuperAdmin,
+  });
 
-  useEffect(() => {
-    setSearchValue(filters.search || '');
-  }, [filters.search]);
+  const tenantNames = useMemo(() => {
+    if (!tenantsData?.data) return {};
+    const map: Record<string, string> = {};
+    for (const t of tenantsData.data) {
+      map[t.id] = t.name;
+    }
+    return map;
+  }, [tenantsData]);
 
-  const handleSearchChange = (value: string) => {
-    setSearchValue(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setFilters({ search: value || undefined, page: 1 });
-    }, 400);
-  };
+  const columns = useMemo(
+    () => createModuleSettingsColumns(isSuperAdmin, tenantNames),
+    [isSuperAdmin, tenantNames],
+  );
 
-  const canCreate = can('system:modules', 'create', 'all');
+  const submoduleOptions = useMemo(() => {
+    if (!data?.data) return [];
+    const unique = new Set<string>();
+    for (const item of data.data) {
+      if (item.submodule) unique.add(item.submodule);
+    }
+    return Array.from(unique)
+      .sort()
+      .map((value) => ({
+        value,
+        label: SUBMODULE_LABELS[value] ?? value,
+      }));
+  }, [data]);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={3} rowCount={filters.limit} />;
@@ -44,24 +66,21 @@ export default function ModuleSettingsList() {
     <div className="space-y-4">
       <ModuleSettingsHeader count={data?.total || 0} />
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <Input
-          placeholder="Buscar parámetros..."
-          value={searchValue}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="w-full sm:w-[250px]"
+      <div className="flex items-center justify-between">
+        <ModuleSettingsFiltersAction
+          filters={filters}
+          setFilters={setFilters}
+          submoduleOptions={submoduleOptions}
         />
-
-        {canCreate && (
-          <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Parámetro
+        {isSuperAdmin && (
+          <Button onClick={() => setOpenModal(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Parámetro
           </Button>
         )}
       </div>
 
       <DataTable
-        columns={moduleSettingsColumns}
+        columns={columns}
         data={settingsData}
         totalItems={data?.total || 0}
         pageSizeOptions={[10, 20, 50]}

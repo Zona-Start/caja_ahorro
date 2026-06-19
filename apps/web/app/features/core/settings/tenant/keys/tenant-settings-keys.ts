@@ -1,4 +1,4 @@
-import type { TenantSettingsFilters } from '../services/tenant-settings-service';
+import type { TenantSettingsFilters } from '../hooks/use-tenant-settings-filters';
 
 export const TENANT_SETTINGS_KEYS = {
   all: ['tenant-settings'] as const,

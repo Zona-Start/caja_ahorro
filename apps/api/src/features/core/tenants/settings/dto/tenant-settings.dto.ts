@@ -29,9 +29,11 @@ export const UpdateTenantSettingSchema = z.object({
 });
 
 export const TenantSettingQuerySchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: z.string().uuid().optional(),
   key: z.string().optional(),
+  description: z.string().optional(),
   category: z.string().optional(),
+  search: z.string().optional(),
   moduleCode: z
     .enum([
       'ACCOUNTING',
@@ -49,9 +51,9 @@ export const TenantSettingQuerySchema = z.object({
     ])
     .optional(),
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
+  limit: z.coerce.number().int().positive().max(100).default(10),
 });
 
-export class CreateTenantSettingDto extends createZodDto(CreateTenantSettingSchema) {}
-export class UpdateTenantSettingDto extends createZodDto(UpdateTenantSettingSchema) {}
-export class TenantSettingQueryDto extends createZodDto(TenantSettingQuerySchema) {}
+export class CreateTenantSettingDto extends createZodDto(CreateTenantSettingSchema) { }
+export class UpdateTenantSettingDto extends createZodDto(UpdateTenantSettingSchema) { }
+export class TenantSettingQueryDto extends createZodDto(TenantSettingQuerySchema) { }

@@ -23,6 +23,7 @@ export const categoryMutationSchema = z.object({
   description: z.string().optional(),
   metadata: z.record(z.any()).optional(),
   isActive: z.boolean().default(true),
+  tenantId: z.string().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
   createdById: z.string().nullable().optional(),

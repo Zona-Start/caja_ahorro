@@ -41,7 +41,7 @@ export function CurrenciesForm({
     resolver: zodResolver(currencyMutationSchema),
     defaultValues: {
       id: defaultValues?.id,
-      code: defaultValues?.code || 'VES',
+      code: defaultValues?.code || ('' as any),
       name: defaultValues?.name || '',
       symbol: defaultValues?.symbol || '',
       isBase: defaultValues?.isBase ?? false,

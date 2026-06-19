@@ -446,7 +446,7 @@ export class BankMovementsService {
             amount: schema.supplierPaymentLines.amount,
             date: schema.supplierPayments.bankTransactionDate,
             concept:
-              sql<string>`CONCAT('Prov ', ${schema.suppliers.code}, ' - ', ${schema.accountsPayable.accountsPayableNumber})`.as(
+              sql<string>`CONCAT('Prov ', ${schema.suppliers.internalCode}, ' - ', ${schema.accountsPayable.accountsPayableNumber})`.as(
                 'concept',
               ),
           })

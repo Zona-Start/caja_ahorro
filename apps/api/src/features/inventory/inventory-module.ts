@@ -4,6 +4,7 @@ import { InventoriesCategoriesModule } from './inventories-categories/inventorie
 import { InventoryMovementsModule } from './inventory-movements/inventory-movements.module';
 import { ProductsModule } from './products/products.module';
 import { ServicesModule } from './services/services.module';
+import { ProductServiceSuppliersModule } from './product-service-suppliers/product-service-suppliers.module';
 import { GlobalInventorySubscriber } from './subscribers/global-inventory.subscriber';
 
 @Module({
@@ -13,6 +14,7 @@ import { GlobalInventorySubscriber } from './subscribers/global-inventory.subscr
     ServicesModule,
     FixedAssetsModule,
     InventoryMovementsModule,
+    ProductServiceSuppliersModule,
   ],
   providers: [GlobalInventorySubscriber],
 })

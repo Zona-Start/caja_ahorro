@@ -135,7 +135,7 @@ export function TenantsForm({
                     onValueChange={field.onChange}
                     disabled={disabled || !!defaultValues?.id}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className='w-full'>
                       <SelectValue placeholder="Seleccione tipo" />
                     </SelectTrigger>
                     <SelectContent>

@@ -88,10 +88,11 @@ export const exchangeRates = coreSchema.table(
   'exchange_rates',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+
+
     currencyId: uuid('currency_id')
       .notNull()
       .references(() => currencies.id, { onDelete: 'cascade' }),
-    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
     rate: varchar('rate', { length: 20 }).notNull(),
     source: varchar('source', { length: 50 }).default('MANUAL'),
     isAutomatic: boolean('is_automatic').default(false),

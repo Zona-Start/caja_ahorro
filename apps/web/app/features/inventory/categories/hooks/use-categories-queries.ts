@@ -4,11 +4,17 @@ import { categoriesService, type PaginatedResponse } from '../services/categorie
 import type { Category } from '../schemas/categories.schema';
 import type { CategoriesFilters } from './use-categories-filters';
 
+const defaultFilters: CategoriesFilters = {
+  page: 1,
+  limit: 10,
+  search: '',
+};
+
 export function useCategoriesQuery(
   filters?: CategoriesFilters,
 ): UseQueryResult<PaginatedResponse<Category>> {
   return useQuery({
-    queryKey: CATEGORIES_KEYS.list(filters ?? {}),
+    queryKey: CATEGORIES_KEYS.list(filters ?? defaultFilters),
     queryFn: () => categoriesService.getAll(filters),
   });
 }

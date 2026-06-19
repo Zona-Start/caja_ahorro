@@ -14,32 +14,34 @@ export function ProductsTableAction() {
   const { openModal } = useProductsModalStore();
 
   return (
-    <div className="flex items-center gap-4 flex-wrap">
-      <DataTableSearch
-        title="Buscar por nombre"
-        searchKey="name"
-        searchQuery={search}
-        setSearchQuery={setSearch}
-        setPage={setPage}
-      />
+    <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center gap-4 flex-wrap">
+        <DataTableSearch
+          title="Buscar por nombre"
+          searchKey="name"
+          searchQuery={search}
+          setSearchQuery={setSearch}
+          setPage={setPage}
+        />
 
-      <DataTableFilterBox
-        filterKey="status"
-        title="Estado"
-        options={STATUS_TYPES.map((s) => ({ value: s.value, label: s.label }))}
-        setFilterValue={setStatus}
-        filterValue={status}
-      />
+        <DataTableFilterBox
+          filterKey="status"
+          title="Estado"
+          options={STATUS_TYPES.map((s) => ({ value: s.value, label: s.label }))}
+          setFilterValue={setStatus}
+          filterValue={status}
+        />
 
-      <DataTableFilterBox
-        filterKey="categoryId"
-        title="Categoría"
-        options={
-          categories?.map((c) => ({ value: c.id, label: c.name })) ?? []
-        }
-        setFilterValue={setCategoryId}
-        filterValue={categoryId}
-      />
+        <DataTableFilterBox
+          filterKey="categoryId"
+          title="Categoría"
+          options={
+            categories?.map((c) => ({ value: c.id, label: c.name })) ?? []
+          }
+          setFilterValue={setCategoryId}
+          filterValue={categoryId}
+        />
+      </div>
 
       <Button onClick={() => openModal('create')} size="sm">
         <Plus className="mr-2 h-4 w-4" /> Agregar Producto

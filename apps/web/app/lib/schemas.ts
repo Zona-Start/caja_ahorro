@@ -16,6 +16,7 @@ export const permissionSchema = z.object({
 export const membershipSchema = z.object({
   tenantId: z.string().optional(),
   tenantName: z.string().optional(),
+  bussinessType: z.string().optional(),
   role: z
     .object({
       id: z.string().optional(),

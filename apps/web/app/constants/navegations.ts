@@ -157,93 +157,6 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Contabilidad',
-    items: [
-      {
-        label: 'Catalogo Contable',
-        href: '#',
-        icon: LayoutDashboard,
-        items: [
-          {
-            label: 'Plan de Cuentas',
-            href: '/dashboard/contabilidad/cuentas-contables',
-          },
-          {
-            label: 'Ciclos Contables',
-            href: '/dashboard/contabilidad/ciclos-contables',
-          },
-          {
-            label: 'Mapa de Integraciones',
-            href: '/dashboard/contabilidad/reglas-contables',
-          },
-        ],
-      },
-      {
-        label: 'Operaciones Contables',
-        href: '#',
-        icon: Users,
-        items: [
-          {
-            label: 'Asientos Contables',
-            href: '/dashboard/contabilidad/asientos-contables',
-          },
-          {
-            label: 'Saldos Contables',
-            href: '/dashboard/contabilidad/saldos-contables',
-          },
-        ],
-      },
-      {
-        label: 'Reportes Contables',
-        href: '#',
-        icon: Users,
-        items: [
-          {
-            label: 'Libro Diario',
-            href: '/dashboard/contabilidad/libro-diario',
-          },
-          {
-            label: 'Mayor General',
-            href: '/dashboard/contabilidad/mayor-general',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    label: 'Bancos',
-    items: [
-      {
-        label: 'Directorio',
-        href: '/dashboard/configuracion/bancos',
-        icon: Landmark,
-        requiresPermission: {
-          resource: 'banking:directory',
-          action: 'read',
-        },
-      },
-      {
-        label: 'Cuentas Bancarias',
-        href: '/dashboard/configuracion/cuentas-bancarias',
-        icon: Landmark,
-        requiresPermission: {
-          resource: 'banking:accounts',
-          action: 'read',
-        },
-      },
-      {
-        label: 'Mov. Bancarios',
-        href: '/dashboard/configuracion/movimientos-bancarios',
-        icon: ArrowRightLeft,
-        requiresPermission: {
-          resource: 'banking:movements',
-          action: 'read',
-        },
-      },
-
-    ],
-  },
-  {
     label: 'Inventario',
     items: [
       {
@@ -343,6 +256,95 @@ export const navGroups: NavGroup[] = [
       },
     ],
   },
+  {
+    label: 'Bancos',
+    items: [
+      {
+        label: 'Directorio',
+        href: '/dashboard/configuracion/bancos',
+        icon: Landmark,
+        requiresPermission: {
+          resource: 'banking:directory',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Cuentas Bancarias',
+        href: '/dashboard/configuracion/cuentas-bancarias',
+        icon: Landmark,
+        requiresPermission: {
+          resource: 'banking:accounts',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Mov. Bancarios',
+        href: '/dashboard/configuracion/movimientos-bancarios',
+        icon: ArrowRightLeft,
+        requiresPermission: {
+          resource: 'banking:movements',
+          action: 'read',
+        },
+      },
+
+    ],
+  },
+  {
+    label: 'Contabilidad',
+    items: [
+      {
+        label: 'Catalogo Contable',
+        href: '#',
+        icon: LayoutDashboard,
+        items: [
+          {
+            label: 'Plan de Cuentas',
+            href: '/dashboard/contabilidad/cuentas-contables',
+          },
+          {
+            label: 'Ciclos Contables',
+            href: '/dashboard/contabilidad/ciclos-contables',
+          },
+          {
+            label: 'Mapa de Integraciones',
+            href: '/dashboard/contabilidad/reglas-contables',
+          },
+        ],
+      },
+      {
+        label: 'Operaciones Contables',
+        href: '#',
+        icon: Users,
+        items: [
+          {
+            label: 'Asientos Contables',
+            href: '/dashboard/contabilidad/asientos-contables',
+          },
+          {
+            label: 'Saldos Contables',
+            href: '/dashboard/contabilidad/saldos-contables',
+          },
+        ],
+      },
+      {
+        label: 'Reportes Contables',
+        href: '#',
+        icon: Users,
+        items: [
+          {
+            label: 'Libro Diario',
+            href: '/dashboard/contabilidad/libro-diario',
+          },
+          {
+            label: 'Mayor General',
+            href: '/dashboard/contabilidad/mayor-general',
+          },
+        ],
+      },
+    ],
+  },
+
+
   {
     label: 'Administracion',
     items: [

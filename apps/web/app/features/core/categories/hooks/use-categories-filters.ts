@@ -7,6 +7,7 @@ export const categoriesFilterSchema = z.object({
   search: z.string().optional(),
   type: z.string().optional(),
   isActive: z.string().optional(),
+  tenantId: z.string().optional(),
 });
 
 export type CategoriesFilters = z.infer<typeof categoriesFilterSchema>;
