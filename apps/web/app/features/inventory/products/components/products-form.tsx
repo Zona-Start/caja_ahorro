@@ -123,6 +123,39 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
     }
   }, [defaultValues?.id]);
 
+
+  const offerActive = isForeignCurrency
+    ? (Number(offerSalePrice) || 0) > 0
+    : (profitSupply ?? 0) > 0;
+  const [enableBsPricing, setEnableBsPricing] = useState(false);
+
+  useEffect(() => {
+    if (defaultValues?.bsPriceAmount != null && Number(defaultValues.bsPriceAmount) > 0) {
+      setEnableBsPricing(true);
+    }
+  }, [defaultValues?.bsPriceAmount]);
+
+  const handleBsPricingToggle = (checked: boolean) => {
+    setEnableBsPricing(checked);
+    if (checked) {
+      if (isEmpresaComercial && currencyCode !== 'VES') {
+        apiClient.get(`/core/exchange-rates/latest/${currencyCode}`)
+          .then((res) => {
+            if (res.data?.rate) {
+              const rate = parseFloat(res.data.rate);
+              if (!isNaN(rate) && rate > 0) {
+                form.setValue('salesExchangeRate', rate, { shouldDirty: true });
+              }
+            }
+          })
+          .catch(() => { });
+      }
+    } else {
+      form.setValue('bsPriceAmount', undefined as any, { shouldDirty: true });
+      form.setValue('salesExchangeRate', undefined as any, { shouldDirty: true });
+    }
+  };
+
   useEffect(() => {
     if (!isEmpresaComercial || currencyCode === 'VES') return;
     apiClient.get(`/core/exchange-rates/latest/${currencyCode}`)
@@ -131,12 +164,14 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
           const rate = parseFloat(res.data.rate);
           if (!isNaN(rate) && rate > 0) {
             form.setValue('purchaseExchangeRate', rate, { shouldDirty: true });
-            form.setValue('salesExchangeRate', rate, { shouldDirty: true });
+            if (enableBsPricing) {
+              form.setValue('salesExchangeRate', rate, { shouldDirty: true });
+            }
           }
         }
       })
-      .catch(() => {});
-  }, [currencyCode, isEmpresaComercial]);
+      .catch(() => { });
+  }, [currencyCode, isEmpresaComercial, enableBsPricing]);
 
   useEffect(() => {
     if (defaultValues && Object.keys(defaultValues).length > 0) {
@@ -150,16 +185,16 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
         supplierCost: 0, otherCosts: 0, purchaseTaxPercent: 16,
         profitSale: 0, expensePercent: 0, salesTaxPercent: 16,
         profitSupply: undefined,
+        salePrice: undefined,
+        bsPriceAmount: undefined,
+        offerSalePrice: undefined,
+        offerStartDate: undefined,
+        offerEndDate: undefined,
         suppliers: [],
         ...toFormValues(defaultValues),
       });
     }
   }, [defaultValues]);
-
-  const offerActive = isForeignCurrency
-    ? (Number(offerSalePrice) || 0) > 0
-    : (profitSupply ?? 0) > 0;
-  const [enableBsPricing, setEnableBsPricing] = useState(false);
 
   // ── Live calculations ──
   const costCalc = useMemo(() => {
@@ -269,11 +304,15 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
       currencyCode: currencyCode || 'VES',
       ...(defaultValues?.id ? { id: defaultValues.id } : {}),
       _suppliers: suppliers.map((s) => ({ suppliersId: s.suppliersId, leadTimeDays: s.leadTimeDays })),
+      ...(enableBsPricing
+        ? {}
+        : { bsPriceAmount: undefined, salesExchangeRate: undefined }),
     };
     saveProduct(payload as any, {
       onSuccess: () => { form.reset(); onSuccess?.(); },
     });
   };
+
 
   return (
     <Form {...form}>
@@ -301,6 +340,12 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
                   <FormMessage />
                 </FormItem>
               )} />
+              {defaultValues?.internalCode && (
+                <FormItem>
+                  <FormLabel>Código Interno</FormLabel>
+                  <Input value={defaultValues.internalCode} disabled readOnly />
+                </FormItem>
+              )}
               <FormField control={form.control} name="categoryId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Categoría</FormLabel>
@@ -498,18 +543,11 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <FormField control={form.control} name="salesExchangeRate" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tasa de Cambio (Venta)</FormLabel>
-                      <FormControl><Input type="text" inputMode="decimal" placeholder="1.00" {...field} disabled={readOnly} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
                   <div className="md:col-span-2">
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={enableBsPricing}
-                        onCheckedChange={setEnableBsPricing}
+                        onCheckedChange={handleBsPricingToggle}
                         disabled={readOnly}
                       />
                       <p className="text-sm text-muted-foreground">
@@ -520,13 +558,23 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
                     </div>
                   </div>
                   {enableBsPricing && (
-                    <FormField control={form.control} name="bsPriceAmount" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Precio en {currencyCode} para pago en Bs.</FormLabel>
-                        <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <>
+                      <FormField control={form.control} name="bsPriceAmount" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Precio en {currencyCode} para pago en Bs.</FormLabel>
+                          <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="salesExchangeRate" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tasa de Cambio (Venta)</FormLabel>
+                          <FormControl><Input type="text" inputMode="decimal" placeholder="1.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                    </>
                   )}
                 </>
               ) : (

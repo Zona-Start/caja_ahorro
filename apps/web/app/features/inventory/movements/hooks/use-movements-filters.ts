@@ -5,10 +5,12 @@ export const movementsFilterSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
   search: z.string().optional(),
-  itemType: z.string().optional(),
   movementType: z.string().optional(),
-  documentType: z.string().optional(),
-  documentNumber: z.string().optional(),
+  status: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  productId: z.string().optional(),
+  supplierId: z.string().optional(),
   sortBy: z.string().optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
 });
@@ -24,7 +26,6 @@ export function useMovementsFilters() {
 
   const setFilters = (newFilters: Partial<MovementsFilters>) => {
     const params = new URLSearchParams(searchParams);
-
     for (const [key, value] of Object.entries(newFilters)) {
       if (value !== undefined && value !== null && value !== '') {
         params.set(key, String(value));
@@ -32,7 +33,6 @@ export function useMovementsFilters() {
         params.delete(key);
       }
     }
-
     setSearchParams(params, { preventScrollReset: true });
   };
 

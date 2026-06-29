@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export enum ACCOUNT_TYPE {
   CHECKING = 'CHECKING',
   SAVINGS = 'SAVINGS',
@@ -13,11 +15,13 @@ export const ACCOUNT_TYPE_OPTIONS = {
 export enum CURRENCY_CODE {
   VES = 'VES',
   USD = 'USD',
+  EUR = 'EUR',
 }
 
 export const CURRENCY_CODE_OPTIONS = {
   [CURRENCY_CODE.VES]: 'Bolívares (VES)',
   [CURRENCY_CODE.USD]: 'Dólares (USD)',
+  [CURRENCY_CODE.EUR]: 'Euros (EUR)',
 } as const;
 
 export const STATUS_TYPES = {

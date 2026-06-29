@@ -1,33 +1,29 @@
 import { z } from 'zod';
 
 export const purchaseOrderItemSchema = z.object({
-  lineType: z.string().min(1, 'El tipo de línea es requerido'),
-  itemId: z.string().min(1, 'El artículo/servicio es requerido'),
-  description: z.string().min(1, 'La descripción es requerida'),
-  quantity: z.coerce.number().positive('La cantidad debe ser mayor a 0'),
-  unitCost: z.coerce.number().min(0, 'El costo unitario debe ser >= 0'),
-  totalCost: z.coerce.number().min(0),
+  id: z.string().optional(),
+  lineType: z.enum(['SALES_INVENTORY', 'SERVICE', 'EXPENSE']),
+  itemId: z.string().uuid().optional(),
+  description: z.string().optional(),
+  quantity: z.coerce.number().int('Debe ser un número entero').min(1, 'La cantidad debe ser al menos 1').default(1),
+  unitCost: z.coerce.number().min(0).default(0),
+  totalCost: z.coerce.number().optional(),
+  taxPercent: z.coerce.number().min(0).default(16),
 });
 
 export const purchaseOrderSchema = z.object({
-  id: z.number().int().positive().optional(),
-  supplierId: z.number().int().positive('Debe seleccionar un proveedor'),
-  orderDate: z.date({ required_error: 'La fecha de orden es requerida' }),
-  expectedDeliveryDate: z.date({
-    required_error: 'La fecha de entrega esperada es requerida',
-  }),
-  status: z
-    .enum(['DRAFT', 'APPROVED', 'INVOICED', 'CANCELLED'])
-    .default('DRAFT'),
-  subtotal: z.coerce.number().min(0).default(0),
-  taxAmount: z.coerce.number().min(0).default(0),
-  totalAmount: z.coerce.number().min(0).default(0),
-  currencyCode: z.string().min(1, 'El código de moneda es requerido'),
+  id: z.string().uuid().optional(),
+  supplierId: z.string().uuid('Seleccione un proveedor'),
+  orderDate: z.string(),
+  expectedDeliveryDate: z.string().optional(),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).default('VES'),
+  purchaseExchangeRate: z.coerce.number().min(0).default(1),
+  subtotal: z.coerce.number(),
+  taxAmount: z.coerce.number().optional(),
+  totalAmount: z.coerce.number(),
   observations: z.string().optional(),
-  items: z
-    .array(purchaseOrderItemSchema)
-    .min(1, 'Debe agregar al menos un artículo'),
+  items: z.array(purchaseOrderItemSchema).min(1, 'Debe tener al menos un ítem'),
 });
 
-export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>;
 export type PurchaseOrder = z.infer<typeof purchaseOrderSchema>;
+export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>;

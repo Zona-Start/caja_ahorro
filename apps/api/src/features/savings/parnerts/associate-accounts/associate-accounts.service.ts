@@ -2,7 +2,12 @@ import {
   associateAccounts,
   associates,
 } from '@/database/schema/tables/savings';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -57,11 +62,13 @@ export class AssociateAccountsService {
       updateData.bankDirectoryId = dto.bankDirectoryId;
     if (dto.status !== undefined) updateData.status = dto.status;
 
-    const [result] = await this.drizzle
-      .update(associateAccounts)
-      .set(updateData)
-      .where(eq(associateAccounts.id, id))
-      .returning();
+    const [result] = await this.drizzle.transaction(async (tx) => {
+      return tx
+        .update(associateAccounts)
+        .set(updateData)
+        .where(eq(associateAccounts.id, id))
+        .returning();
+    });
 
     return result as AssociateAccounts;
   }

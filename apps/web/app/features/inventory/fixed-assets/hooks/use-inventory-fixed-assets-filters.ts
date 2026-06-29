@@ -8,6 +8,10 @@ export const inventoryFixedAssetsFilterSchema = z.object({
   assetStatus: z.string().optional(),
   categoryId: z.string().optional(),
   depreciationMethod: z.string().optional(),
+  brand: z.string().optional(),
+  model: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   sortBy: z.string().optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
 });

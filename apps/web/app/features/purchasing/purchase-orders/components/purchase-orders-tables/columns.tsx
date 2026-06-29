@@ -1,97 +1,55 @@
-import { Badge } from '@repo/shadcn/badge';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { PurchaseOrder } from '../../schemas/purchase-orders.schema';
+import { Badge } from '@repo/shadcn/badge';
+import { format } from 'date-fns';
+import type { PurchaseOrderApi } from '../../schemas/purchase-orders-api.schema';
+import { STATUS_LABELS, STATUS_VARIANTS } from '../../schemas/purchase-orders-options';
 import { CellAction } from './cell-action';
-import { formatCurrency } from '@/lib/format-utils';
 
-const statusTranslations: Record<string, string> = {
-  DRAFT: 'Borrador',
-  APPROVED: 'Aprobado',
-  INVOICED: 'Facturado',
-  CANCELLED: 'Cancelado',
-};
-
-const statusVariants: Record<
-  string,
-  'default' | 'secondary' | 'destructive' | 'outline'
-> = {
-  DRAFT: 'secondary',
-  APPROVED: 'default',
-  INVOICED: 'outline',
-  CANCELLED: 'destructive',
-};
-
-export const columns: ColumnDef<PurchaseOrder>[] = [
+export const columns: ColumnDef<PurchaseOrderApi>[] = [
   {
-    accessorKey: 'id',
-    header: '#',
-    cell: ({ row }) => <span className="font-mono">{row.original.id}</span>,
+    accessorKey: 'orderNumber',
+    header: 'N° Orden',
+    cell: ({ row }) => <span className="font-medium">{row.original.orderNumber}</span>,
   },
   {
-    accessorKey: 'supplierId',
+    accessorKey: 'supplierName',
     header: 'Proveedor',
-    cell: ({ row }) => {
-      return <span>{row.original.supplierId}</span>;
-    },
+    cell: ({ row }) => row.original.supplierName || row.original.supplierId || '-',
   },
   {
     accessorKey: 'orderDate',
-    header: 'Fecha Orden',
+    header: 'Fecha',
     cell: ({ row }) => {
-      const date = row.original.orderDate;
-      if (!date) return '-';
-      return (
-        <span>
-          {date instanceof Date
-            ? date.toLocaleDateString('es-VE')
-            : String(date)}
-        </span>
-      );
+      const d = row.original.orderDate;
+      return d ? format(new Date(d), 'dd/MM/yyyy') : '-';
     },
   },
   {
-    accessorKey: 'expectedDeliveryDate',
-    header: 'Entrega Esperada',
-    cell: ({ row }) => {
-      const date = row.original.expectedDeliveryDate;
-      if (!date) return '-';
-      return (
-        <span>
-          {date instanceof Date
-            ? date.toLocaleDateString('es-VE')
-            : String(date)}
-        </span>
-      );
-    },
+    accessorKey: 'subtotal',
+    header: 'Subtotal',
+    cell: ({ row }) => `Bs. ${Number(row.original.subtotal).toFixed(2)}`,
   },
   {
-    accessorKey: 'status',
-    header: 'Estado',
-    cell: ({ row }) => {
-      const status = row.original.status;
-      return (
-        <Badge variant={statusVariants[status] || 'secondary'}>
-          {statusTranslations[status] || status}
-        </Badge>
-      );
-    },
+    accessorKey: 'taxAmount',
+    header: 'Impuesto',
+    cell: ({ row }) => `Bs. ${Number(row.original.taxAmount || 0).toFixed(2)}`,
   },
   {
     accessorKey: 'totalAmount',
     header: 'Total',
-    cell: ({ row }) => {
-      const amount = Number(row.original.totalAmount);
-      const currency = row.original.currencyCode as 'USD' | 'VES';
-      return formatCurrency(amount, currency || 'USD');
-    },
+    cell: ({ row }) => <span className="font-semibold">Bs. {Number(row.original.totalAmount).toFixed(2)}</span>,
   },
   {
-    accessorKey: 'currencyCode',
-    header: 'Moneda',
+    accessorKey: 'status',
+    header: 'Estado',
+    cell: ({ row }) => (
+      <Badge variant={STATUS_VARIANTS[row.original.status] || 'secondary'}>
+        {STATUS_LABELS[row.original.status] || row.original.status}
+      </Badge>
+    ),
   },
   {
     id: 'actions',
-    header: 'Acciones',
     cell: ({ row }) => <CellAction data={row.original} />,
   },
 ];

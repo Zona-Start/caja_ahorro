@@ -20,6 +20,7 @@ import {
 } from '@repo/shadcn/select';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
+import { AlertCircle } from 'lucide-react';
 import { useAssociateMutation } from '../hooks/use-associates-query';
 import { ESTATUS_TYPES, type EstatusType } from '../schemas/associates-options';
 import {
@@ -30,6 +31,8 @@ import {
 import { useBanksQuery } from '@/features/banks/bank-directory/hooks/use-banks-querys';
 import { useCategoriesQuery } from '@/features/core/categories/hooks/use-categories-queries';
 import { useStatesQuery } from '@/features/core/states/hooks/use-querys-states';
+
+import { useRef } from 'react';
 
 interface AccountPlanFormProps {
   onSuccess?: () => void;
@@ -77,7 +80,6 @@ export function AssociatesForm({
     resolver: zodResolver(AssociateMutationSchema),
     defaultValues: {
       id: defaultValues?.id,
-      tenantId: defaultValues?.tenantId || '',
       cedula: defaultValues?.cedula || '',
       fullname: defaultValues?.fullname || '',
       nationality: defaultValues?.nationality || 'VENEZOLANO',
@@ -85,7 +87,7 @@ export function AssociatesForm({
       birthdate: defaultValues?.birthdate
         ? new Date(defaultValues.birthdate)
         : new Date(),
-      localityId: defaultValues?.localityId,
+      localityId: defaultValues?.localityId ?? null,
       phone: defaultValues?.phone || '',
       email: defaultValues?.email || '',
       dateAdmission: defaultValues?.dateAdmission
@@ -94,18 +96,20 @@ export function AssociatesForm({
       dateGraduation: defaultValues?.dateGraduation
         ? new Date(defaultValues.dateGraduation)
         : null,
-      isPayrollCredit: defaultValues?.isPayrollCredit || false,
-      discountFrequencyId: defaultValues?.discountFrequencyId,
-      payrollTypeId: defaultValues?.payrollTypeId,
+      isPayrollCredit: defaultValues?.isPayrollCredit ?? false,
+      discountFrequencyId: defaultValues?.discountFrequencyId ?? undefined,
+      payrollTypeId: defaultValues?.payrollTypeId ?? undefined,
       status: defaultValues?.status || 'ACTIVE',
-      associatedTypeId: defaultValues?.associatedTypeId,
+      associatedTypeId: defaultValues?.associatedTypeId ?? undefined,
       jobTitle: defaultValues?.jobTitle || '',
-      bankDirectoryId: defaultValues?.bankDirectoryId,
+      bankDirectoryId: defaultValues?.bankDirectoryId ?? undefined,
       accountNumber: defaultValues?.accountNumber || '',
       baseSalary: defaultValues?.baseSalary || '',
     },
     mode: 'onChange',
   });
+
+  const formRef = useRef<HTMLFormElement>(null);
 
   const onSubmit = async (data: AssociatesMutate) => {
     saveAssociate(data, {
@@ -116,6 +120,19 @@ export function AssociatesForm({
     });
   };
 
+  const onInvalid = () => {
+    const errors = form.formState.errors;
+    const errorFields = Object.keys(errors);
+    if (errorFields.length > 0) {
+      const firstErrorEl = formRef.current?.querySelector(
+        `[name="${errorFields[0]}"]`,
+      );
+      firstErrorEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  const errorCount = Object.keys(form.formState.errors).length;
+
   const statusEdit = getStatusOptions(['ACTIVE', 'INACTIVE', 'SUSPENDED']);
   const statusCreate = getStatusOptions(['ACTIVE']);
   const statusView = defaultValues?.status
@@ -124,9 +141,28 @@ export function AssociatesForm({
 
   return (
     <Form {...form}>
+      {errorCount > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive mx-1 mb-2">
+          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">
+              Corrige {errorCount} campo{errorCount > 1 ? 's' : ''} antes
+              de guardar:
+            </p>
+            <ul className="list-disc pl-4 mt-1 text-xs">
+              {Object.entries(form.formState.errors).map(([key, err]) => (
+                <li key={key}>
+                  {key}: {(err as any)?.message || 'Campo inválido'}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       <ScrollArea className="h-[calc(100vh-200px)]">
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
+          ref={formRef}
+          onSubmit={form.handleSubmit(onSubmit, onInvalid)}
           className="space-y-4 h-full"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,51 +1,58 @@
-import { type ColumnDef } from '@tanstack/react-table';
-import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
+import { ColumnDef } from '@tanstack/react-table';
+import { formatCurrency } from '@/lib/format-utils';
 import { type WithdrawalPaymentApi } from '../../schemas/withdrawal-api-response';
 import { ESTATUS_TYPES } from '../../schemas/withdrawal-options';
 import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<WithdrawalPaymentApi>[] = [
   {
-    accessorKey: 'customReference',
-    header: 'Referencia',
+    accessorKey: 'associateCedula',
+    header: 'Cédula',
   },
   {
-    accessorKey: 'withdrawalDate',
-    header: 'Fecha Retiro',
+    accessorKey: 'associateFullname',
+    header: 'Asociado',
   },
   {
     accessorKey: 'withdrawalType',
-    header: 'Tipo',
+    header: 'Tipo Retiro',
+  },
+  {
+    accessorKey: 'withdrawalDate',
+    header: 'Fecha',
+    cell: ({ row }) => {
+      const d = row.original.withdrawalDate;
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('es-VE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    },
   },
   {
     accessorKey: 'requestedAmount',
     header: 'Monto',
-    cell: ({ row }) => formatCurrency(Number(row.original.requestedAmount), 'VES'),
+    cell: ({ row }) =>
+      formatCurrency(Number(row.original.requestedAmount ?? 0), 'VES'),
   },
   {
-    accessorKey: 'associateCedula',
-    header: 'Cédula Asociado',
-  },
-  {
-    accessorKey: 'associateFullname',
-    header: 'Nombre y Apellido',
+    accessorKey: 'disbursedAmount',
+    header: 'Desembolsado',
+    cell: ({ row }) =>
+      formatCurrency(Number(row.original.disbursedAmount ?? 0), 'VES'),
   },
   {
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
       const status = row.original.status;
-      const statusText = ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
+      const statusText =
+        ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
 
-      const variant:
-        | 'default'
-        | 'destructive'
-        | 'outline'
-        | 'secondary'
-        | 'success'
-        | 'warning' = (() => {
+      const variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' = (() => {
         switch (status) {
           case 'REQUESTED':
             return 'default';
@@ -65,9 +72,9 @@ export const columns: ColumnDef<WithdrawalPaymentApi>[] = [
       })();
 
       return (
-        <Badge variant={variant as any}>
-          {statusText}
-        </Badge>
+        <div className={cn('p-2 h-full w-full')}>
+          <Badge variant={variant as any}>{statusText}</Badge>
+        </div>
       );
     },
   },

@@ -77,7 +77,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       case 'cancel':
         return {
           title: 'Anular Asiento',
-          description: 'Se creará un asiento reverso. ¿Continuar?',
+          description: 'Se creará un asiento reverso contabilizado automáticamente. ¿Continuar?',
         };
       default:
         return { title: '', description: '' };

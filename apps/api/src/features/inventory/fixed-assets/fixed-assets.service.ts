@@ -4,6 +4,7 @@ import * as schema from '@/database/schema';
 import { fixedAssets } from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { FixedAssetPricesService } from '@/features/inventory/fixed-asset-prices/fixed-asset-prices.service';
+import { ProductServiceSuppliersService } from '@/features/inventory/product-service-suppliers/product-service-suppliers.service';
 import {
   BadRequestException,
   Inject,
@@ -26,11 +27,12 @@ export class FixedAssetsService {
     @Inject(DRIZZLE_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private readonly fixedAssetPricesService: FixedAssetPricesService,
+    private readonly productServiceSuppliersService: ProductServiceSuppliersService,
     private readonly generateCode: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
-  async create(
+      async create(
     dto: CreateFixedAssetDto,
     tenantId: string,
     userId: string,
@@ -39,7 +41,7 @@ export class FixedAssetsService {
     name: string;
     assetCode: string;
     categoryId: string;
-    status: string;
+    assetStatus: string;
   }> {
     const [category] = await this.db
       .select()
@@ -55,7 +57,7 @@ export class FixedAssetsService {
         tenantId,
         categoryId: dto.categoryId,
         assetCode: await this.generateCode.generateGlobalCode(
-          'DOC_ACT',
+          'ACT',
           tenantId,
           'inventory',
           'fixed_assets',
@@ -86,21 +88,35 @@ export class FixedAssetsService {
           name: fixedAssets.name,
           assetCode: fixedAssets.assetCode,
           categoryId: fixedAssets.categoryId,
-          status: fixedAssets.assetStatus,
+          assetStatus: fixedAssets.assetStatus,
         });
 
-      if (dto.baseCost !== 0) {
+      if ((dto.baseCost ?? 0) > 0 || (dto.otherCosts ?? 0) > 0) {
         await this.fixedAssetPricesService.create(
           {
             fixedAssetsId: newAsset.id,
-            baseCost: dto.baseCost,
-            otherCosts: dto.otherCosts,
-            purchaseTax: dto.purchaseTax,
+            baseCost: dto.baseCost ?? 0,
+            otherCosts: dto.otherCosts ?? 0,
+            purchaseTax: dto.purchaseTax ?? undefined,
             startDate: dto.acquisitionDate,
             isActive: true,
           },
           userId,
           tenantId,
+          tx,
+        );
+      }
+
+      if (dto.suppliers && dto.suppliers.length > 0) {
+        await this.productServiceSuppliersService.syncForFixedAsset(
+          newAsset.id,
+          dto.suppliers.map((s) => ({
+            suppliersId: s.suppliersId,
+            leadTimeDays: s.leadTimeDays ?? 0,
+            preferred: s.preferred ?? false,
+          })),
+          tenantId,
+          userId,
           tx,
         );
       }
@@ -117,9 +133,9 @@ export class FixedAssetsService {
     return result;
   }
 
-  async findAllFixet(
+  async findAllFixed(
     tenantId: string | null,
-  ): Promise<{ id: string; name: string }[]> {
+  ): Promise<{ id: string; name: string; assetCode: string }[]> {
     const conditions: SQL<unknown>[] = [];
 
     if (tenantId) {
@@ -130,6 +146,7 @@ export class FixedAssetsService {
       .select({
         id: fixedAssets.id,
         name: fixedAssets.name,
+        assetCode: fixedAssets.assetCode,
       })
       .from(fixedAssets)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
@@ -146,10 +163,11 @@ export class FixedAssetsService {
       page = 1,
       limit = 10,
       search = '',
-      sortBy = 'id',
-      sortOrder = 'asc',
-      typeCategory,
-      status,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+      categoryId: typeCategory,
+      assetStatus: status,
+      depreciationMethod,
       startDate,
       endDate,
       brand,
@@ -176,6 +194,12 @@ export class FixedAssetsService {
           fixedAssets.assetStatus,
           status as (typeof fixedAssets.$inferInsert)['assetStatus'] & {},
         ),
+      );
+    }
+
+    if (depreciationMethod) {
+      searchConditions.push(
+        eq(fixedAssets.depreciationMethod, depreciationMethod),
       );
     }
 
@@ -214,6 +238,7 @@ export class FixedAssetsService {
     const data = await this.db
       .select({
         id: fixedAssets.id,
+        tenantId: fixedAssets.tenantId,
         categoryId: fixedAssets.categoryId,
         categoryName: schema.inventoriesCategories.name,
         assetCode: fixedAssets.assetCode,
@@ -230,6 +255,13 @@ export class FixedAssetsService {
         assetStatus: fixedAssets.assetStatus,
         usefulLifeYears: fixedAssets.usefulLifeYears,
         depreciationMethod: fixedAssets.depreciationMethod,
+        accumulatedDepreciation: fixedAssets.accumulatedDepreciation,
+        lastDepreciationDate: fixedAssets.lastDepreciationDate,
+        disposalDate: fixedAssets.disposalDate,
+        disposalReason: fixedAssets.disposalReason,
+        disposalValue: fixedAssets.disposalValue,
+        createdAt: fixedAssets.createdAt,
+        updatedAt: fixedAssets.updatedAt,
       })
       .from(fixedAssets)
       .leftJoin(
@@ -258,18 +290,33 @@ export class FixedAssetsService {
 
     const formattedData = data.map((asset) => ({
       ...asset,
-      baseCost: Number(asset.baseCost),
-      otherCosts: Number(asset.otherCosts),
-      purchaseTax: Number(asset.purchaseTax),
+      baseCost: Number(asset.baseCost ?? 0),
+      otherCosts: Number(asset.otherCosts ?? 0),
+      purchaseTax: Number(asset.purchaseTax ?? 0),
+      totalCost: Number(asset.totalCost ?? 0),
+      accumulatedDepreciation: Number(asset.accumulatedDepreciation ?? 0),
+      disposalValue: Number(asset.disposalValue ?? 0),
       acquisitionDate: asset.acquisitionDate
-        ? new Date(asset.acquisitionDate as string)
+        ? new Date(asset.acquisitionDate as string).toISOString().split('T')[0]
+        : null,
+      lastDepreciationDate: asset.lastDepreciationDate
+        ? new Date(asset.lastDepreciationDate as string).toISOString().split('T')[0]
+        : null,
+      disposalDate: asset.disposalDate
+        ? new Date(asset.disposalDate as string).toISOString().split('T')[0]
+        : null,
+      createdAt: asset.createdAt
+        ? new Date(asset.createdAt as unknown as string).toISOString()
+        : null,
+      updatedAt: asset.updatedAt
+        ? new Date(asset.updatedAt as unknown as string).toISOString()
         : null,
     }));
 
     const meta = {
+      totalCount,
       page,
       limit,
-      totalCount,
       totalPages,
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
@@ -386,38 +433,42 @@ export class FixedAssetsService {
     }
 
     const result = await this.db.transaction(async (tx) => {
+      const dtoClean = Object.fromEntries(
+        Object.entries(dto).filter(([_, v]) => v !== undefined && v !== null),
+      ) as Record<string, unknown>;
+
       const updateData: Record<string, unknown> = {
         updatedById: userId,
       };
 
-      if (dto.categoryId !== undefined) updateData.categoryId = dto.categoryId;
-      if (dto.assetCode !== undefined) updateData.assetCode = dto.assetCode;
-      if (dto.name !== undefined) updateData.name = dto.name;
-      if (dto.description !== undefined)
-        updateData.description = dto.description;
-      if (dto.serialNumber !== undefined)
-        updateData.serialNumber = dto.serialNumber;
-      if (dto.model !== undefined) updateData.model = dto.model;
-      if (dto.brand !== undefined) updateData.brand = dto.brand;
-      if (dto.acquisitionDate !== undefined)
-        updateData.acquisitionDate = dto.acquisitionDate;
-      if (dto.assetStatus !== undefined)
-        updateData.assetStatus = dto.assetStatus;
-      if (dto.usefulLifeYears !== undefined)
-        updateData.usefulLifeYears = dto.usefulLifeYears;
-      if (dto.depreciationMethod !== undefined)
-        updateData.depreciationMethod = dto.depreciationMethod;
-      if (dto.accumulatedDepreciation !== undefined)
+      if (dtoClean.categoryId !== undefined) updateData.categoryId = dtoClean.categoryId;
+      if (dtoClean.assetCode !== undefined) updateData.assetCode = dtoClean.assetCode;
+      if (dtoClean.name !== undefined) updateData.name = dtoClean.name;
+      if (dtoClean.description !== undefined)
+        updateData.description = dtoClean.description;
+      if (dtoClean.serialNumber !== undefined)
+        updateData.serialNumber = dtoClean.serialNumber;
+      if (dtoClean.model !== undefined) updateData.model = dtoClean.model;
+      if (dtoClean.brand !== undefined) updateData.brand = dtoClean.brand;
+      if (dtoClean.acquisitionDate !== undefined)
+        updateData.acquisitionDate = dtoClean.acquisitionDate;
+      if (dtoClean.assetStatus !== undefined)
+        updateData.assetStatus = dtoClean.assetStatus;
+      if (dtoClean.usefulLifeYears !== undefined)
+        updateData.usefulLifeYears = dtoClean.usefulLifeYears;
+      if (dtoClean.depreciationMethod !== undefined)
+        updateData.depreciationMethod = dtoClean.depreciationMethod;
+      if (dtoClean.accumulatedDepreciation !== undefined)
         updateData.accumulatedDepreciation =
-          dto.accumulatedDepreciation.toString();
-      if (dto.lastDepreciationDate !== undefined)
-        updateData.lastDepreciationDate = dto.lastDepreciationDate;
-      if (dto.disposalDate !== undefined)
-        updateData.disposalDate = dto.disposalDate;
-      if (dto.disposalReason !== undefined)
-        updateData.disposalReason = dto.disposalReason;
-      if (dto.disposalValue !== undefined)
-        updateData.disposalValue = dto.disposalValue.toString();
+          String(dtoClean.accumulatedDepreciation);
+      if (dtoClean.lastDepreciationDate !== undefined)
+        updateData.lastDepreciationDate = dtoClean.lastDepreciationDate;
+      if (dtoClean.disposalDate !== undefined)
+        updateData.disposalDate = dtoClean.disposalDate;
+      if (dtoClean.disposalReason !== undefined)
+        updateData.disposalReason = dtoClean.disposalReason;
+      if (dtoClean.disposalValue !== undefined)
+        updateData.disposalValue = String(dtoClean.disposalValue);
 
       const whereConditions = [eq(fixedAssets.id, id)];
       if (tenantId) {
@@ -440,19 +491,33 @@ export class FixedAssetsService {
         throw new NotFoundException('Fixed asset not found after update');
       }
 
-      if ((dto.baseCost ?? 0) > 0) {
+      if ((dto.baseCost ?? 0) > 0 || (dto.otherCosts ?? 0) > 0) {
         await this.fixedAssetPricesService.create(
           {
             fixedAssetsId: updated.id,
             baseCost: dto.baseCost ?? 0,
             otherCosts: dto.otherCosts ?? 0,
-            purchaseTax: dto.purchaseTax,
+            purchaseTax: dto.purchaseTax ?? undefined,
             startDate:
               dto.acquisitionDate ?? new Date().toISOString().split('T')[0],
             isActive: true,
           },
           userId,
           existingAsset.tenantId,
+          tx,
+        );
+      }
+
+      if (dto.suppliers !== undefined && dto.suppliers !== null) {
+        await this.productServiceSuppliersService.syncForFixedAsset(
+          updated.id,
+          dto.suppliers.map((s) => ({
+            suppliersId: s.suppliersId,
+            leadTimeDays: s.leadTimeDays ?? 0,
+            preferred: s.preferred ?? false,
+          })),
+          existingAsset.tenantId,
+          userId,
           tx,
         );
       }
@@ -507,12 +572,22 @@ export class FixedAssetsService {
       );
     }
 
-    const whereConditions = [eq(fixedAssets.id, id)];
-    if (tenantId) {
-      whereConditions.push(eq(fixedAssets.tenantId, tenantId));
-    }
+    await this.db.transaction(async (tx) => {
+      await this.fixedAssetPricesService.deactivateAllPricesForAsset(id, tx);
 
-    await this.db.delete(fixedAssets).where(and(...whereConditions));
+      await this.productServiceSuppliersService.deleteByFixedAssetId(
+        id,
+        existingAsset.tenantId,
+        tx,
+      );
+
+      const whereConditions = [eq(fixedAssets.id, id)];
+      if (existingAsset.tenantId) {
+        whereConditions.push(eq(fixedAssets.tenantId, existingAsset.tenantId));
+      }
+
+      await tx.delete(fixedAssets).where(and(...whereConditions));
+    });
 
     await this.auditHelper.logDelete(userId, 'fixed_asset', existingAsset, {
       tenantId: existingAsset.tenantId,

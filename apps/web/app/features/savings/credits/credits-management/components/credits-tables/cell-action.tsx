@@ -10,14 +10,19 @@ import {
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
 import { AlertModal } from '@/components/shared/alert-modal';
-import { useApproveCreditManagementMutation, useDeleteCreditManagementMutation } from '../../hooks/use-credits-management-mutation';
-import { type CreditsAssociate } from '../../schemas/credits-management-api-response';
+import {
+  useApproveCreditManagementMutation,
+  useDeleteCreditManagementMutation,
+} from '../../hooks/use-credits-management-mutation';
+import { useNavigate } from 'react-router';
+import type { CreditTableRow } from './columns';
 
 interface CellActionProps {
-  data: CreditsAssociate;
+  data: CreditTableRow;
+  onViewDetails?: (data: CreditTableRow) => void;
 }
 
-export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+export const CellAction: React.FC<CellActionProps> = ({ data, onViewDetails }) => {
   const [openApprove, setOpenApprove] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
 
@@ -27,18 +32,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     useDeleteCreditManagementMutation();
 
   const onConfirmApprove = () => {
-    approveCredit(Number(data.id), {
-      onSuccess: () => {
-        setOpenApprove(false);
-      },
+    approveCredit(data.id, {
+      onSuccess: () => setOpenApprove(false),
     });
   };
 
   const onConfirmDelete = () => {
-    deleteCredit(Number(data.id), {
-      onSuccess: () => {
-        setOpenDelete(false);
-      },
+    deleteCredit(data.id, {
+      onSuccess: () => setOpenDelete(false),
     });
   };
 
@@ -68,6 +69,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
+                onClick={() => onViewDetails?.(data)}
               >
                 <Eye className="h-4 w-4" />
               </Button>
@@ -85,7 +87,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                   onClick={() => setOpenApprove(true)}
                 >
                   <CheckSquare className="h-4 w-4" />
@@ -98,23 +100,25 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           </TooltipProvider>
         )}
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8 text-destructive hover:text-destructive"
-                onClick={() => setOpenDelete(true)}
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Eliminar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {data.status === 'REQUESTED' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                  onClick={() => setOpenDelete(true)}
+                >
+                  <Trash className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Eliminar</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
     </>
   );

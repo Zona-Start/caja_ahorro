@@ -156,7 +156,7 @@ export class PurchaseOrdersService {
           : orderData.expectedDeliveryDate,
       currencyCode: (orderData.currencyCode || 'VES') as CurrencyCodeEnum,
       observations: orderData.observations,
-      status: (orderData.status || 'PENDING') as any,
+      status: (orderData.status || 'DRAFT') as any,
       orderNumber: await this.generateCodeService.generateNextReference(
         'ORD',
         tenantId,

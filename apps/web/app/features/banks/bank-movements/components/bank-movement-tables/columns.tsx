@@ -1,3 +1,4 @@
+import { Badge } from '@repo/shadcn/badge';
 import type { ColumnDef } from '@tanstack/react-table';
 import { formatCurrency } from '@/lib/format-utils';
 import {
@@ -9,23 +10,27 @@ import { CellAction } from './cell-action';
 
 export const bankMovementsColumns: ColumnDef<BankMovement>[] = [
   {
+    accessorKey: 'internalCode',
+    header: 'Código',
+    cell: ({ getValue }) => {
+      return getValue<string>() || '-';
+    },
+  },
+  {
     accessorKey: 'transactionDate',
     header: 'Fecha',
     cell: ({ getValue }) => {
       const value = getValue();
-      return value
-        ? new Date(value as string | Date).toLocaleDateString()
-        : '-';
+      return value ? new Date(value as string | Date).toLocaleDateString() : '-';
     },
   },
   {
-    accessorKey: 'bankAccount',
+    accessorKey: 'bankAccountNumber',
     header: 'Cuenta',
     cell: ({ row }) => {
-      const bankAccount = row.original.bankAccount;
-      return bankAccount
-        ? `${bankAccount.accountName} - ${bankAccount.accountNumber}`
-        : '-';
+      const name = row.original.bankAccountName;
+      const num = row.original.bankAccountNumber;
+      return name ? `${name} - ${num}` : num || row.original.bankAccountId;
     },
   },
   {
@@ -33,49 +38,42 @@ export const bankMovementsColumns: ColumnDef<BankMovement>[] = [
     header: 'Descripción',
   },
   {
-    accessorKey: 'category',
-    header: 'Categoría',
-    cell: ({ getValue }) => {
-      const value = getValue<string>();
-      return (
-        CATEGORY_OPTIONS[value as keyof typeof CATEGORY_OPTIONS] || value
-      );
-    },
-  },
-  {
     accessorKey: 'paymentMethod',
-    header: 'Método de Pago',
+    header: 'Método',
     cell: ({ getValue }) => {
       const value = getValue<string>();
-      return (
-        PAYMENT_METHOD_OPTIONS[
-          value as keyof typeof PAYMENT_METHOD_OPTIONS
-        ] || value
-      );
+      return PAYMENT_METHOD_OPTIONS[value as keyof typeof PAYMENT_METHOD_OPTIONS] || value;
     },
   },
   {
     accessorKey: 'creditAmount',
     header: 'Crédito',
-    cell: ({ getValue }) => {
+    cell: ({ row, getValue }) => {
       const value = getValue<number>();
-      return value != null ? formatCurrency(value, 'VES') : '-';
+      if (!value) return '-';
+      return formatCurrency(value, row.original.bankCurrencyCode || 'VES');
     },
   },
   {
     accessorKey: 'debitAmount',
     header: 'Débito',
-    cell: ({ getValue }) => {
+    cell: ({ row, getValue }) => {
       const value = getValue<number>();
-      return value != null ? formatCurrency(value, 'VES') : '-';
+      if (!value) return '-';
+      return formatCurrency(value, row.original.bankCurrencyCode || 'VES');
     },
   },
   {
-    accessorKey: 'bankReference',
-    header: 'Referencia',
+    accessorKey: 'internalLinkStatus',
+    header: 'Estado',
     cell: ({ getValue }) => {
       const value = getValue<string>();
-      return value || '-';
+      const isLinked = value === 'LINKED';
+      return (
+        <Badge variant={isLinked ? 'success' : 'secondary'}>
+          {isLinked ? 'Vinculado' : 'Sin Vincular'}
+        </Badge>
+      );
     },
   },
   {

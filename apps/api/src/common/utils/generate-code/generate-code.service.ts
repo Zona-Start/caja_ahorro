@@ -204,17 +204,17 @@ export class GenerateCodeService {
         .for('update')
         .limit(1);
 
-      // if (!setting) {
-      //   await transaction.insert(moduleSettings).values({
-      //     tenantId,
-      //     module: 'SEQUENCES',
-      //     submodule: 'GLOBAL',
-      //     key: prefix,
-      //     value: '1',
-      //     description: `Global sequence ${prefix} for tenant ${tenantId}`,
-      //   });
-      //   return `${prefix}-000001`;
-      // }
+      if (!setting) {
+        await transaction.insert(moduleSettings).values({
+          tenantId,
+          module,
+          submodule,
+          key: prefix,
+          value: '1',
+          description: `Global sequence ${prefix} for tenant ${tenantId}`,
+        });
+        return `${prefix}-000001`;
+      }
 
       const next = parseInt(setting?.value || '0', 10) + 1;
 

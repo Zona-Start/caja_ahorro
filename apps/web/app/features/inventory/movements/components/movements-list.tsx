@@ -12,12 +12,10 @@ export default function MovementsList() {
     return <DataTableSkeleton columnCount={7} rowCount={filters.limit} />;
   }
 
-  const movementsData = data?.data || [];
-
   return (
     <DataTable
       columns={movementsColumns}
-      data={movementsData}
+      data={data?.data || []}
       totalItems={data?.meta.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
     />

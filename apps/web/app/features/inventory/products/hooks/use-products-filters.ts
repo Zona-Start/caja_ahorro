@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { z } from 'zod';
 
@@ -15,19 +15,39 @@ export type ProductsFilters = z.infer<typeof productsFilterSchema>;
 export function useProductsFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const search = searchParams.get('search') || '';
+  const urlSearch = searchParams.get('search') || '';
   const page = Number(searchParams.get('page')) || 1;
   const limit = Number(searchParams.get('limit')) || 10;
   const status = searchParams.get('status') || '';
   const categoryId = searchParams.get('categoryId') || '';
 
+  const [localSearch, setLocalSearch] = useState(urlSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(urlSearch);
+
+  useEffect(() => {
+    setLocalSearch(urlSearch);
+    setDebouncedSearch(urlSearch);
+  }, [urlSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(localSearch);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [localSearch]);
+
+  useEffect(() => {
+    if (debouncedSearch === urlSearch) return;
+    const newParams = new URLSearchParams(searchParams);
+    if (debouncedSearch) newParams.set('search', debouncedSearch);
+    else newParams.delete('search');
+    newParams.delete('page');
+    setSearchParams(newParams);
+  }, [debouncedSearch]);
+
   const setFilters = useCallback(
     (filters: Partial<ProductsFilters>) => {
       const newParams = new URLSearchParams(searchParams);
-      if (filters.search !== undefined) {
-        if (filters.search) newParams.set('search', filters.search);
-        else newParams.delete('search');
-      }
       if (filters.page !== undefined) {
         if (filters.page && filters.page !== 1)
           newParams.set('page', String(filters.page));
@@ -52,25 +72,29 @@ export function useProductsFilters() {
   );
 
   const resetFilters = useCallback(() => {
+    setLocalSearch('');
+    setDebouncedSearch('');
     setSearchParams(new URLSearchParams());
   }, [setSearchParams]);
 
   const isAnyFilterActive = useMemo(() => {
-    return !!(search || status || categoryId);
-  }, [search, status, categoryId]);
+    return !!(debouncedSearch || status || categoryId);
+  }, [debouncedSearch, status, categoryId]);
 
   return {
-    search,
-    setSearch: (value: string) => setFilters({ search: value, page: 1 }),
+    search: localSearch,
+    setSearch: (value: string) => {
+      setLocalSearch(value);
+    },
     page,
     setPage: (value: number) => setFilters({ page: value }),
     limit,
     setLimit: (value: number) => setFilters({ limit: value, page: 1 }),
     status,
-    setStatus: (value: string) => setFilters({ status: value, page: 1 }),
+    setStatus: (value: string | null) => setFilters({ status: value ?? '', page: 1 }),
     categoryId,
-    setCategoryId: (value: string) => setFilters({ categoryId: value, page: 1 }),
-    filters: { page, limit, search, status, categoryId },
+    setCategoryId: (value: string | null) => setFilters({ categoryId: value ?? '', page: 1 }),
+    filters: { page, limit, search: debouncedSearch, status, categoryId },
     resetFilters,
     isAnyFilterActive,
   };

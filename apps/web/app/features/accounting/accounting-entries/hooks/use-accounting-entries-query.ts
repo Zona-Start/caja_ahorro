@@ -10,8 +10,6 @@ type PaginationMeta = {
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
-  nextPage: number | null;
-  previousPage: number | null;
 };
 
 export function usePaginatedAccountingEntries(params: {
@@ -32,9 +30,9 @@ export function usePaginatedAccountingEntries(params: {
   });
 }
 
-export function useAccountingEntry(id: number): UseQueryResult<AccountingEntry> {
+export function useAccountingEntry(id: string): UseQueryResult<AccountingEntry> {
   return useQuery({
-    queryKey: QUERY_KEYS.accountingEntries.detail(id.toString()),
+    queryKey: QUERY_KEYS.accountingEntries.detail(id),
     queryFn: () => AccountingEntriesService.getById(id),
     enabled: !!id,
   });

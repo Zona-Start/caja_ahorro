@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -17,6 +18,8 @@ import { TenantContextService } from '@/common/services/tenant-context.service';
 import { BankMovementsService } from './bank-movements.service';
 import {
   CreateAndReconcileSchema,
+  CreateBankMovementSchema,
+  UpdateBankMovementSchema,
   FilterBankMovementSchema,
   LinkToInternalSchema,
   ReverseMovementSchema,
@@ -50,12 +53,25 @@ export class BankMovementsController {
     @Query() dto: any,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    const result = await this.service.getLinkables(category, targetTenantId, dto);
+    const result = await this.service.getLinkables(
+      category,
+      targetTenantId,
+      dto,
+    );
     return {
       message: 'Linkable records fetched successfully',
       data: result.data,
       meta: result.meta,
     };
+  }
+
+  @Post()
+  @UsePipes(new ZodValidatorPipe(CreateBankMovementSchema))
+  async create(@Req() req: any, @Body() body: any) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, body);
+    const data = await this.service.create(body, userId, targetTenantId);
+    return { message: 'Bank movement created successfully', data };
   }
 
   @Post('create-and-reconcile')
@@ -68,16 +84,37 @@ export class BankMovementsController {
       userId,
       targetTenantId,
     );
-    return {
-      message: result.message,
-      data: result.movement,
-    };
+    return { message: result.message, data: result.movement };
   }
 
   @Get(':id')
   async findOne(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findOne(id, targetTenantId);
+    const data = await this.service.findOne(id, targetTenantId);
+    return { message: 'Bank movement fetched successfully', data };
+  }
+
+  @Patch(':id')
+  @UsePipes(new ZodValidatorPipe(UpdateBankMovementSchema))
+  async update(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: any,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, body);
+    const data = await this.service.update(id, body, userId, targetTenantId);
+    return { message: 'Bank movement updated successfully', data };
+  }
+
+  @Delete(':id')
+  async remove(
+    @Req() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    return await this.service.remove(id, userId, targetTenantId);
   }
 
   @Get(':id/link')

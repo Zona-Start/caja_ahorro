@@ -10,7 +10,6 @@ import {
   withdrawalTypes,
 } from '@/database/schema';
 import { associateHaberesBalance } from '@/database/schema/views';
-import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
@@ -34,6 +33,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, desc, eq, ilike, inArray, or, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
+import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 import {
   CreateWithdrawalAssociateDto,
   DisburseWithdrawalAssociateDto,
@@ -47,7 +47,7 @@ export class WithdrawalAssociateService {
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly inventoryMovementsService: InventoryMovementsService,
-    private readonly accountingEntriesService: AccountingEntriesService,
+    private readonly withdrawalAccountingService: WithdrawalAssociateAccountingService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -160,6 +160,82 @@ export class WithdrawalAssociateService {
     if (requestedAmount > maxAllowedAmount) {
       throw new BadRequestException(
         `El monto solicitado excede el porcentaje máximo permitido de sus haberes.`,
+      );
+    }
+
+    const haberesBalance = Number(associateAccount?.haberesBalance ?? 0);
+    const available80 = haberesBalance * 0.8;
+
+    if (requestedAmount > available80) {
+      throw new BadRequestException(
+        `El monto solicitado (${requestedAmount.toFixed(2)}) supera el 80% disponible (${available80.toFixed(2)}) de sus haberes.`,
+      );
+    }
+
+    const [account] = await this.db
+      .select({ associateId: associateAccounts.associateId })
+      .from(associateAccounts)
+      .where(eq(associateAccounts.id, associateAccountId));
+
+    if (!account || !account.associateId) {
+      throw new NotFoundException('Cuenta de asociado no encontrada.');
+    }
+
+    const associate = await this.db.query.associates.findFirst({
+      where: and(
+        eq(associates.id, account.associateId!),
+        eq(associates.tenantId, tenantId),
+      ),
+    });
+
+    if (!associate) {
+      throw new NotFoundException('Asociado no encontrado.');
+    }
+
+    if (associate.isPayrollCredit) {
+      throw new BadRequestException(
+        'El asociado posee credinomina activo. No puede solicitar retiros.',
+      );
+    }
+
+    const [activeLoans] = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.associateId, account.associateId),
+          eq(loans.tenantId, tenantId),
+          or(
+            eq(loans.status, LoanStatusEnum.APPROVED),
+            eq(loans.status, LoanStatusEnum.DISBURSED),
+            eq(loans.status, LoanStatusEnum.IN_PAYMENT),
+          ),
+        ),
+      );
+
+    if (Number(activeLoans.count) > 0) {
+      throw new BadRequestException(
+        'El asociado tiene un préstamo activo. No puede solicitar retiros.',
+      );
+    }
+
+    const [activeCredits] = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(credits)
+      .where(
+        and(
+          eq(credits.associateId, account.associateId),
+          eq(credits.tenantId, tenantId),
+          or(
+            eq(credits.status, CreditStatusEnum.APPROVED),
+            eq(credits.status, CreditStatusEnum.IN_PAYMENT),
+          ),
+        ),
+      );
+
+    if (Number(activeCredits.count) > 0) {
+      throw new BadRequestException(
+        'El asociado tiene un crédito activo. No puede solicitar retiros.',
       );
     }
 
@@ -374,6 +450,9 @@ export class WithdrawalAssociateService {
         withdrawalType: withdrawalTypes.description,
         withdrawalDate: withdrawalsAssociates.withdrawalDate,
         requestedAmount: withdrawalsAssociates.requestedAmount,
+        disbursedAmount: withdrawalsAssociates.disbursedAmount,
+        administrativeFee: withdrawalsAssociates.administrativeFee,
+        paymentMethod: withdrawalsAssociates.paymentMethod,
         associateCedula: associates.cedula,
         associateFullname: associates.fullname,
         status: withdrawalsAssociates.status,
@@ -397,7 +476,9 @@ export class WithdrawalAssociateService {
 
     const transformedData = data.map((item) => ({
       ...item,
-      requestedAmount: Number(item.requestedAmount).toFixed(2),
+      requestedAmount: Number(item.requestedAmount ?? 0).toFixed(2),
+      disbursedAmount: Number(item.disbursedAmount ?? 0).toFixed(2),
+      administrativeFee: Number(item.administrativeFee ?? 0).toFixed(2),
     }));
 
     return {
@@ -466,34 +547,72 @@ export class WithdrawalAssociateService {
       throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
     }
 
-    const totalLoansAssociate = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(loans)
-      .where(
-        and(
-          eq(loans.associateId, result[0].id),
-          eq(loans.tenantId, tenantId),
-          or(
-            eq(loans.status, LoanStatusEnum.APPROVED),
-            eq(loans.status, LoanStatusEnum.DISBURSED),
-            eq(loans.status, LoanStatusEnum.IN_PAYMENT),
-          ),
-        ),
-      );
+    const associateId = result[0].id;
+    const accountId = result[0].associateAccountId;
 
-    const totalCreditsAssociate = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(credits)
-      .where(
-        and(
-          eq(credits.associateId, result[0].id),
-          eq(credits.tenantId, tenantId),
-          or(
-            eq(credits.status, CreditStatusEnum.APPROVED),
-            eq(credits.status, CreditStatusEnum.IN_PAYMENT),
+    const [totalLoansAssociate, totalCreditsAssociate, timeSetting, lastDisbursedWithdrawal] = await Promise.all([
+      this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(loans)
+        .where(
+          and(
+            eq(loans.associateId, associateId),
+            eq(loans.tenantId, tenantId),
+            or(
+              eq(loans.status, LoanStatusEnum.APPROVED),
+              eq(loans.status, LoanStatusEnum.DISBURSED),
+              eq(loans.status, LoanStatusEnum.IN_PAYMENT),
+            ),
           ),
         ),
-      );
+      this.db
+        .select({ count: sql<number>`count(*)` })
+        .from(credits)
+        .where(
+          and(
+            eq(credits.associateId, associateId),
+            eq(credits.tenantId, tenantId),
+            or(
+              eq(credits.status, CreditStatusEnum.APPROVED),
+              eq(credits.status, CreditStatusEnum.IN_PAYMENT),
+            ),
+          ),
+        ),
+      this.db.query.moduleSettings.findFirst({
+        where: and(
+          eq(schema.moduleSettings.tenantId, tenantId),
+          eq(schema.moduleSettings.module, 'savings'),
+          eq(schema.moduleSettings.submodule, 'withdrawals'),
+          eq(schema.moduleSettings.key, 'WITHDRAWAL_TIME_MONTHS'),
+        ),
+      }),
+      accountId
+        ? this.db
+            .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
+            .from(withdrawalsAssociates)
+            .where(
+              and(
+                eq(withdrawalsAssociates.associateAccountId, accountId),
+                eq(withdrawalsAssociates.tenantId, tenantId),
+                or(
+                  eq(withdrawalsAssociates.status, withdrawalStatusEnum.DISBURSED),
+                  eq(withdrawalsAssociates.status, withdrawalStatusEnum.PROCESSED),
+                ),
+              ),
+            )
+            .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
+
+    const balance = Number(result[0].balance ?? 0);
+    const hasActiveLoan = Number(totalLoansAssociate[0].count) > 0;
+    const hasActiveCredit = Number(totalCreditsAssociate[0].count) > 0;
+    const hasPayrollCredit = result[0].isPayrollCredit ?? false;
+    const withdrawalTimeMonths = parseInt(timeSetting?.value ?? '0', 10);
+    const lastWithdrawalDate = lastDisbursedWithdrawal.length > 0
+      ? lastDisbursedWithdrawal[0].withdrawalDate
+      : null;
 
     return {
       id: result[0].id,
@@ -501,14 +620,16 @@ export class WithdrawalAssociateService {
       fullname: result[0].fullname,
       phone: result[0].phone,
       email: result[0].email,
-      isPayrollCredit: result[0].isPayrollCredit,
+      isPayrollCredit: hasPayrollCredit,
       associateAccountId: result[0].associateAccountId,
       accountNumber: result[0].accountNumber,
-      balance: Number(result[0].balance).toFixed(2),
-      withdrawalId: result[0].withdrawalId,
-      withdrawalRequestAmout: result[0].withdrawalRequestAmout,
-      withdrawalDate: result[0].withdrawalDate,
-      withdrawalStatus: result[0].withdrawalStatus,
+      balance: Number(balance.toFixed(2)),
+      available80: Number((balance * 0.8).toFixed(2)),
+      hasActiveLoan,
+      hasActiveCredit,
+      hasPayrollCredit,
+      lastWithdrawalDate,
+      withdrawalTimeMonths,
       totalLoansAssociate: Number(totalLoansAssociate[0].count),
       totalCreditsAssociate: Number(totalCreditsAssociate[0].count),
     };
@@ -734,7 +855,7 @@ export class WithdrawalAssociateService {
           );
 
         if (entry && entry.status === 'POSTED') {
-          await this.accountingEntriesService.cancelEntry(
+          await this.withdrawalAccountingService.cancelWithdrawalEntry(
             userId,
             tenantId,
             entry.id,
@@ -981,48 +1102,19 @@ export class WithdrawalAssociateService {
           ),
         );
 
-      await this.accountingEntriesService.createAutomaticEntry(
+      await this.withdrawalAccountingService.generateDisbursementEntry(
         tenantId,
         userId,
         {
-          module: 'SAVINGS',
-          submodule: 'WITHDRAWALS',
-          category: 'SAVINGS_BANK',
-          operationType: 'WITHDRAWAL_TYPE',
-          description: `Desembolso de Retiro - ${withdrawal.associates?.fullname}`,
+          withdrawalId: withdrawalRecord.id,
+          associateId: withdrawal.associates?.id,
+          associateFullname: withdrawal.associates?.fullname ?? 'ASOCIADO',
+          associateCedula: withdrawal.associates?.cedula ?? '',
+          withdrawalTypeDescription: withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
+          requestedAmount: Number(withdrawal.withdrawals_associates.requestedAmount),
+          administrativeFee: Number(withdrawal.withdrawals_associates.administrativeFee),
+          disbursedAmount: Number(withdrawal.withdrawals_associates.disbursedAmount),
           entryDate: new Date(dto.processedAt),
-          referenceValue: 'Retiros Parciales',
-          currencyCode: CurrencyCodeEnum.VES,
-          originReferenceId: withdrawalRecord.id,
-          originType: 'WITHDRAWAL_DISBURSEMENT',
-          items: [
-            {
-              associateId: withdrawal.associates?.id,
-              amounts: {
-                PARTIAL_WITHDRAWAL_SAVINGS: Number(
-                  withdrawal.withdrawals_associates.requestedAmount,
-                ),
-                OPERATING_EXPENSES: Number(
-                  withdrawal.withdrawals_associates.administrativeFee,
-                ),
-                BANK_ACCOUNT: Number(
-                  withdrawal.withdrawals_associates.disbursedAmount,
-                ),
-              },
-              descriptions: {
-                PARTIAL_WITHDRAWAL_SAVINGS:
-                  withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
-                OPERATING_EXPENSES: `Gastos ${withdrawalTypeRecord?.description ?? 'RETIRO'}`,
-                BANK_ACCOUNT: `TB ${withdrawal.associates?.cedula} ${withdrawal.associates?.fullname}`,
-              },
-            },
-          ],
-          globalDescriptions: {
-            PARTIAL_WITHDRAWAL_SAVINGS:
-              withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
-            OPERATING_EXPENSES: `Gastos ${withdrawalTypeRecord?.description ?? 'RETIRO'}`,
-            BANK_ACCOUNT: `TB ${withdrawal.associates?.cedula} ${withdrawal.associates?.fullname}`,
-          },
         },
         trx,
       );
@@ -1154,50 +1246,19 @@ export class WithdrawalAssociateService {
           ),
         );
 
-      await this.accountingEntriesService.createAutomaticEntry(
+      await this.withdrawalAccountingService.generateProcessingEntry(
         tenantId,
         userId,
         {
-          module: 'SAVINGS',
-          submodule: 'WITHDRAWALS',
-          category: 'SAVINGS_BANK',
-          operationType: 'WITHDRAWAL_TYPE',
-          description: `Retiro ${withdrawalTypeRecord?.description} - ${withdrawal.associates?.fullname}`,
-          entryDate:
-            new Date(withdrawal.withdrawals_associates.withdrawalDate) ??
-            new Date(),
-          referenceValue: withdrawalTypeRecord?.description,
-          currencyCode: CurrencyCodeEnum.VES,
-          originReferenceId: withdrawalRecord.id,
-          originType: 'WITHDRAWAL_PROCESSING',
-          items: [
-            {
-              associateId: withdrawal.associates?.id,
-              amounts: {
-                SPECIAL_WITHDRAWAL_SAVINGS: Number(
-                  withdrawal.withdrawals_associates.requestedAmount,
-                ),
-                OPERATING_INCOME_VARIOUS: Number(
-                  withdrawal.withdrawals_associates.administrativeFee,
-                ),
-                OPERATION_COUNTERPART: Number(
-                  withdrawal.withdrawals_associates.disbursedAmount,
-                ),
-              },
-              descriptions: {
-                SPECIAL_WITHDRAWAL_SAVINGS:
-                  withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
-                OPERATING_INCOME_VARIOUS: `${withdrawalTypeRecord?.description ?? 'RETIRO'}`,
-                OPERATION_COUNTERPART: `${withdrawal.associates?.cedula} ${withdrawal.associates?.fullname}`,
-              },
-            },
-          ],
-          globalDescriptions: {
-            SPECIAL_WITHDRAWAL_SAVINGS:
-              withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
-            OPERATING_INCOME_VARIOUS: `${withdrawalTypeRecord?.description ?? 'RETIRO'}`,
-            OPERATION_COUNTERPART: `${withdrawal.associates?.cedula} ${withdrawal.associates?.fullname}`,
-          },
+          withdrawalId: withdrawalRecord.id,
+          associateId: withdrawal.associates?.id,
+          associateFullname: withdrawal.associates?.fullname ?? 'ASOCIADO',
+          associateCedula: withdrawal.associates?.cedula ?? '',
+          withdrawalTypeDescription: withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
+          withdrawalDate: new Date(withdrawal.withdrawals_associates.withdrawalDate) ?? new Date(),
+          requestedAmount: Number(withdrawal.withdrawals_associates.requestedAmount),
+          administrativeFee: Number(withdrawal.withdrawals_associates.administrativeFee),
+          disbursedAmount: Number(withdrawal.withdrawals_associates.disbursedAmount),
         },
         tx,
       );

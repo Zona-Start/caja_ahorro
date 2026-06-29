@@ -1,8 +1,9 @@
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Input } from '@repo/shadcn/input';
+import { Plus, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useBankAccountFilters } from '../../hooks/use-bank-account-filters';
 import {
   ACCOUNT_TYPE_OPTIONS,
@@ -36,16 +37,31 @@ export default function BankAccountTableAction() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = useBankAccountFilters();
 
+  const [searchInput, setSearchInput] = useState(filters.search || '');
+  const debouncedSearch = useDebounce(searchInput, 400);
+
+  useEffect(() => {
+    if (debouncedSearch !== (filters.search || '')) {
+      setFilters({ search: debouncedSearch || undefined, page: 1 });
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    setSearchInput(filters.search || '');
+  }, [filters.search]);
+
   return (
     <div className="flex items-center justify-between mt-4">
       <div className="flex items-center gap-4 flex-grow">
-        <DataTableSearch
-          title="Buscar por nombre o número de cuenta"
-          searchKey="search"
-          searchQuery={filters.search || ''}
-          setSearchQuery={(v) => setFilters({ search: v })}
-          setPage={(p) => setFilters({ page: p })}
-        />
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre o número de cuenta..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="pl-8 w-[280px]"
+          />
+        </div>
         <DataTableFilterBox
           filterKey="accountType"
           title="Tipo de Cuenta"

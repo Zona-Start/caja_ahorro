@@ -22,7 +22,7 @@ export function useIndividualLoadMutation(): UseMutationResult<
       individualLoadService.saveIndividualLoad(loadAssest),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.individualLoad.all(),
+        queryKey: QUERY_KEYS.individualLoad.all,
       });
     },
   });
@@ -39,7 +39,7 @@ export function useBulkUploadIndividualLoad(
       individualLoadService.bulkUpload(formData),
     onSuccess: (response: unknown) => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.individualLoad.all(),
+        queryKey: QUERY_KEYS.individualLoad.all,
       });
       if (response) {
         onSuccess?.(response as { message: string; processedCount: number });

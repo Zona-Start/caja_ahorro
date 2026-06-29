@@ -7,6 +7,7 @@ import {
 } from '@repo/shadcn/dialog';
 import type { BankMovement } from '../schemas/bank-movement.schema';
 import { BankMovementForm } from './bank-movement-form';
+import { BankMovementViewModal } from './bank-movement-view-modal';
 
 interface BankMovementModalProps {
   open: boolean;
@@ -21,42 +22,43 @@ export function BankMovementModal({
   defaultValues,
   mode = 'create',
 }: BankMovementModalProps) {
-  const handleSuccess = () => {
-    onOpenChange(false);
-  };
-
-  const handleCancel = () => {
-    onOpenChange(false);
-  };
+  const handleSuccess = () => onOpenChange(false);
+  const handleCancel = () => onOpenChange(false);
 
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
+
+  if (isViewMode) {
+    return (
+      <BankMovementViewModal
+        open={open}
+        onOpenChange={onOpenChange}
+        data={defaultValues as BankMovement | null}
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[650px]">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles del Movimiento'
-              : isEditMode
-                ? 'Editar Movimiento'
-                : 'Nuevo Movimiento Bancario'}
+            {isEditMode ? 'Editar Movimiento' : 'Nuevo Movimiento Bancario'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información del movimiento bancario.'
-              : defaultValues?.id
-                ? 'Actualiza la información del movimiento bancario.'
-                : 'Complete los campos para registrar un nuevo movimiento.'}
+            {isEditMode
+              ? 'Actualiza la información del movimiento bancario.'
+              : 'Complete los campos para registrar un nuevo movimiento.'}
           </DialogDescription>
         </DialogHeader>
-        <BankMovementForm
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-          defaultValues={defaultValues}
-          disabled={isViewMode}
-        />
+        <div className="overflow-y-auto max-h-[calc(90vh-10rem)] -mr-3 pr-3">
+          <BankMovementForm
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+            defaultValues={defaultValues}
+            disabled={false}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

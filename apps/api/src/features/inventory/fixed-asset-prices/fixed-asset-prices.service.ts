@@ -197,6 +197,10 @@ export class FixedAssetPricesService {
       searchConditions.push(eq(fixedAssetsPrices.suppliersId, suppliersId));
     }
 
+    if (tenantId) {
+      searchConditions.push(eq(schema.fixedAssets.tenantId, tenantId));
+    }
+
     const searchCondition = and(...searchConditions);
 
     const orderByColumn =
@@ -254,9 +258,18 @@ export class FixedAssetPricesService {
     return { data, meta };
   }
 
-  async findOne(id: string): Promise<FixedAssetPriceSelect> {
+  async findOne(
+    id: string,
+    tenantId?: string | null,
+  ): Promise<FixedAssetPriceSelect> {
+    const conditions: SQL<unknown>[] = [eq(fixedAssetsPrices.id, id)];
+
+    if (tenantId) {
+      conditions.push(eq(schema.fixedAssets.tenantId, tenantId));
+    }
+
     const data = await this.db.query.fixedAssetsPrices.findFirst({
-      where: eq(fixedAssetsPrices.id, id),
+      where: and(...conditions),
     });
 
     if (!data) {
@@ -290,5 +303,15 @@ export class FixedAssetPricesService {
       .update(fixedAssetsPrices)
       .set({ isActive: false })
       .where(eq(fixedAssetsPrices.id, priceId));
+  }
+
+  async deactivateAllPricesForAsset(
+    fixedAssetsId: string,
+    db: NodePgDatabase<typeof schema>,
+  ) {
+    await db
+      .update(fixedAssetsPrices)
+      .set({ isActive: false })
+      .where(eq(fixedAssetsPrices.fixedAssetsId, fixedAssetsId));
   }
 }

@@ -2,13 +2,14 @@ import { DRIZZLE_PROVIDER, DrizzleDatabase } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { and, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, gte, ilike, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   CreateAndReconcileDto,
   CreateBankMovementDto,
@@ -16,6 +17,7 @@ import {
   GetLinkablesDto,
   LinkToInternalDto,
   ReverseMovementDto,
+  UpdateBankMovementDto,
 } from './dto/bank-movements.schema';
 
 @Injectable()
@@ -26,13 +28,76 @@ export class BankMovementsService {
   ) {}
 
   async findAll(tenantId: string, dto: FilterBankMovementDto) {
-    const { page, limit, search, bankAccountId, sortBy, sortOrder } = dto;
+    const {
+      page,
+      limit,
+      search,
+      bankAccountId,
+      paymentMethod,
+      category,
+      startDate,
+      endDate,
+      reconciliationStatus,
+      internalLinkStatus,
+      sortBy = 'transactionDate',
+      sortOrder = 'desc',
+    } = dto;
     const offset = (page - 1) * limit;
 
-    const conditions = [eq(schema.bankTransactions.tenantId, tenantId)];
+    const conditions: ReturnType<typeof eq>[] = [
+      eq(schema.bankTransactions.tenantId, tenantId),
+    ];
 
     if (bankAccountId) {
       conditions.push(eq(schema.bankTransactions.bankAccountId, bankAccountId));
+    }
+
+    if (paymentMethod) {
+      conditions.push(
+        eq(schema.bankTransactions.paymentMethod, paymentMethod as any),
+      );
+    }
+
+    if (category) {
+      conditions.push(
+        eq(schema.bankTransactions.category, category as any),
+      );
+    }
+
+    if (startDate) {
+      conditions.push(
+        gte(
+          schema.bankTransactions.transactionDate,
+          startDate.toISOString().split('T')[0],
+        ),
+      );
+    }
+
+    if (endDate) {
+      conditions.push(
+        lte(
+          schema.bankTransactions.transactionDate,
+          endDate.toISOString().split('T')[0],
+        ),
+      );
+    }
+
+    if (reconciliationStatus) {
+      conditions.push(
+        eq(
+          schema.bankTransactions.reconciliationStatus,
+          reconciliationStatus as any,
+        ),
+      );
+    }
+
+    if (internalLinkStatus) {
+      conditions.push(
+        eq(
+          schema.bankTransactions.internalLinkStatus,
+          internalLinkStatus as any,
+        ),
+      );
     }
 
     if (search) {
@@ -40,6 +105,7 @@ export class BankMovementsService {
         or(
           ilike(schema.bankTransactions.description, `%${search}%`),
           ilike(schema.bankTransactions.bankReference, `%${search}%`),
+          ilike(schema.bankTransactions.internalCode, `%${search}%`),
         )!,
       );
     }
@@ -52,6 +118,7 @@ export class BankMovementsService {
       .where(whereClause);
 
     const totalCount = Number(totalResult.count);
+    const totalPages = Math.ceil(totalCount / limit);
 
     const sortColumn =
       sortBy === 'createdAt'
@@ -60,33 +127,96 @@ export class BankMovementsService {
           ? schema.bankTransactions.creditAmount
           : sortBy === 'debitAmount'
             ? schema.bankTransactions.debitAmount
-            : schema.bankTransactions.transactionDate;
+            : sortBy === 'category'
+              ? schema.bankTransactions.category
+              : schema.bankTransactions.transactionDate;
 
     const data = await this.db
-      .select()
+      .select({
+        id: schema.bankTransactions.id,
+        tenantId: schema.bankTransactions.tenantId,
+        bankAccountId: schema.bankTransactions.bankAccountId,
+        paymentMethod: schema.bankTransactions.paymentMethod,
+        transactionDate: schema.bankTransactions.transactionDate,
+        valueDate: schema.bankTransactions.valueDate,
+        description: schema.bankTransactions.description,
+        category: schema.bankTransactions.category,
+        bankReference: schema.bankTransactions.bankReference,
+        debitAmount: schema.bankTransactions.debitAmount,
+        creditAmount: schema.bankTransactions.creditAmount,
+        resultingBalance: schema.bankTransactions.resultingBalance,
+        reconciliationStatus: schema.bankTransactions.reconciliationStatus,
+        internalLinkStatus: schema.bankTransactions.internalLinkStatus,
+        internalCode: schema.bankTransactions.internalCode,
+        note: schema.bankTransactions.note,
+        createdAt: schema.bankTransactions.createdAt,
+        updatedAt: schema.bankTransactions.updatedAt,
+        bankAccountName: schema.bankAccounts.accountName,
+        bankAccountNumber: schema.bankAccounts.accountNumber,
+        bankCurrencyCode: schema.bankAccounts.currencyCode,
+      })
       .from(schema.bankTransactions)
+      .leftJoin(
+        schema.bankAccounts,
+        eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId),
+      )
       .where(whereClause)
       .orderBy(
-        sortOrder === 'asc' ? sql`${sortColumn} asc` : sql`${sortColumn} desc`,
+        sortOrder === 'asc'
+          ? sql`${sortColumn} asc nulls last`
+          : sql`${sortColumn} desc nulls last`,
       )
       .limit(limit)
       .offset(offset);
 
     return {
-      data,
+      data: data.map((item) => ({
+        ...item,
+        debitAmount: item.debitAmount ? Number(item.debitAmount) : 0,
+        creditAmount: item.creditAmount ? Number(item.creditAmount) : 0,
+        resultingBalance: item.resultingBalance
+          ? Number(item.resultingBalance)
+          : undefined,
+      })),
       meta: {
-        totalCount,
         page,
         limit,
-        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+        totalPages,
       },
     };
   }
 
   async findOne(id: string, tenantId: string) {
     const [row] = await this.db
-      .select()
+      .select({
+        id: schema.bankTransactions.id,
+        tenantId: schema.bankTransactions.tenantId,
+        bankAccountId: schema.bankTransactions.bankAccountId,
+        paymentMethod: schema.bankTransactions.paymentMethod,
+        transactionDate: schema.bankTransactions.transactionDate,
+        valueDate: schema.bankTransactions.valueDate,
+        description: schema.bankTransactions.description,
+        category: schema.bankTransactions.category,
+        bankReference: schema.bankTransactions.bankReference,
+        debitAmount: schema.bankTransactions.debitAmount,
+        creditAmount: schema.bankTransactions.creditAmount,
+        resultingBalance: schema.bankTransactions.resultingBalance,
+        reconciliationStatus: schema.bankTransactions.reconciliationStatus,
+        internalLinkStatus: schema.bankTransactions.internalLinkStatus,
+        internalCode: schema.bankTransactions.internalCode,
+        note: schema.bankTransactions.note,
+        createdAt: schema.bankTransactions.createdAt,
+        updatedAt: schema.bankTransactions.updatedAt,
+        bankAccountName: schema.bankAccounts.accountName,
+        bankAccountNumber: schema.bankAccounts.accountNumber,
+        bankCurrencyCode: schema.bankAccounts.currencyCode,
+      })
       .from(schema.bankTransactions)
+      .leftJoin(
+        schema.bankAccounts,
+        eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId),
+      )
       .where(
         and(
           eq(schema.bankTransactions.id, id),
@@ -95,7 +225,15 @@ export class BankMovementsService {
       );
 
     if (!row) throw new NotFoundException(`Bank movement ${id} not found`);
-    return row;
+
+    return {
+      ...row,
+      debitAmount: row.debitAmount ? Number(row.debitAmount) : 0,
+      creditAmount: row.creditAmount ? Number(row.creditAmount) : 0,
+      resultingBalance: row.resultingBalance
+        ? Number(row.resultingBalance)
+        : undefined,
+    };
   }
 
   async create(
@@ -105,16 +243,18 @@ export class BankMovementsService {
     tx?: DrizzleDatabase,
   ) {
     const db = tx ?? this.db;
+    const internalCode = await this._getNextMovementCode(tenantId, userId, db);
     const [row] = await db
       .insert(schema.bankTransactions)
       .values({
         tenantId,
+        internalCode,
         bankAccountId: dto.bankAccountId,
         transactionDate: dto.transactionDate.toISOString().split('T')[0],
         paymentMethod: dto.paymentMethod as any,
         description: dto.description,
         bankReference: dto.bankReference ?? null,
-        category: dto.category as any,
+        category: (dto.category || 'INTERNAL_TRANSFER') as any,
         creditAmount: String(dto.creditAmount),
         debitAmount: String(dto.debitAmount),
         valueDate: dto.valueDate
@@ -125,21 +265,140 @@ export class BankMovementsService {
       })
       .returning();
 
+    if (!tx) {
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId,
+          action: 'INSERT',
+          tableName: 'bank_transactions',
+          recordId: row.id,
+          description: `Bank movement created: ${row.description}`,
+          area: 'Treasury',
+          newData: row,
+          tenantId,
+        }),
+      );
+    }
+
+    return row;
+  }
+
+  async update(
+    id: string,
+    dto: UpdateBankMovementDto,
+    userId: string,
+    tenantId: string,
+  ) {
+    return this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(schema.bankTransactions)
+        .where(
+          and(
+            eq(schema.bankTransactions.id, id),
+            eq(schema.bankTransactions.tenantId, tenantId),
+          ),
+        );
+
+      if (!existing)
+        throw new NotFoundException(`Bank movement ${id} not found`);
+
+      if (existing.reconciliationStatus === 'RECONCILED') {
+        throw new BadRequestException(
+          'No se puede editar un movimiento conciliado. Desvincule primero.',
+        );
+      }
+
+      const formatData: any = { updatedById: userId };
+
+      if (dto.bankAccountId !== undefined)
+        formatData.bankAccountId = dto.bankAccountId;
+      if (dto.transactionDate !== undefined)
+        formatData.transactionDate = dto.transactionDate
+          .toISOString()
+          .split('T')[0];
+      if (dto.paymentMethod !== undefined)
+        formatData.paymentMethod = dto.paymentMethod;
+      if (dto.description !== undefined)
+        formatData.description = dto.description;
+      if (dto.bankReference !== undefined)
+        formatData.bankReference = dto.bankReference;
+      if (dto.category !== undefined) formatData.category = dto.category;
+      if (dto.creditAmount !== undefined)
+        formatData.creditAmount = String(dto.creditAmount);
+      if (dto.debitAmount !== undefined)
+        formatData.debitAmount = String(dto.debitAmount);
+      if (dto.valueDate !== undefined)
+        formatData.valueDate = dto.valueDate
+          ? dto.valueDate.toISOString().split('T')[0]
+          : null;
+      if (dto.note !== undefined) formatData.note = dto.note;
+
+      const [updated] = await tx
+        .update(schema.bankTransactions)
+        .set(formatData)
+        .where(eq(schema.bankTransactions.id, id))
+        .returning();
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId,
+          action: 'UPDATE',
+          tableName: 'bank_transactions',
+          recordId: id,
+          description: `Bank movement updated: ${updated.description}`,
+          area: 'Treasury',
+          newData: updated,
+          previousData: existing,
+          tenantId,
+        }),
+      );
+
+      return updated;
+    });
+  }
+
+  async remove(id: string, userId: string, tenantId: string) {
+    const [existing] = await this.db
+      .select()
+      .from(schema.bankTransactions)
+      .where(
+        and(
+          eq(schema.bankTransactions.id, id),
+          eq(schema.bankTransactions.tenantId, tenantId),
+        ),
+      );
+
+    if (!existing)
+      throw new NotFoundException(`Bank movement ${id} not found`);
+
+    if (existing.reconciliationStatus === 'RECONCILED') {
+      throw new BadRequestException(
+        'No se puede eliminar un movimiento conciliado. Desvincule primero.',
+      );
+    }
+
+    await this.db
+      .delete(schema.bankTransactions)
+      .where(eq(schema.bankTransactions.id, id));
+
     this.eventEmitter.emit(
       'audit.log',
       new AuditLogEvent({
         userId,
-        action: 'INSERT',
+        action: 'DELETE',
         tableName: 'bank_transactions',
-        recordId: row.id,
-        description: `Bank movement created: ${row.description}`,
+        recordId: id,
+        description: `Bank movement deleted: ${existing.description}`,
         area: 'Treasury',
-        newData: row,
+        previousData: existing,
         tenantId,
       }),
     );
 
-    return row;
+    return { message: 'Bank movement deleted successfully' };
   }
 
   async createAndReconcile(
@@ -173,24 +432,23 @@ export class BankMovementsService {
           .where(eq(schema.bankTransactions.id, movement.id));
       }
 
-      this.eventEmitter.emit(
-        'audit.log',
-        new AuditLogEvent({
-          userId,
-          action: 'INSERT',
-          tableName: 'bank_transactions',
-          recordId: movement.id,
-          description: `Bank movement created and reconciled: ${movement.description}`,
-          area: 'Treasury',
-          newData: { movement, links: dto.links },
-          tenantId,
-        }),
-      );
+      if (!tx || (tx as any)._isExternalTx !== false) {
+        this.eventEmitter.emit(
+          'audit.log',
+          new AuditLogEvent({
+            userId,
+            action: 'INSERT',
+            tableName: 'bank_transactions',
+            recordId: movement.id,
+            description: `Bank movement created and reconciled: ${movement.description}`,
+            area: 'Treasury',
+            newData: { movement, links: dto.links },
+            tenantId,
+          }),
+        );
+      }
 
-      return {
-        message: 'Movement created and reconciled successfully',
-        movement,
-      };
+      return { message: 'Movement created and reconciled successfully', movement };
     });
   }
 
@@ -208,12 +466,7 @@ export class BankMovementsService {
         ),
       );
 
-    const emptyMeta = {
-      page,
-      limit,
-      totalCount: 0,
-      totalPages: 0,
-    };
+    const emptyMeta = { page, limit, totalCount: 0, totalPages: 0 };
 
     if (!rule || !rule.internalTable) {
       return { data: [], meta: emptyMeta };
@@ -237,10 +490,9 @@ export class BankMovementsService {
             type: sql<string>`'MEMBER_CONTRIBUTION'`.as('type'),
             amount: schema.associateAccountMovements.amount,
             date: schema.associateAccountMovements.transactionDate,
-            concept:
-              sql<string>`CONCAT('Aporte Socio ', ${schema.associates.fullname})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Aporte Socio ', ${schema.associates.fullname})`.as(
+              'concept',
+            ),
           })
           .from(schema.associateAccountMovements)
           .innerJoin(
@@ -276,10 +528,9 @@ export class BankMovementsService {
             type: sql<string>`'MEMBER_WITHDRAWAL'`.as('type'),
             amount: schema.withdrawalsAssociates.requestedAmount,
             date: schema.withdrawalsAssociates.withdrawalDate,
-            concept:
-              sql<string>`CONCAT('Retiro Socio ', ${schema.withdrawalsAssociates.referenceCode})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Retiro Socio ', ${schema.withdrawalsAssociates.referenceCode})`.as(
+              'concept',
+            ),
           })
           .from(schema.withdrawalsAssociates)
           .leftJoin(
@@ -304,10 +555,9 @@ export class BankMovementsService {
             type: sql<string>`'PAYROLL_SETTLEMENT'`.as('type'),
             amount: schema.liquidationsAssociates.netLiquidationAmount,
             date: schema.liquidationsAssociates.liquidationDate,
-            concept:
-              sql<string>`CONCAT('Liquidacion Socio ', ${schema.liquidationsAssociates.customReference})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Liquidacion Socio ', ${schema.liquidationsAssociates.customReference})`.as(
+              'concept',
+            ),
           })
           .from(schema.liquidationsAssociates)
           .leftJoin(
@@ -333,10 +583,9 @@ export class BankMovementsService {
             type: sql<string>`'LOAN_DISBURSEMENT'`.as('type'),
             amount: schema.loans.disbursedAmount,
             date: schema.loans.disbursementDate,
-            concept:
-              sql<string>`CONCAT('Desembolso Prestamo N ', ${schema.loans.customReference})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Desembolso Prestamo N ', ${schema.loans.customReference})`.as(
+              'concept',
+            ),
           })
           .from(schema.loans)
           .leftJoin(
@@ -361,10 +610,9 @@ export class BankMovementsService {
             type: sql<string>`'LOAN_PAYMENT'`.as('type'),
             amount: schema.loanPayments.amount,
             date: schema.loanPayments.paymentDate,
-            concept:
-              sql<string>`CONCAT('Pago Cuota Prestamo ', ${schema.loanPayments.customReference})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Pago Cuota Prestamo ', ${schema.loanPayments.customReference})`.as(
+              'concept',
+            ),
           })
           .from(schema.loanPayments)
           .leftJoin(
@@ -389,10 +637,9 @@ export class BankMovementsService {
             type: sql<string>`'CREDIT_DISBURSEMENT'`.as('type'),
             amount: schema.credits.requestedAmount,
             date: schema.credits.approvalDate,
-            concept:
-              sql<string>`CONCAT('Desembolso Credito ', ${schema.credits.customReference})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Desembolso Credito ', ${schema.credits.customReference})`.as(
+              'concept',
+            ),
           })
           .from(schema.credits)
           .leftJoin(
@@ -417,10 +664,9 @@ export class BankMovementsService {
             type: sql<string>`'CREDIT_PAYMENT'`.as('type'),
             amount: schema.creditPayments.amount,
             date: schema.creditPayments.paymentDate,
-            concept:
-              sql<string>`CONCAT('Pago Credito ', ${schema.creditPayments.customReference})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Pago Credito ', ${schema.creditPayments.customReference})`.as(
+              'concept',
+            ),
           })
           .from(schema.creditPayments)
           .leftJoin(
@@ -445,10 +691,9 @@ export class BankMovementsService {
             type: sql<string>`'SUPPLIER_PAYMENT'`.as('type'),
             amount: schema.supplierPaymentLines.amount,
             date: schema.supplierPayments.bankTransactionDate,
-            concept:
-              sql<string>`CONCAT('Prov ', ${schema.suppliers.internalCode}, ' - ', ${schema.accountsPayable.accountsPayableNumber})`.as(
-                'concept',
-              ),
+            concept: sql<string>`CONCAT('Prov ', ${schema.suppliers.internalCode}, ' - ', ${schema.accountsPayable.accountsPayableNumber})`.as(
+              'concept',
+            ),
           })
           .from(schema.supplierPaymentLines)
           .innerJoin(
@@ -554,7 +799,7 @@ export class BankMovementsService {
       tenantId,
       bankTransactionId,
       internalRecordType: dto.internalRecordType,
-      internalRecordId: String(dto.internalRecordId),
+      internalRecordId: dto.internalRecordId,
       linkedBy: userId,
     } as typeof schema.internalTransactionBankLinks.$inferInsert);
 
@@ -575,10 +820,7 @@ export class BankMovementsService {
         recordId: bankTransactionId,
         description: `Bank movement reconciled with ${dto.internalRecordType} #${dto.internalRecordId}`,
         area: 'Treasury',
-        newData: {
-          internalRecordType: dto.internalRecordType,
-          internalRecordId: dto.internalRecordId,
-        },
+        newData: { internalRecordType: dto.internalRecordType, internalRecordId: dto.internalRecordId },
         tenantId,
       }),
     );
@@ -592,18 +834,13 @@ export class BankMovementsService {
       .from(schema.internalTransactionBankLinks)
       .where(
         and(
-          eq(
-            schema.internalTransactionBankLinks.bankTransactionId,
-            bankTransactionId,
-          ),
+          eq(schema.internalTransactionBankLinks.bankTransactionId, bankTransactionId),
           eq(schema.internalTransactionBankLinks.tenantId, tenantId),
         ),
       );
 
     if (!link) {
-      throw new NotFoundException(
-        `No link found for bank transaction ${bankTransactionId}`,
-      );
+      throw new NotFoundException(`No link found for bank transaction ${bankTransactionId}`);
     }
     return link;
   }
@@ -613,19 +850,14 @@ export class BankMovementsService {
       .delete(schema.internalTransactionBankLinks)
       .where(
         and(
-          eq(
-            schema.internalTransactionBankLinks.bankTransactionId,
-            bankTransactionId,
-          ),
+          eq(schema.internalTransactionBankLinks.bankTransactionId, bankTransactionId),
           eq(schema.internalTransactionBankLinks.tenantId, tenantId),
         ),
       )
       .returning();
 
     if (!link) {
-      throw new NotFoundException(
-        `No link found for bank transaction ${bankTransactionId}`,
-      );
+      throw new NotFoundException(`No link found for bank transaction ${bankTransactionId}`);
     }
 
     await this.db
@@ -655,15 +887,16 @@ export class BankMovementsService {
 
       if (!orig) throw new NotFoundException('Bank movement not found');
       if (orig.reconciliationStatus !== 'RECONCILED') {
-        throw new ConflictException(
-          'Only reconciled movements can be reversed',
-        );
+        throw new ConflictException('Only reconciled movements can be reversed');
       }
+
+      const internalCode = await this._getNextMovementCode(tenantId, userId, tx);
 
       const [rev] = await tx
         .insert(schema.bankTransactions)
         .values({
           tenantId,
+          internalCode,
           bankAccountId: orig.bankAccountId,
           transactionDate: dto.valueDate.toISOString().split('T')[0],
           valueDate: dto.valueDate.toISOString().split('T')[0],
@@ -682,20 +915,14 @@ export class BankMovementsService {
         .delete(schema.internalTransactionBankLinks)
         .where(
           and(
-            eq(
-              schema.internalTransactionBankLinks.bankTransactionId,
-              bankTransactionId,
-            ),
+            eq(schema.internalTransactionBankLinks.bankTransactionId, bankTransactionId),
             eq(schema.internalTransactionBankLinks.tenantId, tenantId),
           ),
         );
 
       await tx
         .update(schema.bankTransactions)
-        .set({
-          reconciliationStatus: 'PENDING',
-          internalLinkStatus: 'UNLINKED',
-        })
+        .set({ reconciliationStatus: 'PENDING', internalLinkStatus: 'UNLINKED' })
         .where(eq(schema.bankTransactions.id, bankTransactionId));
 
       this.eventEmitter.emit(
@@ -712,11 +939,56 @@ export class BankMovementsService {
         }),
       );
 
-      return {
-        originalId: bankTransactionId,
-        reversalId: rev.id,
-        message: 'Movement reversed successfully',
-      };
+      return { originalId: bankTransactionId, reversalId: rev.id, message: 'Movement reversed successfully' };
     });
+  }
+
+  private async _getNextMovementCode(
+    tenantId: string,
+    createdBy: string,
+    tx: DrizzleDatabase,
+  ): Promise<string> {
+    const [setting] = await tx
+      .select()
+      .from(schema.moduleSettings)
+      .where(
+        and(
+          eq(schema.moduleSettings.module, 'banking'),
+          eq(schema.moduleSettings.submodule, 'bank_transactions'),
+          eq(schema.moduleSettings.key, 'MB'),
+          eq(schema.moduleSettings.tenantId, tenantId),
+        ),
+      );
+
+    if (!setting) {
+      const code = 'MB-000001';
+      await tx.insert(schema.moduleSettings).values({
+        module: 'banking',
+        submodule: 'bank_transactions',
+        key: 'MB',
+        value: '1',
+        description: 'Último consecutivo Movimientos Bancarios',
+        createdBy,
+        tenantId,
+      });
+      return code;
+    }
+
+    const nextValue = parseInt(setting.value ?? '0', 10) + 1;
+    const code = `MB-${String(nextValue).padStart(6, '0')}`;
+
+    await tx
+      .update(schema.moduleSettings)
+      .set({ value: String(nextValue), updatedBy: createdBy })
+      .where(
+        and(
+          eq(schema.moduleSettings.module, 'banking'),
+          eq(schema.moduleSettings.submodule, 'bank_transactions'),
+          eq(schema.moduleSettings.key, 'MB'),
+          eq(schema.moduleSettings.tenantId, tenantId),
+        ),
+      );
+
+    return code;
   }
 }

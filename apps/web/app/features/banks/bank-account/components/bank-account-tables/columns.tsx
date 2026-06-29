@@ -2,52 +2,67 @@ import { Badge } from '@repo/shadcn/badge';
 import { cn } from '@repo/shadcn/lib/utils';
 import type { ColumnDef } from '@tanstack/react-table';
 import { formatCurrency } from '@/lib/format-utils';
-import type { BankAccount } from '../../services/bank-account-service';
+import {
+  ACCOUNT_TYPE_OPTIONS,
+} from '../../schemas/bank-account-options';
+import type { BankAccount } from '../../schemas/bank-account.schema';
 import { CellAction } from './cell-action';
 
-export const columns: ColumnDef<BankAccount>[] = [
+export const bankAccountColumns: ColumnDef<BankAccount>[] = [
   {
     accessorKey: 'accountName',
-    header: 'Nombre de Cuenta',
-  },
-  {
-    accessorKey: 'accountNumber',
-    header: 'Número de Cuenta',
-  },
-  {
-    accessorKey: 'accountType',
-    header: 'Tipo',
+    header: 'Nombre',
     cell: ({ getValue }) => {
       const value = getValue<string>();
       return value || '-';
     },
   },
   {
-    accessorKey: 'bank',
+    accessorKey: 'accountNumber',
+    header: 'Número de Cuenta',
+  },
+  {
+    accessorKey: 'bankDirectoryName',
     header: 'Banco',
     cell: ({ getValue }) => {
-      const value = getValue<{ id: number; name: string } | undefined>();
-      return value?.name || '-';
+      const value = getValue<string>();
+      return value || '-';
     },
   },
   {
-    accessorKey: 'balance',
-    header: 'Balance',
-    cell: ({ getValue }) => {
-      const value = getValue<number>();
-      return value != null ? formatCurrency(value, 'VES') : '-';
-    },
-  },
-  {
-    accessorKey: 'status',
-    header: 'Estado',
+    accessorKey: 'accountType',
+    header: 'Tipo',
     cell: ({ getValue }) => {
       const value = getValue<string>();
-      const isActive = value === 'ACTIVE';
+      return (
+        ACCOUNT_TYPE_OPTIONS[value as keyof typeof ACCOUNT_TYPE_OPTIONS] ||
+        value ||
+        '-'
+      );
+    },
+  },
+  {
+    accessorKey: 'currencyCode',
+    header: 'Moneda',
+  },
+  {
+    accessorKey: 'currentBalance',
+    header: 'Saldo Libros',
+    cell: ({ row, getValue }) => {
+      const value = getValue<number>();
+      if (value == null) return '-';
+      return formatCurrency(value, row.original.currencyCode || 'VES');
+    },
+  },
+  {
+    accessorKey: 'isActive',
+    header: 'Estado',
+    cell: ({ getValue }) => {
+      const value = getValue<boolean>();
       return (
         <div className={cn('p-2 h-full w-full')}>
-          <Badge variant={isActive ? 'success' : 'destructive'}>
-            {isActive ? 'Activo' : value || 'Desconocido'}
+          <Badge variant={value ? 'success' : 'destructive'}>
+            {value ? 'Activo' : 'Inactivo'}
           </Badge>
         </div>
       );

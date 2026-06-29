@@ -1,52 +1,52 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import { format } from 'date-fns';
 import { Badge } from '@repo/shadcn/badge';
 import {
   MOVEMENT_TYPE_OPTIONS,
   MOVEMENT_TYPE_BADGE_VARIANT,
-  DOCUMENT_TYPE_OPTIONS,
+  MOVEMENT_STATUS_OPTIONS,
+  MOVEMENT_STATUS_BADGE_VARIANT,
 } from '../../schemas/movements-options';
 import type { InventoryMovement } from '../../schemas/movements.schema';
-import { CellAction } from './cell-action';
+import { MovementsCellAction } from './cell-action';
+
+const mapBadgeVariant = (v: string): 'default' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline' => {
+  const valid = ['default', 'success', 'destructive', 'warning', 'secondary', 'outline'];
+  return valid.includes(v) ? (v as 'default' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline') : 'default';
+};
 
 export const movementsColumns: ColumnDef<InventoryMovement>[] = [
+  {
+    accessorKey: 'movementNumber',
+    header: 'Nro.',
+    cell: ({ getValue }) => getValue<string>() || '—',
+  },
   {
     accessorKey: 'movementType',
     header: 'Tipo',
     cell: ({ getValue }) => {
-      const value = getValue<string>();
-      const label =
-        MOVEMENT_TYPE_OPTIONS[value as keyof typeof MOVEMENT_TYPE_OPTIONS] ||
-        value;
-      const variant =
-        MOVEMENT_TYPE_BADGE_VARIANT[
-          value as keyof typeof MOVEMENT_TYPE_BADGE_VARIANT
-        ] || 'default';
-      return <Badge variant={variant}>{label}</Badge>;
-    },
-  },
-  {
-    accessorKey: 'documentType',
-    header: 'Tipo Documento',
-    cell: ({ getValue }) => {
-      const value = getValue<string>();
+      const v = getValue<string>();
       return (
-        DOCUMENT_TYPE_OPTIONS[
-          value as keyof typeof DOCUMENT_TYPE_OPTIONS
-        ] || value
+        <Badge variant={mapBadgeVariant(MOVEMENT_TYPE_BADGE_VARIANT[v as keyof typeof MOVEMENT_TYPE_BADGE_VARIANT] ?? 'default')}>
+          {MOVEMENT_TYPE_OPTIONS[v as keyof typeof MOVEMENT_TYPE_OPTIONS] || v}
+        </Badge>
       );
     },
   },
   {
-    accessorKey: 'documentNumber',
-    header: 'Nro. Documento',
+    accessorKey: 'status',
+    header: 'Estado',
+    cell: ({ getValue }) => {
+      const v = getValue<string>();
+      const variant = MOVEMENT_STATUS_BADGE_VARIANT[v] ?? 'default';
+      return (
+        <Badge variant={variant as 'default' | 'success' | 'destructive'}>
+          {MOVEMENT_STATUS_OPTIONS[v] || v}
+        </Badge>
+      );
+    },
   },
   {
-    accessorKey: 'description',
-    header: 'Descripción',
-  },
-  {
-    id: 'itemCount',
+    id: 'itemsCount',
     header: 'Ítems',
     cell: ({ row }) => {
       const items = row.original.items;
@@ -54,21 +54,30 @@ export const movementsColumns: ColumnDef<InventoryMovement>[] = [
     },
   },
   {
-    accessorKey: 'createdAt',
+    accessorKey: 'movementDate',
     header: 'Fecha',
     cell: ({ getValue }) => {
-      const value = getValue();
-      if (!value) return '-';
+      const v = getValue();
+      if (!v) return '—';
       try {
-        return format(new Date(value as string), 'dd/MM/yyyy HH:mm');
+        const d = v instanceof Date ? v : new Date(v as string);
+        return d.toLocaleDateString('es-VE');
       } catch {
-        return '-';
+        return '—';
       }
+    },
+  },
+  {
+    accessorKey: 'description',
+    header: 'Descripción',
+    cell: ({ getValue }) => {
+      const v = getValue<string>();
+      return v ? (v.length > 40 ? v.slice(0, 40) + '...' : v) : '—';
     },
   },
   {
     id: 'actions',
     header: 'Acciones',
-    cell: ({ row }) => <CellAction data={row.original} />,
+    cell: ({ row }) => <MovementsCellAction data={row.original} />,
   },
 ];

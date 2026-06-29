@@ -5,8 +5,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import type { BankAccount } from '../services/bank-account-service';
+import { useBankAccountQuery } from '../hooks/use-bank-account-query';
+import type { BankAccount } from '../schemas/bank-account.schema';
 import { BankAccountForm } from './bank-account-form';
+import { BankAccountViewModal } from './bank-account-view-modal';
 
 interface BankAccountModalProps {
   open: boolean;
@@ -21,6 +23,13 @@ export function BankAccountModal({
   defaultValues,
   mode = 'create',
 }: BankAccountModalProps) {
+  const recordId = defaultValues?.id as string | undefined;
+
+  const { data: fetchedData } = useBankAccountQuery(
+    recordId || '',
+    mode === 'view' && !!recordId,
+  );
+
   const handleSuccess = () => {
     onOpenChange(false);
   };
@@ -31,32 +40,40 @@ export function BankAccountModal({
 
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
+  const isCreateMode = mode === 'create';
+
+  if (isViewMode) {
+    const viewData = fetchedData?.data || defaultValues;
+    return (
+      <BankAccountViewModal
+        open={open}
+        onOpenChange={onOpenChange}
+        data={(viewData as BankAccount) || null}
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[650px]">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles de la Cuenta'
-              : isEditMode
-                ? 'Editar Cuenta Bancaria'
-                : 'Nueva Cuenta Bancaria'}
+            {isEditMode ? 'Editar Cuenta Bancaria' : 'Nueva Cuenta Bancaria'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información de la cuenta bancaria.'
-              : defaultValues?.id
-                ? 'Actualiza la información de la cuenta bancaria.'
-                : 'Complete los campos para crear una nueva cuenta bancaria.'}
+            {isEditMode
+              ? 'Actualiza la información de la cuenta bancaria.'
+              : 'Complete los campos para crear una nueva cuenta bancaria.'}
           </DialogDescription>
         </DialogHeader>
-        <BankAccountForm
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-          defaultValues={defaultValues}
-          disabled={isViewMode}
-        />
+        <div className="overflow-y-auto max-h-[calc(90vh-10rem)] -mr-3 pr-3">
+          <BankAccountForm
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+            defaultValues={isCreateMode ? undefined : defaultValues}
+            disabled={false}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

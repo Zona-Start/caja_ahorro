@@ -42,6 +42,11 @@ export const inventoryFixedAssetsColumns: ColumnDef<InventoryFixedAsset>[] =
       header: 'Nombre',
     },
     {
+      accessorKey: 'categoryName',
+      header: 'Categoría',
+      cell: ({ row }) => row.original.categoryName || '—',
+    },
+    {
       accessorKey: 'brand',
       header: 'Marca',
       cell: ({ row }) => row.original.brand || '—',
@@ -54,6 +59,7 @@ export const inventoryFixedAssetsColumns: ColumnDef<InventoryFixedAsset>[] =
     {
       accessorKey: 'serialNumber',
       header: 'N° Serie',
+      cell: ({ row }) => row.original.serialNumber || '—',
     },
     {
       accessorKey: 'assetStatus',
@@ -86,7 +92,7 @@ export const inventoryFixedAssetsColumns: ColumnDef<InventoryFixedAsset>[] =
     {
       accessorKey: 'baseCost',
       header: 'Costo Base',
-      cell: ({ row }) => formatCurrency(row.original.baseCost, 'USD'),
+      cell: ({ row }) => formatCurrency(row.original.baseCost ?? 0, 'VES'),
     },
     {
       accessorKey: 'depreciationMethod',

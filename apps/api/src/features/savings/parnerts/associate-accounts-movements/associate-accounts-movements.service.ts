@@ -68,7 +68,7 @@ export class AssociateAccountsMovementsService {
           );
         }
 
-        const reference = await this.generateCodeService.generateNextReference(
+        const internalCode = await this.generateCodeService.generateNextReference(
           'MS',
           tenantId,
           'savings',
@@ -89,13 +89,13 @@ export class AssociateAccountsMovementsService {
             description,
             referenceId,
             referenceType,
-            referenceNumber: reference,
+            internalCode,
             createdById: userId,
             status: status ?? 'COMPLETED',
           })
           .returning({
             id: associateAccountMovements.id,
-            referenceNumber: associateAccountMovements.referenceNumber,
+            internalCode: associateAccountMovements.internalCode,
           });
 
         if (!newMovement?.id) {
@@ -256,7 +256,7 @@ export class AssociateAccountsMovementsService {
         monto: associateAccountMovements.amount,
         fecha: associateAccountMovements.transactionDate,
         descripcion: associateAccountMovements.description,
-        numeroReferencia: associateAccountMovements.referenceNumber,
+        numeroReferencia: associateAccountMovements.internalCode,
         status: associateAccountMovements.status,
       })
       .from(associateAccountMovements)

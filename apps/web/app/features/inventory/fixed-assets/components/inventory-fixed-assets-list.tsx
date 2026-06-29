@@ -18,7 +18,7 @@ export default function InventoryFixedAssetsList() {
     <DataTable
       columns={inventoryFixedAssetsColumns}
       data={data?.data || []}
-      totalItems={data?.meta.totalItems || 0}
+      totalItems={data?.meta.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

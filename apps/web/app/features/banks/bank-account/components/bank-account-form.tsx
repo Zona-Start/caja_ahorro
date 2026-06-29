@@ -1,6 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { apiClient } from '@/lib/api-client';
-import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
 import {
   Form,
@@ -19,15 +17,19 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { Switch } from '@repo/shadcn/switch';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Separator } from '@repo/shadcn/separator';
+import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
+import { useState } from 'react';
 import { useBanksQuery } from '../../bank-directory/hooks/use-banks-querys';
-import { bankAccountKeys } from '../keys/bank-account-keys';
+import { useAccountingAccounts } from '@/features/accounting/accounting-accounts/hooks/use-accounting-accounts-query';
+import {
+  useCreateBankAccountMutation,
+  useUpdateBankAccountMutation,
+} from '../hooks/use-bank-account-query';
 import {
   ACCOUNT_TYPE_OPTIONS,
   CURRENCY_CODE_OPTIONS,
-  ACCOUNT_TYPE,
-  CURRENCY_CODE,
 } from '../schemas/bank-account-options';
 import {
   bankAccountFormSchema,
@@ -37,117 +39,136 @@ import {
 interface BankAccountFormComponentProps {
   onSuccess?: () => void;
   onCancel?: () => void;
-  defaultValues?: Partial<Record<string, unknown>>;
+  defaultValues?: Partial<BankAccountForm & { id?: string; openingEntryPosted?: boolean }>;
   disabled?: boolean;
+}
+
+function toFormValues(data: Partial<BankAccountForm & { id?: string }> | undefined): BankAccountForm {
+  return {
+    bankDirectoryId: (data?.bankDirectoryId as string) ?? undefined,
+    accountName: (data?.accountName as string) || '',
+    accountNumber: (data?.accountNumber as string) || '',
+    accountType: data?.accountType ?? undefined,
+    currencyCode: data?.currencyCode ?? undefined,
+    openingDate: data?.openingDate
+      ? new Date(data.openingDate as unknown as string)
+      : new Date(),
+    currentBalance: (data?.currentBalance as number) ?? undefined,
+    linkedChartAccountId: (data?.linkedChartAccountId as string) ?? null,
+    isActive: (data?.isActive as boolean) ?? true,
+  } as BankAccountForm;
 }
 
 export function BankAccountForm({
   onSuccess,
   onCancel,
-  defaultValues = {},
+  defaultValues,
   disabled = false,
 }: BankAccountFormComponentProps) {
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToastSystem();
+  const [showAccounting, setShowAccounting] = useState(
+    !!defaultValues?.linkedChartAccountId || !!defaultValues?.currentBalance,
+  );
+
+  const createMutation = useCreateBankAccountMutation();
+  const updateMutation = useUpdateBankAccountMutation();
   const { data: banksData } = useBanksQuery();
+  const { data: accountingAccounts } = useAccountingAccounts();
 
-  const recordId = defaultValues.id as number | undefined;
-
-  const saveMutation = useMutation({
-    mutationFn: async (payload: BankAccountForm) => {
-      if (recordId) {
-        const response = await apiClient.patch(
-          `/savings-banks/bank-accounts/${recordId}`,
-          payload,
-        );
-        return response.data;
-      }
-      const response = await apiClient.post(
-        '/savings-banks/bank-accounts',
-        payload,
-      );
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: bankAccountKeys.all });
-      toastSuccess(
-        recordId
-          ? 'Cuenta bancaria actualizada correctamente'
-          : 'Cuenta bancaria creada correctamente',
-      );
-    },
-    onError: (err) => {
-      toastError(
-        err instanceof Error
-          ? err.message
-          : 'Error al guardar la cuenta bancaria',
-      );
-    },
-  });
+  const recordId = defaultValues?.id as string | undefined;
+  const isOpeningPosted = !!(defaultValues as any)?.openingEntryPosted;
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   const form = useForm<BankAccountForm>({
     resolver: zodResolver(bankAccountFormSchema),
-    defaultValues: {
-      bankDirectoryId: (defaultValues.bankDirectoryId as number) ?? undefined,
-      accountName: (defaultValues.accountName as string) || '',
-      accountNumber: (defaultValues.accountNumber as string) || '',
-      accountType: (defaultValues.accountType as ACCOUNT_TYPE) ?? undefined,
-      currencyCode: (defaultValues.currencyCode as CURRENCY_CODE) ?? undefined,
-      openingDate: defaultValues.openingDate
-        ? new Date(defaultValues.openingDate as string)
-        : new Date(),
-      currentBalance: (defaultValues.currentBalance as number) ?? 0,
-      linkedChartAccountId:
-        (defaultValues.linkedChartAccountId as number | null) ?? undefined,
-      isActive: (defaultValues.isActive as boolean) ?? true,
-    } as BankAccountForm,
-    mode: 'onChange',
+    defaultValues: toFormValues(defaultValues),
+    mode: 'onBlur',
   });
 
   const onSubmit = (formData: BankAccountForm) => {
-    saveMutation.mutate(formData, {
-      onSuccess: () => {
-        form.reset();
-        onSuccess?.();
-      },
-    });
+    if (recordId) {
+      updateMutation.mutate(
+        { id: recordId, data: formData },
+        {
+          onSuccess: () => {
+            form.reset();
+            onSuccess?.();
+          },
+        },
+      );
+    } else {
+      createMutation.mutate(formData, {
+        onSuccess: () => {
+          form.reset();
+          onSuccess?.();
+        },
+      });
+    }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="bankDirectoryId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Banco</FormLabel>
-              <Select
-                onValueChange={(v) => field.onChange(Number(v))}
-                value={field.value?.toString() || ''}
-                disabled={disabled}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona un banco" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {(banksData?.data || [])
-                    .filter((b) => b.id != null)
-                    .map((bank) => (
-                      <SelectItem key={bank.id} value={bank.id!.toString()}>
-                        {bank.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Sección 1: Datos de la Cuenta Bancaria */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-muted-foreground">
+            Datos de la Cuenta Bancaria
+          </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {isOpeningPosted && (
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-md p-2">
+              El banco, la moneda y la fecha de apertura no pueden modificarse porque ya se generó el asiento de apertura contable.
+            </p>
+          )}
+
+          <FormField
+            control={form.control}
+            name="bankDirectoryId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Banco</FormLabel>
+                <FormControl>
+                  <SelectSearchable
+                    options={(banksData?.data || [])
+                      .filter((b) => b.id != null)
+                      .map((bank) => ({
+                        value: bank.id!.toString(),
+                        label: bank.name!,
+                      }))}
+                    onValueChange={field.onChange}
+                    placeholder="Buscar banco..."
+                    value={field.value || undefined}
+                    disabled={disabled || isOpeningPosted}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="accountNumber"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Número de Cuenta</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="00000000000000000000"
+                    inputMode="numeric"
+                    maxLength={20}
+                    {...field}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 20);
+                      field.onChange(val);
+                    }}
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="accountName"
@@ -166,188 +187,211 @@ export function BankAccountForm({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="accountNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Número de Cuenta</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Ej: 0116-0001-00-0000000001"
-                    {...field}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="accountType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Cuenta</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ''}
                     disabled={disabled}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un tipo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(ACCOUNT_TYPE_OPTIONS).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="accountType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Tipo de Cuenta</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value || ''}
-                  disabled={disabled}
-                >
+            <FormField
+              control={form.control}
+              name="currencyCode"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Moneda</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ''}
+                    disabled={disabled || isOpeningPosted}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una moneda" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Object.entries(CURRENCY_CODE_OPTIONS).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="openingDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fecha de Apertura</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un tipo" />
-                    </SelectTrigger>
+                    <Input
+                      type="date"
+                      value={
+                        field.value instanceof Date
+                          ? field.value.toISOString().split('T')[0]
+                          : field.value || ''
+                      }
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value ? new Date(e.target.value) : undefined,
+                        )
+                      }
+                      disabled={disabled || isOpeningPosted}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    {Object.entries(ACCOUNT_TYPE_OPTIONS).map(
-                      ([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}
-            name="currencyCode"
+            name="isActive"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Moneda</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value || ''}
-                  disabled={disabled}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una moneda" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {Object.entries(CURRENCY_CODE_OPTIONS).map(
-                      ([value, label]) => (
-                        <SelectItem key={value} value={value}>
-                          {label}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <FormLabel>Cuenta Activa</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value ?? true}
+                    onCheckedChange={field.onChange}
+                    disabled={disabled}
+                  />
+                </FormControl>
               </FormItem>
             )}
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="openingDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Fecha de Apertura</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    value={
-                      field.value instanceof Date
-                        ? field.value.toISOString().split('T')[0]
-                        : field.value || ''
-                    }
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value ? new Date(e.target.value) : undefined,
-                      )
-                    }
-                    disabled={disabled}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <Separator />
 
-          <FormField
-            control={form.control}
-            name="currentBalance"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Balance Actual</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={(e) =>
-                      field.onChange(
-                        e.target.value ? parseFloat(e.target.value) : 0,
-                      )
-                    }
-                    disabled={disabled}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <FormField
-          control={form.control}
-          name="linkedChartAccountId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Cuenta Contable Vinculada</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="ID de cuenta contable"
-                  {...field}
-                  value={field.value ?? ''}
-                  onChange={(e) =>
-                    field.onChange(
-                      e.target.value ? Number(e.target.value) : undefined,
-                    )
-                  }
-                  disabled={disabled}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-              <div className="space-y-0.5">
-                <FormLabel>Cuenta Activa</FormLabel>
-              </div>
-              <FormControl>
+        {/* Sección 2: Información Contable */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Información Contable
+            </h3>
+            {!disabled && !isOpeningPosted && (
+              <FormItem className="flex items-center gap-2 space-y-0">
+                <FormLabel className="text-xs">Habilitar</FormLabel>
                 <Switch
-                  checked={field.value ?? true}
-                  onCheckedChange={field.onChange}
-                  disabled={disabled}
+                  checked={showAccounting}
+                  onCheckedChange={setShowAccounting}
                 />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+              </FormItem>
+            )}
+          </div>
 
+          {(showAccounting || isOpeningPosted) && (
+            <div className="space-y-4">
+              {isOpeningPosted && (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-md p-2">
+                  La información contable no puede modificarse porque ya se generó el asiento de apertura.
+                </p>
+              )}
+              <FormField
+                control={form.control}
+                name="linkedChartAccountId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cuenta Contable Vinculada</FormLabel>
+                    <FormControl>
+                      <SelectSearchable
+                        options={
+                          (accountingAccounts || [])
+                            .filter((a) => a.allowsMovements)
+                            .map((acc) => ({
+                              value: acc.id!,
+                              label: `${acc.code} - ${acc.name}`,
+                            }))
+                        }
+                        onValueChange={field.onChange}
+                        placeholder="Buscar cuenta contable..."
+                        value={field.value ?? undefined}
+                        disabled={disabled || isOpeningPosted}
+                        enableNoneOption
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="currentBalance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Saldo Inicial Contable</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value ? parseFloat(e.target.value) : undefined,
+                          )
+                        }
+                        disabled={disabled || isOpeningPosted}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {!recordId && (
+                <p className="text-xs text-muted-foreground">
+                  Al guardar la cuenta con saldo inicial y cuenta contable, se generará
+                  automáticamente el asiento de apertura contable.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Botones */}
         {disabled ? (
           <div className="flex justify-end">
             <Button type="button" onClick={onCancel}>
@@ -355,12 +399,12 @@ export function BankAccountForm({
             </Button>
           </div>
         ) : (
-          <div className="flex justify-end gap-4 pt-4">
+          <div className="flex justify-end gap-4 pt-2">
             <Button variant="outline" type="button" onClick={onCancel}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? 'Guardando...' : 'Guardar'}
+            <Button type="submit" disabled={isPending}>
+              {isPending ? 'Guardando...' : recordId ? 'Actualizar' : 'Crear Cuenta'}
             </Button>
           </div>
         )}

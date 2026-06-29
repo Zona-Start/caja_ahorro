@@ -23,7 +23,7 @@ export class AccountingEntriesService {
     searchParams.append('limit', (params.limit || 10).toString());
     if (params.search) searchParams.append('search', params.search);
     if (params.status) searchParams.append('status', params.status);
-    if (params.accountingCycleId) searchParams.append('accountingCycleId', params.accountingCycleId.toString());
+    if (params.accountingCycleId) searchParams.append('accountingCycleId', params.accountingCycleId);
     if (params.startDate) searchParams.append('startDate', params.startDate);
     if (params.endDate) searchParams.append('endDate', params.endDate);
     if (params.sortBy) searchParams.append('sortBy', params.sortBy);
@@ -32,7 +32,7 @@ export class AccountingEntriesService {
     const response = await apiClient.get(`/accounting/entries?${searchParams.toString()}`);
     const parsed = accountingEntryPaginationResponseSchema.parse(response.data);
 
-    const transform = parsed.data.map((item: any) => ({
+    const transform = parsed.data.map((item) => ({
       ...item,
       entryDate: new Date(item.entryDate),
     }));
@@ -43,7 +43,7 @@ export class AccountingEntriesService {
     };
   }
 
-  static async getById(id: number) {
+  static async getById(id: string) {
     const response = await apiClient.get(`/accounting/entries/${id}`);
     const parsed = accountingEntryResponseSchema.parse(response.data);
     return {
@@ -63,22 +63,22 @@ export class AccountingEntriesService {
     return accountingEntryResponseSchema.parse(response.data).data;
   }
 
-  static async delete(id: number) {
+  static async delete(id: string) {
     const response = await apiClient.delete(`/accounting/entries/${id}`);
     return accountingEntryDeleteResponseSchema.parse(response.data);
   }
 
-  static async submit(id: number) {
+  static async submit(id: string) {
     const response = await apiClient.post(`/accounting/entries/${id}/submit`);
     return accountingEntryResponseSchema.parse(response.data).data;
   }
 
-  static async post(id: number) {
+  static async post(id: string) {
     const response = await apiClient.post(`/accounting/entries/${id}/post`);
     return accountingEntryResponseSchema.parse(response.data).data;
   }
 
-  static async cancel(id: number) {
+  static async cancel(id: string) {
     const response = await apiClient.post(`/accounting/entries/${id}/cancel`);
     return accountingEntryResponseSchema.parse(response.data).data;
   }

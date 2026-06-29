@@ -214,7 +214,7 @@ export class LoanTypesService {
           ),
         );
 
-      if (duplicate) {
+      if (duplicate.length > 0) {
         throw new BadRequestException(
           `Loan type with name "${dto.name}" already exists`,
         );

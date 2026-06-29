@@ -8,17 +8,15 @@ export function PurchaseOrdersList() {
   const { filters } = usePurchaseOrdersFilters();
   const { data, isLoading } = usePurchaseOrdersQuery(filters);
 
-  if (isLoading) {
-    return <DataTableSkeleton columnCount={8} rowCount={filters.limit} />;
-  }
+  if (isLoading) return <DataTableSkeleton columnCount={7} rowCount={filters.limit} />;
 
-  const ordersData = data?.data ?? [];
+  const listData = data?.data ?? [];
   const totalItems = data?.meta?.totalCount ?? 0;
 
   return (
     <DataTable
       columns={columns}
-      data={ordersData}
+      data={listData}
       totalItems={totalItems}
       pageSizeOptions={[10, 20, 30, 50]}
     />

@@ -12,7 +12,7 @@ interface AccountingCycleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultValues?: Partial<AccountingCycle>;
-  mode?: 'create' | 'edit' | 'view';
+  mode?: 'create' | 'edit';
 }
 
 export function AccountingCycleModal({
@@ -29,7 +29,6 @@ export function AccountingCycleModal({
     onOpenChange(false);
   };
 
-  const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
   return (
@@ -37,25 +36,18 @@ export function AccountingCycleModal({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles del Ciclo'
-              : isEditMode
-                ? 'Editar Ciclo'
-                : 'Nuevo Ciclo'}
+            {isEditMode ? 'Editar Ciclo Contable' : 'Nuevo Ciclo Contable'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información del ciclo contable.'
-              : defaultValues?.id
-                ? 'Actualiza la información del ciclo contable.'
-                : 'Crea un nuevo ciclo contable para tu empresa.'}
+            {isEditMode
+              ? 'Actualiza la información del ciclo contable.'
+              : 'Crea un nuevo ciclo contable.'}
           </DialogDescription>
         </DialogHeader>
         <AccountingCycleForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={defaultValues}
-          disabled={isViewMode}
         />
       </DialogContent>
     </Dialog>

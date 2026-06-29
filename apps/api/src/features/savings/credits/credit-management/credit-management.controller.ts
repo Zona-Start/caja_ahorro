@@ -17,8 +17,12 @@ import { PaginationDto } from '@/common/dto/pagination.dto';
 import {
   CreateCreditSchema,
   FilterCreditSchema,
+  SearchAssociateSchema,
+  CalculateAmortizationSchema,
   CreateCreditDto,
   FilterCreditDto,
+  SearchAssociateDto,
+  CalculateAmortizationDto,
 } from './dto/credit.schema';
 import { CreditManagementService } from './credit-management.service';
 
@@ -33,24 +37,87 @@ export class CreditManagementController {
   @Post('request')
   @UsePipes(new ZodValidatorPipe(CreateCreditSchema))
   async request(@Req() req: Request, @Body() dto: CreateCreditDto) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.request(targetTenantId, userId, dto);
+  }
+
+  @Get('search-associate/:cedula')
+  @ApiOperation({ summary: 'Search associate by cedula for credit request' })
+  async searchAssociate(
+    @Req() req: Request,
+    @Param('cedula') cedula: string,
+  ) {
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.service.searchAssociate(targetTenantId, cedula);
+  }
+
+  @Get('calculate-amortization')
+  @ApiOperation({ summary: 'Calculate French amortization schedule preview' })
+  async calculateAmortization(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(CalculateAmortizationSchema))
+    query: CalculateAmortizationDto,
+  ) {
+    return this.service.calculateAmortization({
+      amount: query.amount,
+      annualRate: query.annualRate,
+      paymentCount: query.paymentCount,
+      startDate: query.startDate,
+      paymentType: query.paymentType,
+      expensesPercentage: query.expensesPercentage,
+    });
+  }
+
+  @Get('credit-types')
+  @ApiOperation({ summary: 'List all credit types for the tenant' })
+  async listCreditTypes(@Req() req: Request) {
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.service.listCreditTypes(targetTenantId);
+  }
+
+  @Get('bank-accounts')
+  @ApiOperation({ summary: 'List bank accounts for the tenant' })
+  async listBankAccounts(@Req() req: Request) {
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.service.listBankAccounts(targetTenantId);
+  }
+
+  @Get('suppliers')
+  @ApiOperation({ summary: 'List suppliers for the tenant' })
+  async listSuppliers(@Req() req: Request) {
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.service.listSuppliers(targetTenantId);
+  }
+
+  @Get('products')
+  @ApiOperation({ summary: 'List products for the tenant' })
+  async listProducts(@Req() req: Request) {
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.service.listProducts(targetTenantId);
   }
 
   @Get('count')
   @ApiOperation({ summary: 'Get all credit count' })
   @ApiResponse({ status: 200, description: 'Return all credit count.' })
   findCountAllCredits(@Req() req: Request) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.findCountAllCredits(targetTenantId);
   }
 
-  @Get('request/byEdit/:id')
+  @Get('by-edit/:id')
   @ApiOperation({ summary: 'Get one credit by edit' })
   @ApiResponse({ status: 200, description: 'Return on credit edit.' })
   @ApiResponse({ status: 404, description: 'credit edit not found.' })
   findOneEdit(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.findRequestByEdit(targetTenantId, id);
   }
 
@@ -59,7 +126,8 @@ export class CreditManagementController {
   @ApiResponse({ status: 200, description: 'Return on credit associate.' })
   @ApiResponse({ status: 404, description: 'credit Associate not found.' })
   findOneRequest(@Req() req: Request, @Param('cedula') cedula: string) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.findOneRequest(targetTenantId, cedula);
   }
 
@@ -74,8 +142,13 @@ export class CreditManagementController {
     @Param('associateId') associateId: string,
     @Query() filtersDto: PaginationDto,
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findAllByAssociate(targetTenantId, associateId, filtersDto);
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.service.findAllByAssociate(
+      targetTenantId,
+      associateId,
+      filtersDto,
+    );
   }
 
   @Get(':id/details')
@@ -83,27 +156,35 @@ export class CreditManagementController {
   @ApiResponse({ status: 200, description: 'Return credit details.' })
   @ApiResponse({ status: 404, description: 'Credit not found.' })
   findCreditDetails(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.findCreditDetails(targetTenantId, id);
   }
 
   @Get(':id')
   findOne(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.findOne(targetTenantId, id);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all credit ordinary or filter by credit' })
   @ApiResponse({ status: 200, description: 'Return all Loan.' })
-  findAll(@Req() req: Request, @Query(new ZodValidatorPipe(FilterCreditSchema)) query: FilterCreditDto) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+  findAll(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(FilterCreditSchema))
+    query: FilterCreditDto,
+  ) {
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.findAll(targetTenantId, query);
   }
 
   @Post('approve/:id')
   async approve(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.approve(targetTenantId, userId, id);
   }
 
@@ -115,7 +196,8 @@ export class CreditManagementController {
   })
   @ApiResponse({ status: 404, description: 'credit not found.' })
   remove(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.remove(targetTenantId, userId, id);
   }
 }

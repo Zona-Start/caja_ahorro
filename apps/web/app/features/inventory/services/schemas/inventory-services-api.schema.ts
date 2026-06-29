@@ -5,10 +5,15 @@ export const inventoryServiceApiSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional().nullable(),
+  internalCode: z.string().optional(),
   categoryId: z.string(),
-  supplierCost: z.number(),
-  otherCosts: z.number(),
-  purchaseTax: z.number(),
+  categoryName: z.string().optional(),
+  serviceType: z.string().optional().nullable(),
+  currencyCode: z.string().optional().nullable().default('VES'),
+  purchaseExchangeRate: z.union([z.number(), z.string()]).optional().nullable().default(1),
+  supplierCost: z.union([z.number(), z.string()]).optional().default(0),
+  otherCosts: z.union([z.number(), z.string()]).optional().default(0),
+  purchaseTax: z.union([z.number(), z.string()]).optional().default(0),
   status: z.nativeEnum(InventoryServiceStatus),
   createdAt: z.string().optional().nullable(),
   updatedAt: z.string().optional().nullable(),
@@ -17,29 +22,30 @@ export const inventoryServiceApiSchema = z.object({
 export type InventoryServiceApi = z.infer<typeof inventoryServiceApiSchema>;
 
 export const paginatedMetaSchema = z.object({
-  totalItems: z.number(),
-  itemCount: z.number(),
-  itemsPerPage: z.number(),
+  page: z.number(),
+  limit: z.number(),
+  totalCount: z.number(),
   totalPages: z.number(),
-  currentPage: z.number(),
+  hasNextPage: z.boolean(),
+  hasPreviousPage: z.boolean(),
+  nextPage: z.number().nullable(),
+  previousPage: z.number().nullable(),
 });
 
 export const inventoryServiceResponseSchema = z.object({
-  message: z.string(),
-  data: inventoryServiceApiSchema,
+  message: z.string().optional(),
+  data: z.any(),
 });
 
 export const inventoryServiceListResponseSchema = z.object({
-  message: z.string(),
+  message: z.string().optional(),
   data: z.array(inventoryServiceApiSchema),
 });
 
 export const inventoryServicePaginatedResponseSchema = z.object({
-  message: z.string(),
+  message: z.string().optional(),
   data: z.array(inventoryServiceApiSchema),
   meta: paginatedMetaSchema,
 });
 
-export const inventoryServiceDeleteResponseSchema = z.object({
-  message: z.string(),
-});
+export const inventoryServiceDeleteResponseSchema = z.unknown();

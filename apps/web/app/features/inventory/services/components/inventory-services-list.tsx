@@ -6,7 +6,7 @@ import { inventoryServicesColumns } from './inventory-services-tables/columns';
 
 export default function InventoryServicesList() {
   const { filters } = useInventoryServicesFilters();
-  const { data, isLoading } = useInventoryServicesPaginatedQuery(filters);
+  const { data, isLoading } = useInventoryServicesPaginatedQuery(filters as any);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={7} rowCount={filters.limit} />;
@@ -16,7 +16,7 @@ export default function InventoryServicesList() {
     <DataTable
       columns={inventoryServicesColumns}
       data={data?.data || []}
-      totalItems={data?.meta.totalItems || 0}
+      totalItems={data?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

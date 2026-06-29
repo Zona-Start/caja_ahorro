@@ -87,6 +87,7 @@ export class ProductServiceSuppliersService {
       sortOrder = 'asc',
       productId,
       serviceId,
+      fixedAssetsId,
       suppliersId,
     } = paginationDto || {};
 
@@ -99,6 +100,9 @@ export class ProductServiceSuppliersService {
     }
     if (serviceId) {
       searchConditions.push(eq(productServiceSuppliers.serviceId, serviceId));
+    }
+    if (fixedAssetsId) {
+      searchConditions.push(eq(productServiceSuppliers.fixedAssetsId, fixedAssetsId));
     }
     if (suppliersId) {
       searchConditions.push(eq(productServiceSuppliers.suppliersId, suppliersId));
@@ -151,9 +155,18 @@ export class ProductServiceSuppliersService {
     return { data, meta };
   }
 
-  async findOne(id: string): Promise<ProductServiceSupplierSelect & { product?: unknown; service?: unknown; supplier?: unknown }> {
+  async findOne(
+    id: string,
+    tenantId?: string | null,
+  ): Promise<ProductServiceSupplierSelect & { product?: unknown; service?: unknown; supplier?: unknown }> {
+    const conditions: SQL<unknown>[] = [eq(productServiceSuppliers.id, id)];
+
+    if (tenantId) {
+      conditions.push(eq(productServiceSuppliers.tenantId, tenantId));
+    }
+
     const data = await this.db.query.productServiceSuppliers.findFirst({
-      where: eq(productServiceSuppliers.id, id),
+      where: and(...conditions),
       with: {
         product: true,
         service: true,
@@ -236,5 +249,69 @@ export class ProductServiceSuppliersService {
       targetId: id,
       description: `Deleted product service supplier relationship`,
     });
+  }
+
+  async syncForFixedAsset(
+    fixedAssetsId: string,
+    suppliers: Array<{
+      suppliersId: string;
+      leadTimeDays?: number;
+      preferred?: boolean;
+    }>,
+    tenantId: string,
+    userId: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<void> {
+    const db = tx ?? this.db;
+
+    await db
+      .delete(productServiceSuppliers)
+      .where(
+        and(
+          eq(productServiceSuppliers.fixedAssetsId, fixedAssetsId),
+          eq(productServiceSuppliers.tenantId, tenantId),
+        ),
+      );
+
+    if (suppliers.length > 0) {
+      await db.insert(productServiceSuppliers).values(
+        suppliers.map((s) => ({
+          tenantId,
+          fixedAssetsId,
+          suppliersId: s.suppliersId,
+          leadTimeDays: s.leadTimeDays ?? 0,
+          preferred: s.preferred ?? false,
+        })),
+      );
+    }
+
+    await this.auditHelper.logUpdate(
+      userId,
+      'product_service_supplier',
+      { fixedAssetsId },
+      { fixedAssetsId, supplierCount: suppliers.length },
+      {
+        tenantId,
+        targetId: fixedAssetsId,
+        description: `Synchronized ${suppliers.length} suppliers for fixed asset`,
+      },
+    );
+  }
+
+  async deleteByFixedAssetId(
+    fixedAssetsId: string,
+    tenantId: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ): Promise<void> {
+    const db = tx ?? this.db;
+
+    await db
+      .delete(productServiceSuppliers)
+      .where(
+        and(
+          eq(productServiceSuppliers.fixedAssetsId, fixedAssetsId),
+          eq(productServiceSuppliers.tenantId, tenantId),
+        ),
+      );
   }
 }

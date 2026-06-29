@@ -1,11 +1,11 @@
 import { Badge } from '@repo/shadcn/badge';
 import type { ColumnDef } from '@tanstack/react-table';
 import { INVENTORY_SERVICE_STATUS_OPTIONS } from '../../schemas/inventory-services-options';
-import type { InventoryService } from '../../schemas/inventory-services.schema';
 import { InventoryServicesCellAction } from './cell-action';
-import { formatCurrency } from '@/lib/format-utils';
 
-export const inventoryServicesColumns: ColumnDef<InventoryService>[] = [
+const CURRENCY_SYMBOLS: Record<string, string> = { VES: 'Bs.', USD: '$', EUR: '€' };
+
+export const inventoryServicesColumns: ColumnDef<any>[] = [
   {
     accessorKey: 'name',
     header: 'Nombre',
@@ -18,17 +18,26 @@ export const inventoryServicesColumns: ColumnDef<InventoryService>[] = [
   {
     accessorKey: 'supplierCost',
     header: 'Costo Proveedor',
-    cell: ({ row }) => formatCurrency(row.original.supplierCost, 'USD'),
+    cell: ({ row }) => {
+      const sym = CURRENCY_SYMBOLS[row.original.currencyCode] || row.original.currencyCode || '';
+      return `${sym} ${Number(row.original.supplierCost || 0).toFixed(2)}`;
+    },
   },
   {
     accessorKey: 'otherCosts',
     header: 'Otros Costos',
-    cell: ({ row }) => formatCurrency(row.original.otherCosts, 'USD'),
+    cell: ({ row }) => {
+      const sym = CURRENCY_SYMBOLS[row.original.currencyCode] || row.original.currencyCode || '';
+      return `${sym} ${Number(row.original.otherCosts || 0).toFixed(2)}`;
+    },
   },
   {
     accessorKey: 'purchaseTax',
     header: 'Impuesto Compra',
-    cell: ({ row }) => formatCurrency(row.original.purchaseTax, 'USD'),
+    cell: ({ row }) => {
+      const sym = CURRENCY_SYMBOLS[row.original.currencyCode] || row.original.currencyCode || '';
+      return `${sym} ${Number(row.original.purchaseTax || 0).toFixed(2)}`;
+    },
   },
   {
     accessorKey: 'status',

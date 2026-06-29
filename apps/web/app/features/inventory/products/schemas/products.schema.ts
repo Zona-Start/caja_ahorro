@@ -8,6 +8,7 @@ export const productSupplierAssignmentSchema = z.object({
 
 export const productSchema = z.object({
   id: z.string().uuid().optional(),
+  internalCode: z.string().optional(),
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
@@ -46,8 +47,8 @@ export const productSchema = z.object({
   offerStartDate: z.string().optional(),
   offerEndDate: z.string().optional(),
 
-  // Proveedores asignados (frontend-only, no enviado al API de productos)
-  suppliers: z.array(productSupplierAssignmentSchema).optional().default([]),
+  // Proveedores asignados (enviados al backend dentro del payload)
+  suppliers: z.array(productSupplierAssignmentSchema).optional(),
 });
 
 export type Product = z.infer<typeof productSchema>;

@@ -2,10 +2,8 @@ import { CurrencyCodeEnum } from '@/types/enum';
 import { z } from 'zod';
 
 export const CreateAccountingEntryBaseSchema = z.object({
-  tenantId: z.string().uuid(),
-  accountingCycleId: z.string().uuid(),
   entryDate: z.coerce.date(),
-  description: z.string().min(1),
+  description: z.string().min(1, 'La descripción es requerida.'),
   originReferenceId: z.string().optional(),
   originType: z.string().optional(),
   currencyCode: z.nativeEnum(CurrencyCodeEnum),
@@ -20,15 +18,13 @@ export const CreateAccountingEntryBaseSchema = z.object({
         description: z.string().optional().nullable(),
       }),
     )
-    .min(2),
+    .min(2, 'El asiento debe tener al menos dos líneas.'),
 });
 
-// 2. Exportamos el esquema con validaciones para el POST
 export const CreateAccountingEntrySchema =
   CreateAccountingEntryBaseSchema.refine(
     (data) => {
       const totalDebit = data.details.reduce((sum, detail) => {
-        // Usamos Number() para asegurar el tipo y 0 como fallback
         const value =
           typeof detail.debit === 'number'
             ? detail.debit

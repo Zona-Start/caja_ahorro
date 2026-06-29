@@ -1,24 +1,32 @@
-export const ORDER_STATUS = {
-  DRAFT: 'Borrador',
-  APPROVED: 'Aprobado',
-  INVOICED: 'Facturado',
-  CANCELLED: 'Cancelado',
-} as const;
-
-export type OrderStatus = keyof typeof ORDER_STATUS;
-
-export const ORDER_STATUS_OPTIONS = Object.entries(ORDER_STATUS).map(
-  ([value, label]) => ({ value, label }),
-);
-
 export const LINE_TYPES = [
-  { value: 'PRODUCT', label: 'Producto' },
+  { value: 'SALES_INVENTORY', label: 'Producto' },
   { value: 'SERVICE', label: 'Servicio' },
   { value: 'EXPENSE', label: 'Gasto' },
-  { value: 'MATERIAL', label: 'Material' },
 ] as const;
 
-export const CURRENCY_CODES = [
-  { value: 'USD', label: 'USD - Dólar' },
-  { value: 'VES', label: 'VES - Bolívar' },
+export const ORDER_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: 'Borrador' },
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'RECEIVED', label: 'Recibido' },
+  { value: 'INVOICED', label: 'Facturado' },
+  { value: 'CLOSED', label: 'Cerrado' },
+  { value: 'CANCELLED', label: 'Cancelado' },
 ] as const;
+
+export const STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Borrador',
+  PENDING: 'Pendiente',
+  RECEIVED: 'Recibido',
+  INVOICED: 'Facturado',
+  CLOSED: 'Cerrado',
+  CANCELLED: 'Cancelado',
+};
+
+export const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  DRAFT: 'secondary',
+  PENDING: 'outline',
+  RECEIVED: 'default',
+  INVOICED: 'default',
+  CLOSED: 'default',
+  CANCELLED: 'destructive',
+};

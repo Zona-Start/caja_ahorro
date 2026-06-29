@@ -3,5 +3,5 @@ export const bankMovementsKeys = {
   lists: () => [...bankMovementsKeys.all, 'list'] as const,
   list: (filters: object) => [...bankMovementsKeys.lists(), filters] as const,
   details: () => [...bankMovementsKeys.all, 'detail'] as const,
-  detail: (id: number) => [...bankMovementsKeys.details(), id] as const,
+  detail: (id: string) => [...bankMovementsKeys.details(), id] as const,
 };

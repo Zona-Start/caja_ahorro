@@ -12,43 +12,45 @@ import { Input } from '@repo/shadcn/input';
 import { useForm } from 'react-hook-form';
 import { useAccountingCycleMutation } from '../hooks/use-accounting-cycles-mutation';
 import {
-  type AccountingCycle,
-  accountingCycleSchema,
+  type AccountingCycleForm,
+  accountingCycleFormSchema,
 } from '../schemas/accounting-cycle.schema';
-import { CycleStatusEnum } from '../schemas/accounting-cycle-options';
 
 interface AccountingCycleFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
-  defaultValues?: Partial<AccountingCycle>;
-  disabled?: boolean;
+  defaultValues?: Partial<AccountingCycleForm & { id?: string }>;
 }
 
 export function AccountingCycleForm({
   onSuccess,
   onCancel,
   defaultValues,
-  disabled = false,
 }: AccountingCycleFormProps) {
-  const { mutate: saveCycle, isPending: isSaving } = useAccountingCycleMutation();
+  const { mutate: saveCycle, isPending: isSaving } =
+    useAccountingCycleMutation();
 
-  const form = useForm<AccountingCycle>({
-    resolver: zodResolver(accountingCycleSchema),
+  const form = useForm<AccountingCycleForm>({
+    resolver: zodResolver(accountingCycleFormSchema),
     defaultValues: {
-      id: defaultValues?.id,
       description: defaultValues?.description || '',
-      startDate: defaultValues?.startDate ? new Date(defaultValues.startDate) : new Date(),
-      endDate: defaultValues?.endDate ? new Date(defaultValues.endDate) : new Date(),
-      status: defaultValues?.status || CycleStatusEnum.PENDING,
+      startDate: defaultValues?.startDate || '',
+      endDate: defaultValues?.endDate || '',
     },
   });
 
-  const onSubmit = async (data: AccountingCycle) => {
-    saveCycle(data, {
-      onSuccess: () => {
-        onSuccess?.();
+  const onSubmit = (data: AccountingCycleForm) => {
+    saveCycle(
+      {
+        id: (defaultValues as any)?.id,
+        ...data,
+      } as any,
+      {
+        onSuccess: () => {
+          onSuccess?.();
+        },
       },
-    });
+    );
   };
 
   return (
@@ -61,7 +63,10 @@ export function AccountingCycleForm({
             <FormItem>
               <FormLabel>Descripción</FormLabel>
               <FormControl>
-                <Input placeholder="Ej: Ejercicio 2024" {...field} disabled={disabled} />
+                <Input
+                  placeholder="Ej: Ciclo Contable Enero 2026"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -76,12 +81,7 @@ export function AccountingCycleForm({
               <FormItem>
                 <FormLabel>Fecha de Inicio</FormLabel>
                 <FormControl>
-                  <Input
-                    type="date"
-                    value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : field.value}
-                    onChange={(e) => field.onChange(new Date(e.target.value))}
-                    disabled={disabled}
-                  />
+                  <Input type="date" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -95,12 +95,7 @@ export function AccountingCycleForm({
               <FormItem>
                 <FormLabel>Fecha de Fin</FormLabel>
                 <FormControl>
-                  <Input
-                    type="date"
-                    value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : field.value}
-                    onChange={(e) => field.onChange(new Date(e.target.value))}
-                    disabled={disabled}
-                  />
+                  <Input type="date" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -108,22 +103,14 @@ export function AccountingCycleForm({
           />
         </div>
 
-        {disabled ? (
-          <div className="flex justify-end">
-            <Button type="button" onClick={onCancel}>
-              Cerrar
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-end gap-4 pt-4">
-            <Button variant="outline" type="button" onClick={onCancel}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? 'Guardando...' : 'Guardar'}
-            </Button>
-          </div>
-        )}
+        <div className="flex justify-end gap-4 pt-4">
+          <Button variant="outline" type="button" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isSaving}>
+            {isSaving ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </div>
       </form>
     </Form>
   );

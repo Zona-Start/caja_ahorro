@@ -20,7 +20,7 @@ export const CreateAssociateSchema = z.object({
   payrollTypeId: z.string().uuid().optional().nullable(),
   associatedTypeId: z.string().uuid().optional().nullable(),
   jobTitle: z.string().optional().nullable(),
-  baseSalary: z.coerce.number(),
+  baseSalary: z.coerce.number().finite(),
   accountNumber: z.string().min(1),
   bankDirectoryId: z.string().uuid(),
 });

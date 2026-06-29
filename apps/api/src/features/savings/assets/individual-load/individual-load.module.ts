@@ -1,8 +1,8 @@
-import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
 import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
 import { TenantContextModule } from '@/common/services/tenant-context.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
+import { ContributionBatchesModule } from '../contribution-batches/contribution-batches.module';
 import { IndividualLoadController } from './individual-load.controller';
 import { IndividualLoadService } from './individual-load.service';
 
@@ -10,7 +10,7 @@ import { IndividualLoadService } from './individual-load.service';
   imports: [
     AssociateAccountsMovementsModule,
     BankMovementsModule,
-    AccountingEntriesModule,
+    ContributionBatchesModule,
     TenantContextModule,
   ],
   controllers: [IndividualLoadController],

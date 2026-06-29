@@ -10,17 +10,24 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { Plus } from 'lucide-react';
-import { Link } from 'react-router';
 import { useCreditsFilters } from '../../hooks/use-credits-filters';
 import { ESTATUS_TYPES } from '../../schemas/credits-management-options';
 
-export function OrdinaryCreditsTableAction() {
+interface OrdinaryCreditsTableActionProps {
+  onNewCredit: () => void;
+}
+
+export function OrdinaryCreditsTableAction({
+  onNewCredit,
+}: OrdinaryCreditsTableActionProps) {
   const { filters, setFilters } = useCreditsFilters();
 
-  const STATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(([value, label]) => ({
-    value,
-    label,
-  }));
+  const STATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(
+    ([value, label]) => ({
+      value,
+      label,
+    }),
+  );
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -29,12 +36,12 @@ export function OrdinaryCreditsTableAction() {
           title="Buscar por cédula o nombre"
           searchKey="search"
           searchQuery={filters.search || ''}
-          setSearchQuery={(v) => setFilters({ search: v })}
-          setPage={(p) => setFilters({ page: p })}
+          setSearchQuery={(v: string) => setFilters({ search: v || '' })}
+          setPage={(p: number) => setFilters({ page: p })}
         />
 
         <Select
-          value={filters.status || ''}
+          value={filters.status || 'all'}
           onValueChange={(value) =>
             setFilters({ status: value === 'all' ? '' : value })
           }
@@ -53,11 +60,9 @@ export function OrdinaryCreditsTableAction() {
         </Select>
       </div>
 
-      <Link to="/dashboard/caja-ahorro/creditos/nuevo">
-        <Button size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Nuevo Crédito
-        </Button>
-      </Link>
+      <Button size="sm" onClick={onNewCredit}>
+        <Plus className="mr-2 h-4 w-4" /> Nuevo Crédito
+      </Button>
     </div>
   );
 }

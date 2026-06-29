@@ -11,27 +11,30 @@ export const associatesSchema = z.object({
   birthdate: z.string(),
   dateAdmission: z.string(),
   dateGraduation: z.string().optional().nullable(),
-  discountFrequencyId: z.number(),
+  discountFrequencyId: z.string().uuid().nullable().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']),
   isPayrollCredit: z.boolean(),
-  localityId: z.number(),
-  phone: z.string(),
-  email: z.string(),
-  payrollTypeId: z.number().optional(),
-  associatedTypeId: z.number().optional(),
+  localityId: z.number().nullable(),
+  phone: z.string().nullable(),
+  email: z.string().nullable(),
+  payrollTypeId: z.string().uuid().nullable().optional(),
+  associatedTypeId: z.string().uuid().nullable().optional(),
   jobTitle: z.string().nullable().optional(),
   baseSalary: z.string().optional(),
   accountNumber: z.string(),
   currencyCode: z.string().optional(),
   balance: z.string().optional(),
   openingDate: z.string().optional(),
-  bankDirectoryId: z.number(),
+  bankDirectoryId: z.string().uuid().nullable().optional(),
 });
+
+// Helper: trata '' o undefined como null para campos opcionales
+const emptyToNull = (val: unknown) =>
+  val === '' || val === undefined ? null : val;
 
 //schema Request for api
 export const AssociateMutationSchema = z.object({
   id: z.string().uuid().optional(),
-  tenantId: z.string().uuid().optional(),
   cedula: z
     .string()
     .min(7, 'No puede tener menos de 7 digítos')
@@ -51,9 +54,7 @@ export const AssociateMutationSchema = z.object({
   birthdate: z.date({ message: 'Fecha de nacimiento inválida' }),
   dateAdmission: z.date({ message: 'Fecha inválida' }),
   dateGraduation: z.date({ message: 'Fecha inválida' }).optional().nullable(),
-  discountFrequencyId: z.string().uuid({
-    message: 'La frecuencia de descuento es requerida',
-  }),
+  discountFrequencyId: z.string().uuid().optional().nullable(),
   status: z.enum([
     'ACTIVE',
     'INACTIVE',
@@ -64,27 +65,25 @@ export const AssociateMutationSchema = z.object({
     'ARCHIVED',
   ]),
   isPayrollCredit: z.boolean(),
-  localityId: z.number({ message: 'El Estado es requerido' }).nullable(),
-  phone: z
-    .string()
-    .regex(/^[0-9]+$/, 'El teléfono solo puede contener números')
-    .min(10, 'El teléfono no puede tener menos de 10 dígitos')
-    .max(11, 'El teléfono no puede tener más de 11 dígitos')
-    .nullable(),
-
-  email: z.string().email('El correo electrónico no es válido').nullable(),
-  payrollTypeId: z
-    .string()
-    .uuid({
-      message: 'La frecuencia de descuento es requerida',
-    })
-    .optional(),
-  associatedTypeId: z
-    .string()
-    .uuid({
-      message: 'La frecuencia de descuento es requerida',
-    })
-    .optional(),
+  localityId: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null ? null : Number(val)),
+    z.number({ message: 'El Estado es requerido' }).nullable(),
+  ),
+  phone: z.preprocess(
+    emptyToNull,
+    z
+      .string()
+      .regex(/^[0-9]+$/, 'El teléfono solo puede contener números')
+      .min(10, 'El teléfono no puede tener menos de 10 dígitos')
+      .max(11, 'El teléfono no puede tener más de 11 dígitos')
+      .nullable(),
+  ),
+  email: z.preprocess(
+    emptyToNull,
+    z.string().email('El correo electrónico no es válido').nullable(),
+  ),
+  payrollTypeId: z.string().uuid().optional(),
+  associatedTypeId: z.string().uuid().optional(),
   jobTitle: z.string().optional(),
   baseSalary: z
     .string()
@@ -101,7 +100,7 @@ export const AssociateMutationSchema = z.object({
   balance: z.string().optional(),
   openingDate: z.string().optional(),
   bankDirectoryId: z.string().uuid({
-    message: 'La frecuencia de descuento es requerida',
+    message: 'El banco es requerido',
   }),
 });
 

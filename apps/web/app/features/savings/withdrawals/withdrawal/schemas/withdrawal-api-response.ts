@@ -1,12 +1,15 @@
 import { z } from 'zod';
 
 export const withdrawalApiSchema = z.object({
-  id: z.number().optional(),
+  id: z.string(),
   customReference: z.string(),
-  withdrawalTypeId: z.number(),
+  withdrawalTypeId: z.string(),
   withdrawalType: z.string(),
   withdrawalDate: z.string(),
   requestedAmount: z.string(),
+  disbursedAmount: z.string().nullable().optional(),
+  administrativeFee: z.string().nullable().optional(),
+  paymentMethod: z.string().nullable().optional(),
   associateCedula: z.string(),
   associateFullname: z.string(),
   status: z.string(),
@@ -21,14 +24,11 @@ export const withdrawalApiResponseSchema = z.object({
   data: z.array(withdrawalApiSchema),
   meta: z
     .object({
-      page: z.number(),
-      limit: z.number(),
-      totalCount: z.number(),
+      totalItems: z.number(),
+      itemCount: z.number(),
+      itemsPerPage: z.number(),
       totalPages: z.number(),
-      hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
-      nextPage: z.number().nullable(),
-      previousPage: z.number().nullable(),
+      currentPage: z.number(),
     })
     .optional(),
 });
@@ -38,7 +38,7 @@ export const withdrawalMutationSchema = z.object({
 });
 
 export const withdrawalTypeApiSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   description: z.string(),
   withdrawalPercentage: z.string(),
   administrativeFeePercentage: z.string(),
@@ -46,11 +46,21 @@ export const withdrawalTypeApiSchema = z.object({
   minimumAntiquityDays: z.number().nullable(),
   isHouseComercial: z.boolean(),
   isInternalInventory: z.boolean(),
+  accountDebit: z.string().nullable().optional(),
+  expenseAccount: z.string().nullable().optional(),
 });
 
 export type WithdrawalType = z.infer<typeof withdrawalTypeApiSchema>;
 
 export const withdrawalTypeApiResponseSchema = z.object({
-  message: z.string(),
   data: z.array(withdrawalTypeApiSchema),
+  meta: z
+    .object({
+      totalItems: z.number(),
+      itemCount: z.number(),
+      itemsPerPage: z.number(),
+      totalPages: z.number(),
+      currentPage: z.number(),
+    })
+    .optional(),
 });

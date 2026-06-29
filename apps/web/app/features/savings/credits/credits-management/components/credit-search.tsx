@@ -1,267 +1,187 @@
 'use client';
 
-import { IconWrapper } from '@/components/icon-wrapper';
-import { useToastSystem } from '@/hooks/use-toast-system';
+import { useState, useCallback } from 'react';
+import { Search, User, X, Wallet, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@repo/shadcn/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { Input } from '@repo/shadcn/input';
-import { Separator } from '@repo/shadcn/separator';
-import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search, User, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { useAssociatesByCedula } from '../hooks/use-credits-management-query';
-import { type AssociatesLoan } from '../schemas/individual-credit-api-schema';
+import { useSearchAssociate } from '../hooks/use-credits-management-query';
+import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
 
 interface CreditSearchProps {
-  onSelectAssociate: (associate: AssociatesLoan | null) => void;
-  selectedAssociate: AssociatesLoan | null;
-  currentCurrencyCode: string | undefined;
-  currentExchangeRate: number | undefined;
-  isEdit?: boolean;
+  onSelectAssociate: (associate: SearchAssociateResult | null) => void;
+  selectedAssociate: SearchAssociateResult | null;
+}
+
+function formatCurrency(n: number) {
+  return n?.toLocaleString('es', { minimumFractionDigits: 2 }) ?? '0,00';
 }
 
 export function CreditSearch({
   onSelectAssociate,
   selectedAssociate,
-  currentCurrencyCode,
-  currentExchangeRate,
-  isEdit = false,
 }: CreditSearchProps) {
-  const toast = useToastSystem();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [submittedSearchTerm, setSubmittedSearchTerm] = useState('');
+  const [cedula, setCedula] = useState('');
   const [shouldFetch, setShouldFetch] = useState(false);
-  const queryClient = useQueryClient();
 
-  const { data, error, isError, isLoading } = useAssociatesByCedula(
-    submittedSearchTerm,
-    {
-      enabled: shouldFetch && !!submittedSearchTerm.trim(),
-    },
+  const { data, isLoading, isError } = useSearchAssociate(
+    shouldFetch ? cedula : '',
+    { enabled: shouldFetch && cedula.length >= 7 },
   );
 
-  useEffect(() => {
-    if (!shouldFetch && !submittedSearchTerm) return;
-    if (isLoading) return;
-
-    if (shouldFetch) {
-      setShouldFetch(false);
-
-      if (isError) {
-        onSelectAssociate(null);
-        const errorMessage = (error as any)?.message || 'Error desconocido';
-        const status = (error as any)?.response?.status;
-
-        if (errorMessage.includes('not found') || status === 404) {
-          toast.info({
-            title: 'Asociado no encontrado',
-            description: `No se encontró un asociado con la cédula ${submittedSearchTerm}.`,
-          });
-        } else {
-          toast.error({
-            title: 'Error realizando la búsqueda',
-            description: 'Contáctese con el administrador del sistema.',
-          });
-        }
-      } else if (data) {
-        onSelectAssociate(data as AssociatesLoan);
-      } else if (submittedSearchTerm && !data) {
-        onSelectAssociate(null);
-        toast.info({
-          title: 'Información no disponible',
-          description: `No se encontró información para la cédula ${submittedSearchTerm}.`,
-        });
-      }
+  const handleSearch = () => {
+    if (cedula.length >= 7) {
+      setShouldFetch(true);
     }
-  }, [data, error, isError, isLoading, onSelectAssociate, submittedSearchTerm, shouldFetch]);
+  };
 
-  const handleSearch = useCallback(() => {
-    const trimmedSearchTerm = searchTerm.trim();
-    if (!trimmedSearchTerm) {
-      toast.warning({
-        title: 'Campo vacío',
-        description: 'Por favor, ingrese una cédula para buscar.',
-      });
-      return;
-    }
-
-    queryClient.removeQueries({
-      queryKey: ['creditManagements', 'byCedula'],
-      exact: false,
-    });
-
-    onSelectAssociate(null);
-    setSubmittedSearchTerm(trimmedSearchTerm);
-    setShouldFetch(true);
-  }, [searchTerm, queryClient, onSelectAssociate]);
-
-  const clearAssociate = useCallback(() => {
-    onSelectAssociate(null);
-    setSearchTerm('');
-    setSubmittedSearchTerm('');
+  const handleClear = () => {
+    setCedula('');
     setShouldFetch(false);
-    queryClient.removeQueries({
-      queryKey: ['creditManagements', 'byCedula'],
-      exact: false,
-    });
-  }, [queryClient, onSelectAssociate]);
-
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (
-        e.key === 'Enter' &&
-        document.activeElement === document.getElementById('associate-search')
-      ) {
-        handleSearch();
-      }
-    };
-    window.addEventListener('keypress', handleKeyPress);
-    return () => window.removeEventListener('keypress', handleKeyPress);
-  }, [handleSearch]);
-
-  const formatBalance = () => {
-    if (
-      selectedAssociate?.associate?.balance !== undefined &&
-      currentCurrencyCode
-    ) {
-      if (currentCurrencyCode === 'USD' && currentExchangeRate) {
-        const balance = Number(selectedAssociate.associate.balance);
-        const exchangeRate = Number(currentExchangeRate);
-        const convertedBalance = balance / exchangeRate;
-        return convertedBalance.toFixed(2);
-      }
-      return selectedAssociate.associate.balance;
-    }
-    return '';
+    onSelectAssociate(null);
   };
 
   const hasBlocks =
-    selectedAssociate?.totalCredits !== 0 ||
-    selectedAssociate?.totalLoans !== 0 ||
-    selectedAssociate?.associate?.isPayrollCredit === true;
+    selectedAssociate?.hasActiveLoan ||
+    selectedAssociate?.hasActiveCredit ||
+    selectedAssociate?.hasPayrollCredit;
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <IconWrapper className="w-8 h-8">
-            <User />
-          </IconWrapper>
-          {isEdit ? 'Datos del Asociado' : 'Selección de Asociado'}
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Search className="h-5 w-5" />
+          Buscar Asociado
         </CardTitle>
-        <CardDescription>
-          {!isEdit && 'Busque y seleccione el asociado para el crédito'}
-        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {!isEdit && (
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Input
-                  id="associate-search"
-                  placeholder="Buscar por cédula..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
-              <Button
-                onClick={handleSearch}
-                disabled={!searchTerm.trim() || isLoading}
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Input
+              placeholder="Cédula del asociado"
+              value={cedula}
+              onChange={(e) => {
+                setCedula(e.target.value.replace(/\D/g, '').slice(0, 8));
+                setShouldFetch(false);
+              }}
+              maxLength={8}
+              className="pr-8"
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            {cedula && (
+              <button
+                onClick={handleClear}
+                className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
               >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Search className="h-4 w-4" />
-                )}
-                <span className="ml-2">Buscar</span>
-              </Button>
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            onClick={handleSearch}
+            disabled={cedula.length < 7 || isLoading}
+            size="sm"
+          >
+            <Search className="h-4 w-4 mr-1" />
+            Buscar
+          </Button>
+        </div>
+
+        {isLoading && (
+          <p className="text-sm text-muted-foreground">Buscando asociado...</p>
+        )}
+
+        {isError && !data && (
+          <p className="text-sm text-destructive">
+            Asociado no encontrado o inactivo
+          </p>
+        )}
+
+        {selectedAssociate && (
+          <div
+            className={`rounded-lg border p-4 space-y-3 ${hasBlocks ? 'border-destructive/30 bg-destructive/5' : 'border-emerald-500/30 bg-emerald-50'}`}
+          >
+            <div className="flex items-center gap-2">
+              <User
+                className={`h-5 w-5 ${hasBlocks ? 'text-destructive' : 'text-emerald-600'}`}
+              />
+              <span className="font-semibold">DATOS DEL ASOCIADO</span>
             </div>
-          )}
 
-          {isLoading && !selectedAssociate && (
-            <div className="rounded-lg border border-dashed p-8 text-center mt-4">
-              <div className="flex flex-col items-center justify-center text-muted-foreground">
-                <Loader2 className="h-8 w-8 mb-2 animate-spin" />
-                <p>Buscando asociado...</p>
-              </div>
-            </div>
-          )}
-
-          {!isLoading && selectedAssociate && (
-            <div className="rounded-lg border p-4 mt-4">
-              <div className="flex justify-between items-start">
-                <div className="flex flex-col items-start">
-                  <h3 className="font-medium text-lg">
-                    {selectedAssociate.associate.fullname}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedAssociate.associate.cedula}
-                  </p>
-                  <div className="mt-2">
-                    Cuenta: {selectedAssociate.associate.accountNumber}
-                  </div>
-                </div>
-                {!isEdit && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={clearAssociate}
-                    disabled={isLoading}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              <Separator className="my-3" />
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Saldo Actual:</span>
-                <span className="font-bold text-lg text-green-600">
-                  {formatBalance()} {currentCurrencyCode}
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <span className="text-muted-foreground">Nombre:</span>{' '}
+                <span className="font-medium">
+                  {selectedAssociate.associate.fullname}
                 </span>
               </div>
-              {hasBlocks && (
-                <div className="flex items-center justify-center mt-4">
-                  <Badge className="text-white text-lg bg-red-500 hover:bg-red-600">
-                    Bloqueado{' '}
-                    {selectedAssociate?.associate?.isPayrollCredit
-                      ? 'posee un credinomina activo'
-                      : selectedAssociate?.totalLoans
-                        ? 'posee un prestamo sin cancelar'
-                        : 'posee un crédito sin cancelar'}
-                  </Badge>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!isLoading && !selectedAssociate && (
-            <div className="rounded-lg border border-dashed p-8 text-center mt-4">
-              <div className="flex flex-col items-center justify-center text-muted-foreground">
-                <User className="h-8 w-8 mb-2" />
-                <p>
-                  {submittedSearchTerm
-                    ? 'No se encontró el asociado o no hay datos.'
-                    : 'Ningún asociado seleccionado'}
-                </p>
-                {!submittedSearchTerm && (
-                  <p className="text-sm">
-                    Busque y seleccione un asociado para continuar
-                  </p>
-                )}
+              <div>
+                <span className="text-muted-foreground">Cédula:</span>{' '}
+                <span className="font-mono">
+                  {selectedAssociate.associate.cedula}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Nro. Cuenta:</span>{' '}
+                <span className="font-mono">
+                  {selectedAssociate.account?.accountNumber || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Saldo Total:</span>{' '}
+                <span className="font-mono font-semibold text-blue-600">
+                  {formatCurrency(selectedAssociate.balance)} Bs
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Salario Base:</span>{' '}
+                <span className="font-mono">
+                  {formatCurrency(selectedAssociate.baseSalary)} Bs
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Capac. Pago (30%):</span>{' '}
+                <span className="font-mono font-semibold text-emerald-600">
+                  {formatCurrency(selectedAssociate.paymentCapacity)} Bs/mes
+                </span>
               </div>
             </div>
-          )}
-        </div>
+
+            <div className="rounded-lg bg-blue-50 p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-blue-600" />
+                <span className="text-sm font-medium">80% Disponible:</span>
+              </div>
+              <span className="text-lg font-bold text-blue-600 font-mono">
+                {formatCurrency(selectedAssociate.available80)} Bs
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {selectedAssociate.hasActiveLoan && (
+                <Badge variant="destructive" className="gap-1">
+                  <XCircle className="h-3 w-3" /> Préstamo Activo
+                </Badge>
+              )}
+              {selectedAssociate.hasActiveCredit && (
+                <Badge variant="destructive" className="gap-1">
+                  <XCircle className="h-3 w-3" /> Crédito Activo
+                </Badge>
+              )}
+              {selectedAssociate.hasPayrollCredit && (
+                <Badge variant="destructive" className="gap-1">
+                  <XCircle className="h-3 w-3" /> Credinomina Activo
+                </Badge>
+              )}
+              {!hasBlocks && (
+                <Badge variant="default" className="bg-emerald-600 gap-1">
+                  <CheckCircle2 className="h-3 w-3" /> Sin bloqueos
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

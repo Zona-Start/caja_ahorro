@@ -1,54 +1,43 @@
 import { useSearchParams } from 'react-router';
+import { z } from 'zod';
+
+export const withdrawalFilterSchema = z.object({
+  page: z.coerce.number().default(1),
+  limit: z.coerce.number().default(10),
+  search: z.string().optional(),
+  type: z.string().optional(),
+  status: z.string().optional(),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+});
+
+export type WithdrawalFilters = z.infer<typeof withdrawalFilterSchema>;
 
 export function useWithdrawalFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const page = Number(searchParams.get('page')) || 1;
-  const limit = Number(searchParams.get('limit')) || 10;
-  const search = searchParams.get('search');
-  const type = searchParams.get('type');
-  const status = searchParams.get('status');
+  const filters = withdrawalFilterSchema.parse(
+    Object.fromEntries(searchParams.entries()),
+  );
 
-  const setFilters = (newFilters: {
-    page?: number;
-    limit?: number;
-    search?: string | null;
-    type?: string | null;
-    status?: string | null;
-  }) => {
-    setSearchParams((prev) => {
-      if (newFilters.page !== undefined) prev.set('page', newFilters.page.toString());
-      if (newFilters.limit !== undefined) prev.set('limit', newFilters.limit.toString());
-      if (newFilters.search !== undefined) {
-        if (newFilters.search === null || newFilters.search === '') {
-          prev.delete('search');
-        } else {
-          prev.set('search', newFilters.search);
-        }
-        prev.set('page', '1');
+  const setFilters = (newFilters: Partial<WithdrawalFilters>) => {
+    const params = new URLSearchParams(searchParams);
+    Object.entries(newFilters).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        params.set(k, String(v));
+      } else {
+        params.delete(k);
       }
-      if (newFilters.type !== undefined) {
-        if (newFilters.type === null || newFilters.type === '') {
-          prev.delete('type');
-        } else {
-          prev.set('type', newFilters.type);
-        }
-        prev.set('page', '1');
-      }
-      if (newFilters.status !== undefined) {
-        if (newFilters.status === null || newFilters.status === '') {
-          prev.delete('status');
-        } else {
-          prev.set('status', newFilters.status);
-        }
-        prev.set('page', '1');
-      }
-      return prev;
     });
+    if (!('page' in newFilters)) {
+      params.set('page', '1');
+    }
+    setSearchParams(params, { preventScrollReset: true });
   };
 
-  return {
-    filters: { page, limit, search, type, status },
-    setFilters,
+  const clearFilters = () => {
+    setSearchParams(new URLSearchParams(), { preventScrollReset: true });
   };
+
+  return { filters, setFilters, clearFilters };
 }

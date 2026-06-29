@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 
 export const FilterBankAccountSchema = z.object({
   tenantId: z.string().uuid().optional(),
@@ -6,13 +6,13 @@ export const FilterBankAccountSchema = z.object({
   limit: z.coerce.number().int().positive().optional().default(10),
   search: z.string().optional(),
   sortBy: z
-    .enum(['id', 'accountNumber', 'accountName'])
+    .enum(['accountNumber', 'accountName', 'accountType', 'currencyCode', 'openingDate', 'createdAt'])
     .optional()
-    .default('id'),
+    .default('accountNumber'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
   status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  accountType: z.enum(['BANK', 'CASH']).optional(),
-  currencyCode: z.enum(['USD', 'EUR', 'MXN']).optional(),
+  accountType: z.enum(['CHECKING', 'SAVINGS', 'CREDIT']).optional(),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
 });
 
 export type FilterBankAccountDto = z.infer<typeof FilterBankAccountSchema>;

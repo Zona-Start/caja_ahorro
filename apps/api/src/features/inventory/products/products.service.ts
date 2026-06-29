@@ -1,7 +1,7 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { products } from '@/database/schema/tables/inventory';
+import { products, productServiceSuppliers } from '@/database/schema/tables/inventory';
 import { tenantSettings } from '@/database/schema/tables';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { ProductPricesService } from '@/features/inventory/product-prices/product-prices.service';
@@ -77,7 +77,7 @@ export class ProductsService {
           tenantId,
           categoryId: dto.categoryId,
           internalCode: code,
-          sku: dto.sku ?? code,
+          sku: dto.sku?.trim() || code,
           name: dto.name,
           description: dto.description ?? null,
           brand: dto.brand ?? null,
@@ -95,9 +95,6 @@ export class ProductsService {
           name: products.name,
           status: products.status,
         });
-
-
-
 
       if (dto.supplierCost !== 0 || (dto.currencyCode && dto.currencyCode !== 'VES') || (dto.salePrice ?? 0) > 0) {
         const priceBase = {
@@ -126,14 +123,28 @@ export class ProductsService {
 
         if ((dto.profitSupply ?? 0) > 0 || (dto.offerSalePrice ?? 0) > 0) {
           const offerBase: Record<string, unknown> = dto.offerSalePrice
-            ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice }
-            : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0 };
+            ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice, salePrice: undefined, bsPriceAmount: undefined }
+            : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0, salePrice: undefined, bsPriceAmount: undefined };
           await this.productPricesService.create(
             { ...offerBase, startDate: dto.offerStartDate, endDate: dto.offerEndDate } as any,
             userId,
             tenantId,
             tx
           );
+        }
+      }
+
+      if (dto.suppliers && dto.suppliers.length > 0) {
+        for (const s of dto.suppliers) {
+          await tx
+            .insert(productServiceSuppliers)
+            .values({
+              tenantId,
+              productId: result.id,
+              suppliersId: s.suppliersId,
+              leadTimeDays: s.leadTimeDays ?? 0,
+            })
+            .onConflictDoNothing();
         }
       }
 
@@ -321,6 +332,7 @@ export class ProductsService {
     return this.db
       .select({
         id: products.id,
+        internalCode: products.internalCode,
         name: products.name,
       })
       .from(products)
@@ -346,6 +358,8 @@ export class ProductsService {
     const [dataProduct] = await this.db
       .select({
         id: products.id,
+        tenantId: products.tenantId,
+        internalCode: products.internalCode,
         categoryId: products.categoryId,
         categoryName: schema.inventoriesCategories.name,
         sku: products.sku,
@@ -388,6 +402,7 @@ export class ProductsService {
         profitPercent: schema.productPrices.profitPercent,
         salesTaxPercent: schema.productPrices.salesTaxPercent,
         salePrice: schema.productPrices.salePrice,
+        offerSalePrice: schema.productPrices.offerSalePrice,
         bsPriceAmount: schema.productPrices.bsPriceAmount,
         finalPriceNet: schema.productPrices.finalPriceNet,
         finalPriceGross: schema.productPrices.finalPriceGross,
@@ -447,63 +462,87 @@ export class ProductsService {
     if (dto.unitOfMeasure !== undefined)
       updateData.unitOfMeasure = dto.unitOfMeasure;
     if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.sku !== undefined) updateData.sku = dto.sku;
+    if (dto.sku !== undefined && dto.sku.trim()) updateData.sku = dto.sku.trim();
 
-    const whereConditions = [eq(products.id, id)];
-    if (tenantId) {
-      whereConditions.push(eq(products.tenantId, tenantId));
-    }
+    const result = await this.db.transaction(async (tx) => {
+      const whereConditions = [eq(products.id, id)];
+      if (tenantId) {
+        whereConditions.push(eq(products.tenantId, tenantId));
+      }
 
-    const [result] = await this.db
-      .update(products)
-      .set(updateData)
-      .where(and(...whereConditions))
-      .returning({
-        id: products.id,
-        sku: products.sku,
-        name: products.name,
-        status: products.status,
-      });
+      const [updated] = await tx
+        .update(products)
+        .set(updateData)
+        .where(and(...whereConditions))
+        .returning({
+          id: products.id,
+          sku: products.sku,
+          name: products.name,
+          status: products.status,
+        });
 
-    if (!result) {
-      throw new NotFoundException('Product not found after update');
-    }
+      if (!updated) {
+        throw new NotFoundException('Product not found after update');
+      }
 
-    if ((dto.supplierCost ?? 0) > 0 || (dto.currencyCode && dto.currencyCode !== 'VES') || (dto.salePrice ?? 0) > 0) {
-      const priceBase = {
-        productId: id,
-        currencyCode: dto.currencyCode ?? 'VES',
-        purchaseExchangeRate: dto.purchaseExchangeRate ?? 1,
-        salesExchangeRate: dto.salesExchangeRate ?? 1,
-        baseCost: dto.supplierCost ?? 0,
-        otherCosts: dto.otherCosts ?? 0,
-        purchaseTaxPercent: dto.purchaseTaxPercent ?? 16,
-        profitPercent: dto.profitSale ?? 0,
-        expensePercent: dto.expensePercent ?? 0,
-        salesTaxPercent: dto.salesTaxPercent ?? 16,
-        salePrice: dto.salePrice,
-        offerSalePrice: dto.offerSalePrice,
-        bsPriceAmount: dto.bsPriceAmount,
-        isActive: true,
-      };
+      if (dto.supplierCost !== 0 || (dto.currencyCode && dto.currencyCode !== 'VES') || (dto.salePrice ?? 0) > 0) {
+        const priceBase = {
+          productId: id,
+          currencyCode: dto.currencyCode ?? 'VES',
+          purchaseExchangeRate: dto.purchaseExchangeRate ?? 1,
+          salesExchangeRate: dto.salesExchangeRate ?? 1,
+          baseCost: dto.supplierCost ?? 0,
+          otherCosts: dto.otherCosts ?? 0,
+          purchaseTaxPercent: dto.purchaseTaxPercent ?? 16,
+          profitPercent: dto.profitSale ?? 0,
+          expensePercent: dto.expensePercent ?? 0,
+          salesTaxPercent: dto.salesTaxPercent ?? 16,
+          salePrice: dto.salePrice,
+          offerSalePrice: dto.offerSalePrice,
+          bsPriceAmount: dto.bsPriceAmount,
+          isActive: true,
+        };
 
-      await this.productPricesService.create(
-        { ...priceBase, priceType: 'SELLING' },
-        userId,
-        existingProduct.tenantId,
-      );
-
-      if ((dto.profitSupply ?? 0) > 0 || (dto.offerSalePrice ?? 0) > 0) {
-        const offerBase: Record<string, unknown> = dto.offerSalePrice
-          ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice }
-          : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0 };
         await this.productPricesService.create(
-          { ...offerBase, startDate: dto.offerStartDate, endDate: dto.offerEndDate } as any,
+          { ...priceBase, priceType: 'SELLING' },
           userId,
           existingProduct.tenantId,
+          tx,
         );
+
+        if ((dto.profitSupply ?? 0) > 0 || (dto.offerSalePrice ?? 0) > 0) {
+          const offerBase: Record<string, unknown> = dto.offerSalePrice
+            ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice, salePrice: undefined, bsPriceAmount: undefined }
+            : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0, salePrice: undefined, bsPriceAmount: undefined };
+          await this.productPricesService.create(
+            { ...offerBase, startDate: dto.offerStartDate, endDate: dto.offerEndDate } as any,
+            userId,
+            existingProduct.tenantId,
+            tx,
+          );
+        }
       }
-    }
+
+      if (dto.suppliers !== undefined) {
+        await tx
+          .delete(productServiceSuppliers)
+          .where(eq(productServiceSuppliers.productId, id));
+
+        for (const s of dto.suppliers) {
+          await tx
+            .insert(productServiceSuppliers)
+            .values({
+              tenantId: existingProduct.tenantId,
+              productId: id,
+              suppliersId: s.suppliersId,
+              leadTimeDays: s.leadTimeDays ?? 0,
+            })
+            .onConflictDoNothing();
+        }
+      }
+
+      return updated;
+    });
 
     await this.auditHelper.logUpdate(
       userId,

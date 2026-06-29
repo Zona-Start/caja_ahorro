@@ -1,4 +1,3 @@
-import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
@@ -25,6 +24,7 @@ import {
   BulkIndividualLoadDto,
   CreateIndividualLoadDto,
 } from './dto/individual-load.zod.dto';
+import { ContributionBatchesService } from '../contribution-batches/contribution-batches.service';
 
 @Injectable()
 export class IndividualLoadService {
@@ -32,7 +32,7 @@ export class IndividualLoadService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly associateMovementsService: AssociateAccountsMovementsService,
     private readonly bankMovementsService: BankMovementsService,
-    private readonly accountingEntriesService: AccountingEntriesService,
+    private readonly contributionBatchesService: ContributionBatchesService,
     private readonly eventEmitter: EventEmitter2,
   ) { }
 
@@ -57,8 +57,6 @@ export class IndividualLoadService {
       const isEmployerContribution =
         dto.movementType === 'EMPLOYER_CONTRIBUTION';
       const results: any[] = [];
-
-      let referenceValue: string | undefined = undefined;
 
       if (isEmployerContribution) {
         const patronalPayload = {
@@ -94,8 +92,6 @@ export class IndividualLoadService {
           tx,
         );
         results.push(resultPatronal.data, resultAsociado.data);
-
-        referenceValue = 'Aporte Empleados';
       } else {
         const payload = {
           associateAccountId: dto.associateAccountId,
@@ -114,17 +110,18 @@ export class IndividualLoadService {
           tx,
         );
         results.push(result.data);
-        referenceValue = 'Aporte Voluntario';
       }
 
       const totalAmount = isEmployerContribution
         ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
         : (dto.amount ?? 0);
 
-      const mainMovementId = results[0].referenceNumber;
+      const mainMovementId = results[0].internalCode;
 
       const hasBankingDetails =
         dto.bankAccountId && dto.paymentMethod && dto.referenceNumber;
+
+      let bankTransactionId: string | undefined;
 
       if (hasBankingDetails) {
         const dataBank = {
@@ -154,112 +151,80 @@ export class IndividualLoadService {
           tx,
         );
 
-        console.log('llegue aqui');
-
+        bankTransactionId = bankResult.movement.id.toString();
 
         for (const m of results) {
           await tx
             .update(schema.associateAccountMovements)
             .set({
-              referenceId: bankResult.movement.id.toString(),
+              referenceId: bankTransactionId,
               referenceType: 'BANK_TRANSACTION',
             })
             .where(eq(schema.associateAccountMovements.id, m.id));
         }
       }
 
-      try {
-        await this.accountingEntriesService.createAutomaticEntry(
-          tenantId,
-          userId,
-          {
-            module: 'savings',
-            submodule: 'individual_load',
-            category: 'SAVINGS_BANK',
-            operationType: isEmployerContribution
-              ? 'PAYROLL_CONCEPT'
-              : 'SAVINGS_UPLOAD',
-            description:
-              dto.description ||
-              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
-            entryDate: dto.transactionDate ?? new Date(),
-            referenceValue,
-            currencyCode: 'VES' as CurrencyCodeEnum,
-            originReferenceId: mainMovementId.toString(),
-            originType: 'SAVINGS_LOAD',
-            roleAliases: isEmployerContribution
-              ? {
-                SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-                EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
-              }
-              : {
-                BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
-              },
-            items: [
-              {
-                associateId: account.associates.id,
-                amounts: isEmployerContribution
-                  ? {
-                    ASSOCIATED_SAVINGS: dto.associateAmount ?? 0,
-                    EMPLOYER_CONTRIBUTION: dto.employerAmount ?? 0,
-                  }
-                  : {
-                    VOLUNTARY_SAVINGS: dto.amount ?? 0,
-                  },
-                descriptions: isEmployerContribution
-                  ? {
-                    ASSOCIATED_SAVINGS: `AHORRO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                    EMPLOYER_CONTRIBUTION: `APORTE DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                  }
-                  : {
-                    VOLUNTARY_SAVINGS: `AHORRO VOLUNTARIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                  },
-              },
-            ],
-            globalDescriptions: isEmployerContribution
-              ? {
-                ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-                EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-              }
-              : {
-                VOLUNTARY_SAVINGS: `APORTES VOLUNTARIOS DEL ${(dto.transactionDate ?? new Date()).toISOString().split('T')[0]}`,
-              },
-          },
-          tx,
-        );
-      } catch (error) {
-        if (
-          error instanceof BadRequestException &&
-          error.message.includes('No existe una regla contable')
-        ) {
-          throw new BadRequestException(
-            `El sistema está configurado para asientos automáticos, pero no existe una regla contable creada para procesar estos asientos. Por favor, contacte al administrador.`,
-          );
+      const bankDataForBatch = hasBankingDetails
+        ? {
+          bankAccountId: dto.bankAccountId,
+          paymentMethod: dto.paymentMethod,
+          referenceNumber: dto.referenceNumber,
         }
-        throw error;
-      }
+        : undefined;
 
-      this.eventEmitter.emit(
-        'audit.log',
-        new AuditLogEvent({
-          tableName: 'associate_account_movements',
-          recordId: mainMovementId.toString(),
-          action: 'INSERT',
-          userId,
-          area: 'savings_banks',
-          description: `Carga de haberes por ${totalAmount} Bs para asociado ${account.associates.fullname}`,
-          newData: {
-            associateId: account.associates.id,
-            amount: totalAmount,
-            type: dto.movementType,
-          },
-        }),
+      await this.contributionBatchesService.generateAndCreateBatch(
+        tx,
+        tenantId,
+        userId,
+        {
+          type: 'individual',
+          movementType: isEmployerContribution
+            ? 'contribution_patronal'
+            : 'contribution_voluntary',
+          entryDate: dto.transactionDate ?? new Date(),
+          associateId: account.associates.id,
+          description:
+            dto.description ||
+            `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
+          amountVoluntario: isEmployerContribution
+            ? undefined
+            : dto.amount,
+          amountPatrono: isEmployerContribution
+            ? dto.employerAmount
+            : undefined,
+          amountAsociado: isEmployerContribution
+            ? dto.associateAmount
+            : undefined,
+          totalAmount,
+          associateCount: 1,
+          bankTransactionId,
+          bankData: bankDataForBatch,
+        },
+        {
+          movementType: isEmployerContribution
+            ? 'contribution_patronal'
+            : 'contribution_voluntary',
+          entryDate: dto.transactionDate ?? new Date(),
+          description:
+            dto.description ||
+            `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
+          associateId: account.associates.id,
+          totalAmount,
+          amountVoluntario: isEmployerContribution ? undefined : dto.amount,
+          amountPatrono: isEmployerContribution
+            ? dto.employerAmount
+            : undefined,
+          amountAsociado: isEmployerContribution
+            ? dto.associateAmount
+            : undefined,
+        },
+        [{ associateId: account.associates.id, amount: totalAmount }],
       );
 
       return {
         message:
           'Carga individual procesada exitosamente con su registro contable.',
-        movementId: mainMovementId,
+        movementId: mainMovementId.toString(),
       };
     });
   }
@@ -365,11 +330,6 @@ export class IndividualLoadService {
         amounts: { ASSOCIATED_SAVINGS: number; EMPLOYER_CONTRIBUTION?: number };
         descriptions?: Record<string, string>;
       }> = [];
-
-      const referenceValueLookup =
-        typeCell === 'APORTE EMPLEADOS'
-          ? 'Aporte Empleados'
-          : 'Descuentos Caja';
 
       for (const row of rows) {
         const [associate] = await tx
@@ -511,67 +471,66 @@ export class IndividualLoadService {
           }
         }
 
-        try {
-          await this.accountingEntriesService.createAutomaticEntry(
-            tenantId,
-            userId,
-            {
-              module: 'savings',
-              submodule: 'individual_load',
-              category: 'SAVINGS_BANK',
-              operationType: 'PAYROLL_CONCEPT',
-              description: `Carga masiva ${typeCell} - ${processedCount} asociados`,
-              entryDate: dto.transactionDate ?? new Date(),
-              referenceValue: referenceValueLookup,
-              currencyCode: 'VES' as CurrencyCodeEnum,
-              originReferenceId: bankResult.movement.id.toString(),
-              originType: 'SAVINGS_BULK_LOAD',
-              roleAliases:
-                typeCell === 'APORTE EMPLEADOS'
-                  ? {
-                    SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-                    EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
-                  }
-                  : {
-                    SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-                  },
+        const bulkBankTransactionId =
+          dto.bankAccountId && dto.paymentMethod && dto.referenceNumber
+            ? bankResult.movement.id.toString()
+            : undefined;
 
-              items: accountingItems,
-              globalDescriptions:
-                typeCell === 'APORTE EMPLEADOS'
-                  ? {
-                    ASSOCIATED_SAVINGS: `APORTES SOCIO DEL ${dateCell}`,
-                    EMPLOYER_CONTRIBUTION: `APORTE DEL PATRONO DEL ${dateCell}`,
-                  }
-                  : {
-                    ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateCell}`,
-                  },
-            },
-            tx,
-          );
-        } catch (error) {
-          if (
-            error instanceof BadRequestException &&
-            error.message.includes('No existe una regla contable')
-          ) {
-            throw new BadRequestException(
-              `El sistema está configurado para asientos automáticos, pero no existe una regla contable creada para procesar estos asientos. Por favor, contacte al administrador.`,
-            );
-          }
-          throw error;
-        }
+        const bulkBankData =
+          dto.bankAccountId && dto.paymentMethod && dto.referenceNumber
+            ? {
+              bankAccountId: dto.bankAccountId,
+              paymentMethod: dto.paymentMethod,
+              referenceNumber: dto.referenceNumber,
+            }
+            : undefined;
 
-        this.eventEmitter.emit(
-          'audit.log',
-          new AuditLogEvent({
-            tableName: 'associate_account_movements',
-            recordId: 'BULK_LOAD',
-            action: 'DATA_IMPORT',
-            userId,
-            area: 'savings_banks',
-            description: `Carga masiva de haberes procesada exitosamente.`,
-            newData: { processedCount, type: typeCell },
-          }),
+        const mouvementType: 'contribution_patronal' | 'contribution_voluntary' =
+          typeCell === 'APORTE EMPLEADOS'
+            ? 'contribution_patronal'
+            : 'contribution_voluntary';
+
+        await this.contributionBatchesService.generateAndCreateBatch(
+          tx,
+          tenantId,
+          userId,
+          {
+            type: 'massive',
+            movementType: mouvementType,
+            entryDate: dto.transactionDate ?? new Date(),
+            description:
+              dto.description ||
+              `Carga masiva ${typeCell} - ${processedCount} asociados`,
+            totalAmount: totalAmountProcessed,
+            associateCount: processedCount,
+            bankTransactionId: bulkBankTransactionId,
+            bankData: bulkBankData,
+          },
+          {
+            movementType: mouvementType,
+            entryDate: dto.transactionDate ?? new Date(),
+            description:
+              dto.description ||
+              `Carga masiva ${typeCell} - ${processedCount} asociados`,
+            totalAmount: totalAmountProcessed,
+            associateIds: accountingItems.map((item) => item.associateId),
+            amountVoluntario:
+              typeCell !== 'APORTE EMPLEADOS'
+                ? totalAmountProcessed
+                : undefined,
+            amountPatrono:
+              typeCell === 'APORTE EMPLEADOS'
+                ? totalAmountProcessed / 2
+                : undefined,
+            amountAsociado:
+              typeCell === 'APORTE EMPLEADOS'
+                ? totalAmountProcessed / 2
+                : undefined,
+          },
+          accountingItems.map((item) => ({
+            associateId: item.associateId,
+            amount: (item.amounts.ASSOCIATED_SAVINGS ?? 0) + (item.amounts.EMPLOYER_CONTRIBUTION ?? 0),
+          })),
         );
       } else {
         throw new BadRequestException(

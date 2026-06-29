@@ -7,6 +7,7 @@ import {
 } from '@repo/shadcn/dialog';
 import { type LoanTypeMutation } from '../schemas/loan-types.schema';
 import { LoanTypesForm } from './loan-types-form';
+import { LoanTypesViewModal } from './loan-types-view-modal';
 
 interface LoanTypesModalProps {
   open: boolean;
@@ -32,30 +33,34 @@ export function LoanTypesModal({
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
+  if (isViewMode) {
+    return (
+      <LoanTypesViewModal
+        open={open}
+        onOpenChange={onOpenChange}
+        loanType={defaultValues as any}
+      />
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles del Tipo de Préstamo'
-              : isEditMode
-                ? 'Editar Tipo de Préstamo'
-                : 'Crear Tipo de Préstamo'}
+            {isEditMode ? 'Editar Tipo de Préstamo' : 'Crear Tipo de Préstamo'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información del tipo de préstamo.'
-              : defaultValues?.id
-                ? 'Actualiza la información del tipo de préstamo.'
-                : 'Complete los campos para crear un nuevo tipo de préstamo.'}
+            {defaultValues?.id
+              ? 'Actualiza la información del tipo de préstamo.'
+              : 'Complete los campos para crear un nuevo tipo de préstamo.'}
           </DialogDescription>
         </DialogHeader>
         <LoanTypesForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={defaultValues}
-          disabled={isViewMode}
+          disabled={false}
         />
       </DialogContent>
     </Dialog>

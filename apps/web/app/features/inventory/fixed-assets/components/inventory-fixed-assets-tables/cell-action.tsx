@@ -11,7 +11,7 @@ import {
 import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { InventoryFixedAsset } from '../../schemas/inventory-fixed-assets.schema';
 import { useDeleteInventoryFixedAssetMutation } from '../../hooks/use-inventory-fixed-assets-mutations';
-import { InventoryFixedAssetModal } from '../inventory-fixed-assets-modal';
+import { useInventoryFixedAssetsModalStore } from '../../store/inventory-fixed-assets-modal.store';
 
 interface InventoryFixedAssetsCellActionProps {
   data: InventoryFixedAsset;
@@ -22,10 +22,9 @@ export function InventoryFixedAssetsCellAction({
 }: InventoryFixedAssetsCellActionProps) {
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
-  const [openView, setOpenView] = useState(false);
 
   const deleteMutation = useDeleteInventoryFixedAssetMutation();
+  const { openModal } = useInventoryFixedAssetsModalStore();
 
   const onConfirmDelete = async () => {
     try {
@@ -50,20 +49,6 @@ export function InventoryFixedAssetsCellAction({
         description="El activo fijo será eliminado permanentemente."
       />
 
-      <InventoryFixedAssetModal
-        open={openEdit}
-        onOpenChange={setOpenEdit}
-        defaultValues={data}
-        mode="edit"
-      />
-
-      <InventoryFixedAssetModal
-        open={openView}
-        onOpenChange={setOpenView}
-        defaultValues={data}
-        mode="view"
-      />
-
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="h-8 w-8 p-0">
@@ -71,11 +56,11 @@ export function InventoryFixedAssetsCellAction({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setOpenView(true)}>
+          <DropdownMenuItem onClick={() => openModal('view', data)}>
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+          <DropdownMenuItem onClick={() => openModal('edit', data)}>
             <Edit className="mr-2 h-4 w-4" />
             Editar
           </DropdownMenuItem>

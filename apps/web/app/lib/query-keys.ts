@@ -24,11 +24,12 @@ import { inventoryMovementsKeys } from '@/features/inventory/movements/keys/move
 import { productsKeys } from '@/features/inventory/products/keys/products-keys';
 import { inventoryServicesKeys } from '@/features/inventory/services/keys/inventory-services-keys';
 import { accountsPayableKeys } from '@/features/purchasing/accounts-payable/keys/accounts-payable-keys';
-import { purchaseOrdersKeys } from '@/features/purchasing/purchase-orders/keys/purchase-orders-keys';
+import { purchaseOrdersKeys } from '@/features/purchasing/purchase-orders/keys';
 import { SUPPLIER_INVOICES_KEYS as supplierInvoicesKeys } from '@/features/purchasing/supplier-invoices/keys/supplier-invoices-keys';
 import { SUPPLIER_PAYMENTS_KEYS as supplierPaymentsKeys } from '@/features/purchasing/supplier-payments/keys/supplier-payments-keys';
 import { SUPPLIERS_KEYS as suppliersKeys } from '@/features/purchasing/suppliers/keys/suppliers-keys';
 import { individualLoadKeys } from '@/features/savings/assets/individual-load/keys/individual-load-keys';
+import { contributionBatchesKeys } from '@/features/savings/assets/contribution-batches/keys/contribution-batches-keys';
 import { paymentBatchKeys } from '@/features/savings/assets/payment-batch/keys/payment-batch-keys';
 import { creditManagementKeys } from '@/features/savings/credits/credits-management/keys/credits-management-keys';
 import { creditsPaidKeys } from '@/features/savings/credits/credits-paid/keys/credits-paid-keys';
@@ -60,6 +61,7 @@ export const QUERY_KEYS = {
   withdrawalTypes: withdrawalTypesKeys,
   withdrawals: withdrawalKeys,
   individualLoad: individualLoadKeys,
+  contributionBatches: contributionBatchesKeys,
   settlements: settlementKeys,
   paymentBatches: paymentBatchKeys,
   creditsPaid: creditsPaidKeys,

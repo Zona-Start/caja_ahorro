@@ -8,7 +8,7 @@ export const accountingCyclesLoader =
   async ({ request }: { request: Request }) => {
     const url = new URL(request.url);
     const filters = accountingCyclesFilterSchema.parse(
-      Object.fromEntries(url.searchParams)
+      Object.fromEntries(url.searchParams),
     );
 
     await queryClient.ensureQueryData({

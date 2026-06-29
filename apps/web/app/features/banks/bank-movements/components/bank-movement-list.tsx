@@ -12,13 +12,11 @@ export default function BankMovementList() {
     return <DataTableSkeleton columnCount={9} rowCount={filters.limit} />;
   }
 
-  const movementsData = data?.data || [];
-
   return (
     <DataTable
       columns={bankMovementsColumns}
-      data={movementsData}
-      totalItems={data?.meta.totalCount || 0}
+      data={data?.data || []}
+      totalItems={data?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
     />
   );

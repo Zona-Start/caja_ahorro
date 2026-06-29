@@ -1,0 +1,2 @@
+ALTER TABLE "inventory"."service_prices" ADD COLUMN "currency_code" "currency_code" DEFAULT 'VES' NOT NULL;--> statement-breakpoint
+ALTER TABLE "inventory"."service_prices" ADD COLUMN "purchase_exchange_rate" numeric(18, 6) DEFAULT '1.000000' NOT NULL;

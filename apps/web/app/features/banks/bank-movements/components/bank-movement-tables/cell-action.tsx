@@ -8,10 +8,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
-import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Edit, Eye, Link, MoreHorizontal, RotateCcw, Trash2, Unlink } from 'lucide-react';
 import {
-  useBankMovementQuery,
   useDeleteBankMovementMutation,
+  useUnlinkMutation,
+  useReverseMutation,
 } from '../../hooks/use-bank-movements-query';
 import type { BankMovement } from '../../schemas/bank-movement.schema';
 import { BankMovementModal } from '../bank-movement-modal';
@@ -21,38 +22,34 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const [loading, setLoading] = useState(false);
-  const [openDelete, setOpenDelete] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openLink, setOpenLink] = useState(false);
 
-  const { mutate: deleteMovement } = useDeleteBankMovementMutation();
-  const { data: movementData } = useBankMovementQuery(
-    selectedId!,
-    selectedId !== null,
-  );
+  const deleteMutation = useDeleteBankMovementMutation();
+  const unlinkMutation = useUnlinkMutation();
+  const reverseMutation = useReverseMutation();
 
-  const onConfirm = async () => {
-    try {
-      setLoading(true);
-      deleteMovement(data.id);
-      setOpenDelete(false);
-    } catch {
-      // Error handled in mutation
-    } finally {
-      setLoading(false);
-    }
+  const isLinked = data.internalLinkStatus === 'LINKED';
+  const isReconciled = data.reconciliationStatus === 'RECONCILED';
+
+  const handleDelete = () => {
+    deleteMutation.mutate(data.id, { onSuccess: () => setOpenDelete(false) });
   };
 
-  const handleView = () => {
-    setSelectedId(data.id);
-    setOpenView(true);
+  const handleUnlink = () => {
+    unlinkMutation.mutate(data.id);
   };
 
-  const handleEdit = () => {
-    setSelectedId(data.id);
-    setOpenEdit(true);
+  const handleReverse = () => {
+    reverseMutation.mutate({
+      id: data.id!,
+      payload: {
+        valueDate: new Date().toISOString().split('T')[0],
+        reason: 'Reversión manual',
+      },
+    } as any);
   };
 
   return (
@@ -60,35 +57,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <AlertModal
         isOpen={openDelete}
         onClose={() => setOpenDelete(false)}
-        onConfirm={onConfirm}
-        loading={loading}
-        title="¿Estás seguro que desea eliminar este movimiento bancario?"
+        onConfirm={handleDelete}
+        loading={deleteMutation.isPending}
+        title="¿Estás seguro que deseas eliminar este movimiento bancario?"
         description="Esta acción no se puede deshacer."
       />
 
-      {movementData && (
-        <>
-          <BankMovementModal
-            open={openEdit}
-            onOpenChange={(open) => {
-              setOpenEdit(open);
-              if (!open) setSelectedId(null);
-            }}
-            defaultValues={movementData}
-            mode="edit"
-          />
-
-          <BankMovementModal
-            open={openView}
-            onOpenChange={(open) => {
-              setOpenView(open);
-              if (!open) setSelectedId(null);
-            }}
-            defaultValues={movementData}
-            mode="view"
-          />
-        </>
-      )}
+      <BankMovementModal open={openView} onOpenChange={setOpenView} defaultValues={data} mode="view" />
+      <BankMovementModal open={openEdit} onOpenChange={setOpenEdit} defaultValues={data} mode="edit" />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -97,22 +73,36 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleView}>
-            <Eye className="mr-2 h-4 w-4" />
-            Ver Detalles
+          <DropdownMenuItem onClick={() => setOpenView(true)}>
+            <Eye className="mr-2 h-4 w-4" /> Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleEdit}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {!isLinked && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" /> Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {/* {!isLinked && (
+            <DropdownMenuItem onClick={() => setOpenLink(true)}>
+              <Link className="mr-2 h-4 w-4" /> Vincular
+            </DropdownMenuItem>
+          )}
+          {isLinked && (
+            <DropdownMenuItem onClick={handleUnlink} className="text-amber-600">
+              <Unlink className="mr-2 h-4 w-4" /> Desvincular
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator /> */}
+          {isLinked && (
+            <DropdownMenuItem onClick={handleReverse} className="text-amber-600">
+              <RotateCcw className="mr-2 h-4 w-4" /> Reversar
+            </DropdownMenuItem>
+          )}
+          {!isLinked && (
+            <DropdownMenuItem onClick={() => setOpenDelete(true)} className="text-red-600">
+              <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

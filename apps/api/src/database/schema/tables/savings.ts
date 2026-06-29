@@ -34,7 +34,7 @@ import {
   statusEnum,
   withdrawalStatusEnum,
 } from '../enum';
-import { accountPlan } from './accounting';
+import { accountPlan, accountingEntries } from './accounting';
 import { users } from './auth';
 import { categories, exchangeRates, states } from './core';
 import { suppliers } from './purchasing';
@@ -164,6 +164,7 @@ export const associateAccountMovements = savingsSchema.table(
     referenceId: text('reference_id'), // ID de la operación origen
     referenceType: varchar('reference_type', { length: 50 }), // Tipo de operación origen (tabla de donde es la referencia id)
     referenceNumber: varchar('reference_number', { length: 20 }),
+    internalCode: varchar('internal_code', { length: 30 }).unique(), // Código interno generado por el sistema (DOC_MS-XXXXXXXX)
     exchangeRateId: uuid('exchange_rate_id').references(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
@@ -184,6 +185,9 @@ export const associateAccountMovements = savingsSchema.table(
     // Índice para el nuevo campo de tasa de cambio (opcional pero recomendado)
     exchangeRateIdx: index('assoc_acct_mov_exchange_rate_idx').on(
       table.exchangeRateId,
+    ),
+    internalCodeIdx: uniqueIndex('assoc_acct_mov_internal_code_uidx').on(
+      table.internalCode,
     ),
   }),
 );
@@ -1023,3 +1027,80 @@ export const paymentBatchItems = savingsSchema.table('payment_batch_items', {
   rejectionReason: text('rejection_reason'),
   ...timestamps,
 });
+
+export const contributionBatches = savingsSchema.table(
+  'contribution_batches',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'cascade' })
+      .notNull(),
+    type: varchar('type', { enum: ['individual', 'massive'] }).notNull(),
+    movementType: varchar('movement_type', {
+      enum: ['contribution_patronal', 'contribution_voluntary'],
+    }).notNull(),
+    entryDate: date('entry_date').notNull(),
+    associateId: uuid('associate_id').references(() => associates.id, {
+      onDelete: 'set null',
+    }),
+    description: text('description'),
+    amountVoluntario: numeric('amount_voluntario', {
+      precision: 20,
+      scale: 6,
+    }),
+    amountPatrono: numeric('amount_patrono', { precision: 20, scale: 6 }),
+    amountAsociado: numeric('amount_asociado', { precision: 20, scale: 6 }),
+    totalAmount: numeric('total_amount', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    associateCount: integer('associate_count').notNull().default(1),
+    status: varchar('status', { enum: ['completed', 'reversed'] })
+      .notNull()
+      .default('completed'),
+    accountingEntryId: uuid('accounting_entry_id').references(
+      () => accountingEntries.id,
+      { onDelete: 'set null' },
+    ),
+    bankTransactionId: uuid('bank_transaction_id').references(
+      () => bankTransactions.id,
+      { onDelete: 'set null' },
+    ),
+    reversalEntryId: uuid('reversal_entry_id').references(
+      () => accountingEntries.id,
+      { onDelete: 'set null' },
+    ),
+    bankData: jsonb('bank_data'),
+    ...timestamps,
+  },
+  (table) => ({
+    tenantIdx: index('contrib_batches_tenant_idx').on(table.tenantId),
+    entryDateIdx: index('contrib_batches_entry_date_idx').on(
+      table.entryDate,
+    ),
+    statusIdx: index('contrib_batches_status_idx').on(table.status),
+  }),
+);
+
+export const contributionBatchAssociates = savingsSchema.table(
+  'contribution_batch_associates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    contributionBatchId: uuid('contribution_batch_id')
+      .references(() => contributionBatches.id, { onDelete: 'cascade' })
+      .notNull(),
+    associateId: uuid('associate_id')
+      .references(() => associates.id, { onDelete: 'cascade' })
+      .notNull(),
+    amount: numeric('amount', { precision: 20, scale: 6 }),
+    ...timestamps,
+  },
+  (table) => ({
+    batchIdx: index('contrib_batch_assoc_batch_idx').on(
+      table.contributionBatchId,
+    ),
+    associateIdx: index('contrib_batch_assoc_associate_idx').on(
+      table.associateId,
+    ),
+  }),
+);

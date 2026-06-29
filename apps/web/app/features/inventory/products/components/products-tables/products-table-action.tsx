@@ -1,6 +1,6 @@
 import { Button } from '@repo/shadcn/button';
+import { Input } from '@repo/shadcn/input';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
 import { useProductsFilters } from '../../hooks/use-products-filters';
 import { STATUS_TYPES } from '../../schemas/products-options';
@@ -8,7 +8,7 @@ import { useProductsModalStore } from '../../store/products-modal.store';
 import { useCategoriesQuery } from '../../hooks/use-products-queries';
 
 export function ProductsTableAction() {
-  const { search, setSearch, setPage, status, setStatus, categoryId, setCategoryId } =
+  const { search, setSearch, status, setStatus, categoryId, setCategoryId } =
     useProductsFilters();
   const { data: categories } = useCategoriesQuery();
   const { openModal } = useProductsModalStore();
@@ -16,19 +16,18 @@ export function ProductsTableAction() {
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
       <div className="flex items-center gap-4 flex-wrap">
-        <DataTableSearch
-          title="Buscar por nombre"
-          searchKey="name"
-          searchQuery={search}
-          setSearchQuery={setSearch}
-          setPage={setPage}
+        <Input
+          placeholder="Buscar por nombre..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-72 md:max-w-sm"
         />
 
         <DataTableFilterBox
           filterKey="status"
           title="Estado"
           options={STATUS_TYPES.map((s) => ({ value: s.value, label: s.label }))}
-          setFilterValue={setStatus}
+          setFilterValue={setStatus as any}
           filterValue={status}
         />
 
@@ -38,7 +37,7 @@ export function ProductsTableAction() {
           options={
             categories?.map((c) => ({ value: c.id, label: c.name })) ?? []
           }
-          setFilterValue={setCategoryId}
+          setFilterValue={setCategoryId as any}
           filterValue={categoryId}
         />
       </div>

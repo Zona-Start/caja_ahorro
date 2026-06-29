@@ -1,44 +1,39 @@
 import { z } from 'zod';
 
 export const bankMovementApiSchema = z.object({
-  id: z.number(),
-  bankAccountId: z.number(),
-  bankAccount: z
-    .object({
-      id: z.number(),
-      accountName: z.string(),
-      accountNumber: z.string(),
-    })
-    .optional(),
+  id: z.string().uuid(),
+  internalCode: z.string().optional(),
+  bankAccountId: z.string().uuid(),
+  bankAccountName: z.string().nullable().optional(),
+  bankAccountNumber: z.string().nullable().optional(),
+  bankCurrencyCode: z.string().nullable().optional(),
   transactionDate: z.string(),
+  valueDate: z.string().nullable().optional(),
   paymentMethod: z.string(),
   description: z.string(),
   category: z.string(),
-  creditAmount: z.number().optional().nullable(),
-  debitAmount: z.number().optional().nullable(),
-  bankReference: z.string().optional().nullable(),
-  note: z.string().optional().nullable(),
+  creditAmount: z.number().nullable().optional(),
+  debitAmount: z.number().nullable().optional(),
+  resultingBalance: z.number().nullable().optional(),
+  bankReference: z.string().nullable().optional(),
+  reconciliationStatus: z.string().nullable().optional(),
+  internalLinkStatus: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });
 
 export type BankMovementApi = z.infer<typeof bankMovementApiSchema>;
 
-export const bankMovementMetaSchema = z.object({
-  page: z.number(),
-  limit: z.number(),
-  totalCount: z.number(),
-  totalPages: z.number(),
-  hasNextPage: z.boolean().optional().nullable(),
-  hasPreviousPage: z.boolean().optional().nullable(),
-  nextPage: z.number().optional().nullable(),
-  previousPage: z.number().optional().nullable(),
-});
-
 export const bankMovementListResponseSchema = z.object({
   message: z.string().optional(),
   data: z.array(bankMovementApiSchema),
-  meta: bankMovementMetaSchema,
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    totalCount: z.number(),
+    totalPages: z.number(),
+  }),
 });
 
 export const bankMovementResponseSchema = z.object({
@@ -46,7 +41,23 @@ export const bankMovementResponseSchema = z.object({
   data: bankMovementApiSchema,
 });
 
-export type BankMovementMeta = z.infer<typeof bankMovementMetaSchema>;
-export type BankMovementListResponse = z.infer<
-  typeof bankMovementListResponseSchema
->;
+export const linkableRecordSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  type: z.string(),
+  amount: z.union([z.string(), z.number()]).nullable(),
+  date: z.union([z.string(), z.date()]).nullable(),
+  concept: z.string(),
+});
+
+export const linkableListResponseSchema = z.object({
+  message: z.string().optional(),
+  data: z.array(linkableRecordSchema),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    totalCount: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
+export type LinkableRecord = z.infer<typeof linkableRecordSchema>;

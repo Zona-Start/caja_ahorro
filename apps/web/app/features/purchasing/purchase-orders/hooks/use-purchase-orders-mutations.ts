@@ -1,56 +1,43 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastSystem } from '@/hooks/use-toast-system';
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { purchaseOrdersService } from '../services/purchase-orders-service';
+import { purchaseOrdersKeys } from '../keys';
+import { PurchaseOrdersApi } from '../services/purchase-orders-api';
 import type { PurchaseOrder } from '../schemas/purchase-orders.schema';
 
 export function usePurchaseOrderMutation() {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const { success, error } = useToastSystem();
 
   return useMutation({
-    mutationFn: (payload: PurchaseOrder) =>
-      payload.id
-        ? purchaseOrdersService.update(payload)
-        : purchaseOrdersService.create(payload),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.purchaseOrders.all,
-      });
-      success(
-        variables.id
-          ? 'Orden de compra actualizada exitosamente.'
-          : 'Orden de compra creada exitosamente.',
-      );
+    mutationFn: async (payload: PurchaseOrder) => {
+      const { id, ...body } = payload;
+      if (id) {
+        return PurchaseOrdersApi.update(id, body);
+      }
+      return PurchaseOrdersApi.create(body as PurchaseOrder);
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: purchaseOrdersKeys.lists() });
+      success(vars.id ? 'Orden actualizada exitosamente.' : 'Orden creada exitosamente.');
     },
     onError: (err: unknown) => {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Ha ocurrido un error al guardar la orden de compra.';
-      error(message);
+      error(err instanceof Error ? err.message : 'Error al guardar la orden.');
     },
   });
 }
 
 export function useDeletePurchaseOrderMutation() {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const { success, error } = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => purchaseOrdersService.delete(id),
+    mutationFn: (id: string) => PurchaseOrdersApi.remove(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.purchaseOrders.all,
-      });
-      success('Orden de compra eliminada exitosamente.');
+      qc.invalidateQueries({ queryKey: purchaseOrdersKeys.lists() });
+      success('Orden anulada exitosamente.');
     },
     onError: (err: unknown) => {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Ha ocurrido un error al eliminar la orden de compra.';
-      error(message);
+      error(err instanceof Error ? err.message : 'Error al anular la orden.');
     },
   });
 }

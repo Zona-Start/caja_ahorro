@@ -5,6 +5,7 @@ import { AssociatesFeaturesModule } from './parnerts/associatesFeatures.module';
 import { SettlementAssociateModule } from './settlement/settlement-associate.module';
 import { WithdrawalFeaturesModule } from './withdrawalls/withdrawal.module';
 import { IndividualLoadModule } from './assets/individual-load/individual-load.module';
+import { ContributionBatchesModule } from './assets/contribution-batches/contribution-batches.module';
 
 @Module({
   imports: [
@@ -13,7 +14,8 @@ import { IndividualLoadModule } from './assets/individual-load/individual-load.m
     WithdrawalFeaturesModule,
     AssociatesFeaturesModule,
     SettlementAssociateModule,
-    IndividualLoadModule
+    IndividualLoadModule,
+    ContributionBatchesModule,
   ],
 })
 export class SavingsFeaturesModule { }

@@ -1,15 +1,16 @@
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
-import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { Input } from '@repo/shadcn/input';
+import { Plus, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { InventoryFixedAssetModal } from '../inventory-fixed-assets-modal';
 import { useInventoryFixedAssetsFilters } from '../../hooks/use-inventory-fixed-assets-filters';
 import {
   FIXED_ASSET_STATUS_OPTIONS,
   DEPRECIATION_METHOD_OPTIONS,
 } from '../../schemas/inventory-fixed-assets-options';
-import { useCategoriesQuery } from '../../hooks/use-inventory-fixed-assets-queries';
+import { useCategoriesByGroupQuery } from '../../hooks/use-inventory-fixed-assets-queries';
+import { useInventoryFixedAssetsModalStore } from '../../store/inventory-fixed-assets-modal.store';
 
 const STATUS_OPTIONS = Object.entries(FIXED_ASSET_STATUS_OPTIONS).map(
   ([value, label]) => ({
@@ -26,9 +27,11 @@ const DEPRECIATION_OPTIONS = Object.entries(DEPRECIATION_METHOD_OPTIONS).map(
 );
 
 export default function InventoryFixedAssetsTableAction() {
-  const [open, setOpen] = useState(false);
   const { filters, setFilters } = useInventoryFixedAssetsFilters();
-  const { data: categories } = useCategoriesQuery();
+  const { data: categories } = useCategoriesByGroupQuery('FIXED_ASSETS');
+  const { openModal } = useInventoryFixedAssetsModalStore();
+
+  const [searchValue, setSearchValue] = useState(filters.search ?? '');
 
   const categoryOptions =
     categories?.map((c) => ({
@@ -36,29 +39,45 @@ export default function InventoryFixedAssetsTableAction() {
       label: c.name,
     })) ?? [];
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchValue !== (filters.search ?? '')) {
+        setFilters({ search: searchValue || '', page: 1 });
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchValue]);
+
+  useEffect(() => {
+    setSearchValue(filters.search ?? '');
+  }, [filters.search]);
+
   return (
     <div className="flex items-center justify-between mt-4">
       <div className="flex items-center gap-4 flex-grow flex-wrap">
-        <DataTableSearch
-          title="Buscar por nombre o código"
-          searchKey="search"
-          searchQuery={filters.search || ''}
-          setSearchQuery={(v) => setFilters({ search: v, page: 1 })}
-          setPage={(p) => setFilters({ page: p })}
-        />
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre, código o serie..."
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         <DataTableFilterBox
           filterKey="assetStatus"
           title="Estado"
           options={STATUS_OPTIONS}
           setFilterValue={(v) => setFilters({ assetStatus: v, page: 1 })}
-          filterValue={filters.assetStatus || ''}
+          filterValue={filters.assetStatus ?? ''}
         />
         <DataTableFilterBox
           filterKey="categoryId"
           title="Categoría"
           options={categoryOptions}
           setFilterValue={(v) => setFilters({ categoryId: v, page: 1 })}
-          filterValue={filters.categoryId || ''}
+          filterValue={filters.categoryId ?? ''}
         />
         <DataTableFilterBox
           filterKey="depreciationMethod"
@@ -67,14 +86,14 @@ export default function InventoryFixedAssetsTableAction() {
           setFilterValue={(v) =>
             setFilters({ depreciationMethod: v, page: 1 })
           }
-          filterValue={filters.depreciationMethod || ''}
+          filterValue={filters.depreciationMethod ?? ''}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
+      <Button onClick={() => openModal('create')} size="sm">
         <Plus className="mr-2 h-4 w-4" /> Agregar Activo
       </Button>
 
-      <InventoryFixedAssetModal open={open} onOpenChange={setOpen} />
+      <InventoryFixedAssetModal />
     </div>
   );
 }

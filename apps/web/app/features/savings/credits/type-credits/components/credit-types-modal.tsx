@@ -7,6 +7,7 @@ import {
 } from '@repo/shadcn/dialog';
 import { type CreditTypeMutation } from '../schemas/credit-types.schema';
 import { CreditTypesForm } from './credit-types-form';
+import { CreditTypesViewModal } from './credit-types-view-modal';
 
 interface CreditTypesModalProps {
   open: boolean;
@@ -32,30 +33,34 @@ export function CreditTypesModal({
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
+  if (isViewMode) {
+    return (
+      <CreditTypesViewModal
+        open={open}
+        onOpenChange={onOpenChange}
+        creditType={defaultValues as any}
+      />
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles del Tipo de Crédito'
-              : isEditMode
-                ? 'Editar Tipo de Crédito'
-                : 'Crear Tipo de Crédito'}
+            {isEditMode ? 'Editar Tipo de Crédito' : 'Crear Tipo de Crédito'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información del tipo de crédito.'
-              : defaultValues?.id
-                ? 'Actualiza la información del tipo de crédito.'
-                : 'Complete los campos para crear un nuevo tipo de crédito.'}
+            {defaultValues?.id
+              ? 'Actualiza la información del tipo de crédito.'
+              : 'Complete los campos para crear un nuevo tipo de crédito.'}
           </DialogDescription>
         </DialogHeader>
         <CreditTypesForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={defaultValues}
-          disabled={isViewMode}
+          disabled={false}
         />
       </DialogContent>
     </Dialog>

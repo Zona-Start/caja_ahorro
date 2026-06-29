@@ -1,11 +1,19 @@
 import { apiClient } from '@/lib/api-client';
 import {
+  accountingCycleDeleteResponseSchema,
   accountingCycleListResponseSchema,
   accountingCyclePaginationResponseSchema,
   accountingCycleResponseSchema,
 } from '../schemas/accounting-cycle-api';
 import { CycleStatusEnum } from '../schemas/accounting-cycle-options';
 import type { AccountingCycle } from '../schemas/accounting-cycle.schema';
+
+type PaginationMeta = {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+};
 
 export class AccountingCyclesService {
   static async getAll() {
@@ -18,14 +26,18 @@ export class AccountingCyclesService {
     limit?: number;
     search?: string;
     status?: string;
+    startDate?: string;
+    endDate?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-  }) {
+  }): Promise<{ data: AccountingCycle[]; meta: PaginationMeta }> {
     const searchParams = new URLSearchParams();
     searchParams.append('page', (params.page || 1).toString());
     searchParams.append('limit', (params.limit || 10).toString());
     if (params.search) searchParams.append('search', params.search);
     if (params.status) searchParams.append('status', params.status);
+    if (params.startDate) searchParams.append('startDate', params.startDate);
+    if (params.endDate) searchParams.append('endDate', params.endDate);
     if (params.sortBy) searchParams.append('sortBy', params.sortBy);
     if (params.sortOrder) searchParams.append('sortOrder', params.sortOrder);
 
@@ -34,21 +46,22 @@ export class AccountingCyclesService {
     );
     const parsed = accountingCyclePaginationResponseSchema.parse(response.data);
 
-    const toLocalDate = (iso: string): Date => {
-      const [y, m, d] = iso
-        .slice(0, 10)
-        .split('-')
-        .map((n) => Number(n)) as [number, number, number];
-      return new Date(y, m - 1, d);
+    const toLocalString = (value: unknown): string => {
+      if (value instanceof Date) {
+        return value.toISOString().slice(0, 10);
+      }
+      if (typeof value === 'string') {
+        return value.slice(0, 10);
+      }
+      return '';
     };
 
-    const transform = parsed.data.map((item: any) => ({
+    const transform = parsed.data.map((item) => ({
       ...item,
       status: item.status as CycleStatusEnum,
-      startDate: toLocalDate(item.startDate),
-      endDate: toLocalDate(item.endDate),
-      closedAt: item.closedAt ? toLocalDate(item.closedAt) : null,
-    }));
+      startDate: toLocalString(item.startDate),
+      endDate: toLocalString(item.endDate),
+    })) as AccountingCycle[];
 
     return {
       data: transform,
@@ -56,7 +69,7 @@ export class AccountingCyclesService {
     };
   }
 
-  static async getById(id: number) {
+  static async getById(id: string) {
     const response = await apiClient.get(`/accounting-cycles/${id}`);
     return accountingCycleResponseSchema.parse(response.data).data;
   }
@@ -71,7 +84,7 @@ export class AccountingCyclesService {
   }
 
   static async update(payload: AccountingCycle) {
-    const { id, ...payloadWithoutId } = payload;
+    const { id, status, ...payloadWithoutId } = payload;
     const response = await apiClient.patch(
       `/accounting-cycles/${id}`,
       payloadWithoutId,
@@ -79,8 +92,16 @@ export class AccountingCyclesService {
     return accountingCycleResponseSchema.parse(response.data).data;
   }
 
-  static async close(id: number) {
-    const response = await apiClient.patch(`/accounting-cycles/${id}/close`);
+  static async changeStatus(id: string, status: string) {
+    const response = await apiClient.patch(
+      `/accounting-cycles/${id}/status`,
+      { status },
+    );
     return accountingCycleResponseSchema.parse(response.data).data;
+  }
+
+  static async delete(id: string) {
+    const response = await apiClient.delete(`/accounting-cycles/${id}`);
+    return accountingCycleDeleteResponseSchema.parse(response.data);
   }
 }

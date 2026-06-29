@@ -1,20 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query-keys';
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { toast } from '@repo/shadcn/hooks/use-toast';
 import { withdrawalService } from '../services/withdrawal-service';
 import { type Withdrawal } from '../schemas/withdrawal.schema';
 
-export function useWithdrawalsQuery(params: {
-  page?: number;
-  limit?: number;
-  type?: string;
-  search?: string;
-  sortBy?: string;
-  status?: string;
-  sortOrder?: 'asc' | 'desc';
-}) {
+export function useWithdrawalsQuery(filters: Record<string, any>) {
   return useQuery({
-    queryKey: QUERY_KEYS.withdrawals.list(JSON.stringify(params)),
-    queryFn: () => withdrawalService.getWithdrawals(params),
+    queryKey: QUERY_KEYS.withdrawals.list(filters),
+    queryFn: () => withdrawalService.getWithdrawals(filters),
   });
 }
 
@@ -25,9 +22,12 @@ export function useWithdrawalTypesQuery() {
   });
 }
 
-export function useAssociateWithdrawalRequestQuery(cedula: string, options?: { enabled?: boolean }) {
+export function useAssociateWithdrawalRequestQuery(
+  cedula: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
-    queryKey: [...QUERY_KEYS.withdrawals.all, 'request', cedula],
+    queryKey: [...QUERY_KEYS.withdrawals.all, 'request', cedula] as const,
     queryFn: () => withdrawalService.getAssociatesByCedula(cedula),
     ...options,
   });
@@ -37,9 +37,10 @@ export function useSaveWithdrawalMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: Withdrawal) => withdrawalService.saveWithdrawal(payload),
+    mutationFn: (payload: Withdrawal) =>
+      withdrawalService.saveWithdrawal(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
     },
   });
 }
@@ -48,9 +49,18 @@ export function useApproveWithdrawalMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => withdrawalService.approveWithdrawal(id),
+    mutationFn: (id: string) => withdrawalService.approveWithdrawal(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
+      toast({ title: 'Retiro aprobado exitosamente' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description:
+          error?.response?.data?.message ?? error.message ?? 'Error al aprobar',
+        variant: 'destructive',
+      });
     },
   });
 }
@@ -59,9 +69,18 @@ export function useDeleteWithdrawalMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => withdrawalService.deleteWithdrawal(id),
+    mutationFn: (id: string) => withdrawalService.deleteWithdrawal(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
+      toast({ title: 'Retiro anulado exitosamente' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description:
+          error?.response?.data?.message ?? error.message ?? 'Error al anular',
+        variant: 'destructive',
+      });
     },
   });
 }
@@ -70,10 +89,15 @@ export function useDisburseWithdrawalMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, payload }: { id: number; payload: any }) =>
-      withdrawalService.disburseWithdrawal(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: { bankAccountId: string; processedAt: Date; bankReference?: string };
+    }) => withdrawalService.disburseWithdrawal(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
     },
   });
 }
@@ -82,9 +106,18 @@ export function useProcessWithdrawalMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => withdrawalService.processWithdrawal(id),
+    mutationFn: (id: string) => withdrawalService.processWithdrawal(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.all });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
+      toast({ title: 'Retiro procesado exitosamente' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description:
+          error?.response?.data?.message ?? error.message ?? 'Error al procesar',
+        variant: 'destructive',
+      });
     },
   });
 }

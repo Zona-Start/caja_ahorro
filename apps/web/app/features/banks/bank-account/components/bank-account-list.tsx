@@ -1,22 +1,24 @@
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
-import { useBankAccountAll } from '../hooks/use-bank-account-query';
-import { columns } from './bank-account-tables/columns';
+import { useBankAccountFilters } from '../hooks/use-bank-account-filters';
+import { useBankAccountsQuery } from '../hooks/use-bank-account-query';
+import { bankAccountColumns } from './bank-account-tables/columns';
 
 export default function BankAccountList() {
-  const { data, isLoading } = useBankAccountAll();
+  const { filters } = useBankAccountFilters();
+  const { data, isLoading } = useBankAccountsQuery(filters);
 
   if (isLoading) {
-    return <DataTableSkeleton columnCount={8} rowCount={10} />;
+    return <DataTableSkeleton columnCount={7} rowCount={filters.limit} />;
   }
 
   const bankAccountsData = data?.data || [];
 
   return (
     <DataTable
-      columns={columns}
+      columns={bankAccountColumns}
       data={bankAccountsData}
-      totalItems={bankAccountsData.length}
+      totalItems={data?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
     />
   );

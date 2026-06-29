@@ -4,7 +4,6 @@ import {
   UseMutationResult,
   useQueryClient,
 } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
 import { creditManagementService } from '../services/credits-management-service';
 
 export function useCreateCreditManagementMutation(): UseMutationResult<
@@ -21,7 +20,7 @@ export function useCreateCreditManagementMutation(): UseMutationResult<
       creditManagementService.createCreditManagement(creditManagement),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditManagements.all(),
+        queryKey: ['creditManagements'],
       });
       toast.success('Crédito creado exitosamente');
     },
@@ -34,17 +33,18 @@ export function useCreateCreditManagementMutation(): UseMutationResult<
 export function useApproveCreditManagementMutation(): UseMutationResult<
   unknown,
   Error,
-  number,
+  string,
   unknown
 > {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => creditManagementService.approveCreditManagement(id),
+    mutationFn: (id: string) =>
+      creditManagementService.approveCreditManagement(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditManagements.all(),
+        queryKey: ['creditManagements'],
       });
       toast.success('Crédito aprobado exitosamente');
     },
@@ -57,17 +57,18 @@ export function useApproveCreditManagementMutation(): UseMutationResult<
 export function useDeleteCreditManagementMutation(): UseMutationResult<
   unknown,
   Error,
-  number,
+  string,
   unknown
 > {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => creditManagementService.deleteCreditManagement(id),
+    mutationFn: (id: string) =>
+      creditManagementService.deleteCreditManagement(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditManagements.all(),
+        queryKey: ['creditManagements'],
       });
       toast.success('Crédito eliminado exitosamente');
     },

@@ -4,12 +4,14 @@ import { Module } from '@nestjs/common';
 import { DrizzleModule } from '@/database/drizzle.module';
 import { TenantContextModule } from '@/common/services/tenant-context.module';
 import { FixedAssetPricesModule } from '../fixed-asset-prices/fixed-asset-prices.module';
+import { ProductServiceSuppliersModule } from '../product-service-suppliers/product-service-suppliers.module';
 import { FixedAssetsController } from './fixed-assets.controller';
 import { FixedAssetsService } from './fixed-assets.service';
 
 @Module({
   imports: [
     FixedAssetPricesModule,
+    ProductServiceSuppliersModule,
     DrizzleModule,
     GenerateCodeModule,
     TenantContextModule,

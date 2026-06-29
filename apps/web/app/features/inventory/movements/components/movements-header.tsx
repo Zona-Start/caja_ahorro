@@ -5,7 +5,7 @@ export function MovementsHeader() {
     <div className="flex items-center justify-between">
       <Heading
         title="Movimientos de Inventario"
-        description="Consulta los movimientos y el stock de los ítems del inventario"
+        description="Registra y consulta entradas, salidas y ajustes de inventario"
       />
     </div>
   );

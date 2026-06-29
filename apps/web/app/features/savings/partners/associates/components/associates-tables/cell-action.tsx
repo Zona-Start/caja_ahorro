@@ -17,6 +17,7 @@ import {
 } from '../../hooks/use-associates-query';
 import { type AssociatesMutate } from '../../schemas/associates.schema';
 import { AssociatesModal } from '../associates-modal';
+import { AssociatesDetailsModal } from '../associates-details-modal';
 
 interface CellActionProps {
   data: AssociatesMutate;
@@ -116,30 +117,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             }}
           />
 
-          <AssociatesModal
+          <AssociatesDetailsModal
             open={openView}
             onOpenChange={(open) => {
               setOpenView(open);
               if (!open) setAssociateId(null);
             }}
-            defaultValues={{
-              ...associateData.data,
-              birthdate: associateData.data.birthdate
-                ? new Date(associateData.data.birthdate)
-                : undefined,
-              dateAdmission: associateData.data.dateAdmission
-                ? new Date(associateData.data.dateAdmission)
-                : undefined,
-              dateGraduation: associateData.data.dateGraduation
-                ? new Date(associateData.data.dateGraduation)
-                : undefined,
-              jobTitle: associateData.data.jobTitle || undefined,
-              isPayrollCredit: associateData.data.isPayrollCredit,
-              baseSalary: String(
-                Number(associateData.data.baseSalary).toFixed(2),
-              ),
-            }}
-            readOnly
+            associateId={associateId!}
           />
         </>
       )}

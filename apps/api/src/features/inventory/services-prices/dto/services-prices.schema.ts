@@ -3,6 +3,11 @@ import { z } from 'zod';
 export const CreateServicePriceSchema = z.object({
   serviceId: z.string().uuid('Service ID inválido'),
   suppliersId: z.string().uuid().optional(),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).default('VES'),
+  purchaseExchangeRate: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(1),
+  ),
   baseCost: z.preprocess(
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0),

@@ -7,6 +7,7 @@ import {
 } from '@repo/shadcn/dialog';
 import { type WithdrawalTypeMutation } from '../schemas/withdrawal-types.schema';
 import { WithdrawalTypesForm } from './withdrawal-types-form';
+import { WithdrawalTypesViewModal } from './withdrawal-types-view-modal';
 
 interface WithdrawalTypesModalProps {
   open: boolean;
@@ -32,30 +33,34 @@ export function WithdrawalTypesModal({
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
+  if (isViewMode) {
+    return (
+      <WithdrawalTypesViewModal
+        open={open}
+        onOpenChange={onOpenChange}
+        withdrawalType={defaultValues as any}
+      />
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles del Tipo de Retiro'
-              : isEditMode
-                ? 'Editar Tipo de Retiro'
-                : 'Crear Tipo de Retiro'}
+            {isEditMode ? 'Editar Tipo de Retiro' : 'Crear Tipo de Retiro'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información del tipo de retiro.'
-              : defaultValues?.id
-                ? 'Actualiza la información del tipo de retiro.'
-                : 'Complete los campos para crear un nuevo tipo de retiro.'}
+            {defaultValues?.id
+              ? 'Actualiza la información del tipo de retiro.'
+              : 'Complete los campos para crear un nuevo tipo de retiro.'}
           </DialogDescription>
         </DialogHeader>
         <WithdrawalTypesForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={defaultValues}
-          disabled={isViewMode}
+          disabled={false}
         />
       </DialogContent>
     </Dialog>

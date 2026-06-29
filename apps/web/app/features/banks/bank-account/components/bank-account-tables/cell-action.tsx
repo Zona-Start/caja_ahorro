@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { AlertModal } from '@/components/shared/alert-modal';
-import { apiClient } from '@/lib/api-client';
-import { useToastSystem } from '@/hooks/use-toast-system';
 import { Button } from '@repo/shadcn/button';
 import {
   DropdownMenu,
@@ -10,10 +8,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
-import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { bankAccountKeys } from '../../keys/bank-account-keys';
-import type { BankAccount } from '../../services/bank-account-service';
+import { Edit, Eye, MoreHorizontal, RotateCcw, Trash2 } from 'lucide-react';
+import type { BankAccount } from '../../schemas/bank-account.schema';
+import {
+  useDeleteBankAccountMutation,
+  useReverseBankAccountMutation,
+} from '../../hooks/use-bank-account-query';
 import { BankAccountModal } from '../bank-account-modal';
 
 interface CellActionProps {
@@ -21,25 +21,27 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToastSystem();
-  const [loading, setLoading] = useState(false);
-  const [openDelete, setOpenDelete] = useState(false);
-  const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openReverse, setOpenReverse] = useState(false);
 
-  const onDeleteConfirm = async () => {
-    try {
-      setLoading(true);
-      await apiClient.delete(`/savings-banks/bank-accounts/${data.id}`);
-      queryClient.invalidateQueries({ queryKey: bankAccountKeys.all });
-      toastSuccess('Cuenta bancaria eliminada correctamente');
-      setOpenDelete(false);
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Error al eliminar la cuenta bancaria');
-    } finally {
-      setLoading(false);
-    }
+  const deleteMutation = useDeleteBankAccountMutation();
+  const reverseMutation = useReverseBankAccountMutation();
+
+  const canDelete = !data.openingEntryPosted;
+  const canReverse = !!data.linkedChartAccountId;
+
+  const onDeleteConfirm = () => {
+    deleteMutation.mutate(data.id, {
+      onSuccess: () => setOpenDelete(false),
+    });
+  };
+
+  const onReverseConfirm = () => {
+    reverseMutation.mutate(data.id, {
+      onSuccess: () => setOpenReverse(false),
+    });
   };
 
   return (
@@ -48,16 +50,18 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         isOpen={openDelete}
         onClose={() => setOpenDelete(false)}
         onConfirm={onDeleteConfirm}
-        loading={loading}
-        title="¿Estás seguro que desea eliminar esta cuenta bancaria?"
-        description="Esta acción no se puede deshacer."
+        loading={deleteMutation.isPending}
+        title="¿Estás seguro que deseas eliminar esta cuenta bancaria?"
+        description="Esta acción no se puede deshacer. La cuenta no debe tener asiento de apertura ni cuenta contable vinculada."
       />
 
-      <BankAccountModal
-        open={openEdit}
-        onOpenChange={setOpenEdit}
-        defaultValues={data}
-        mode="edit"
+      <AlertModal
+        isOpen={openReverse}
+        onClose={() => setOpenReverse(false)}
+        onConfirm={onReverseConfirm}
+        loading={reverseMutation.isPending}
+        title="¿Estás seguro que deseas reversar esta cuenta bancaria?"
+        description="Se generará un asiento de reverso y la cuenta será marcada como inactiva. Esta acción no se puede deshacer."
       />
 
       <BankAccountModal
@@ -65,6 +69,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onOpenChange={setOpenView}
         defaultValues={data}
         mode="view"
+      />
+
+      <BankAccountModal
+        open={openEdit}
+        onOpenChange={setOpenEdit}
+        defaultValues={data}
+        mode="edit"
       />
 
       <DropdownMenu>
@@ -82,14 +93,30 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Edit className="mr-2 h-4 w-4" />
             Editar
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {canReverse && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setOpenReverse(true)}
+                className="text-amber-600 focus:text-amber-600 focus:bg-amber-50"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Reversar
+              </DropdownMenuItem>
+            </>
+          )}
+          {canDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setOpenDelete(true)}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

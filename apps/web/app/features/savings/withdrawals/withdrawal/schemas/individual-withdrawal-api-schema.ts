@@ -1,21 +1,23 @@
 import { z } from 'zod';
 
 export const withdrawalAssociate = z.object({
-  id: z.number(),
+  id: z.string(),
   cedula: z.string(),
   fullname: z.string(),
   phone: z.string().nullable(),
   email: z.string().nullable(),
   isPayrollCredit: z.boolean(),
-  associateAccountId: z.number(),
+  associateAccountId: z.string().nullable(),
   accountNumber: z.string(),
-  balance: z.string(),
-  withdrawalId: z.number().nullable(),
-  withdrawalRequestAmout: z.string().nullable(),
-  withdrawalDate: z.string().nullable(),
-  withdrawalStatus: z.string().nullable(),
-  totalLoansAssociate: z.number().nullable().optional(),
-  totalCreditsAssociate: z.number().nullable().optional(),
+  balance: z.number(),
+  available80: z.number(),
+  hasActiveLoan: z.boolean(),
+  hasActiveCredit: z.boolean(),
+  hasPayrollCredit: z.boolean(),
+  lastWithdrawalDate: z.string().nullable(),
+  withdrawalTimeMonths: z.number(),
+  totalLoansAssociate: z.number(),
+  totalCreditsAssociate: z.number(),
 });
 
 export type AssociatesWithdrawal = z.infer<typeof withdrawalAssociate>;

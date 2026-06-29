@@ -49,6 +49,7 @@ export const productPriceSchema = z.object({
   profitPercent: z.string().nullable().optional(),
   salesTaxPercent: z.string().nullable().optional(),
   salePrice: z.string().nullable().optional(),
+  offerSalePrice: z.string().nullable().optional(),
   bsPriceAmount: z.string().nullable().optional(),
   finalPriceNet: z.string().nullable().optional(),
   finalPriceGross: z.string().nullable().optional(),
@@ -61,6 +62,8 @@ export const productPriceSchema = z.object({
 export const productViewApiResponseSchema = z.object({
   dataProduct: z.object({
     id: z.string(),
+    tenantId: z.string().nullable().optional(),
+    internalCode: z.string().nullable().optional(),
     categoryId: z.string().nullable().optional(),
     categoryName: z.string().nullable().optional(),
     sku: z.string().nullable().optional(),

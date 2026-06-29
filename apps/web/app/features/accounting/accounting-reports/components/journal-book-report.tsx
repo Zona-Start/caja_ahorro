@@ -1,4 +1,4 @@
-import { useAccountingCycles } from '@/features/accounting-cycles/hooks/use-accounting-cycles-query';
+import { useAccountingCycles } from '@/features/accounting/accounting-cycles/hooks/use-accounting-cycles-query';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { Input } from '@repo/shadcn/input';

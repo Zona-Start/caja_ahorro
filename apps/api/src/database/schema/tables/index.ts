@@ -66,6 +66,8 @@ export {
   associateAccountMovements,
   associateAccounts,
   associates,
+  contributionBatches,
+  contributionBatchAssociates,
   creditAmortizationSchedule,
   creditItemSales,
   creditPayments,

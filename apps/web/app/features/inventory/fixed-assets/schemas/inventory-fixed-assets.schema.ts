@@ -9,11 +9,8 @@ export const inventoryFixedAssetSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido').max(255),
   description: z.string().max(500).optional().nullable(),
   categoryId: z.string().min(1, 'La categoría es requerida'),
-  assetCode: z.string().min(1, 'El código de activo es requerido').max(50),
-  serialNumber: z
-    .string()
-    .min(1, 'El número de serie es requerido')
-    .max(100),
+  assetCode: z.string().max(50).optional().nullable(),
+  serialNumber: z.string().max(100).optional().nullable(),
   model: z.string().max(100).optional().nullable(),
   brand: z.string().max(100).optional().nullable(),
   acquisitionDate: z.coerce.date(),
@@ -32,6 +29,11 @@ export const inventoryFixedAssetSchema = z.object({
   baseCost: z.coerce.number().min(0, 'El costo base no puede ser negativo'),
   otherCosts: z.coerce.number().min(0).default(0),
   purchaseTax: z.coerce.number().min(0).default(0),
+  lastDepreciationDate: z.coerce.date().optional().nullable(),
+  disposalDate: z.coerce.date().optional().nullable(),
+  disposalReason: z.string().optional().nullable(),
+  disposalValue: z.coerce.number().min(0).default(0).optional().nullable(),
+  categoryName: z.string().optional().nullable(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

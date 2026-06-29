@@ -324,7 +324,7 @@ export class AssociatesService {
       })
       .from(associates)
       .where(and(...conditions))
-      .leftJoin(associateAccounts, eq(associateAccounts.associateId, id));
+      .leftJoin(associateAccounts, eq(associateAccounts.associateId, associates.id));
 
     if (!result.length) {
       throw new NotFoundException(`Associate with ID ${id} not found`);
@@ -518,8 +518,6 @@ export class AssociatesService {
           }
         });
 
-        console.log('associateData', associateData);
-
         const updateAssociate = await tx
           .update(associates)
           .set(associateData)
@@ -562,8 +560,6 @@ export class AssociatesService {
         if (dto.status !== undefined) {
           associateAccountData.status = dto.status;
         }
-
-        console.log('associateAccountData', associateAccountData);
 
         const updateAsociateAccount = await tx
           .update(associateAccounts)
@@ -618,28 +614,41 @@ export class AssociatesService {
       throw new NotFoundException(`Associate with ID ${id} not found`);
     }
 
-    const associateAccount =
-      await this.drizzle.query.associateAccounts.findFirst({
-        where: eq(schema.associateAccounts.associateId, id),
-      });
-
-    const movements =
-      await this.drizzle.query.associateAccountMovements.findMany({
-        where: eq(
-          schema.associateAccountMovements.associateAccountId,
-          associateAccount?.id ?? '',
-        ),
-      });
-
-    if (movements.length > 0) {
+    if (
+      existingAssociate.status === 'RETIRED' ||
+      existingAssociate.status === 'ARCHIVED'
+    ) {
       throw new BadRequestException(
-        'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
+        `You cannot delete a retired or archived partner because they are part of your history.`,
       );
     }
 
-    await this.drizzle.delete(associates).where(eq(associates.id, id));
+    await this.drizzle.transaction(async (tx) => {
+      const associateAccount =
+        await tx.query.associateAccounts.findFirst({
+          where: eq(schema.associateAccounts.associateId, id),
+        });
 
-    return { message: 'Associate set to INACTIVE successfully' };
+      if (associateAccount) {
+        const movements =
+          await tx.query.associateAccountMovements.findMany({
+            where: eq(
+              schema.associateAccountMovements.associateAccountId,
+              associateAccount.id,
+            ),
+          });
+
+        if (movements.length > 0) {
+          throw new BadRequestException(
+            'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
+          );
+        }
+      }
+
+      await tx.delete(associates).where(eq(associates.id, id));
+    });
+
+    return { message: 'Associate deleted successfully' };
   }
 
   async inactive(tenantId: string, userId: string, id: string) {
@@ -657,74 +666,79 @@ export class AssociatesService {
       );
     }
 
-    const associateAccount =
-      await this.drizzle.query.associateAccounts.findFirst({
-        where: eq(schema.associateAccounts.associateId, id),
-      });
+    return this.drizzle.transaction(async (tx) => {
+      const associateAccount =
+        await tx.query.associateAccounts.findFirst({
+          where: eq(schema.associateAccounts.associateId, id),
+        });
 
-    if (!associateAccount) {
-      await this.drizzle
+      if (!associateAccount) {
+        await tx
+          .update(associates)
+          .set({ status: 'INACTIVE' as any, updatedById: userId })
+          .where(eq(associates.id, id));
+        return { message: 'Associate set to INACTIVE successfully' };
+      }
+
+      const movements =
+        await tx.query.associateAccountMovements.findMany({
+          where: eq(
+            schema.associateAccountMovements.associateAccountId,
+            associateAccount.id,
+          ),
+        });
+
+      if (
+        movements.length === 1 &&
+        movements[0].description === 'APERTURA CUENTA'
+      ) {
+        await tx
+          .delete(schema.associateAccountMovements)
+          .where(
+            eq(
+              schema.associateAccountMovements.associateAccountId,
+              associateAccount.id,
+            ),
+          );
+        await tx
+          .delete(schema.associateAccounts)
+          .where(eq(schema.associateAccounts.associateId, id));
+        await tx.delete(associates).where(eq(associates.id, id));
+        return { message: 'Associate deleted successfully' };
+      }
+
+      if (movements.length > 0) {
+        throw new BadRequestException(
+          'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
+        );
+      }
+
+      await tx
         .update(associates)
         .set({ status: 'INACTIVE' as any, updatedById: userId })
         .where(eq(associates.id, id));
+
       return { message: 'Associate set to INACTIVE successfully' };
-    }
-
-    const movements =
-      await this.drizzle.query.associateAccountMovements.findMany({
-        where: eq(
-          schema.associateAccountMovements.associateAccountId,
-          associateAccount.id,
-        ),
+    }).then(async (result) => {
+      // Registra el log auditoria (fuera de la transacción)
+      await this.auditHelper.logUpdate(userId, 'associate', existingAssociate, {
+        targetId: id,
+        description: `Asociado INACTIVO: ${existingAssociate.fullname} (${existingAssociate.cedula})`,
+        tenantId: tenantId,
       });
-
-    if (
-      movements.length === 1 &&
-      movements[0].description === 'APERTURA CUENTA'
-    ) {
-      try {
-        await this.drizzle.transaction(async (tx) => {
-          await tx
-            .delete(schema.associateAccountMovements)
-            .where(
-              eq(
-                schema.associateAccountMovements.associateAccountId,
-                associateAccount.id,
-              ),
-            );
-          await tx
-            .delete(schema.associateAccounts)
-            .where(eq(schema.associateAccounts.associateId, id));
-          await tx.delete(associates).where(eq(associates.id, id));
-        });
-        return { message: 'Associate deleted successfully' };
-      } catch (error) {
-        console.error('Error during hard delete of associate:', error);
-        throw new InternalServerErrorException(
-          'A problem occurred while permanently deleting the associate.',
-        );
+      return result;
+    }).catch((error) => {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
       }
-    }
-
-    if (movements.length > 0) {
-      throw new BadRequestException(
-        'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
+      console.error('Error during inactive associate:', error);
+      throw new InternalServerErrorException(
+        'A problem occurred while inactivating the associate.',
       );
-    }
-
-    // Registra el log auditoria
-    await this.auditHelper.logUpdate(userId, 'associate', existingAssociate, {
-      targetId: existingAssociate.id,
-      description: `Asociado INACTIVO: ${existingAssociate.fullname} (${existingAssociate.cedula})`,
-      tenantId: tenantId,
     });
-
-    await this.drizzle
-      .update(associates)
-      .set({ status: 'INACTIVE' as any, updatedById: userId })
-      .where(eq(associates.id, id));
-
-    return { message: 'Associate set to INACTIVE successfully' };
   }
 
   async findByIdAssociateAccounts(tenantId: string, id: string) {
@@ -764,36 +778,38 @@ export class AssociatesService {
   }
 
   async createAssociateAccounts(tenantId: string, userId: string, dto: any) {
-    const isExisting = await this.drizzle
-      .select()
-      .from(associateAccounts)
-      .where(eq(associateAccounts.accountNumber, dto.accountNumber));
+    return this.drizzle.transaction(async (tx) => {
+      const isExisting = await tx
+        .select()
+        .from(associateAccounts)
+        .where(eq(associateAccounts.accountNumber, dto.accountNumber));
 
-    if (isExisting.length !== 0) {
-      throw new NotFoundException(
-        `Associate Accounts with account number ${dto.accountNumber} already exists`,
-      );
-    }
+      if (isExisting.length !== 0) {
+        throw new NotFoundException(
+          `Associate Accounts with account number ${dto.accountNumber} already exists`,
+        );
+      }
 
-    const associateAccountData: any = {
-      associateId: dto.associateId,
-      accountNumber: dto.accountNumber,
-      currencyCode: dto.currencyCode,
-      balance: dto.balance?.toString() ?? '0.00',
-      openingDate:
-        dto.openingDate?.toISOString()?.split('T')[0] ??
-        new Date().toISOString().split('T')[0],
-      bankDirectoryId: dto.bankDirectoryId,
-      status: dto.status,
-      createdById: userId,
-    };
+      const associateAccountData: any = {
+        associateId: dto.associateId,
+        accountNumber: dto.accountNumber,
+        currencyCode: dto.currencyCode,
+        balance: dto.balance?.toString() ?? '0.00',
+        openingDate:
+          dto.openingDate?.toISOString?.()?.split('T')[0] ??
+          new Date().toISOString().split('T')[0],
+        bankDirectoryId: dto.bankDirectoryId,
+        status: dto.status,
+        createdById: userId,
+      };
 
-    const result = await this.drizzle
-      .insert(associateAccounts)
-      .values(associateAccountData)
-      .returning();
+      const result = await tx
+        .insert(associateAccounts)
+        .values(associateAccountData)
+        .returning();
 
-    return result[0];
+      return result[0];
+    });
   }
 
   async bulkUpload(tenantId: string, userId: string, fileBuffer: Buffer) {

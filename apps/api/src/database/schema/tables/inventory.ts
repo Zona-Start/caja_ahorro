@@ -172,6 +172,9 @@ export const servicePrices = inventorySchema.table('service_prices', {
     .references(() => services.id, { onDelete: 'cascade' }),
   suppliersId: uuid('supplier_id').references(() => suppliers.id), // opcional
 
+  currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+  purchaseExchangeRate: numeric('purchase_exchange_rate', { precision: 18, scale: 6 }).notNull().default('1.000000'),
+
   /* =========  COSTO  ========= */
   baseCost: numeric('base_cost', { precision: 18, scale: 6 }), // costo neto factura
   otherCosts: numeric('other_costs', { precision: 18, scale: 6 }) // flete, seguro, etc.

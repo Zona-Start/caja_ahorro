@@ -45,6 +45,7 @@ export class ServicePricesService {
     newPrice: CreateServicePriceDto,
   ): boolean {
     return (
+      (current?.currencyCode ?? 'VES') !== (newPrice.currencyCode ?? 'VES') ||
       Number(current.baseCost ?? 0) !== newPrice.baseCost ||
       Number(current.otherCosts ?? 0) !== (newPrice.otherCosts ?? 0) ||
       Number(current.purchaseTax ?? 0) !== (newPrice.purchaseTax ?? 0)
@@ -115,6 +116,8 @@ export class ServicePricesService {
       .values({
         serviceId: data.serviceId,
         suppliersId: data.suppliersId ?? null,
+        currencyCode: (data.currencyCode ?? 'VES') as any,
+        purchaseExchangeRate: String(data.purchaseExchangeRate ?? 1),
         baseCost: String(data.baseCost ?? 0),
         otherCosts: String(data.otherCosts ?? 0),
         purchaseTax: String(data.purchaseTax ?? taxRate),

@@ -76,8 +76,7 @@ export const bankAccounts = treasurySchema.table(
     }), //Saldo del último extracto cargado
     lastStatementDate: date('last_statement_date'),
     linkedChartAccountId: uuid('linked_chart_account_id')
-      .references(() => accountPlan.id, { onDelete: 'set null' })
-      .notNull(), //Cuenta contable (Activo) que representa esta cuenta bancaria
+      .references(() => accountPlan.id, { onDelete: 'set null' }),
     isActive: boolean('is_active').default(true).notNull(),
     openingEntryPosted: boolean('opening_entry_posted').default(false),
     ruleAccountId: uuid('rule_account_id').references(() => accountingRules.id),
@@ -137,6 +136,7 @@ export const bankTransactions = treasurySchema.table(
     internalLinkStatus: internalLinkStatusEnum('internal_link_status')
       .notNull()
       .default('UNLINKED'), // O 'NO_APLICA' si algunas transacciones bancarias nunca se vincularán (ej., comisiones bancarias),
+    internalCode: varchar('internal_code', { length: 20 }).notNull(),
     note: text('note'),
     ...timestamps,
   },
@@ -153,6 +153,10 @@ export const bankTransactions = treasurySchema.table(
       table.reconciliationStatus,
     ),
     reconIdIdx: index('bank_trans_recon_id_idx').on(table.bankReconciliationId),
+    internalCodeIdx: uniqueIndex('bank_trans_internal_code_uidx').on(
+      table.tenantId,
+      table.internalCode,
+    ),
   }),
 );
 

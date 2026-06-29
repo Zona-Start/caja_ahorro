@@ -3,17 +3,20 @@ import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   Req,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { CreateInventoryMovementDto } from './dto/inventory-movements.schema';
+import {
+  CreateInventoryMovementDto,
+  UpdateInventoryMovementDto,
+} from './dto/inventory-movements.schema';
 import { InventoryMovementPaginationDto } from './dto/pagination-inventory-movement.dto';
 import { InventoryMovementsService } from './inventory-movements.service';
 
@@ -26,7 +29,7 @@ export class InventoryMovementsController {
 
   @Post()
   @Permissions({
-    resource: 'inventory:movements',
+    resource: 'inventory:stock',
     action: 'create',
     scope: 'tenant',
   })
@@ -42,7 +45,7 @@ export class InventoryMovementsController {
 
   @Get()
   @Permissions({
-    resource: 'inventory:movements',
+    resource: 'inventory:stock',
     action: 'read',
     scope: 'tenant',
   })
@@ -54,12 +57,20 @@ export class InventoryMovementsController {
       req,
       paginationDto,
     );
-    return this.service.findAllByPagination(targetTenantId, paginationDto);
+    const result = await this.service.findAllByPagination(
+      targetTenantId,
+      paginationDto,
+    );
+    return {
+      message: 'Lista de movimientos de inventario',
+      data: result.data,
+      meta: result.meta,
+    };
   }
 
-  @Get('stock/:itemType/:itemId')
+  @Get('stock/:productId')
   @Permissions({
-    resource: 'inventory:movements',
+    resource: 'inventory:stock',
     action: 'read',
     scope: 'tenant',
   })
@@ -68,30 +79,59 @@ export class InventoryMovementsController {
     @Param('productId') productId: string,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.getItemStock(productId, targetTenantId);
+    const result = await this.service.getItemStock(productId, targetTenantId);
+    return {
+      message: 'Stock del producto',
+      data: result,
+    };
   }
 
   @Get(':id')
   @Permissions({
-    resource: 'inventory:movements',
+    resource: 'inventory:stock',
     action: 'read',
     scope: 'tenant',
   })
   async findOne(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findOne(id, targetTenantId);
+    const result = await this.service.findOne(id, targetTenantId);
+    return {
+      message: 'Movimiento de inventario encontrado',
+      data: result,
+    };
   }
 
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @Patch(':id')
   @Permissions({
-    resource: 'inventory:movements',
+    resource: 'inventory:stock',
+    action: 'update',
+    scope: 'tenant',
+  })
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateInventoryMovementDto,
+    @Req() req: Request,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    return this.service.update(
+      id,
+      dto as Parameters<typeof this.service.update>[1],
+      targetTenantId,
+      userId,
+    );
+  }
+
+  @Patch(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @Permissions({
+    resource: 'inventory:stock',
     action: 'delete',
     scope: 'tenant',
   })
-  async remove(@Req() req: Request, @Param('id') id: string) {
+  async cancel(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req);
-    return this.service.remove(id, targetTenantId, userId);
+    return this.service.cancel(id, targetTenantId, userId);
   }
 }

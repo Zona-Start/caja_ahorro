@@ -8,6 +8,7 @@ import {
 import { isAxiosError } from 'axios';
 import { inventoryFixedAssetsService } from '../services/inventory-fixed-assets-service';
 import type { InventoryFixedAsset } from '../schemas/inventory-fixed-assets.schema';
+import type { InventoryFixedAssetApi } from '../schemas/inventory-fixed-assets-api.schema';
 
 const getErrorMessage = (error: unknown): string => {
   if (isAxiosError<{ message?: string }>(error)) {
@@ -24,7 +25,7 @@ const getErrorMessage = (error: unknown): string => {
 };
 
 export function useInventoryFixedAssetMutation(): UseMutationResult<
-  InventoryFixedAsset,
+  InventoryFixedAssetApi,
   unknown,
   InventoryFixedAsset
 > {
@@ -32,11 +33,11 @@ export function useInventoryFixedAssetMutation(): UseMutationResult<
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (payload: InventoryFixedAsset) =>
+    mutationFn: (payload: InventoryFixedAsset): Promise<InventoryFixedAssetApi> =>
       payload.id
-        ? inventoryFixedAssetsService.update(payload)
-        : inventoryFixedAssetsService.create(payload),
-    onSuccess: (data, variables) => {
+        ? inventoryFixedAssetsService.update(payload) as Promise<InventoryFixedAssetApi>
+        : inventoryFixedAssetsService.create(payload) as Promise<InventoryFixedAssetApi>,
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.inventoryFixedAssets.all,
       });
@@ -60,7 +61,7 @@ export function useInventoryFixedAssetMutation(): UseMutationResult<
 }
 
 export function useDeleteInventoryFixedAssetMutation(): UseMutationResult<
-  { message: string },
+  { message?: string },
   unknown,
   string
 > {

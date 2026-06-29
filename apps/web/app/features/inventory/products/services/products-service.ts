@@ -21,6 +21,7 @@ function mapViewToProduct(view: ProductViewResponse): Product {
 
   return {
     id: dp.id,
+    internalCode: dp.internalCode ?? undefined,
     name: dp.name,
     description: dp.description ?? '',
     categoryId: dp.categoryId ?? undefined,
@@ -41,10 +42,10 @@ function mapViewToProduct(view: ProductViewResponse): Product {
     profitSale: toNum(sellingPrice?.profitPercent),
     expensePercent: toNum(sellingPrice?.expensePercent),
     salesTaxPercent: sellingPrice?.salesTaxPercent != null ? toNum(sellingPrice.salesTaxPercent) : 16,
-    salePrice: toNum(sellingPrice?.salePrice) || undefined,
+    salePrice: toNum(sellingPrice?.salePrice) || toNum(sellingPrice?.finalPriceGross) || undefined,
     bsPriceAmount: toNum(sellingPrice?.bsPriceAmount) || undefined,
     profitSupply: toNum(offerPrice?.profitPercent) || undefined,
-    offerSalePrice: toNum(offerPrice?.salePrice) || undefined,
+    offerSalePrice: toNum(offerPrice?.offerSalePrice) || toNum(offerPrice?.finalPriceGross) || undefined,
     offerStartDate: offerPrice?.startDate ?? undefined,
     offerEndDate: offerPrice?.endDate ?? undefined,
     suppliers: [],
@@ -161,8 +162,6 @@ export class ProductsService {
 
   static async create(payload: Product) {
     const { id, ...body } = payload;
-    console.log(body);
-
     const response = await apiClient.post('/inventory/products', body);
     return productCreateResponseSchema.parse(response.data);
   }

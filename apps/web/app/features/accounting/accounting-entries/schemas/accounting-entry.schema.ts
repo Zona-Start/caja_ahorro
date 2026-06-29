@@ -20,9 +20,6 @@ export const accountingEntryDetailSchema = z.object({
 export const accountingEntrySchema = z.object({
   id: z.string().optional(),
   tenantId: z.string().optional(),
-  accountingCycleId: z.string({
-    required_error: 'El ciclo contable es requerido.',
-  }),
   entryDate: z.coerce.date({ required_error: 'La fecha es requerida.' }),
   description: z.string().min(1, 'La descripción es requerida.'),
   voucherNo: z.string().optional().nullable(),

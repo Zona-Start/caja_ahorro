@@ -5,35 +5,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import type { InventoryFixedAsset } from '../schemas/inventory-fixed-assets.schema';
+import { useInventoryFixedAssetsModalStore } from '../store/inventory-fixed-assets-modal.store';
 import { InventoryFixedAssetForm } from './inventory-fixed-assets-form';
+import { InventoryFixedAssetsDetail } from './inventory-fixed-assets-detail';
 
-interface InventoryFixedAssetModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  defaultValues?: Partial<InventoryFixedAsset>;
-  mode?: 'create' | 'edit' | 'view';
-}
+export function InventoryFixedAssetModal() {
+  const { isOpen, mode, data, closeModal } =
+    useInventoryFixedAssetsModalStore();
 
-export function InventoryFixedAssetModal({
-  open,
-  onOpenChange,
-  defaultValues,
-  mode = 'create',
-}: InventoryFixedAssetModalProps) {
   const handleSuccess = () => {
-    onOpenChange(false);
+    closeModal();
   };
 
   const handleCancel = () => {
-    onOpenChange(false);
+    closeModal();
   };
 
   const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) closeModal(); }}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -45,18 +37,25 @@ export function InventoryFixedAssetModal({
           </DialogTitle>
           <DialogDescription>
             {isViewMode
-              ? 'Información del activo fijo.'
+              ? 'Información detallada del activo fijo.'
               : isEditMode
                 ? 'Actualiza la información del activo fijo.'
                 : 'Crea un nuevo activo fijo en el inventario.'}
           </DialogDescription>
         </DialogHeader>
-        <InventoryFixedAssetForm
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
-          defaultValues={defaultValues}
-          disabled={isViewMode}
-        />
+        {isViewMode ? (
+          <InventoryFixedAssetsDetail
+            data={data}
+            onClose={handleCancel}
+          />
+        ) : (
+          <InventoryFixedAssetForm
+            onSuccess={handleSuccess}
+            onCancel={handleCancel}
+            defaultValues={data}
+            mode={mode}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { creditModalityTypeEnum } from '@/types/enum';
+import { creditModalityTypeEnum, paymentMethodEnum } from '@/types/enum';
 
 export const CreditItemSchema = z.object({
   agreedSellingPrice: z.number().positive(),
@@ -30,6 +30,17 @@ export const CreateCreditSchema = z.object({
   interestRate: z.number().positive().optional(),
   termType: z.string().optional(),
   termUnits: z.number().int().positive().optional(),
+  expensesPercentage: z.number().min(0).max(100).optional(),
+  commercialHouseType: z.enum(['inventory', 'supplier']).optional(),
+  commercialHouseSupplierId: z.string().uuid().optional(),
+  useSpecialParams: z.boolean().optional(),
+  allowOverdraft: z.boolean().optional(),
+  haberesPayment: z.number().min(0).optional(),
+  directPayment: z.number().min(0).optional(),
+  directPaymentMethod: z.string().optional(),
+  directPaymentReference: z.string().optional(),
+  directPaymentBankAccountId: z.string().uuid().optional(),
+  itemsJson: z.string().optional(),
 });
 
 export const FilterCreditSchema = z.object({
@@ -52,7 +63,23 @@ export const UpdateCreditSchema = z.object({
   rejectionReason: z.string().optional(),
 });
 
+export const SearchAssociateSchema = z.object({
+  cedula: z.string().min(1).max(20),
+  tenantId: z.string().uuid().optional(),
+});
+
+export const CalculateAmortizationSchema = z.object({
+  amount: z.number().positive(),
+  annualRate: z.number().min(0),
+  paymentCount: z.number().int().positive(),
+  startDate: z.coerce.date(),
+  paymentType: z.enum(['installments', 'quotas']),
+  expensesPercentage: z.number().min(0).max(100).optional(),
+});
+
 export type CreateCreditDto = z.infer<typeof CreateCreditSchema>;
 export type FilterCreditDto = z.infer<typeof FilterCreditSchema>;
 export type UpdateCreditDto = z.infer<typeof UpdateCreditSchema>;
 export type CreditItemDto = z.infer<typeof CreditItemSchema>;
+export type SearchAssociateDto = z.infer<typeof SearchAssociateSchema>;
+export type CalculateAmortizationDto = z.infer<typeof CalculateAmortizationSchema>;

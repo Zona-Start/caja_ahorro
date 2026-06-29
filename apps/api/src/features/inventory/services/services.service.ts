@@ -1,7 +1,7 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { services } from '@/database/schema/tables/inventory';
+import { productServiceSuppliers, services } from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { ServicePricesService } from '@/features/inventory/services-prices/services-prices.service';
 import {
@@ -25,7 +25,7 @@ export class ServicesService {
     private readonly servicePricesService: ServicePricesService,
     private readonly generateCode: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   async create(
     dto: CreateServiceDto,
@@ -70,12 +70,13 @@ export class ServicesService {
         .values({
           tenantId,
           name: dto.name,
-          serviceType: dto.serviceType,
+          serviceType: dto.serviceType ?? 'USO_INTERNO',
           internalCode: await this.generateCode.generateGlobalCode(
-            'DOC_SRV',
+            'SRV',
             tenantId,
             'inventory',
             'services',
+            tx,
           ),
           categoryId: dto.categoryId,
           description: dto.description ?? null,
@@ -94,15 +95,31 @@ export class ServicesService {
         await this.servicePricesService.create(
           {
             serviceId: newService.id,
+            currencyCode: dto.currencyCode ?? 'VES',
+            purchaseExchangeRate: dto.purchaseExchangeRate ?? 1,
             baseCost: dto.supplierCost,
-            otherCosts: dto.otherCosts,
-            purchaseTax: dto.purchaseTax,
+            otherCosts: dto.otherCosts ?? 0,
+            purchaseTax: dto.purchaseTax ?? 0,
             isActive: true,
           },
           userId,
           tenantId,
           tx,
         );
+      }
+
+      if (dto.suppliers && dto.suppliers.length > 0) {
+        for (const s of dto.suppliers) {
+          await tx
+            .insert(productServiceSuppliers)
+            .values({
+              tenantId,
+              serviceId: newService.id,
+              suppliersId: s.suppliersId,
+              leadTimeDays: s.leadTimeDays ?? 0,
+            })
+            .onConflictDoNothing();
+        }
       }
 
       return newService;
@@ -175,6 +192,7 @@ export class ServicesService {
         categoryId: services.categoryId,
         categoryName: schema.inventoriesCategories.name,
         status: services.status,
+        serviceType: services.serviceType,
         supplierCost: schema.servicePrices.baseCost,
         otherCosts: schema.servicePrices.otherCosts,
         purchaseTax: schema.servicePrices.purchaseTax,
@@ -268,33 +286,73 @@ export class ServicesService {
   ): Promise<{ id: string; name: string; status: string }> {
     const existing = await this.findOne(id, tenantId);
 
-    const updateData: Record<string, unknown> = {
-      updatedById: userId,
-    };
+    const result = await this.db.transaction(async (tx) => {
+      const updateData: Record<string, unknown> = {
+        updatedById: userId,
+      };
 
-    if (dto.name !== undefined) updateData.name = dto.name;
-    if (dto.description !== undefined) updateData.description = dto.description;
-    if (dto.categoryId !== undefined) updateData.categoryId = dto.categoryId;
-    if (dto.status !== undefined) updateData.status = dto.status;
+      if (dto.name !== undefined) updateData.name = dto.name;
+      if (dto.description !== undefined) updateData.description = dto.description;
+      if (dto.categoryId !== undefined) updateData.categoryId = dto.categoryId;
+      if (dto.status !== undefined) updateData.status = dto.status;
+      if (dto.serviceType !== undefined) updateData.serviceType = dto.serviceType;
 
-    const whereConditions = [eq(services.id, id)];
-    if (tenantId) {
-      whereConditions.push(eq(services.tenantId, tenantId));
-    }
+      const whereConditions = [eq(services.id, id)];
+      if (tenantId) {
+        whereConditions.push(eq(services.tenantId, tenantId));
+      }
 
-    const [result] = await this.db
-      .update(services)
-      .set(updateData)
-      .where(and(...whereConditions))
-      .returning({
-        id: services.id,
-        name: services.name,
-        status: services.status,
-      });
+      const [result] = await tx
+        .update(services)
+        .set(updateData)
+        .where(and(...whereConditions))
+        .returning({
+          id: services.id,
+          name: services.name,
+          status: services.status,
+        });
 
-    if (!result) {
-      throw new NotFoundException('Service not found after update');
-    }
+      if (!result) {
+        throw new NotFoundException('Service not found after update');
+      }
+
+      if (dto.supplierCost !== undefined && dto.supplierCost !== 0) {
+        await this.servicePricesService.create(
+          {
+            serviceId: id,
+            currencyCode: dto.currencyCode ?? 'VES',
+            purchaseExchangeRate: dto.purchaseExchangeRate ?? 1,
+            baseCost: dto.supplierCost,
+            otherCosts: dto.otherCosts ?? 0,
+            purchaseTax: dto.purchaseTax ?? 0,
+            isActive: true,
+          },
+          userId,
+          existing.tenantId,
+          tx,
+        );
+      }
+
+      if (dto.suppliers !== undefined) {
+        await tx
+          .delete(productServiceSuppliers)
+          .where(eq(productServiceSuppliers.serviceId, id));
+
+        for (const s of dto.suppliers) {
+          await tx
+            .insert(productServiceSuppliers)
+            .values({
+              tenantId: existing.tenantId,
+              serviceId: id,
+              suppliersId: s.suppliersId,
+              leadTimeDays: s.leadTimeDays ?? 0,
+            })
+            .onConflictDoNothing();
+        }
+      }
+
+      return result;
+    });
 
     await this.auditHelper.logUpdate(userId, 'service', existing, result, {
       tenantId: existing.tenantId,

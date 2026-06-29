@@ -74,6 +74,19 @@ export const CreateProductSchema = z.object({
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).optional(),
   ),
+
+  // Proveedores asignados (guardados en la misma transacción)
+  suppliers: z
+    .array(
+      z.object({
+        suppliersId: z.string().uuid(),
+        leadTimeDays: z.preprocess(
+          (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
+          z.number().int().min(0).default(0),
+        ),
+      }),
+    )
+    .optional(),
 });
 
 export const UpdateProductSchema = CreateProductSchema.partial();

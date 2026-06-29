@@ -1,18 +1,16 @@
 import { z } from 'zod';
+import { CycleStatusEnum } from './accounting-cycle-options';
 
 export const accountingCycleApiSchema = z.object({
   id: z.string().optional(),
-  tenantId: z.string().optional(),
   startDate: z.string(),
   endDate: z.string(),
-  status: z.string(),
+  status: z.nativeEnum(CycleStatusEnum),
   description: z.string(),
-  closedAt: z.string().optional().nullable(),
-  closedByUser_id: z.string().optional().nullable(),
   createdAt: z.string().optional().nullable(),
   updatedAt: z.string().optional().nullable(),
   createdById: z.string().optional().nullable(),
-  updateById: z.string().optional().nullable(),
+  updatedById: z.string().optional().nullable(),
 });
 
 export type AccountingCycleApi = z.infer<typeof accountingCycleApiSchema>;
@@ -39,9 +37,5 @@ export const accountingCyclePaginationResponseSchema = z.object({
     limit: z.number(),
     totalCount: z.number(),
     totalPages: z.number(),
-    hasNextPage: z.boolean().optional().nullable(),
-    hasPreviousPage: z.boolean().optional().nullable(),
-    nextPage: z.number().optional().nullable(),
-    previousPage: z.number().optional().nullable(),
   }),
 });

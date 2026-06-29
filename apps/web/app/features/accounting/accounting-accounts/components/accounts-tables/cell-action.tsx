@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useDeleteAccountingAccount } from '../../hooks/use-accounting-accounts-mutation';
 import type { AccountPlanApiResponse } from '../../schemas/account-plan-api';
 import { AccountPlanModal } from '../account-plan-modal';
+import { AccountPlanDetailModal } from '../account-plan-detail-modal';
 
 interface CellActionProps {
   data: AccountPlanApiResponse;
@@ -55,11 +56,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         mode="edit"
       />
 
-      <AccountPlanModal
+      <AccountPlanDetailModal
         open={openView}
         onOpenChange={setOpenView}
-        defaultValues={data}
-        mode="view"
+        data={data}
       />
 
       <DropdownMenu>

@@ -3,8 +3,9 @@ import { createZodDto } from 'nestjs-zod';
 import { PaginationSchema } from '@/common/dto/pagination.dto';
 
 export const FixedAssetPaginationSchema = PaginationSchema.extend({
-  typeCategory: z.string().uuid().optional(),
-  status: z.string().optional(),
+  categoryId: z.string().uuid().optional(),
+  assetStatus: z.string().optional(),
+  depreciationMethod: z.string().optional(),
   startDate: z.string().date().or(z.string().datetime()).optional(),
   endDate: z.string().date().or(z.string().datetime()).optional(),
   brand: z.string().optional(),

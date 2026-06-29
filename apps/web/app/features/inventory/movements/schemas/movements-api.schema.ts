@@ -1,38 +1,43 @@
 import { z } from 'zod';
 
 export const movementItemApiSchema = z.object({
-  id: z.number(),
-  itemId: z.number(),
-  itemType: z.string(),
-  itemName: z.string(),
+  id: z.string().optional(),
+  productId: z.string(),
+  productName: z.string().optional().nullable(),
+  productCode: z.string().optional().nullable(),
   quantity: z.number(),
-  unitPrice: z.number().optional().nullable(),
-  unit: z.string().optional().nullable(),
+  unitCost: z.number().optional().nullable(),
+  totalCost: z.number().optional().nullable(),
 });
 
 export const inventoryMovementApiSchema = z.object({
-  id: z.number(),
+  id: z.string(),
+  movementNumber: z.string().optional().nullable(),
   movementType: z.string(),
-  documentType: z.string(),
-  documentNumber: z.string(),
-  description: z.string(),
-  notes: z.string().optional().nullable(),
-  items: z.array(movementItemApiSchema),
-  createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
+  movementDate: z.string().optional().nullable(),
+  status: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  supplierId: z.string().optional().nullable(),
+  supplierName: z.string().optional().nullable(),
+  invoiceNumber: z.string().optional().nullable(),
+  associateId: z.string().optional().nullable(),
+  purchaseOrderId: z.string().optional().nullable(),
+  items: z.array(movementItemApiSchema).optional().default([]),
+  createdAt: z.string().optional().nullable(),
+  updatedAt: z.string().optional().nullable(),
 });
 
 export type InventoryMovementApi = z.infer<typeof inventoryMovementApiSchema>;
 
 export const inventoryMovementMetaSchema = z.object({
+  totalCount: z.number(),
   page: z.number(),
   limit: z.number(),
-  totalCount: z.number(),
   totalPages: z.number(),
-  hasNextPage: z.boolean().optional().nullable(),
-  hasPreviousPage: z.boolean().optional().nullable(),
-  nextPage: z.number().optional().nullable(),
-  previousPage: z.number().optional().nullable(),
+  hasNextPage: z.boolean(),
+  hasPreviousPage: z.boolean(),
+  nextPage: z.number().nullable(),
+  previousPage: z.number().nullable(),
 });
 
 export const inventoryMovementListResponseSchema = z.object({
@@ -44,25 +49,4 @@ export const inventoryMovementListResponseSchema = z.object({
 export const inventoryMovementResponseSchema = z.object({
   message: z.string().optional(),
   data: inventoryMovementApiSchema,
-});
-
-export type InventoryMovementMeta = z.infer<
-  typeof inventoryMovementMetaSchema
->;
-export type InventoryMovementListResponse = z.infer<
-  typeof inventoryMovementListResponseSchema
->;
-
-export const stockApiResponseSchema = z.object({
-  message: z.string().optional(),
-  data: z.object({
-    itemId: z.number(),
-    itemType: z.string(),
-    itemName: z.string(),
-    quantity: z.number(),
-    committed: z.number(),
-    ordered: z.number(),
-    available: z.number(),
-    unit: z.string().optional().nullable(),
-  }),
 });

@@ -13,6 +13,7 @@ import {
   loans,
 } from '@/database/schema/tables/savings';
 import { exchangeRates, moduleSettings } from '@/database/schema/tables/core';
+import { suppliers } from '@/database/schema/tables/purchasing';
 import { products } from '@/database/schema/tables/inventory';
 import { associateHaberesBalance } from '@/database/schema/views';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
@@ -37,8 +38,11 @@ import {
 import { and, count, desc, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
-import { CreateCreditDto, CreditItemDto } from './dto/credit.schema';
-import { FilterCreditDto } from './dto/credit.schema';
+import {
+  CreateCreditDto,
+  CreditItemDto,
+  FilterCreditDto,
+} from './dto/credit.schema';
 
 @Injectable()
 export class CreditManagementService {
@@ -50,41 +54,54 @@ export class CreditManagementService {
     private readonly auditHelper: AuditHelper,
   ) {}
 
-  private addMonthsToDate(
-    date: Date,
-    term: number,
-    termType: 'Cuotas' | 'Plazos',
+  // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
+
+  calculateMonthlyPayment(
+    amount: number,
+    annualRate: number,
+    numInstallments: number,
+    termType: 'installments' | 'quotas',
+  ): number {
+    const periodsPerYear = termType === 'installments' ? 24 : 12;
+    const r = annualRate / 100 / periodsPerYear;
+    if (r === 0 || numInstallments === 0) return amount / (numInstallments || 1);
+    const factor = Math.pow(1 + r, numInstallments);
+    return (amount * r * factor) / (factor - 1);
+  }
+
+  calculateEndDate(
+    startDate: Date,
+    numInstallments: number,
+    termType: 'installments' | 'quotas',
   ): Date {
-    const result = new Date(date);
-
-    if (termType === 'Cuotas') {
-      result.setMonth(result.getMonth() + term);
-    } else {
-      result.setDate(result.getDate() + term * 15);
+    const start = new Date(startDate);
+    if (termType === 'installments') {
+      const totalDays = numInstallments * 15;
+      return new Date(start.getTime() + totalDays * 86400000);
     }
-    return result;
+    start.setMonth(start.getMonth() + numInstallments);
+    return start;
   }
 
-  private calculatePercentage(value: number, percentage: number): number {
-    return (value * percentage) / 100;
-  }
-
-  private generateAmortizationSchedule(
+  generateAmortizationSchedule(
     creditAmount: number,
-    termMonths: number,
+    numInstallments: number,
     annualInterestRate: number,
     startDate: Date,
     creditId: string,
     createdById: string,
-    termType: 'Plazos' | 'Cuotas' = 'Plazos',
+    termType: 'installments' | 'quotas',
+    expensesAmount: number,
   ) {
-    const totalInterestFixed = (creditAmount * annualInterestRate) / 100;
-    const totalAmountToPayByClient = creditAmount + totalInterestFixed;
-    const totalInstallments = termMonths;
-
-    const principalComponentExact = creditAmount / totalInstallments;
-    const interestComponentExact = totalInterestFixed / totalInstallments;
-    const installmentAmountExact = totalAmountToPayByClient / totalInstallments;
+    const periodsPerYear = termType === 'installments' ? 24 : 12;
+    const r = annualInterestRate / 100 / periodsPerYear;
+    const n = numInstallments;
+    const factor = r === 0 ? 1 : Math.pow(1 + r, n);
+    const frenchInstallment = r === 0
+      ? creditAmount / n
+      : (creditAmount * r * factor) / (factor - 1);
+    const expensePerInstallment = expensesAmount / n;
+    const totalInstallmentAmount = frenchInstallment + expensePerInstallment;
 
     const getLastDayOfMonth = (date: Date) =>
       new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -97,7 +114,6 @@ export class CreditManagementService {
       const month = current.getMonth();
       let targetMonth = month;
       let targetYear = year;
-
       if (isFirstHalf) {
         if (current.getDate() > 16) {
           targetMonth += 1;
@@ -108,7 +124,9 @@ export class CreditManagementService {
         }
         return new Date(targetYear, targetMonth, 16);
       } else {
-        const lastDay = getLastDayOfMonth(new Date(targetYear, targetMonth, 1));
+        const lastDay = getLastDayOfMonth(
+          new Date(targetYear, targetMonth, 1),
+        );
         if (current.getDate() > lastDay.getDate() - 1) {
           targetMonth += 1;
           if (targetMonth > 11) {
@@ -120,46 +138,49 @@ export class CreditManagementService {
       }
     };
 
+    const start = new Date(startDate);
     let nextDueDate: Date;
-    if (termType === 'Plazos') {
-      if (startDate.getDate() <= 15) {
-        nextDueDate = getNextBiweeklyDueDate(startDate, false);
+    if (termType === 'installments') {
+      if (start.getDate() <= 15) {
+        nextDueDate = getNextBiweeklyDueDate(start, false);
       } else {
-        nextDueDate = getNextBiweeklyDueDate(startDate, true);
+        nextDueDate = getNextBiweeklyDueDate(start, true);
       }
     } else {
-      nextDueDate = getLastDayOfMonth(startDate);
+      nextDueDate = getLastDayOfMonth(start);
     }
 
     const schedule: any[] = [];
-    let remainingPrincipal = creditAmount;
+    let remaining = creditAmount;
 
-    for (let i = 1; i <= totalInstallments; i++) {
-      let principal = principalComponentExact;
-      let interest = interestComponentExact;
-      let total = installmentAmountExact;
+    for (let i = 1; i <= n; i++) {
+      const interestThisPeriod = remaining * r;
+      let principalThisPeriod = frenchInstallment - interestThisPeriod;
+      let expenseComponent = expensePerInstallment;
+      let total = totalInstallmentAmount;
 
-      if (i === totalInstallments) {
-        principal = remainingPrincipal;
-        total = principal + interest;
+      if (i === n) {
+        principalThisPeriod = remaining;
+        total = principalThisPeriod + interestThisPeriod + expenseComponent;
       }
 
-      remainingPrincipal -= principal;
-      if (remainingPrincipal < 0.005) remainingPrincipal = 0;
+      remaining -= principalThisPeriod;
 
       schedule.push({
         creditId,
         installmentNumber: i,
         dueDate: new Date(nextDueDate),
-        principalAmount: parseFloat(principal.toFixed(6)),
-        interestAmount: parseFloat(interest.toFixed(6)),
-        totalInstallmentAmount: parseFloat(total.toFixed(6)),
-        principalBalancePending: parseFloat(remainingPrincipal.toFixed(6)),
+        principalAmount: String(parseFloat(principalThisPeriod.toFixed(6))),
+        interestAmount: String(parseFloat(interestThisPeriod.toFixed(6))),
+        totalInstallmentAmount: String(parseFloat(total.toFixed(6))),
+        principalBalancePending: String(
+          parseFloat(Math.max(0, remaining).toFixed(6)),
+        ),
         paymentStatus: PaymentStatusEnum.PENDING,
         createdById,
       });
 
-      if (termType === 'Plazos') {
+      if (termType === 'installments') {
         if (nextDueDate.getDate() === 16) {
           nextDueDate = getNextBiweeklyDueDate(nextDueDate, false);
         } else {
@@ -167,13 +188,224 @@ export class CreditManagementService {
         }
       } else {
         nextDueDate = getLastDayOfMonth(
-          new Date(nextDueDate.getFullYear(), nextDueDate.getMonth() + 1, 1),
+          new Date(
+            nextDueDate.getFullYear(),
+            nextDueDate.getMonth() + 1,
+            1,
+          ),
         );
       }
     }
 
     return schedule;
   }
+
+  // ─── BÚSQUEDA DE ASOCIADO ───────────────────────────────────────────────
+
+  async searchAssociate(tenantId: string | null, cedula: string) {
+    const conditions: SQL<unknown>[] = [eq(associates.cedula, cedula)];
+    if (tenantId) {
+      conditions.push(eq(associates.tenantId, tenantId));
+    }
+
+    const [assoc] = await this.db
+      .select({
+        id: associates.id,
+        cedula: associates.cedula,
+        fullname: associates.fullname,
+        baseSalary: associates.baseSalary,
+        isPayrollCredit: associates.isPayrollCredit,
+        phone: associates.phone,
+        email: associates.email,
+        dateAdmission: associates.dateAdmission,
+        status: associates.status,
+      })
+      .from(associates)
+      .where(and(...conditions));
+
+    if (!assoc) {
+      throw new NotFoundException(
+        `Asociado con cédula ${cedula} no encontrado`,
+      );
+    }
+
+    const [account] = await this.db
+      .select({
+        id: associateAccounts.id,
+        accountNumber: associateAccounts.accountNumber,
+        balance: associateHaberesBalance.haberesBalance,
+      })
+      .from(associateAccounts)
+      .leftJoin(
+        associateHaberesBalance,
+        eq(
+          associateHaberesBalance.associateAccountId,
+          associateAccounts.id,
+        ),
+      )
+      .where(eq(associateAccounts.associateId, assoc.id));
+
+    if (!account) {
+      return {
+        associate: assoc,
+        account: null,
+        balance: 0,
+        available80: 0,
+        hasActiveLoan: false,
+        hasActiveCredit: false,
+        hasPayrollCredit: false,
+        lastWithdrawalDate: null,
+        baseSalary: Number(assoc.baseSalary ?? 0),
+        paymentCapacity: 0,
+      };
+    }
+
+    const activeLoans = await this.db
+      .select({ id: loans.id })
+      .from(loans)
+      .where(
+        and(
+          tenantId ? eq(loans.tenantId, tenantId) : undefined,
+          eq(loans.associateId, assoc.id),
+          or(
+            eq(loans.status, LoanStatusEnum.APPROVED),
+            eq(loans.status, LoanStatusEnum.DISBURSED),
+            eq(loans.status, LoanStatusEnum.IN_PAYMENT),
+            eq(loans.status, LoanStatusEnum.OVERDUE),
+            eq(loans.status, LoanStatusEnum.REQUESTED),
+          ),
+        ),
+      )
+      .limit(1);
+
+    const activeCredits = await this.db
+      .select({ id: credits.id })
+      .from(credits)
+      .where(
+        and(
+          eq(credits.associateId, assoc.id),
+          tenantId ? eq(credits.tenantId, tenantId) : undefined,
+          or(
+            eq(credits.status, CreditStatusEnum.REQUESTED),
+            eq(credits.status, CreditStatusEnum.APPROVED),
+            eq(credits.status, CreditStatusEnum.IN_PAYMENT),
+          ),
+        ),
+      )
+      .limit(1);
+
+    const balance = Number(account.balance ?? 0);
+    const available80 = balance * 0.8;
+    const paymentCapacity = (Number(assoc.baseSalary ?? 0)) * 0.3;
+
+    return {
+      associate: assoc,
+      account,
+      balance,
+      available80,
+      hasActiveLoan: activeLoans.length > 0,
+      hasActiveCredit: activeCredits.length > 0,
+      hasPayrollCredit: !!assoc.isPayrollCredit,
+      lastWithdrawalDate: null,
+      baseSalary: Number(assoc.baseSalary ?? 0),
+      paymentCapacity,
+    };
+  }
+
+  // ─── CÁLCULO DE AMORTIZACIÓN ───────────────────────────────────────────
+
+  async calculateAmortization(params: {
+    amount: number;
+    annualRate: number;
+    paymentCount: number;
+    startDate: Date;
+    paymentType: 'installments' | 'quotas';
+    expensesPercentage?: number;
+  }) {
+    const expenseAmount =
+      (params.amount * (params.expensesPercentage || 0)) / 100;
+    const schedule = this.generateAmortizationSchedule(
+      params.amount,
+      params.paymentCount,
+      params.annualRate,
+      params.startDate,
+      'preview',
+      'preview',
+      params.paymentType,
+      expenseAmount,
+    );
+
+    return {
+      schedule: schedule.map((s) => ({
+        ...s,
+        creditId: undefined,
+        createdById: undefined,
+        dueDate: (s.dueDate as Date).toISOString(),
+      })),
+      monthlyPayment: schedule[0]?.totalInstallmentAmount || '0',
+    };
+  }
+
+  // ─── LISTAR TIPOS DE CRÉDITO ────────────────────────────────────────────
+
+  async listCreditTypes(tenantId: string | null) {
+    const conditions: SQL<unknown>[] = [];
+    if (tenantId) {
+      conditions.push(eq(creditsTypes.tenantId, tenantId));
+    }
+    return this.db
+      .select()
+      .from(creditsTypes)
+      .where(conditions.length ? and(...conditions) : undefined);
+  }
+
+  // ─── LISTAR BANCOS ──────────────────────────────────────────────────────
+
+  async listBankAccounts(tenantId: string | null) {
+    const conditions: SQL<unknown>[] = [];
+    if (tenantId) {
+      conditions.push(eq(schema.bankAccounts.tenantId, tenantId));
+    }
+    return this.db
+      .select({
+        id: schema.bankAccounts.id,
+        accountNumber: schema.bankAccounts.accountNumber,
+        accountName: schema.bankAccounts.accountName,
+        bankDirectoryId: schema.bankAccounts.bankDirectoryId,
+        currencyCode: schema.bankAccounts.currencyCode,
+        isActive: schema.bankAccounts.isActive,
+      })
+      .from(schema.bankAccounts)
+      .where(conditions.length ? and(...conditions) : undefined);
+  }
+
+  // ─── LISTAR PROVEEDORES ─────────────────────────────────────────────────
+
+  async listSuppliers(tenantId: string | null) {
+    const conditions: SQL<unknown>[] = [];
+    if (tenantId) {
+      conditions.push(eq(suppliers.tenantId, tenantId));
+    }
+    return this.db
+      .select()
+      .from(suppliers)
+      .where(conditions.length ? and(...conditions) : undefined);
+  }
+
+  // ─── LISTAR PRODUCTOS ───────────────────────────────────────────────────
+
+  async listProducts(tenantId: string | null) {
+    const conditions: SQL<unknown>[] = [];
+    if (tenantId) {
+      conditions.push(eq(products.tenantId, tenantId));
+    }
+    return this.db
+      .select()
+      .from(products)
+      .where(conditions.length ? and(...conditions) : undefined);
+  }
+
+  // ─── SOLICITAR CRÉDITO ──────────────────────────────────────────────────
 
   async request(
     tenantId: string,
@@ -188,14 +420,166 @@ export class CreditManagementService {
       interestRate,
       termType,
       termUnits,
+      expensesPercentage,
+      allowOverdraft,
+      haberesPayment,
+      directPayment,
     } = dto;
 
-    const setting = await this.db.query.moduleSettings.findFirst({
-      where: and(
-        eq(moduleSettings.key, 'MONEDA'),
-        eq(moduleSettings.tenantId, tenantId),
-      ),
-    });
+    const [creditType] = await this.db
+      .select()
+      .from(creditsTypes)
+      .where(
+        and(
+          eq(creditsTypes.id, creditTypeId),
+          eq(creditsTypes.tenantId, tenantId),
+        ),
+      );
+
+    if (!creditType) {
+      throw new NotFoundException('Tipo de crédito no encontrado');
+    }
+
+    const [assoc] = await this.db
+      .select({
+        isPayrollCredit: associates.isPayrollCredit,
+        baseSalary: associates.baseSalary,
+      })
+      .from(associates)
+      .where(
+        and(
+          eq(associates.id, associateId),
+          eq(associates.tenantId, tenantId),
+        ),
+      );
+
+    if (!assoc) {
+      throw new NotFoundException('Asociado no encontrado');
+    }
+
+    if (assoc.isPayrollCredit) {
+      throw new BadRequestException(
+        'El asociado tiene credinomina activo, no puede solicitar créditos',
+      );
+    }
+
+    if (creditType.minCreditAmount && requestedAmount < Number(creditType.minCreditAmount)) {
+      throw new BadRequestException(
+        `El monto mínimo para este tipo de crédito es ${Number(creditType.minCreditAmount).toLocaleString('es')}`,
+      );
+    }
+    if (creditType.maxCreditAmount && requestedAmount > Number(creditType.maxCreditAmount)) {
+      throw new BadRequestException(
+        `El monto máximo para este tipo de crédito es ${Number(creditType.maxCreditAmount).toLocaleString('es')}`,
+      );
+    }
+
+    const activeCreditStatuses: CreditStatusEnum[] = [
+      CreditStatusEnum.REQUESTED,
+      CreditStatusEnum.APPROVED,
+      CreditStatusEnum.IN_PAYMENT,
+    ];
+
+    const existingCredits = await this.db
+      .select({ id: credits.id })
+      .from(credits)
+      .where(
+        and(
+          eq(credits.tenantId, tenantId),
+          eq(credits.associateId, associateId),
+          or(
+            eq(credits.status, CreditStatusEnum.REQUESTED),
+            eq(credits.status, CreditStatusEnum.APPROVED),
+            eq(credits.status, CreditStatusEnum.IN_PAYMENT),
+          ),
+        ),
+      );
+
+    if (existingCredits.length > 0) {
+      throw new BadRequestException(
+        'El asociado ya tiene un crédito en proceso o activo',
+      );
+    }
+
+    const activeLoans = await this.db
+      .select({ id: loans.id })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.tenantId, tenantId),
+          eq(loans.associateId, associateId),
+          or(
+            eq(loans.status, LoanStatusEnum.APPROVED),
+            eq(loans.status, LoanStatusEnum.DISBURSED),
+            eq(loans.status, LoanStatusEnum.IN_PAYMENT),
+            eq(loans.status, LoanStatusEnum.OVERDUE),
+          ),
+        ),
+      );
+
+    if (activeLoans.length > 0) {
+      throw new BadRequestException(
+        'El asociado tiene un préstamo activo, no puede solicitar créditos',
+      );
+    }
+
+    const [account] = await this.db
+      .select({
+        id: associateAccounts.id,
+        balance: associateHaberesBalance.haberesBalance,
+      })
+      .from(associateAccounts)
+      .leftJoin(
+        associateHaberesBalance,
+        eq(
+          associateHaberesBalance.associateAccountId,
+          associateAccounts.id,
+        ),
+      )
+      .where(eq(associateAccounts.associateId, associateId));
+
+    if (!account) {
+      throw new BadRequestException('Cuenta de asociado no encontrada');
+    }
+
+    const balance = Number(account.balance ?? 0);
+    const available80 = balance * 0.8;
+
+    if (!allowOverdraft && requestedAmount > available80) {
+      throw new BadRequestException(
+        `El monto solicitado (${requestedAmount.toLocaleString('es')}) supera el 80% disponible (${available80.toLocaleString('es')})`,
+      );
+    }
+
+    const haberesPaymentAmount = haberesPayment ?? 0;
+    const directPaymentAmount = directPayment ?? 0;
+    const amortizableAmount = requestedAmount - haberesPaymentAmount - directPaymentAmount;
+
+    if (amortizableAmount < 0) {
+      throw new BadRequestException(
+        'La suma de pago de haberes y pago directo no puede exceder el monto del crédito',
+      );
+    }
+
+    const finalRate = interestRate ?? Number(creditType.interestRate);
+    const finalTermUnits = termUnits ?? creditType.termUnits;
+    const finalTermType = (termType ?? creditType.termType) as 'installments' | 'quotas';
+    const expensePct = expensesPercentage ?? Number(creditType.administrativeExpensePercentage ?? 0);
+
+    if (amortizableAmount > 0) {
+      const monthlyPayment = this.calculateMonthlyPayment(
+        amortizableAmount,
+        finalRate,
+        finalTermUnits,
+        finalTermType,
+      );
+      const paymentCapacity = (Number(assoc.baseSalary ?? 0)) * 0.3;
+      if (monthlyPayment > paymentCapacity) {
+        throw new BadRequestException(
+          `La cuota mensual (${monthlyPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
+        );
+      }
+    }
 
     const dup = await this.db
       .select()
@@ -204,72 +588,57 @@ export class CreditManagementService {
         and(
           eq(credits.tenantId, tenantId),
           eq(credits.associateId, associateId),
-          eq(credits.requestedAmount, requestedAmount.toString()),
+          eq(credits.requestedAmount, String(requestedAmount)),
           eq(credits.creditTypeId, creditTypeId),
           eq(credits.status, CreditStatusEnum.REQUESTED),
         ),
       );
 
-    if (dup.length)
-      throw new InternalServerErrorException('Duplicate request.');
+    if (dup.length) {
+      throw new InternalServerErrorException('Solicitud duplicada');
+    }
 
-    const active = await this.db
-      .select()
-      .from(credits)
-      .where(
-        and(
-          eq(credits.tenantId, tenantId),
-          eq(credits.associateId, associateId),
-          eq(credits.status, CreditStatusEnum.APPROVED),
-        ),
-      );
+    const setting = await this.db.query.moduleSettings.findFirst({
+      where: and(
+        eq(moduleSettings.key, 'MONEDA'),
+        eq(moduleSettings.tenantId, tenantId),
+      ),
+    });
 
-    if (active.length)
-      throw new InternalServerErrorException('Member has approved credit.');
+    const currencyCode: CurrencyCodeEnum =
+      setting?.value === '1' ? CurrencyCodeEnum.VES : CurrencyCodeEnum.USD;
 
-    const [assoc] = await this.db
-      .select({
-        isPayrollCredit: associates.isPayrollCredit,
-        balance: associateHaberesBalance.haberesBalance,
-        associateAccountId: associateAccounts.id,
-      })
-      .from(associates)
-      .where(and(
-        eq(associates.id, associateId),
-        eq(associates.tenantId, tenantId),
-      ))
-      .leftJoin(
-        associateAccounts,
-        eq(associateAccounts.associateId, associateId),
-      )
-      .leftJoin(
-        associateHaberesBalance,
-        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
-      );
+    const endDate = this.calculateEndDate(startDate, finalTermUnits, finalTermType);
+    const capital = Math.max(amortizableAmount, 0);
+    const expensesAmount = capital > 0
+      ? (capital * expensePct) / 100
+      : 0;
 
-    if (assoc?.isPayrollCredit)
-      throw new InternalServerErrorException('Active payroll credit.');
-    const avail = this.calculatePercentage(Number(assoc?.balance ?? 0), 80);
-    if (Number(avail) < Number(requestedAmount))
-      throw new InternalServerErrorException('Insufficient availability.');
+    // Cálculos financieros con Sistema Francés
+    const periodsPerYear = finalTermType === 'installments' ? 24 : 12;
+    const r = finalRate / 100 / periodsPerYear;
+    const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
+    const frenchInstallment = capital > 0
+      ? (capital * r * factor) / (factor - 1)
+      : 0;
+    const totalInterest = frenchInstallment * finalTermUnits - capital;
+    const totalPayable = frenchInstallment * finalTermUnits + expensesAmount;
+    const installmentAmount = capital > 0
+      ? frenchInstallment + expensesAmount / finalTermUnits
+      : 0;
 
-    const [creditType] = await this.db
-      .select()
-      .from(creditsTypes)
-      .where(and(
-        eq(creditsTypes.id, creditTypeId),
-        eq(creditsTypes.tenantId, tenantId),
-      ));
-
-    const finalDate = this.addMonthsToDate(
-      startDate,
-      termUnits ?? creditType.termUnits,
-      (termType ?? 'Plazos') as 'Cuotas' | 'Plazos',
-    );
-
-    const numericInterestRate = interestRate
-      ? String(interestRate)
-      : String(creditType.interestRate);
+    const schedule = capital > 0
+      ? this.generateAmortizationSchedule(
+          capital,
+          finalTermUnits,
+          finalRate,
+          startDate,
+          '',
+          userId,
+          finalTermType,
+          expensesAmount,
+        )
+      : [];
 
     const newCredit = await this.db.transaction(async (tx) => {
       const [ins] = await tx
@@ -283,14 +652,19 @@ export class CreditManagementService {
           status: CreditStatusEnum.REQUESTED,
           startDate: startDate.toISOString(),
           requestDate: dto.requestDate.toISOString(),
-          endDate: finalDate.toISOString(),
-          overdraftAmount: dto.overdraftAmount ? String(dto.overdraftAmount) : null,
+          endDate: endDate.toISOString(),
+          overdraftAmount: dto.overdraftAmount
+            ? String(dto.overdraftAmount)
+            : null,
           commercialHouseId: dto.commercialHouseId ?? null,
-          currencyCode:
-            setting?.value === '1' ? 'VES' : ('USD' as CurrencyCodeEnum),
-          termType: termType ?? creditType.termType,
-          termUnits: termUnits ?? creditType.termUnits,
-          interestRate: numericInterestRate,
+          currencyCode,
+          termType: finalTermType,
+          termUnits: finalTermUnits,
+          interestRate: String(finalRate),
+          installmentAmount: String(installmentAmount.toFixed(6)),
+          totalInterest: String(totalInterest.toFixed(6)),
+          totalPayable: String(totalPayable.toFixed(6)),
+          expensesAmount: String(expensesAmount.toFixed(6)),
           notes: dto.notes ?? null,
           invoiceNumber: dto.invoiceNumber ?? null,
           previousCreditId: dto.previousCreditId ?? null,
@@ -301,6 +675,15 @@ export class CreditManagementService {
           id: credits.id,
           customReference: credits.customReference,
         });
+
+      if (schedule.length > 0) {
+        const scheduleRows = schedule.map((s: any) => ({
+          ...s,
+          creditId: ins.id,
+          dueDate: (s.dueDate as Date).toISOString(),
+        }));
+        await tx.insert(creditAmortizationSchedule).values(scheduleRows);
+      }
 
       await tx.insert(creditStatusHistory).values({
         creditId: ins.id,
@@ -315,12 +698,12 @@ export class CreditManagementService {
             tenantId,
             creditId: ins.id,
             itemId: item.itemId ?? null,
-            itemDescription: item.itemDescription ?? null,
             agreedSellingPrice: String(item.agreedSellingPrice),
             quantity: Number(item.quantity),
             itemType: item.itemType as 'PRODUCT' | 'SERVICE' | 'EXTERNAL',
-            deliveryStatus: 'COMMITTED' as 'COMMITTED' | 'DELIVERED',
+            deliveryStatus: 'ENTREGADO',
             saleDate: item.saleDate.toISOString(),
+            days: item.days ? String(item.days) : null,
           })),
         );
       }
@@ -337,27 +720,23 @@ export class CreditManagementService {
     return { id: newCredit.id, customReference: newCredit.customReference };
   }
 
+  // ─── APROBAR CRÉDITO ───────────────────────────────────────────────────
+
   async approve(
     tenantId: string,
     userId: string,
     id: string,
   ): Promise<{ id: string; customReference: string | null }> {
-    const credit = await this.db.transaction(async (tx) => {
-      const [row] = await tx
-        .select()
-        .from(credits)
-        .where(and(eq(credits.id, id), eq(credits.tenantId, tenantId)))
-        .for('update');
-      if (!row) throw new NotFoundException('Credit not found');
-      if (row.status !== CreditStatusEnum.REQUESTED)
-        throw new BadRequestException('Only REQUESTED credits can be approved');
-      return row;
-    });
-
-    const creditSale = await this.db
+    const [credit] = await this.db
       .select()
-      .from(creditItemSales)
-      .where(eq(creditItemSales.creditId, id));
+      .from(credits)
+      .where(and(eq(credits.id, id), eq(credits.tenantId, tenantId)));
+
+    if (!credit) throw new NotFoundException('Crédito no encontrado');
+    if (credit.status !== CreditStatusEnum.REQUESTED)
+      throw new BadRequestException(
+        'Solo se pueden aprobar créditos en estado REQUESTED',
+      );
 
     const {
       associateId,
@@ -365,10 +744,6 @@ export class CreditManagementService {
       creditTypeId,
       startDate,
       currencyCode,
-      commercialHouseId,
-      interestRate,
-      termType,
-      termUnits,
     } = credit;
 
     const active = await this.db
@@ -383,7 +758,7 @@ export class CreditManagementService {
         ),
       );
     if (active.length)
-      throw new InternalServerErrorException('Member has approved credit.');
+      throw new BadRequestException('El asociado ya tiene un crédito aprobado');
 
     const [assoc] = await this.db
       .select({
@@ -392,77 +767,43 @@ export class CreditManagementService {
         associateAccountId: associateAccounts.id,
       })
       .from(associates)
-      .where(and(
-        eq(associates.id, associateId),
-        eq(associates.tenantId, tenantId),
-      ))
+      .where(
+        and(
+          eq(associates.id, associateId),
+          eq(associates.tenantId, tenantId),
+        ),
+      )
       .leftJoin(
         associateAccounts,
         eq(associateAccounts.associateId, associateId),
       )
       .leftJoin(
         associateHaberesBalance,
-        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+        eq(
+          associateHaberesBalance.associateAccountId,
+          associateAccounts.id,
+        ),
       );
+
     if (assoc?.isPayrollCredit)
-      throw new InternalServerErrorException('Active payroll credit.');
-    const avail = this.calculatePercentage(Number(assoc?.balance ?? 0), 80);
+      throw new BadRequestException('Crédito nómina activo');
+
+    const avail = (Number(assoc?.balance ?? 0)) * 0.8;
     if (Number(avail) < Number(requestedAmount))
-      throw new InternalServerErrorException('Insufficient availability.');
+      throw new BadRequestException('Disponibilidad insuficiente');
 
-    const setting = await this.db
-      .select({ value: moduleSettings.value })
-      .from(moduleSettings)
-      .where(eq(moduleSettings.key, 'MONEDA'))
-      .then((r) => r[0]);
-    const exchangeRateData = await this.db.query.exchangeRates.findFirst();
-
-    const [creditType] = await this.db
+    const creditSale = await this.db
       .select()
-      .from(creditsTypes)
-      .where(and(
-        eq(creditsTypes.id, creditTypeId),
-        eq(creditsTypes.tenantId, tenantId),
-      ));
-
-    const annualInterestRate = interestRate
-      ? parseFloat(interestRate)
-      : parseFloat(creditType.interestRate);
-    const term = termUnits ?? creditType.termUnits;
-    const expensePct = Number(creditType.administrativeExpensePercentage ?? 0);
-
-    const interest = (Number(requestedAmount) * annualInterestRate) / 100;
-    const expenses = (Number(requestedAmount) * expensePct) / 100;
-
-    let totalQuota = 0;
-    let totalInterest = 0;
-    let installmentAmount = 0;
-    let totalPayable = 0;
-    let totalTerm = 0;
-
-    if (termType === 'Plazos') {
-      totalTerm = term / 2;
-    } else {
-      totalTerm = term;
-    }
-
-    if (setting?.value === 'USD' && exchangeRateData) {
-      const rate = Number(exchangeRateData.rate);
-      totalQuota = (Number(requestedAmount) + interest) / totalTerm / rate;
-      totalInterest = interest / rate;
-      installmentAmount = expenses / rate;
-      totalPayable =
-        Number(requestedAmount) + totalInterest + installmentAmount;
-    } else {
-      totalQuota = (Number(requestedAmount) + interest) / totalTerm;
-      totalInterest = interest;
-      installmentAmount = expenses;
-      totalPayable =
-        Number(requestedAmount) + totalInterest + installmentAmount;
-    }
+      .from(creditItemSales)
+      .where(eq(creditItemSales.creditId, id));
 
     const customReference =
-      await this.generateCodeService.generateNextReference('CRE', tenantId, 'credits', 'management');
+      await this.generateCodeService.generateNextReference(
+        'CRE',
+        tenantId,
+        'credits',
+        'management',
+      );
 
     const result = await this.db.transaction(async (tx) => {
       const [updatedCredit] = await tx
@@ -470,15 +811,8 @@ export class CreditManagementService {
         .set({
           status: CreditStatusEnum.APPROVED,
           approvalDate: new Date().toISOString(),
-          customReference: customReference,
+          customReference,
           approvedByUserId: userId,
-          totalInterest: String(totalInterest.toFixed(6)),
-          installmentAmount:
-            termType === 'Plazos'
-              ? String((totalQuota / 2).toFixed(6))
-              : String(totalQuota.toFixed(6)),
-          expensesAmount: String(installmentAmount.toFixed(6)),
-          totalPayable: String(totalPayable.toFixed(6)),
           updatedById: userId,
         })
         .where(eq(credits.id, id))
@@ -487,12 +821,40 @@ export class CreditManagementService {
           customReference: credits.customReference,
         });
 
-      await tx
-        .update(creditItemSales)
-        .set({
-          deliveryStatus: 'DELIVERED',
-        })
-        .where(eq(creditItemSales.creditId, id));
+      // Si no existe schedule, generarlo
+      const existingSchedule = await tx
+        .select()
+        .from(creditAmortizationSchedule)
+        .where(eq(creditAmortizationSchedule.creditId, id));
+
+      if (existingSchedule.length === 0) {
+        const finalRate = Number(credit.interestRate ?? 0);
+        const finalTermUnits = credit.termUnits ?? 1;
+        const finalTermType = (credit.termType ?? 'Plazos') as
+          | 'installments'
+          | 'quotas';
+        const expensesAmount = Number(credit.expensesAmount ?? 0);
+
+        const schedule = this.generateAmortizationSchedule(
+          Number(requestedAmount),
+          finalTermUnits,
+          finalRate,
+          startDate ? new Date(startDate) : new Date(),
+          id,
+          userId,
+          finalTermType,
+          expensesAmount,
+        );
+
+        if (schedule.length > 0) {
+          await tx.insert(creditAmortizationSchedule).values(
+            schedule.map((s: any) => ({
+              ...s,
+              dueDate: (s.dueDate as Date).toISOString(),
+            })),
+          );
+        }
+      }
 
       await tx.insert(creditStatusHistory).values({
         creditId: id,
@@ -501,38 +863,16 @@ export class CreditManagementService {
         comment: 'CREDIT APPROVED',
       });
 
-      const startDateAsDate = startDate ? new Date(startDate) : new Date();
-
-      const schedule = this.generateAmortizationSchedule(
-        Number(requestedAmount),
-        term,
-        annualInterestRate,
-        startDateAsDate,
-        id,
-        userId,
-        (termType ? termType : 'Plazos') as 'Plazos' | 'Cuotas',
-      );
-
-      await tx.insert(creditAmortizationSchedule).values(
-        schedule.map((s: any) => ({
-          ...s,
-          dueDate: s.dueDate.toISOString(),
-          principalAmount: String(s.principalAmount),
-          interestAmount: String(s.interestAmount),
-          totalInstallmentAmount: String(s.totalInstallmentAmount),
-          principalBalancePending: String(s.principalBalancePending),
-        })),
-      );
-
+      // Procesar items de inventario (productos)
       for (const item of creditSale) {
-        if (item.itemType === 'PRODUCT') {
+        if (item.itemType === 'PRODUCT' && item.itemId) {
           await this.inventoryMovementsService.create(
             {
               movementType: 'STOCK_DELIVERY',
-              description: `Salida de producto por credito asociado N° ${updatedCredit.customReference}`,
+              description: `Salida de producto por crédito asociado N° ${customReference}`,
               items: [
                 {
-                  productId: String(item.itemId ?? 0),
+                  productId: String(item.itemId),
                   quantity: item.quantity,
                   unitCost: Number(item.agreedSellingPrice),
                 },
@@ -544,29 +884,45 @@ export class CreditManagementService {
         }
       }
 
+      // Movimiento de cuenta del asociado
       if (assoc?.associateAccountId) {
-        await this.associateAccountsMovementsService.create(userId, {
-          associateAccountId: assoc.associateAccountId,
-          movementType:
-            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT' as AssociateMovementTypeEnum,
-          amount: Number(requestedAmount),
-          currencyCode: currencyCode as CurrencyCodeEnum,
-          transactionDate: new Date(),
-          description: 'Crédito Aprobado',
-          referenceId: String(id),
-          referenceType: 'credits',
-        }, tenantId);
-        if (installmentAmount > 0) {
-          await this.associateAccountsMovementsService.create(userId, {
+        const movementAmount = Number(requestedAmount);
+        const movementType: AssociateMovementTypeEnum =
+          credit.creditModality === 'SPECIAL_QUOTAS'
+            ? AssociateMovementTypeEnum.SPECIAL_CREDIT_DISBURSEMENT_CREDIT
+            : AssociateMovementTypeEnum.COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT;
+
+        await this.associateAccountsMovementsService.create(
+          userId,
+          {
             associateAccountId: assoc.associateAccountId,
-            movementType: 'CREDIT_ADMIN_FEE_DEBIT' as AssociateMovementTypeEnum,
-            amount: installmentAmount,
+            movementType,
+            amount: movementAmount,
             currencyCode: currencyCode as CurrencyCodeEnum,
             transactionDate: new Date(),
-            description: `Gastos Administrativos por Crédito N°${customReference}`,
+            description: `Crédito Aprobado N°${customReference}`,
             referenceId: String(id),
             referenceType: 'credits',
-          }, tenantId);
+          },
+          tenantId,
+        );
+
+        const expensesAmount = Number(credit.expensesAmount ?? 0);
+        if (expensesAmount > 0) {
+          await this.associateAccountsMovementsService.create(
+            userId,
+            {
+              associateAccountId: assoc.associateAccountId,
+              movementType: AssociateMovementTypeEnum.CREDIT_ADMIN_FEE_DEBIT,
+              amount: expensesAmount,
+              currencyCode: currencyCode as CurrencyCodeEnum,
+              transactionDate: new Date(),
+              description: `Gastos Administrativos Crédito N°${customReference}`,
+              referenceId: String(id),
+              referenceType: 'credits',
+            },
+            tenantId,
+          );
         }
       }
 
@@ -581,6 +937,8 @@ export class CreditManagementService {
 
     return { id: result.id, customReference: result.customReference ?? null };
   }
+
+  // ─── LISTAR TODOS (PAGINADO) ────────────────────────────────────────────
 
   async findAll(tenantId: string | null, paginationDto: FilterCreditDto) {
     const {
@@ -597,7 +955,7 @@ export class CreditManagementService {
 
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [];
 
     if (tenantId) {
       searchConditions.push(eq(credits.tenantId, tenantId));
@@ -609,13 +967,17 @@ export class CreditManagementService {
           searchConditions.push(ilike(associates.cedula, `%${search}%`));
           break;
         case 'fullname':
-          searchConditions.push(ilike(associates.fullname, `%${search}%`));
+          searchConditions.push(
+            ilike(associates.fullname, `%${search}%`),
+          );
           break;
       }
     }
 
     if (status) {
-      searchConditions.push(eq(credits.status, status as CreditStatusEnum));
+      searchConditions.push(
+        eq(credits.status, status as CreditStatusEnum),
+      );
     }
 
     if (type) {
@@ -667,6 +1029,7 @@ export class CreditManagementService {
         startDate: credits.startDate,
         endDate: credits.endDate,
         totalInterest: credits.totalInterest,
+        installmentAmount: credits.installmentAmount,
         totalPayable: credits.totalPayable,
         expensesAmount: credits.expensesAmount,
         overdraftAmount: credits.overdraftAmount,
@@ -699,13 +1062,27 @@ export class CreditManagementService {
     };
 
     return {
-      data: data.map((credit): any => ({
+      data: data.map((credit) => ({
         ...credit,
         requestedAmount: Number(credit.requestedAmount).toFixed(2),
+        installmentAmount: credit.installmentAmount
+          ? Number(credit.installmentAmount).toFixed(2)
+          : null,
+        totalInterest: credit.totalInterest
+          ? Number(credit.totalInterest).toFixed(2)
+          : null,
+        totalPayable: credit.totalPayable
+          ? Number(credit.totalPayable).toFixed(2)
+          : null,
+        expensesAmount: credit.expensesAmount
+          ? Number(credit.expensesAmount).toFixed(2)
+          : null,
       })),
       meta,
     };
   }
+
+  // ─── BUSCAR POR EDIT ───────────────────────────────────────────────────
 
   async findRequestByEdit(tenantId: string | null, id: string) {
     const conditions: SQL<unknown>[] = [eq(credits.id, id)];
@@ -735,6 +1112,7 @@ export class CreditManagementService {
         startDate: credits.startDate,
         endDate: credits.endDate,
         totalInterest: credits.totalInterest,
+        installmentAmount: credits.installmentAmount,
         totalPayable: credits.totalPayable,
         expensesAmount: credits.expensesAmount,
         overdraftAmount: credits.overdraftAmount,
@@ -762,13 +1140,11 @@ export class CreditManagementService {
       .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id));
 
     if (!data) {
-      throw new NotFoundException('Credit not found');
+      throw new NotFoundException('Crédito no encontrado');
     }
 
     const [{ count: total }] = await this.db
-      .select({
-        count: count(),
-      })
+      .select({ count: count() })
       .from(credits)
       .where(
         and(
@@ -777,11 +1153,10 @@ export class CreditManagementService {
         ),
       );
 
-    return {
-      ...data,
-      totalCredits: total,
-    };
+    return { ...data, totalCredits: total };
   }
+
+  // ─── BUSCAR ASOCIADO POR CÉDULA ────────────────────────────────────────
 
   async findOneRequest(tenantId: string | null, cedula: string) {
     const conditions: SQL<unknown>[] = [eq(associates.cedula, cedula)];
@@ -789,7 +1164,7 @@ export class CreditManagementService {
       conditions.push(eq(associates.tenantId, tenantId));
     }
 
-    const associate = await this.db
+    const [associate] = await this.db
       .select({
         id: associates.id,
         cedula: associates.cedula,
@@ -803,19 +1178,23 @@ export class CreditManagementService {
       .from(associates)
       .where(and(...conditions));
 
-    if (!associate.length) {
-      throw new NotFoundException(`Associate with cedula ${cedula} not found`);
-    }
-    if (associate[0].status === 'INACTIVE') {
+    if (!associate) {
       throw new NotFoundException(
-        `Associate with cedula ${cedula} is inactive`,
+        `Asociado con cédula ${cedula} no encontrado`,
       );
     }
-    if (associate[0].status === 'RETIRED') {
-      throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
+    if (associate.status === 'INACTIVE') {
+      throw new NotFoundException(
+        `Asociado con cédula ${cedula} está inactivo`,
+      );
+    }
+    if (associate.status === 'RETIRED') {
+      throw new NotFoundException(
+        `Asociado con cédula ${cedula} está retirado`,
+      );
     }
 
-    const associateAccount = await this.db
+    const [associateAccount] = await this.db
       .select({
         associateAccountId: associateAccounts.id,
         accountNumber: associateAccounts.accountNumber,
@@ -824,31 +1203,30 @@ export class CreditManagementService {
       .from(associateAccounts)
       .leftJoin(
         associateHaberesBalance,
-        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
+        eq(
+          associateHaberesBalance.associateAccountId,
+          associateAccounts.id,
+        ),
       )
-      .where(eq(associateAccounts.associateId, associate[0].id));
+      .where(eq(associateAccounts.associateId, associate.id));
 
     const [{ count: total }] = await this.db
-      .select({
-        count: count(),
-      })
+      .select({ count: count() })
       .from(credits)
       .where(
         and(
-          eq(credits.associateId, associate[0].id),
+          eq(credits.associateId, associate.id),
           ne(credits.status, CreditStatusEnum.PAID),
           ne(credits.status, CreditStatusEnum.REQUESTED),
         ),
       );
 
     const [{ count: totalLoans }] = await this.db
-      .select({
-        count: count(),
-      })
+      .select({ count: count() })
       .from(loans)
       .where(
         and(
-          eq(loans.associateId, associate[0].id),
+          eq(loans.associateId, associate.id),
           ne(loans.status, LoanStatusEnum.PAID),
           ne(loans.status, LoanStatusEnum.REQUESTED),
           ne(loans.status, LoanStatusEnum.CANCELLED),
@@ -858,15 +1236,18 @@ export class CreditManagementService {
 
     return {
       associate: {
-        ...associate[0],
-        associateAccountId: associateAccount[0]?.associateAccountId,
-        accountNumber: associateAccount[0]?.accountNumber,
-        balance: Number(associateAccount[0]?.balance ?? 0).toFixed(2),
+        ...associate,
+        associateAccountId:
+          associateAccount?.associateAccountId,
+        accountNumber: associateAccount?.accountNumber,
+        balance: Number(associateAccount?.balance ?? 0).toFixed(2),
       },
       totalCredits: total,
       totalLoans: totalLoans,
     };
   }
+
+  // ─── ENCONTRAR UNO ─────────────────────────────────────────────────────
 
   async findOne(tenantId: string | null, id: string) {
     const conditions: SQL<unknown>[] = [eq(credits.id, id)];
@@ -880,13 +1261,19 @@ export class CreditManagementService {
       .where(and(...conditions));
 
     if (!credit) {
-      throw new NotFoundException('Credit not found');
+      throw new NotFoundException('Crédito no encontrado');
     }
 
     return credit;
   }
 
-  async remove(tenantId: string | null, userId: string, id: string): Promise<{ message: string }> {
+  // ─── ELIMINAR ──────────────────────────────────────────────────────────
+
+  async remove(
+    tenantId: string | null,
+    userId: string,
+    id: string,
+  ): Promise<{ message: string }> {
     const conditions: SQL<unknown>[] = [eq(credits.id, id)];
     if (tenantId) {
       conditions.push(eq(credits.tenantId, tenantId));
@@ -898,10 +1285,24 @@ export class CreditManagementService {
       .where(and(...conditions));
 
     if (!existingCredit) {
-      throw new HttpException('Credit not found', HttpStatus.NOT_FOUND);
+      throw new HttpException('Crédito no encontrado', HttpStatus.NOT_FOUND);
     }
 
-    await this.db.delete(credits).where(and(...conditions));
+    await this.db.transaction(async (tx) => {
+      await tx
+        .delete(creditAmortizationSchedule)
+        .where(eq(creditAmortizationSchedule.creditId, id));
+
+      await tx
+        .delete(creditItemSales)
+        .where(eq(creditItemSales.creditId, id));
+
+      await tx
+        .delete(creditStatusHistory)
+        .where(eq(creditStatusHistory.creditId, id));
+
+      await tx.delete(credits).where(and(...conditions));
+    });
 
     await this.auditHelper.logDelete(userId, 'credit', existingCredit, {
       tenantId: tenantId ?? undefined,
@@ -909,8 +1310,10 @@ export class CreditManagementService {
       description: `Deleted credit ${id}`,
     });
 
-    return { message: 'Credit deleted successfully' };
+    return { message: 'Crédito eliminado exitosamente' };
   }
+
+  // ─── CONTADOR DE CRÉDITOS ──────────────────────────────────────────────
 
   async findCountAllCredits(tenantId: string | null) {
     const conditions: SQL<unknown>[] = [];
@@ -938,7 +1341,10 @@ export class CreditManagementService {
       .where(
         and(
           ...conditions,
-          eq(credits.creditModality, creditModalityTypeEnum.SPECIAL_QUOTAS),
+          eq(
+            credits.creditModality,
+            creditModalityTypeEnum.SPECIAL_QUOTAS,
+          ),
           or(eq(credits.status, CreditStatusEnum.APPROVED)),
         ),
       );
@@ -946,9 +1352,7 @@ export class CreditManagementService {
     const totalCreditPaid = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(credits)
-      .where(
-        and(...conditions, eq(credits.status, CreditStatusEnum.PAID)),
-      );
+      .where(and(...conditions, eq(credits.status, CreditStatusEnum.PAID)));
 
     const totalCreditInPayment = await this.db
       .select({ count: sql<number>`count(*)` })
@@ -965,10 +1369,18 @@ export class CreditManagementService {
     };
   }
 
-  async findAllByAssociate(tenantId: string | null, associateId: string, filtersDto: PaginationDto) {
+  // ─── CRÉDITOS POR ASOCIADO ─────────────────────────────────────────────
+
+  async findAllByAssociate(
+    tenantId: string | null,
+    associateId: string,
+    filtersDto: PaginationDto,
+  ) {
     const { page = 1, limit = 10 } = filtersDto;
 
-    const conditions: SQL<unknown>[] = [eq(credits.associateId, associateId)];
+    const conditions: SQL<unknown>[] = [
+      eq(credits.associateId, associateId),
+    ];
     if (tenantId) {
       conditions.push(eq(credits.tenantId, tenantId));
     }
@@ -996,6 +1408,9 @@ export class CreditManagementService {
         requestDate: credits.requestDate,
         terms: creditsTypes.termUnits,
         status: credits.status,
+        customReference: credits.customReference,
+        termType: credits.termType,
+        termUnits: credits.termUnits,
       })
       .from(credits)
       .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id))
@@ -1029,13 +1444,17 @@ export class CreditManagementService {
         progress = (paidAmount / totalAmount) * 10;
       }
 
-      const formattedProgress = Math.max(0, Math.min(10, progress)).toFixed(2);
+      const formattedProgress = Math.max(0, Math.min(10, progress)).toFixed(
+        2,
+      );
 
       return {
         ...credit,
         creditAmount: totalAmount.toFixed(2),
         outstandingBalance: outstanding.toFixed(2),
-        installmentAmount: parseFloat(credit.installmentAmount || '0').toFixed(2),
+        installmentAmount: parseFloat(
+          credit.installmentAmount || '0',
+        ).toFixed(2),
         progress: formattedProgress,
       };
     });
@@ -1051,6 +1470,8 @@ export class CreditManagementService {
       },
     };
   }
+
+  // ─── DETALLE COMPLETO DE CRÉDITO ──────────────────────────────────────
 
   async findCreditDetails(tenantId: string | null, id: string) {
     const conditions: SQL<unknown>[] = [eq(credits.id, id)];
@@ -1102,7 +1523,7 @@ export class CreditManagementService {
       .leftJoin(creditsTypes, eq(credits.creditTypeId, creditsTypes.id));
 
     if (!credit) {
-      throw new NotFoundException('Credit not found');
+      throw new NotFoundException('Crédito no encontrado');
     }
 
     const amortizationSchedule = await this.db
@@ -1136,7 +1557,10 @@ export class CreditManagementService {
 
     const totalPaid = amortizationSchedule
       .filter((item) => item.paymentStatus === 'PAID')
-      .reduce((acc, item) => acc + parseFloat(item.paidAmount || '0'), 0);
+      .reduce(
+        (acc, item) => acc + parseFloat(item.paidAmount || '0'),
+        0,
+      );
 
     const totalPending = Number(credit.totalPayable || '0') - totalPaid;
 

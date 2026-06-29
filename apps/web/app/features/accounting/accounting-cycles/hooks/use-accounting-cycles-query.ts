@@ -8,10 +8,6 @@ type PaginationMeta = {
   limit: number;
   totalCount: number;
   totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-  nextPage: number | null;
-  previousPage: number | null;
 };
 
 export function useAccountingCycles(): UseQueryResult<AccountingCycle[]> {
@@ -26,6 +22,8 @@ export function usePaginatedAccountingCycles(params: {
   limit?: number;
   search?: string;
   status?: string;
+  startDate?: string;
+  endDate?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }): UseQueryResult<{ data: AccountingCycle[]; meta: PaginationMeta }> {
@@ -36,9 +34,11 @@ export function usePaginatedAccountingCycles(params: {
   });
 }
 
-export function useAccountingCycle(id: number): UseQueryResult<AccountingCycle> {
+export function useAccountingCycle(
+  id: string,
+): UseQueryResult<AccountingCycle> {
   return useQuery({
-    queryKey: QUERY_KEYS.accountingCycles.detail(id.toString()),
+    queryKey: QUERY_KEYS.accountingCycles.detail(id),
     queryFn: () => AccountingCyclesService.getById(id),
     enabled: !!id,
   });

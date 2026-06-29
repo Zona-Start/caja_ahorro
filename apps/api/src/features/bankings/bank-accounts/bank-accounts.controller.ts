@@ -37,16 +37,16 @@ export class BankAccountsController {
     return { message: 'Bank Account created successfully', data };
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all bank accounts' })
-  @ApiResponse({ status: 200, description: 'Return all bank accounts.' })
-  async findAll(@Req() req: any, @Query('tenantId') tenantId?: string) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(
-      req,
-      tenantId,
-    );
-    const data = await this.service.findAll(targetTenantId);
-    return { message: 'Bank Accounts fetched successfully', data };
+  @Get('/balances-by-currency')
+  @ApiOperation({ summary: 'Get bank account balances grouped by currency' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return balances grouped by currency.',
+  })
+  async getBalancesByCurrency(@Req() req: any) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const data = await this.service.getBalancesByCurrency(targetTenantId);
+    return { message: 'Balances fetched successfully', data };
   }
 
   @Get('/paginated')
@@ -60,12 +60,27 @@ export class BankAccountsController {
       req,
       dto,
     );
-    const result = await this.service.findAllByPagination(dto, targetTenantId);
+    const result = await this.service.findAllByPagination(
+      targetTenantId,
+      dto,
+    );
     return {
       message: 'Bank Accounts fetched successfully',
       data: result.data,
       meta: result.meta,
     };
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all bank accounts' })
+  @ApiResponse({ status: 200, description: 'Return all bank accounts.' })
+  async findAll(@Req() req: any, @Query('tenantId') tenantId?: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      tenantId,
+    );
+    const data = await this.service.findAll(targetTenantId);
+    return { message: 'Bank Accounts fetched successfully', data };
   }
 
   @Get(':id')
@@ -112,10 +127,28 @@ export class BankAccountsController {
     @Param('id') id: string,
     @Query('tenantId') tenantId?: string,
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(
+    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
       req,
       tenantId,
     );
-    return await this.service.remove(id, targetTenantId);
+    return await this.service.remove(id, userId, targetTenantId);
+  }
+
+  @Post(':id/reverse')
+  @ApiOperation({ summary: 'Reverse a bank account opening entry' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bank account reversed and deactivated successfully.',
+  })
+  async reverse(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Query('tenantId') tenantId?: string,
+  ) {
+    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
+      req,
+      tenantId,
+    );
+    return await this.service.reverse(id, userId, targetTenantId);
   }
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type ModalMode = 'create' | 'edit' | 'view';
+type ModalMode = 'create' | 'edit';
 
 interface ModalState {
   isOpen: boolean;

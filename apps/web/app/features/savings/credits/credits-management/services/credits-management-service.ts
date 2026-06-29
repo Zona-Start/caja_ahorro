@@ -1,143 +1,74 @@
-import { apiClient } from '@/lib/api-client';
 import { z } from 'zod';
-
-const creditAssociateGetResponseSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  creditTypeId: z.number(),
-  creditModality: z.string(),
-  requestDate: z.string(),
-  requestedAmount: z.string(),
-  startDate: z.string(),
-  endDate: z.string().nullable(),
-  expensesAmount: z.string().nullable(),
-  overdraftAmount: z.string().nullable(),
-  termMonths: z.string().nullable(),
-  interestRate: z.string().nullable(),
-  installmentsCount: z.number().nullable(),
-  status: z.string(),
-  notes: z.string().nullable(),
-  customReference: z.string().nullable(),
-  creditTypeName: z.string().nullable(),
-  associateCedula: z.string().nullable(),
-  associateFullname: z.string().nullable(),
-  associatePhone: z.string().nullable(),
-  associateEmail: z.string().nullable(),
-  associateDateAdmission: z.string().nullable(),
-  associateIsPayrollCredit: z.boolean().nullable(),
-  associateAccountId: z.number().nullable(),
-  associateAccountNumber: z.string().nullable(),
-  associateBalance: z.string().nullable(),
-  invoiceNumber: z.string().nullable(),
-});
-
-const creditManagementResponseSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  creditTypeId: z.number(),
-  creditModality: z.string(),
-  requestDate: z.string(),
-  requestedAmount: z.string(),
-  startDate: z.string(),
-  endDate: z.string().nullable(),
-  expensesAmount: z.string().nullable(),
-  overdraftAmount: z.string().nullable(),
-  termMonths: z.string().nullable(),
-  interestRate: z.string().nullable(),
-  installmentsCount: z.number().nullable(),
-  status: z.string(),
-  notes: z.string().nullable(),
-  customReference: z.string().nullable(),
-  creditTypeName: z.string().nullable(),
-  associateCedula: z.string().nullable(),
-  associateFullname: z.string().nullable(),
-  creditTypeInterestRate: z.string().nullable(),
-  creditTypeAdministrativeExpensePercentage: z.string().nullable(),
-  creditTypeTermUnits: z.string().nullable(),
-  invoiceNumber: z.string().nullable(),
-  termType: z.string().nullable(),
-  termUnits: z.number().nullable(),
-});
-
-const creditManagementResponseAllSchema = z.object({
-  message: z.string().optional(),
-  data: z.array(creditManagementResponseSchema),
-  meta: z
-    .object({
-      page: z.number(),
-      limit: z.number(),
-      totalCount: z.number(),
-      totalPages: z.number(),
-      hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
-      nextPage: z.number().nullable(),
-      previousPage: z.number().nullable(),
-    })
-    .optional(),
-});
-
-const creditManagementMutationSchema = z.object({
-  message: z.string(),
-  creditId: z.number(),
-});
-
-const creditManagementAllCountSchema = z.object({
-  total: z.number(),
-  pending: z.number(),
-  approved: z.number(),
-  rejected: z.number(),
-  disbursed: z.number(),
-});
-
-const loadAssociateApiResponseSchema = z.object({
-  message: z.string(),
-  data: creditAssociateGetResponseSchema,
-});
-
-const creditDeleteResponseSchema = z.object({
-  message: z.string(),
-});
+import { apiClient } from '@/lib/api-client';
+import {
+  CreditManagementResponseAllSchema,
+  CreditManagementMutationResponse,
+  CreditDeleteResponseSchema,
+  SearchAssociateResponseSchema,
+  AmortizationResponseSchema,
+  CreditCountResponseSchema,
+  CreditTypeSchema,
+  BankAccountSchema,
+} from '../schemas/credits-management-api-response';
 
 export const creditManagementService = {
-  getAssociatesByCedula: async (cedula: string) => {
-    const response = await apiClient.get(`/credit/request/${cedula}`);
-    const result = loadAssociateApiResponseSchema.parse(response.data);
-    return result.data;
+  searchAssociate: async (cedula: string) => {
+    const response = await apiClient.get(`/credit/search-associate/${cedula}`);
+    return SearchAssociateResponseSchema.parse(response.data);
   },
 
-  getCreditManagementById: async (id: number) => {
-    const response = await apiClient.get(`/credit/request/byEdit/${id}`);
-    const data = creditAssociateGetResponseSchema.parse(response.data);
+  calculateAmortization: async (params: {
+    amount: number;
+    annualRate: number;
+    paymentCount: number;
+    startDate: string;
+    paymentType: string;
+    expensesPercentage?: number;
+  }) => {
+    const searchParams = new URLSearchParams({
+      amount: params.amount.toString(),
+      annualRate: params.annualRate.toString(),
+      paymentCount: params.paymentCount.toString(),
+      startDate: params.startDate,
+      paymentType: params.paymentType,
+      ...(params.expensesPercentage !== undefined && {
+        expensesPercentage: params.expensesPercentage.toString(),
+      }),
+    });
+    const response = await apiClient.get(
+      `/credit/calculate-amortization?${searchParams}`,
+    );
+    return AmortizationResponseSchema.parse(response.data);
+  },
 
-    return {
-      id: String(data.id),
-      associateId: Number(data.associateId),
-      creditTypeId: String(data.creditTypeId),
-      creditModality: data.creditModality,
-      requestDate: data.requestDate ? new Date(data.requestDate) : new Date(),
-      requestedAmount: data.requestedAmount ?? '',
-      startDate: data.startDate,
-      endDate: data.endDate,
-      expensesAmount: data.expensesAmount,
-      overdraftAmount: data.overdraftAmount ?? '',
-      termMonths: data.expensesAmount ?? '',
-      interestRate: data.interestRate ?? '',
-      installmentsCount: data.expensesAmount ?? '',
-      status: data.status ?? '',
-      notes: data.notes,
-      customReference: data.customReference,
-      creditTypeName: data.creditTypeName,
-      associateCedula: data.associateCedula,
-      associateFullname: data.associateFullname,
-      associatePhone: data.associatePhone,
-      associateEmail: data.associateEmail,
-      associateDateAdmission: data.associateDateAdmission,
-      associateIsPayrollCredit: data.associateIsPayrollCredit,
-      associateAccountId: data.associateAccountId,
-      associateAccountNumber: data.associateAccountNumber,
-      associateBalance: data.associateBalance,
-      invoiceNumber: data.invoiceNumber,
-    };
+  listCreditTypes: async () => {
+    const response = await apiClient.get('/credit/credit-types');
+    return z.array(CreditTypeSchema).parse(response.data);
+  },
+
+  listBankAccounts: async () => {
+    const response = await apiClient.get('/credit/bank-accounts');
+    return z.array(BankAccountSchema).parse(response.data);
+  },
+
+  listSuppliers: async () => {
+    const response = await apiClient.get('/credit/suppliers');
+    return response.data;
+  },
+
+  listProducts: async () => {
+    const response = await apiClient.get('/credit/products');
+    return response.data;
+  },
+
+  getAssociatesByCedula: async (cedula: string) => {
+    const response = await apiClient.get(`/credit/request/${cedula}`);
+    return response.data;
+  },
+
+  getCreditManagementById: async (id: string) => {
+    const response = await apiClient.get(`/credit/by-edit/${id}`);
+    return response.data;
   },
 
   getCreditManagementAll: async (params: {
@@ -175,40 +106,44 @@ export const creditManagementService = {
     });
 
     const response = await apiClient.get(`/credit?${searchParams}`);
-    const result = creditManagementResponseAllSchema.parse(response.data);
+    const result = CreditManagementResponseAllSchema.parse(response.data);
 
     return {
       data: result.data || [],
       meta: result.meta || {
-        page: 1,
-        limit: 10,
-        totalCount: 0,
+        totalItems: 0,
+        itemCount: 0,
+        itemsPerPage: 10,
         totalPages: 1,
-        hasNextPage: false,
-        hasPreviousPage: false,
-        nextPage: null,
-        previousPage: null,
+        currentPage: 1,
       },
     };
   },
 
-  createCreditManagement: async (creditManagement: unknown) => {
-    const response = await apiClient.post('/credit/request', creditManagement);
-    return creditManagementMutationSchema.parse(response.data);
+  createCreditManagement: async (data: unknown) => {
+    const response = await apiClient.post('/credit/request', data);
+    return CreditManagementMutationResponse.parse(response.data);
   },
 
-  approveCreditManagement: async (id: number) => {
-    const response = await apiClient.patch(`/credit/approve/${id}`);
-    return creditManagementMutationSchema.parse(response.data);
+  approveCreditManagement: async (id: string) => {
+    const response = await apiClient.post(`/credit/approve/${id}`);
+    return CreditManagementMutationResponse.parse(response.data);
   },
 
-  deleteCreditManagement: async (id: number) => {
+  deleteCreditManagement: async (id: string) => {
     const response = await apiClient.delete(`/credit/${id}`);
-    return creditDeleteResponseSchema.parse(response.data);
+    return CreditDeleteResponseSchema.parse(response.data);
   },
 
   getCreditManagementAllCount: async () => {
     const response = await apiClient.get('/credit/count');
-    return creditManagementAllCountSchema.parse(response.data);
+    return CreditCountResponseSchema.parse(response.data);
+  },
+
+  getCreditDetails: async (id: string) => {
+    const response = await apiClient.get(`/credit/${id}/details`);
+    return response.data;
   },
 };
+
+

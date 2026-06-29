@@ -13,7 +13,7 @@ interface AccountPlanModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultValues?: Partial<AccountPlanApiResponse>;
-  mode?: 'create' | 'edit' | 'view';
+  mode?: 'create' | 'edit';
 }
 
 export function AccountPlanModal({
@@ -30,38 +30,27 @@ export function AccountPlanModal({
     onOpenChange(false);
   };
 
-  const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(open) => {
-        if (!open) {
-          onOpenChange(false);
-        }
-      }}
-    >
-      <DialogContent className="sm:max-w-[600px] z-50 ">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] z-50">
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles de Cuenta Contable'
-              : isEditMode
-                ? 'Actualizar Cuenta Contable'
-                : 'Crear Cuenta Contable'}
+            {isEditMode
+              ? 'Actualizar Cuenta Contable'
+              : 'Crear Cuenta Contable'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información de la cuenta contable.'
-              : `Complete los campos para ${isEditMode ? 'actualizar' : 'crear'} la cuenta contable`}
+            {isEditMode
+              ? 'Actualiza la información de la cuenta contable.'
+              : 'Completa los campos para crear una nueva cuenta contable.'}
           </DialogDescription>
         </DialogHeader>
         <AccountPlanForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={defaultValues as unknown as Partial<AccountPlan>}
-          disabled={isViewMode}
         />
       </DialogContent>
     </Dialog>

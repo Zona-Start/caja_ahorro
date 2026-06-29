@@ -393,16 +393,18 @@ export class AccountingEntriesService {
   }
 
   /* ---------- Validaciones comunes ---------- */
-  private async findActiveCycle(tenantId: string, date: Date) {
+  private async findActiveCycle(tenantId: string, date: Date | string) {
+    const dateStr =
+      typeof date === 'string'
+        ? new Date(date).toISOString().split('T')[0]
+        : date.toISOString().split('T')[0];
+
     const cycle = await this.drizzle.query.accountingCycles.findFirst({
       where: and(
         eq(schema.accountingCycles.tenantId, tenantId),
         eq(schema.accountingCycles.status, 'OPEN'),
-        lte(
-          schema.accountingCycles.startDate,
-          date.toISOString().split('T')[0],
-        ),
-        gte(schema.accountingCycles.endDate, date.toISOString().split('T')[0]),
+        lte(schema.accountingCycles.startDate, dateStr),
+        gte(schema.accountingCycles.endDate, dateStr),
       ),
     });
 
@@ -482,10 +484,13 @@ export class AccountingEntriesService {
     tenantId: string,
     dto: CreateAccountingEntryDto,
     tx?: NodePgDatabase<typeof schema>,
+    initialStatus: entryStatusEnum = entryStatusEnum.DRAFT,
   ) {
+    const cycle = await this.findActiveCycle(tenantId, dto.entryDate);
+
     await this.validateAccountingEntry(
       tenantId,
-      dto.accountingCycleId,
+      cycle.id,
       dto.entryDate,
       dto.details,
     );
@@ -495,15 +500,19 @@ export class AccountingEntriesService {
     return db.transaction(async (tx) => {
       const voucherNo = await this.getNextVoucherNo(tenantId, userId, tx);
 
-      // 1. Insertar Cabecera
       const [entry] = await tx
         .insert(schema.accountingEntries)
         .values({
-          ...dto,
-          tenantId, // Asegúrate de incluir el tenantId
-          voucherNo: voucherNo,
+          tenantId,
+          accountingCycleId: cycle.id,
           entryDate: new Date(dto.entryDate).toISOString().split('T')[0],
-          status: 'DRAFT',
+          description: dto.description,
+          currencyCode: dto.currencyCode,
+          originReferenceId: dto.originReferenceId ?? null,
+          originType: dto.originType ?? null,
+          voucherNo,
+          status: initialStatus,
+          postedAt: initialStatus === entryStatusEnum.POSTED ? new Date() : null,
           createdById: userId,
         })
         .returning();
@@ -768,26 +777,17 @@ export class AccountingEntriesService {
       throw new BadRequestException(
         'El asiento debe tener al menos dos líneas.',
       );
-    const toValidate: CreateAccountingEntryDto = {
-      tenantId: existing.tenantId,
-      accountingCycleId: existing.accountingCycleId,
-      entryDate: existing.entryDate,
-      description: existing.description,
-      originReferenceId: existing.originReferenceId || undefined,
-      originType: existing.originType || undefined,
-      currencyCode: existing.currencyCode,
-      details: existing.details?.map((d) => ({
+
+    await this.validateAccountingEntry(
+      tenantId,
+      existing.accountingCycleId,
+      existing.entryDate,
+      existing.details?.map((d) => ({
         accountPlanId: d.accountPlanId,
         debit: Number(d.debit),
         credit: Number(d.credit),
         description: d.description,
-      })),
-    };
-    await this.validateAccountingEntry(
-      existing.tenantId,
-      toValidate.accountingCycleId,
-      toValidate.entryDate,
-      toValidate.details,
+      })) as any,
     );
 
     await this.drizzle
@@ -864,8 +864,6 @@ export class AccountingEntriesService {
         );
 
       const reversal: CreateAccountingEntryDto = {
-        tenantId: original.tenantId,
-        accountingCycleId: original.accountingCycleId,
         entryDate: new Date(),
         description: `ANULACIÓN: ${original.description}`,
         originReferenceId: original.id?.toString(),
@@ -873,12 +871,18 @@ export class AccountingEntriesService {
         currencyCode: original.currencyCode,
         details: original.details?.map((d) => ({
           accountPlanId: d.accountPlanId,
-          debit: Number(d.credit),
-          credit: Number(d.debit),
+          debit: Number(d.credit).toString(),
+          credit: Number(d.debit).toString(),
           description: `Reversión de ${d.description || ''}`,
-        })),
+        })) as any,
       };
-      await this.create(userId, tenantId, reversal, tx);
+      const result = await this.create(userId, tenantId, reversal, tx, entryStatusEnum.POSTED);
+
+      // Aseguramos que el reverso quede POSTED explícitamente
+      await tx
+        .update(schema.accountingEntries)
+        .set({ status: entryStatusEnum.POSTED, postedAt: new Date() })
+        .where(eq(schema.accountingEntries.id, result.id));
 
       await tx
         .update(schema.accountingEntries)
@@ -903,9 +907,10 @@ export class AccountingEntriesService {
     balanced: boolean;
     lines: number;
   }> {
+    const cycle = await this.findActiveCycle(tenantId, dto.entryDate);
     await this.validateAccountingEntry(
       tenantId,
-      dto.accountingCycleId,
+      cycle.id,
       dto.entryDate,
       dto.details,
     );
@@ -1299,25 +1304,13 @@ export class AccountingEntriesService {
       .from(schema.moduleSettings)
       .where(
         and(
+          eq(schema.moduleSettings.tenantId, tenantId),
           eq(schema.moduleSettings.module, 'accounting'),
-          eq(schema.moduleSettings.submodule, 'entries'),
-          eq(schema.moduleSettings.key, 'DOC-ASIENTO'),
+          eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
+          eq(schema.moduleSettings.key, 'NRO_ASIENTO'),
         ),
       );
 
-    if (!setting) {
-      // Si no existe, lo creamos con 1
-      await tx.insert(schema.moduleSettings).values({
-        module: 'accounting',
-        submodule: 'entries',
-        key: 'DOC-ASIENTO',
-        value: '1',
-        description: 'Último consecutivo Asiento Contable',
-        createdBy,
-        tenantId,
-      });
-      return 1;
-    }
 
     const nextValue = parseInt(setting.value ?? '0', 10) + 1;
 
@@ -1326,9 +1319,10 @@ export class AccountingEntriesService {
       .set({ value: nextValue.toString(), updatedBy: createdBy })
       .where(
         and(
+          eq(schema.moduleSettings.tenantId, tenantId),
           eq(schema.moduleSettings.module, 'accounting'),
-          eq(schema.moduleSettings.submodule, 'entries'),
-          eq(schema.moduleSettings.key, 'DOC-ASIENTO'),
+          eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
+          eq(schema.moduleSettings.key, 'NRO_ASIENTO'),
         ),
       );
 

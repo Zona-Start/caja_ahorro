@@ -34,11 +34,12 @@ export class ServicesController {
   async create(@Req() req: Request, @Body() dto: CreateServiceDto) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return this.service.create(
+    const data = await this.service.create(
       dto as Parameters<typeof this.service.create>[0],
       targetTenantId,
       userId,
     );
+    return { message: 'Service created successfully', data };
   }
 
   @Get()
@@ -77,7 +78,8 @@ export class ServicesController {
   })
   async findOne(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findOne(id, targetTenantId);
+    const data = await this.service.findOne(id, targetTenantId);
+    return { message: 'Service fetched successfully', data };
   }
 
   @Patch(':id')
@@ -93,12 +95,13 @@ export class ServicesController {
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return this.service.update(
+    const data = await this.service.update(
       id,
       dto as Parameters<typeof this.service.update>[1],
       targetTenantId,
       userId,
     );
+    return { message: 'Service updated successfully', data };
   }
 
   @Delete(':id')

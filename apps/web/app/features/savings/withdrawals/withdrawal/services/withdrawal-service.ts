@@ -13,107 +13,114 @@ import { type Withdrawal } from '../schemas/withdrawal.schema';
 export const withdrawalService = {
   getAssociatesByCedula: async (cedula: string) => {
     const response = await apiClient.get(
-      `/savings-banks/withdrawal-associate/request/${cedula}`
+      `/savings-banks/withdrawal-associate/request/${cedula}`,
     );
     return withdrawalAssociate.parse(response.data);
   },
 
   getWithdrawalTypes: async () => {
-    const response = await apiClient.get('/savings-banks/associate-withdrawal-types');
-    const result = withdrawalTypeApiResponseSchema.parse(response.data);
+    const response = await apiClient.get('/savings-banks/withdrawal-types');
+    const raw = response.data;
+    const result = Array.isArray(raw)
+      ? raw
+      : (raw?.data ?? []);
     return {
-      data: result.data || [],
+      data: withdrawalTypeApiResponseSchema.shape.data.parse(result),
     };
   },
 
-  getWithdrawals: async (params: {
-    page?: number;
-    limit?: number;
-    type?: string;
-    search?: string;
-    sortBy?: string;
-    status?: string;
-    sortOrder?: 'asc' | 'desc';
-  }) => {
-    let searchType = '';
-    let searchValue = '';
-
-    if (params.search) {
-      if (/^\d/.test(params.search)) {
-        searchType = 'cedula';
-      } else {
-        searchType = 'fullname';
-      }
-      searchValue = params.search.toUpperCase();
-    }
-
+  getWithdrawals: async (params: Record<string, any>) => {
     const searchParams = new URLSearchParams({
       page: (params.page || 1).toString(),
       limit: (params.limit || 10).toString(),
-      ...(searchType && { searchType }),
-      ...(searchValue && { search: searchValue }),
-      ...(params.type && { type: params.type }),
-      ...(params.sortBy && { sortBy: params.sortBy }),
-      ...(params.sortOrder && { sortOrder: params.sortOrder }),
-      ...(params.status && { status: params.status }),
     });
 
-    const response = await apiClient.get(`/savings-banks/withdrawal-associate?${searchParams.toString()}`);
+    if (params.search) searchParams.set('search', params.search);
+    if (params.type) searchParams.set('type', params.type);
+    if (params.status) searchParams.set('status', params.status);
+    if (params.sortBy) searchParams.set('sortBy', params.sortBy);
+    if (params.sortOrder) searchParams.set('sortOrder', params.sortOrder);
+
+    const response = await apiClient.get(
+      `/savings-banks/withdrawal-associate?${searchParams.toString()}`,
+    );
     const result = withdrawalApiResponseSchema.parse(response.data);
 
-    const tableData =
-      result.data.map((item) => ({
-        ...item,
-        withdrawalDate: item.withdrawalDate.split('T')[0],
-      })) || [];
-
     return {
-      data: tableData,
+      data: result.data || [],
       meta: result.meta || {
-        page: 1,
-        limit: 10,
-        totalCount: 0,
+        totalItems: 0,
+        itemCount: 0,
+        itemsPerPage: 10,
         totalPages: 1,
-        hasNextPage: false,
-        hasPreviousPage: false,
-        nextPage: null,
-        previousPage: null,
+        currentPage: 1,
       },
     };
   },
 
+  getWithdrawalById: async (id: string) => {
+    const response = await apiClient.get(
+      `/savings-banks/withdrawal-associate/${id}/details`,
+    );
+    return response.data;
+  },
+
   createWithdrawal: async (withdrawal: Withdrawal) => {
-    const { id, ...payloadWithoutId } = withdrawal;
     const payload = {
-      ...payloadWithoutId,
-      requestedAmount: Number(payloadWithoutId.requestedAmount),
-      withdrawalDate: payloadWithoutId.withdrawalDate.toISOString().split('T')[0],
+      associateAccountId: withdrawal.associateAccountId,
+      withdrawalTypeId: withdrawal.withdrawalTypeId,
+      requestedAmount: withdrawal.requestedAmount,
+      paymentMethod: withdrawal.paymentMethod,
+      date: withdrawal.date,
+      description: withdrawal.description,
+      commercialHouseId: withdrawal.commercialHouseId ?? null,
+      withdrawalItems: withdrawal.withdrawalItems ?? [],
     };
 
-    const response = await apiClient.post('/savings-banks/withdrawal-associate', payload);
+    const response = await apiClient.post(
+      '/savings-banks/withdrawal-associate',
+      payload,
+    );
     return withdrawalMutationSchema.parse(response.data);
   },
 
-  approveWithdrawal: async (id: number) => {
-    const response = await apiClient.patch(`/savings-banks/withdrawal-associate/${id}/approve`);
+  approveWithdrawal: async (id: string) => {
+    const response = await apiClient.patch(
+      `/savings-banks/withdrawal-associate/${id}/approve`,
+    );
     return withdrawalMutationSchema.parse(response.data);
   },
 
-  deleteWithdrawal: async (id: number) => {
-    const response = await apiClient.delete(`/savings-banks/withdrawal-associate/${id}`);
+  deleteWithdrawal: async (id: string) => {
+    const response = await apiClient.delete(
+      `/savings-banks/withdrawal-associate/${id}`,
+    );
     return withdrawalMutationSchema.parse(response.data);
   },
 
-  disburseWithdrawal: async (id: number, payload: any) => {
-    const response = await apiClient.patch(`/savings-banks/withdrawal-associate/${id}/disburse`, {
-      ...payload,
-      processedAt: payload.processedAt.toISOString(),
-    });
+  disburseWithdrawal: async (
+    id: string,
+    payload: {
+      bankAccountId: string;
+      processedAt: Date;
+      bankReference?: string;
+    },
+  ) => {
+    const response = await apiClient.patch(
+      `/savings-banks/withdrawal-associate/${id}/disburse`,
+      {
+        bankAccountId: payload.bankAccountId,
+        processedAt: payload.processedAt.toISOString(),
+        bankReference: payload.bankReference,
+      },
+    );
     return withdrawalMutationSchema.parse(response.data);
   },
 
-  processWithdrawal: async (id: number) => {
-    const response = await apiClient.patch(`/savings-banks/withdrawal-associate/${id}/process`);
+  processWithdrawal: async (id: string) => {
+    const response = await apiClient.patch(
+      `/savings-banks/withdrawal-associate/${id}/process`,
+    );
     return withdrawalMutationSchema.parse(response.data);
   },
 

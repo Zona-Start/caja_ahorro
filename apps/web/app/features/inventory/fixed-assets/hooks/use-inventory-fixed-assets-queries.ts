@@ -4,15 +4,27 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { InventoryFixedAssetsFilters } from './use-inventory-fixed-assets-filters';
 import { inventoryFixedAssetsService } from '../services/inventory-fixed-assets-service';
 import type { InventoryFixedAsset } from '../schemas/inventory-fixed-assets.schema';
+import type { InventoryFixedAssetApi } from '../schemas/inventory-fixed-assets-api.schema';
 
 export interface Category {
   id: string;
   name: string;
 }
 
+export interface PaginatedMeta {
+  totalCount: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  nextPage: number | null;
+  previousPage: number | null;
+}
+
 export function useInventoryFixedAssetsPaginatedQuery(
   filters: InventoryFixedAssetsFilters,
-): UseQueryResult<{ data: InventoryFixedAsset[]; meta: { totalItems: number; itemCount: number; itemsPerPage: number; totalPages: number; currentPage: number } }> {
+): UseQueryResult<{ data: InventoryFixedAsset[]; meta: PaginatedMeta }> {
   return useQuery({
     queryKey: QUERY_KEYS.inventoryFixedAssets.list(filters),
     queryFn: () => inventoryFixedAssetsService.getPaginated(filters),
@@ -20,12 +32,12 @@ export function useInventoryFixedAssetsPaginatedQuery(
 }
 
 export function useInventoryFixedAssetsAllQuery(): UseQueryResult<
-  InventoryFixedAsset[]
+  InventoryFixedAssetApi[]
 > {
   return useQuery({
     queryKey: QUERY_KEYS.inventoryFixedAssets.lists(),
     queryFn: () =>
-      inventoryFixedAssetsService.getAll({ page: 1, limit: 100 }),
+      inventoryFixedAssetsService.getAll({ page: 1, limit: 100 }) as Promise<InventoryFixedAssetApi[]>,
   });
 }
 
@@ -40,11 +52,13 @@ export function useInventoryFixedAssetQuery(
   });
 }
 
-export function useCategoriesQuery(): UseQueryResult<Category[]> {
+export function useCategoriesByGroupQuery(
+  group: string,
+): UseQueryResult<Category[]> {
   return useQuery({
-    queryKey: ['inventory-categories'],
+    queryKey: ['inventory-categories', group],
     queryFn: async () => {
-      const response = await apiClient.get('/inventory/categories');
+      const response = await apiClient.get(`/inventory/categories/group/${group}`);
       if (Array.isArray(response.data)) {
         return response.data as Category[];
       }

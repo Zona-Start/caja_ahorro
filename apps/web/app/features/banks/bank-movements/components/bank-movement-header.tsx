@@ -5,7 +5,7 @@ export function BankMovementHeader() {
     <div className="flex items-center justify-between">
       <Heading
         title="Movimientos Bancarios"
-        description="Gestiona los movimientos de las cuentas bancarias"
+        description="Registra y vincula los movimientos de las cuentas bancarias con operaciones internas"
       />
     </div>
   );

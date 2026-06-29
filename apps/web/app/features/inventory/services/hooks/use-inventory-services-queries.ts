@@ -12,16 +12,14 @@ export interface Category {
 
 export function useInventoryServicesPaginatedQuery(
   filters: InventoryServicesFilters,
-): UseQueryResult<{ data: InventoryService[]; meta: { totalItems: number; itemCount: number; itemsPerPage: number; totalPages: number; currentPage: number } }> {
+): UseQueryResult<any> {
   return useQuery({
     queryKey: QUERY_KEYS.inventoryServices.list(filters),
     queryFn: () => inventoryServicesService.getPaginated(filters),
   });
 }
 
-export function useInventoryServicesAllQuery(): UseQueryResult<
-  InventoryService[]
-> {
+export function useInventoryServicesAllQuery(): UseQueryResult<any> {
   return useQuery({
     queryKey: QUERY_KEYS.inventoryServices.lists(),
     queryFn: () =>
@@ -32,7 +30,7 @@ export function useInventoryServicesAllQuery(): UseQueryResult<
 export function useInventoryServiceQuery(
   id: string,
   enabled = true,
-): UseQueryResult<InventoryService> {
+): UseQueryResult<any> {
   return useQuery({
     queryKey: QUERY_KEYS.inventoryServices.detail(id),
     queryFn: () => inventoryServicesService.getById(id),

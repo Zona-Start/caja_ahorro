@@ -15,7 +15,6 @@ import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { PlusCircle, Trash2 } from 'lucide-react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useAccountingAccounts } from '../../accounting-accounts/hooks/use-accounting-accounts-query';
-import { useAccountingCycles } from '../../accounting-cycles/hooks/use-accounting-cycles-query';
 import { useAccountingEntryMutation } from '../hooks/use-accounting-entries-mutation';
 import {
   type AccountingEntry,
@@ -36,14 +35,12 @@ export function AccountingEntryForm({
   const { mutate: saveAccountingEntry, isPending: isSaving } =
     useAccountingEntryMutation();
   const { data: accounts } = useAccountingAccounts();
-  const { data: cycles } = useAccountingCycles();
 
   const form = useForm<AccountingEntry>({
     resolver: zodResolver(accountingEntrySchema),
     defaultValues: {
       id: defaultValues?.id,
       tenantId: defaultValues?.tenantId,
-      accountingCycleId: defaultValues?.accountingCycleId,
       entryDate: defaultValues?.entryDate
         ? new Date(defaultValues?.entryDate)
         : new Date(),
@@ -93,7 +90,7 @@ export function AccountingEntryForm({
             {form.formState.errors.root.message}
           </p>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="entryDate"
@@ -113,30 +110,9 @@ export function AccountingEntryForm({
           />
           <FormField
             control={form.control}
-            name="accountingCycleId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Ciclo Contable</FormLabel>
-                <SelectSearchable
-                  options={
-                    cycles?.map((cycle: any) => ({
-                      value: cycle.id!.toString(),
-                      label: cycle.description,
-                    })) || []
-                  }
-                  onValueChange={field.onChange}
-                  placeholder="Seleccione un ciclo"
-                  defaultValue={field.value?.toString()}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
             name="description"
             render={({ field }) => (
-              <FormItem className="md:col-span-3">
+              <FormItem>
                 <FormLabel>Descripción</FormLabel>
                 <FormControl>
                   <Input placeholder="Descripción del asiento" {...field} />

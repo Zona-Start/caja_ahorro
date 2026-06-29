@@ -6,6 +6,7 @@ import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-mov
 import { InventoryMovementsModule } from '@/features/inventory/inventory-movements/inventory-movements.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
+import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 import { WithdrawalAssociateController } from './withdrawal-associate.controller';
 import { WithdrawalAssociateService } from './withdrawal-associate.service';
 
@@ -20,7 +21,7 @@ import { WithdrawalAssociateService } from './withdrawal-associate.service';
     TenantContextModule,
   ],
   controllers: [WithdrawalAssociateController],
-  providers: [WithdrawalAssociateService],
+  providers: [WithdrawalAssociateService, WithdrawalAssociateAccountingService],
   exports: [WithdrawalAssociateService],
 })
 export class WithdrawalAssociateModule {}

@@ -282,7 +282,7 @@ export const navGroups: NavGroup[] = [
         href: '/dashboard/configuracion/movimientos-bancarios',
         icon: ArrowRightLeft,
         requiresPermission: {
-          resource: 'banking:movements',
+          resource: 'banking:transactions',
           action: 'read',
         },
       },

@@ -13,12 +13,12 @@ export const columns: ColumnDef<AccountingCycle>[] = [
   {
     accessorKey: 'startDate',
     header: 'Fecha de Inicio',
-    cell: ({ row }) => new Date(row.original.startDate).toLocaleDateString(),
+    cell: ({ row }) => row.original.startDate,
   },
   {
     accessorKey: 'endDate',
     header: 'Fecha de Fin',
-    cell: ({ row }) => new Date(row.original.endDate).toLocaleDateString(),
+    cell: ({ row }) => row.original.endDate,
   },
   {
     accessorKey: 'status',
@@ -26,23 +26,18 @@ export const columns: ColumnDef<AccountingCycle>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       const statusText =
-        CYCLE_STATUS_OPTIONS[status as keyof typeof CYCLE_STATUS_OPTIONS] ||
-        status;
+        CYCLE_STATUS_OPTIONS[status] || status;
 
-      const variant:
-        | 'default'
-        | 'destructive'
-        | 'outline'
-        | 'secondary'
-        | 'success'
-        | 'warning' = (() => {
+      const variant = (() => {
         switch (status) {
           case 'OPEN':
-            return 'success';
+            return 'success' as const;
+          case 'PENDING':
+            return 'warning' as const;
           case 'CLOSED':
-            return 'destructive';
+            return 'destructive' as const;
           default:
-            return 'default';
+            return 'default' as const;
         }
       })();
 
@@ -56,6 +51,7 @@ export const columns: ColumnDef<AccountingCycle>[] = [
                 | 'outline'
                 | 'secondary'
                 | 'success'
+                | 'warning'
             }
           >
             {statusText}
@@ -65,11 +61,11 @@ export const columns: ColumnDef<AccountingCycle>[] = [
     },
   },
   {
-    accessorKey: 'closedAt',
-    header: 'Fecha de Cierre',
+    accessorKey: 'createdAt',
+    header: 'Fecha de Creación',
     cell: ({ row }) =>
-      row.original.closedAt
-        ? new Date(row.original.closedAt).toLocaleDateString()
+      row.original.createdAt
+        ? new Date(row.original.createdAt).toLocaleDateString()
         : 'N/A',
   },
   {

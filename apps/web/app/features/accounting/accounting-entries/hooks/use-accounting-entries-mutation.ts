@@ -4,6 +4,15 @@ import { QUERY_KEYS } from '@/lib/query-keys';
 import { AccountingEntriesService } from '../services/accounting-entries-service';
 import type { AccountingEntry } from '../schemas/accounting-entry.schema';
 
+function extractErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as { response?: { data?: { message?: string } } };
+    return axiosError.response?.data?.message || 'Error del servidor';
+  }
+  if (error instanceof Error) return error.message;
+  return 'Ha ocurrido un error inesperado';
+}
+
 export function useAccountingEntryMutation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -13,7 +22,7 @@ export function useAccountingEntryMutation() {
       payload.id
         ? AccountingEntriesService.update(payload)
         : AccountingEntriesService.create(payload),
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingEntries.all,
       });
@@ -25,7 +34,7 @@ export function useAccountingEntryMutation() {
     onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al guardar el asiento.',
+        description: extractErrorMessage(error),
         variant: 'destructive',
       });
     },
@@ -37,7 +46,7 @@ export function useDeleteAccountingEntryMutation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (id: number) => AccountingEntriesService.delete(id),
+    mutationFn: (id: string) => AccountingEntriesService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingEntries.all,
@@ -50,7 +59,7 @@ export function useDeleteAccountingEntryMutation() {
     onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al eliminar el asiento.',
+        description: extractErrorMessage(error),
         variant: 'destructive',
       });
     },
@@ -62,7 +71,7 @@ export function useSubmitAccountingEntryMutation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (id: number) => AccountingEntriesService.submit(id),
+    mutationFn: (id: string) => AccountingEntriesService.submit(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingEntries.all,
@@ -75,7 +84,7 @@ export function useSubmitAccountingEntryMutation() {
     onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al enviar el asiento.',
+        description: extractErrorMessage(error),
         variant: 'destructive',
       });
     },
@@ -87,7 +96,7 @@ export function usePostAccountingEntryMutation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (id: number) => AccountingEntriesService.post(id),
+    mutationFn: (id: string) => AccountingEntriesService.post(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingEntries.all,
@@ -100,7 +109,7 @@ export function usePostAccountingEntryMutation() {
     onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al contabilizar el asiento.',
+        description: extractErrorMessage(error),
         variant: 'destructive',
       });
     },
@@ -112,7 +121,7 @@ export function useCancelAccountingEntryMutation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (id: number) => AccountingEntriesService.cancel(id),
+    mutationFn: (id: string) => AccountingEntriesService.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingEntries.all,
@@ -125,7 +134,7 @@ export function useCancelAccountingEntryMutation() {
     onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al anular el asiento.',
+        description: extractErrorMessage(error),
         variant: 'destructive',
       });
     },

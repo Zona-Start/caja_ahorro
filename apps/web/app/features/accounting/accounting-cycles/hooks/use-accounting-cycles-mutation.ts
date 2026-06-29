@@ -4,6 +4,15 @@ import { QUERY_KEYS } from '@/lib/query-keys';
 import { AccountingCyclesService } from '../services/accounting-cycles-service';
 import type { AccountingCycle } from '../schemas/accounting-cycle.schema';
 
+function extractErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as { response?: { data?: { message?: string } } };
+    return axiosError.response?.data?.message || 'Error del servidor';
+  }
+  if (error instanceof Error) return error.message;
+  return 'Ha ocurrido un error inesperado';
+}
+
 export function useAccountingCycleMutation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -13,7 +22,7 @@ export function useAccountingCycleMutation() {
       payload.id
         ? AccountingCyclesService.update(payload)
         : AccountingCyclesService.create(payload),
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingCycles.all,
       });
@@ -25,32 +34,61 @@ export function useAccountingCycleMutation() {
     onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al guardar el ciclo.',
+        description: extractErrorMessage(error),
         variant: 'destructive',
       });
     },
   });
 }
 
-export function useCloseAccountingCycleMutation() {
+export function useChangeCycleStatusMutation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (id: number) => AccountingCyclesService.close(id),
-    onSuccess: () => {
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      AccountingCyclesService.changeStatus(id, status),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingCycles.all,
       });
       toast({
-        title: 'Ciclo cerrado',
-        description: 'El ciclo contable ha sido cerrado exitosamente.',
+        title: 'Estado actualizado',
+        description:
+          variables.status === 'OPEN'
+            ? 'El ciclo ha sido cambiado a Abierto.'
+            : 'El ciclo ha sido cambiado a Pendiente.',
       });
     },
     onError: (error: unknown) => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al cerrar el ciclo.',
+        description: extractErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useDeleteAccountingCycleMutation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => AccountingCyclesService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.accountingCycles.all,
+      });
+      toast({
+        title: 'Ciclo eliminado',
+        description: 'El ciclo contable ha sido eliminado exitosamente.',
+      });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Error',
+        description: extractErrorMessage(error),
         variant: 'destructive',
       });
     },

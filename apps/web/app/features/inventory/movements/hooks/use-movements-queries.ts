@@ -1,4 +1,4 @@
-import { useToastSystem } from '@/hooks/use-toast-system';
+import { useToast } from '@repo/shadcn/hooks/use-toast';
 import {
   useMutation,
   useQuery,
@@ -8,38 +8,32 @@ import {
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { inventoryMovementsKeys } from '../keys/movements-keys';
-import type { InventoryMovement, StockResponse } from '../schemas/movements.schema';
+import type { InventoryMovement } from '../schemas/movements.schema';
 import { movementsService } from '../services/movements-service';
-import type { MovementsPaginatedResponse } from '../services/movements-service';
-import type { MovementsFilters } from './use-movements-filters';
+import type {
+  MovementsPaginatedResponse,
+  MovementsQueryParams,
+} from '../services/movements-service';
 
 const getErrorMessage = (error: unknown): string => {
   if (isAxiosError<{ message?: string }>(error)) {
-    return (
-      error.response?.data?.message ||
-      error.message ||
-      'Se produjo un error al ejecutar la operación'
-    );
+    return error.response?.data?.message || error.message || 'Ocurrió un error inesperado';
   }
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return 'Se produjo un error al ejecutar la operación';
+  if (error instanceof Error) return error.message;
+  return 'Ocurrió un error inesperado';
 };
 
 export function useMovementsQuery(
-  filters: MovementsFilters,
-  enabled = true,
+  filters: MovementsQueryParams,
 ): UseQueryResult<MovementsPaginatedResponse> {
   return useQuery({
     queryKey: inventoryMovementsKeys.list(filters),
     queryFn: () => movementsService.getAll(filters),
-    enabled,
   });
 }
 
 export function useMovementQuery(
-  id: number,
+  id: string,
   enabled = true,
 ): UseQueryResult<InventoryMovement> {
   return useQuery({
@@ -49,58 +43,62 @@ export function useMovementQuery(
   });
 }
 
-export function useStockQuery(
-  itemType: string,
-  itemId: number,
-  enabled = true,
-): UseQueryResult<StockResponse> {
-  return useQuery({
-    queryKey: inventoryMovementsKeys.stockDetail(itemType, itemId),
-    queryFn: () => movementsService.getStock(itemType, itemId),
-    enabled: enabled && !!itemType && !!itemId,
-  });
-}
-
 export function useCreateMovementMutation(): UseMutationResult<
   InventoryMovement,
   unknown,
-  object
+  InventoryMovement
 > {
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToastSystem();
+  const qc = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (payload) => movementsService.create(payload),
+    mutationFn: (p) => movementsService.create(p),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: inventoryMovementsKeys.all,
-      });
-      toastSuccess('Movimiento de inventario creado correctamente');
+      qc.invalidateQueries({ queryKey: inventoryMovementsKeys.all });
+      toast({ title: 'Movimiento creado', description: 'El movimiento de inventario ha sido creado exitosamente.' });
     },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
+    onError: (e) => {
+      toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' });
+    },
+  });
+}
+
+export function useUpdateMovementMutation(): UseMutationResult<
+  InventoryMovement,
+  unknown,
+  InventoryMovement
+> {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (p) => movementsService.update(p),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: inventoryMovementsKeys.all });
+      toast({ title: 'Movimiento actualizado', description: 'El movimiento ha sido actualizado exitosamente.' });
+    },
+    onError: (e) => {
+      toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 }
 
 export function useCancelMovementMutation(): UseMutationResult<
-  { message: string },
+  void,
   unknown,
-  number
+  string
 > {
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToastSystem();
+  const qc = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: (id) => movementsService.cancel(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: inventoryMovementsKeys.all,
-      });
-      toastSuccess('Movimiento cancelado correctamente');
+      qc.invalidateQueries({ queryKey: inventoryMovementsKeys.all });
+      toast({ title: 'Movimiento cancelado', description: 'El movimiento de inventario ha sido cancelado.' });
     },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
+    onError: (e) => {
+      toast({ title: 'Error', description: getErrorMessage(e), variant: 'destructive' });
     },
   });
 }

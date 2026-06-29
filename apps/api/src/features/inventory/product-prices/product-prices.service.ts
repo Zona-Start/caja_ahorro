@@ -117,7 +117,13 @@ export class ProductPricesService {
       Number(currentPrice?.salePrice ?? 0) !==
       (newPrice.salePrice ?? 0) ||
       Number(currentPrice?.offerSalePrice ?? 0) !==
-      (newPrice.offerSalePrice ?? 0)
+      (newPrice.offerSalePrice ?? 0) ||
+      Number(currentPrice?.purchaseExchangeRate ?? 1) !==
+      (newPrice.purchaseExchangeRate ?? 1) ||
+      Number(currentPrice?.salesExchangeRate ?? 1) !==
+      (newPrice.salesExchangeRate ?? 1) ||
+      Number(currentPrice?.bsPriceAmount ?? 0) !==
+      (newPrice.bsPriceAmount ?? 0)
     );
   }
 
@@ -274,7 +280,6 @@ export class ProductPricesService {
       finalPriceGross: String(calculated.finalPriceGross),
       finalPriceNetVes: String(calculated.finalPriceNetVes),
       finalPriceGrossVes: String(calculated.finalPriceGrossVes),
-      finalPrice: String(calculated.finalPriceGross),
       createdById: userId,
       isActive: true,
       startDate: this.formatDate(data.startDate) ?? new Date().toISOString().split('T')[0],

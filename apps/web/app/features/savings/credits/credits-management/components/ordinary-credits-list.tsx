@@ -2,16 +2,17 @@
 
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
-import { columns } from './credits-tables/columns';
+import { createColumns, type CreditTableRow } from './credits-tables/columns';
 import { useQueryCreditsManagement } from '../hooks/use-credits-management-query';
 
 interface OrdinaryCreditsListProps {
   page: number;
-  search?: string | null;
+  search: string;
   limit: number;
-  status?: string | null;
-  type?: string | null;
-  modality?: string | null;
+  status: string;
+  type: string;
+  modality: string;
+  onViewDetails?: (data: CreditTableRow) => void;
 }
 
 export function OrdinaryCreditsList({
@@ -21,6 +22,7 @@ export function OrdinaryCreditsList({
   status,
   type,
   modality,
+  onViewDetails,
 }: OrdinaryCreditsListProps) {
   const filters = {
     page,
@@ -39,9 +41,9 @@ export function OrdinaryCreditsList({
 
   return (
     <DataTable
-      columns={columns}
+      columns={createColumns(onViewDetails)}
       data={data?.data || []}
-      totalItems={data?.meta?.totalCount || 0}
+      totalItems={data?.meta?.totalItems || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

@@ -30,7 +30,7 @@ const buildQueryParams = (params: InventoryServicesQueryParams): string => {
 };
 
 const buildServicePayload = (payload: InventoryService) => {
-  const { id, createdAt, updatedAt, ...rest } = payload;
+  const { id, createdAt, updatedAt, ...rest } = payload as any;
   return rest;
 };
 
@@ -39,6 +39,8 @@ export const inventoryServicesService = {
     const response = await apiClient.get(
       `/inventory/services?${buildQueryParams(params)}`,
     );
+
+
     return inventoryServiceListResponseSchema.parse(response.data).data;
   },
 

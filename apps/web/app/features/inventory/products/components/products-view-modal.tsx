@@ -212,16 +212,18 @@ export function ProductsViewModal({ open, onOpenChange, productId }: ProductsVie
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <InfoRow label="Nombre" value={product.name} />
                 <InfoRow label="SKU" value={product.sku || '-'} />
+                <InfoRow label="Código Interno" value={product.internalCode || '-'} />
                 <InfoRow label="Marca" value={product.brand || '-'} />
                 <InfoRow label="Modelo" value={product.model || '-'} />
-                <div className="md:col-span-2">
-                  <InfoRow label="Descripción" value={product.description || '-'} />
-                </div>
                 <InfoRow label="Estado" value={
                   <Badge variant={statusVariant[product.status] || 'secondary'}>
                     {statusTranslations[product.status] || product.status}
                   </Badge>
                 } />
+                <div className="md:col-span-2">
+                  <InfoRow label="Descripción" value={product.description || '-'} />
+                </div>
+
               </div>
             </SectionCard>
 
