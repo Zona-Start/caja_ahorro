@@ -4,6 +4,8 @@ import {
   associateAccountMovements,
   associateAccounts,
   associates,
+  contributionBatches,
+  contributionBatchAssociates,
   creditAmortizationSchedule,
   creditItemSales,
   creditPayments,
@@ -25,8 +27,8 @@ import {
 } from '../tables/savings';
 import { tenants } from '../tables/tenants';
 import { states, categories, exchangeRates } from '../tables/core';
-import { bankDirectory } from '../tables/treasury';
-import { accountPlan } from '../tables/accounting';
+import { bankDirectory, bankTransactions } from '../tables/treasury';
+import { accountPlan, accountingEntries } from '../tables/accounting';
 import { users } from '../tables/auth';
 import { suppliers } from '../tables/purchasing';
 
@@ -429,6 +431,49 @@ export const paymentBatchItemsRelations = relations(
     associateAccount: one(associateAccounts, {
       fields: [paymentBatchItems.associateAccountId],
       references: [associateAccounts.id],
+    }),
+  }),
+);
+
+export const contributionBatchesRelations = relations(
+  contributionBatches,
+  ({ one, many }) => ({
+    tenant: one(tenants, {
+      fields: [contributionBatches.tenantId],
+      references: [tenants.id],
+    }),
+    associate: one(associates, {
+      fields: [contributionBatches.associateId],
+      references: [associates.id],
+    }),
+    accountingEntry: one(accountingEntries, {
+      fields: [contributionBatches.accountingEntryId],
+      references: [accountingEntries.id],
+      relationName: 'contribution_batches_accounting_entry',
+    }),
+    bankTransaction: one(bankTransactions, {
+      fields: [contributionBatches.bankTransactionId],
+      references: [bankTransactions.id],
+    }),
+    reversalEntry: one(accountingEntries, {
+      fields: [contributionBatches.reversalEntryId],
+      references: [accountingEntries.id],
+      relationName: 'contribution_batches_reversal_entry',
+    }),
+    associates: many(contributionBatchAssociates),
+  }),
+);
+
+export const contributionBatchAssociatesRelations = relations(
+  contributionBatchAssociates,
+  ({ one }) => ({
+    batch: one(contributionBatches, {
+      fields: [contributionBatchAssociates.contributionBatchId],
+      references: [contributionBatches.id],
+    }),
+    associate: one(associates, {
+      fields: [contributionBatchAssociates.associateId],
+      references: [associates.id],
     }),
   }),
 );

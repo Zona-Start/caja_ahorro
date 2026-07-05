@@ -11,12 +11,12 @@ import {
 } from '@repo/shadcn/dialog';
 import { Separator } from '@repo/shadcn/separator';
 import { formatCurrency } from '@/lib/format-utils';
-import { useQueryContributionBatchById } from '../../hooks/use-contribution-batches-query';
+import { useQueryContributionBatchById } from '../hooks/use-contribution-batches-query';
 import {
   TYPE_LABEL,
   MOVEMENT_TYPE_LABEL,
   STATUS_LABEL,
-} from '../../schemas/contribution-batches-options';
+} from '../schemas/contribution-batches-options';
 
 interface Props {
   isOpen: boolean;
@@ -157,9 +157,8 @@ export function ContributionBatchesDetailModal({
                   {associates.map((assoc: any, i: number) => (
                     <div
                       key={assoc.id}
-                      className={`flex justify-between items-center px-3 py-2 text-sm ${
-                        i < associates.length - 1 ? 'border-b' : ''
-                      }`}
+                      className={`flex justify-between items-center px-3 py-2 text-sm ${i < associates.length - 1 ? 'border-b' : ''
+                        }`}
                     >
                       <div>
                         <span className="font-medium">{assoc.fullname}</span>

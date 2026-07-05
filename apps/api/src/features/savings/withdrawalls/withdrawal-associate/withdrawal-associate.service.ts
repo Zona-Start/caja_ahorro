@@ -50,7 +50,7 @@ export class WithdrawalAssociateService {
     private readonly withdrawalAccountingService: WithdrawalAssociateAccountingService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   private _hasElapsedMonths(
     currentDate: Date,
@@ -588,20 +588,20 @@ export class WithdrawalAssociateService {
       }),
       accountId
         ? this.db
-            .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
-            .from(withdrawalsAssociates)
-            .where(
-              and(
-                eq(withdrawalsAssociates.associateAccountId, accountId),
-                eq(withdrawalsAssociates.tenantId, tenantId),
-                or(
-                  eq(withdrawalsAssociates.status, withdrawalStatusEnum.DISBURSED),
-                  eq(withdrawalsAssociates.status, withdrawalStatusEnum.PROCESSED),
-                ),
+          .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
+          .from(withdrawalsAssociates)
+          .where(
+            and(
+              eq(withdrawalsAssociates.associateAccountId, accountId),
+              eq(withdrawalsAssociates.tenantId, tenantId),
+              or(
+                eq(withdrawalsAssociates.status, withdrawalStatusEnum.DISBURSED),
+                eq(withdrawalsAssociates.status, withdrawalStatusEnum.PROCESSED),
               ),
-            )
-            .orderBy(desc(withdrawalsAssociates.withdrawalDate))
-            .limit(1)
+            ),
+          )
+          .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+          .limit(1)
         : Promise.resolve([]),
     ]);
 
@@ -1073,6 +1073,13 @@ export class WithdrawalAssociateService {
 
       const withdrawalRecord = withdrawal.withdrawals_associates;
       const withdrawalTypeRecord = withdrawal.withdrawal_types;
+      const associateRecord = withdrawal.associates;
+
+      if (!associateRecord) {
+        throw new NotFoundException(
+          'El retiro no tiene un asociado vinculado',
+        );
+      }
 
       if (withdrawalRecord.status !== withdrawalStatusEnum.APPROVED) {
         throw new BadRequestException(
@@ -1107,9 +1114,9 @@ export class WithdrawalAssociateService {
         userId,
         {
           withdrawalId: withdrawalRecord.id,
-          associateId: withdrawal.associates?.id,
-          associateFullname: withdrawal.associates?.fullname ?? 'ASOCIADO',
-          associateCedula: withdrawal.associates?.cedula ?? '',
+          associateId: associateRecord.id,
+          associateFullname: associateRecord.fullname,
+          associateCedula: associateRecord.cedula ?? '',
           withdrawalTypeDescription: withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
           requestedAmount: Number(withdrawal.withdrawals_associates.requestedAmount),
           administrativeFee: Number(withdrawal.withdrawals_associates.administrativeFee),
@@ -1212,6 +1219,13 @@ export class WithdrawalAssociateService {
 
       const withdrawalRecord = withdrawal.withdrawals_associates;
       const withdrawalTypeRecord = withdrawal.withdrawal_types;
+      const associateRecord = withdrawal.associates;
+
+      if (!associateRecord) {
+        throw new NotFoundException(
+          'El retiro no tiene un asociado vinculado',
+        );
+      }
 
       const isGoodsWithdrawal =
         withdrawalRecord.commercialHouseId != null ||
@@ -1251,9 +1265,9 @@ export class WithdrawalAssociateService {
         userId,
         {
           withdrawalId: withdrawalRecord.id,
-          associateId: withdrawal.associates?.id,
-          associateFullname: withdrawal.associates?.fullname ?? 'ASOCIADO',
-          associateCedula: withdrawal.associates?.cedula ?? '',
+          associateId: associateRecord.id,
+          associateFullname: associateRecord.fullname,
+          associateCedula: associateRecord.cedula ?? '',
           withdrawalTypeDescription: withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
           withdrawalDate: new Date(withdrawal.withdrawals_associates.withdrawalDate) ?? new Date(),
           requestedAmount: Number(withdrawal.withdrawals_associates.requestedAmount),

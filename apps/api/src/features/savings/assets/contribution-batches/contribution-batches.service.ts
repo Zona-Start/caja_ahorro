@@ -8,6 +8,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -27,6 +28,8 @@ import {
 
 @Injectable()
 export class ContributionBatchesService {
+  private readonly logger = new Logger(ContributionBatchesService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly associateMovementsService: AssociateAccountsMovementsService,
@@ -160,8 +163,13 @@ export class ContributionBatchesService {
     dto: CreateContributionBatchDto,
     accountingParams: BatchAccountingParams,
     associateEntries: { associateId: string; amount?: number }[] = [],
-  ): Promise<typeof schema.contributionBatches.$inferSelect> {
+  ): Promise<{
+    batch: typeof schema.contributionBatches.$inferSelect;
+    accountingEntryId?: string;
+    accountingWarning?: string;
+  }> {
     let accountingEntryId: string | undefined;
+    let accountingWarning: string | undefined;
 
     try {
       const result =
@@ -178,6 +186,16 @@ export class ContributionBatchesService {
         error instanceof BadRequestException &&
         error.message.includes('No existe una regla contable')
       ) {
+        const opType =
+          accountingParams.movementType === 'contribution_patronal'
+            ? 'PAYROLL_CONCEPT'
+            : 'SAVINGS_UPLOAD';
+        accountingWarning =
+          'No se pudo crear el asiento contable porque no existe una regla contable activa ' +
+          `para category=SAVINGS_BANK, operationType=${opType}. Configure la regla en el módulo de contabilidad.`;
+        this.logger.warn(
+          `Asiento contable no generado para carga de haberes (tenant=${tenantId}): ${error.message}.`,
+        );
         accountingEntryId = undefined;
       } else {
         throw error;
@@ -241,7 +259,7 @@ export class ContributionBatchesService {
       }),
     );
 
-    return batch;
+    return { batch, accountingEntryId, accountingWarning };
   }
 
   async reverse(

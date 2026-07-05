@@ -1,4 +1,3 @@
-import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   AssociateMovementTypeEnum,
@@ -13,7 +12,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
@@ -33,7 +31,6 @@ export class IndividualLoadService {
     private readonly associateMovementsService: AssociateAccountsMovementsService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly contributionBatchesService: ContributionBatchesService,
-    private readonly eventEmitter: EventEmitter2,
   ) { }
 
   async create(tenantId: string, userId: string, dto: CreateIndividualLoadDto) {
@@ -172,59 +169,63 @@ export class IndividualLoadService {
         }
         : undefined;
 
-      await this.contributionBatchesService.generateAndCreateBatch(
-        tx,
-        tenantId,
-        userId,
-        {
-          type: 'individual',
-          movementType: isEmployerContribution
-            ? 'contribution_patronal'
-            : 'contribution_voluntary',
-          entryDate: dto.transactionDate ?? new Date(),
-          associateId: account.associates.id,
-          description:
-            dto.description ||
-            `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
-          amountVoluntario: isEmployerContribution
-            ? undefined
-            : dto.amount,
-          amountPatrono: isEmployerContribution
-            ? dto.employerAmount
-            : undefined,
-          amountAsociado: isEmployerContribution
-            ? dto.associateAmount
-            : undefined,
-          totalAmount,
-          associateCount: 1,
-          bankTransactionId,
-          bankData: bankDataForBatch,
-        },
-        {
-          movementType: isEmployerContribution
-            ? 'contribution_patronal'
-            : 'contribution_voluntary',
-          entryDate: dto.transactionDate ?? new Date(),
-          description:
-            dto.description ||
-            `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
-          associateId: account.associates.id,
-          totalAmount,
-          amountVoluntario: isEmployerContribution ? undefined : dto.amount,
-          amountPatrono: isEmployerContribution
-            ? dto.employerAmount
-            : undefined,
-          amountAsociado: isEmployerContribution
-            ? dto.associateAmount
-            : undefined,
-        },
-        [{ associateId: account.associates.id, amount: totalAmount }],
-      );
+      const batchResult =
+        await this.contributionBatchesService.generateAndCreateBatch(
+          tx,
+          tenantId,
+          userId,
+          {
+            type: 'individual',
+            movementType: isEmployerContribution
+              ? 'contribution_patronal'
+              : 'contribution_voluntary',
+            entryDate: dto.transactionDate ?? new Date(),
+            associateId: account.associates.id,
+            description:
+              dto.description ||
+              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
+            amountVoluntario: isEmployerContribution
+              ? undefined
+              : dto.amount,
+            amountPatrono: isEmployerContribution
+              ? dto.employerAmount
+              : undefined,
+            amountAsociado: isEmployerContribution
+              ? dto.associateAmount
+              : undefined,
+            totalAmount,
+            associateCount: 1,
+            bankTransactionId,
+            bankData: bankDataForBatch,
+          },
+          {
+            movementType: isEmployerContribution
+              ? 'contribution_patronal'
+              : 'contribution_voluntary',
+            entryDate: dto.transactionDate ?? new Date(),
+            description:
+              dto.description ||
+              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
+            associateId: account.associates.id,
+            totalAmount,
+            amountVoluntario: isEmployerContribution ? undefined : dto.amount,
+            amountPatrono: isEmployerContribution
+              ? dto.employerAmount
+              : undefined,
+            amountAsociado: isEmployerContribution
+              ? dto.associateAmount
+              : undefined,
+          },
+          [{ associateId: account.associates.id, amount: totalAmount }],
+        );
 
       return {
-        message:
-          'Carga individual procesada exitosamente con su registro contable.',
+        message: batchResult.accountingWarning
+          ? `Carga individual procesada exitosamente. Advertencia: ${batchResult.accountingWarning}`
+          : 'Carga individual procesada exitosamente con su registro contable.',
         movementId: mainMovementId.toString(),
+        accountingEntryId: batchResult.accountingEntryId,
+        accountingWarning: batchResult.accountingWarning,
       };
     });
   }
@@ -430,6 +431,8 @@ export class IndividualLoadService {
         processedCount++;
       }
 
+      let batchResult: Awaited<ReturnType<typeof this.contributionBatchesService.generateAndCreateBatch>> | undefined;
+
       if (processedCount > 0) {
         let bankResult: any = { movement: { id: '0' } };
         if (dto.bankAccountId && dto.paymentMethod && dto.referenceNumber) {
@@ -490,48 +493,49 @@ export class IndividualLoadService {
             ? 'contribution_patronal'
             : 'contribution_voluntary';
 
-        await this.contributionBatchesService.generateAndCreateBatch(
-          tx,
-          tenantId,
-          userId,
-          {
-            type: 'massive',
-            movementType: mouvementType,
-            entryDate: dto.transactionDate ?? new Date(),
-            description:
-              dto.description ||
-              `Carga masiva ${typeCell} - ${processedCount} asociados`,
-            totalAmount: totalAmountProcessed,
-            associateCount: processedCount,
-            bankTransactionId: bulkBankTransactionId,
-            bankData: bulkBankData,
-          },
-          {
-            movementType: mouvementType,
-            entryDate: dto.transactionDate ?? new Date(),
-            description:
-              dto.description ||
-              `Carga masiva ${typeCell} - ${processedCount} asociados`,
-            totalAmount: totalAmountProcessed,
-            associateIds: accountingItems.map((item) => item.associateId),
-            amountVoluntario:
-              typeCell !== 'APORTE EMPLEADOS'
-                ? totalAmountProcessed
-                : undefined,
-            amountPatrono:
-              typeCell === 'APORTE EMPLEADOS'
-                ? totalAmountProcessed / 2
-                : undefined,
-            amountAsociado:
-              typeCell === 'APORTE EMPLEADOS'
-                ? totalAmountProcessed / 2
-                : undefined,
-          },
-          accountingItems.map((item) => ({
-            associateId: item.associateId,
-            amount: (item.amounts.ASSOCIATED_SAVINGS ?? 0) + (item.amounts.EMPLOYER_CONTRIBUTION ?? 0),
-          })),
-        );
+        batchResult =
+          await this.contributionBatchesService.generateAndCreateBatch(
+            tx,
+            tenantId,
+            userId,
+            {
+              type: 'massive',
+              movementType: mouvementType,
+              entryDate: dto.transactionDate ?? new Date(),
+              description:
+                dto.description ||
+                `Carga masiva ${typeCell} - ${processedCount} asociados`,
+              totalAmount: totalAmountProcessed,
+              associateCount: processedCount,
+              bankTransactionId: bulkBankTransactionId,
+              bankData: bulkBankData,
+            },
+            {
+              movementType: mouvementType,
+              entryDate: dto.transactionDate ?? new Date(),
+              description:
+                dto.description ||
+                `Carga masiva ${typeCell} - ${processedCount} asociados`,
+              totalAmount: totalAmountProcessed,
+              associateIds: accountingItems.map((item) => item.associateId),
+              amountVoluntario:
+                typeCell !== 'APORTE EMPLEADOS'
+                  ? totalAmountProcessed
+                  : undefined,
+              amountPatrono:
+                typeCell === 'APORTE EMPLEADOS'
+                  ? totalAmountProcessed / 2
+                  : undefined,
+              amountAsociado:
+                typeCell === 'APORTE EMPLEADOS'
+                  ? totalAmountProcessed / 2
+                  : undefined,
+            },
+            accountingItems.map((item) => ({
+              associateId: item.associateId,
+              amount: (item.amounts.ASSOCIATED_SAVINGS ?? 0) + (item.amounts.EMPLOYER_CONTRIBUTION ?? 0),
+            })),
+          );
       } else {
         throw new BadRequestException(
           'Ningún asociado especificado en el archivo fue encontrado o es válido.',
@@ -539,8 +543,12 @@ export class IndividualLoadService {
       }
 
       return {
-        message: 'Proceso masivo completado',
+        message: batchResult?.accountingWarning
+          ? `Proceso masivo completado. Advertencia: ${batchResult.accountingWarning}`
+          : 'Proceso masivo completado',
         processedCount,
+        accountingEntryId: batchResult?.accountingEntryId,
+        accountingWarning: batchResult?.accountingWarning,
       };
     });
   }

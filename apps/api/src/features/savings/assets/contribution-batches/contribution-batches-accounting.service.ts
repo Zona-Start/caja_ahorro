@@ -20,7 +20,7 @@ export interface BatchAccountingParams {
 export class ContributionBatchesAccountingService {
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) {}
+  ) { }
 
   async generateContributionEntry(
     tenantId: string,
@@ -34,12 +34,12 @@ export class ContributionBatchesAccountingService {
 
     const roleAliases: Record<string, string> = isPatronal
       ? {
-          SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-          EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
-        }
+        SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+        EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
+      }
       : {
-          BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
-        };
+        BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
+      };
 
     const items: {
       associateId?: string;
@@ -84,12 +84,12 @@ export class ContributionBatchesAccountingService {
     }
 
     try {
-      const result = await this.accountingEntriesService.createAutomaticEntry(
+const result = await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
         userId,
         {
           module: 'savings',
-          submodule: 'contribution_batches',
+          submodule: 'contributions',
           category: 'SAVINGS_BANK',
           operationType: isPatronal ? 'PAYROLL_CONCEPT' : 'SAVINGS_UPLOAD',
           referenceValue: isPatronal
@@ -134,12 +134,12 @@ export class ContributionBatchesAccountingService {
 
     const roleAliases: Record<string, string> = isPatronal
       ? {
-          SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
-          EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
-        }
+        SAVINGS_RECEIVABLE: 'ASSOCIATED_SAVINGS',
+        EMPLOYER_RECEIVABLE: 'EMPLOYER_CONTRIBUTION',
+      }
       : {
-          BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
-        };
+        BANK_ACCOUNT: 'VOLUNTARY_SAVINGS',
+      };
 
     const reversalAmounts: Record<string, number> = {};
     const reversalDescs: Record<string, string> = {};
@@ -164,12 +164,12 @@ export class ContributionBatchesAccountingService {
     const associateId = originalBatch.associateId ?? undefined;
 
     try {
-      const result = await this.accountingEntriesService.createAutomaticEntry(
+const result = await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
         userId,
         {
           module: 'savings',
-          submodule: 'contribution_batches',
+          submodule: 'contributions',
           category: 'SAVINGS_BANK',
           operationType: isPatronal ? 'PAYROLL_CONCEPT' : 'SAVINGS_UPLOAD',
           referenceValue: isPatronal

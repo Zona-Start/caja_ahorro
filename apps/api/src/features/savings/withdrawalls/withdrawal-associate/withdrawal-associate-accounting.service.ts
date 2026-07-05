@@ -18,7 +18,7 @@ export interface DisbursementAccountingParams {
 
 export interface ProcessingAccountingParams {
   withdrawalId: string;
-  associateId: string;
+  associateId: string | undefined;
   associateFullname: string;
   associateCedula: string;
   withdrawalTypeDescription: string;
@@ -32,7 +32,7 @@ export interface ProcessingAccountingParams {
 export class WithdrawalAssociateAccountingService {
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) {}
+  ) { }
 
   async generateDisbursementEntry(
     tenantId: string,

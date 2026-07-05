@@ -12,7 +12,7 @@ export default {
     'public',
     'auth',
     'accounting',
-    'savings-banks',
+    'savings',
     'treasury',
     'purchasing',
     'inventory',
