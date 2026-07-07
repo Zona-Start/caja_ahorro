@@ -107,10 +107,16 @@ export function useProcessWithdrawalMutation() {
 
   return useMutation({
     mutationFn: (id: string) => withdrawalService.processWithdrawal(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
-      toast({ title: 'Retiro procesado exitosamente' });
-    },
+  onSuccess: (data: any) => {
+    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.withdrawals.lists() });
+    toast({ title: 'Retiro procesado exitosamente' });
+    if (data?.accountingWarning) {
+      toast({
+        title: 'Advertencia Contable',
+        description: data.accountingWarning,
+      });
+    }
+  },
     onError: (error: any) => {
       toast({
         title: 'Error',

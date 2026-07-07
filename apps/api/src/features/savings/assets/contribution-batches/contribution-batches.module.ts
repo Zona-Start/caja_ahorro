@@ -23,6 +23,6 @@ import { ContributionBatchesService } from './contribution-batches.service';
     ContributionBatchesService,
     ContributionBatchesAccountingService,
   ],
-  exports: [ContributionBatchesService],
+  exports: [ContributionBatchesService, ContributionBatchesAccountingService],
 })
 export class ContributionBatchesModule {}

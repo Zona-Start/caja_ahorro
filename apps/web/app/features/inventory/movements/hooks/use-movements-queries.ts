@@ -14,6 +14,7 @@ import type {
   MovementsPaginatedResponse,
   MovementsQueryParams,
 } from '../services/movements-service';
+import { QUERY_KEYS } from '@/lib/query-keys';
 
 const getErrorMessage = (error: unknown): string => {
   if (isAxiosError<{ message?: string }>(error)) {
@@ -55,6 +56,7 @@ export function useCreateMovementMutation(): UseMutationResult<
     mutationFn: (p) => movementsService.create(p),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: inventoryMovementsKeys.all });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.products.all });
       toast({ title: 'Movimiento creado', description: 'El movimiento de inventario ha sido creado exitosamente.' });
     },
     onError: (e) => {

@@ -43,6 +43,7 @@ export default function CreditsManagementListPage() {
     enabled: !!viewData?.id,
   });
 
+
   return (
     <div className="space-y-4">
       <OrdinaryCreditsHeader />
@@ -68,7 +69,7 @@ export default function CreditsManagementListPage() {
           <DialogHeader>
             <DialogTitle>Detalles del Crédito</DialogTitle>
           </DialogHeader>
-          {detailData && (
+          {!!detailData && (
             <div className="mt-4 space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -141,6 +142,18 @@ export default function CreditsManagementListPage() {
                   </span>
                 </div>
                 <div>
+                  <span className="text-muted-foreground">Abono por retiro Haberes:</span>{' '}
+                  <span className="font-mono">
+                    {formatCurrency(viewData?.haberesPayment || '0')} Bs
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Abono por pago directo:</span>{' '}
+                  <span className="font-mono">
+                    {formatCurrency(viewData?.directPayment || '0')} Bs
+                  </span>
+                </div>
+                <div>
                   <span className="text-muted-foreground">Total a Pagar:</span>{' '}
                   <span className="font-mono font-semibold">
                     {formatCurrency(viewData?.totalPayable || '0')} Bs
@@ -164,7 +177,7 @@ export default function CreditsManagementListPage() {
                 )}
               </div>
 
-              {detailData && (detailData as any).items?.length > 0 && (
+              {!!detailData && (detailData as any).items?.length > 0 && (
                 <div className="rounded-lg border p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <Building2 className="h-4 w-4 text-blue-600" />
@@ -203,7 +216,7 @@ export default function CreditsManagementListPage() {
                 </div>
               )}
 
-              {detailData &&
+              {!!detailData &&
                 (detailData as any).amortizationSchedule?.length > 0 && (
                   <div className="rounded-lg border p-3">
                     <div className="flex items-center gap-2 mb-2">
@@ -262,24 +275,23 @@ export default function CreditsManagementListPage() {
                                 </td>
                                 <td className="py-1">
                                   <span
-                                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                                      inst.paymentStatus === 'PAID'
-                                        ? 'bg-emerald-100 text-emerald-700'
+                                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${inst.paymentStatus === 'PAID'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : inst.paymentStatus ===
+                                        'PARTIAL'
+                                        ? 'bg-yellow-100 text-yellow-700'
                                         : inst.paymentStatus ===
-                                            'PARTIAL'
-                                          ? 'bg-yellow-100 text-yellow-700'
-                                          : inst.paymentStatus ===
-                                              'OVERDUE'
-                                            ? 'bg-destructive/20 text-destructive'
-                                            : 'bg-muted text-muted-foreground'
-                                    }`}
+                                          'OVERDUE'
+                                          ? 'bg-destructive/20 text-destructive'
+                                          : 'bg-muted text-muted-foreground'
+                                      }`}
                                   >
                                     {inst.paymentStatus === 'PAID'
                                       ? 'Pagado'
                                       : inst.paymentStatus === 'PARTIAL'
                                         ? 'Parcial'
                                         : inst.paymentStatus ===
-                                            'OVERDUE'
+                                          'OVERDUE'
                                           ? 'Vencido'
                                           : 'Pendiente'}
                                   </span>
@@ -292,18 +304,17 @@ export default function CreditsManagementListPage() {
                     </div>
                   </div>
                 )}
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  onClick={() => setViewData(null)}
-                  size="sm"
-                  variant="outline"
-                >
-                  Cerrar
-                </Button>
-              </div>
             </div>
           )}
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              onClick={() => setViewData(null)}
+              size="sm"
+              variant="outline"
+            >
+              Cerrar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -42,12 +42,12 @@ const ADJUST_TYPES = [
 
 function getCodePrefix(movementType: string): string {
   if (INFLOW_TYPES.includes(movementType as typeof INFLOW_TYPES[number])) {
-    return 'INV_IN';
+    return 'INV-IN';
   }
   if (ADJUST_TYPES.includes(movementType as typeof ADJUST_TYPES[number])) {
-    return 'INV_ADJ';
+    return 'INV-ADJ';
   }
-  return 'INV_OUT';
+  return 'INV-OUT';
 }
 
 @Injectable()
@@ -70,7 +70,7 @@ export class InventoryMovementsService {
       prefix,
       tenantId,
       'inventory',
-      'stock_movements',
+      'movements',
     );
 
     const db = tx || this.db;

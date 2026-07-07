@@ -24,7 +24,7 @@ export class CategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,
     private readonly tenantService: TenantContextService,
-  ) {}
+  ) { }
 
   @Get()
   @Permissions({
@@ -68,6 +68,9 @@ export class CategoriesController {
       req,
       dto,
     );
+
+    console.log('tenantId', targetTenantId);
+
 
     return this.categoriesService.create(dto, targetTenantId, userId);
   }

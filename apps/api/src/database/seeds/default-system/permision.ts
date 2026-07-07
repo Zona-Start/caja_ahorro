@@ -58,8 +58,6 @@ export const DEFAULT_PERMISSIONS = [
   { resource: 'savings:liquidations', action: 'reject', name: 'Rechazar Liquidación', description: 'Rechazar solicitud de liquidación.', scope: 'tenant' },
   { resource: 'savings:liquidations', action: 'process', name: 'Calcular Liquidación', description: 'Calcular haberes definitivos del asociado.', scope: 'tenant' },
   { resource: 'savings:liquidations', action: 'disburse', name: 'Desembolsar Liquidación', description: 'Ejecutar pago de liquidación.', scope: 'tenant' },
-  { resource: 'savings:configuration', action: 'read', name: 'Consultar Config. Ahorros', description: 'Ver parámetros del módulo de ahorros.', scope: 'tenant' },
-  { resource: 'savings:configuration', action: 'update', name: 'Editar Config. Ahorros', description: 'Modificar parámetros del módulo de ahorros.', scope: 'tenant' },
 
   // ==========================================
   // MODULO: PORTFOLIO (Préstamos y Créditos)

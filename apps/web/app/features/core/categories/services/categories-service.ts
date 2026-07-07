@@ -61,7 +61,9 @@ export const categoriesService = {
   },
 
   create: async (payload: CategoryMutation): Promise<Category> => {
-    const { id, ...createPayload } = payload;
+    const { id, ...rest } = payload;
+    const createPayload: Record<string, unknown> = { ...rest };
+    if (!createPayload.tenantId) delete createPayload.tenantId;
     const response = await apiClient.post(
       '/core/categories',
       createPayload,
@@ -73,7 +75,9 @@ export const categoriesService = {
     if (!payload.id) {
       throw new Error('El id de la categoría es requerido para actualizar');
     }
-    const { id, ...updatePayload } = payload;
+    const { id, ...rest } = payload;
+    const updatePayload: Record<string, unknown> = { ...rest };
+    if (!updatePayload.tenantId) delete updatePayload.tenantId;
     const response = await apiClient.patch(
       `/core/categories/${id}`,
       updatePayload,

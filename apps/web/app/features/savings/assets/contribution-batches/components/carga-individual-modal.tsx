@@ -41,6 +41,7 @@ import { useAssociatesByCedula } from '../../individual-load/hooks/use-individua
 import { useIndividualLoadMutation } from '../../individual-load/hooks/use-individual-load-mutation';
 import { ASSOCIATE_MOVEMENT_TYPES } from '../../individual-load/schemas/individual-load-options';
 import { formSchema, type LoadAssest } from '../../individual-load/schemas/individual-load-schema';
+import { resolveAccountingWarning } from '../../individual-load/lib/accounting-warning';
 
 interface Props {
   open: boolean;
@@ -179,7 +180,20 @@ export function CargaIndividualModal({ open, onClose }: Props) {
         }, 1500);
       },
       onError: (err: unknown) => {
-        toast.error({ title: 'Error', description: (err as Error)?.message || 'No se pudo completar' });
+        const { isAccountingWarning, message } = resolveAccountingWarning(err);
+        if (isAccountingWarning) {
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contributionBatches.all });
+          toast.warning({
+            title: 'Carga exitosa sin asiento contable',
+            description: `El depósito de ${selectedAssociate?.fullname ?? ''} se registró, pero no se generó el asiento contable automático: ${message}`,
+          });
+          setTimeout(() => {
+            handleClear();
+            onClose();
+          }, 1500);
+          return;
+        }
+        toast.error({ title: 'Error', description: message || 'No se pudo completar' });
       },
     });
     setConfirmOpen(false);
@@ -429,7 +443,7 @@ export function CargaIndividualModal({ open, onClose }: Props) {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs uppercase font-bold text-muted-foreground">Cuenta Receptora</FormLabel>
-                            <Select onValueChange={(v) => field.onChange(Number(v))} value={field.value ? String(field.value) : ''} disabled={isSaving}>
+                            <Select onValueChange={field.onChange} value={field.value ?? ''} disabled={isSaving}>
                               <FormControl><SelectTrigger><SelectValue placeholder="Seleccione cuenta" /></SelectTrigger></FormControl>
                               <SelectContent>
                                 {bankAccounts.map((a: any) => (

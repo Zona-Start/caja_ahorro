@@ -22,7 +22,7 @@ export class AssociateAccountsMovementsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
-  ) {}
+  ) { }
 
   async create(
     userId: string,
@@ -69,10 +69,10 @@ export class AssociateAccountsMovementsService {
         }
 
         const internalCode = await this.generateCodeService.generateNextReference(
-          'MS',
+          'MS-SOC',
           tenantId,
           'savings',
-          'movements',
+          'contributions',
           tx,
         );
 

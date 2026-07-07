@@ -40,6 +40,7 @@ export const CATEGORY_TYPES = {
   CIVIL_STATUS: 'civil_status',
   ACCOUNT_TYPE: 'account_type',
   TRANSACTION_TYPE: 'transaction_type',
+  SPECIAL_DAYS: 'special_days',
 } as const;
 
 export const TYPE_LABELS: Record<string, string> = {
@@ -52,6 +53,7 @@ export const TYPE_LABELS: Record<string, string> = {
   civil_status: 'Estado Civil',
   account_type: 'Tipo de Cuenta',
   transaction_type: 'Tipo de Transacción',
+  special_days: 'Jornadas Especiales',
 };
 
 export type Category = z.infer<typeof categorySchema>;

@@ -32,7 +32,7 @@ export class FixedAssetsService {
     private readonly auditHelper: AuditHelper,
   ) { }
 
-      async create(
+  async create(
     dto: CreateFixedAssetDto,
     tenantId: string,
     userId: string,
@@ -60,7 +60,7 @@ export class FixedAssetsService {
           'ACT',
           tenantId,
           'inventory',
-          'fixed_assets',
+          'assets',
         ),
         name: dto.name,
         description: dto.description ?? null,

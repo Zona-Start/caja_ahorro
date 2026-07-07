@@ -1,4 +1,4 @@
-﻿import type { AccountEntry } from '../template.types';
+import type { AccountEntry } from '../template.types';
 
 export function computeParentCode(code: string): string | undefined {
   if (code.match(/^\d+\.\d{2}\.00\.00$/)) return `${code.split('.')[0]}.00.00.00`;
@@ -9,7 +9,8 @@ export function computeParentCode(code: string): string | undefined {
   return undefined;
 }
 
-export const ACCOUNTS: AccountEntry[] = [
+
+const _ACCOUNTS_CHUNK_0: AccountEntry[] = [
   { code: "100.00.00.00", name: "ACTIVOS", accountType: "ASSET", nature: "DEBIT", level: 1, allowsMovements: false, isActive: true, parentCode: undefined },
   { code: "200.00.00.00", name: "PASIVOS", accountType: "LIABILITY", nature: "CREDIT", level: 1, allowsMovements: false, isActive: true, parentCode: undefined },
   { code: "300.00.00.00", name: "PATRIMONIO", accountType: "EQUITY", nature: "CREDIT", level: 1, allowsMovements: false, isActive: true, parentCode: undefined },
@@ -517,6 +518,9 @@ export const ACCOUNTS: AccountEntry[] = [
   { code: "130.01.99.02", name: "IDV C-02", accountType: "ASSET", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "130.01.99.00" },
   { code: "130.01.99.99", name: "IDV C-99", accountType: "ASSET", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "130.01.99.00" },
   { code: "130.02.01.00", name: "IMV A", accountType: "ASSET", nature: "DEBIT", level: 3, allowsMovements: true, isActive: true, parentCode: "130.02.00.00" },
+];
+
+const _ACCOUNTS_CHUNK_1: AccountEntry[] = [
   { code: "130.02.01.01", name: "IMV A-01", accountType: "ASSET", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "130.02.01.00" },
   { code: "130.02.01.02", name: "IMV A-02", accountType: "ASSET", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "130.02.01.00" },
   { code: "130.02.01.99", name: "IMV A-99", accountType: "ASSET", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "130.02.01.00" },
@@ -1024,6 +1028,9 @@ export const ACCOUNTS: AccountEntry[] = [
   { code: "212.01.01.01", name: "CompLab A-01", accountType: "LIABILITY", nature: "CREDIT", level: 4, allowsMovements: true, isActive: true, parentCode: "212.01.01.00" },
   { code: "212.01.01.02", name: "CompLab A-02", accountType: "LIABILITY", nature: "CREDIT", level: 4, allowsMovements: true, isActive: true, parentCode: "212.01.01.00" },
   { code: "212.01.01.99", name: "CompLab A-99", accountType: "LIABILITY", nature: "CREDIT", level: 4, allowsMovements: true, isActive: true, parentCode: "212.01.01.00" },
+];
+
+const _ACCOUNTS_CHUNK_2: AccountEntry[] = [
   { code: "212.01.02.00", name: "CompLab B", accountType: "LIABILITY", nature: "CREDIT", level: 3, allowsMovements: true, isActive: true, parentCode: "212.01.00.00" },
   { code: "212.01.02.01", name: "CompLab B-01", accountType: "LIABILITY", nature: "CREDIT", level: 4, allowsMovements: true, isActive: true, parentCode: "212.01.02.00" },
   { code: "212.01.02.02", name: "CompLab B-02", accountType: "LIABILITY", nature: "CREDIT", level: 4, allowsMovements: true, isActive: true, parentCode: "212.01.02.00" },
@@ -1531,6 +1538,9 @@ export const ACCOUNTS: AccountEntry[] = [
   { code: "521.01.02.00", name: "GastosPersDir B", accountType: "EXPENSE", nature: "DEBIT", level: 3, allowsMovements: true, isActive: true, parentCode: "521.01.00.00" },
   { code: "521.01.02.01", name: "GastosPersDir B-01", accountType: "EXPENSE", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "521.01.02.00" },
   { code: "521.01.02.02", name: "GastosPersDir B-02", accountType: "EXPENSE", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "521.01.02.00" },
+];
+
+const _ACCOUNTS_CHUNK_3: AccountEntry[] = [
   { code: "521.01.02.99", name: "GastosPersDir B-99", accountType: "EXPENSE", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "521.01.02.00" },
   { code: "521.01.99.00", name: "GastosPersDir C", accountType: "EXPENSE", nature: "DEBIT", level: 3, allowsMovements: true, isActive: true, parentCode: "521.01.00.00" },
   { code: "521.01.99.01", name: "GastosPersDir C-01", accountType: "EXPENSE", nature: "DEBIT", level: 4, allowsMovements: true, isActive: true, parentCode: "521.01.99.00" },
@@ -2039,3 +2049,9 @@ export const ACCOUNTS: AccountEntry[] = [
   { code: "124.01.01.99.005", name: "Aux 124.01.01.99-005", accountType: "ASSET", nature: "DEBIT", level: 5, allowsMovements: true, isActive: true, parentCode: "124.01.01.99" },
 ];
 
+export const ACCOUNTS: AccountEntry[] = [
+  ..._ACCOUNTS_CHUNK_0,
+  ..._ACCOUNTS_CHUNK_1,
+  ..._ACCOUNTS_CHUNK_2,
+  ..._ACCOUNTS_CHUNK_3,
+];

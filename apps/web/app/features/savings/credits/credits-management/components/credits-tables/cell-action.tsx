@@ -1,20 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckSquare, Trash, Eye } from 'lucide-react';
+import { CheckSquare, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Button } from '@repo/shadcn/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/shadcn/tooltip';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
 import { AlertModal } from '@/components/shared/alert-modal';
 import {
   useApproveCreditManagementMutation,
   useDeleteCreditManagementMutation,
 } from '../../hooks/use-credits-management-mutation';
-import { useNavigate } from 'react-router';
 import type { CreditTableRow } from './columns';
 
 interface CellActionProps {
@@ -61,65 +61,40 @@ export const CellAction: React.FC<CellActionProps> = ({ data, onViewDetails }) =
         title="¿Está seguro que desea eliminar el crédito?"
         description="Esta acción no se puede deshacer."
       />
-      <div className="flex gap-1">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => onViewDetails?.(data)}
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="h-8 w-8 p-0">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => onViewDetails?.(data)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Ver Detalles
+          </DropdownMenuItem>
+
+          {data.status === 'REQUESTED' && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setOpenApprove(true)}
+                className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
               >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Ver Detalles</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {data.status === 'REQUESTED' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                  onClick={() => setOpenApprove(true)}
-                >
-                  <CheckSquare className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Aprobar Crédito</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {data.status === 'REQUESTED' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive"
-                  onClick={() => setOpenDelete(true)}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Eliminar</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+                <CheckSquare className="mr-2 h-4 w-4" />
+                Aprobar Crédito
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setOpenDelete(true)}
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 };

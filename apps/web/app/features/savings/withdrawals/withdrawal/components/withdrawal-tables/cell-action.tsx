@@ -1,11 +1,22 @@
-import { Banknote, Calculator, Eye, FileCheck, Send, Trash } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Banknote,
+  Calculator,
+  Eye,
+  FileCheck,
+  MoreHorizontal,
+  Trash,
+} from 'lucide-react';
+import { AlertModal } from '@/components/shared/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/shadcn/tooltip';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
 import {
   useApproveWithdrawalMutation,
   useDeleteWithdrawalMutation,
@@ -18,34 +29,33 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const { mutate: deleteWithdrawal } = useDeleteWithdrawalMutation();
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openApprove, setOpenApprove] = useState(false);
+  const [openProcess, setOpenProcess] = useState(false);
+
+  const { mutate: deleteWithdrawal, isPending: deleting } =
+    useDeleteWithdrawalMutation();
   const { mutate: approveMutation, isPending: isUpdating } =
     useApproveWithdrawalMutation();
   const { mutate: processMutation, isPending: isProcessing } =
     useProcessWithdrawalMutation();
 
-  const onConfirmDelete = () => {
-    if (
-      window.confirm(
-        '¿Estás seguro que desea anular el retiro? Esta acción no se puede deshacer.',
-      )
-    ) {
-      deleteWithdrawal(data.id);
-    }
+  const onDeleteConfirm = () => {
+    deleteWithdrawal(data.id, {
+      onSettled: () => setOpenDelete(false),
+    });
   };
 
-  const onConfirmApprove = () => {
-    if (window.confirm('¿Estás seguro que desea aprobar este retiro?')) {
-      approveMutation(data.id);
-    }
+  const onApproveConfirm = () => {
+    approveMutation(data.id, {
+      onSettled: () => setOpenApprove(false),
+    });
   };
 
-  const onConfirmProcess = () => {
-    if (
-      window.confirm('¿Estás seguro que desea procesar este retiro?')
-    ) {
-      processMutation(data.id);
-    }
+  const onProcessConfirm = () => {
+    processMutation(data.id, {
+      onSettled: () => setOpenProcess(false),
+    });
   };
 
   const handleView = () => {
@@ -58,90 +68,99 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
     window.dispatchEvent(event);
   };
 
+  const isItemBased = data.isHouseComercial || data.isInternalInventory;
+
   return (
-    <div className="flex gap-1">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="icon" onClick={handleView}>
-              <Eye className="h-4 w-4" />
+    <>
+      <AlertModal
+        isOpen={openApprove}
+        onClose={() => setOpenApprove(false)}
+        onConfirm={onApproveConfirm}
+        loading={isUpdating}
+        title="Aprobar Retiro"
+        description="¿Estás seguro que deseas aprobar este retiro?"
+      />
+
+      <AlertModal
+        isOpen={openProcess}
+        onClose={() => setOpenProcess(false)}
+        onConfirm={onProcessConfirm}
+        loading={isProcessing}
+        title="Procesar Retiro"
+        description="¿Estás seguro que deseas procesar este retiro?"
+      />
+
+      <AlertModal
+        isOpen={openDelete}
+        onClose={() => setOpenDelete(false)}
+        onConfirm={onDeleteConfirm}
+        loading={deleting}
+        title="Anular Retiro"
+        description="¿Estás seguro que deseas anular el retiro? Esta acción no se puede deshacer."
+      />
+
+      <div className="flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="h-8 w-8 p-0">
+              <span className="sr-only">Abrir menú de acciones</span>
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Ver Detalles</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleView}>
+              <Eye className="mr-2 h-4 w-4" />
+              Ver Detalles
+            </DropdownMenuItem>
 
-      {data.status === 'APPROVED' && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  data.isHouseComercial || data.isInternalInventory
-                    ? onConfirmProcess()
-                    : handleDisburse();
-                }}
-                disabled={isUpdating || isProcessing}
-              >
-                {data.isHouseComercial || data.isInternalInventory ? (
-                  <Calculator className="h-4 w-4" />
-                ) : (
-                  <Banknote className="h-4 w-4" />
-                )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {data.isHouseComercial || data.isInternalInventory
-                  ? 'Procesar'
-                  : 'Desembolsar'}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {data.status === 'REQUESTED' && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={onConfirmApprove}
+            {data.status === 'REQUESTED' && (
+              <DropdownMenuItem
+                onClick={() => setOpenApprove(true)}
                 disabled={isUpdating}
               >
-                <FileCheck className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Aprobar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
+                <FileCheck className="mr-2 h-4 w-4" />
+                Aprobar
+              </DropdownMenuItem>
+            )}
 
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onConfirmDelete}
-              disabled={data.status !== 'REQUESTED'}
-            >
-              <Trash className="h-4 w-4 text-destructive" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Anular</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
+            {data.status === 'APPROVED' && isItemBased && (
+              <DropdownMenuItem
+                onClick={() => setOpenProcess(true)}
+                disabled={isUpdating || isProcessing}
+              >
+                <Calculator className="mr-2 h-4 w-4" />
+                Procesar
+              </DropdownMenuItem>
+            )}
+
+            {data.status === 'APPROVED' && !isItemBased && (
+              <DropdownMenuItem
+                onClick={handleDisburse}
+                disabled={isUpdating || isProcessing}
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                Desembolsar
+              </DropdownMenuItem>
+            )}
+
+            {data.status === 'REQUESTED' && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setOpenDelete(true)}
+                  disabled={deleting}
+                  className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                >
+                  <Trash className="mr-2 h-4 w-4" />
+                  Anular
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </>
   );
 };

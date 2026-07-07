@@ -337,10 +337,8 @@ export function LoadAssetsForm({
                           Cuenta Receptora
                         </FormLabel>
                         <Select
-                          onValueChange={(value) =>
-                            field.onChange(Number(value))
-                          }
-                          value={field.value ? String(field.value) : ''}
+                          onValueChange={field.onChange}
+                          value={field.value ?? ''}
                           disabled={isFormDisabled}
                         >
                           <FormControl>

@@ -39,11 +39,14 @@ import {
   useBankAccounts,
   useSuppliers,
   useProducts,
-  useCalculateAmortization,
 } from '../hooks/use-credits-management-query';
 import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
 import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
 import { CreditCalculator } from './credit-calculator';
+import { ProductsService } from '@/features/inventory/products/services/products-service';
+import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
+import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
+import { calculateFrenchAmortization } from '../utils/credit-amortization-utils';
 
 interface CreditFormProps {
   selectedAssociate: SearchAssociateResult | null;
@@ -70,6 +73,7 @@ export function CreditForm({
   const { data: bankAccounts = [] } = useBankAccounts();
   const { data: suppliers = [] } = useSuppliers();
   const { data: products = [] } = useProducts();
+  const { data: specialDays = [] } = useCategoriesByTypeQuery(CATEGORY_TYPES.SPECIAL_DAYS);
 
   const [casaComercial, setCasaComercial] = useState(false);
   const [ccType, setCcType] = useState<'inventory' | 'supplier' | ''>('');
@@ -81,15 +85,16 @@ export function CreditForm({
   const [servDescription, setServDescription] = useState('');
   const [servQty, setServQty] = useState(1);
   const [servCost, setServCost] = useState(0);
+  const [servSpecialDayId, setServSpecialDayId] = useState('');
 
   const serviceSuppliers = useMemo(
     () =>
       Array.isArray(suppliers)
         ? suppliers.filter(
-            (s: any) =>
-              (s.category === 'SERVICE' || s.category === 'servicio') &&
-              s.isActive !== false,
-          )
+          (s: any) =>
+            (s.category === 'services' || s.category === 'servicio') &&
+            s.isActive !== false,
+        )
         : [],
     [suppliers],
   );
@@ -146,8 +151,14 @@ export function CreditForm({
         : null;
       if (t) {
         setValue('interestRate', parseFloat(t.interestRate));
-        setValue('termType', t.termType || 'installments');
-        setValue('termUnits', t.termUnits || 1);
+        const mappedTermType =
+          t.termType === 'Plazo' || t.termType === 'Plazos'
+            ? 'installments'
+            : t.termType === 'Cuota' || t.termType === 'Cuotas'
+              ? 'quotas'
+              : (t.termType as string) || 'installments';
+        setValue('termType', mappedTermType);
+        setValue('termUnits', Number(t.termUnits) || 1);
         setValue(
           'expensesPercentage',
           parseFloat(t.administrativeExpensePercentage || '0'),
@@ -162,7 +173,7 @@ export function CreditForm({
     [watchAmount, watchExpensesPct],
   );
 
-  const amortizableAmount = watchAmount - watchHaberesPayment - watchDirectPayment;
+  const amortizableAmount = Math.max(0, watchAmount - watchHaberesPayment - watchDirectPayment);
 
   const endDate = useMemo(() => {
     if (!watchStartDate || watchTermUnits <= 0) return '';
@@ -183,36 +194,19 @@ export function CreditForm({
     }
   }, [endDate, setValue]);
 
-  const amortParams = useMemo(
-    () =>
-      amortizableAmount > 0 && watchRate > 0 && watchTermUnits > 0 && watchStartDate
-        ? {
-            amount: amortizableAmount,
-            annualRate: watchRate,
-            paymentCount: watchTermUnits,
-            startDate: new Date(watchStartDate).toISOString().slice(0, 10),
-            paymentType: watchTermType,
-            expensesPercentage: watchExpensesPct,
-          }
-        : null,
-    [amortizableAmount, watchRate, watchTermUnits, watchStartDate, watchTermType, watchExpensesPct],
-  );
+  const amortData = useMemo(() => {
+    if (amortizableAmount <= 0 || watchTermUnits <= 0) return null;
+    return calculateFrenchAmortization(
+      amortizableAmount,
+      watchRate,
+      watchTermUnits,
+      (watchTermType as 'installments' | 'quotas') || 'installments',
+      watchStartDate || new Date(),
+      expensesAmount,
+    );
+  }, [amortizableAmount, watchRate, watchTermUnits, watchTermType, watchStartDate, expensesAmount]);
 
-  const { data: amortData } = useCalculateAmortization(amortParams);
-
-  const totalInterest = useMemo(
-    () =>
-      amortData?.schedule?.reduce(
-        (s: number, r: any) => s + parseFloat(r.interestAmount),
-        0,
-      ) || 0,
-    [amortData],
-  );
-
-  const totalPayable = useMemo(
-    () => amortizableAmount + totalInterest + expensesAmount,
-    [amortizableAmount, totalInterest, expensesAmount],
-  );
+  const totalInterest = amortData?.totalInterest ?? 0;
 
   const rules = useMemo(() => {
     const r: { canSave: boolean; messages: string[] } = {
@@ -252,7 +246,7 @@ export function CreditForm({
       r.canSave = false;
       r.messages.push('Tiene credinomina activo - Bloqueado');
     }
-    const monthlyPmt = parseFloat(amortData?.monthlyPayment || '0');
+    const monthlyPmt = amortData?.monthlyPayment ?? 0;
     if (
       amortizableAmount > 0 &&
       monthlyPmt > 0 &&
@@ -286,6 +280,7 @@ export function CreditForm({
     }
     if (
       selectedType?.minCreditAmount &&
+      parseFloat(selectedType.minCreditAmount) > 0 &&
       watchAmount < parseFloat(selectedType.minCreditAmount)
     ) {
       r.canSave = false;
@@ -295,6 +290,7 @@ export function CreditForm({
     }
     if (
       selectedType?.maxCreditAmount &&
+      parseFloat(selectedType.maxCreditAmount) > 0 &&
       watchAmount > parseFloat(selectedType.maxCreditAmount)
     ) {
       r.canSave = false;
@@ -316,31 +312,51 @@ export function CreditForm({
     watchDirectPaymentBank,
   ]);
 
-  const addProductItem = () => {
+  const addProductItem = async () => {
     if (!selectedProduct || !Array.isArray(products)) return;
-    const prod = products.find((p: any) => p.id === selectedProduct || p._id === selectedProduct);
+    const prod = products.find((p: any) => p.id === selectedProduct) as any;
     if (!prod) return;
-    const price = prod.offerPrice || prod.regularPrice;
-    if (!price) return;
-    const unitPrice = price.salePrice || price.unitPrice || 0;
-    const totalPrice = unitPrice * productQty;
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Math.random().toString(36).slice(2),
-        type: 'product',
-        productId: prod.id || prod._id,
-        productName: prod.name,
-        quantity: productQty,
-        unitPrice,
-        totalPrice,
-      },
-    ]);
+
+    try {
+      const productDetail = await ProductsService.getById(selectedProduct);
+      const unitPrice = Number(
+        productDetail.bsPriceAmount ??
+        productDetail.salePrice ??
+        productDetail.supplierCost ??
+        0,
+      );
+      setItems((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).slice(2),
+          type: 'product',
+          productId: prod.id,
+          productName: prod.name,
+          quantity: productQty,
+          unitPrice,
+          totalPrice: unitPrice * productQty,
+        },
+      ]);
+    } catch {
+      setItems((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).slice(2),
+          type: 'product',
+          productId: prod.id,
+          productName: prod.name,
+          quantity: productQty,
+          unitPrice: 0,
+          totalPrice: 0,
+        },
+      ]);
+    }
     setSelectedProduct('');
     setProductQty(1);
   };
 
   const addServiceItem = () => {
+    if (!servDescription.trim() || servCost <= 0 || !servSpecialDayId) return;
     const totalPrice = servCost * servQty;
     setItems((prev) => [
       ...prev,
@@ -351,11 +367,13 @@ export function CreditForm({
         quantity: servQty,
         unitPrice: servCost,
         totalPrice,
+        specialDayCategoryId: servSpecialDayId,
       },
     ]);
     setServDescription('');
     setServQty(1);
     setServCost(0);
+    setServSpecialDayId('');
   };
 
   const removeItem = (id: string) => {
@@ -380,13 +398,14 @@ export function CreditForm({
           : undefined,
       creditItems: casaComercial
         ? items.map((it) => ({
-            agreedSellingPrice: it.totalPrice,
-            itemId: it.productId || undefined,
-            itemType: it.type === 'product' ? 'PRODUCT' : 'EXTERNAL',
-            itemDescription: it.description || it.productName || undefined,
-            quantity: it.quantity,
-            saleDate: new Date(),
-          }))
+          agreedSellingPrice: it.totalPrice,
+          itemId: it.productId || undefined,
+          itemType: it.type === 'product' ? 'PRODUCT' : 'EXTERNAL',
+          itemDescription: it.description || it.productName || undefined,
+          quantity: it.quantity,
+          saleDate: new Date(),
+          days: it.specialDayCategoryId || undefined,
+        }))
         : undefined,
       itemsJson: casaComercial ? JSON.stringify(items) : undefined,
       haberesPayment: Number(data.haberesPayment || 0),
@@ -435,7 +454,7 @@ export function CreditForm({
           </div>
 
           {selectedType && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-2">
+            <div className="rounded-lg border border-[#3098F2]/30 bg-[#3098F2]/5 p-4 space-y-2">
               <p className="text-sm font-semibold">
                 Información del Tipo de Crédito
               </p>
@@ -537,7 +556,7 @@ export function CreditForm({
                   value={watchTermType}
                   onValueChange={(v) => setValue('termType', v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -624,7 +643,7 @@ export function CreditForm({
                   <SelectContent>
                     <SelectItem value="inventory">Inventario Interno</SelectItem>
                     {serviceSuppliers.map((s: any) => (
-                      <SelectItem key={s.id || s._id} value={`supplier_${s.id || s._id}`}>
+                      <SelectItem key={s.id} value={`supplier_${s.id}`}>
                         {s.name || s.businessName} - {s.rif}
                       </SelectItem>
                     ))}
@@ -650,7 +669,7 @@ export function CreditForm({
                         </SelectTrigger>
                         <SelectContent>
                           {(Array.isArray(products) ? products : []).map((p: any) => (
-                            <SelectItem key={p.id || p._id} value={p.id || p._id}>
+                            <SelectItem key={p.id} value={p.id}>
                               {p.name}
                             </SelectItem>
                           ))}
@@ -681,8 +700,8 @@ export function CreditForm({
                     <ShoppingCart className="h-4 w-4" />
                     <span className="text-xs font-semibold">AGREGAR ITEM</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 items-end">
-                    <div className="col-span-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                    <div className="col-span-full">
                       <Label className="text-xs">Descripción</Label>
                       <Input
                         value={servDescription}
@@ -711,6 +730,26 @@ export function CreditForm({
                         onChange={(e) => setServCost(parseFloat(e.target.value) || 0)}
                       />
                     </div>
+                    <div>
+                      <Label className="text-xs">Jornada *</Label>
+                      <Select
+                        value={servSpecialDayId}
+                        onValueChange={setServSpecialDayId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Jornada..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.isArray(specialDays)
+                            ? specialDays.map((sd: any) => (
+                              <SelectItem key={sd.id} value={sd.id}>
+                                {sd.name}
+                              </SelectItem>
+                            ))
+                            : null}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="flex items-end">
                       <Button onClick={addServiceItem} size="sm" className="gap-1">
                         <Plus className="h-3 w-3" /> Agregar
@@ -734,6 +773,9 @@ export function CreditForm({
                         <th className="py-1 text-left">Item</th>
                         <th className="py-1 text-right">Cant.</th>
                         <th className="py-1 text-right">P/U</th>
+                        {items.some((it) => it.type === 'service') && (
+                          <th className="py-1 text-left">Jornada</th>
+                        )}
                         <th className="py-1 text-right">Subtotal</th>
                         <th className="py-1 w-8"></th>
                       </tr>
@@ -748,6 +790,15 @@ export function CreditForm({
                           <td className="py-1 text-right font-mono">
                             {formatCurrency(it.unitPrice)}
                           </td>
+                          {items.some((i) => i.type === 'service') && (
+                            <td className="py-1 text-xs">
+                              {it.specialDayCategoryId
+                                ? (Array.isArray(specialDays)
+                                  ? specialDays.find((sd: any) => sd.id === it.specialDayCategoryId)?.name
+                                  : '—') || '—'
+                                : '—'}
+                            </td>
+                          )}
                           <td className="py-1 text-right font-mono font-medium">
                             {formatCurrency(it.totalPrice)}
                           </td>
@@ -879,7 +930,7 @@ export function CreditForm({
                       <SelectContent>
                         {(Array.isArray(bankAccounts) ? bankAccounts : []).map((b: any) => (
                           <SelectItem key={b.id} value={b.id}>
-                            {b.accountName || b.accountNumber} - {b.accountNumber}
+                            {b.accountName || b.accountNumber}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -888,7 +939,7 @@ export function CreditForm({
                 </div>
               )}
               {(watchHaberesPayment > 0 || watchDirectPayment > 0) && (
-                <div className="text-sm space-y-1 bg-blue-50 p-3 rounded">
+                <div className="text-sm space-y-1 bg-muted/30 p-3 rounded">
                   <p>
                     Monto del crédito:{' '}
                     <span className="font-mono font-bold">
@@ -897,7 +948,7 @@ export function CreditForm({
                   </p>
                   {watchHaberesPayment > 0 && (
                     <p>
-                      Pago de haberes:{' '}
+                      Pago desde los haberes:{' '}
                       <span className="font-mono text-destructive">
                         - {formatCurrency(watchHaberesPayment)} Bs
                       </span>
@@ -939,15 +990,14 @@ export function CreditForm({
       )}
 
       {/* Calculadora de Amortización */}
-      {amortData && amortizableAmount > 0 && (
+      {amortData && selectedType && watchAmount > 0 && (
         <CreditCalculator
           capital={watchAmount}
           amortizableAmount={amortizableAmount}
-          monthlyPayment={amortData.monthlyPayment}
+          monthlyPayment={String(amortData?.monthlyPayment ?? 0)}
           totalInterest={totalInterest}
           schedule={amortData.schedule}
           expensesAmount={expensesAmount}
-          totalPayable={totalPayable}
           haberesPayment={watchHaberesPayment}
           directPayment={watchDirectPayment}
         />
@@ -957,7 +1007,7 @@ export function CreditForm({
       <Card
         className={
           rules.canSave
-            ? 'border-emerald-500/30 bg-emerald-50/50'
+            ? 'border-emerald-500/30 bg-muted/30'
             : 'border-destructive/30 bg-destructive/5'
         }
       >
@@ -976,19 +1026,18 @@ export function CreditForm({
             {rules.messages.map((msg, i) => (
               <li
                 key={i}
-                className={`text-xs flex items-center gap-1.5 ${
-                  msg.includes('Bloqueado') ||
+                className={`text-xs flex items-center gap-1.5 ${msg.includes('Bloqueado') ||
                   msg.includes('supera') ||
                   msg.includes('mínimo') ||
                   msg.includes('máximo')
-                    ? 'text-destructive'
-                    : 'text-emerald-600'
-                }`}
+                  ? 'text-destructive'
+                  : 'text-emerald-600'
+                  }`}
               >
                 {msg.includes('Bloqueado') ||
-                msg.includes('supera') ||
-                msg.includes('mínimo') ||
-                msg.includes('máximo') ? (
+                  msg.includes('supera') ||
+                  msg.includes('mínimo') ||
+                  msg.includes('máximo') ? (
                   <XCircle className="h-3 w-3 flex-shrink-0" />
                 ) : (
                   <CheckCircle2 className="h-3 w-3 flex-shrink-0" />

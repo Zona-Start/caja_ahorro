@@ -8,18 +8,20 @@ import {
   Res,
   UploadedFile,
   UseInterceptors,
-  UsePipes,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { memoryStorage } from 'multer';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { IndividualLoadService } from './individual-load.service';
 import {
-  CreateIndividualLoadSchema,
+  BulkIndividualLoadDto,
   BulkIndividualLoadSchema,
+  CreateIndividualLoadDto,
+  CreateIndividualLoadSchema,
 } from './dto/individual-load.zod.dto';
 
 @ApiTags('savings-banks/individual-load')
@@ -32,13 +34,15 @@ export class IndividualLoadController {
   ) {}
 
   @Post()
-  @UsePipes(new ZodValidatorPipe(CreateIndividualLoadSchema))
   @ApiOperation({ summary: 'Create a new individual Load' })
   @ApiResponse({
     status: 201,
     description: 'Individual Load successfully created.',
   })
-  create(@Req() req: Request, @Body() dto: any) {
+  create(
+    @Req() req: Request,
+    @Body(new ZodValidatorPipe(CreateIndividualLoadSchema)) dto: CreateIndividualLoadDto,
+  ) {
     const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
     return this.individualLoadService.create(targetTenantId, userId, dto);
   }
@@ -57,13 +61,12 @@ export class IndividualLoadController {
   }
 
   @Post('bulk')
-  @UseInterceptors(FileInterceptor('file'))
-  @UsePipes(new ZodValidatorPipe(BulkIndividualLoadSchema))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   @ApiOperation({ summary: 'Upload excel file for bulk load' })
   async createBulk(
     @Req() req: Request,
     @UploadedFile() file: Express.Multer.File,
-    @Body() dto: any,
+    @Body(new ZodValidatorPipe(BulkIndividualLoadSchema)) dto: BulkIndividualLoadDto,
   ) {
     if (!file) {
       throw new BadRequestException('El archivo es requerido');

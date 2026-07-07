@@ -34,7 +34,7 @@ export function useBulkUploadIndividualLoad(
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
-  return useMutation({
+  return useMutation<unknown, Error, FormData>({
     mutationFn: (formData: FormData) =>
       individualLoadService.bulkUpload(formData),
     onSuccess: (response: unknown) => {
@@ -45,7 +45,7 @@ export function useBulkUploadIndividualLoad(
         onSuccess?.(response as { message: string; processedCount: number });
       }
     },
-    onError: (error: unknown) => {
+    onError: (error: Error) => {
       const err = error as { message?: string };
       toast.error({
         title: 'Error de carga',

@@ -13,7 +13,7 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     'AUDIT',
     'INVENTORY',
     'PURCHASING',
-    'BILLING',
+    'SALES',
     'HR_PAYROLL'
   ],
 
@@ -32,40 +32,43 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     { key: 'INTEREST_RATE_SAVINGS', value: '0.5', description: 'Tasa de interés anual para ahorros (%)', category: 'savings' },
     { key: 'MAX_WITHDRAWAL_PERCENTAGE', value: '80', description: 'Porcentaje máximo de retiro sobre saldo', category: 'savings' },
     { key: 'PRICING_CURRENCY_MODE', value: 'SINGLE_BASE', description: 'Tipo de Manejo de inventario', category: 'general' },
+    { key: 'MIN_CONTRIBUTION_AMOUNT', value: '1', description: 'Monto mínimo de aporte', category: 'savings' },
     { key: 'USE_DIFFERENTIAL_RATES', value: 'false', description: 'Uso de Tasas Diferentes', category: 'general' },
   ],
 
   moduleSettings: [
     // Savings
     { module: 'savings', submodule: 'withdrawals', key: 'WITHDRAWAL_TIME_MONTHS', value: '4', description: 'Tiempo de Retiro en Meses' },
-    { module: 'savings', submodule: 'withdrawals', key: 'AUTO_POST_ENTRY_WITHDRAWAL', value: 'true', description: 'Generar asiento contable en retiro' },
+    { module: 'savings', submodule: 'withdrawals', key: 'AUTO_POST_ENTRY_WITHDRAWALS', value: 'true', description: 'Generar asiento contable en retiro' },
+    { module: 'savings', submodule: 'withdrawals', key: 'RET_SOC', value: '0', description: 'Consecutivo Retiro Movimiento Haberes' },
     { module: 'savings', submodule: 'contributions', key: 'DEFAULT_PAYROLL_TYPE', value: '5501', description: 'Tipo de Nómina por defecto' },
-    { module: 'savings', submodule: 'contributions', key: 'AUTO_POST_ENTRY_CONTRIBUTION', value: 'true', description: 'Generar asiento contable en carga haberes' },
+    { module: 'savings', submodule: 'contributions', key: 'AUTO_POST_ENTRY_CONTRIBUTIONS', value: 'true', description: 'Generar asiento contable en carga haberes' },
     { module: 'savings', submodule: 'contributions', key: 'DEFAULT_DISCOUNT_FREQUENCY', value: 'Mensual', description: 'Frecuencia de Descuento por defecto' },
+    { module: 'savings', submodule: 'contributions', key: 'MS-SOC', value: '0', description: 'Consecutivo Movimiento Asociados' },
+    { module: 'savings', submodule: 'contributions', key: 'DES-SOC', value: '0', description: 'Consecutivo Desembolsos Socios' },
+    { module: 'savings', submodule: 'contributions', key: 'DES-LOT-SOC', value: '0', description: 'Consecutivo Lote Desembolsos Socios' },
     { module: 'savings', submodule: 'liquidations', key: 'AUTO_POST_ENTRY_LIQUIDATIONS', value: 'true', description: 'Generar asiento contable en liquidaciones' },
     { module: 'savings', submodule: 'members', key: 'SOC', value: '0', description: 'Consecutivo Referencia Asociado' },
-    { module: 'savings', submodule: 'liquidation', key: 'SOC_LIQ', value: '0', description: 'Consecutivo Liquidación Movimiento Haberes' },
-    { module: 'savings', submodule: 'withdrawals', key: 'SOC_RET', value: '0', description: 'Consecutivo Retiro Movimiento Haberes' },
-    { module: 'savings', submodule: 'contributions', key: 'SOC_MS', value: '0', description: 'Consecutivo Movimiento Asociados' },
-    { module: 'savings', submodule: 'contributions', key: 'DES_SOC', value: '0', description: 'Consecutivo Desembolsos Socios' },
-    { module: 'savings', submodule: 'contributions', key: 'DES_LOT_SOC', value: '0', description: 'Consecutivo Lote Desembolsos Socios' },
+    { module: 'savings', submodule: 'liquidation', key: 'LIQ-SOC', value: '0', description: 'Consecutivo Liquidación Movimiento Haberes' },
 
     // Portfolio
     { module: 'portfolio', submodule: 'loans', key: 'DEFAULT_LOAN_INTEREST', value: '6', description: 'Porcentaje de Préstamo por defecto' },
-    { module: 'portfolio', submodule: 'loans', key: 'AUTO_POST_ENTRY_LOAN', value: 'true', description: 'Generar asiento contable en préstamo' },
-    { module: 'portfolio', submodule: 'credits', key: 'AUTO_POST_ENTRY_CREDIT', value: 'true', description: 'Generar asiento contable en crédito' },
-    { module: 'portfolio', submodule: 'credits', key: 'AUTO_POST_ENTRY_CREDIT_PAYMENT', value: 'true', description: 'Generar asiento contable en pago de crédito' },
-    { module: 'portfolio', submodule: 'loans', key: 'AUTO_POST_ENTRY_LOAN_PAYMENT', value: 'true', description: 'Generar asiento contable en pago de préstamo' },
+    { module: 'portfolio', submodule: 'loans', key: 'AUTO_POST_ENTRY_LOANS', value: 'true', description: 'Generar asiento contable en préstamo' },
+    { module: 'portfolio', submodule: 'credits', key: 'AUTO_POST_ENTRY_CREDITS', value: 'true', description: 'Generar asiento contable en crédito' },
+    { module: 'portfolio', submodule: 'credits', key: 'AUTO_POST_ENTRY_CREDITS_PAYMENT', value: 'true', description: 'Generar asiento contable en pago de crédito' },
+    { module: 'portfolio', submodule: 'loans', key: 'AUTO_POST_ENTRY_LOANS_PAYMENT', value: 'true', description: 'Generar asiento contable en pago de préstamo' },
     { module: 'portfolio', submodule: 'loans', key: 'PRE', value: '0', description: 'Consecutivo Préstamo' },
-    { module: 'portfolio', submodule: 'loan_payments', key: 'PRE_PAG', value: '0', description: 'Consecutivo Pago de Préstamo' },
+    { module: 'portfolio', submodule: 'loan_payments', key: 'PRE-PAG', value: '0', description: 'Consecutivo Pago de Préstamo' },
     { module: 'portfolio', submodule: 'credits', key: 'CRE', value: '0', description: 'Consecutivo Crédito' },
-    { module: 'portfolio', submodule: 'credit_payments', key: 'CRE_PAG', value: '0', description: 'Consecutivo Pago Crédito' },
+    { module: 'portfolio', submodule: 'credit_payments', key: 'CRE-PAG', value: '0', description: 'Consecutivo Pago Crédito' },
 
     //inventories
-    { module: 'inventory', submodule: 'movements', key: 'INV_IN', value: '0', description: 'Consecutivo Movimiento Inventario Entrada' },
-    { module: 'inventory', submodule: 'movements', key: 'INV_OUT', value: '0', description: 'Consecutivo Movimiento Inventario Salida' },
-    { module: 'inventory', submodule: 'movements', key: 'INV_ADJ', value: '0', description: 'Consecutivo Movimiento Inventario Ajuste' },
+    { module: 'inventory', submodule: 'movements', key: 'INV-IN', value: '0', description: 'Consecutivo Movimiento Inventario Entrada' },
+    { module: 'inventory', submodule: 'movements', key: 'INV-OUT', value: '0', description: 'Consecutivo Movimiento Inventario Salida' },
+    { module: 'inventory', submodule: 'movements', key: 'INV-ADJ', value: '0', description: 'Consecutivo Movimiento Inventario Ajuste' },
     { module: 'inventory', submodule: 'products', key: 'PRD', value: '0', description: 'Consecutivo Producto' },
+    { module: 'inventory', submodule: 'products', key: 'PRODUCT_UTILITY_MARGIN', value: '25', description: 'Porcentaje de Utilidad Producto' },
+    { module: 'inventory', submodule: 'products', key: 'PRODUCT_ADMIN_EXPENSE', value: '6', description: 'Gasto Administrativo Producto' },
     { module: 'inventory', submodule: 'services', key: 'SRV', value: '0', description: 'Consecutivo Servicio' },
     { module: 'inventory', submodule: 'assets', key: 'ACT', value: '0', description: 'Consecutivo Bien o Activo' },
 
@@ -86,9 +89,9 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     { module: 'banking', submodule: 'transactions', key: 'BATCH_TRANSACTION_BANK_CODE', value: '005823', description: 'Código Bancario para Transacciones en Lote' },
     { module: 'banking', submodule: 'bank_transactions', key: 'MB', value: '0', description: 'Consecutivo Movimiento Bancario' },
     // Accounting
-    { module: 'accounting', submodule: 'chart_of_accounts', key: 'NRO_ASIENTO', value: '0', description: 'Consecutivo Asiento Contable' },
+    { module: 'accounting', submodule: 'chart_of_accounts', key: 'NRO-ASIENTO', value: '0', description: 'Consecutivo Asiento Contable' },
     // Treasury
-    { module: 'treasury', submodule: 'cash_management', key: 'DOC_CAJA', value: '0', description: 'Consecutivo Movimiento de Caja' },
+    { module: 'treasury', submodule: 'cash_management', key: 'DOC-CAJA', value: '0', description: 'Consecutivo Movimiento de Caja' },
     { module: 'treasury', submodule: 'cash_management', key: 'AUTO_POST_ENTRY_TREASURY', value: 'true', description: 'Generar asiento contable en movimientos de tesorería' },
     // Audit
     { module: 'audit', submodule: 'logs', key: 'LOG_RETENTION_DAYS', value: '365', description: 'Días de retención de logs de auditoría' },

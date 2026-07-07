@@ -1,9 +1,12 @@
 import { useToastSystem } from '@/hooks/use-toast-system';
+import { useQueryClient } from '@tanstack/react-query';
+import { QUERY_KEYS } from '@/lib/query-keys';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/shadcn/tabs';
 import { User, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useIndividualLoadMutation } from '../hooks/use-individual-load-mutation';
 import { useIndividualLoadStore } from '../store/individual-load-store';
+import { resolveAccountingWarning } from '../lib/accounting-warning';
 
 import { LoadAssetsBulk } from './load-asset-bulk';
 import { LoadAssetsForm } from './load-asset-form';
@@ -11,6 +14,7 @@ import { LoadAssetsSearch } from './load-asset-search';
 
 export function LoadAssetsView() {
   const toast = useToastSystem();
+  const queryClient = useQueryClient();
   const { selectedAssociate, clearAll } = useIndividualLoadStore();
   const { mutate: saveIndividualLoad, isPending: isSaving } =
     useIndividualLoadMutation();
@@ -34,11 +38,19 @@ export function LoadAssetsView() {
         });
       },
       onError: (error: unknown) => {
-        const err = error as { message?: string };
+        const { isAccountingWarning, message } = resolveAccountingWarning(error);
+        if (isAccountingWarning) {
+          queryClient.invalidateQueries({ queryKey: QUERY_KEYS.contributionBatches.all });
+          clearAll();
+          toast.warning({
+            title: 'Carga exitosa sin asiento contable',
+            description: `El depósito${selectedAssociate?.fullname ? ` de ${selectedAssociate.fullname}` : ''} se registró, pero no se generó el asiento contable automático: ${message}`,
+          });
+          return;
+        }
         toast.error({
           title: 'Error en la operación',
-          description:
-            err?.message || 'No se pudo completar la carga de haberes.',
+          description: message || 'No se pudo completar la carga de haberes.',
         });
       },
     });

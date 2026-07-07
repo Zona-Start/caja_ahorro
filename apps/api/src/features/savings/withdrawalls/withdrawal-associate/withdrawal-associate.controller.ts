@@ -8,7 +8,6 @@ import {
   Post,
   Query,
   Req,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -29,33 +28,39 @@ export class WithdrawalAssociateController {
   ) {}
 
   @Post()
-  @UsePipes(new ZodValidatorPipe(CreateWithdrawalAssociateSchema))
   @ApiOperation({ summary: 'Execute a new withdrawal request' })
   @ApiResponse({
     status: 201,
     description: 'Withdrawal request created successfully.',
   })
-  execute(@Req() req: Request, @Body() dto: any) {
+  execute(
+    @Req() req: Request,
+    @Body(new ZodValidatorPipe(CreateWithdrawalAssociateSchema)) dto: any,
+  ) {
     const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
     return this.service.execute(targetTenantId, userId, dto);
   }
 
   @Get('approved')
-  @UsePipes(new ZodValidatorPipe(FilterWithdrawalAssociateSchema))
   @ApiOperation({ summary: 'Get all withdrawal approved' })
   @ApiResponse({ status: 200, description: 'Return all withdrawal approved' })
-  findWithdrawalAprovee(@Req() req: Request, @Query() paginationDto: any) {
+  findWithdrawalAprovee(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(FilterWithdrawalAssociateSchema)) paginationDto: any,
+  ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findWithdrawalAprovee(targetTenantId, paginationDto);
   }
 
   @Get()
-  @UsePipes(new ZodValidatorPipe(FilterWithdrawalAssociateSchema))
   @ApiOperation({
     summary: 'Get all withdrawals or filter by withdrawal associate',
   })
   @ApiResponse({ status: 200, description: 'Return all withdrawals.' })
-  findAll(@Req() req: Request, @Query() paginationDto: any) {
+  findAll(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(FilterWithdrawalAssociateSchema)) paginationDto: any,
+  ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findAll(targetTenantId, paginationDto);
   }
@@ -106,7 +111,6 @@ export class WithdrawalAssociateController {
   }
 
   @Patch(':id/disburse')
-  @UsePipes(new ZodValidatorPipe(DisburseWithdrawalAssociateSchema))
   @ApiOperation({ summary: 'Disburse an approved withdrawal request' })
   @ApiResponse({
     status: 200,
@@ -116,7 +120,7 @@ export class WithdrawalAssociateController {
   disburse(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() dto: any,
+    @Body(new ZodValidatorPipe(DisburseWithdrawalAssociateSchema)) dto: any,
   ) {
     const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
     return this.service.disburse(targetTenantId, userId, id, dto);

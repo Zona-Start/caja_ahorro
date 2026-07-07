@@ -709,12 +709,13 @@ export class AccountingEntriesService {
       aggregatedDetails.values(),
     );
 
-    await this.validateAccountingEntry(
+    const rr = await this.validateAccountingEntry(
       tenantId,
       cycle.id,
       params.entryDate,
       detailsDraft,
     );
+
 
     const voucherNo = await this.getNextVoucherNo(tenantId, userId, db);
     const [entry] = await db
@@ -1307,7 +1308,7 @@ export class AccountingEntriesService {
           eq(schema.moduleSettings.tenantId, tenantId),
           eq(schema.moduleSettings.module, 'accounting'),
           eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
-          eq(schema.moduleSettings.key, 'NRO_ASIENTO'),
+          eq(schema.moduleSettings.key, 'NRO-ASIENTO'),
         ),
       );
 

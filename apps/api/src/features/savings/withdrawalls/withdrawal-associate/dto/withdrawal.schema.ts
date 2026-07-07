@@ -4,9 +4,9 @@ import { paymentMethodEnum } from '@/types/enum';
 const withdrawalItemSchema = z.object({
   itemType: z.string(),
   itemDescription: z.string().optional().nullable(),
-  itemId: z.number().int().optional().nullable(),
+  itemId: z.string().uuid().optional().nullable(),
   quantity: z.number().positive(),
-  agreedSellingPrice: z.number().positive(),
+  agreedSellingPrice: z.coerce.number().min(0),
   days: z.string().optional().nullable(),
 });
 

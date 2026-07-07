@@ -137,8 +137,7 @@ export class GenerateCodeService {
     tx?: NodePgDatabase<typeof schema>,
   ): Promise<string> {
     const db = tx ?? this.db;
-    const year = new Date().getFullYear();
-    const key = `${prefix}-${year}`;
+    // const year = new Date().getFullYear();
 
     return db.transaction(async (transaction) => {
       const [setting] = await transaction
@@ -149,22 +148,26 @@ export class GenerateCodeService {
             eq(moduleSettings.tenantId, tenantId),
             eq(moduleSettings.module, module),
             eq(moduleSettings.submodule, submodule),
-            eq(moduleSettings.key, key),
+            eq(moduleSettings.key, prefix),
           ),
         )
         .for('update')
         .limit(1);
 
       if (!setting) {
-        await transaction.insert(moduleSettings).values({
-          tenantId,
-          module,
-          submodule,
-          key,
-          value: '1',
-          description: `${prefix} sequence ${year} for tenant ${tenantId}`,
-        });
-        return `${prefix}-${year}-000001`;
+        const initialValue = '1';
+        const [newSetting] = await transaction
+          .insert(moduleSettings)
+          .values({
+            tenantId,
+            module,
+            submodule,
+            key: prefix,
+            value: initialValue,
+            description: `Secuencia ${prefix} para ${module}/${submodule}`,
+          })
+          .returning();
+        return `${prefix}-${'1'.padStart(6, '0')}`;
       }
 
       const next = parseInt(setting.value ?? '0', 10) + 1;

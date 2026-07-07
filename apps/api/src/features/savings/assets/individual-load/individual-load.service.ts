@@ -1,7 +1,6 @@
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   AssociateMovementTypeEnum,
-  BankTransactionCategory,
   CurrencyCodeEnum,
   movementStatusEnum,
   paymentMethodEnum,
@@ -10,9 +9,10 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
@@ -23,212 +23,242 @@ import {
   CreateIndividualLoadDto,
 } from './dto/individual-load.zod.dto';
 import { ContributionBatchesService } from '../contribution-batches/contribution-batches.service';
+import {
+  ContributionBatchesAccountingService,
+  type BatchAccountingParams,
+} from '../contribution-batches/contribution-batches-accounting.service';
+import {
+  buildAssociateMovementPayloads,
+  buildBankMovementPayload,
+  buildCreateBatchDto,
+  buildIndividualAssociateEntries,
+  defaultLoadDescription,
+  extractBankTransactionId,
+  resolveContributionMovementType,
+} from './lib/individual-load-payloads';
+import { buildContributionAccountingParams } from './lib/individual-load-accounting';
+import type {
+  AccountingItem,
+  AccountingOutcome,
+  AssociateMovementResult,
+  BankMovementResult,
+  BulkRow,
+  LoadResult,
+} from './schemas/individual-load.types';
 
 @Injectable()
 export class IndividualLoadService {
+  private readonly logger = new Logger(IndividualLoadService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly associateMovementsService: AssociateAccountsMovementsService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly contributionBatchesService: ContributionBatchesService,
-  ) { }
+    private readonly contributionAccountingService: ContributionBatchesAccountingService,
+  ) {}
 
-  async create(tenantId: string, userId: string, dto: CreateIndividualLoadDto) {
-    return this.drizzle.transaction(async (tx) => {
-      const [account] = await tx
-        .select()
-        .from(schema.associateAccounts)
-        .innerJoin(
-          schema.associates,
-          and(
-            eq(schema.associateAccounts.associateId, schema.associates.id),
-            eq(schema.associates.tenantId, tenantId),
-          ),
-        )
-        .where(eq(schema.associateAccounts.id, dto.associateAccountId));
+  // ──────────────────────────────────────────────────────────────────────
+  // Carga individual
+  // ──────────────────────────────────────────────────────────────────────
 
-      if (!account || !account.associates?.id) {
-        throw new NotFoundException('Cuenta de asociado no encontrada');
-      }
+  async create(
+    tenantId: string,
+    userId: string,
+    dto: CreateIndividualLoadDto,
+  ): Promise<LoadResult> {
+    // === Transacción financiera atómica ===
+    const { batch, mainMovementId } = await this.drizzle.transaction(
+      async (tx) => {
+        // 1) Validar existencia de la cuenta del asociado (con tenant)
+        const [account] = await tx
+          .select()
+          .from(schema.associateAccounts)
+          .innerJoin(
+            schema.associates,
+            and(
+              eq(schema.associateAccounts.associateId, schema.associates.id),
+              eq(schema.associates.tenantId, tenantId),
+            ),
+          )
+          .where(eq(schema.associateAccounts.id, dto.associateAccountId));
 
-      const isEmployerContribution =
-        dto.movementType === 'EMPLOYER_CONTRIBUTION';
-      const results: any[] = [];
+        if (!account || !account.associates?.id) {
+          throw new NotFoundException('Cuenta de asociado no encontrada');
+        }
 
-      if (isEmployerContribution) {
-        const patronalPayload = {
-          associateAccountId: dto.associateAccountId,
-          movementType: 'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
-          amount: dto.employerAmount ?? 0,
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          transactionDate: dto.transactionDate ?? new Date(),
-          description: dto.description || 'Aporte Patronal',
-          status: 'COMPLETED' as movementStatusEnum,
-        };
+        const isEmployerContribution =
+          dto.movementType === 'EMPLOYER_CONTRIBUTION';
+        const movementType = resolveContributionMovementType(dto.movementType);
+        const totalAmount = isEmployerContribution
+          ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
+          : dto.amount ?? 0;
 
-        const associatePayload = {
-          associateAccountId: dto.associateAccountId,
-          movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
-          amount: dto.associateAmount ?? 0,
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          transactionDate: dto.transactionDate ?? new Date(),
-          description: dto.description || 'Aporte Asociado (Vía Patronal)',
-          status: 'COMPLETED' as movementStatusEnum,
-        };
+        const batchDescription =
+          dto.description ||
+          defaultLoadDescription(isEmployerContribution, account.associates.fullname);
 
-        const resultPatronal = await this.associateMovementsService.create(
-          userId,
-          patronalPayload,
-          tenantId,
+        // 2) Registrar el lote + detalle (sin asiento contable aún)
+        const batch = await this.contributionBatchesService.createBatchRecord(
           tx,
-        );
-        const resultAsociado = await this.associateMovementsService.create(
-          userId,
-          associatePayload,
           tenantId,
-          tx,
-        );
-        results.push(resultPatronal.data, resultAsociado.data);
-      } else {
-        const payload = {
-          associateAccountId: dto.associateAccountId,
-          movementType: dto.movementType as AssociateMovementTypeEnum,
-          amount: dto.amount ?? 0,
-          currencyCode: 'VES' as CurrencyCodeEnum,
-          transactionDate: dto.transactionDate ?? new Date(),
-          description: dto.description || 'Aporte Voluntario',
-          status: 'COMPLETED' as movementStatusEnum,
-        };
-
-        const result = await this.associateMovementsService.create(
           userId,
-          payload,
-          tenantId,
-          tx,
+          buildCreateBatchDto({
+            type: 'individual',
+            movementType,
+            entryDate: dto.transactionDate ?? new Date(),
+            description: dto.description,
+            fallbackDescription: batchDescription,
+            associateId: account.associates.id,
+            amountVoluntario: isEmployerContribution ? undefined : dto.amount,
+            amountPatrono: isEmployerContribution ? dto.employerAmount : undefined,
+            amountAsociado: isEmployerContribution ? dto.associateAmount : undefined,
+            totalAmount,
+            associateCount: 1,
+          }),
+          buildIndividualAssociateEntries({
+            associateId: account.associates.id,
+            totalAmount,
+          }),
         );
-        results.push(result.data);
-      }
 
-      const totalAmount = isEmployerContribution
-        ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
-        : (dto.amount ?? 0);
-
-      const mainMovementId = results[0].internalCode;
-
-      const hasBankingDetails =
-        dto.bankAccountId && dto.paymentMethod && dto.referenceNumber;
-
-      let bankTransactionId: string | undefined;
-
-      if (hasBankingDetails) {
-        const dataBank = {
-          movement: {
-            bankAccountId: dto.bankAccountId!,
-            transactionDate: dto.transactionDate ?? new Date(),
-            paymentMethod: dto.paymentMethod as paymentMethodEnum,
-            description:
-              dto.description ??
-              `Abono a cuenta: ${account.associate_accounts.accountNumber}`,
-            bankReference: dto.referenceNumber ?? undefined,
-            category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
-            creditAmount: totalAmount,
-            debitAmount: 0,
-            createdById: userId,
+        // 3) Generar los movimientos en la cuenta del asociado
+        const movementPayloads = buildAssociateMovementPayloads(
+          {
+            associateAccountId: dto.associateAccountId,
+            movementType: dto.movementType,
+            amount: dto.amount,
+            employerAmount: dto.employerAmount,
+            associateAmount: dto.associateAmount,
+            transactionDate: dto.transactionDate,
+            description: dto.description,
           },
-          links: results.map((m) => ({
-            internalRecordType: 'MEMBER_CONTRIBUTION' as const,
-            internalRecordId: m.id,
-          })),
-        };
-
-        const bankResult = await this.bankMovementsService.createAndReconcile(
-          dataBank,
-          userId,
-          tenantId,
-          tx,
+          defaultLoadDescription(isEmployerContribution, account.associates.fullname),
         );
 
-        bankTransactionId = bankResult.movement.id.toString();
+        const results: AssociateMovementResult[] = [];
+        for (const payload of movementPayloads) {
+          const result = (await this.associateMovementsService.create(
+            userId,
+            payload,
+            tenantId,
+            tx,
+          )) as AssociateMovementResult;
+          results.push(result);
+        }
 
-        for (const m of results) {
+        const mainMovementId = results[0]?.data.internalCode;
+
+        // 4) Si hay datos bancarios -> crear la transacción bancaria y referenciar
+        const hasBankingDetails =
+          !!dto.bankAccountId &&
+          !!dto.paymentMethod &&
+          !!dto.referenceNumber;
+
+        if (hasBankingDetails) {
+          const bankPayload = buildBankMovementPayload(
+            {
+              bankAccountId: dto.bankAccountId!,
+              transactionDate: dto.transactionDate ?? new Date(),
+              paymentMethod: dto.paymentMethod as paymentMethodEnum,
+              referenceNumber: dto.referenceNumber ?? undefined,
+              description: dto.description,
+              fallbackDescription: `Abono a cuenta: ${account.associate_accounts.accountNumber}`,
+              creditAmount: totalAmount,
+            },
+            results,
+            userId,
+          );
+
+          const bankResult = (await this.bankMovementsService.createAndReconcile(
+            bankPayload,
+            userId,
+            tenantId,
+            tx,
+          )) as BankMovementResult;
+
+          const bankTransactionId = extractBankTransactionId(bankResult);
+
+          // Bulk update de referencia en los movimientos del asociado
           await tx
             .update(schema.associateAccountMovements)
             .set({
               referenceId: bankTransactionId,
               referenceType: 'BANK_TRANSACTION',
             })
-            .where(eq(schema.associateAccountMovements.id, m.id));
+            .where(
+              inArray(
+                schema.associateAccountMovements.id,
+                results.map((r) => r.data.id),
+              ),
+            );
+
+          // Actualizar el lote con la transacción bancaria generada
+          await this.contributionBatchesService.updateBatchReferences(
+            tx,
+            batch.id,
+            {
+              bankTransactionId,
+            },
+          );
         }
-      }
 
-      const bankDataForBatch = hasBankingDetails
-        ? {
-          bankAccountId: dto.bankAccountId,
-          paymentMethod: dto.paymentMethod,
-          referenceNumber: dto.referenceNumber,
-        }
-        : undefined;
+        // 5) Auditoría financiera (dentro de la tx)
+        this.contributionBatchesService.emitAuditLog(batch, userId, 'INSERT');
 
-      const batchResult =
-        await this.contributionBatchesService.generateAndCreateBatch(
-          tx,
-          tenantId,
-          userId,
-          {
-            type: 'individual',
-            movementType: isEmployerContribution
-              ? 'contribution_patronal'
-              : 'contribution_voluntary',
-            entryDate: dto.transactionDate ?? new Date(),
-            associateId: account.associates.id,
-            description:
-              dto.description ||
-              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
-            amountVoluntario: isEmployerContribution
-              ? undefined
-              : dto.amount,
-            amountPatrono: isEmployerContribution
-              ? dto.employerAmount
-              : undefined,
-            amountAsociado: isEmployerContribution
-              ? dto.associateAmount
-              : undefined,
-            totalAmount,
-            associateCount: 1,
-            bankTransactionId,
-            bankData: bankDataForBatch,
-          },
-          {
-            movementType: isEmployerContribution
-              ? 'contribution_patronal'
-              : 'contribution_voluntary',
-            entryDate: dto.transactionDate ?? new Date(),
-            description:
-              dto.description ||
-              `${isEmployerContribution ? 'Carga Aportes Patronales' : 'Carga de haberes Voluntarios'} - ${account.associates.fullname}`,
-            associateId: account.associates.id,
-            totalAmount,
-            amountVoluntario: isEmployerContribution ? undefined : dto.amount,
-            amountPatrono: isEmployerContribution
-              ? dto.employerAmount
-              : undefined,
-            amountAsociado: isEmployerContribution
-              ? dto.associateAmount
-              : undefined,
-          },
-          [{ associateId: account.associates.id, amount: totalAmount }],
-        );
+        return { batch, mainMovementId };
+      },
+    );
 
-      return {
-        message: batchResult.accountingWarning
-          ? `Carga individual procesada exitosamente. Advertencia: ${batchResult.accountingWarning}`
-          : 'Carga individual procesada exitosamente con su registro contable.',
-        movementId: mainMovementId.toString(),
-        accountingEntryId: batchResult.accountingEntryId,
-        accountingWarning: batchResult.accountingWarning,
-      };
+    // === Asiento contable de seguimiento (Opción B: tx propia post-commit) ===
+    const accountingParams = buildContributionAccountingParams({
+      movementType: resolveContributionMovementType(dto.movementType),
+      entryDate: dto.transactionDate ?? new Date(),
+      description:
+        dto.description ||
+        defaultLoadDescription(
+          dto.movementType === 'EMPLOYER_CONTRIBUTION',
+          '',
+        ),
+      associateIds: [batch.associateId].filter((v): v is string => !!v),
+      totalAmount:
+        dto.movementType === 'EMPLOYER_CONTRIBUTION'
+          ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
+          : dto.amount ?? 0,
+      amountVoluntario:
+        dto.movementType === 'EMPLOYER_CONTRIBUTION'
+          ? undefined
+          : dto.amount,
+      amountPatrono:
+        dto.movementType === 'EMPLOYER_CONTRIBUTION'
+          ? dto.employerAmount
+          : undefined,
+      amountAsociado:
+        dto.movementType === 'EMPLOYER_CONTRIBUTION'
+          ? dto.associateAmount
+          : undefined,
     });
+
+    const accounting = await this.attemptAccountingEntry(
+      tenantId,
+      userId,
+      batch.id,
+      accountingParams,
+    );
+
+    return {
+      message: accounting.warning
+        ? `Carga individual procesada exitosamente. Advertencia contable: ${accounting.warning}`
+        : 'Carga individual procesada exitosamente con su registro contable.',
+      movementId: mainMovementId?.toString(),
+      accountingEntryId: accounting.entryId,
+      accountingWarning: accounting.warning,
+    };
   }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Carga masiva
+  // ──────────────────────────────────────────────────────────────────────
 
   async generateTemplate(): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
@@ -266,7 +296,328 @@ export class IndividualLoadService {
     userId: string,
     fileBuffer: Buffer,
     dto: BulkIndividualLoadDto,
-  ) {
+  ): Promise<LoadResult> {
+    const { typeCell, validDate, rows } = await this.parseBulkWorkbook(fileBuffer);
+    if (typeCell !== 'APORTE EMPLEADOS' && typeCell !== 'DESCUENTOS CAJA') {
+      throw new BadRequestException(
+        'El tipo de carga en la celda B1 debe ser APORTE EMPLEADOS o DESCUENTOS CAJA',
+      );
+    }
+
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        'No se encontraron registros válidos en el archivo',
+      );
+    }
+
+    const isPatronal = typeCell === 'APORTE EMPLEADOS';
+    const mouvementType = isPatronal
+      ? 'contribution_patronal'
+      : 'contribution_voluntary';
+
+    // === Transacción financiera atómica ===
+    const { batch, processedCount, totalAmountProcessed, accountingItems } =
+      await this.drizzle.transaction(async (tx) => {
+        const movementDate = validDate;
+        const dateStr = this.formatBulkDate(movementDate);
+        let processedCount = 0;
+        let totalAmountProcessed = 0;
+        const movementResults: AssociateMovementResult[] = [];
+        const accountingItems: AccountingItem[] = [];
+        const processedAssociateIds: string[] = [];
+
+        // 2) Generar movimientos por cada row válida
+        for (const row of rows) {
+          const [associate] = await tx
+            .select({
+              id: schema.associates.id,
+              associateAccountId: schema.associateAccounts.id,
+            })
+            .from(schema.associates)
+            .where(
+              and(
+                eq(schema.associates.cedula, row.cedula),
+                eq(schema.associates.tenantId, tenantId),
+              ),
+            )
+            .leftJoin(
+              schema.associateAccounts,
+              eq(schema.associateAccounts.associateId, schema.associates.id),
+            );
+
+          if (!associate || !associate.associateAccountId) {
+            continue;
+          }
+
+          if (isPatronal) {
+            const resEmp = (await this.associateMovementsService.create(
+                userId,
+                {
+                  associateAccountId: associate.associateAccountId,
+                  movementType:
+                    'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+                  amount: row.monto,
+                  currencyCode: 'VES' as CurrencyCodeEnum,
+                  transactionDate: movementDate,
+                  description: 'Aporte Patronales',
+                  status: 'COMPLETED' as movementStatusEnum,
+                },
+                tenantId,
+                tx,
+              )) as AssociateMovementResult;
+
+            const resPat = (await this.associateMovementsService.create(
+                userId,
+                {
+                  associateAccountId: associate.associateAccountId,
+                  movementType:
+                    'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
+                  amount: row.monto,
+                  currencyCode: 'VES' as CurrencyCodeEnum,
+                  transactionDate: movementDate,
+                  description: 'Aporte Patronales',
+                  status: 'COMPLETED' as movementStatusEnum,
+                },
+                tenantId,
+                tx,
+              )) as AssociateMovementResult;
+
+            movementResults.push(resEmp, resPat);
+            totalAmountProcessed += row.monto * 2;
+            accountingItems.push({
+              associateId: associate.id,
+              amounts: {
+                ASSOCIATED_SAVINGS: row.monto,
+                EMPLOYER_CONTRIBUTION: row.monto,
+              },
+              descriptions: {
+                ASSOCIATED_SAVINGS: `AHORRO DEL ${dateStr}`,
+                EMPLOYER_CONTRIBUTION: `APORTE DEL ${dateStr}`,
+              },
+            });
+          } else {
+            const resDes = (await this.associateMovementsService.create(
+              userId,
+              {
+                associateAccountId: associate.associateAccountId,
+                movementType:
+                  'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+                amount: row.monto,
+                currencyCode: 'VES' as CurrencyCodeEnum,
+                transactionDate: movementDate,
+                description: 'Aportes Patronales - Diferencia Ahorro',
+                status: 'COMPLETED' as movementStatusEnum,
+              },
+              tenantId,
+              tx,
+            )) as AssociateMovementResult;
+
+            movementResults.push(resDes);
+            totalAmountProcessed += row.monto;
+            accountingItems.push({
+              associateId: associate.id,
+              amounts: {
+                ASSOCIATED_SAVINGS: row.monto,
+              },
+              descriptions: {
+                ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateStr}`,
+              },
+            });
+          }
+
+          processedAssociateIds.push(associate.id);
+          processedCount++;
+        }
+
+        if (processedCount === 0) {
+          throw new BadRequestException(
+            'Ningún asociado especificado en el archivo fue encontrado o es válido.',
+          );
+        }
+
+        const bulkDescription =
+          dto.description ||
+          `Carga masiva ${typeCell} - ${processedCount} asociados`;
+
+        // 1) Registrar el lote + detalle (sin asiento contable ni banco aún)
+        const batch = await this.contributionBatchesService.createBatchRecord(
+          tx,
+          tenantId,
+          userId,
+          buildCreateBatchDto({
+            type: 'massive',
+            movementType: mouvementType,
+            entryDate: movementDate,
+            description: dto.description,
+            fallbackDescription: bulkDescription,
+            totalAmount: totalAmountProcessed,
+            associateCount: processedCount,
+          }),
+          accountingItems.map((item) => ({
+            associateId: item.associateId,
+            amount:
+              (item.amounts.ASSOCIATED_SAVINGS ?? 0) +
+              (item.amounts.EMPLOYER_CONTRIBUTION ?? 0),
+          })),
+        );
+
+        // 3) Si hay datos bancarios -> transacción bancaria + referencias
+        const hasBankingDetails =
+          !!dto.bankAccountId &&
+          !!dto.paymentMethod &&
+          !!dto.referenceNumber;
+
+        if (hasBankingDetails) {
+          const bankPayload = buildBankMovementPayload(
+            {
+              bankAccountId: dto.bankAccountId!,
+              transactionDate: movementDate,
+              paymentMethod: dto.paymentMethod as paymentMethodEnum,
+              referenceNumber: dto.referenceNumber ?? undefined,
+              description: dto.description,
+              fallbackDescription: `Carga masiva: ${typeCell} - ${processedCount} registros`,
+              creditAmount: totalAmountProcessed,
+            },
+            movementResults,
+            userId,
+          );
+
+          const bankResult = (await this.bankMovementsService.createAndReconcile(
+            bankPayload,
+            userId,
+            tenantId,
+            tx,
+          )) as BankMovementResult;
+
+          const bankTransactionId = extractBankTransactionId(bankResult);
+
+          await tx
+            .update(schema.associateAccountMovements)
+            .set({
+              referenceId: bankTransactionId,
+              referenceType: 'BANK_TRANSACTION',
+            })
+            .where(
+              inArray(
+                schema.associateAccountMovements.id,
+                movementResults.map((r) => r.data.id),
+              ),
+            );
+
+          await this.contributionBatchesService.updateBatchReferences(
+            tx,
+            batch.id,
+            { bankTransactionId },
+          );
+        }
+
+        // 5) Auditoría financiera
+        this.contributionBatchesService.emitAuditLog(batch, userId, 'INSERT');
+
+        return {
+          batch,
+          processedCount,
+          totalAmountProcessed,
+          accountingItems,
+        };
+      });
+
+    // === Asiento contable de seguimiento (Opción B) ===
+    const accountingParams = buildContributionAccountingParams({
+      movementType: mouvementType,
+      entryDate: validDate,
+      description:
+        dto.description ||
+        `Carga masiva ${typeCell} - ${processedCount} asociados`,
+      associateIds: accountingItems.map((item) => item.associateId),
+      totalAmount: totalAmountProcessed,
+      amountVoluntario: isPatronal ? undefined : totalAmountProcessed,
+      amountPatrono: isPatronal ? totalAmountProcessed / 2 : undefined,
+      amountAsociado: isPatronal ? totalAmountProcessed / 2 : undefined,
+      items: accountingItems,
+    });
+
+    const accounting = await this.attemptAccountingEntry(
+      tenantId,
+      userId,
+      batch.id,
+      accountingParams,
+    );
+
+    return {
+      message: accounting.warning
+        ? `Proceso masivo completado. Advertencia contable: ${accounting.warning}`
+        : 'Proceso masivo completado',
+      processedCount,
+      accountingEntryId: accounting.entryId,
+      accountingWarning: accounting.warning,
+    };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Helpers
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * Ejecuta la generación del asiento contable en SU PROPIA transacción,
+   * independiente de la transacción financiera ya commiteada (Opción B).
+   *
+   * Política no-fatal: si la regla contable no existe o hay cualquier
+   * error al generar el asiento, NO se lanza la excepción. En su lugar
+   * se devuelve `{ warning }` con el mensaje, preservando la consistencia
+   * de la operación financiera ya persistida.
+   *
+   * Si la generación es exitosa, actualiza `accountingEntryId` del lote
+   * dentro de la misma transacción contable.
+   */
+  private async attemptAccountingEntry(
+    tenantId: string,
+    userId: string,
+    batchId: string,
+    accountingParams: BatchAccountingParams,
+  ): Promise<AccountingOutcome> {
+    try {
+      return await this.drizzle.transaction(async (acctTx) => {
+        const outcome =
+          await this.contributionAccountingService.generateContributionEntry(
+            tenantId,
+            userId,
+            accountingParams,
+            batchId,
+            acctTx,
+          );
+
+        if (outcome.entryId) {
+          await this.contributionBatchesService.updateBatchReferences(
+            acctTx,
+            batchId,
+            { accountingEntryId: outcome.entryId },
+          );
+        }
+
+        return outcome;
+      });
+    } catch (fatal) {
+      const message =
+        fatal instanceof Error ? fatal.message : 'Error desconocido';
+      this.logger.error(
+        `Tx contable post-commit falló para batch ${batchId}: ${message}`,
+      );
+      return {
+        warning: `Error inesperado al generar el asiento contable: ${message}`,
+      };
+    }
+  }
+
+  private async parseBulkWorkbook(
+    fileBuffer: Buffer,
+  ): Promise<{ typeCell: string; validDate: Date; rows: BulkRow[] }> {
+    if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
+      throw new BadRequestException(
+        'El archivo Excel está vacío o no se pudo leer correctamente.',
+      );
+    }
+
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(fileBuffer as any);
     const worksheet = workbook.worksheets[0];
@@ -278,278 +629,37 @@ export class IndividualLoadService {
     }
 
     const typeCell = String(worksheet.getCell('B1').value || '').trim();
-    if (typeCell !== 'APORTE EMPLEADOS' && typeCell !== 'DESCUENTOS CAJA') {
-      throw new BadRequestException(
-        'El tipo de carga en la celda B1 debe ser APORTE EMPLEADOS o DESCUENTOS CAJA',
-      );
-    }
 
     const rawDateCell = worksheet.getCell('D1').value;
     let validDate: Date;
-
     if (rawDateCell instanceof Date) {
       validDate = rawDateCell;
     } else {
       validDate = new Date(String(rawDateCell || ''));
     }
-
     if (isNaN(validDate.getTime()) || validDate.getFullYear() < 2000) {
       throw new BadRequestException(
         'La fecha en la celda D1 es inválida o muy antigua',
       );
     }
 
-    const day = String(validDate.getDate()).padStart(2, '0');
-    const month = String(validDate.getMonth() + 1).padStart(2, '0');
-    const year = validDate.getFullYear();
-    const dateCell = `${day}-${month}-${year}`;
-
-    const rows: { cedula: string; monto: number }[] = [];
+    const rows: BulkRow[] = [];
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber <= 2) return;
-
       const cedula = String(row.getCell(1).value || '').trim();
       const monto = parseFloat(String(row.getCell(2).value || '0'));
-
       if (cedula && monto > 0) {
         rows.push({ cedula, monto });
       }
     });
 
-    if (rows.length === 0) {
-      throw new BadRequestException(
-        'No se encontraron registros válidos en el archivo',
-      );
-    }
+    return { typeCell, validDate, rows };
+  }
 
-    return this.drizzle.transaction(async (tx) => {
-      let processedCount = 0;
-      let totalAmountProcessed = 0;
-      const resultsAssociateMovements: any[] = [];
-      const accountingItems: Array<{
-        associateId: string;
-        amounts: { ASSOCIATED_SAVINGS: number; EMPLOYER_CONTRIBUTION?: number };
-        descriptions?: Record<string, string>;
-      }> = [];
-
-      for (const row of rows) {
-        const [associate] = await tx
-          .select({
-            id: schema.associates.id,
-            associateAccountId: schema.associateAccounts.id,
-          })
-          .from(schema.associates)
-          .where(
-            and(
-              eq(schema.associates.cedula, row.cedula),
-              eq(schema.associates.tenantId, tenantId),
-            ),
-          )
-          .leftJoin(
-            schema.associateAccounts,
-            eq(schema.associateAccounts.associateId, schema.associates.id),
-          );
-
-        if (!associate || !associate.associateAccountId) {
-          continue;
-        }
-
-        if (typeCell === 'APORTE EMPLEADOS') {
-          const resEmp = await this.associateMovementsService.create(
-            userId,
-            {
-              associateAccountId: associate.associateAccountId,
-              movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
-              amount: row.monto,
-              currencyCode: 'VES' as CurrencyCodeEnum,
-              transactionDate: dto.transactionDate ?? new Date(),
-              description: 'Aporte Patronales',
-              status: 'COMPLETED' as movementStatusEnum,
-            },
-            tenantId,
-            tx,
-          );
-          resultsAssociateMovements.push(resEmp.data);
-          const resPat = await this.associateMovementsService.create(
-            userId,
-            {
-              associateAccountId: associate.associateAccountId,
-              movementType:
-                'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
-              amount: row.monto,
-              currencyCode: 'VES' as CurrencyCodeEnum,
-              transactionDate: dto.transactionDate ?? new Date(),
-              description: 'Aporte Patronales',
-              status: 'COMPLETED' as movementStatusEnum,
-            },
-            tenantId,
-            tx,
-          );
-          resultsAssociateMovements.push(resPat.data);
-          totalAmountProcessed += row.monto * 2;
-
-          accountingItems.push({
-            associateId: associate.id,
-            amounts: {
-              ASSOCIATED_SAVINGS: row.monto,
-              EMPLOYER_CONTRIBUTION: row.monto,
-            },
-            descriptions: {
-              ASSOCIATED_SAVINGS: `AHORRO DEL ${dateCell}`,
-              EMPLOYER_CONTRIBUTION: `APORTE DEL ${dateCell}`,
-            },
-          });
-        } else if (typeCell === 'DESCUENTOS CAJA') {
-          const resDes = await this.associateMovementsService.create(
-            userId,
-            {
-              associateAccountId: associate.associateAccountId,
-              movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
-              amount: row.monto,
-              currencyCode: 'VES' as CurrencyCodeEnum,
-              transactionDate: dto.transactionDate ?? new Date(),
-              description: 'Aportes Patronales - Diferencia Ahorro',
-              status: 'COMPLETED' as movementStatusEnum,
-            },
-            tenantId,
-            tx,
-          );
-          resultsAssociateMovements.push(resDes.data);
-          totalAmountProcessed += row.monto;
-
-          accountingItems.push({
-            associateId: associate.id,
-            amounts: {
-              ASSOCIATED_SAVINGS: row.monto,
-            },
-            descriptions: {
-              ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateCell}`,
-            },
-          });
-        }
-
-        processedCount++;
-      }
-
-      let batchResult: Awaited<ReturnType<typeof this.contributionBatchesService.generateAndCreateBatch>> | undefined;
-
-      if (processedCount > 0) {
-        let bankResult: any = { movement: { id: '0' } };
-        if (dto.bankAccountId && dto.paymentMethod && dto.referenceNumber) {
-          const dataBankBulk = {
-            movement: {
-              bankAccountId: dto.bankAccountId,
-              transactionDate: dto.transactionDate ?? new Date(),
-              paymentMethod: dto.paymentMethod as paymentMethodEnum,
-              description:
-                dto.description ??
-                `Carga masiva: ${typeCell} - ${processedCount} registros`,
-              bankReference: dto.referenceNumber,
-              category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
-              creditAmount: totalAmountProcessed,
-              debitAmount: 0,
-              createdById: userId,
-            },
-            links: resultsAssociateMovements.map((m) => ({
-              internalRecordType: 'MEMBER_CONTRIBUTION' as const,
-              internalRecordId: m.id,
-            })),
-          };
-
-          bankResult = await this.bankMovementsService.createAndReconcile(
-            dataBankBulk,
-            userId,
-            tenantId,
-            tx,
-          );
-
-          for (const m of resultsAssociateMovements) {
-            await tx
-              .update(schema.associateAccountMovements)
-              .set({
-                referenceId: bankResult.movement.id.toString(),
-                referenceType: 'BANK_TRANSACTION',
-              })
-              .where(eq(schema.associateAccountMovements.id, m.id));
-          }
-        }
-
-        const bulkBankTransactionId =
-          dto.bankAccountId && dto.paymentMethod && dto.referenceNumber
-            ? bankResult.movement.id.toString()
-            : undefined;
-
-        const bulkBankData =
-          dto.bankAccountId && dto.paymentMethod && dto.referenceNumber
-            ? {
-              bankAccountId: dto.bankAccountId,
-              paymentMethod: dto.paymentMethod,
-              referenceNumber: dto.referenceNumber,
-            }
-            : undefined;
-
-        const mouvementType: 'contribution_patronal' | 'contribution_voluntary' =
-          typeCell === 'APORTE EMPLEADOS'
-            ? 'contribution_patronal'
-            : 'contribution_voluntary';
-
-        batchResult =
-          await this.contributionBatchesService.generateAndCreateBatch(
-            tx,
-            tenantId,
-            userId,
-            {
-              type: 'massive',
-              movementType: mouvementType,
-              entryDate: dto.transactionDate ?? new Date(),
-              description:
-                dto.description ||
-                `Carga masiva ${typeCell} - ${processedCount} asociados`,
-              totalAmount: totalAmountProcessed,
-              associateCount: processedCount,
-              bankTransactionId: bulkBankTransactionId,
-              bankData: bulkBankData,
-            },
-            {
-              movementType: mouvementType,
-              entryDate: dto.transactionDate ?? new Date(),
-              description:
-                dto.description ||
-                `Carga masiva ${typeCell} - ${processedCount} asociados`,
-              totalAmount: totalAmountProcessed,
-              associateIds: accountingItems.map((item) => item.associateId),
-              amountVoluntario:
-                typeCell !== 'APORTE EMPLEADOS'
-                  ? totalAmountProcessed
-                  : undefined,
-              amountPatrono:
-                typeCell === 'APORTE EMPLEADOS'
-                  ? totalAmountProcessed / 2
-                  : undefined,
-              amountAsociado:
-                typeCell === 'APORTE EMPLEADOS'
-                  ? totalAmountProcessed / 2
-                  : undefined,
-            },
-            accountingItems.map((item) => ({
-              associateId: item.associateId,
-              amount: (item.amounts.ASSOCIATED_SAVINGS ?? 0) + (item.amounts.EMPLOYER_CONTRIBUTION ?? 0),
-            })),
-          );
-      } else {
-        throw new BadRequestException(
-          'Ningún asociado especificado en el archivo fue encontrado o es válido.',
-        );
-      }
-
-      return {
-        message: batchResult?.accountingWarning
-          ? `Proceso masivo completado. Advertencia: ${batchResult.accountingWarning}`
-          : 'Proceso masivo completado',
-        processedCount,
-        accountingEntryId: batchResult?.accountingEntryId,
-        accountingWarning: batchResult?.accountingWarning,
-      };
-    });
+  private formatBulkDate(date: Date): string {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
   }
 }

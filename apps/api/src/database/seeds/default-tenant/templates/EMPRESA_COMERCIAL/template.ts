@@ -39,23 +39,23 @@ export const EMPRESA_COMERCIAL_TEMPLATE: BusinessTypeTemplate = {
     { module: 'inventory', submodule: 'services', key: 'SRV', value: '0', description: 'Consecutivo Código Servicio' },
     { module: 'inventory', submodule: 'fixed_assets', key: 'ACT', value: '0', description: 'Consecutivo Código Bienes o Activos' },
     { module: 'inventory', submodule: 'products', key: 'PRD', value: '0', description: 'Consecutivo SKU Producto' },
-    { module: 'inventory', submodule: 'stock_entries', key: 'INV_ENT', value: '0', description: 'Consecutivo Inventario Entrada' },
-    { module: 'inventory', submodule: 'stock_outputs', key: 'INV_SAL', value: '0', description: 'Consecutivo Inventario Salida' },
-    { module: 'inventory', submodule: 'stock_adjustments', key: 'INV_AJU', value: '0', description: 'Consecutivo Inventario Ajuste' },
+    { module: 'inventory', submodule: 'stock_entries', key: 'INV-ENT', value: '0', description: 'Consecutivo Inventario Entrada' },
+    { module: 'inventory', submodule: 'stock_outputs', key: 'INV-SAL', value: '0', description: 'Consecutivo Inventario Salida' },
+    { module: 'inventory', submodule: 'stock_adjustments', key: 'INV-AJU', value: '0', description: 'Consecutivo Inventario Ajuste' },
     // Purchasing
     { module: 'purchasing', submodule: 'suppliers', key: 'PROV', value: '0', description: 'Consecutivo Código Proveedor' },
     { module: 'purchasing', submodule: 'purchase_orders', key: 'ORD', value: '0', description: 'Consecutivo Orden de Compra' },
-    { module: 'purchasing', submodule: 'purchase_receivings', key: 'FAC_P', value: '0', description: 'Consecutivo Recepción Factura' },
-    { module: 'purchasing', submodule: 'bills', key: 'DOC_CXP', value: '0', description: 'Consecutivo Cuenta por Pagar' },
-    { module: 'purchasing', submodule: 'bill_payments', key: 'PAG_P', value: '0', description: 'Consecutivo Pago a Proveedor' },
-    { module: 'purchasing', submodule: 'bill_advances', key: 'ADV_P', value: '0', description: 'Consecutivo Anticipo Proveedor' },
-    { module: 'purchasing', submodule: 'bill_transactions', key: 'TRS_P', value: '0', description: 'Consecutivo Transacción Proveedor' },
-    { module: 'purchasing', submodule: 'credit_notes', key: 'NC_P', value: '0', description: 'Consecutivo Nota de Crédito Proveedor' },
-    { module: 'purchasing', submodule: 'debit_notes', key: 'ND_P', value: '0', description: 'Consecutivo Nota de Débito Proveedor' },
+    { module: 'purchasing', submodule: 'purchase_receivings', key: 'FAC-P', value: '0', description: 'Consecutivo Recepción Factura' },
+    { module: 'purchasing', submodule: 'bills', key: 'DOC-CXP', value: '0', description: 'Consecutivo Cuenta por Pagar' },
+    { module: 'purchasing', submodule: 'bill_payments', key: 'PAG-P', value: '0', description: 'Consecutivo Pago a Proveedor' },
+    { module: 'purchasing', submodule: 'bill_advances', key: 'ADV-P', value: '0', description: 'Consecutivo Anticipo Proveedor' },
+    { module: 'purchasing', submodule: 'bill_transactions', key: 'TRS-P', value: '0', description: 'Consecutivo Transacción Proveedor' },
+    { module: 'purchasing', submodule: 'credit_notes', key: 'NC-P', value: '0', description: 'Consecutivo Nota de Crédito Proveedor' },
+    { module: 'purchasing', submodule: 'debit_notes', key: 'ND-P', value: '0', description: 'Consecutivo Nota de Débito Proveedor' },
     // Banking
     { module: 'banking', submodule: 'bank_transactions', key: 'MB', value: '0', description: 'Consecutivo Movimiento Bancario' },
     // Accounting
-    { module: 'accounting', submodule: 'chart_of_accounts', key: 'NRO_ASIENTO', value: '0', description: 'Consecutivo Asiento Contable' },
+    { module: 'accounting', submodule: 'chart_of_accounts', key: 'NRO-ASIENTO', value: '0', description: 'Consecutivo Asiento Contable' },
     // HR Payroll
     { module: 'hr_payroll', submodule: 'employees', key: 'EMP', value: '0', description: 'Consecutivo Empleado' },
     { module: 'hr_payroll', submodule: 'payroll', key: 'NOM', value: '0', description: 'Consecutivo Nómina' },
@@ -63,7 +63,7 @@ export const EMPRESA_COMERCIAL_TEMPLATE: BusinessTypeTemplate = {
     { module: 'sales', submodule: 'invoices', key: 'FAC', value: '0', description: 'Consecutivo Factura de Venta' },
     { module: 'accounting', submodule: 'invoices', key: 'AUTO_POST_ENTRY_SALES', value: 'true', description: 'Generar asiento contable en facturación' },
     // Treasury
-    { module: 'treasury', submodule: 'cash_management', key: 'DOC_CAJA', value: '0', description: 'Consecutivo Movimiento de Caja' },
+    { module: 'treasury', submodule: 'cash_management', key: 'DOC-CAJA', value: '0', description: 'Consecutivo Movimiento de Caja' },
     { module: 'accounting', submodule: 'cash_management', key: 'AUTO_POST_ENTRY_TREASURY', value: 'true', description: 'Generar asiento contable en movimientos de tesorería' },
     // Audit
     { module: 'audit', submodule: 'logs', key: 'LOG_RETENTION_DAYS', value: '365', description: 'Días de retención de logs de auditoría' },

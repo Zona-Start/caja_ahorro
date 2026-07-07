@@ -26,6 +26,7 @@ export const CATEGORY_TYPES = {
   CIVIL_STATUS: 'civil_status',
   ACCOUNT_TYPE: 'account_type',
   TRANSACTION_TYPE: 'transaction_type',
+  SPECIAL_DAYS: 'special_days',
 } as const;
 
 @Injectable()
@@ -136,7 +137,7 @@ export class CategoriesService {
       .insert(categories)
       .values({
         ...dto,
-        tenantId: dto.tenantId || tenantId,
+        tenantId: tenantId !== undefined ? tenantId : dto.tenantId,
         metadata: dto.metadata ? dto.metadata : null,
         createdById: userId,
       } as any)

@@ -15,7 +15,7 @@ export async function action({ request }: ActionFunctionArgs) {
     amount: Number(data.amount),
     employerAmount: Number(data.employerAmount),
     associateAmount: Number(data.associateAmount),
-    bankAccountId: Number(data.bankAccountId),
+    bankAccountId: data.bankAccountId,
     transactionDate: new Date(data.transactionDate as string),
     includeBankingDetails: data.includeBankingDetails === 'true',
   });

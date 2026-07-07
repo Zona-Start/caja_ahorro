@@ -32,6 +32,8 @@ export const CreditManagementGetResponseSchema = z.object({
   termType: z.string().nullable(),
   termUnits: z.number().nullable(),
   interestRate: z.string().nullable(),
+  haberesPayment: z.string().nullable().optional(),
+  directPayment: z.string().nullable().optional(),
 });
 
 export const CreditManagementResponseAllSchema = z.object({

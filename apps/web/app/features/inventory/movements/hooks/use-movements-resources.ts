@@ -64,7 +64,7 @@ export function usePurchaseOrdersQuery(): UseQueryResult<PurchaseOrderOption[]> 
   return useQuery({
     queryKey: ['purchase-orders', 'options'],
     queryFn: async () => {
-      const resp = await apiClient.get('/administration/purchase-orders/paginated?limit=100&status=APPROVED');
+      const resp = await apiClient.get('/administration/purchase-orders/paginated?limit=100&status=PENDING');
       return (resp.data?.data ?? []) as PurchaseOrderOption[];
     },
     staleTime: 60 * 1000,

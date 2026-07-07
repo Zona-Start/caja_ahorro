@@ -60,7 +60,6 @@ export class ProductsService {
       throw new NotFoundException('Category not found');
     }
 
-    console.log(dto);
 
     const transaction = await this.db.transaction(async (tx) => {
 

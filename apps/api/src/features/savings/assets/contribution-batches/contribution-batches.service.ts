@@ -19,12 +19,16 @@ import { AssociateAccountsMovementsService } from '../../parnerts/associate-acco
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   ContributionBatchesAccountingService,
-  BatchAccountingParams,
 } from './contribution-batches-accounting.service';
 import {
   CreateContributionBatchDto,
   FilterContributionBatchDto,
 } from './dto/contribution-batches.zod.dto';
+
+interface AssociateEntryInput {
+  associateId: string;
+  amount?: number;
+}
 
 @Injectable()
 export class ContributionBatchesService {
@@ -156,52 +160,26 @@ export class ContributionBatchesService {
     return { ...batch, associates: associatesList };
   }
 
-  async generateAndCreateBatch(
+  /**
+   * Persiste el lote de carga de haberes (`contribution_batches`) junto con
+   * las entradas de detalle (`contribution_batch_associates`).
+   *
+   * Es cohesivo: SOLO registra el lote. No intenta generar asientos
+   * contables (eso se hace fuera de la transacción financiera, vía el
+   * orquestador que llama a `attemptAccountingEntry` en el servicio
+   * de carga individual) ni emite auditoría (ver `emitAuditLog`).
+   *
+   * `accountingEntryId` y `bankTransactionId` se dejan en `undefined`
+   * (NULL en DB) en este punto; el orquestador los actualizará post-commit
+   * cuando el asiento contable o la transacción bancaria se confirmen.
+   */
+  async createBatchRecord(
     tx: NodePgDatabase<typeof schema>,
     tenantId: string,
     userId: string,
     dto: CreateContributionBatchDto,
-    accountingParams: BatchAccountingParams,
-    associateEntries: { associateId: string; amount?: number }[] = [],
-  ): Promise<{
-    batch: typeof schema.contributionBatches.$inferSelect;
-    accountingEntryId?: string;
-    accountingWarning?: string;
-  }> {
-    let accountingEntryId: string | undefined;
-    let accountingWarning: string | undefined;
-
-    try {
-      const result =
-        await this.contributionAccountingService.generateContributionEntry(
-          tenantId,
-          userId,
-          accountingParams,
-          'CONTRIBUTION_BATCH_ENTRY',
-          tx,
-        );
-      accountingEntryId = result?.entryId;
-    } catch (error) {
-      if (
-        error instanceof BadRequestException &&
-        error.message.includes('No existe una regla contable')
-      ) {
-        const opType =
-          accountingParams.movementType === 'contribution_patronal'
-            ? 'PAYROLL_CONCEPT'
-            : 'SAVINGS_UPLOAD';
-        accountingWarning =
-          'No se pudo crear el asiento contable porque no existe una regla contable activa ' +
-          `para category=SAVINGS_BANK, operationType=${opType}. Configure la regla en el módulo de contabilidad.`;
-        this.logger.warn(
-          `Asiento contable no generado para carga de haberes (tenant=${tenantId}): ${error.message}.`,
-        );
-        accountingEntryId = undefined;
-      } else {
-        throw error;
-      }
-    }
-
+    associateEntries: AssociateEntryInput[] = [],
+  ): Promise<typeof schema.contributionBatches.$inferSelect> {
     const [batch] = await tx
       .insert(schema.contributionBatches)
       .values({
@@ -217,7 +195,6 @@ export class ContributionBatchesService {
         totalAmount: dto.totalAmount.toString(),
         associateCount: dto.associateCount,
         status: 'completed',
-        accountingEntryId,
         bankTransactionId: dto.bankTransactionId,
         bankData: dto.bankData,
         createdById: userId,
@@ -242,31 +219,72 @@ export class ContributionBatchesService {
       });
     }
 
+    return batch;
+  }
+
+  /**
+   * Actualiza referencias externas del lote (asiento contable y/o
+   * transacción bancaria) una vez confirmadas las operaciones post-commit.
+   */
+  async updateBatchReferences(
+    tx: NodePgDatabase<typeof schema>,
+    batchId: string,
+    updates: {
+      accountingEntryId?: string;
+      bankTransactionId?: string;
+    },
+  ): Promise<void> {
+    const set: Record<string, unknown> = {};
+    if (updates.accountingEntryId !== undefined) {
+      set.accountingEntryId = updates.accountingEntryId;
+    }
+    if (updates.bankTransactionId !== undefined) {
+      set.bankTransactionId = updates.bankTransactionId;
+    }
+    if (Object.keys(set).length === 0) return;
+
+    await tx
+      .update(schema.contributionBatches)
+      .set(set)
+      .where(eq(schema.contributionBatches.id, batchId));
+  }
+
+  /**
+   * Emite el evento de auditoría para un lote de carga de haberes.
+   * Desacoplado de `createBatchRecord` para permitir que el orquestador
+   * controle el momento exacto de la emisión dentro de la transacción.
+   */
+  emitAuditLog(
+    batch: typeof schema.contributionBatches.$inferSelect,
+    userId: string,
+    action: 'INSERT' | 'UPDATE' = 'INSERT',
+    previousData?: Record<string, unknown>,
+    newData?: Record<string, unknown>,
+  ): void {
     this.eventEmitter.emit(
       'audit.log',
       new AuditLogEvent({
         tableName: 'contribution_batches',
         recordId: batch.id,
-        action: 'INSERT',
+        action,
         userId,
         area: 'savings_banks',
-        description: `Carga de haberes${dto.type === 'massive' ? ' masiva' : ''} por ${dto.totalAmount}`,
-        newData: {
-          type: dto.movementType,
-          total: dto.totalAmount,
-          count: dto.associateCount,
+        description: `${action === 'UPDATE' ? 'Actualización de' : 'Carga de'} haberes${batch.type === 'massive' ? ' masiva' : ''} por ${batch.totalAmount}`,
+        previousData,
+        newData: newData ?? {
+          type: batch.movementType,
+          total: batch.totalAmount,
+          count: batch.associateCount,
         },
       }),
     );
-
-    return { batch, accountingEntryId, accountingWarning };
   }
 
   async reverse(
     tenantId: string,
     userId: string,
     id: string,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; accountingWarning?: string }> {
     return this.drizzle.transaction(async (tx) => {
       const [batch] = await tx
         .select()
@@ -351,6 +369,7 @@ export class ContributionBatchesService {
       }
 
       let reversalEntryId: string | undefined;
+      let accountingWarning: string | undefined;
 
       if (batch.accountingEntryId) {
         await tx
@@ -366,8 +385,14 @@ export class ContributionBatchesService {
             tx,
           );
 
-        if (reversal) {
+        if (reversal?.reversalEntryId) {
           reversalEntryId = reversal.reversalEntryId;
+        }
+        if (reversal?.warning) {
+          accountingWarning = reversal.warning;
+          this.logger.warn(
+            `Reverso contable no generado para anulación (batch=${batch.id}): ${reversal.warning}.`,
+          );
         }
       }
 
@@ -399,7 +424,12 @@ export class ContributionBatchesService {
         }),
       );
 
-      return { message: 'Carga anulada correctamente' };
+      return {
+        message: accountingWarning
+          ? `Carga anulada correctamente. Advertencia contable: ${accountingWarning}`
+          : 'Carga anulada correctamente',
+        accountingWarning,
+      };
     });
   }
 }

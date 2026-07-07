@@ -25,7 +25,7 @@ export const CreateCreditSchema = z.object({
   notes: z.string().optional(),
   invoiceNumber: z.string().optional(),
   commercialHouseId: z.string().uuid().optional(),
-  useCommercialHouse: z.boolean(),
+  useCommercialHouse: z.boolean().optional(),
   creditItems: z.array(CreditItemSchema).optional(),
   interestRate: z.number().positive().optional(),
   termType: z.string().optional(),

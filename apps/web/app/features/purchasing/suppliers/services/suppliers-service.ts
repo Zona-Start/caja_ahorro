@@ -72,7 +72,7 @@ export const suppliersService = {
 
   getAllActive: async (): Promise<Supplier[]> => {
     const response = await apiClient.get(`${PREFIX}/all`);
-    return supplierSchema.array().parse(response.data);
+    return supplierSchema.array().parse(response.data.data);
   },
 
   getById: async (id: string): Promise<Supplier> => {

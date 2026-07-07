@@ -33,7 +33,7 @@ export const formSchema = z.object({
   }),
   description: z.string().min(1, 'Debe indicar una descripción'),
   bankAccountId: z
-    .number()
+    .string()
     .optional(),
   paymentMethod: z
     .string()

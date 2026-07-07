@@ -38,118 +38,110 @@ export class WithdrawalAssociateAccountingService {
     tenantId: string,
     userId: string,
     params: DisbursementAccountingParams,
-    tx: NodePgDatabase<typeof schema>,
-  ): Promise<void> {
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
     const typeDesc = params.withdrawalTypeDescription || 'RETIRO DE HABERES';
 
-    try {
-      await this.accountingEntriesService.createAutomaticEntry(
-        tenantId,
-        userId,
-        {
-          module: 'SAVINGS',
-          submodule: 'WITHDRAWALS',
-          category: 'SAVINGS_BANK',
-          operationType: 'WITHDRAWAL_TYPE',
-          description: `Desembolso de Retiro - ${params.associateFullname}`,
-          entryDate: params.entryDate,
-          referenceValue: 'Retiros Parciales',
-          currencyCode: CurrencyCodeEnum.VES,
-          originReferenceId: params.withdrawalId,
-          originType: 'WITHDRAWAL_DISBURSEMENT',
-          items: [
-            {
-              associateId: params.associateId,
-              amounts: {
-                PARTIAL_WITHDRAWAL_SAVINGS: params.requestedAmount,
-                OPERATING_EXPENSES: params.administrativeFee || 0,
-                BANK_ACCOUNT: params.disbursedAmount,
-              },
-              descriptions: {
-                PARTIAL_WITHDRAWAL_SAVINGS: typeDesc,
-                OPERATING_EXPENSES: `Gastos ${typeDesc}`,
-                BANK_ACCOUNT: `TB ${params.associateCedula} ${params.associateFullname}`,
-              },
+    const result = await this.accountingEntriesService.createAutomaticEntry(
+      tenantId,
+      userId,
+      {
+        module: 'savings',
+        submodule: 'withdrawals',
+        category: 'SAVINGS_BANK',
+        operationType: 'WITHDRAWAL_TYPE',
+        description: `Desembolso de Retiro - ${params.associateFullname}`,
+        entryDate: params.entryDate,
+        referenceValue: typeDesc,
+        currencyCode: CurrencyCodeEnum.VES,
+        originReferenceId: params.withdrawalId,
+        originType: 'WITHDRAWAL_DISBURSEMENT',
+        items: [
+          {
+            associateId: params.associateId,
+            amounts: {
+              PARTIAL_WITHDRAWAL_SAVINGS: params.requestedAmount,
+              SERVICE_FEE_INCOME: params.administrativeFee || 0,
+              BANK_ACCOUNT: params.disbursedAmount,
             },
-          ],
-          globalDescriptions: {
-            PARTIAL_WITHDRAWAL_SAVINGS: typeDesc,
-            OPERATING_EXPENSES: `Gastos ${typeDesc}`,
-            BANK_ACCOUNT: `TB ${params.associateCedula} ${params.associateFullname}`,
+            descriptions: {
+              PARTIAL_WITHDRAWAL_SAVINGS: typeDesc,
+              SERVICE_FEE_INCOME: `Gastos ${typeDesc}`,
+              BANK_ACCOUNT: `TB ${params.associateCedula} ${params.associateFullname}`,
+            },
           },
+        ],
+        globalDescriptions: {
+          PARTIAL_WITHDRAWAL_SAVINGS: typeDesc,
+          SERVICE_FEE_INCOME: `Gastos ${typeDesc}`,
+          BANK_ACCOUNT: `TB ${params.associateCedula} ${params.associateFullname}`,
         },
-        tx,
+      },
+      tx,
+    );
+
+    if (result === null) {
+      throw new BadRequestException(
+        'Asiento automático no generado. Verifique que las configuraciones ACCOUNTING_AUTO_POSTING_MASTER y AUTO_POST_ENTRY_WITHDRAWALS estén habilitadas.',
       );
-    } catch (error) {
-      if (
-        error instanceof BadRequestException &&
-        error.message.includes('No existe una regla contable')
-      ) {
-        throw new BadRequestException(
-          'El sistema está configurado para asientos automáticos, pero no existe una regla contable para procesar el desembolso del retiro. Por favor, contacte al administrador.',
-        );
-      }
-      throw error;
     }
+
+    return result;
   }
 
   async generateProcessingEntry(
     tenantId: string,
     userId: string,
     params: ProcessingAccountingParams,
-    tx: NodePgDatabase<typeof schema>,
-  ): Promise<void> {
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
     const typeDesc = params.withdrawalTypeDescription || 'RETIRO DE HABERES';
 
-    try {
-      await this.accountingEntriesService.createAutomaticEntry(
-        tenantId,
-        userId,
-        {
-          module: 'SAVINGS',
-          submodule: 'WITHDRAWALS',
-          category: 'SAVINGS_BANK',
-          operationType: 'WITHDRAWAL_TYPE',
-          description: `Retiro ${typeDesc} - ${params.associateFullname}`,
-          entryDate: params.withdrawalDate,
-          referenceValue: typeDesc,
-          currencyCode: CurrencyCodeEnum.VES,
-          originReferenceId: params.withdrawalId,
-          originType: 'WITHDRAWAL_PROCESSING',
-          items: [
-            {
-              associateId: params.associateId,
-              amounts: {
-                SPECIAL_WITHDRAWAL_SAVINGS: params.requestedAmount,
-                OPERATING_INCOME_VARIOUS: params.administrativeFee || 0,
-                OPERATION_COUNTERPART: params.disbursedAmount,
-              },
-              descriptions: {
-                SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
-                OPERATING_INCOME_VARIOUS: typeDesc,
-                OPERATION_COUNTERPART: `${params.associateCedula} ${params.associateFullname}`,
-              },
+    const result = await this.accountingEntriesService.createAutomaticEntry(
+      tenantId,
+      userId,
+      {
+        module: 'savings',
+        submodule: 'withdrawals',
+        category: 'SAVINGS_BANK',
+        operationType: 'WITHDRAWAL_TYPE',
+        description: `Retiro ${typeDesc} - ${params.associateFullname}`,
+        entryDate: params.withdrawalDate,
+        referenceValue: typeDesc,
+        currencyCode: CurrencyCodeEnum.VES,
+        originReferenceId: params.withdrawalId,
+        originType: 'WITHDRAWAL_PROCESSING',
+        items: [
+          {
+            associateId: params.associateId,
+            amounts: {
+              SPECIAL_WITHDRAWAL_SAVINGS: params.requestedAmount,
+              SERVICE_FEE_INCOME: params.administrativeFee || 0,
+              OPERATION_COUNTERPART: params.disbursedAmount,
             },
-          ],
-          globalDescriptions: {
-            SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
-            OPERATING_INCOME_VARIOUS: typeDesc,
-            OPERATION_COUNTERPART: `${params.associateCedula} ${params.associateFullname}`,
+            descriptions: {
+              SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
+              SERVICE_FEE_INCOME: typeDesc,
+              OPERATION_COUNTERPART: `${params.associateCedula} ${params.associateFullname}`,
+            },
           },
+        ],
+        globalDescriptions: {
+          SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
+          SERVICE_FEE_INCOME: typeDesc,
+          OPERATION_COUNTERPART: `${params.associateCedula} ${params.associateFullname}`,
         },
-        tx,
+      },
+      tx,
+    );
+
+    if (result === null) {
+      throw new BadRequestException(
+        'Asiento automático no generado. Verifique que las configuraciones ACCOUNTING_AUTO_POSTING_MASTER y AUTO_POST_ENTRY_WITHDRAWALS estén habilitadas.',
       );
-    } catch (error) {
-      if (
-        error instanceof BadRequestException &&
-        error.message.includes('No existe una regla contable')
-      ) {
-        throw new BadRequestException(
-          'El sistema está configurado para asientos automáticos, pero no existe una regla contable para procesar el retiro. Por favor, contacte al administrador.',
-        );
-      }
-      throw error;
     }
+
+    return result;
   }
 
   async cancelWithdrawalEntry(

@@ -39,7 +39,7 @@ export class SeedService implements OnModuleInit {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly securityService: SecurityService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const shouldSeed = this.configService.get<boolean>('RUN_SEED');
@@ -221,6 +221,12 @@ export class SeedService implements OnModuleInit {
         value: '120',
         description: 'Tiempo de inactividad',
         category: 'security',
+      },
+      {
+        key: 'EXCHANGE_RATE_AUTO_SYNC',
+        value: 'true',
+        description: 'Auto Sincronizacion Tasas de Cambio',
+        category: 'system',
       },
     ];
 

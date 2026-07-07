@@ -52,7 +52,7 @@ export class CreditManagementService {
     private readonly generateCodeService: GenerateCodeService,
     private readonly inventoryMovementsService: InventoryMovementsService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -463,12 +463,12 @@ export class CreditManagementService {
       );
     }
 
-    if (creditType.minCreditAmount && requestedAmount < Number(creditType.minCreditAmount)) {
+    if (creditType.minCreditAmount && Number(creditType.minCreditAmount) > 0 && requestedAmount < Number(creditType.minCreditAmount)) {
       throw new BadRequestException(
         `El monto mínimo para este tipo de crédito es ${Number(creditType.minCreditAmount).toLocaleString('es')}`,
       );
     }
-    if (creditType.maxCreditAmount && requestedAmount > Number(creditType.maxCreditAmount)) {
+    if (creditType.maxCreditAmount && Number(creditType.maxCreditAmount) > 0 && requestedAmount > Number(creditType.maxCreditAmount)) {
       throw new BadRequestException(
         `El monto máximo para este tipo de crédito es ${Number(creditType.maxCreditAmount).toLocaleString('es')}`,
       );
@@ -606,7 +606,7 @@ export class CreditManagementService {
     });
 
     const currencyCode: CurrencyCodeEnum =
-      setting?.value === '1' ? CurrencyCodeEnum.VES : CurrencyCodeEnum.USD;
+      setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
 
     const endDate = this.calculateEndDate(startDate, finalTermUnits, finalTermType);
     const capital = Math.max(amortizableAmount, 0);
@@ -629,15 +629,15 @@ export class CreditManagementService {
 
     const schedule = capital > 0
       ? this.generateAmortizationSchedule(
-          capital,
-          finalTermUnits,
-          finalRate,
-          startDate,
-          '',
-          userId,
-          finalTermType,
-          expensesAmount,
-        )
+        capital,
+        finalTermUnits,
+        finalRate,
+        startDate,
+        '',
+        userId,
+        finalTermType,
+        expensesAmount,
+      )
       : [];
 
     const newCredit = await this.db.transaction(async (tx) => {
@@ -668,6 +668,12 @@ export class CreditManagementService {
           notes: dto.notes ?? null,
           invoiceNumber: dto.invoiceNumber ?? null,
           previousCreditId: dto.previousCreditId ?? null,
+          allowOverdraft: dto.allowOverdraft ?? false,
+          haberesPayment: dto.haberesPayment ? String(dto.haberesPayment) : null,
+          directPayment: dto.directPayment ? String(dto.directPayment) : null,
+          directPaymentMethod: dto.directPaymentMethod ?? null,
+          directPaymentReference: dto.directPaymentReference ?? null,
+          directPaymentBankAccountId: dto.directPaymentBankAccountId ?? null,
           createdById: userId,
           updatedById: userId,
         })
@@ -744,6 +750,12 @@ export class CreditManagementService {
       creditTypeId,
       startDate,
       currencyCode,
+      allowOverdraft,
+      haberesPayment,
+      directPayment,
+      directPaymentMethod,
+      directPaymentReference,
+      directPaymentBankAccountId,
     } = credit;
 
     const active = await this.db
@@ -788,9 +800,11 @@ export class CreditManagementService {
     if (assoc?.isPayrollCredit)
       throw new BadRequestException('Crédito nómina activo');
 
-    const avail = (Number(assoc?.balance ?? 0)) * 0.8;
-    if (Number(avail) < Number(requestedAmount))
-      throw new BadRequestException('Disponibilidad insuficiente');
+    if (!allowOverdraft) {
+      const avail = (Number(assoc?.balance ?? 0)) * 0.8;
+      if (Number(avail) < Number(requestedAmount))
+        throw new BadRequestException('Disponibilidad insuficiente');
+    }
 
     const creditSale = await this.db
       .select()
@@ -801,8 +815,8 @@ export class CreditManagementService {
       await this.generateCodeService.generateNextReference(
         'CRE',
         tenantId,
+        'portfolio',
         'credits',
-        'management',
       );
 
     const result = await this.db.transaction(async (tx) => {
@@ -834,17 +848,26 @@ export class CreditManagementService {
           | 'installments'
           | 'quotas';
         const expensesAmount = Number(credit.expensesAmount ?? 0);
-
-        const schedule = this.generateAmortizationSchedule(
-          Number(requestedAmount),
-          finalTermUnits,
-          finalRate,
-          startDate ? new Date(startDate) : new Date(),
-          id,
-          userId,
-          finalTermType,
-          expensesAmount,
+        const haberesAmt = Number(haberesPayment ?? 0);
+        const directAmt = Number(directPayment ?? 0);
+        const amortizableAmount = Math.max(
+          0,
+          Number(requestedAmount) - haberesAmt - directAmt,
         );
+
+        const schedule =
+          amortizableAmount > 0
+            ? this.generateAmortizationSchedule(
+                amortizableAmount,
+                finalTermUnits,
+                finalRate,
+                startDate ? new Date(startDate) : new Date(),
+                id,
+                userId,
+                finalTermType,
+                expensesAmount,
+              )
+            : [];
 
         if (schedule.length > 0) {
           await tx.insert(creditAmortizationSchedule).values(
@@ -891,6 +914,44 @@ export class CreditManagementService {
           credit.creditModality === 'SPECIAL_QUOTAS'
             ? AssociateMovementTypeEnum.SPECIAL_CREDIT_DISBURSEMENT_CREDIT
             : AssociateMovementTypeEnum.COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT;
+
+        // Haberes payment: retiro de haberes para pagar parte del crédito
+        const haberesAmt = Number(haberesPayment ?? 0);
+        if (haberesAmt > 0) {
+          await this.associateAccountsMovementsService.create(
+            userId,
+            {
+              associateAccountId: assoc.associateAccountId,
+              movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+              amount: haberesAmt,
+              currencyCode: currencyCode as CurrencyCodeEnum,
+              transactionDate: new Date(),
+              description: `Retiro haberes por Crédito N°${customReference}`,
+              referenceId: String(id),
+              referenceType: 'credits',
+            },
+            tenantId,
+          );
+        }
+
+        // Direct payment: pago recibido como inicial/abono directo
+        const directAmt = Number(directPayment ?? 0);
+        if (directAmt > 0) {
+          await this.associateAccountsMovementsService.create(
+            userId,
+            {
+              associateAccountId: assoc.associateAccountId,
+              movementType: AssociateMovementTypeEnum.COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT,
+              amount: directAmt,
+              currencyCode: currencyCode as CurrencyCodeEnum,
+              transactionDate: new Date(),
+              description: `Pago directo inicial Crédito N°${customReference}`,
+              referenceId: String(id),
+              referenceType: 'credits',
+            },
+            tenantId,
+          );
+        }
 
         await this.associateAccountsMovementsService.create(
           userId,
@@ -1044,6 +1105,8 @@ export class CreditManagementService {
         termType: credits.termType,
         termUnits: credits.termUnits,
         interestRate: credits.interestRate,
+        haberesPayment: credits.haberesPayment,
+        directPayment: credits.directPayment,
       })
       .from(credits)
       .where(searchCondition)
@@ -1077,12 +1140,16 @@ export class CreditManagementService {
         expensesAmount: credit.expensesAmount
           ? Number(credit.expensesAmount).toFixed(2)
           : null,
+        haberesPayment: credit.haberesPayment
+          ? Number(credit.haberesPayment).toFixed(2)
+          : null,
+        directPayment: credit.directPayment
+          ? Number(credit.directPayment).toFixed(2)
+          : null,
       })),
       meta,
     };
   }
-
-  // ─── BUSCAR POR EDIT ───────────────────────────────────────────────────
 
   async findRequestByEdit(tenantId: string | null, id: string) {
     const conditions: SQL<unknown>[] = [eq(credits.id, id)];
@@ -1509,6 +1576,8 @@ export class CreditManagementService {
         interestRate: credits.interestRate,
         termType: credits.termType,
         termUnits: credits.termUnits,
+        haberesPayment: credits.haberesPayment,
+        directPayment: credits.directPayment,
         createdAt: credits.createdAt,
         updatedAt: credits.updatedAt,
         createdById: credits.createdById,

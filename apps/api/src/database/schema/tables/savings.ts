@@ -751,6 +751,12 @@ export const credits = savingsSchema.table(
     }), // Tasa de interés
     termType: varchar('term_type', { length: 20 }), // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
     termUnits: integer('term_units'), // Número de cuotas o duración del plazo)
+    allowOverdraft: boolean('allow_overdraft').default(false), // Permitir sobregiro (excluye regla del 80%)
+    haberesPayment: numeric('haberes_payment', { precision: 20, scale: 6 }), // Monto pagado con haberes (retiro)
+    directPayment: numeric('direct_payment', { precision: 20, scale: 6 }), // Monto de pago directo (inicial)
+    directPaymentMethod: varchar('direct_payment_method', { length: 30 }), // Método del pago directo
+    directPaymentReference: varchar('direct_payment_reference', { length: 100 }), // Referencia del pago directo
+    directPaymentBankAccountId: uuid('direct_payment_bank_account_id'), // Banco receptor del pago directo
     ...timestamps, // created_at y updated_at
   },
   (table) => ({

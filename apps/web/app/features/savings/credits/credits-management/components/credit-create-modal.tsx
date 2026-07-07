@@ -18,16 +18,20 @@ import {
   User,
   Wallet,
   Info,
+  Loader2,
+  X,
 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
 import { Button } from '@repo/shadcn/button';
 import { Input } from '@repo/shadcn/input';
 import { Label } from '@repo/shadcn/label';
+import { Separator } from '@repo/shadcn/separator';
 import {
   Select,
   SelectContent,
@@ -39,6 +43,7 @@ import { Textarea } from '@repo/shadcn/textarea';
 import { Badge } from '@repo/shadcn/badge';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   creditManagementSchema,
   creditDefaults,
@@ -50,11 +55,16 @@ import {
   useBankAccounts,
   useSuppliers,
   useProducts,
-  useCalculateAmortization,
 } from '../hooks/use-credits-management-query';
 import { useCreateCreditManagementMutation } from '../hooks/use-credits-management-mutation';
 import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
 import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
+import { QUERY_KEYS } from '@/lib/query-keys';
+import { ProductsService } from '@/features/inventory/products/services/products-service';
+import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
+import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
+import { calculateFrenchAmortization } from '../utils/credit-amortization-utils';
+import { AlertModal } from '@/components/shared/alert-modal';
 
 function formatCurrency(n: number) {
   return n?.toLocaleString('es', { minimumFractionDigits: 2 }) ?? '0,00';
@@ -66,8 +76,10 @@ interface CreateCreditModalProps {
 }
 
 export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
-  const [cedula, setCedula] = useState('');
-  const [shouldSearch, setShouldSearch] = useState(false);
+  const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [submittedSearch, setSubmittedSearch] = useState('');
+  const [shouldFetch, setShouldFetch] = useState(false);
   const [casaComercial, setCasaComercial] = useState(false);
   const [ccType, setCcType] = useState<'inventory' | 'supplier' | ''>('');
   const [useSpecial, setUseSpecial] = useState(false);
@@ -77,15 +89,18 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const [servDescription, setServDescription] = useState('');
   const [servQty, setServQty] = useState(1);
   const [servCost, setServCost] = useState(0);
+  const [servSpecialDayId, setServSpecialDayId] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { data: associateData } = useSearchAssociate(
-    shouldSearch ? cedula : '',
-    { enabled: shouldSearch && cedula.length >= 7 },
+  const { data: associateData, isFetching: searching } = useSearchAssociate(
+    submittedSearch,
+    { enabled: shouldFetch && !!submittedSearch.trim() },
   );
   const { data: creditTypes = [] } = useCreditTypes();
   const { data: bankAccounts = [] } = useBankAccounts();
   const { data: suppliers = [] } = useSuppliers();
   const { data: products = [] } = useProducts();
+  const { data: specialDays = [] } = useCategoriesByTypeQuery(CATEGORY_TYPES.SPECIAL_DAYS);
   const { mutate: saveCredit, isPending: isSaving } =
     useCreateCreditManagementMutation();
 
@@ -94,7 +109,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
       Array.isArray(suppliers)
         ? suppliers.filter(
             (s: any) =>
-              s.category === 'SERVICE' && s.isActive !== false,
+              s.category === 'services' && s.isActive !== false,
           )
         : [],
     [suppliers],
@@ -145,8 +160,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   }, [totalItemAmount, casaComercial, setValue]);
 
   const resetAll = useCallback(() => {
-    setCedula('');
-    setShouldSearch(false);
+    setSearchQuery('');
+    setSubmittedSearch('');
+    setShouldFetch(false);
     setCasaComercial(false);
     setCcType('');
     setUseSpecial(false);
@@ -156,6 +172,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     setServDescription('');
     setServQty(1);
     setServCost(0);
+    setServSpecialDayId('');
     reset({ ...creditDefaults });
   }, [reset]);
 
@@ -163,6 +180,41 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     if (open) resetAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const handleSearch = useCallback(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.creditManagements.all });
+    setItems([]);
+    setCasaComercial(false);
+    setCcType('');
+    setUseSpecial(false);
+    reset({ ...creditDefaults });
+    setSubmittedSearch(trimmed);
+    setShouldFetch(true);
+  }, [searchQuery, queryClient, reset]);
+
+  const handleClear = useCallback(() => {
+    setSearchQuery('');
+    setSubmittedSearch('');
+    setShouldFetch(false);
+    setItems([]);
+    setCasaComercial(false);
+    setCcType('');
+    setUseSpecial(false);
+    setSelectedProduct('');
+    reset({ ...creditDefaults });
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.creditManagements.all });
+  }, [queryClient, reset]);
+
+  useEffect(() => {
+    if (shouldFetch && !searching) {
+      setShouldFetch(false);
+      if (associateData?.associate?.id) {
+        setValue('associateId', associateData.associate.id);
+      }
+    }
+  }, [searching, shouldFetch, associateData, setValue]);
 
   const handleTypeChange = useCallback(
     (typeId: string) => {
@@ -172,11 +224,14 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
         : null;
       if (t) {
         setValue('interestRate', parseFloat(t.interestRate));
-        setValue(
-          'termType',
-          (t.termType as 'installments' | 'quotas') || 'installments',
-        );
-        setValue('termUnits', t.termUnits || 1);
+        const mappedTermType =
+          t.termType === 'PLAZO' || t.termType === 'PLAZOS'
+            ? 'installments'
+            : t.termType === 'CUOTAS' || t.termType === 'CUOTA'
+              ? 'quotas'
+              : (t.termType as string) || 'installments';
+        setValue('termType', mappedTermType);
+        setValue('termUnits', Number(t.termUnits) || 1);
         setValue(
           'expensesPercentage',
           parseFloat(t.administrativeExpensePercentage || '0'),
@@ -186,18 +241,12 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     [creditTypes, setValue],
   );
 
-  useEffect(() => {
-    if (associateData?.associate?.id) {
-      setValue('associateId', associateData.associate.id);
-    }
-  }, [associateData, setValue]);
-
   const expensesAmount = useMemo(
     () => (watchAmount * watchExpensesPct) / 100,
     [watchAmount, watchExpensesPct],
   );
 
-  const amortizableAmount = watchAmount - watchHaberesPayment - watchDirectPayment;
+  const amortizableAmount = Math.max(0, watchAmount - watchHaberesPayment - watchDirectPayment);
 
   const endDate = useMemo(() => {
     if (!watchStartDate || watchTermUnits <= 0) return '';
@@ -216,36 +265,19 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     if (endDate) setValue('endDate', endDate);
   }, [endDate, setValue]);
 
-  const amortParams = useMemo(
-    () =>
-      amortizableAmount > 0 && watchRate > 0 && watchTermUnits > 0 && watchStartDate
-        ? {
-            amount: amortizableAmount,
-            annualRate: watchRate,
-            paymentCount: watchTermUnits,
-            startDate: new Date(watchStartDate).toISOString().slice(0, 10),
-            paymentType: watchTermType,
-            expensesPercentage: watchExpensesPct,
-          }
-        : null,
-    [amortizableAmount, watchRate, watchTermUnits, watchStartDate, watchTermType, watchExpensesPct],
-  );
+  const amortData = useMemo(() => {
+    if (amortizableAmount <= 0 || watchTermUnits <= 0) return null;
+    return calculateFrenchAmortization(
+      amortizableAmount,
+      watchRate,
+      watchTermUnits,
+      (watchTermType as 'installments' | 'quotas') || 'installments',
+      watchStartDate || new Date(),
+      expensesAmount,
+    );
+  }, [amortizableAmount, watchRate, watchTermUnits, watchTermType, watchStartDate, expensesAmount]);
 
-  const { data: amortData } = useCalculateAmortization(amortParams);
-
-  const totalInterest = useMemo(
-    () =>
-      amortData?.schedule?.reduce(
-        (s: number, r: any) => s + parseFloat(r.interestAmount),
-        0,
-      ) || 0,
-    [amortData],
-  );
-
-  const totalPayable = useMemo(
-    () => amortizableAmount + totalInterest + expensesAmount,
-    [amortizableAmount, totalInterest, expensesAmount],
-  );
+  const totalInterest = amortData?.totalInterest ?? 0;
 
   const rules = useMemo(() => {
     const r: { canSave: boolean; messages: string[] } = {
@@ -285,7 +317,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
       r.canSave = false;
       r.messages.push('Tiene credinomina activo - Bloqueado');
     }
-    const monthlyPmt = parseFloat(amortData?.monthlyPayment || '0');
+    const monthlyPmt = amortData?.monthlyPayment ?? 0;
     if (
       amortizableAmount > 0 &&
       monthlyPmt > 0 &&
@@ -319,6 +351,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     }
     if (
       selectedType?.minCreditAmount &&
+      parseFloat(selectedType.minCreditAmount) > 0 &&
       watchAmount < parseFloat(selectedType.minCreditAmount)
     ) {
       r.canSave = false;
@@ -328,6 +361,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     }
     if (
       selectedType?.maxCreditAmount &&
+      parseFloat(selectedType.maxCreditAmount) > 0 &&
       watchAmount > parseFloat(selectedType.maxCreditAmount)
     ) {
       r.canSave = false;
@@ -349,33 +383,55 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     watchDirectPaymentBank,
   ]);
 
-  const addProductItem = useCallback(() => {
+  const addProductItem = useCallback(async () => {
     if (!selectedProduct || !Array.isArray(products)) return;
     const prod = products.find(
-      (p: any) => p.id === selectedProduct || p._id === selectedProduct,
-    );
+      (p: any) => p.id === selectedProduct,
+    ) as any;
     if (!prod) return;
-    const price = prod.offerPrice || prod.regularPrice;
-    if (!price) return;
-    const unitPrice = price.salePrice || price.unitPrice || 0;
-    const totalPrice = unitPrice * productQty;
-    setItems((prev) => [
-      ...prev,
-      {
-        id: Math.random().toString(36).slice(2),
-        type: 'product',
-        productId: prod.id || prod._id,
-        productName: prod.name,
-        quantity: productQty,
-        unitPrice,
-        totalPrice,
-      },
-    ]);
+
+    try {
+      const productDetail = await ProductsService.getById(selectedProduct);
+      const unitPrice = Number(
+        productDetail.bsPriceAmount ??
+          productDetail.salePrice ??
+          productDetail.supplierCost ??
+          0,
+      );
+
+      setItems((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).slice(2),
+          type: 'product',
+          productId: prod.id,
+          productName: prod.name,
+          quantity: productQty,
+          unitPrice,
+          totalPrice: unitPrice * productQty,
+        },
+      ]);
+    } catch {
+      setItems((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).slice(2),
+          type: 'product',
+          productId: prod.id,
+          productName: prod.name,
+          quantity: productQty,
+          unitPrice: 0,
+          totalPrice: 0,
+        },
+      ]);
+    }
+
     setSelectedProduct('');
     setProductQty(1);
   }, [selectedProduct, productQty, products]);
 
   const addServiceItem = useCallback(() => {
+    if (!servDescription.trim() || servCost <= 0 || !servSpecialDayId) return;
     const totalPrice = servCost * servQty;
     setItems((prev) => [
       ...prev,
@@ -386,18 +442,20 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
         quantity: servQty,
         unitPrice: servCost,
         totalPrice,
+        specialDayCategoryId: servSpecialDayId,
       },
     ]);
     setServDescription('');
     setServQty(1);
     setServCost(0);
-  }, [servDescription, servQty, servCost]);
+    setServSpecialDayId('');
+  }, [servDescription, servQty, servCost, servSpecialDayId]);
 
   const removeItem = useCallback((id: string) => {
     setItems((prev) => prev.filter((it) => it.id !== id));
   }, []);
 
-  const onSubmit = useCallback(
+  const handleFormSubmit = useCallback(
     (data: CreditManagement) => {
       const formatted = {
         ...data,
@@ -426,6 +484,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
               itemDescription: it.description || it.productName || undefined,
               quantity: it.quantity,
               saleDate: new Date(),
+              days: it.specialDayCategoryId || undefined,
             }))
           : undefined,
         itemsJson: casaComercial ? JSON.stringify(items) : undefined,
@@ -438,6 +497,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
           onClose();
         },
       });
+      setConfirmOpen(false);
     },
     [saveCredit, onClose, associateData, casaComercial, ccType, items],
   );
@@ -459,109 +519,114 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
           <DialogTitle className="flex items-center gap-2">
             <BadgeDollarSign className="h-5 w-5" /> Nueva Solicitud de Crédito
           </DialogTitle>
+          <DialogDescription>
+            Complete el formulario para crear una solicitud de crédito.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 pr-1">
-          {/* Búsqueda de Asociado */}
-          <div>
-            <Label>Cédula del Asociado</Label>
-            <div className="relative mt-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="space-y-4 pr-1 mt-4">
+          {/* SEARCH SECTION */}
+          <div className="flex gap-2">
+            <div className="flex-1">
               <Input
-                placeholder="Ej: 19354301"
-                value={cedula}
-                onChange={(e) => {
-                  setCedula(e.target.value.replace(/\D/g, '').slice(0, 8));
-                  setShouldSearch(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && cedula.length >= 7) setShouldSearch(true);
-                }}
-                className="pl-9"
-                maxLength={8}
+                placeholder="Ingrese Cédula del Asociado..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                disabled={searching}
               />
             </div>
+            <Button onClick={handleSearch} disabled={!searchQuery.trim() || searching}>
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              <span className="ml-2">Buscar</span>
+            </Button>
           </div>
 
-          {cedula.length >= 7 && !associateData && shouldSearch && (
-            <p className="text-sm text-destructive">Asociado no encontrado</p>
+          {searching && !associateData && (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+              <p className="text-muted-foreground mt-2">Validando asociado...</p>
+            </div>
           )}
 
-          {associateData && (
+          {/* ASSOCIATE DATA */}
+          {!searching && associateData?.associate && (
             <div
-              className={`rounded-lg border p-4 space-y-3 ${hasBlocks ? 'border-destructive/30 bg-destructive/5' : 'border-emerald-500/30 bg-emerald-50'}`}
+              className={`rounded-lg border p-4 space-y-2 relative ${hasBlocks ? 'border-destructive/30 bg-destructive/5' : 'bg-muted/30'}`}
             >
-              <div className="flex items-center gap-2">
-                <User
-                  className={`h-4 w-4 ${hasBlocks ? 'text-destructive' : 'text-emerald-600'}`}
-                />
-                <span className="text-sm font-semibold">DATOS DEL ASOCIADO</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Nombre:</span>{' '}
-                  <span className="font-medium">
-                    {associateData.associate.fullname}
-                  </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-8 w-8"
+                onClick={handleClear}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <h3 className="font-semibold text-sm uppercase text-muted-foreground mb-3">
+                Datos del Asociado
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Nombre y Apellido:</span>
+                  <span className="text-sm font-bold">{associateData.associate.fullname}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Cédula:</span>{' '}
-                  <span className="font-mono">
-                    {associateData.associate.cedula}
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Cédula:</span>
+                  <span className="text-sm font-mono">{associateData.associate.cedula}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Nro. Cuenta:</span>{' '}
-                  <span className="font-mono">
-                    {associateData.account?.accountNumber || '—'}
-                  </span>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Nro. Cuenta:</span>
+                  <span className="text-sm font-mono font-semibold">{associateData.account?.accountNumber || '—'}</span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Saldo Total:</span>{' '}
-                  <span className="font-mono font-semibold text-blue-600">
+                <Separator />
+                <div className="flex justify-between items-end">
+                  <span className="text-sm text-muted-foreground">Saldo Total:</span>
+                  <span className="text-lg font-black text-primary">
                     {formatCurrency(associateData.balance)} Bs
                   </span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Salario Base:</span>{' '}
-                  <span className="font-mono">
-                    {formatCurrency(associateData.baseSalary)} Bs
+                <div className="flex justify-between items-end">
+                  <span className="text-sm text-muted-foreground">80% Disponible:</span>
+                  <span className="text-lg font-black text-[#305AD9]">
+                    {formatCurrency(associateData.available80)} Bs
                   </span>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Cap. Pago (30%):</span>{' '}
-                  <span className="font-mono font-semibold text-emerald-600">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Cap. Pago (30%):</span>
+                  <span className="text-sm font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(associateData.paymentCapacity)} Bs/mes
                   </span>
                 </div>
-              </div>
-              <div className="rounded-lg bg-blue-50 p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Wallet className="h-5 w-5 text-blue-600" />
-                  <span className="text-sm font-medium">80% Disponible:</span>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Salario Base:</span>
+                  <span className="text-sm font-mono">
+                    {formatCurrency(associateData.baseSalary)} Bs
+                  </span>
                 </div>
-                <span className="text-lg font-bold text-blue-600 font-mono">
-                  {formatCurrency(associateData.available80)} Bs
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {associateData.hasActiveLoan && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                    <XCircle className="h-3 w-3" /> Préstamo Activo
-                  </span>
-                )}
-                {associateData.hasActiveCredit && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                    <XCircle className="h-3 w-3" /> Crédito Activo
-                  </span>
-                )}
-                {associateData.hasPayrollCredit && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
-                    <XCircle className="h-3 w-3" /> Credinomina Activo
-                  </span>
-                )}
+                {/* BLOCK BADGES */}
+                {(associateData.hasActiveLoan ||
+                  associateData.hasActiveCredit ||
+                  associateData.hasPayrollCredit) && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {associateData.hasActiveLoan && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                          <XCircle className="h-3 w-3" /> Préstamo Activo
+                        </span>
+                      )}
+                      {associateData.hasActiveCredit && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                          <XCircle className="h-3 w-3" /> Crédito Activo
+                        </span>
+                      )}
+                      {associateData.hasPayrollCredit && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 text-destructive px-2.5 py-0.5 text-xs font-medium">
+                          <XCircle className="h-3 w-3" /> Credinomina Activo
+                        </span>
+                      )}
+                    </div>
+                  )}
                 {!hasBlocks && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 text-emerald-600 px-2.5 py-0.5 text-xs font-medium">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 px-2.5 py-0.5 text-xs font-medium">
                     <CheckCircle2 className="h-3 w-3" /> Sin bloqueos
                   </span>
                 )}
@@ -569,13 +634,24 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
             </div>
           )}
 
+          {!searching && !associateData && submittedSearch && (
+            <p className="text-sm text-destructive">Asociado no encontrado</p>
+          )}
+
+          {!searching && !associateData && !submittedSearch && (
+            <div className="text-center py-6 border border-dashed rounded-lg">
+              <User className="h-8 w-8 mx-auto text-muted-foreground/50" />
+              <p className="text-muted-foreground mt-2 text-sm">Ningún asociado seleccionado</p>
+            </div>
+          )}
+
           {associateData && (
             <>
               {/* Tipo de Crédito */}
-              <div>
+              <div className="w-full">
                 <Label>Tipo de Crédito *</Label>
                 <Select value={watchTypeId} onValueChange={handleTypeChange}>
-                  <SelectTrigger className="mt-1">
+                  <SelectTrigger className="mt-1 w-full">
                     <SelectValue placeholder="Seleccionar tipo de crédito" />
                   </SelectTrigger>
                   <SelectContent>
@@ -591,11 +667,11 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
               </div>
 
               {selectedType && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-semibold">
-                      INFORMACIÓN DEL TIPO DE CRÉDITO
+                <div className="rounded-lg border border-[#3098F2]/30 bg-[#3098F2]/5 p-4 space-y-2">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-[#3098F2]" />
+                    <span className="text-sm font-semibold uppercase text-muted-foreground">
+                      Información del Tipo
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
@@ -788,8 +864,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                             </SelectItem>
                             {serviceSuppliers.map((s: any) => (
                               <SelectItem
-                                key={s.id || s._id}
-                                value={`supplier_${s.id || s._id}`}
+                                key={s.id}
+                                value={`supplier_${s.id}`}
                               >
                                 {s.name || s.businessName} - {s.rif}
                               </SelectItem>
@@ -799,7 +875,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                       </div>
 
                       {ccType === 'inventory' && (
-                        <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+                        <div className="rounded-lg border border-[#3098F2]/30 bg-[#3098F2]/5 p-3 space-y-3">
                           <div className="flex items-center gap-2">
                             <Package className="h-4 w-4" />
                             <span className="text-xs font-semibold">
@@ -822,8 +898,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                     : []
                                   ).map((p: any) => (
                                     <SelectItem
-                                      key={p.id || p._id}
-                                      value={p.id || p._id}
+                                      key={p.id}
+                                      value={p.id}
                                     >
                                       {p.name}
                                     </SelectItem>
@@ -860,15 +936,15 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                       )}
 
                       {ccType.startsWith('supplier_') && (
-                        <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3">
+                        <div className="rounded-lg border border-[#3098F2]/30 bg-[#3098F2]/5 p-3 space-y-3">
                           <div className="flex items-center gap-2">
                             <ShoppingCart className="h-4 w-4" />
                             <span className="text-xs font-semibold">
                               AGREGAR ITEM
                             </span>
                           </div>
-                          <div className="grid grid-cols-3 gap-2 items-end">
-                            <div className="col-span-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                            <div className="col-span-full">
                               <Label className="text-xs">Descripción</Label>
                               <Input
                                 className="mt-1"
@@ -909,6 +985,26 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 }
                               />
                             </div>
+                            <div>
+                              <Label className="text-xs">Jornada *</Label>
+                              <Select
+                                value={servSpecialDayId}
+                                onValueChange={setServSpecialDayId}
+                              >
+                                <SelectTrigger className="mt-1">
+                                  <SelectValue placeholder="Jornada..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.isArray(specialDays)
+                                    ? specialDays.map((sd: any) => (
+                                        <SelectItem key={sd.id} value={sd.id}>
+                                          {sd.name}
+                                        </SelectItem>
+                                      ))
+                                    : null}
+                                </SelectContent>
+                              </Select>
+                            </div>
                             <div className="flex items-end">
                               <Button
                                 onClick={addServiceItem}
@@ -936,6 +1032,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 <th className="py-1 text-left">Item</th>
                                 <th className="py-1 text-right">Cant.</th>
                                 <th className="py-1 text-right">P/U</th>
+                                {items.some((it) => it.type === 'service') && (
+                                  <th className="py-1 text-left">Jornada</th>
+                                )}
                                 <th className="py-1 text-right">Subtotal</th>
                                 <th className="py-1 w-8"></th>
                               </tr>
@@ -955,6 +1054,15 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                   <td className="py-1 text-right font-mono">
                                     {formatCurrency(it.unitPrice)}
                                   </td>
+                                  {items.some((i) => i.type === 'service') && (
+                                    <td className="py-1 text-xs">
+                                      {it.specialDayCategoryId
+                                        ? (Array.isArray(specialDays)
+                                            ? specialDays.find((sd: any) => sd.id === it.specialDayCategoryId)?.name
+                                            : '—') || '—'
+                                        : '—'}
+                                    </td>
+                                  )}
                                   <td className="py-1 text-right font-mono font-medium">
                                     {formatCurrency(it.totalPrice)}
                                   </td>
@@ -1119,39 +1227,6 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                             </div>
                           </div>
                         )}
-                      {(watchHaberesPayment > 0 ||
-                        watchDirectPayment > 0) && (
-                        <div className="text-sm space-y-1 bg-blue-50 p-3 rounded">
-                          <p>
-                            Monto del crédito:{' '}
-                            <span className="font-mono font-bold">
-                              {formatCurrency(watchAmount)} Bs
-                            </span>
-                          </p>
-                          {watchHaberesPayment > 0 && (
-                            <p>
-                              Pago de haberes:{' '}
-                              <span className="font-mono text-destructive">
-                                - {formatCurrency(watchHaberesPayment)} Bs
-                              </span>
-                            </p>
-                          )}
-                          {watchDirectPayment > 0 && (
-                            <p>
-                              Pago directo:{' '}
-                              <span className="font-mono text-destructive">
-                                - {formatCurrency(watchDirectPayment)} Bs
-                              </span>
-                            </p>
-                          )}
-                          <p className="font-semibold">
-                            Monto a amortizar:{' '}
-                            <span className="font-mono text-emerald-600">
-                              {formatCurrency(amortizableAmount)} Bs
-                            </span>
-                          </p>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1170,59 +1245,78 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
               )}
 
               {/* Resumen del Crédito */}
-              {selectedType && amortizableAmount > 0 && (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-50/50 p-4 space-y-2">
+              {selectedType && watchAmount > 0 && (
+                <div className="rounded-lg border border-emerald-500/30 bg-muted/30 p-4 space-y-3">
                   <div className="flex items-center gap-2">
-                    <Calculator className="h-4 w-4 text-emerald-600" />
-                    <span className="text-sm font-semibold">
-                      RESUMEN DEL CRÉDITO
+                    <Calculator className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-sm font-semibold uppercase text-muted-foreground">
+                      Resumen del Crédito
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Capital:</span>{' '}
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Capital:</span>
                       <span className="font-mono font-medium">
                         {formatCurrency(watchAmount)} Bs
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Cuota:</span>{' '}
-                      <span className="font-mono font-bold text-blue-600">
-                        {formatCurrency(
-                          parseFloat(amortData?.monthlyPayment || '0'),
-                        )}{' '}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Cuota por Plazo:</span>
+                      <span className="font-mono font-bold text-[#305AD9]">
+                        {formatCurrency(amortData?.monthlyPayment ?? 0)}{' '}
                         Bs
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Interés Total:
-                      </span>{' '}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Interés Total:</span>
                       <span className="font-mono">
                         {formatCurrency(totalInterest)} Bs
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">
-                        Gasto Admin:
-                      </span>{' '}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gasto Administrativo:</span>
                       <span className="font-mono">
                         {formatCurrency(expensesAmount)} Bs
                       </span>
                     </div>
-                    <div className="col-span-2">
-                      <span className="text-muted-foreground">
-                        Total a Pagar:
-                      </span>{' '}
+                    <Separator />
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total a Pagar (Capital + Interés + Gasto):</span>
                       <span className="font-mono font-bold text-lg">
-                        {formatCurrency(totalPayable)} Bs
+                        {formatCurrency(watchAmount + totalInterest + expensesAmount)} Bs
+                      </span>
+                    </div>
+                    {useSpecial && watchHaberesPayment > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Pago de haberes:</span>
+                        <span className="font-mono text-destructive">
+                          - {formatCurrency(watchHaberesPayment)} Bs
+                        </span>
+                      </div>
+                    )}
+                    {useSpecial && watchDirectPayment > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Pago directo:</span>
+                        <span className="font-mono text-destructive">
+                          - {formatCurrency(watchDirectPayment)} Bs
+                        </span>
+                      </div>
+                    )}
+                    {useSpecial && (watchHaberesPayment > 0 || watchDirectPayment > 0) && <Separator />}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Monto a amortizar en cuotas:</span>
+                      <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(
+                          Math.max(0, watchAmount + totalInterest + expensesAmount - watchHaberesPayment - watchDirectPayment),
+                        )}{' '}
+                        Bs
                       </span>
                     </div>
                   </div>
 
                   {amortData?.schedule &&
                     amortData.schedule.length > 0 && (
-                      <div className="rounded-lg border bg-white p-3 mt-2">
+                      <div className="rounded-lg border bg-background p-3 mt-2">
                         <p className="text-xs font-semibold text-muted-foreground mb-2">
                           TABLA DE AMORTIZACIÓN
                         </p>
@@ -1292,18 +1386,18 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
 
               {/* Reglas */}
               <div
-                className={`rounded-lg border p-3 ${rules.canSave ? 'border-emerald-500/30 bg-emerald-50/50' : 'border-destructive/30 bg-destructive/5'}`}
+                className={`rounded-lg border p-3 ${rules.canSave ? 'border-emerald-500/30 bg-muted/30' : 'border-destructive/30 bg-destructive/5'}`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   {rules.canSave ? (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   ) : (
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                   )}
-                  <span className="text-sm font-semibold">
+                  <span className="text-sm font-semibold uppercase text-muted-foreground">
                     {rules.canSave
-                      ? 'REGLA(S) CUMPLIDA(S)'
-                      : 'REGLA(S) BLOQUEANTE(S)'}
+                      ? 'Reglas Cumplidas'
+                      : 'Reglas Bloqueantes'}
                   </span>
                 </div>
                 <ul className="space-y-1">
@@ -1316,7 +1410,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                         msg.includes('mínimo') ||
                         msg.includes('máximo')
                           ? 'text-destructive'
-                          : 'text-emerald-600'
+                          : 'text-emerald-600 dark:text-emerald-400'
                       }`}
                     >
                       {msg.includes('Bloqueado') ||
@@ -1343,7 +1437,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                   Cancelar
                 </Button>
                 <Button
-                  onClick={handleSubmit(onSubmit)}
+                  type="button"
+                  onClick={() => setConfirmOpen(true)}
                   disabled={!rules.canSave || isSaving}
                   className="bg-blue-600 gap-1.5"
                 >
@@ -1353,6 +1448,15 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
             </>
           )}
         </div>
+
+        <AlertModal
+          isOpen={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={handleSubmit(handleFormSubmit)}
+          loading={isSaving}
+          title="Confirmar Crédito"
+          description="¿Está seguro que desea registrar esta solicitud de crédito?"
+        />
       </DialogContent>
     </Dialog>
   );
