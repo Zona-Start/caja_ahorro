@@ -1,30 +1,29 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { creditsPaidService } from '../services/credits-paid-service';
+import type { CreditPaymentApiResponse } from '../schemas/credits-paid-api-response';
+import type { AssociatesCredit } from '../schemas/individual-credits-api-schema';
 
 export function useCreditsPaidQuery(
-  params?:
-    | {
-        page?: number;
-        limit?: number;
-        search?: string;
-        creditId?: number;
-      }
-    | Record<string, unknown>,
-): UseQueryResult<{ data: unknown[]; meta: unknown }, Error> {
+  params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    bank?: string;
+    type?: string;
+    method?: string;
+  },
+): UseQueryResult<CreditPaymentApiResponse, Error> {
   return useQuery({
-    queryKey: QUERY_KEYS.creditsPaid.list(JSON.stringify(params)),
-    queryFn: () =>
-      creditsPaidService.getCreditsPaid(
-        (params as { page?: number; limit?: number; search?: string }) || {},
-      ),
+    queryKey: QUERY_KEYS.creditsPaid.list(params),
+    queryFn: () => creditsPaidService.getCreditsPaid(params),
   });
 }
 
 export function useCreditPaidById(
-  id: number,
+  id: string,
   options?: { enabled?: boolean },
-): UseQueryResult<unknown, Error> {
+) {
   return useQuery({
     queryKey: QUERY_KEYS.creditsPaid.detail(id),
     queryFn: () => creditsPaidService.getCreditPaidById(id),
@@ -35,7 +34,7 @@ export function useCreditPaidById(
 export function useAssociatesByCedula(
   cedula: string,
   options?: { enabled?: boolean },
-): UseQueryResult<unknown, Error> {
+): UseQueryResult<AssociatesCredit, Error> {
   return useQuery({
     queryKey: QUERY_KEYS.creditsPaid.byCedula(cedula),
     queryFn: () => creditsPaidService.getAssociatesByCedula(cedula),

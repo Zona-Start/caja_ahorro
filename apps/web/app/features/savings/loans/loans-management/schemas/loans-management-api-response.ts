@@ -1,115 +1,48 @@
 import { z } from 'zod';
 
-export const LoanManagementMutationResponse = z.object({
-  id: z.number(),
-  customReference: z.string().nullable(),
-});
-
-export const LoanManagementGetResponseSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  associateCedula: z.string(),
-  associateFullname: z.string(),
-  loanTypeId: z.number(),
-  loanModality: z.string(),
-  loanTypeName: z.string(),
-  requestDate: z.string(),
-  approvalDate: z.string().nullable(),
-  disbursementDate: z.string().nullable(),
-  requestedAmount: z.string(),
-  approvedAmount: z.string().nullable(),
-  disbursedAmount: z.string().nullable(),
-  startDate: z.string(),
-  endDate: z.string(),
-  totalInterest: z.string().nullable(),
-  totalPayable: z.string().nullable(),
-  expensesAmount: z.string().nullable(),
-  overdraftAmount: z.string().nullable(),
-  previousLoanId: z.number().nullable(),
-  paymentMethod: z.string(),
-  disbursementAccountId: z.number(),
-  status: z.string(),
-  rejectionReason: z.string().nullable(),
-  approvedByUserId: z.number().nullable(),
-  disbursedByUserId: z.number().nullable(),
-  notes: z.string().nullable(),
-  customReference: z.string().nullable(),
-  currencyCode: z.string(),
-  exchangeRateId: z.number().nullable(),
-  termType: z.string().nullable(),
-  termUnits: z.number().nullable(),
-  interestRate: z.string().nullable(),
-});
-
-export const LoanManagementResponseAllSchema = z.object({
-  message: z.string().optional(),
-  data: z.array(LoanManagementGetResponseSchema),
-  meta: z.object({
-    page: z.number(),
-    limit: z.number(),
-    totalCount: z.number(),
-    totalPages: z.number(),
-    hasNextPage: z.boolean(),
-    hasPreviousPage: z.boolean(),
-    nextPage: z.number().nullable(),
-    previousPage: z.number().nullable(),
+export const SearchAssociateResultSchema = z.object({
+  associate: z.object({
+    id: z.string(),
+    cedula: z.string(),
+    fullname: z.string(),
+    baseSalary: z.string().nullable(),
+    isPayrollCredit: z.boolean(),
+    phone: z.string().nullable(),
+    email: z.string().nullable(),
+    dateAdmission: z.string().nullable(),
+    status: z.string(),
   }),
+  account: z
+    .object({
+      id: z.string(),
+      accountNumber: z.string(),
+    })
+    .nullable(),
+  balance: z.number(),
+  available80: z.number(),
+  hasActiveLoan: z.boolean(),
+  hasActiveCredit: z.boolean(),
+  hasPayrollCredit: z.boolean(),
+  baseSalary: z.number(),
+  paymentCapacity: z.number(),
 });
 
-export const LoansDeleteResponseSchema = z.object({
-  message: z.string(),
-});
+export type SearchAssociateResult = z.infer<typeof SearchAssociateResultSchema>;
 
-export type LoanAssociate = z.infer<typeof LoanManagementGetResponseSchema>;
-
-export const LoanAssociateGetResponseSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  associateCedula: z.string(),
-  associateFullname: z.string(),
-  associatePhone: z.string(),
-  associateEmail: z.string(),
-  associateDateAdmission: z.string(),
-  associateIsPayrollCredit: z.boolean(),
-  associateAccountId: z.number(),
-  associateAccountNumber: z.string(),
-  associateBalance: z.string(),
-  loanTypeId: z.number(),
-  loanModality: z.string(),
-  loanTypeName: z.string(),
-  requestDate: z.string(),
-  approvalDate: z.string().nullable(),
-  disbursementDate: z.string().nullable(),
-  requestedAmount: z.string(),
-  approvedAmount: z.string(),
-  disbursedAmount: z.string().nullable(),
-  startDate: z.string(),
-  endDate: z.string(),
-  totalInterest: z.string().nullable(),
-  totalPayable: z.string(),
-  expensesAmount: z.string(),
-  overdraftAmount: z.string().nullable(),
-  previousLoanId: z.number().nullable(),
-  paymentMethod: z.string(),
-  disbursementAccountId: z.number(),
-  status: z.string(),
-  rejectionReason: z.string().nullable(),
-  approvedByUserId: z.number(),
-  disbursedByUserId: z.number().nullable(),
-  notes: z.string(),
+export const LoanManagementMutationResponse = z.object({
+  id: z.string(),
   customReference: z.string().nullable(),
-  currencyCode: z.string(),
-  exchangeRateId: z.number().nullable(),
-  totalLoans: z.number().nullable(),
 });
 
-export const loanManagementAllCountResponseSchema = z.object({
-  totalLoansOrdinary: z.number(),
-  totalLoanSpecialQuotas: z.number(),
-  totalLoanPaid: z.number(),
-  totalLoanInPaymet: z.number(),
+export const LoanTypeResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  interestRate: z.string(),
+  termType: z.string(),
+  termUnits: z.number(),
+  administrativeExpensePercentage: z.string().nullable(),
+  minLoanAmount: z.string().nullable(),
+  maxLoanAmount: z.string().nullable(),
 });
 
-export type LoanAssociateGetResponse = z.infer<
-  typeof LoanAssociateGetResponseSchema
->;
+export type LoanTypeResponse = z.infer<typeof LoanTypeResponseSchema>;

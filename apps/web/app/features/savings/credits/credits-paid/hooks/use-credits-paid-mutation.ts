@@ -8,20 +8,20 @@ import { QUERY_KEYS } from '@/lib/query-keys';
 import { creditsPaidService } from '../services/credits-paid-service';
 
 export function useCreateCreditPaymentMutation(): UseMutationResult<
-  unknown,
+  { message: string },
   Error,
-  unknown,
+  Record<string, unknown>,
   unknown
 > {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (payment: unknown) =>
+    mutationFn: (payment: Record<string, unknown>) =>
       creditsPaidService.createCreditPayment(payment),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditsPaid.all(),
+        queryKey: QUERY_KEYS.creditsPaid.lists(),
       });
       toast.success('Pago registrado exitosamente');
     },
@@ -32,24 +32,24 @@ export function useCreateCreditPaymentMutation(): UseMutationResult<
 }
 
 export function useDeleteCreditPaymentMutation(): UseMutationResult<
-  unknown,
+  { message: string },
   Error,
-  number,
+  string,
   unknown
 > {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => creditsPaidService.deleteCreditPayment(id),
+    mutationFn: (id: string) => creditsPaidService.deleteCreditPayment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.creditsPaid.all(),
+        queryKey: QUERY_KEYS.creditsPaid.lists(),
       });
-      toast.success('Pago eliminado exitosamente');
+      toast.success('Pago cancelado exitosamente');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al eliminar el pago');
+      toast.error(error.message || 'Error al cancelar el pago');
     },
   });
 }

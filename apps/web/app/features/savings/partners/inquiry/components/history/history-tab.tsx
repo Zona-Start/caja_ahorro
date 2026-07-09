@@ -5,7 +5,7 @@ import { useTransactionHistoryQuery } from '../../hooks/use-inquiry-query';
 import { columns } from './history-tables/columns';
 
 interface HistoryTabProps {
-  id: number;
+  id: string;
   page: number;
   setPage: (page: number) => void;
   limit: number;
@@ -14,17 +14,17 @@ interface HistoryTabProps {
 export function HistoryTab({ id, page, setPage, limit }: HistoryTabProps) {
   const {
     data: historyData,
-    isLoading: historyLoading,
-    isError: historyIsError,
+    isLoading,
+    isError,
   } = useTransactionHistoryQuery(id, { page, limit });
 
-  if (historyLoading) return <DataTableSkeleton columnCount={6} />;
+  if (isLoading) return <DataTableSkeleton columnCount={6} />;
 
-  if (historyIsError)
+  if (isError)
     return (
       <Card>
-        <CardContent className="space-y-2 py-6">
-          <p className="text-center text-destructive">Error al cargar el historial de transacciones.</p>
+        <CardContent className="py-8 text-center text-destructive">
+          Error al cargar el historial de transacciones.
         </CardContent>
       </Card>
     );
@@ -34,7 +34,7 @@ export function HistoryTab({ id, page, setPage, limit }: HistoryTabProps) {
       columns={columns}
       data={historyData?.data || []}
       totalItems={historyData?.meta?.totalCount || 0}
-      pageSizeOptions={[10, 20, 30, 40, 50]}
+      pageSizeOptions={[10, 20, 30, 50]}
     />
   );
 }

@@ -1,91 +1,87 @@
 import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/lib/utils';
-import { type ColumnDef } from '@tanstack/react-table';
-import z from 'zod';
+import type { ColumnDef } from '@tanstack/react-table';
 import { WITHDRAWAL_STATUS_TYPES } from '../../../schemas/inquiry-options';
-import { type withdrawalSchema } from '../../../schemas/inquiry-schema';
+import type { WithdrawalListItem } from '../../../schemas/inquiry-schema';
 import { CellAction } from './cell-action';
 
-type Withdrawal = z.infer<typeof withdrawalSchema>;
-
-export const columns: ColumnDef<Withdrawal>[] = [
+export const columns: ColumnDef<WithdrawalListItem>[] = [
+  {
+    accessorKey: 'referenceCode',
+    header: 'Referencia',
+    cell: ({ row }) => (
+      <span className="font-mono text-xs">
+        {row.original.referenceCode || 'N/A'}
+      </span>
+    ),
+  },
   {
     accessorKey: 'withdrawalDate',
     header: 'Fecha',
-    cell: ({ row }) =>
-      new Date(row.original.withdrawalDate).toLocaleDateString('es-VE'),
+    cell: ({ row }) => {
+      const d = row.original.withdrawalDate;
+      if (!d) return <span className="text-muted-foreground">N/A</span>;
+      return new Date(d).toLocaleDateString('es-VE');
+    },
   },
   {
     accessorKey: 'description',
-    header: 'Descripción',
+    header: 'Tipo / Descripción',
+    cell: ({ row }) => (
+      <span className={row.original.description ? '' : 'text-muted-foreground italic'}>
+        {row.original.description || 'Sin descripción'}
+      </span>
+    ),
   },
   {
     accessorKey: 'amount',
     header: 'Solicitado',
-    cell: ({ row }) => formatCurrency(Number(row.original.amount), 'VES'),
+    cell: ({ row }) => (
+      <span className="font-mono">{formatCurrency(Number(row.original.amount), 'VES')}</span>
+    ),
   },
-
-  {
-    accessorKey: 'administrativeFee',
-    header: 'Gasto Administrativo',
-    cell: ({ row }) =>
-      formatCurrency(Number(row.original.administrativeFee), 'VES'),
-  },
-
   {
     accessorKey: 'disbursedAmount',
     header: 'Retirado',
-    cell: ({ row }) =>
-      formatCurrency(Number(row.original.disbursedAmount), 'VES'),
+    cell: ({ row }) => (
+      <span className="font-mono text-amber-600">
+        {formatCurrency(Number(row.original.disbursedAmount || 0), 'VES')}
+      </span>
+    ),
   },
   {
     accessorKey: 'status',
-    header: 'Estatus',
+    header: 'Estado',
     cell: ({ row }) => {
       const status = row.original.status;
       const statusText =
         WITHDRAWAL_STATUS_TYPES[
           status as keyof typeof WITHDRAWAL_STATUS_TYPES
         ] || status;
-
-      const variant:
-        | 'default'
-        | 'destructive'
-        | 'outline'
-        | 'secondary'
-        | 'success'
-        | 'warning' = (() => {
+      const variant = (() => {
         switch (status) {
           case 'REQUESTED':
             return 'default';
           case 'APPROVED':
-            return 'warning';
+            return 'outline';
           case 'REJECTED':
-            return 'destructive';
           case 'CANCELLED':
             return 'destructive';
-          case 'PENDING_DISBURSEMENT_BANK_BATCH':
-            return 'outline';
           case 'DISBURSED':
-            return 'success';
           case 'PROCESSED':
             return 'success';
+          case 'PENDING_DISBURSEMENT_BANK_BATCH':
+            return 'warning';
           default:
             return 'default';
         }
       })();
-
-      return (
-        <div className={cn('p-2 h-full w-full')}>
-          <Badge variant={variant as any}>{statusText}</Badge>
-        </div>
-      );
+      return <Badge variant={variant as any}>{statusText}</Badge>;
     },
   },
   {
     id: 'actions',
-    header: 'Acciones',
+    header: '',
     cell: ({ row }) => <CellAction data={row.original} />,
   },
 ];

@@ -7,14 +7,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@repo/shadcn/tooltip';
-import { type withdrawalSchema } from '../../../schemas/inquiry-schema';
-import { z } from 'zod';
+import type { WithdrawalListItem } from '../../../schemas/inquiry-schema';
 import { WithdrawalDetailsModal } from '../withdrawal-details-modal';
 
-type Withdrawal = z.infer<typeof withdrawalSchema>;
-
 interface CellActionProps {
-  data: Withdrawal;
+  data: WithdrawalListItem;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
@@ -22,21 +19,28 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
 
   return (
     <>
-      <WithdrawalDetailsModal withdrawalId={data.id} open={open} onOpenChange={setOpen} />
-      <div className="flex gap-1">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={() => setOpen(true)}>
-                <Eye className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Ver</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
+      <WithdrawalDetailsModal
+        withdrawalId={data.id}
+        open={open}
+        onOpenChange={setOpen}
+      />
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setOpen(true)}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Ver detalle</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </>
   );
 };

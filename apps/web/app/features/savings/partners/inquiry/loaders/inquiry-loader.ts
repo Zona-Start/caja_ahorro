@@ -1,15 +1,15 @@
-import { type QueryClient } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { inquiryService } from '../services/inquiry-service';
 
 export const inquiryAssociateLoader =
   (queryClient: QueryClient) =>
-  async ({ params }: { params: { cedula: string } }) => {
+  async ({ params }: { params: Record<string, string | undefined> }) => {
     const cedula = params.cedula;
     if (!cedula) return null;
 
     return await queryClient.ensureQueryData({
       queryKey: QUERY_KEYS.inquiry.associate(cedula),
-      queryFn: () => inquiryService.getAssociateDetails(cedula),
+      queryFn: () => inquiryService.getStatement(cedula),
     });
   };

@@ -18,22 +18,37 @@ export function LoansPaidList({
   page,
   search,
   limit,
+  bank,
+  type,
+  method,
 }: LoansPaidListProps) {
-  const { data, isLoading } = useLoansPaidQuery({
+  const params: Record<string, unknown> = {
     page,
     limit,
     ...(search && { search }),
+    ...(bank && { bank }),
+    ...(type && { type }),
+    ...(method && { method }),
+  };
+
+  const { data, isLoading } = useLoansPaidQuery(params as {
+    page: number;
+    limit: number;
+    search?: string;
+    bank?: string;
+    type?: string;
+    method?: string;
   });
 
   if (isLoading) {
-    return <DataTableSkeleton columnCount={7} rowCount={limit} />;
+    return <DataTableSkeleton columnCount={8} rowCount={limit} />;
   }
 
   return (
     <DataTable
       columns={columns}
       data={data?.data || []}
-      totalItems={data?.meta?.totalCount || 0}
+      totalItems={data?.meta?.totalItems || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

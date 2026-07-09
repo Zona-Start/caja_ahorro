@@ -14,7 +14,6 @@ import { LoanPaymentValidator } from '../domain/loan-payment.validator';
 import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
 import { LoanPaymentAudit } from '../domain/loan-payment.audit';
-import { LoanPaymentEvents } from '../domain/loan-payment.events';
 import { LOAN_PAYMENT_EVENTS } from '../events/loan-payment.events';
 
 @Injectable()
@@ -26,7 +25,6 @@ export class CancelPaymentUseCase {
     private readonly processor: LoanPaymentProcessor,
     private readonly accounting: LoanPaymentAccounting,
     private readonly audit: LoanPaymentAudit,
-    private readonly events: LoanPaymentEvents,
   ) {}
 
   async execute(paymentId: string, tenantId: string, userId: string) {
@@ -116,7 +114,6 @@ export class CancelPaymentUseCase {
       );
 
       this.audit.logPaymentCancelled(userId, paymentId, payment.customReference ?? '');
-      this.events.emitPaymentCancelled(payment.loanId!, paymentId);
 
       await this.outbox.write(tx, {
         eventId: uuidv4(),

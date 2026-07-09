@@ -6,24 +6,14 @@ interface CreditsPaidState {
   setSelectedAssociate: (associate: AssociatesCredit | null) => void;
   shouldClearSearch: boolean;
   setShouldClearSearch: (clear: boolean) => void;
-  creditSummary: {
-    totalQuota: string;
-    totalInterest: string;
-    totalPayable: string;
-    installmentAmount: string;
-    totalPaid: string;
-    outstandingBalance: string;
-  } | null;
-  setCreditSummary: (summary: CreditsPaidState['creditSummary']) => void;
   formValues: Record<string, unknown>;
   setFormValues: (values: Record<string, unknown>) => void;
   clearAllCreditData: () => void;
 }
 
 const initialState = {
-  selectedAssociate: null,
-  creditSummary: null,
-  formValues: {},
+  selectedAssociate: null as AssociatesCredit | null,
+  formValues: {} as Record<string, unknown>,
 };
 
 export const useCreditsPaidStore = create<CreditsPaidState>((set) => ({
@@ -33,16 +23,12 @@ export const useCreditsPaidStore = create<CreditsPaidState>((set) => ({
   shouldClearSearch: false,
   setShouldClearSearch: (clear) => set({ shouldClearSearch: clear }),
 
-  creditSummary: initialState.creditSummary,
-  setCreditSummary: (summary) => set({ creditSummary: summary }),
-
   formValues: initialState.formValues,
   setFormValues: (values) => set({ formValues: values }),
 
   clearAllCreditData: () =>
     set({
       selectedAssociate: initialState.selectedAssociate,
-      creditSummary: initialState.creditSummary,
       formValues: initialState.formValues,
       shouldClearSearch: true,
     }),

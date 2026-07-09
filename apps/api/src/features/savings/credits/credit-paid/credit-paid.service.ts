@@ -8,8 +8,9 @@ import {
   creditPaymentsDetails,
   credits,
   creditsTypes,
+  associateAccounts,
 } from '@/database/schema/tables/savings';
-import { bankDirectory } from '@/database/schema/tables/treasury';
+import { bankAccounts } from '@/database/schema/tables/treasury';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
@@ -26,6 +27,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
   OnModuleInit,
+  ConflictException,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
@@ -49,7 +51,7 @@ export class CreditPaidService implements OnModuleInit {
     private readonly generateCodeService: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
     private moduleRef: ModuleRef,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.bankMovementsService = this.moduleRef.get(BankMovementsService, {
@@ -223,8 +225,8 @@ export class CreditPaidService implements OnModuleInit {
         await this.generateCodeService.generateNextReference(
           'CRE-PAG',
           tenantId,
-          'credits',
-          'payments',
+          'portfolio',
+          'credit-payments',
         );
 
       const [insertedPayment] = await tx
@@ -486,20 +488,26 @@ export class CreditPaidService implements OnModuleInit {
     const data = await this.db
       .select({
         id: creditPayments.id,
+        creditId: creditPayments.creditId,
         customReference: creditPayments.customReference,
         paymentDate: creditPayments.paymentDate,
         paymentType: creditPayments.paymentType,
         paymentMethod: creditPayments.paymentMethod,
-        bankName: bankDirectory.name,
+        bankId: creditPayments.bankId,
+        bankAccountName: bankAccounts.accountName,
+        bankAccountNumber: bankAccounts.accountNumber,
         transactionReference: creditPayments.transactionReference,
         amount: creditPayments.amount,
         balancePending: creditPayments.balancePending,
+        comment: creditPayments.comment,
+        status: creditPayments.status,
+        creditCustomReference: credits.customReference,
         associateCedula: associates.cedula,
-        associatesFullname: associates.fullname,
+        associateFullname: associates.fullname,
       })
       .from(creditPayments)
       .where(searchCondition)
-      .leftJoin(bankDirectory, eq(bankDirectory.id, creditPayments.bankId))
+      .leftJoin(bankAccounts, eq(bankAccounts.id, creditPayments.bankId))
       .leftJoin(credits, eq(credits.id, creditPayments.creditId))
       .leftJoin(associates, eq(associates.id, credits.associateId))
       .orderBy(orderBy)
@@ -537,8 +545,17 @@ export class CreditPaidService implements OnModuleInit {
         phone: associates.phone,
         email: associates.email,
         status: associates.status,
+        accountNumber: associateAccounts.accountNumber,
+        balance: associateAccounts.balance,
       })
       .from(associates)
+      .leftJoin(
+        associateAccounts,
+        and(
+          eq(associateAccounts.associateId, associates.id),
+          eq(associateAccounts.status, 'ACTIVE'),
+        ),
+      )
       .where(and(...associateConditions));
 
     if (!associate.length) {
@@ -567,6 +584,8 @@ export class CreditPaidService implements OnModuleInit {
         creditType: creditsTypes.name,
         creditTotalAmount: credits.totalPayable,
         creditModality: credits.creditModality,
+        creditCustomReference: credits.customReference,
+        creditRequestedAmount: credits.requestedAmount,
       })
       .from(credits)
       .where(and(...creditConditions))
@@ -578,20 +597,20 @@ export class CreditPaidService implements OnModuleInit {
 
     const creditAmortization = result[0]?.creditId
       ? await this.db
-          .select({
-            id: creditAmortizationSchedule.id,
-            quotaNumber: creditAmortizationSchedule.installmentNumber,
-            quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
-            quotaDate: creditAmortizationSchedule.dueDate,
-            quotaStatus: creditAmortizationSchedule.paymentStatus,
-            quotaPartial: creditAmortizationSchedule.paidAmount,
-            principalBalancePending:
-              creditAmortizationSchedule.principalBalancePending,
-            paidAmount: creditAmortizationSchedule.paidAmount,
-          })
-          .from(creditAmortizationSchedule)
-          .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
-          .orderBy(sql<string>`
+        .select({
+          id: creditAmortizationSchedule.id,
+          quotaNumber: creditAmortizationSchedule.installmentNumber,
+          quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+          quotaDate: creditAmortizationSchedule.dueDate,
+          quotaStatus: creditAmortizationSchedule.paymentStatus,
+          quotaPartial: creditAmortizationSchedule.paidAmount,
+          principalBalancePending:
+            creditAmortizationSchedule.principalBalancePending,
+          paidAmount: creditAmortizationSchedule.paidAmount,
+        })
+        .from(creditAmortizationSchedule)
+        .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
+        .orderBy(sql<string>`
     CASE payment_status
       WHEN 'PARTIAL' THEN 1
       WHEN 'PENDING' THEN 2
@@ -640,10 +659,16 @@ export class CreditPaidService implements OnModuleInit {
       fullname: associate[0].fullname,
       phone: associate[0].phone,
       email: associate[0].email,
+      accountNumber: associate[0].accountNumber || null,
+      balance: associate[0].balance || null,
       creditId: result.length === 0 ? null : result[0]?.creditId,
       creditType: result.length === 0 ? null : result[0]?.creditType,
       creditTotalAmount: String(totalPendingAmount.toFixed(2)),
       creditModality: result.length === 0 ? null : result[0]?.creditModality,
+      creditCustomReference:
+        result.length === 0 ? null : result[0]?.creditCustomReference,
+      creditRequestedAmount:
+        result.length === 0 ? null : result[0]?.creditRequestedAmount,
       creditAmortization: transformCreditAmortization || null,
     };
   }
@@ -656,5 +681,197 @@ export class CreditPaidService implements OnModuleInit {
       .update(creditPayments)
       .set({ status: 'DONE' })
       .where(eq(creditPayments.id, paymentId));
+  }
+
+  async findOne(tenantId: string | null, paymentId: string) {
+    const conditions: SQL<unknown>[] = [
+      eq(creditPayments.id, paymentId),
+    ];
+    if (tenantId) {
+      conditions.push(eq(creditPayments.tenantId, tenantId));
+    }
+
+    const [payment] = await this.db
+      .select({
+        id: creditPayments.id,
+        customReference: creditPayments.customReference,
+        creditId: creditPayments.creditId,
+        paymentDate: creditPayments.paymentDate,
+        paymentType: creditPayments.paymentType,
+        paymentMethod: creditPayments.paymentMethod,
+        bankId: creditPayments.bankId,
+        bankAccountName: bankAccounts.accountName,
+        bankAccountNumber: bankAccounts.accountNumber,
+        transactionReference: creditPayments.transactionReference,
+        amount: creditPayments.amount,
+        balancePending: creditPayments.balancePending,
+        comment: creditPayments.comment,
+        status: creditPayments.status,
+        associateCedula: associates.cedula,
+        associateFullname: associates.fullname,
+        creditCustomReference: credits.customReference,
+      })
+      .from(creditPayments)
+      .where(and(...conditions))
+      .leftJoin(bankAccounts, eq(bankAccounts.id, creditPayments.bankId))
+      .leftJoin(credits, eq(credits.id, creditPayments.creditId))
+      .leftJoin(associates, eq(associates.id, credits.associateId));
+
+    if (!payment) {
+      throw new NotFoundException(
+        `Credit payment with id ${paymentId} not found`,
+      );
+    }
+
+    const details = await this.db
+      .select({
+        id: creditPaymentsDetails.id,
+        amount: creditPaymentsDetails.amount,
+        installmentNumber:
+          creditAmortizationSchedule.installmentNumber,
+        dueDate: creditAmortizationSchedule.dueDate,
+        totalInstallmentAmount:
+          creditAmortizationSchedule.totalInstallmentAmount,
+        principalAmount:
+          creditAmortizationSchedule.principalAmount,
+        interestAmount:
+          creditAmortizationSchedule.interestAmount,
+      })
+      .from(creditPaymentsDetails)
+      .leftJoin(
+        creditAmortizationSchedule,
+        eq(
+          creditAmortizationSchedule.id,
+          creditPaymentsDetails.installmentId,
+        ),
+      )
+      .where(
+        eq(creditPaymentsDetails.creditPaymentId, paymentId),
+      );
+
+    return {
+      ...payment,
+      amount: Number(payment.amount).toFixed(2),
+      details: details.map((d) => ({
+        ...d,
+        amount: Number(d.amount).toFixed(2),
+      })),
+    };
+  }
+
+  async remove(tenantId: string, userId: string, paymentId: string) {
+    const [payment] = await this.db
+      .select({
+        id: creditPayments.id,
+        status: creditPayments.status,
+        creditId: creditPayments.creditId,
+      })
+      .from(creditPayments)
+      .where(
+        and(
+          eq(creditPayments.id, paymentId),
+          eq(creditPayments.tenantId, tenantId),
+        ),
+      );
+
+    if (!payment) {
+      throw new NotFoundException(
+        `Credit payment with id ${paymentId} not found`,
+      );
+    }
+
+    if (payment.status === 'CANCELED') {
+      throw new ConflictException('Credit payment is already canceled');
+    }
+
+    await this.db.transaction(async (tx) => {
+      const details = await tx
+        .select({
+          id: creditPaymentsDetails.id,
+          installmentId: creditPaymentsDetails.installmentId,
+          amount: creditPaymentsDetails.amount,
+        })
+        .from(creditPaymentsDetails)
+        .where(
+          eq(
+            creditPaymentsDetails.creditPaymentId,
+            paymentId,
+          ),
+        );
+
+      for (const detail of details) {
+        const [installment] = await tx
+          .select({
+            totalAmount: creditAmortizationSchedule.totalInstallmentAmount,
+            paidAmount: creditAmortizationSchedule.paidAmount,
+          })
+          .from(creditAmortizationSchedule)
+          .where(
+            eq(creditAmortizationSchedule.id, detail.installmentId!),
+          );
+
+        if (installment) {
+          const currentPaid = Number(installment.paidAmount || 0);
+          const detailAmount = Number(detail.amount);
+          const newPaidAmount = Math.max(0, currentPaid - detailAmount);
+          const totalAmount = Number(installment.totalAmount || 0);
+
+          let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' = 'PENDING';
+          if (newPaidAmount <= 0) {
+            newStatus = 'PENDING';
+          } else if (newPaidAmount >= totalAmount) {
+            newStatus = 'PAID';
+          } else {
+            newStatus = 'PARTIAL';
+          }
+
+          await tx
+            .update(creditAmortizationSchedule)
+            .set({
+              paymentStatus: newStatus,
+              paidAmount: String(newPaidAmount.toFixed(6)),
+              updatedById: userId,
+            })
+            .where(
+              eq(creditAmortizationSchedule.id, detail.installmentId!),
+            );
+        }
+      }
+
+      await tx
+        .update(creditPayments)
+        .set({
+          status: 'CANCELED',
+          updatedById: userId,
+        })
+        .where(eq(creditPayments.id, paymentId));
+
+      const newBalancePending =
+        await this._calculateBalancePending(payment.creditId);
+      const newCreditStatus =
+        newBalancePending <= 0 ? 'PAID' : 'IN_PAYMENT';
+
+      await tx
+        .update(credits)
+        .set({
+          status: newCreditStatus as CreditStatusEnum,
+          balanceInFavor: '0',
+          updatedById: userId,
+        })
+        .where(eq(credits.id, payment.creditId));
+
+      await this.auditHelper.logCreate(
+        userId,
+        'credit_payment',
+        { id: paymentId, action: 'canceled' },
+        {
+          tenantId,
+          targetId: paymentId,
+          description: `Cancelación de Pago de Crédito N°${paymentId}`,
+        },
+      );
+    });
+
+    return { message: 'Credit payment canceled successfully' };
   }
 }

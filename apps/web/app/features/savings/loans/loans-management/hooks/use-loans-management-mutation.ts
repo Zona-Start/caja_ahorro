@@ -4,8 +4,8 @@ import {
   UseMutationResult,
   useQueryClient,
 } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
 import { loansManagementService } from '../services/loans-management-service';
+import { loansManagementKeys } from '../keys/loans-management-keys';
 
 export function useCreateLoansManagementMutation(): UseMutationResult<
   unknown,
@@ -17,11 +17,11 @@ export function useCreateLoansManagementMutation(): UseMutationResult<
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (loansManagement: unknown) =>
-      loansManagementService.createLoansManagement(loansManagement),
+    mutationFn: (payload: unknown) =>
+      loansManagementService.createLoansManagement(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.loansManagement.all(),
+        queryKey: loansManagementKeys.lists(),
       });
       toast.success('Préstamo creado exitosamente');
     },
@@ -34,17 +34,18 @@ export function useCreateLoansManagementMutation(): UseMutationResult<
 export function useApproveLoansManagementMutation(): UseMutationResult<
   unknown,
   Error,
-  number,
+  string,
   unknown
 > {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => loansManagementService.approveLoansManagement(id),
+    mutationFn: (id: string) =>
+      loansManagementService.approveLoansManagement(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.loansManagement.all(),
+        queryKey: loansManagementKeys.lists(),
       });
       toast.success('Préstamo aprobado exitosamente');
     },
@@ -57,22 +58,47 @@ export function useApproveLoansManagementMutation(): UseMutationResult<
 export function useDeleteLoansManagementMutation(): UseMutationResult<
   unknown,
   Error,
-  number,
+  string,
   unknown
 > {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => loansManagementService.deleteLoansManagement(id),
+    mutationFn: (id: string) =>
+      loansManagementService.deleteLoansManagement(id),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.loansManagement.all(),
+        queryKey: loansManagementKeys.lists(),
       });
       toast.success('Préstamo eliminado exitosamente');
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al eliminar el préstamo');
+    },
+  });
+}
+
+export function useDisburseIndividualLoan(): UseMutationResult<
+  unknown,
+  Error,
+  { loanId: string; bankAccountId: string; currencyCode: string; paymentMethod: string; disbursementDate: Date; bankReference?: string; description?: string },
+  unknown
+> {
+  const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
+  return useMutation({
+    mutationFn: (payload: any) =>
+      loansManagementService.disburseLoan(payload.loanId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: loansManagementKeys.lists(),
+      });
+      toast.success('Préstamo desembolsado exitosamente');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al desembolsar el préstamo');
     },
   });
 }

@@ -11,19 +11,24 @@ import {
   creditStatusHistory,
   creditsTypes,
   loans,
+  withdrawalTypes,
 } from '@/database/schema/tables/savings';
 import { exchangeRates, moduleSettings } from '@/database/schema/tables/core';
 import { suppliers } from '@/database/schema/tables/purchasing';
-import { products } from '@/database/schema/tables/inventory';
+import { products, productPrices } from '@/database/schema/tables/inventory';
 import { associateHaberesBalance } from '@/database/schema/views';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { WithdrawalAssociateService } from '@/features/savings/withdrawalls/withdrawal-associate/withdrawal-associate.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import {
   AssociateMovementTypeEnum,
+  BankTransactionCategory,
   creditModalityTypeEnum,
   CreditStatusEnum,
   CurrencyCodeEnum,
   LoanStatusEnum,
+  paymentMethodEnum,
   PaymentStatusEnum,
 } from '@/types/enum';
 import {
@@ -51,6 +56,8 @@ export class CreditManagementService {
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly inventoryMovementsService: InventoryMovementsService,
+    private readonly withdrawalAssociateService: WithdrawalAssociateService,
+    private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
   ) { }
 
@@ -704,6 +711,7 @@ export class CreditManagementService {
             tenantId,
             creditId: ins.id,
             itemId: item.itemId ?? null,
+            itemDescription: item.itemDescription ?? null,
             agreedSellingPrice: String(item.agreedSellingPrice),
             quantity: Number(item.quantity),
             itemType: item.itemType as 'PRODUCT' | 'SERVICE' | 'EXTERNAL',
@@ -858,15 +866,15 @@ export class CreditManagementService {
         const schedule =
           amortizableAmount > 0
             ? this.generateAmortizationSchedule(
-                amortizableAmount,
-                finalTermUnits,
-                finalRate,
-                startDate ? new Date(startDate) : new Date(),
-                id,
-                userId,
-                finalTermType,
-                expensesAmount,
-              )
+              amortizableAmount,
+              finalTermUnits,
+              finalRate,
+              startDate ? new Date(startDate) : new Date(),
+              id,
+              userId,
+              finalTermType,
+              expensesAmount,
+            )
             : [];
 
         if (schedule.length > 0) {
@@ -889,15 +897,31 @@ export class CreditManagementService {
       // Procesar items de inventario (productos)
       for (const item of creditSale) {
         if (item.itemType === 'PRODUCT' && item.itemId) {
+          const [productPrice] = await this.db
+            .select({ totalCost: productPrices.totalCost })
+            .from(productPrices)
+            .where(
+              and(
+                eq(productPrices.productId, item.itemId),
+                eq(productPrices.isActive, true),
+                eq(productPrices.priceType, 'SELLING'),
+              ),
+            )
+            .limit(1);
+
+          const unitCost = Number(productPrice?.totalCost ?? item.agreedSellingPrice ?? 0);
+
           await this.inventoryMovementsService.create(
             {
               movementType: 'STOCK_DELIVERY',
               description: `Salida de producto por crédito asociado N° ${customReference}`,
+              associateId: credit.associateId,
+              creditId: id,
               items: [
                 {
                   productId: String(item.itemId),
                   quantity: item.quantity,
-                  unitCost: Number(item.agreedSellingPrice),
+                  unitCost,
                 },
               ],
             },
@@ -905,6 +929,67 @@ export class CreditManagementService {
             userId,
           );
         }
+      }
+
+      // ─── Haberes Payment: crear y aprobar retiro ───
+      const haberesAmt = Number(haberesPayment ?? 0);
+      // if (haberesAmt > 0 && assoc?.associateAccountId) {
+      //   const withdrawalTypeForCredit = await this.db.query.withdrawalTypes.findFirst({
+      //     where: and(
+      //       eq(withdrawalTypes.tenantId, tenantId),
+      //       eq(withdrawalTypes.withdrawalPercentage, '80'),
+      //       eq(withdrawalTypes.isHouseComercial, false),
+      //       eq(withdrawalTypes.isInternalInventory, false),
+      //     ),
+      //   });
+
+      //   if (withdrawalTypeForCredit) {
+      //     await this.withdrawalAssociateService.execute(tenantId, userId, {
+      //       associateAccountId: assoc.associateAccountId,
+      //       withdrawalTypeId: withdrawalTypeForCredit.id,
+      //       requestedAmount: haberesAmt,
+      //       paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+      //       date: new Date(),
+      //       description: `Retiro haberes por Crédito N°${customReference}`,
+      //       commercialHouseId: null,
+      //     });
+      //   }
+      // }
+
+      // ─── Direct Payment: crear movimiento bancario ───
+      const directAmt = Number(directPayment ?? 0);
+      if (directAmt > 0 && directPaymentBankAccountId) {
+        const methodMap: Record<string, paymentMethodEnum> = {
+          transfer: paymentMethodEnum.BANK_TRANSFER,
+          deposit: paymentMethodEnum.DEPOSIT,
+          pago_movil: paymentMethodEnum.MOBILE_PAYMENT,
+          check: paymentMethodEnum.CHECK,
+          cash: paymentMethodEnum.CASH,
+        };
+        const paymentMethod = methodMap[directPaymentMethod as string] ?? paymentMethodEnum.BANK_TRANSFER;
+
+        await this.bankMovementsService.createAndReconcile(
+          {
+            movement: {
+              bankAccountId: directPaymentBankAccountId,
+              transactionDate: new Date(),
+              paymentMethod,
+              description: `Pago directo inicial Crédito N°${customReference}`,
+              bankReference: directPaymentReference ?? undefined,
+              category: 'CREDIT_DISBURSEMENT' as BankTransactionCategory,
+              creditAmount: directAmt,
+              debitAmount: 0,
+            },
+            links: [
+              {
+                internalRecordType: 'CREDIT_DISBURSEMENT',
+                internalRecordId: id,
+              },
+            ],
+          },
+          userId,
+          tenantId,
+        );
       }
 
       // Movimiento de cuenta del asociado
@@ -926,7 +1011,7 @@ export class CreditManagementService {
               amount: haberesAmt,
               currencyCode: currencyCode as CurrencyCodeEnum,
               transactionDate: new Date(),
-              description: `Retiro haberes por Crédito N°${customReference}`,
+              description: `Abono desde haberes para Crédito N°${customReference}`,
               referenceId: String(id),
               referenceType: 'credits',
             },
@@ -1613,6 +1698,7 @@ export class CreditManagementService {
         creditId: creditItemSales.creditId,
         itemType: creditItemSales.itemType,
         itemId: creditItemSales.itemId,
+        itemDescription: creditItemSales.itemDescription,
         quantity: creditItemSales.quantity,
         agreedSellingPrice: creditItemSales.agreedSellingPrice,
         saleDate: creditItemSales.saleDate,

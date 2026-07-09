@@ -1,14 +1,10 @@
-'use client';
-
-import { Heading } from '@repo/shadcn/heading';
-
 export function LoansPaidHeader() {
   return (
-    <div className="flex items-start justify-between">
-      <Heading
-        title="Pagos de Préstamos"
-        description="Gestión y registro de pagos de préstamos de los asociados"
-      />
+    <div className="flex flex-col gap-1">
+      <h1 className="text-2xl font-bold tracking-tight">Pagos de Préstamos</h1>
+      <p className="text-muted-foreground text-sm">
+        Gestione los pagos realizados a los préstamos de los asociados.
+      </p>
     </div>
   );
 }

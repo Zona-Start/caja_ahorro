@@ -24,6 +24,15 @@ export const LOAN_MODALITY = {
 
 export const lOAN_MODALITY = LOAN_MODALITY;
 
+export const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  PLAZO: 'Plazos (Quincenal)',
+  PLAZOS: 'Plazos (Quincenal)',
+  CUOTAS: 'Cuotas (Mensual)',
+  CUOTA: 'Cuotas (Mensual)',
+  installments: 'Plazos (Quincenal)',
+  quotas: 'Cuotas (Mensual)',
+};
+
 export type EstatusType = keyof typeof ESTATUS_TYPES;
 export type PaymentMethod = keyof typeof PAYMENT_METHOD;
 export type LoanModality = keyof typeof LOAN_MODALITY;

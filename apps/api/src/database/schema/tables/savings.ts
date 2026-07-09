@@ -39,7 +39,7 @@ import { users } from './auth';
 import { categories, exchangeRates, states } from './core';
 import { suppliers } from './purchasing';
 import { tenants } from './tenants';
-import { bankDirectory, bankTransactions } from './treasury';
+import { bankAccounts, bankDirectory, bankTransactions } from './treasury';
 
 // Tabla de los asociados. Almacena la información de los asociados de la caja de ahorro.
 export const associates = savingsSchema.table(
@@ -569,7 +569,7 @@ export const loanPayments = savingsSchema.table(
       precision: 18,
       scale: 2,
     }).notNull(), //saldo pendiente luego del pago
-    bankId: uuid('bank_id').references(() => bankDirectory.id), // Banco que procesó el pago
+    bankId: uuid('bank_id').references(() => bankAccounts.id), // Cuenta bancaria que procesó el pago
     paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
     transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
     status: paymentStatus('payment_status').default('DONE').notNull(),
@@ -852,7 +852,7 @@ export const creditPayments = savingsSchema.table(
       precision: 20,
       scale: 6,
     }).notNull(), //saldo pendiente luego del pago
-    bankId: uuid('bank_id').references(() => bankDirectory.id), // Banco que procesó el pago
+    bankId: uuid('bank_id').references(() => bankAccounts.id), // Cuenta bancaria que procesó el pago
     paymentMethod: paymentMethodEnum('payment_method').notNull(), // Ej: 'transferencia', 'depósito', 'efectivo'
     transactionReference: text('transaction_reference'), // Número de comprobante, referencia bancaria, etc.
     comment: text('comment'),
@@ -961,6 +961,7 @@ export const creditItemSales = savingsSchema.table(
       enum: ['PRODUCT', 'SERVICE', 'EXTERNAL'],
     }).notNull(),
     itemId: uuid('item_id'), // id en products o services
+    itemDescription: varchar('item_description', { length: 255 }),
 
     quantity: integer('quantity').notNull().default(1),
     agreedSellingPrice: numeric('agreed_selling_price', {

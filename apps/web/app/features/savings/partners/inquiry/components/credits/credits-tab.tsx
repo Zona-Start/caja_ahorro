@@ -5,7 +5,7 @@ import { useCreditsQuery } from '../../hooks/use-inquiry-query';
 import { columns } from './credits-tables/columns';
 
 interface CreditsTabProps {
-  id: number;
+  id: string;
   page: number;
   setPage: (page: number) => void;
   limit: number;
@@ -14,17 +14,17 @@ interface CreditsTabProps {
 export function CreditsTab({ id, page, setPage, limit }: CreditsTabProps) {
   const {
     data: creditsData,
-    isLoading: creditsLoading,
-    isError: creditsIsError,
+    isLoading,
+    isError,
   } = useCreditsQuery(id, { page, limit });
 
-  if (creditsLoading) return <DataTableSkeleton columnCount={6} />;
+  if (isLoading) return <DataTableSkeleton columnCount={7} />;
 
-  if (creditsIsError)
+  if (isError)
     return (
       <Card>
-        <CardContent className="space-y-2 py-6">
-          <p className="text-center text-destructive">Error al cargar los créditos.</p>
+        <CardContent className="py-8 text-center text-destructive">
+          Error al cargar los créditos.
         </CardContent>
       </Card>
     );
@@ -34,7 +34,7 @@ export function CreditsTab({ id, page, setPage, limit }: CreditsTabProps) {
       columns={columns}
       data={creditsData?.data || []}
       totalItems={creditsData?.meta?.totalCount || 0}
-      pageSizeOptions={[10, 20, 30, 40, 50]}
+      pageSizeOptions={[10, 20, 30, 50]}
     />
   );
 }

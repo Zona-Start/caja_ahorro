@@ -1,64 +1,52 @@
 import { useSearchParams } from 'react-router';
+import { z } from 'zod';
+
+export const loansPaidFilterSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(10),
+  search: z.string().optional(),
+  bank: z.string().optional(),
+  type: z.string().optional(),
+  method: z.string().optional(),
+  sortBy: z.string().optional().default('id'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+});
+
+export type LoansPaidFilters = z.infer<typeof loansPaidFilterSchema>;
 
 export function useLoansPaidFilters() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const page = Number(searchParams.get('page')) || 1;
-  const limit = Number(searchParams.get('limit')) || 10;
-  const search = searchParams.get('search');
-  const bank = searchParams.get('bank');
-  const type = searchParams.get('type');
-  const method = searchParams.get('method');
+  const filters = loansPaidFilterSchema.parse(
+    Object.fromEntries(searchParams.entries()),
+  );
 
-  const setFilters = (newFilters: {
-    page?: number;
-    limit?: number;
-    search?: string | null;
-    bank?: string | null;
-    type?: string | null;
-    method?: string | null;
-  }) => {
-    setSearchParams((prev) => {
-      if (newFilters.page !== undefined) prev.set('page', newFilters.page.toString());
-      if (newFilters.limit !== undefined) prev.set('limit', newFilters.limit.toString());
-      if (newFilters.search !== undefined) {
-        if (newFilters.search === null || newFilters.search === '') {
-          prev.delete('search');
-        } else {
-          prev.set('search', newFilters.search);
-        }
-        prev.set('page', '1');
+  const setFilters = (newFilters: Partial<LoansPaidFilters>) => {
+    const params = new URLSearchParams(searchParams);
+
+    Object.entries(newFilters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.set(key, String(value));
+      } else {
+        params.delete(key);
       }
-      if (newFilters.bank !== undefined) {
-        if (newFilters.bank === null || newFilters.bank === '') {
-          prev.delete('bank');
-        } else {
-          prev.set('bank', newFilters.bank);
-        }
-        prev.set('page', '1');
-      }
-      if (newFilters.type !== undefined) {
-        if (newFilters.type === null || newFilters.type === '') {
-          prev.delete('type');
-        } else {
-          prev.set('type', newFilters.type);
-        }
-        prev.set('page', '1');
-      }
-      if (newFilters.method !== undefined) {
-        if (newFilters.method === null || newFilters.method === '') {
-          prev.delete('method');
-        } else {
-          prev.set('method', newFilters.method);
-        }
-        prev.set('page', '1');
-      }
-      return prev;
     });
+
+    if (!('page' in newFilters)) {
+      params.set('page', '1');
+    }
+
+    setSearchParams(params, { preventScrollReset: true });
   };
 
-  return {
-    filters: { page, limit, search, bank, type, method },
-    setFilters,
+  const clearFilters = () => {
+    const params = new URLSearchParams();
+    params.set('page', '1');
+    params.set('limit', String(filters.limit || 10));
+    params.set('sortBy', 'id');
+    params.set('sortOrder', 'desc');
+    setSearchParams(params, { preventScrollReset: true });
   };
+
+  return { filters, setFilters, clearFilters };
 }

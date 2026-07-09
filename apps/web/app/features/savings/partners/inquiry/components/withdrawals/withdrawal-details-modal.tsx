@@ -1,7 +1,7 @@
 import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
-import { Label } from '@repo/shadcn/label';
+import { Separator } from '@repo/shadcn/separator';
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,18 @@ import {
   WITHDRAWAL_SATUS,
 } from '../../schemas/inquiry-options';
 
+interface WithdrawalItem {
+  itemType?: string;
+  itemId?: number | string | null;
+  itemName?: string | null;
+  itemDescription?: string | null;
+  quantity?: number;
+  agreedSellingPrice?: number | string;
+  days?: number;
+}
+
 interface WithdrawalDetailsModalProps {
-  withdrawalId: number | null;
+  withdrawalId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -35,179 +45,240 @@ export function WithdrawalDetailsModal({
   open,
   onOpenChange,
 }: WithdrawalDetailsModalProps) {
-  const { data, isLoading, isError } = useWithdrawalDetailsQuery(withdrawalId as number);
+  const { data, isLoading, isError } = useWithdrawalDetailsQuery(withdrawalId);
 
   const statusVariant = (status: keyof typeof WITHDRAWAL_SATUS) => {
     switch (status) {
       case 'REQUESTED':
-        return 'default';
+        return 'default' as const;
       case 'APPROVED':
-        return 'warning';
+        return 'outline' as const;
       case 'REJECTED':
-        return 'destructive';
       case 'CANCELLED':
-        return 'destructive';
+        return 'destructive' as const;
       case 'PENDING_DISBURSEMENT_BANK_BATCH':
-        return 'outline';
+        return 'warning' as const;
       case 'DISBURSED':
-        return 'success';
+        return 'success' as const;
       default:
-        return 'default';
+        return 'default' as const;
     }
   };
 
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return 'N/A';
+    return new Date(d).toLocaleDateString('es-VE');
+  };
+
+  const items: WithdrawalItem[] = (() => {
+    if (!data?.withdrawal?.withdrawalItems) return [];
+    const raw = data.withdrawal.withdrawalItems;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  })();
+
+  const hasItems = items.length > 0;
+  const isCasaComercial = data?.withdrawal?.isHouseComercial;
+  const isInventario = data?.withdrawal?.isInternalInventory;
+  const itemsLabel = isCasaComercial
+    ? 'Artículos (Casa Comercial)'
+    : isInventario
+      ? 'Productos (Inventario)'
+      : 'Ítems del Retiro';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1000px]">
-        <DialogHeader className="px-6 pt-4">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
           <DialogTitle>Detalles del Retiro</DialogTitle>
-          <DialogDescription>Información referente al retiro</DialogDescription>
+          <DialogDescription>
+            Información detallada del retiro solicitado.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 pb-4">
-          {isLoading && <DataTableSkeleton columnCount={5} />}
-          {isError && <p className="text-destructive">Error al cargar los detalles del retiro.</p>}
+        {isLoading && <DataTableSkeleton columnCount={4} />}
 
-          {data && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Referencia
-                  </Label>
-                  <p className="text-md font-semibold">
-                    {data.withdrawal.referenceCode}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Tipo
-                  </Label>
-                  <div className="mt-1">
-                    {data.withdrawal.withdrawalTypeName}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Fecha de Solicitud
-                  </Label>
-                  <p>
-                    {new Date(
-                      data.withdrawal.withdrawalDate,
-                    ).toLocaleDateString('es-VE')}
-                  </p>
-                </div>
+        {isError && (
+          <div className="py-6 text-center text-destructive">
+            Error al cargar los detalles del retiro.
+          </div>
+        )}
 
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Estado
-                  </Label>
-                  <div className="mt-1">
-                    <Badge
-                      variant={statusVariant(
-                        data.withdrawal.status as keyof typeof WITHDRAWAL_SATUS,
-                      ) as any}
-                    >
-                      {WITHDRAWAL_SATUS[
-                        data.withdrawal.status as keyof typeof WITHDRAWAL_SATUS
-                      ] ?? data.withdrawal.status}
-                    </Badge>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Método de Pago
-                  </Label>
-                  <div className="mt-1">
-                    {PAYMENT_METHOD_TYPES[
-                      data.withdrawal
-                        .paymentMethod as keyof typeof PAYMENT_METHOD_TYPES
-                    ] ?? 'N/A'}
-                  </div>
-                </div>
+        {data && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Referencia
+                </p>
+                <p className="font-mono font-semibold">
+                  {data.withdrawal.referenceCode || 'N/A'}
+                </p>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Monto Solicitado:
-                  </Label>
-                  <p className="text-lg">
-                    {formatCurrency(
-                      Number(data.withdrawal.requestedAmount),
-                      'VES',
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Gasto Administrativo:
-                  </Label>
-                  <p className="text-lg">
-                    {formatCurrency(
-                      Number(data.withdrawal.administrativeFee),
-                      'VES',
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Monto Retirado:
-                  </Label>
-                  <p className="text-lg">
-                    {formatCurrency(
-                      Number(data.withdrawal.disbursedAmount),
-                      'VES',
-                    )}
-                  </p>
-                </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Tipo
+                </p>
+                <p>{data.withdrawal.withdrawalTypeName || 'N/A'}</p>
               </div>
-
-              {data.items.length > 0 && (
-                <div className="border rounded-md">
-                  <h3 className="font-semibold p-3 bg-muted">
-                    Items del Retiro
-                  </h3>
-                  <div className="overflow-auto max-h-[35vh]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Item</TableHead>
-                          <TableHead>Cantidad</TableHead>
-                          <TableHead>Precio Acordado</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {data.items.map((item, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{item.itemName}</TableCell>
-                            <TableCell>{item.quantity}</TableCell>
-                            <TableCell>
-                              {formatCurrency(
-                                Number(item.agreedSellingPrice),
-                                'VES',
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Fecha Solicitud
+                </p>
+                <p>{formatDate(data.withdrawal.withdrawalDate)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Estado
+                </p>
+                <Badge
+                  variant={
+                    statusVariant(
+                      data.withdrawal.status as keyof typeof WITHDRAWAL_SATUS,
+                    ) as any
+                  }
+                >
+                  {WITHDRAWAL_SATUS[
+                    data.withdrawal.status as keyof typeof WITHDRAWAL_SATUS
+                  ] ?? data.withdrawal.status}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Método de Pago
+                </p>
+                <p>
+                  {data.withdrawal.paymentMethod
+                    ? PAYMENT_METHOD_TYPES[
+                    data.withdrawal
+                      .paymentMethod as keyof typeof PAYMENT_METHOD_TYPES
+                    ] ?? data.withdrawal.paymentMethod
+                    : 'N/A'}
+                </p>
+              </div>
+              {isCasaComercial && (
+                <div>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Modalidad
+                  </p>
+                  <Badge variant="outline">Retiro por Casa Comercial</Badge>
+                </div>
+              )}
+              {isInventario && (
+                <div>
+                  <p className="text-xs font-medium uppercase text-muted-foreground">
+                    Modalidad
+                  </p>
+                  <Badge variant="secondary">Retiro por Inventario Interno</Badge>
                 </div>
               )}
             </div>
-          )}
-        </div>
-        <div className="sticky bottom-0 w-full bg-background py-2 px-6 mt-auto">
-          <div className="flex justify-end gap-4">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => onOpenChange(false)}
-            >
-              Cerrar
-            </Button>
+
+            <Separator />
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Monto Solicitado</p>
+                <p className="text-lg font-bold font-mono">
+                  {formatCurrency(
+                    Number(data.withdrawal.requestedAmount),
+                    'VES',
+                  )}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Gasto Admin.</p>
+                <p className="text-lg font-bold font-mono text-amber-600">
+                  {formatCurrency(
+                    Number(data.withdrawal.administrativeFee || 0),
+                    'VES',
+                  )}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Monto Retirado</p>
+                <p className="text-lg font-bold font-mono text-emerald-600">
+                  {formatCurrency(
+                    Number(data.withdrawal.disbursedAmount || 0),
+                    'VES',
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {hasItems && (
+              <div className="rounded-lg border">
+                <div className="bg-muted px-4 py-2 font-semibold text-sm">
+                  {itemsLabel}
+                </div>
+                <div className="overflow-auto max-h-[300px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item / Producto</TableHead>
+                        {!isInventario && <TableHead className="w-20 text-center">Cant.</TableHead>}
+                        <TableHead className="text-right">Precio</TableHead>
+                        {isInventario && <TableHead className="w-20 text-center">Cant.</TableHead>}
+                        <TableHead className="text-right">Subtotal</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item, idx) => {
+                        const qty = Number(item.quantity || 1);
+                        const price = Number(item.agreedSellingPrice || 0);
+                        const subtotal = qty * price;
+                        const displayName = isCasaComercial
+                          ? item.itemDescription || item.itemName || `Ítem #${idx + 1}`
+                          : item.itemName || item.itemDescription || `Ítem #${idx + 1}`;
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              <p className="font-medium">{displayName}</p>
+                              {isCasaComercial && item.itemDescription && item.itemName && (
+                                <p className="text-xs text-muted-foreground">
+                                  {item.itemName}
+                                </p>
+                              )}
+                              {!isCasaComercial && !isInventario && item.itemType && (
+                                <p className="text-xs text-muted-foreground">
+                                  {item.itemType}
+                                </p>
+                              )}
+                            </TableCell>
+                            {!isInventario && (
+                              <TableCell className="text-center">{qty}</TableCell>
+                            )}
+                            <TableCell className="text-right font-mono text-xs">
+                              {formatCurrency(price, 'VES')}
+                            </TableCell>
+                            {isInventario && (
+                              <TableCell className="text-center">{qty}</TableCell>
+                            )}
+                            <TableCell className="text-right font-mono text-xs font-semibold">
+                              {formatCurrency(subtotal, 'VES')}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
           </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cerrar
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

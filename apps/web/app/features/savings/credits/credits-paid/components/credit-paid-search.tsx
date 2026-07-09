@@ -66,7 +66,7 @@ export function CreditPaidSearch({
           });
         }
       } else if (data) {
-        onSelectAssociate(data as AssociatesCredit);
+        onSelectAssociate(data);
       } else if (submittedSearchTerm && !data) {
         onSelectAssociate(null);
         toast.info({
@@ -181,14 +181,14 @@ export function CreditPaidSearch({
               <div className="flex justify-between items-start">
                 <div className="flex flex-col items-start">
                   <h3 className="font-medium text-lg">
-                    {selectedAssociate.associate.fullname}
+                    {selectedAssociate.fullname}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {selectedAssociate.associate.cedula}
+                    {selectedAssociate.cedula}
                   </p>
-                  <div className="mt-2">
-                    Cuenta: {selectedAssociate.associate.accountNumber}
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAssociate.phone || 'Sin teléfono'}
+                  </p>
                 </div>
                 <Button
                   variant="ghost"
@@ -201,32 +201,32 @@ export function CreditPaidSearch({
               </div>
 
               <Separator className="my-3" />
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium">Saldo Actual:</span>
-                <span className="font-bold text-lg text-green-600">
-                  ${Number(selectedAssociate.associate.balance).toLocaleString('es-VE')}
-                </span>
-              </div>
-              <Separator className="my-3" />
+
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Crédito:</span>
-                  <span>{selectedAssociate.creditCustomReference || `#${selectedAssociate.creditId}`}</span>
+                  <span>
+                    {selectedAssociate.creditId || 'Sin crédito activo'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tipo:</span>
+                  <span>{selectedAssociate.creditType || '-'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Modalidad:</span>
+                  <span>{selectedAssociate.creditModality || '-'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Saldo Pendiente:</span>
                   <span className="font-medium text-orange-600">
-                    ${Number(selectedAssociate.outstandingBalance).toLocaleString('es-VE')}
+                    {Number(selectedAssociate.creditTotalAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
                   </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cuotas Pagadas:</span>
-                  <span>{selectedAssociate.installmentsPaid} / {selectedAssociate.installmentsCount}</span>
                 </div>
               </div>
               <div className="flex items-center justify-center mt-4">
-                <Badge variant="outline">
-                  {selectedAssociate.status}
+                <Badge variant={selectedAssociate.creditId ? 'default' : 'outline'}>
+                  {selectedAssociate.creditId ? 'Crédito Activo' : 'Sin Crédito'}
                 </Badge>
               </div>
             </div>

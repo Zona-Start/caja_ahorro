@@ -1,7 +1,7 @@
 import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
 import { Button } from '@repo/shadcn/button';
-import { Label } from '@repo/shadcn/label';
+import { Separator } from '@repo/shadcn/separator';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ import {
 } from '../../schemas/inquiry-options';
 
 interface LoanDetailsModalProps {
-  loanId: number | null;
+  loanId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -35,186 +35,241 @@ export function LoanDetailsModal({
   open,
   onOpenChange,
 }: LoanDetailsModalProps) {
-  const { data, isLoading, isError } = useLoanDetailsQuery(loanId as number);
+  const { data, isLoading, isError } = useLoanDetailsQuery(loanId);
 
   const status = data?.loan.status;
   const statusText =
     LOAN_STATUS_TYPES[status as keyof typeof LOAN_STATUS_TYPES] || status;
 
-  const variant:
-    | 'default'
-    | 'destructive'
-    | 'outline'
-    | 'secondary'
-    | 'success'
-    | 'warning' = (() => {
+  const variant = (() => {
     switch (status) {
       case 'REQUESTED':
-        return 'default';
+        return 'default' as const;
       case 'APPROVED':
-        return 'secondary';
+        return 'outline' as const;
       case 'DISBURSED':
-        return 'warning';
+        return 'warning' as const;
       case 'IN_PAYMENT':
-        return 'outline';
+        return 'secondary' as const;
       case 'PAID':
-        return 'success';
+        return 'success' as const;
       case 'CANCELLED':
-        return 'destructive';
+      case 'REJECTED':
+        return 'destructive' as const;
       default:
-        return 'default';
+        return 'default' as const;
     }
   })();
 
-  const paymentVariant = (status: keyof typeof PAYMENT_LOAN_STATUS) => {
-    switch (status) {
+  const paymentVariant = (ps: keyof typeof PAYMENT_LOAN_STATUS) => {
+    switch (ps) {
       case 'PAID':
-        return 'success';
+        return 'success' as const;
       case 'PARTIAL':
-        return 'warning';
+        return 'warning' as const;
       case 'OVERDUE':
-        return 'destructive';
-      case 'PENDING':
+        return 'destructive' as const;
       default:
-        return 'default';
+        return 'default' as const;
     }
   };
 
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return 'N/A';
+    return new Date(d).toLocaleDateString('es-VE');
+  };
+
+  const termLabel = data?.loan?.termType === 'INSTALLMENTS' ? 'Cuotas' : 'Plazo';
+  const plazoDisplay =
+    data?.loan.termUnits != null && data?.loan.termType
+      ? `${data.loan.termUnits}`
+      : 'N/A';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1000px]">
-        <DialogHeader className="px-6 pt-4">
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
           <DialogTitle>Detalles del Préstamo</DialogTitle>
           <DialogDescription>
-            Información referente al prestamo
+            Información completa del préstamo y su plan de amortización.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 pb-4">
-          {isLoading && <DataTableSkeleton columnCount={5} />}
-          {isError && <p className="text-destructive">Error al cargar los detalles del préstamo.</p>}
+        {isLoading && <DataTableSkeleton columnCount={5} />}
 
-          {data && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Referencia
-                  </Label>
-                  <p className="text-md font-semibold">
-                    {data.loan.customReference}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Tipo
-                  </Label>
-                  <div className="mt-1">{data.loan.loanTypeName}</div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Fecha de Solicitud
-                  </Label>
-                  <p>
-                    {new Date(data.loan.requestDate).toLocaleDateString(
-                      'es-VE',
-                    )}
-                  </p>
-                </div>
+        {isError && (
+          <div className="py-6 text-center text-destructive">
+            Error al cargar los detalles del préstamo.
+          </div>
+        )}
 
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Estado
-                  </Label>
-                  <div className="mt-1">
-                    <Badge variant={variant as any}>{statusText}</Badge>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Cuotas Pendientes
-                  </Label>
-                  <div className="mt-1">{data.summary.pendingInstallments}</div>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Cuotas Pagadas
-                  </Label>
-                  <div className="mt-1">{data.summary.paidInstallments}</div>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Monto Solicitado:
-                  </Label>
-                  <p className="text-lg">
-                    {formatCurrency(Number(data.loan.requestedAmount), 'VES')}
-                  </p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Monto a Pagar
-                  </Label>
-                  <p>{formatCurrency(Number(data.loan.totalPayable), 'VES')}</p>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">
-                    Total Pagado
-                  </Label>
-                  <p> {formatCurrency(data.summary.totalPaid, 'VES')}</p>
-                </div>
+        {data && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Referencia
+                </p>
+                <p className="font-mono font-semibold">
+                  {data.loan.customReference || 'N/A'}
+                </p>
               </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Tipo
+                </p>
+                <p>{data.loan.loanTypeName}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Estado
+                </p>
+                <Badge variant={variant as any}>{statusText}</Badge>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Fecha Solicitud
+                </p>
+                <p>{formatDate(data.loan.requestDate)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Tasa Anual
+                </p>
+                <p className="font-semibold">
+                  {data.loan.interestRate ? `${data.loan.interestRate}%` : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  {termLabel}
+                </p>
+                <p>{plazoDisplay}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  F. Inicio
+                </p>
+                <p>{formatDate(data.loan.startDate)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  F. Fin
+                </p>
+                <p>{formatDate(data.loan.endDate)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Cuotas Pendientes
+                </p>
+                <p className="font-bold text-amber-600">
+                  {data.summary.pendingInstallments}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Cuotas Pagadas
+                </p>
+                <p className="font-bold text-emerald-600">
+                  {data.summary.paidInstallments}
+                </p>
+              </div>
+            </div>
 
-              <div className="border rounded-md mt-4">
-                <h3 className="font-semibold p-3 bg-muted">
+            <Separator />
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Monto Solicitado</p>
+                <p className="text-lg font-bold font-mono">
+                  {formatCurrency(Number(data.loan.requestedAmount), 'VES')}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Cuota</p>
+                <p className="text-lg font-bold font-mono">
+                  {formatCurrency(Number(data.loan.installmentAmount || 0), 'VES')}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Gasto Admin.</p>
+                <p className="text-lg font-bold font-mono">
+                  {formatCurrency(Number(data.loan.expensesAmount || 0), 'VES')}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Interés Total</p>
+                <p className="text-lg font-bold font-mono text-amber-600">
+                  {formatCurrency(Number(data.loan.totalInterest || 0), 'VES')}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Total a Pagar</p>
+                <p className="text-lg font-bold font-mono text-amber-600">
+                  {formatCurrency(Number(data.loan.totalPayable || 0), 'VES')}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Total Pagado</p>
+                <p className="text-lg font-bold font-mono text-emerald-600">
+                  {formatCurrency(data.summary.totalPaid, 'VES')}
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">Pendiente</p>
+                <p className="text-lg font-bold font-mono text-red-500">
+                  {formatCurrency(data.summary.totalPending, 'VES')}
+                </p>
+              </div>
+            </div>
+
+            {data.amortizationSchedule.length > 0 && (
+              <div className="rounded-lg border">
+                <div className="bg-muted px-4 py-2 font-semibold text-sm">
                   Plan de Amortización
-                </h3>
-                <div className="overflow-auto max-h-[35vh]">
+                </div>
+                <div className="overflow-auto max-h-[300px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead># Cuota</TableHead>
-                        <TableHead>Fecha Venc.</TableHead>
-                        <TableHead>Monto Cuota</TableHead>
-                        <TableHead>Capital</TableHead>
-                        <TableHead>Interés</TableHead>
-                        <TableHead>Monto Pagado</TableHead>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Vencimiento</TableHead>
+                        <TableHead className="text-right">Cuota</TableHead>
+                        <TableHead className="text-right">Capital</TableHead>
+                        <TableHead className="text-right">Interés</TableHead>
+                        <TableHead className="text-right">Pagado</TableHead>
                         <TableHead>Estado</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {data.amortizationSchedule.map((item) => (
                         <TableRow key={item.id}>
-                          <TableCell>{item.installmentNumber}</TableCell>
-                          <TableCell>
-                            {new Date(item.dueDate).toLocaleDateString('es-VE')}
+                          <TableCell className="font-mono text-xs">
+                            {item.installmentNumber}
                           </TableCell>
                           <TableCell>
-                            {formatCurrency(
-                              Number(item.totalInstallmentAmount),
-                              'VES',
-                            )}
+                            {formatDate(item.dueDate)}
                           </TableCell>
-                          <TableCell>
-                            {formatCurrency(
-                              Number(item.principalAmount),
-                              'VES',
-                            )}
+                          <TableCell className="text-right font-mono text-xs">
+                            {formatCurrency(Number(item.totalInstallmentAmount), 'VES')}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-right font-mono text-xs">
+                            {formatCurrency(Number(item.principalAmount), 'VES')}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs">
                             {formatCurrency(Number(item.interestAmount), 'VES')}
                           </TableCell>
-                          <TableCell>
-                            {formatCurrency(Number(item.paidAmount), 'VES')}
+                          <TableCell className="text-right font-mono text-xs">
+                            {formatCurrency(Number(item.paidAmount || 0), 'VES')}
                           </TableCell>
                           <TableCell>
                             <Badge
-                              variant={paymentVariant(
-                                item.paymentStatus as keyof typeof PAYMENT_LOAN_STATUS,
-                              ) as any}
+                              variant={
+                                paymentVariant(
+                                  item.paymentStatus as keyof typeof PAYMENT_LOAN_STATUS,
+                                ) as any
+                              }
+                              className="text-xs"
                             >
                               {PAYMENT_LOAN_STATUS[
                                 item.paymentStatus as keyof typeof PAYMENT_LOAN_STATUS
@@ -227,19 +282,14 @@ export function LoanDetailsModal({
                   </Table>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-        <div className="sticky bottom-0 w-full bg-background py-2 px-6 mt-auto">
-          <div className="flex justify-end gap-4">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => onOpenChange(false)}
-            >
-              Cerrar
-            </Button>
+            )}
           </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cerrar
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

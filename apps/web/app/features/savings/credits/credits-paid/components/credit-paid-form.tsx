@@ -1,7 +1,7 @@
 'use client';
 
 import { IconWrapper } from '@/components/icon-wrapper';
-import { AlertModal } from '@/components/modal/alert-modal';
+import { AlertModal } from '@/components/shared/alert-modal';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import {
@@ -34,15 +34,15 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { CREDIT_PAYMENT_TYPES, PAYMENT_METHOD } from '../schemas/credits-paid-options';
 import {
-  creditPaymentSchema,
-  type CreditPayment,
+  creditPaymentFormSchema,
+  type CreditPaymentFormValues,
 } from '../schemas/credits-paid.schema';
 import type { AssociatesCredit } from '../schemas/individual-credits-api-schema';
 
 interface CreditPaidFormProps {
   selectedAssociate: AssociatesCredit | null;
   isSubmitting: boolean;
-  onSubmit: (data: CreditPayment) => void;
+  onSubmit: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }
 
@@ -53,14 +53,14 @@ export function CreditPaidForm({
   onCancel,
 }: CreditPaidFormProps) {
   const [isConfirmOpen, setConfirmOpen] = useState(false);
-  const [dataToSubmit, setDataToSubmit] = useState<CreditPayment | null>(null);
+  const [dataToSubmit, setDataToSubmit] = useState<Record<string, unknown> | null>(null);
 
-  const form = useForm<CreditPayment>({
-    resolver: zodResolver(creditPaymentSchema),
+  const form = useForm<CreditPaymentFormValues>({
+    resolver: zodResolver(creditPaymentFormSchema),
     defaultValues: {
-      creditId: selectedAssociate?.creditId ?? 0,
+      creditId: selectedAssociate?.creditId ?? '',
       paymentDate: new Date(),
-      paymentType: 'REGULAR',
+      paymentType: 'PAYING',
       amount: '',
       bankId: undefined,
       paymentMethod: 'CASH',
@@ -70,7 +70,12 @@ export function CreditPaidForm({
   });
 
   const handleSubmit = form.handleSubmit((data) => {
-    setDataToSubmit(data);
+    const payload = {
+      ...data,
+      amount: Number(data.amount),
+      bankId: data.bankId || undefined,
+    };
+    setDataToSubmit(payload);
     setConfirmOpen(true);
   });
 
@@ -89,6 +94,10 @@ export function CreditPaidForm({
     ([value, label]) => ({ value, label }),
   );
 
+  const totalPending = selectedAssociate?.creditTotalAmount
+    ? Number(selectedAssociate.creditTotalAmount).toFixed(2)
+    : '0.00';
+
   return (
     <>
       <AlertModal
@@ -97,7 +106,7 @@ export function CreditPaidForm({
         onConfirm={onConfirm}
         loading={isSubmitting}
         title="Confirmar Pago"
-        description="¿Está seguro que desea registrar este pago? Esta operación afectará el saldo del crédito del asociado."
+        description={`¿Está seguro que desea registrar este pago? Esta operación afectará el saldo del crédito del asociado ${selectedAssociate?.fullname || ''}.`}
       />
       <Card>
         <CardHeader>
@@ -108,7 +117,7 @@ export function CreditPaidForm({
             Datos del Pago
           </CardTitle>
           <CardDescription>
-            Ingrese la información del pago a registrar
+            Saldo pendiente total: <span className="font-bold text-orange-600">{totalPending} Bs</span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,8 +132,8 @@ export function CreditPaidForm({
                       <FormLabel>Fecha de Pago</FormLabel>
                       <FormControl>
                         <CustomCalendar
-                          date={field.value}
-                          onSelect={field.onChange}
+                          value={field.value}
+                          onChange={field.onChange}
                         />
                       </FormControl>
                       <FormMessage />
@@ -203,6 +212,24 @@ export function CreditPaidForm({
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bankId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Banco (ID)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value || ''}
+                          placeholder="UUID del banco (opcional)"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

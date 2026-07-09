@@ -15,7 +15,6 @@ import { LoanPaymentProcessor } from './domain/loan-payment.processor';
 import { LoanPaymentAccounting } from './domain/loan-payment.accounting';
 import { LoanPaymentBank } from './domain/loan-payment.bank';
 import { LoanPaymentAudit } from './domain/loan-payment.audit';
-import { LoanPaymentEvents } from './domain/loan-payment.events';
 import { CreatePaymentUseCase } from './use-cases/create-payment.usecase';
 import { BulkPaymentUseCase } from './use-cases/bulk-payment.usecase';
 import { CancelPaymentUseCase } from './use-cases/cancel-payment.usecase';
@@ -44,7 +43,6 @@ import { LoanPaymentBankingSubscriber } from './subscribers/loan-payment-banking
     LoanPaymentAccounting,
     LoanPaymentBank,
     LoanPaymentAudit,
-    LoanPaymentEvents,
     CreatePaymentUseCase,
     BulkPaymentUseCase,
     CancelPaymentUseCase,

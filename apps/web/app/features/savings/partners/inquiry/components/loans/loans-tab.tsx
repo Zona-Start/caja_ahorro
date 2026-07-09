@@ -5,7 +5,7 @@ import { useLoansQuery } from '../../hooks/use-inquiry-query';
 import { columns } from './loans-tables/columns';
 
 interface LoansTabProps {
-  id: number;
+  id: string;
   page: number;
   setPage: (page: number) => void;
   limit: number;
@@ -14,17 +14,17 @@ interface LoansTabProps {
 export function LoansTab({ id, page, setPage, limit }: LoansTabProps) {
   const {
     data: loansData,
-    isLoading: loansLoading,
-    isError: loansIsError,
+    isLoading,
+    isError,
   } = useLoansQuery(id, { page, limit });
 
-  if (loansLoading) return <DataTableSkeleton columnCount={6} />;
+  if (isLoading) return <DataTableSkeleton columnCount={7} />;
 
-  if (loansIsError)
+  if (isError)
     return (
       <Card>
-        <CardContent className="space-y-2 py-6">
-          <p className="text-center text-destructive">Error al cargar los préstamos.</p>
+        <CardContent className="py-8 text-center text-destructive">
+          Error al cargar los préstamos.
         </CardContent>
       </Card>
     );
@@ -34,7 +34,7 @@ export function LoansTab({ id, page, setPage, limit }: LoansTabProps) {
       columns={columns}
       data={loansData?.data || []}
       totalItems={loansData?.meta?.totalCount || 0}
-      pageSizeOptions={[10, 20, 30, 40, 50]}
+      pageSizeOptions={[10, 20, 30, 50]}
     />
   );
 }

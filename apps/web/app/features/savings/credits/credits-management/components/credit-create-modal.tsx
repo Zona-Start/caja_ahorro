@@ -108,9 +108,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     () =>
       Array.isArray(suppliers)
         ? suppliers.filter(
-            (s: any) =>
-              s.category === 'services' && s.isActive !== false,
-          )
+          (s: any) =>
+            s.category === 'services' && s.isActive !== false,
+        )
         : [],
     [suppliers],
   );
@@ -394,9 +394,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
       const productDetail = await ProductsService.getById(selectedProduct);
       const unitPrice = Number(
         productDetail.bsPriceAmount ??
-          productDetail.salePrice ??
-          productDetail.supplierCost ??
-          0,
+        productDetail.salePrice ??
+        productDetail.supplierCost ??
+        0,
       );
 
       setItems((prev) => [
@@ -476,16 +476,16 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
             : undefined,
         creditItems: casaComercial
           ? items.map((it) => ({
-              agreedSellingPrice: it.totalPrice,
-              itemId: it.productId || undefined,
-              itemType: it.type === 'product'
-                ? ('PRODUCT' as const)
-                : ('EXTERNAL' as const),
-              itemDescription: it.description || it.productName || undefined,
-              quantity: it.quantity,
-              saleDate: new Date(),
-              days: it.specialDayCategoryId || undefined,
-            }))
+            agreedSellingPrice: it.totalPrice,
+            itemId: it.productId || undefined,
+            itemType: it.type === 'product'
+              ? ('PRODUCT' as const)
+              : ('EXTERNAL' as const),
+            itemDescription: it.description || it.productName || undefined,
+            quantity: it.quantity,
+            saleDate: new Date(),
+            days: it.specialDayCategoryId || undefined,
+          }))
           : undefined,
         itemsJson: casaComercial ? JSON.stringify(items) : undefined,
         haberesPayment: Number(data.haberesPayment || 0),
@@ -760,7 +760,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                         value={watchTermType}
                         onValueChange={(v) => setValue('termType', v)}
                       >
-                        <SelectTrigger className="mt-1">
+                        <SelectTrigger className="mt-1 w-full">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -790,8 +790,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                         value={
                           watchStartDate
                             ? new Date(watchStartDate)
-                                .toISOString()
-                                .slice(0, 10)
+                              .toISOString()
+                              .slice(0, 10)
                             : ''
                         }
                         onChange={(e) =>
@@ -855,7 +855,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                             setSelectedProduct('');
                           }}
                         >
-                          <SelectTrigger className="mt-1">
+                          <SelectTrigger className="mt-1 w-full">
                             <SelectValue placeholder="Seleccionar..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -889,7 +889,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 value={selectedProduct}
                                 onValueChange={setSelectedProduct}
                               >
-                                <SelectTrigger className="mt-1">
+                                <SelectTrigger className="mt-1 w-full">
                                   <SelectValue placeholder="Producto..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -943,7 +943,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                               AGREGAR ITEM
                             </span>
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end">
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 items-end">
                             <div className="col-span-full">
                               <Label className="text-xs">Descripción</Label>
                               <Input
@@ -954,6 +954,26 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 }
                                 placeholder="Descripción..."
                               />
+                            </div>
+                            <div className="col-span-2">
+                              <Label className="text-xs">Jornada *</Label>
+                              <Select
+                                value={servSpecialDayId}
+                                onValueChange={setServSpecialDayId}
+                              >
+                                <SelectTrigger className="mt-1 w-full">
+                                  <SelectValue placeholder="Jornada..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.isArray(specialDays)
+                                    ? specialDays.map((sd: any) => (
+                                      <SelectItem key={sd.id} value={sd.id}>
+                                        {sd.name}
+                                      </SelectItem>
+                                    ))
+                                    : null}
+                                </SelectContent>
+                              </Select>
                             </div>
                             <div>
                               <Label className="text-xs">Cant.</Label>
@@ -985,26 +1005,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 }
                               />
                             </div>
-                            <div>
-                              <Label className="text-xs">Jornada *</Label>
-                              <Select
-                                value={servSpecialDayId}
-                                onValueChange={setServSpecialDayId}
-                              >
-                                <SelectTrigger className="mt-1">
-                                  <SelectValue placeholder="Jornada..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Array.isArray(specialDays)
-                                    ? specialDays.map((sd: any) => (
-                                        <SelectItem key={sd.id} value={sd.id}>
-                                          {sd.name}
-                                        </SelectItem>
-                                      ))
-                                    : null}
-                                </SelectContent>
-                              </Select>
-                            </div>
+
                             <div className="flex items-end">
                               <Button
                                 onClick={addServiceItem}
@@ -1032,9 +1033,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                 <th className="py-1 text-left">Item</th>
                                 <th className="py-1 text-right">Cant.</th>
                                 <th className="py-1 text-right">P/U</th>
-                                {items.some((it) => it.type === 'service') && (
+                                {/* {items.some((it) => it.type === 'service') && (
                                   <th className="py-1 text-left">Jornada</th>
-                                )}
+                                )} */}
                                 <th className="py-1 text-right">Subtotal</th>
                                 <th className="py-1 w-8"></th>
                               </tr>
@@ -1054,15 +1055,15 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                   <td className="py-1 text-right font-mono">
                                     {formatCurrency(it.unitPrice)}
                                   </td>
-                                  {items.some((i) => i.type === 'service') && (
+                                  {/* {items.some((i) => i.type === 'service') && (
                                     <td className="py-1 text-xs">
                                       {it.specialDayCategoryId
                                         ? (Array.isArray(specialDays)
-                                            ? specialDays.find((sd: any) => sd.id === it.specialDayCategoryId)?.name
-                                            : '—') || '—'
+                                          ? specialDays.find((sd: any) => sd.id === it.specialDayCategoryId)?.name
+                                          : '—') || '—'
                                         : '—'}
                                     </td>
-                                  )}
+                                  )} */}
                                   <td className="py-1 text-right font-mono font-medium">
                                     {formatCurrency(it.totalPrice)}
                                   </td>
@@ -1174,7 +1175,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                               setValue('directPaymentMethod', v)
                             }
                           >
-                            <SelectTrigger className="mt-1">
+                            <SelectTrigger className="mt-1 w-full">
                               <SelectValue placeholder="Seleccionar..." />
                             </SelectTrigger>
                             <SelectContent>
@@ -1209,7 +1210,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                   setValue('directPaymentBankAccountId', v)
                                 }
                               >
-                                <SelectTrigger className="mt-1">
+                                <SelectTrigger className="mt-1 w-full">
                                   <SelectValue placeholder="Seleccionar..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -1218,8 +1219,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                                     : []
                                   ).map((b: any) => (
                                     <SelectItem key={b.id} value={b.id}>
-                                      {b.accountName || b.accountNumber} -{' '}
-                                      {b.accountNumber}
+                                      {b.accountName || b.accountNumber}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1404,19 +1404,18 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                   {rules.messages.map((msg, i) => (
                     <li
                       key={i}
-                      className={`text-xs flex items-center gap-1.5 ${
-                        msg.includes('Bloqueado') ||
+                      className={`text-xs flex items-center gap-1.5 ${msg.includes('Bloqueado') ||
                         msg.includes('supera') ||
                         msg.includes('mínimo') ||
                         msg.includes('máximo')
-                          ? 'text-destructive'
-                          : 'text-emerald-600 dark:text-emerald-400'
-                      }`}
+                        ? 'text-destructive'
+                        : 'text-emerald-600 dark:text-emerald-400'
+                        }`}
                     >
                       {msg.includes('Bloqueado') ||
-                      msg.includes('supera') ||
-                      msg.includes('mínimo') ||
-                      msg.includes('máximo') ? (
+                        msg.includes('supera') ||
+                        msg.includes('mínimo') ||
+                        msg.includes('máximo') ? (
                         <XCircle className="h-3 w-3 flex-shrink-0" />
                       ) : (
                         <CheckCircle2 className="h-3 w-3 flex-shrink-0" />

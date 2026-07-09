@@ -31,6 +31,7 @@ export const CreateInventoryMovementSchema = z.object({
   invoiceNumber: z.string().max(50).optional().nullable(),
   associateId: z.string().uuid().optional().nullable(),
   purchaseOrderId: z.string().uuid().optional().nullable(),
+  creditId: z.string().uuid().optional().nullable(),
   items: z.array(InventoryMovementItemSchema).min(1, 'Debe agregar al menos un producto'),
 });
 

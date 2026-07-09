@@ -58,9 +58,9 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     { module: 'portfolio', submodule: 'credits', key: 'AUTO_POST_ENTRY_CREDITS_PAYMENT', value: 'true', description: 'Generar asiento contable en pago de crédito' },
     { module: 'portfolio', submodule: 'loans', key: 'AUTO_POST_ENTRY_LOANS_PAYMENT', value: 'true', description: 'Generar asiento contable en pago de préstamo' },
     { module: 'portfolio', submodule: 'loans', key: 'PRE', value: '0', description: 'Consecutivo Préstamo' },
-    { module: 'portfolio', submodule: 'loan_payments', key: 'PRE-PAG', value: '0', description: 'Consecutivo Pago de Préstamo' },
+    { module: 'portfolio', submodule: 'loan-payments', key: 'PRE-PAG', value: '0', description: 'Consecutivo Pago de Préstamo' },
     { module: 'portfolio', submodule: 'credits', key: 'CRE', value: '0', description: 'Consecutivo Crédito' },
-    { module: 'portfolio', submodule: 'credit_payments', key: 'CRE-PAG', value: '0', description: 'Consecutivo Pago Crédito' },
+    { module: 'portfolio', submodule: 'credit-payments', key: 'CRE-PAG', value: '0', description: 'Consecutivo Pago Crédito' },
 
     //inventories
     { module: 'inventory', submodule: 'movements', key: 'INV-IN', value: '0', description: 'Consecutivo Movimiento Inventario Entrada' },

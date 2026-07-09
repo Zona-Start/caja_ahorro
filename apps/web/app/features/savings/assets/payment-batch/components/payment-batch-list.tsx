@@ -2,6 +2,7 @@ import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { useQueryPaymentBatches } from '../../hooks/use-payment-batch-query';
 import { paymentBatchColumns } from './payment-batch-tables/columns';
+import { type PaymentBatch } from '../schemas/payment-batch-api-response';
 
 interface PaymentBatchListProps {
   page: number;
@@ -32,7 +33,7 @@ export function PaymentBatchList({
   return (
     <DataTable
       columns={paymentBatchColumns}
-      data={(data?.data as unknown[]) || []}
+      data={(data?.data as PaymentBatch[]) || []}
       totalItems={(data?.meta as { totalCount?: number })?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />

@@ -27,7 +27,7 @@ import {
 } from '../tables/savings';
 import { tenants } from '../tables/tenants';
 import { states, categories, exchangeRates } from '../tables/core';
-import { bankDirectory, bankTransactions } from '../tables/treasury';
+import { bankAccounts, bankDirectory, bankTransactions } from '../tables/treasury';
 import { accountPlan, accountingEntries } from '../tables/accounting';
 import { users } from '../tables/auth';
 import { suppliers } from '../tables/purchasing';
@@ -242,9 +242,9 @@ export const loanPaymentsRelations = relations(
       fields: [loanPayments.loanId],
       references: [loans.id],
     }),
-    bank: one(bankDirectory, {
+    bank: one(bankAccounts, {
       fields: [loanPayments.bankId],
-      references: [bankDirectory.id],
+      references: [bankAccounts.id],
     }),
     details: many(loanPaymentsDetails),
   }),

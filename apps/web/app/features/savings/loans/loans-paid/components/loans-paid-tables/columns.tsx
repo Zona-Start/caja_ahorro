@@ -1,85 +1,89 @@
-'use client';
-
 import { type ColumnDef } from '@tanstack/react-table';
-import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
-import { type LoanPaymentApi } from '../../schemas/loans-paid-api-response';
-import { PAYMENT_STATUS, PAYMENT_METHOD } from '../../schemas/loans-paid-options';
+import type { LoanPaymentApi } from '../../schemas/loans-paid-api-response';
 import { CellAction } from './cell-action';
+
+const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  PAYING: 'Pago Cuota',
+  CANCELLATION: 'Cancelación',
+};
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: 'Efectivo',
+  BANK_TRANSFER: 'Transferencia',
+  CHECK: 'Cheque',
+  DEPOSIT: 'Depósito',
+  MOBILE_PAYMENT: 'Pago Móvil',
+  OTHER: 'Otro',
+};
 
 export const columns: ColumnDef<LoanPaymentApi>[] = [
   {
-    accessorKey: 'loanReference',
-    header: 'Préstamo',
+    accessorKey: 'customReference',
+    header: 'Referencia',
+    cell: ({ getValue }) => getValue() || '-',
+    size: 120,
   },
   {
-    accessorKey: 'associateCedula',
-    header: 'Cédula Asociado',
+    accessorKey: 'loanCustomReference',
+    header: 'Préstamo',
+    cell: ({ getValue }) => getValue() || '-',
+    size: 110,
   },
   {
     accessorKey: 'associateFullname',
-    header: 'Nombre y Apellido',
+    header: 'Asociado',
+    cell: ({ getValue }) => getValue() || '-',
   },
   {
     accessorKey: 'paymentDate',
     header: 'Fecha de Pago',
+    cell: ({ getValue }) => {
+      const value = getValue() as string;
+      return value ? new Date(value).toLocaleDateString('es-VE') : '-';
+    },
+    size: 120,
   },
   {
-    accessorKey: 'paymentMethod',
-    header: 'Método de Pago',
-    cell: ({ row }) => {
-      const method = row.original.paymentMethod as keyof typeof PAYMENT_METHOD;
-      return PAYMENT_METHOD[method] || row.original.paymentMethod;
-    },
+    accessorKey: 'paymentType',
+    header: 'Tipo de Pago',
+    cell: ({ getValue }) => PAYMENT_TYPE_LABELS[getValue() as string] || (getValue() as string),
+    size: 120,
   },
   {
     accessorKey: 'amount',
     header: 'Monto',
-    cell: ({ row }) => formatCurrency(Number(row.original.amount), 'VES'),
+    cell: ({ getValue }) => {
+      const value = getValue() as string;
+      return `${Number(value).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs`;
+    },
+    size: 120,
   },
   {
-    accessorKey: 'status',
-    header: 'Estatus',
-    cell: ({ row }) => {
-      const status = row.original.status;
-      const statusText =
-        PAYMENT_STATUS[status as keyof typeof PAYMENT_STATUS] || status;
-
-      const variant:
-        | 'default'
-        | 'destructive'
-        | 'outline'
-        | 'secondary'
-        | 'success'
-        | 'warning' = (() => {
-        switch (status) {
-          case 'PAID':
-            return 'success';
-          case 'PENDING':
-            return 'warning';
-          case 'OVERDUE':
-            return 'destructive';
-          case 'PARTIAL':
-            return 'outline';
-          case 'CANCELLED':
-            return 'destructive';
-          case 'REVERSED':
-            return 'secondary';
-          default:
-            return 'default';
-        }
-      })();
-
-      return (
-        <Badge variant={variant as never}>
-          {statusText}
-        </Badge>
-      );
+    accessorKey: 'paymentMethod',
+    header: 'Método',
+    cell: ({ getValue }) => PAYMENT_METHOD_LABELS[getValue() as string] || (getValue() as string),
+    size: 110,
+  },
+  {
+    accessorKey: 'paymentStatus',
+    header: 'Estado',
+    cell: ({ getValue }) => {
+      const value = getValue() as string;
+      if (value === 'CANCELED') {
+        return <Badge variant="destructive">Anulado</Badge>;
+      }
+      if (value === 'DONE') {
+        return <Badge variant="default" className="bg-[#2EA640] hover:bg-[#2EA640]/90">Completado</Badge>;
+      }
+      return <Badge variant="outline">{value || '-'}</Badge>;
     },
+    size: 110,
   },
   {
     id: 'actions',
     header: 'Acciones',
     cell: ({ row }) => <CellAction data={row.original} />,
+    size: 80,
   },
 ];

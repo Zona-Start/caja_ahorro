@@ -1,143 +1,26 @@
 import { apiClient } from '@/lib/api-client';
 import { z } from 'zod';
-
-const loanAssociateGetResponseSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  loanTypeId: z.number(),
-  loanModality: z.string(),
-  requestDate: z.string(),
-  requestedAmount: z.string(),
-  startDate: z.string(),
-  endDate: z.string().nullable(),
-  expensesAmount: z.string().nullable(),
-  overdraftAmount: z.string().nullable(),
-  termMonths: z.string().nullable(),
-  interestRate: z.string().nullable(),
-  installmentsCount: z.number().nullable(),
-  status: z.string(),
-  notes: z.string().nullable(),
-  customReference: z.string().nullable(),
-  loanTypeName: z.string().nullable(),
-  associateCedula: z.string().nullable(),
-  associateFullname: z.string().nullable(),
-  associatePhone: z.string().nullable(),
-  associateEmail: z.string().nullable(),
-  associateDateAdmission: z.string().nullable(),
-  associateIsPayrollCredit: z.boolean().nullable(),
-  associateAccountId: z.number().nullable(),
-  associateAccountNumber: z.string().nullable(),
-  associateBalance: z.string().nullable(),
-  invoiceNumber: z.string().nullable(),
-});
-
-const loanManagementResponseSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  loanTypeId: z.number(),
-  loanModality: z.string(),
-  requestDate: z.string(),
-  requestedAmount: z.string(),
-  startDate: z.string(),
-  endDate: z.string().nullable(),
-  expensesAmount: z.string().nullable(),
-  overdraftAmount: z.string().nullable(),
-  termMonths: z.string().nullable(),
-  interestRate: z.string().nullable(),
-  installmentsCount: z.number().nullable(),
-  status: z.string(),
-  notes: z.string().nullable(),
-  customReference: z.string().nullable(),
-  loanTypeName: z.string().nullable(),
-  associateCedula: z.string().nullable(),
-  associateFullname: z.string().nullable(),
-  loanTypeInterestRate: z.string().nullable(),
-  loanTypeAdministrativeExpensePercentage: z.string().nullable(),
-  loanTypeTermUnits: z.string().nullable(),
-  invoiceNumber: z.string().nullable(),
-  termType: z.string().nullable(),
-  termUnits: z.number().nullable(),
-});
+import {
+  SearchAssociateResultSchema,
+  LoanManagementMutationResponse,
+} from '../schemas/loans-management-api-response';
+import type { SearchAssociateResult } from '../schemas/loans-management-api-response';
 
 const loansManagementResponseAllSchema = z.object({
-  message: z.string().optional(),
-  data: z.array(loanManagementResponseSchema),
-  meta: z
-    .object({
-      page: z.number(),
-      limit: z.number(),
-      totalCount: z.number(),
-      totalPages: z.number(),
-      hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
-      nextPage: z.number().nullable(),
-      previousPage: z.number().nullable(),
-    })
-    .optional(),
-});
-
-const loansManagementMutationSchema = z.object({
-  message: z.string(),
-  loanId: z.number(),
-});
-
-const loansManagementAllCountSchema = z.object({
-  total: z.number(),
-  pending: z.number(),
-  approved: z.number(),
-  rejected: z.number(),
-  disbursed: z.number(),
-});
-
-const loadAssociateApiResponseSchema = z.object({
-  message: z.string(),
-  data: loanAssociateGetResponseSchema,
-});
-
-const loanDeleteResponseSchema = z.object({
-  message: z.string(),
+  data: z.array(z.any()),
+  meta: z.object({
+    totalItems: z.coerce.number(),
+    itemCount: z.coerce.number(),
+    itemsPerPage: z.coerce.number(),
+    totalPages: z.coerce.number(),
+    currentPage: z.coerce.number(),
+  }),
 });
 
 export const loansManagementService = {
-  getAssociatesByCedula: async (cedula: string) => {
-    const response = await apiClient.get(`/loan/request/${cedula}`);
-    const result = loadAssociateApiResponseSchema.parse(response.data);
-    return result.data;
-  },
-
-  getLoansManagementById: async (id: number) => {
-    const response = await apiClient.get(`/loan/request/byEdit/${id}`);
-    const data = loanAssociateGetResponseSchema.parse(response.data);
-
-    return {
-      id: String(data.id),
-      associateId: Number(data.associateId),
-      loanTypeId: String(data.loanTypeId),
-      loanModality: data.loanModality,
-      requestDate: data.requestDate ? new Date(data.requestDate) : new Date(),
-      requestedAmount: data.requestedAmount ?? '',
-      startDate: data.startDate,
-      endDate: data.endDate,
-      expensesAmount: data.expensesAmount,
-      overdraftAmount: data.overdraftAmount ?? '',
-      termMonths: data.expensesAmount ?? '',
-      interestRate: data.interestRate ?? '',
-      installmentsCount: data.expensesAmount ?? '',
-      status: data.status ?? '',
-      notes: data.notes,
-      customReference: data.customReference,
-      loanTypeName: data.loanTypeName,
-      associateCedula: data.associateCedula,
-      associateFullname: data.associateFullname,
-      associatePhone: data.associatePhone,
-      associateEmail: data.associateEmail,
-      associateDateAdmission: data.associateDateAdmission,
-      associateIsPayrollCredit: data.associateIsPayrollCredit,
-      associateAccountId: data.associateAccountId,
-      associateAccountNumber: data.associateAccountNumber,
-      associateBalance: data.associateBalance,
-      invoiceNumber: data.invoiceNumber,
-    };
+  searchAssociate: async (cedula: string): Promise<SearchAssociateResult> => {
+    const response = await apiClient.get(`/loan/search-associate/${cedula}`);
+    return SearchAssociateResultSchema.parse(response.data);
   },
 
   getLoansManagementAll: async (params: {
@@ -175,40 +58,59 @@ export const loansManagementService = {
     });
 
     const response = await apiClient.get(`/loan?${searchParams}`);
+
     const result = loansManagementResponseAllSchema.parse(response.data);
 
     return {
       data: result.data || [],
       meta: result.meta || {
-        page: 1,
-        limit: 10,
-        totalCount: 0,
+        totalItems: 0,
+        itemCount: 0,
+        itemsPerPage: 10,
         totalPages: 1,
-        hasNextPage: false,
-        hasPreviousPage: false,
-        nextPage: null,
-        previousPage: null,
+        currentPage: 1,
       },
     };
   },
 
-  createLoansManagement: async (loansManagement: unknown) => {
-    const response = await apiClient.post('/loan/request', loansManagement);
-    return loansManagementMutationSchema.parse(response.data);
+  getAssociatesByCedula: async (cedula: string) => {
+    const response = await apiClient.get(`/loan/request/${cedula}`);
+    return response.data;
   },
 
-  approveLoansManagement: async (id: number) => {
+  createLoansManagement: async (payload: unknown) => {
+    const response = await apiClient.post('/loan/request', payload);
+    return LoanManagementMutationResponse.parse(response.data);
+  },
+
+  approveLoansManagement: async (id: string) => {
     const response = await apiClient.patch(`/loan/approve/${id}`);
-    return loansManagementMutationSchema.parse(response.data);
+    return response.data;
   },
 
-  deleteLoansManagement: async (id: number) => {
+  disburseLoan: async (id: string, payload: any) => {
+    const { loanId, ...body } = payload;
+    const response = await apiClient.post(`/loan/disburse/${id}`, body);
+    return response.data;
+  },
+
+  deleteLoansManagement: async (id: string) => {
     const response = await apiClient.delete(`/loan/${id}`);
-    return loanDeleteResponseSchema.parse(response.data);
+    return response.data;
   },
 
   getLoansManagementAllCount: async () => {
     const response = await apiClient.get('/loan/count');
-    return loansManagementAllCountSchema.parse(response.data);
+    return response.data;
+  },
+
+  getLoansManagementById: async (id: number) => {
+    const response = await apiClient.get(`/loan/request/byEdit/${id}`);
+    return response.data;
+  },
+
+  getLoanDetails: async (id: string) => {
+    const response = await apiClient.get(`/loan/${id}/details`);
+    return response.data;
   },
 };

@@ -21,6 +21,12 @@ import {
 import { CreditCard, DollarSign } from 'lucide-react';
 import type { AssociatesCredit } from '../schemas/individual-credits-api-schema';
 
+const STATUS_LABELS: Record<string, string> = {
+  PAID: 'Pagada',
+  PENDING: 'Pendiente',
+  PARTIAL: 'Parcial',
+};
+
 interface CreditPaidSummaryProps {
   selectedAssociate: AssociatesCredit | null;
 }
@@ -72,7 +78,7 @@ export function CreditPaidSummary({
     );
   }
 
-  const quotas = selectedAssociate.quotas || [];
+  const quotas = selectedAssociate.creditAmortization || [];
 
   return (
     <div className="space-y-6">
@@ -80,10 +86,12 @@ export function CreditPaidSummary({
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle>Resumen del Crédito</CardTitle>
-            <Badge variant="outline">{selectedAssociate.status}</Badge>
+            <Badge variant={selectedAssociate.creditId ? 'default' : 'outline'}>
+              {selectedAssociate.creditId ? 'Activo' : 'Sin crédito'}
+            </Badge>
           </div>
           <CardDescription>
-            Detalle del crédito de {selectedAssociate.associate.fullname}
+            Detalle del crédito de {selectedAssociate.fullname}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -91,60 +99,20 @@ export function CreditPaidSummary({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Tipo de Crédito</span>
               <span className="font-medium">
-                {selectedAssociate.creditTypeName || '-'}
+                {selectedAssociate.creditType || '-'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Monto Aprobado</span>
+              <span className="text-sm font-medium">Modalidad</span>
               <span className="font-medium">
-                ${Number(selectedAssociate.approvedAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Tasa de Interés</span>
-              <span className="font-medium">
-                {Number(selectedAssociate.interestRate).toFixed(2)}%
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Plazo</span>
-              <span className="font-medium">
-                {selectedAssociate.termMonths} meses
+                {selectedAssociate.creditModality || '-'}
               </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Cuota Mensual</span>
-              <span className="font-medium">
-                ${Number(selectedAssociate.installmentAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Total Pagado</span>
-              <span className="font-medium text-green-600">
-                ${Number(selectedAssociate.totalPaid).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Saldo Pendiente</span>
+              <span className="text-sm font-medium">Saldo Pendiente Total</span>
               <span className="text-lg font-bold text-orange-600">
-                ${Number(selectedAssociate.outstandingBalance).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Cuotas Pagadas</span>
-              <span className="font-medium">
-                {selectedAssociate.installmentsPaid} de{' '}
-                {selectedAssociate.installmentsCount}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Próximo Pago</span>
-              <span className="font-medium">
-                {selectedAssociate.nextPaymentDate
-                  ? new Date(selectedAssociate.nextPaymentDate).toLocaleDateString('es-VE')
-                  : '-'}
+                {Number(selectedAssociate.creditTotalAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
               </span>
             </div>
           </div>
@@ -168,10 +136,8 @@ export function CreditPaidSummary({
                   <TableRow>
                     <TableHead className="text-xs">#</TableHead>
                     <TableHead className="text-xs">Vence</TableHead>
-                    <TableHead className="text-xs">Capital</TableHead>
-                    <TableHead className="text-xs">Interés</TableHead>
                     <TableHead className="text-xs">Cuota</TableHead>
-                    <TableHead className="text-xs">Saldo</TableHead>
+                    <TableHead className="text-xs">Pagado</TableHead>
                     <TableHead className="text-xs">Estado</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -182,28 +148,22 @@ export function CreditPaidSummary({
                         {quota.quotaNumber}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {new Date(quota.dueDate).toLocaleDateString('es-VE')}
+                        {new Date(quota.quotaDate).toLocaleDateString('es-VE')}
                       </TableCell>
                       <TableCell className="text-xs">
-                        ${Number(quota.principal).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                        {Number(quota.quotaAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
                       </TableCell>
                       <TableCell className="text-xs">
-                        ${Number(quota.interest).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        ${Number(quota.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        ${Number(quota.balance).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                        {Number(quota.paidAmount || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
                       </TableCell>
                       <TableCell className="text-xs">
                         <Badge
                           variant={
-                            quota.status === 'PAID' ? 'default' : 'outline'
+                            quota.quotaStatus === 'PAID' ? 'default' : 'outline'
                           }
                           className="text-xs"
                         >
-                          {quota.status === 'PAID' ? 'Pagada' : 'Pendiente'}
+                          {STATUS_LABELS[quota.quotaStatus] || quota.quotaStatus}
                         </Badge>
                       </TableCell>
                     </TableRow>

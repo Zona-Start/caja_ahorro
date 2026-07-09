@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const disburseIndividualLoanSchema = z.object({
-  loanId: z.number(),
+  loanId: z.string(),
   bankAccountId: z.string().min(1, 'La cuenta bancaria es requerida'),
   currencyCode: z.string().min(1, 'La moneda es requerida'),
   paymentMethod: z.string().min(1, 'El método de pago es requerido'),

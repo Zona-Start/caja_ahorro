@@ -1,109 +1,73 @@
 import { apiClient } from '@/lib/api-client';
 import {
-  associateDetailsResponseSchema,
-  creditDetailsResponseSchema,
-  creditsResponseSchema,
-  haberesMovementsResponseSchema,
-  loanDetailsResponseSchema,
-  loansResponseSchema,
-  transactionHistoryResponseSchema,
-  withdrawalDetailsResponseSchema,
-  withdrawalsResponseSchema,
+  statementResponseSchema,
+  haberesPaginatedResponseSchema,
+  withdrawalsPaginatedResponseSchema,
+  loansPaginatedResponseSchema,
+  creditsPaginatedResponseSchema,
+  historyPaginatedResponseSchema,
+  loanDetailResponseSchema,
+  creditDetailResponseSchema,
+  withdrawalDetailResponseSchema,
 } from '../schemas/inquiry-schema';
 
+const BASE = '/savings-banks/associates/inquiry';
+
 export const inquiryService = {
-  getAssociateDetails: async (cedula: string) => {
-    const response = await apiClient.get(`/savings-banks/associates/details/${cedula}`);
-    return associateDetailsResponseSchema.parse(response.data);
-  },
-
-  getHaberesMovements: async (params: {
-    associateId: number;
-    page?: number;
-    limit?: number;
-  }) => {
-    const searchParams = new URLSearchParams({
-      page: (params.page || 1).toString(),
-      limit: (params.limit || 10).toString(),
+  getStatement: async (cedula: string) => {
+    const response = await apiClient.get(`${BASE}/statement`, {
+      params: { cedula },
     });
-    const response = await apiClient.get(
-      `/savings-banks/associate-accounts-movements/haberes/by-associate/${params.associateId}?${searchParams}`
-    );
-    return haberesMovementsResponseSchema.parse(response.data);
+    return statementResponseSchema.parse(response.data);
   },
 
-  getWithdrawals: async (params: {
-    associateId: number;
-    page?: number;
-    limit?: number;
-  }) => {
-    const searchParams = new URLSearchParams({
-      page: (params.page || 1).toString(),
-      limit: (params.limit || 10).toString(),
+  getHaberes: async (associateId: string, params: { page?: number; limit?: number }) => {
+    const response = await apiClient.get(`${BASE}/haberes/${associateId}`, {
+      params: { page: params.page || 1, limit: params.limit || 10 },
     });
-    const response = await apiClient.get(
-      `/savings-banks/withdrawal-associate/by-associate/${params.associateId}?${searchParams}`
-    );
-    return withdrawalsResponseSchema.parse(response.data);
+    return haberesPaginatedResponseSchema.parse(response.data);
   },
 
-  getTransactionHistory: async (params: {
-    associateId: number;
-    page?: number;
-    limit?: number;
-  }) => {
-    const searchParams = new URLSearchParams({
-      page: (params.page || 1).toString(),
-      limit: (params.limit || 10).toString(),
+  getRetiros: async (associateId: string, params: { page?: number; limit?: number }) => {
+    const response = await apiClient.get(`${BASE}/retiros/${associateId}`, {
+      params: { page: params.page || 1, limit: params.limit || 10 },
     });
-    const response = await apiClient.get(
-      `/savings-banks/associate-accounts-movements/history/by-associate/${params.associateId}?${searchParams}`
-    );
-    return transactionHistoryResponseSchema.parse(response.data);
+    return withdrawalsPaginatedResponseSchema.parse(response.data);
   },
 
-  getLoans: async (params: {
-    associateId: number;
-    page?: number;
-    limit?: number;
-  }) => {
-    const searchParams = new URLSearchParams({
-      page: (params.page || 1).toString(),
-      limit: (params.limit || 10).toString(),
+  getPrestamos: async (associateId: string, params: { page?: number; limit?: number }) => {
+    const response = await apiClient.get(`${BASE}/prestamos/${associateId}`, {
+      params: { page: params.page || 1, limit: params.limit || 10 },
     });
-    const response = await apiClient.get(
-      `/loan/by-associate/${params.associateId}?${searchParams}`
-    );
-    return loansResponseSchema.parse(response.data);
+    return loansPaginatedResponseSchema.parse(response.data);
   },
 
-  getCredits: async (params: {
-    associateId: number;
-    page?: number;
-    limit?: number;
-  }) => {
-    const searchParams = new URLSearchParams({
-      page: (params.page || 1).toString(),
-      limit: (params.limit || 10).toString(),
+  getCreditos: async (associateId: string, params: { page?: number; limit?: number }) => {
+    const response = await apiClient.get(`${BASE}/creditos/${associateId}`, {
+      params: { page: params.page || 1, limit: params.limit || 10 },
     });
-    const response = await apiClient.get(
-      `/credit/by-associate/${params.associateId}?${searchParams}`
-    );
-    return creditsResponseSchema.parse(response.data);
+    return creditsPaginatedResponseSchema.parse(response.data);
   },
 
-  getWithdrawalDetails: async (withdrawalId: number) => {
-    const response = await apiClient.get(`/savings-banks/withdrawal-associate/${withdrawalId}/details`);
-    return withdrawalDetailsResponseSchema.parse(response.data);
+  getHistorial: async (associateId: string, params: { page?: number; limit?: number }) => {
+    const response = await apiClient.get(`${BASE}/historial/${associateId}`, {
+      params: { page: params.page || 1, limit: params.limit || 10 },
+    });
+    return historyPaginatedResponseSchema.parse(response.data);
   },
 
-  getCreditDetails: async (creditId: number) => {
-    const response = await apiClient.get(`/credit/${creditId}/details`);
-    return creditDetailsResponseSchema.parse(response.data);
+  getPrestamoDetalle: async (loanId: string) => {
+    const response = await apiClient.get(`${BASE}/prestamo/${loanId}/detalle`);
+    return loanDetailResponseSchema.parse(response.data.data);
   },
 
-  getLoanDetails: async (loanId: number) => {
-    const response = await apiClient.get(`/loan/${loanId}/details`);
-    return loanDetailsResponseSchema.parse(response.data);
+  getCreditoDetalle: async (creditId: string) => {
+    const response = await apiClient.get(`${BASE}/credito/${creditId}/detalle`);
+    return creditDetailResponseSchema.parse(response.data.data);
+  },
+
+  getRetiroDetalle: async (withdrawalId: string) => {
+    const response = await apiClient.get(`${BASE}/retiro/${withdrawalId}/detalle`);
+    return withdrawalDetailResponseSchema.parse(response.data.data);
   },
 };

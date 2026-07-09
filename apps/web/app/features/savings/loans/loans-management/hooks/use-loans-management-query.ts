@@ -1,6 +1,18 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
+import { loansManagementKeys } from '../keys/loans-management-keys';
 import { loansManagementService } from '../services/loans-management-service';
+import type { SearchAssociateResult } from '../schemas/loans-management-api-response';
+
+export function useSearchAssociate(
+  cedula: string,
+  options?: { enabled?: boolean },
+): UseQueryResult<SearchAssociateResult, Error> & { isFetching: boolean } {
+  return useQuery({
+    queryKey: loansManagementKeys.searchAssociate(cedula),
+    queryFn: () => loansManagementService.searchAssociate(cedula),
+    enabled: options?.enabled ?? !!cedula,
+  }) as any;
+}
 
 export function useQueryLoansManagement(params?: {
   page?: number;
@@ -13,28 +25,28 @@ export function useQueryLoansManagement(params?: {
   sortOrder?: 'asc' | 'desc';
 }): UseQueryResult<{ data: unknown[]; meta: unknown }, Error> {
   return useQuery({
-    queryKey: QUERY_KEYS.loansManagement.list(JSON.stringify(params)),
+    queryKey: loansManagementKeys.list(params || {}),
     queryFn: () => loansManagementService.getLoansManagementAll(params || {}),
   });
 }
 
 export function useQueryLoansManagementById(
-  id: number,
-  options?: { enabled?: boolean }
+  id: string,
+  options?: { enabled?: boolean },
 ): UseQueryResult<unknown, Error> {
   return useQuery({
-    queryKey: QUERY_KEYS.loansManagement.detail(id),
-    queryFn: () => loansManagementService.getLoansManagementById(id),
+    queryKey: loansManagementKeys.detail(id),
+    queryFn: () => loansManagementService.getLoansManagementById(Number(id)),
     enabled: options?.enabled ?? !!id,
   });
 }
 
 export function useAssociatesByCedula(
   cedula: string,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean },
 ): UseQueryResult<unknown, Error> {
   return useQuery({
-    queryKey: QUERY_KEYS.loansManagement.byCedula(cedula),
+    queryKey: loansManagementKeys.byCedula(cedula),
     queryFn: () => loansManagementService.getAssociatesByCedula(cedula),
     enabled: options?.enabled ?? !!cedula,
   });
@@ -42,7 +54,18 @@ export function useAssociatesByCedula(
 
 export function useQueryLoansManagementCount(): UseQueryResult<unknown, Error> {
   return useQuery({
-    queryKey: QUERY_KEYS.loansManagement.count(),
+    queryKey: loansManagementKeys.count(),
     queryFn: () => loansManagementService.getLoansManagementAllCount(),
+  });
+}
+
+export function useLoanDetails(
+  id: string,
+  options?: { enabled?: boolean },
+): UseQueryResult<any, Error> {
+  return useQuery({
+    queryKey: loansManagementKeys.detail(id),
+    queryFn: () => loansManagementService.getLoanDetails(id),
+    enabled: options?.enabled ?? !!id,
   });
 }

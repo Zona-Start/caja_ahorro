@@ -22,7 +22,7 @@ export function CreditsPaidList({
   type,
   method,
 }: CreditsPaidListProps) {
-  const filters: Record<string, unknown> = {
+  const params: Record<string, unknown> = {
     page,
     limit,
     ...(search && { search }),
@@ -31,7 +31,14 @@ export function CreditsPaidList({
     ...(method && { method }),
   };
 
-  const { data, isLoading } = useCreditsPaidQuery(filters);
+  const { data, isLoading } = useCreditsPaidQuery(params as {
+    page: number;
+    limit: number;
+    search?: string;
+    bank?: string;
+    type?: string;
+    method?: string;
+  });
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={10} rowCount={limit} />;
@@ -40,10 +47,8 @@ export function CreditsPaidList({
   return (
     <DataTable
       columns={columns}
-      data={(data as { data: unknown[] })?.data || []}
-      totalItems={
-        (data as { meta?: { totalCount?: number } })?.meta?.totalCount || 0
-      }
+      data={data?.data || []}
+      totalItems={data?.meta?.totalItems || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

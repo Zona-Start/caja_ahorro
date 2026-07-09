@@ -113,6 +113,27 @@
       "when": 1783391123783,
       "tag": "0015_aberrant_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1783524181809,
+      "tag": "0016_rare_shinko_yamashiro",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1783527390002,
+      "tag": "0017_omniscient_jean_grey",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783561775106,
+      "tag": "0018_known_leper_queen",
+      "breakpoints": true
     }
   ]
 }

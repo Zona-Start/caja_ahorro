@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertModal } from '@/components/modal/alert-modal';
+import { AlertModal } from '@/components/shared/alert-modal';
 import { Button } from '@repo/shadcn/button';
 import {
   DropdownMenu,
@@ -10,29 +10,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
-import { Eye, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Eye, MoreHorizontal, XCircle } from 'lucide-react';
 import { useDeleteCreditPaymentMutation } from '../../hooks/use-credits-paid-mutation';
+import { useCreditPaidById } from '../../hooks/use-credits-paid-query';
 import type { CreditPaymentApi } from '../../schemas/credits-paid-api-response';
+import { CreditPaidDetailModal } from './credit-paid-detail-modal';
 
 interface CellActionProps {
   data: CreditPaymentApi;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openView, setOpenView] = useState(false);
 
-  const { mutate: deletePayment } = useDeleteCreditPaymentMutation();
+  const { mutate: deletePayment, isPending: isDeleting } =
+    useDeleteCreditPaymentMutation();
+
+  const { data: detailData, isLoading: isLoadingDetail } = useCreditPaidById(
+    openView ? data.id : '',
+    { enabled: openView },
+  );
 
   const onConfirm = () => {
-    setLoading(true);
     deletePayment(data.id, {
       onSuccess: () => {
         setOpenDelete(false);
-      },
-      onSettled: () => {
-        setLoading(false);
       },
     });
   };
@@ -43,10 +46,19 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         isOpen={openDelete}
         onClose={() => setOpenDelete(false)}
         onConfirm={onConfirm}
-        loading={loading}
-        title="¿Está seguro que desea eliminar este pago?"
-        description="Esta acción no se puede deshacer. El pago registrado será eliminado del sistema."
+        loading={isDeleting}
+        title="¿Está seguro que desea anular este pago?"
+        description="Esta acción marcará el pago como anulado y revertirá los cambios en la tabla de amortización."
       />
+
+      {openView && (
+        <CreditPaidDetailModal
+          isOpen={openView}
+          onClose={() => setOpenView(false)}
+          data={detailData}
+          isLoading={isLoadingDetail}
+        />
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -64,8 +76,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             onClick={() => setOpenDelete(true)}
             className="text-red-600 focus:text-red-600 focus:bg-red-50"
           >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
+            <XCircle className="mr-2 h-4 w-4" />
+            Anular
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

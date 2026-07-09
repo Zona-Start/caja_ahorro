@@ -1,30 +1,19 @@
 import { create } from 'zustand';
-import { type AssociatesLoan } from '../schemas/individual-load-api-schema';
+import type { AssociatesLoan } from '../schemas/individual-load-api-schema';
 
 interface LoansPaidState {
   selectedAssociate: AssociatesLoan | null;
-  shouldClearSearch: boolean;
-  loanSummary: {
-    loanId: number;
-    loanReference: string;
-    totalAmount: string;
-    pendingBalance: string;
-    installmentsCount: number;
-    paidInstallments: number;
-    pendingInstallments: number;
-  } | null;
-  formValues: Record<string, unknown>;
   setSelectedAssociate: (associate: AssociatesLoan | null) => void;
+  shouldClearSearch: boolean;
   setShouldClearSearch: (clear: boolean) => void;
-  setLoanSummary: (summary: LoansPaidState['loanSummary']) => void;
+  formValues: Record<string, unknown>;
   setFormValues: (values: Record<string, unknown>) => void;
   clearAllLoanData: () => void;
 }
 
 const initialState = {
-  selectedAssociate: null,
-  loanSummary: null,
-  formValues: {},
+  selectedAssociate: null as AssociatesLoan | null,
+  formValues: {} as Record<string, unknown>,
 };
 
 export const useLoansPaidStore = create<LoansPaidState>((set) => ({
@@ -34,16 +23,12 @@ export const useLoansPaidStore = create<LoansPaidState>((set) => ({
   shouldClearSearch: false,
   setShouldClearSearch: (clear) => set({ shouldClearSearch: clear }),
 
-  loanSummary: initialState.loanSummary,
-  setLoanSummary: (summary) => set({ loanSummary: summary }),
-
   formValues: initialState.formValues,
   setFormValues: (values) => set({ formValues: values }),
 
   clearAllLoanData: () =>
     set({
       selectedAssociate: initialState.selectedAssociate,
-      loanSummary: initialState.loanSummary,
       formValues: initialState.formValues,
       shouldClearSearch: true,
     }),

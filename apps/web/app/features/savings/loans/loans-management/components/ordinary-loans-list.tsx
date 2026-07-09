@@ -3,7 +3,7 @@
 import { DataTable } from '@repo/shadcn/table/data-table';
 import { DataTableSkeleton } from '@repo/shadcn/table/data-table-skeleton';
 import { useQueryLoansManagement } from '../hooks/use-loans-management-query';
-import { columns } from './loans-tables/columns';
+import { createLoanColumns, type LoanTableRow } from './loans-tables/columns';
 
 interface OrdinaryLoansListProps {
   page: number;
@@ -12,6 +12,7 @@ interface OrdinaryLoansListProps {
   status?: string;
   type?: string;
   modality?: string;
+  onViewDetails?: (data: LoanTableRow) => void;
 }
 
 export function OrdinaryLoansList({
@@ -21,6 +22,7 @@ export function OrdinaryLoansList({
   status,
   type,
   modality,
+  onViewDetails,
 }: OrdinaryLoansListProps) {
   const filters = {
     page,
@@ -41,9 +43,9 @@ export function OrdinaryLoansList({
 
   return (
     <DataTable
-      columns={columns}
+      columns={createLoanColumns(onViewDetails)}
       data={(resultData?.data as unknown[]) || []}
-      totalItems={(resultData?.meta?.totalCount as number) || 0}
+      totalItems={(resultData?.meta?.totalItems as number) || 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

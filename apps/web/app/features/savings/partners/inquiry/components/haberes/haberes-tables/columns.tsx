@@ -1,40 +1,73 @@
 import { formatCurrency } from '@/lib/format-utils';
-import { type ColumnDef } from '@tanstack/react-table';
-import z from 'zod';
+import { Badge } from '@repo/shadcn/badge';
+import type { ColumnDef } from '@tanstack/react-table';
 import { MOVEMENT_TYPES } from '../../../schemas/inquiry-options';
-import { type haberesMovementSchema } from '../../../schemas/inquiry-schema';
+import type { HaberesMovement } from '../../../schemas/inquiry-schema';
 
-export type HaberesData = z.infer<typeof haberesMovementSchema>;
-
-export const columns: ColumnDef<HaberesData>[] = [
+export const columns: ColumnDef<HaberesMovement>[] = [
   {
     accessorKey: 'fecha',
     header: 'Fecha',
     cell: ({ row }) => {
-      const fechas = row?.original?.fecha;
-      if (!fechas) return 'N/A';
-      return new Date(fechas).toLocaleDateString('es-VE');
+      const fecha = row.original.fecha;
+      if (!fecha) return <span className="text-muted-foreground">N/A</span>;
+      return new Date(fecha).toLocaleDateString('es-VE', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    },
+  },
+  {
+    accessorKey: 'tipo',
+    header: 'Tipo de Aporte',
+    cell: ({ row }) => {
+      const tipo = row.original.tipo;
+      const label =
+        MOVEMENT_TYPES[tipo as keyof typeof MOVEMENT_TYPES] || tipo;
+      const variant = (() => {
+        switch (tipo) {
+          case 'SAVING_CONTRIBUTION':
+            return 'default';
+          case 'EMPLOYER_CONTRIBUTION':
+            return 'secondary';
+          case 'VOLUNTARY_SAVINGS':
+            return 'outline';
+          case 'DIVIDEND_CREDIT':
+            return 'success';
+          default:
+            return 'default';
+        }
+      })();
+      return (
+        <Badge variant={variant as any} className="text-xs">
+          {label}
+        </Badge>
+      );
     },
   },
   {
     accessorKey: 'concepto',
     header: 'Concepto',
-  },
-  {
-    accessorKey: 'tipo',
-    header: 'Tipo',
     cell: ({ row }) => {
-      const movement =
-        MOVEMENT_TYPES[row?.original?.tipo as keyof typeof MOVEMENT_TYPES] ||
-        row?.original?.tipo;
-      return movement || 'N/A';
+      const concepto = row.original.concepto;
+      return (
+        <span className={concepto ? '' : 'text-muted-foreground italic'}>
+          {concepto || 'Sin descripción'}
+        </span>
+      );
     },
   },
   {
     accessorKey: 'monto',
     header: 'Monto',
     cell: ({ row }) => {
-      return formatCurrency(Number(row?.original?.monto), 'VES');
+      const monto = Number(row.original.monto);
+      return (
+        <span className="font-mono font-medium text-emerald-600">
+          {formatCurrency(monto, 'VES')}
+        </span>
+      );
     },
   },
 ];

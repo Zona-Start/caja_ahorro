@@ -33,10 +33,10 @@ export class LoanPaidController {
   constructor(
     private readonly loanPaidService: LoanPaidService,
     private readonly tenantContextService: TenantContextService,
-  ) {}
+  ) { }
 
   @Post()
-  @Permissions('read:loan-paid')
+  @Permissions('portfolio:payments-loans:read')
   @UsePipes(new ZodValidatorPipe(CreateLoanPaidSchema))
   create(@Req() req: Request, @Body() dto: CreateLoanPaidDto) {
     const { targetTenantId, userId } =
@@ -45,7 +45,7 @@ export class LoanPaidController {
   }
 
   @Get('download-template')
-  @Permissions('read:loan-management')
+  @Permissions('portfolio:payments-loans:read')
   async downloadTemplate(@Res() res: Response) {
     const buffer = await this.loanPaidService.downloadTemplate();
     res.set({
@@ -58,7 +58,7 @@ export class LoanPaidController {
   }
 
   @Post('bulk')
-  @Permissions('update:loan-management')
+  @Permissions('portfolio:payments-loans:read')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file'))
   @UsePipes(new ZodValidatorPipe(CreateBulkLoanPaidSchema))
@@ -73,7 +73,7 @@ export class LoanPaidController {
   }
 
   @Get()
-  @Permissions('read:loan-paid')
+  @Permissions('portfolio:payments-loans:read')
   @ApiOperation({ summary: 'Get all Loan paid or filter by Loan paid ' })
   @ApiResponse({ status: 200, description: 'Return all Loan paid.' })
   findAll(@Req() req: Request, @Query() dto: FilterLoanPaidDto) {
@@ -82,7 +82,7 @@ export class LoanPaidController {
   }
 
   @Get('report/pdf')
-  @Permissions('read:loan-paid')
+  @Permissions('portfolio:payments-loans:read')
   @ApiOperation({ summary: 'Generate and download PDF report of loan payments' })
   async downloadReportPdf(
     @Req() req: Request,
@@ -99,7 +99,7 @@ export class LoanPaidController {
   }
 
   @Get('request/:cedula')
-  @Permissions('read:loan-paid-requests')
+  @Permissions('portfolio:payments-loans:read')
   @ApiOperation({ summary: 'Get one Loan associate' })
   @ApiResponse({ status: 200, description: 'Return on Loan associate.' })
   @ApiResponse({ status: 404, description: 'Loan Associate  not found.' })
@@ -108,8 +108,18 @@ export class LoanPaidController {
     return this.loanPaidService.findOneRequest(cedula, targetTenantId);
   }
 
+  @Get(':id')
+  @Permissions('portfolio:payments-loans:read')
+  @ApiOperation({ summary: 'Get one Loan payment detail' })
+  @ApiResponse({ status: 200, description: 'Return one Loan payment.' })
+  @ApiResponse({ status: 404, description: 'Loan payment not found.' })
+  findOne(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.loanPaidService.findOne(targetTenantId, id);
+  }
+
   @Delete(':id')
-  @Permissions('delete:loan-paid')
+  @Permissions('portfolio:payments-loans:read')
   @ApiOperation({ summary: 'Cancel a Loan Payment' })
   @ApiResponse({
     status: 200,

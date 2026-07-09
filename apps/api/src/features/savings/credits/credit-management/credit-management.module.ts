@@ -3,6 +3,8 @@ import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.m
 import { DrizzleModule } from '@/database/drizzle.module';
 import { AuditModule } from '@/features/audit/audit.module';
 import { InventoryMovementsModule } from '@/features/inventory/inventory-movements/inventory-movements.module';
+import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
+import { WithdrawalAssociateModule } from '@/features/savings/withdrawalls/withdrawal-associate/withdrawal-associate.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
 import { CreditManagementController } from './credit-management.controller';
@@ -16,6 +18,8 @@ import { CreditManagementService } from './credit-management.service';
     InventoryMovementsModule,
     TenantContextModule,
     AuditModule,
+    BankMovementsModule,
+    WithdrawalAssociateModule,
   ],
   controllers: [CreditManagementController],
   providers: [CreditManagementService],

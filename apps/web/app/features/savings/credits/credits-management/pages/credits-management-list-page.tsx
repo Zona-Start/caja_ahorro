@@ -200,7 +200,7 @@ export default function CreditsManagementListPage() {
                           <tr key={i} className="border-b last:border-0">
                             <td className="py-1">{i + 1}</td>
                             <td className="py-1">
-                              {it.itemName || it.itemType || '—'}
+                              {it.itemName || it.itemDescription || it.itemType || '—'}
                             </td>
                             <td className="py-1 text-right">
                               {it.quantity}

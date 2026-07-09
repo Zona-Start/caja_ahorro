@@ -1,11 +1,20 @@
 import { z } from 'zod';
 
-// Esquema para los detalles del asociado (GET /associates/details/:cedula)
-export const associateDetailsSchema = z.object({
+export const metaSchema = z.object({
+  page: z.number(),
+  limit: z.number(),
+  totalCount: z.number(),
+  totalPages: z.number(),
+  hasNextPage: z.boolean(),
+  hasPreviousPage: z.boolean(),
+});
+
+export const associateStatementSchema = z.object({
+  id: z.string(),
   cedula: z.string(),
   fullname: z.string(),
   nationality: z.string(),
-  gender: z.string(),
+  gender: z.string().nullable(),
   admissionDate: z.string(),
   graduationDate: z.string().nullable(),
   status: z.string(),
@@ -16,115 +25,123 @@ export const associateDetailsSchema = z.object({
   bankName: z.string().nullable(),
   totalHaberes: z.string(),
   paymentCapacity: z.string(),
-  id: z.number(),
+  disponibility: z.string(),
+  haberesContribution: z.string(),
+  haberesVoluntary: z.string(),
+  haberesEmployer: z.string(),
+  surpluses: z.string(),
 });
 
-export const associateDetailsResponseSchema = z.object({
+export const statementResponseSchema = z.object({
   message: z.string(),
-  data: associateDetailsSchema,
+  data: associateStatementSchema,
 });
 
-const metaSchema = z.object({
-  totalCount: z.number(),
-  page: z.number(),
-  limit: z.number(),
-});
-
-// Esquema para los movimientos de haberes (GET /haberes/by-associate/:associateId)
 export const haberesMovementSchema = z.object({
-  fecha: z.string(),
+  fecha: z.string().nullable(),
   concepto: z.string().nullable(),
   tipo: z.string(),
   monto: z.string(),
 });
 
-export const haberesMovementsResponseSchema = z.object({
+export const haberesPaginatedResponseSchema = z.object({
   message: z.string(),
   data: z.array(haberesMovementSchema),
   meta: metaSchema,
 });
 
-// Esquema para los retiros (GET /by-associate/:associateId)
-export const withdrawalSchema = z.object({
-  id: z.number(),
-  withdrawalDate: z.string(),
+export const withdrawalListItemSchema = z.object({
+  id: z.string(),
+  withdrawalDate: z.string().nullable(),
   description: z.string().nullable(),
   amount: z.string(),
-  disbursedAmount: z.string().optional().nullable(),
-  administrativeFee: z.string().optional().nullable(),
+  disbursedAmount: z.string().nullable(),
+  administrativeFee: z.string().nullable(),
   paymentMethod: z.string().nullable(),
   status: z.string(),
+  referenceCode: z.string().nullable(),
 });
 
-export const withdrawalsResponseSchema = z.object({
+export const withdrawalsPaginatedResponseSchema = z.object({
   message: z.string(),
-  data: z.array(withdrawalSchema),
+  data: z.array(withdrawalListItemSchema),
   meta: metaSchema,
 });
 
-// Esquema para el historial de transacciones (GET /history/by-associate/:associateId)
+export const loanListItemSchema = z.object({
+  id: z.string(),
+  loanType: z.string().nullable(),
+  interestRate: z.string().nullable(),
+  loanAmount: z.string(),
+  outstandingBalance: z.string().nullable(),
+  installmentAmount: z.string().nullable(),
+  requestDate: z.string().nullable(),
+  terms: z.number().nullable(),
+  status: z.string(),
+  customReference: z.string().nullable(),
+  progress: z.string(),
+});
+
+export const loansPaginatedResponseSchema = z.object({
+  message: z.string(),
+  data: z.array(loanListItemSchema),
+  meta: metaSchema,
+});
+
+export const creditListItemSchema = z.object({
+  id: z.string(),
+  creditType: z.string().nullable(),
+  interestRate: z.string().nullable(),
+  creditAmount: z.string(),
+  outstandingBalance: z.string().nullable(),
+  installmentAmount: z.string().nullable(),
+  requestDate: z.string().nullable(),
+  terms: z.number().nullable(),
+  status: z.string(),
+  customReference: z.string().nullable(),
+  progress: z.string(),
+});
+
+export const creditsPaginatedResponseSchema = z.object({
+  message: z.string(),
+  data: z.array(creditListItemSchema),
+  meta: metaSchema,
+});
+
 export const transactionHistorySchema = z.object({
   tipo: z.string(),
   monto: z.string(),
-  fecha: z.string(),
+  fecha: z.string().nullable(),
   descripcion: z.string().nullable(),
   numeroReferencia: z.string().nullable(),
   status: z.string(),
 });
 
-export const transactionHistoryResponseSchema = z.object({
+export const historyPaginatedResponseSchema = z.object({
   message: z.string(),
   data: z.array(transactionHistorySchema),
   meta: metaSchema,
 });
 
-// Esquema para los préstamos (GET /by-associate/:associateId)
-export const loanSchema = z.object({
-  id: z.number(),
-  loanType: z.string().nullable(),
-  interestRate: z.string(),
-  loanAmount: z.string(),
-  outstandingBalance: z.string().nullable(),
-  installmentAmount: z.string(),
-  requestDate: z.string(),
-  terms: z.number(),
-  status: z.string(),
-  progress: z.string(),
+export const amortizationItemSchema = z.object({
+  id: z.string(),
+  loanId: z.string().optional(),
+  creditId: z.string().optional(),
+  installmentNumber: z.number(),
+  dueDate: z.string(),
+  principalAmount: z.string(),
+  interestAmount: z.string(),
+  totalInstallmentAmount: z.string(),
+  principalBalancePending: z.string(),
+  paymentStatus: z.string(),
+  paidAmount: z.string().nullable(),
+  lastPaymentDate: z.string().nullable(),
 });
 
-export const loansResponseSchema = z.object({
-  message: z.string(),
-  data: z.array(loanSchema),
-  meta: metaSchema,
-});
-
-// Esquema para los créditos (GET /by-associate/:associateId)
-export const creditSchema = z.object({
-  id: z.number(),
-  creditType: z.string().nullable(),
-  interestRate: z.string(),
-  creditAmount: z.string(),
-  outstandingBalance: z.string().nullable(),
-  installmentAmount: z.string(),
-  requestDate: z.string(),
-  terms: z.number(),
-  status: z.string(),
-  progress: z.string(),
-});
-
-export const creditsResponseSchema = z.object({
-  message: z.string(),
-  data: z.array(creditSchema),
-  meta: metaSchema,
-});
-
-// Esquema para los detalles de un préstamo (GET /loan/:id/details)
-export const loanDetailsSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  companyId: z.number(),
-  loanTypeId: z.number(),
-  loanModality: z.string(),
+export const loanDetailSchema = z.object({
+  id: z.string(),
+  associateId: z.string(),
+  loanTypeId: z.string(),
   requestDate: z.string(),
   approvalDate: z.string().nullable(),
   disbursementDate: z.string().nullable(),
@@ -133,63 +150,31 @@ export const loanDetailsSchema = z.object({
   disbursedAmount: z.string().nullable(),
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
+  interestRate: z.string().nullable(),
+  termType: z.string().nullable(),
+  termUnits: z.number().nullable(),
   totalInterest: z.string().nullable(),
   installmentAmount: z.string().nullable(),
   totalPayable: z.string().nullable(),
   expensesAmount: z.string().nullable(),
   overdraftAmount: z.string().nullable(),
-  previousLoanId: z.number().nullable(),
+  previousLoanId: z.string().nullable(),
   paymentMethod: z.string().nullable(),
-  disbursementAccountId: z.number().nullable(),
+  disbursementAccountId: z.string().nullable(),
   status: z.string(),
   rejectionReason: z.string().nullable(),
-  approvedByUserId: z.number().nullable(),
-  disbursedByUserId: z.number().nullable(),
   notes: z.string().nullable(),
   customReference: z.string().nullable(),
   currencyCode: z.string().nullable(),
-  exchangeRateId: z.number().nullable(),
   balanceInFavor: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string().nullable(),
-  createdById: z.number().nullable(),
-  updatedById: z.number().nullable(),
   associateName: z.string(),
   associateCedula: z.string(),
   loanTypeName: z.string(),
 });
 
-export const amortizationScheduleSchema = z.object({
-  id: z.number(),
-  loanId: z.number(),
-  installmentNumber: z.number(),
-  dueDate: z.string(),
-  principalAmount: z.string(),
-  interestAmount: z.string(),
-  totalInstallmentAmount: z.string(),
-  principalBalancePending: z.string(),
-  paymentStatus: z.string(),
-  paidAmount: z.string().nullable(),
-  lastPaymentDate: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string().nullable(),
-  createdById: z.number().nullable(),
-  updatedById: z.number().nullable(),
-});
-
-export const loanStatusHistorySchema = z.object({
-  id: z.number(),
-  loanId: z.number(),
-  status: z.string(),
-  changedAt: z.string(),
-  changedByUserId: z.number().nullable(),
-  comment: z.string().nullable(),
-});
-
-export const loanDetailsResponseSchema = z.object({
-  loan: loanDetailsSchema,
-  amortizationSchedule: z.array(amortizationScheduleSchema),
-  statusHistory: z.array(loanStatusHistorySchema),
+export const loanDetailResponseSchema = z.object({
+  loan: loanDetailSchema,
+  amortizationSchedule: z.array(amortizationItemSchema),
   summary: z.object({
     totalPaid: z.number(),
     totalPending: z.number(),
@@ -198,84 +183,54 @@ export const loanDetailsResponseSchema = z.object({
   }),
 });
 
-// Esquema para los detalles de un crédito (GET /credit/:id/details)
-export const creditDetailsSchema = z.object({
-  id: z.number(),
-  associateId: z.number(),
-  companyId: z.number(),
-  creditTypeId: z.number(),
-  creditModality: z.string(),
+export const creditDetailSchema = z.object({
+  id: z.string(),
+  associateId: z.string(),
+  creditTypeId: z.string(),
   requestDate: z.string(),
   approvalDate: z.string().nullable(),
   requestedAmount: z.string(),
+  haberesPayment: z.string().nullable(),
+  directPayment: z.string().nullable(),
+  directPaymentMethod: z.string().nullable(),
+  directPaymentReference: z.string().nullable(),
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
+  interestRate: z.string().nullable(),
+  termType: z.string().nullable(),
+  termUnits: z.number().nullable(),
   totalInterest: z.string().nullable(),
   installmentAmount: z.string().nullable(),
   totalPayable: z.string().nullable(),
   expensesAmount: z.string().nullable(),
   overdraftAmount: z.string().nullable(),
-  previousCreditId: z.number().nullable(),
+  previousCreditId: z.string().nullable(),
   status: z.string(),
   rejectionReason: z.string().nullable(),
-  approvedByUserId: z.number().nullable(),
   notes: z.string().nullable(),
   customReference: z.string().nullable(),
   currencyCode: z.string().nullable(),
-  exchangeRateId: z.number().nullable(),
   balanceInFavor: z.string().nullable(),
-  commercialHouseId: z.number().nullable(),
-  invoiceNumber: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string().nullable(),
-  createdById: z.number().nullable(),
-  updatedById: z.number().nullable(),
   associateName: z.string(),
   associateCedula: z.string(),
   creditTypeName: z.string(),
 });
 
-export const creditAmortizationScheduleSchema = z.object({
-  id: z.number(),
-  creditId: z.number(),
-  installmentNumber: z.number(),
-  dueDate: z.string(),
-  principalAmount: z.string(),
-  interestAmount: z.string(),
-  totalInstallmentAmount: z.string(),
-  principalBalancePending: z.string(),
-  paymentStatus: z.string(),
-  paidAmount: z.string().nullable(),
-  lastPaymentDate: z.string().nullable(),
-});
-
-export const creditStatusHistorySchema = z.object({
-  id: z.number(),
-  creditId: z.number(),
-  status: z.string(),
-  changedAt: z.string(),
-  changedByUserId: z.number().nullable(),
-  comment: z.string().nullable(),
-});
-
-export const creditItemSalesSchema = z.object({
-  id: z.number(),
-  creditId: z.number(),
+export const creditItemSaleSchema = z.object({
+  id: z.string(),
   itemType: z.string(),
-  itemId: z.number(),
+  itemDescription: z.string().nullable(),
+  productName: z.string().nullable(),
   quantity: z.number(),
   agreedSellingPrice: z.string(),
-  saleDate: z.string(),
+  saleDate: z.string().nullable(),
   deliveryStatus: z.string(),
-  days: z.number().nullable(),
-  itemName: z.string().nullable(),
 });
 
-export const creditDetailsResponseSchema = z.object({
-  credit: creditDetailsSchema,
-  amortizationSchedule: z.array(creditAmortizationScheduleSchema),
-  statusHistory: z.array(creditStatusHistorySchema),
-  items: z.array(creditItemSalesSchema),
+export const creditDetailResponseSchema = z.object({
+  credit: creditDetailSchema,
+  amortizationSchedule: z.array(amortizationItemSchema),
+  items: z.array(creditItemSaleSchema),
   summary: z.object({
     totalPaid: z.number(),
     totalPending: z.number(),
@@ -284,36 +239,34 @@ export const creditDetailsResponseSchema = z.object({
   }),
 });
 
-// Esquema para los detalles de un retiro (GET /savings-banks/withdrawal-associate/:id/details)
-export const withdrawalDetailsSchema = z.object({
-  id: z.number(),
-  associateAccountId: z.number(),
-  withdrawalTypeId: z.number(),
-  withdrawalDate: z.string(),
+export const withdrawalDetailSchema = z.object({
+  id: z.string(),
+  associateAccountId: z.string(),
+  withdrawalTypeId: z.string().nullable(),
+  withdrawalDate: z.string().nullable(),
   requestedAmount: z.string(),
   administrativeFee: z.string().nullable(),
   disbursedAmount: z.string().nullable(),
   paymentMethod: z.string().nullable(),
   referenceCode: z.string().nullable(),
   status: z.string(),
-  commercialHouseId: z.number().nullable(),
   withdrawalItems: z.any().nullable(),
+  commercialHouseId: z.string().nullable(),
   associateName: z.string(),
   associateCedula: z.string(),
-  withdrawalTypeName: z.string(),
+  withdrawalTypeName: z.string().nullable(),
+  isHouseComercial: z.boolean().nullable(),
+  isInternalInventory: z.boolean().nullable(),
 });
 
-export const withdrawalItemDetailsSchema = z.object({
-  itemType: z.string(),
-  itemId: z.number().nullable(),
-  quantity: z.number(),
-  agreedSellingPrice: z.number().nullable().optional(),
-  itemName: z.string().nullable(),
+export const withdrawalDetailResponseSchema = z.object({
+  withdrawal: withdrawalDetailSchema,
+  items: z.array(z.any()),
 });
 
-export const withdrawalDetailsResponseSchema = z.object({
-  withdrawal: withdrawalDetailsSchema,
-  items: z.array(withdrawalItemDetailsSchema),
-});
-
-export type AssociateDetails = z.infer<typeof associateDetailsSchema>;
+export type AssociateStatement = z.infer<typeof associateStatementSchema>;
+export type HaberesMovement = z.infer<typeof haberesMovementSchema>;
+export type WithdrawalListItem = z.infer<typeof withdrawalListItemSchema>;
+export type LoanListItem = z.infer<typeof loanListItemSchema>;
+export type CreditListItem = z.infer<typeof creditListItemSchema>;
+export type TransactionHistory = z.infer<typeof transactionHistorySchema>;

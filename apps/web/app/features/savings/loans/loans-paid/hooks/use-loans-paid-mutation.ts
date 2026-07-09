@@ -8,25 +8,48 @@ import { QUERY_KEYS } from '@/lib/query-keys';
 import { loansPaidService } from '../services/loans-paid-service';
 
 export function useCreateLoanPaymentMutation(): UseMutationResult<
-  unknown,
+  { message: string },
   Error,
-  unknown,
+  Record<string, unknown>,
   unknown
 > {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (payment: unknown) =>
+    mutationFn: (payment: Record<string, unknown>) =>
       loansPaidService.createLoanPayment(payment),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.loansPaid.all(),
+        queryKey: QUERY_KEYS.loansPaid.lists(),
       });
       toast.success('Pago registrado exitosamente');
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Error al registrar el pago');
+    },
+  });
+}
+
+export function useDeleteLoanPaymentMutation(): UseMutationResult<
+  { message: string },
+  Error,
+  string,
+  unknown
+> {
+  const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id: string) => loansPaidService.deleteLoanPayment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.loansPaid.lists(),
+      });
+      toast.success('Pago anulado exitosamente');
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al anular el pago');
     },
   });
 }

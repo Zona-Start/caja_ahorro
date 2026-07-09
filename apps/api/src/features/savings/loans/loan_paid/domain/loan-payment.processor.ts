@@ -31,7 +31,7 @@ export class LoanPaymentProcessor {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
-  ) {}
+  ) { }
 
   async generateReference(
     tenantId: string,
@@ -39,8 +39,8 @@ export class LoanPaymentProcessor {
     return this.generateCodeService.generateNextReference(
       'PRE-PAG',
       tenantId,
-      'loans',
-      'payments',
+      'portfolio',
+      'loan-payments',
     );
   }
 
@@ -83,7 +83,10 @@ export class LoanPaymentProcessor {
         customReference: loanPayments.customReference,
       });
 
-    return insertedPayment[0];
+    return {
+      id: insertedPayment.id,
+      customReference: insertedPayment.customReference!,
+    };
   }
 
   async updateInstallmentPaid(

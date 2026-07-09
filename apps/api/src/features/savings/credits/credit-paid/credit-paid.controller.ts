@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -44,11 +45,29 @@ export class CrediPaidController {
     return this.service.findOneRequest(targetTenantId, cedula);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get credit payment by ID' })
+  @ApiResponse({ status: 200, description: 'Return credit payment.' })
+  @ApiResponse({ status: 404, description: 'Credit payment not found.' })
+  findOne(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.service.findOne(targetTenantId, id);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get all credit paid or filter by credit paid' })
   @ApiResponse({ status: 200, description: 'Return all credit paid.' })
   findAll(@Req() req: Request, @Query(new ZodValidatorPipe(FilterCreditPaidSchema)) query: FilterCreditPaidDto) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findAll(targetTenantId, query);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Cancel a credit payment' })
+  @ApiResponse({ status: 200, description: 'Credit payment canceled successfully.' })
+  @ApiResponse({ status: 404, description: 'Credit payment not found.' })
+  remove(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    return this.service.remove(targetTenantId, userId, id);
   }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Heading } from '@repo/shadcn/heading';
-import { useAssociateDetailsQuery } from '../hooks/use-inquiry-query';
+import { useStatementQuery } from '../hooks/use-inquiry-query';
 import { InquirySearchCard } from '../components/inquiry-search-card';
 import { AssociateDataView } from '../components/associate-data-view';
 import { DetailsSkeleton } from '../components/skeletons/details-skeleton';
@@ -8,9 +8,7 @@ import { DetailsSkeleton } from '../components/skeletons/details-skeleton';
 export function InquiryPage() {
   const [cedula, setCedula] = useState<string | null>(null);
 
-  const { data, isLoading, isError } = useAssociateDetailsQuery(cedula as string, {
-    enabled: !!cedula,
-  });
+  const { data, isLoading, isError, error } = useStatementQuery(cedula);
 
   return (
     <div className="space-y-6">
@@ -23,8 +21,10 @@ export function InquiryPage() {
       {isLoading && cedula && <DetailsSkeleton />}
 
       {isError && cedula && (
-        <div className="text-center text-destructive py-8">
-          <p>Error al buscar el asociado. Intente de nuevo o verifique la cédula.</p>
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-8 text-center">
+          <p className="text-destructive font-medium">
+            {error instanceof Error ? error.message : 'Error al buscar el asociado. Verifique la cédula e intente de nuevo.'}
+          </p>
         </div>
       )}
 

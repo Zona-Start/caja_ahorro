@@ -42,8 +42,8 @@ export function OrdinaryCreditsList({
   return (
     <DataTable
       columns={createColumns(onViewDetails)}
-      data={data?.data || []}
-      totalItems={data?.meta?.totalItems || 0}
+      data={(data?.data ?? []) as CreditTableRow[]}
+      totalItems={(data?.meta as { totalItems?: number })?.totalItems ?? 0}
       pageSizeOptions={[10, 20, 30, 40, 50]}
     />
   );

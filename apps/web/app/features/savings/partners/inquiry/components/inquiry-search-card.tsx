@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import { Button } from '@repo/shadcn/button';
 import {
   Card,
@@ -37,9 +37,7 @@ export function InquirySearchCard({
 }: InquirySearchCardProps) {
   const form = useForm<SearchFormValues>({
     resolver: zodResolver(searchSchema),
-    defaultValues: {
-      cedula: '',
-    },
+    defaultValues: { cedula: '' },
   });
 
   const onSubmit = (values: SearchFormValues) => {
@@ -47,9 +45,12 @@ export function InquirySearchCard({
   };
 
   return (
-    <Card>
+    <Card className="border-2 border-primary/10">
       <CardHeader>
-        <CardTitle>Buscar Asociado</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <Search className="h-5 w-5 text-primary" />
+          Buscar Asociado
+        </CardTitle>
         <CardDescription>
           Ingrese la cédula del asociado para consultar su estado de cuenta.
         </CardDescription>
@@ -64,20 +65,37 @@ export function InquirySearchCard({
               control={form.control}
               name="cedula"
               render={({ field }) => (
-                <FormItem className="flex-grow">
+                <FormItem className="flex-1">
                   <FormLabel>Cédula de Identidad</FormLabel>
                   <FormControl>
-                    <Input className="mt-4" placeholder="12345678" {...field} />
+                    <Input
+                      placeholder="Ej: 12345678"
+                      className="text-lg h-11"
+                      {...field}
+                      autoFocus
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" disabled={isLoading}>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              size="lg"
+              className="h-11 px-8"
+            >
               {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Buscar
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Buscando...
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" />
+                  Buscar
+                </>
+              )}
             </Button>
           </form>
         </Form>

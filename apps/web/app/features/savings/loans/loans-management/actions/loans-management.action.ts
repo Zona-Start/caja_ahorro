@@ -13,11 +13,11 @@ export async function action({ request }: ActionFunctionArgs) {
     } else if (method === 'PATCH') {
       const pathParts = new URL(request.url).pathname.split('/');
       const id = Number(pathParts[pathParts.length - 2]);
-      await loansManagementService.approveLoansManagement(id);
+      await loansManagementService.approveLoansManagement(String(id));
     } else if (method === 'DELETE') {
       const pathParts = new URL(request.url).pathname.split('/');
       const id = Number(pathParts[pathParts.length - 1]);
-      await loansManagementService.deleteLoansManagement(id);
+      await loansManagementService.deleteLoansManagement(String(id));
     }
     return { success: true };
   } catch (error) {

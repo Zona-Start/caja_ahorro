@@ -1,12 +1,10 @@
 'use client';
 
 import { useToastSystem } from '@/hooks/use-toast-system';
-import { Toaster } from '@repo/shadcn/toaster';
 import { useNavigate } from 'react-router';
 import { useState } from 'react';
 import { useCreateCreditPaymentMutation } from '../hooks/use-credits-paid-mutation';
 import { useCreditsPaidStore } from '../store/credits-paid-store';
-import type { CreditPayment } from '../schemas/credits-paid.schema';
 import { CreditPaidForm } from './credit-paid-form';
 import { CreditPaidSearch } from './credit-paid-search';
 import { CreditPaidSummary } from './credit-paid-summary';
@@ -18,22 +16,18 @@ export function CreditPaidView() {
   const {
     selectedAssociate,
     setSelectedAssociate,
-    shouldClearSearch,
-    setShouldClearSearch,
-    creditSummary,
-    setCreditSummary,
     clearAllCreditData,
   } = useCreditsPaidStore();
 
   const { mutate: savePayment, isPending: isSaving } =
     useCreateCreditPaymentMutation();
 
-  const handleSubmit = (data: CreditPayment) => {
+  const handleSubmit = (data: Record<string, unknown>) => {
     setIsSubmitting(true);
     savePayment(
       {
         ...data,
-        creditId: selectedAssociate?.creditId ?? 0,
+        creditId: selectedAssociate?.creditId ?? '',
       },
       {
         onSuccess: () => {
@@ -47,7 +41,7 @@ export function CreditPaidView() {
   };
 
   const handleCancel = () => {
-    navigate('/dashboard/caja-ahorro/creditos/pagos');
+    navigate('/dashboard/caja-ahorro/pagos-creditos');
   };
 
   return (
@@ -57,8 +51,7 @@ export function CreditPaidView() {
           Registro de Pago de Crédito
         </h1>
         <p className="text-muted-foreground">
-          Complete el formulario para registrar un pago de crédito de un
-          asociado
+          Complete el formulario para registrar un pago de crédito de un asociado
         </p>
       </div>
 
@@ -85,7 +78,6 @@ export function CreditPaidView() {
           </div>
         </div>
       </div>
-      <Toaster />
     </div>
   );
 }

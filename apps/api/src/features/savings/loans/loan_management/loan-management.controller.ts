@@ -20,9 +20,13 @@ import {
   CreateLoanSchema,
   FilterLoanSchema,
   UpdateLoanSchema,
+  SearchAssociateSchema,
+  CalculateAmortizationSchema,
+  DisburseLoanSchema,
   CreateLoanDto,
   FilterLoanDto,
   UpdateLoanDto,
+  DisburseLoanDto,
 } from './dto/loan-management.schema';
 
 @Controller('loan')
@@ -30,9 +34,10 @@ export class LoanManagementController {
   constructor(
     private readonly loanManagementService: LoanManagementService,
     private readonly tenantContextService: TenantContextService,
-  ) {}
+  ) { }
 
   @Post('request')
+  @Permissions('portfolio:loans:create')
   @UsePipes(new ZodValidatorPipe(CreateLoanSchema))
   async request(@Req() req: Request, @Body() dto: CreateLoanDto) {
     const { targetTenantId, userId } =
@@ -40,9 +45,41 @@ export class LoanManagementController {
     return this.loanManagementService.request(targetTenantId, userId, dto);
   }
 
+  @Get('search-associate/:cedula')
+  @Permissions('portfolio:loans:read')
+  @ApiOperation({ summary: 'Search associate by cedula for loan request' })
+  async searchAssociate(
+    @Req() req: Request,
+    @Param('cedula') cedula: string,
+  ) {
+    const { targetTenantId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.loanManagementService.searchAssociate(targetTenantId, cedula);
+  }
+
+  @Get('calculate-amortization')
+  @Permissions('portfolio:loans:read')
+  @ApiOperation({ summary: 'Calculate French amortization schedule preview' })
+  async calculateAmortization(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(CalculateAmortizationSchema))
+    query: any,
+  ) {
+    return this.loanManagementService.calculateAmortization({
+      amount: query.amount,
+      annualRate: query.annualRate,
+      paymentCount: query.paymentCount,
+      startDate: query.startDate,
+      paymentType: query.paymentType,
+      expensesPercentage: query.expensesPercentage,
+    });
+  }
+
+
+
   @Get()
-  @Permissions('read:loan-management')
-  @ApiOperation({ summary: 'Get all Loan ordinary or filter by Loan ' })
+  @Permissions('portfolio:loans:read')
+  @ApiOperation({ summary: 'Get all Loan ordinary or filter by Loan' })
   @ApiResponse({ status: 200, description: 'Return all Loan.' })
   findAll(@Req() req: Request, @Query() dto: FilterLoanDto) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
@@ -50,16 +87,16 @@ export class LoanManagementController {
   }
 
   @Get('approved')
-  @Permissions('read:loan-management')
-  @ApiOperation({ summary: 'Get all Loan approveed ' })
-  @ApiResponse({ status: 200, description: 'Return all Loan approveed' })
+  @Permissions('portfolio:loans:read')
+  @ApiOperation({ summary: 'Get all Loan approved' })
+  @ApiResponse({ status: 200, description: 'Return all Loan approved' })
   findLoanAprovee(@Req() req: Request) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.loanManagementService.findLoanAprovee(targetTenantId);
   }
 
   @Get('count')
-  @Permissions('read:loan-management-count')
+  @Permissions('portfolio:loans:read')
   @ApiOperation({ summary: 'Get all Loan count' })
   @ApiResponse({ status: 200, description: 'Return all Loan count.' })
   findCountAllLoans(@Req() req: Request) {
@@ -68,27 +105,27 @@ export class LoanManagementController {
   }
 
   @Get('request/:cedula')
-  @Permissions('read:loan-management-requests')
+  @Permissions('portfolio:loans:read')
   @ApiOperation({ summary: 'Get one Loan associate' })
   @ApiResponse({ status: 200, description: 'Return on Loan associate.' })
-  @ApiResponse({ status: 404, description: 'Loan Associate  not found.' })
+  @ApiResponse({ status: 404, description: 'Loan Associate not found.' })
   findOneRequest(@Req() req: Request, @Param('cedula') cedula: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.loanManagementService.findOneRequest(cedula, targetTenantId);
   }
 
   @Get('request/byEdit/:id')
-  @Permissions('read:loan-management-edit')
+  @Permissions('portfolio:loans:read')
   @ApiOperation({ summary: 'Get one Loan by edit' })
   @ApiResponse({ status: 200, description: 'Return on Loan edit.' })
-  @ApiResponse({ status: 404, description: 'Loan edit  not found.' })
+  @ApiResponse({ status: 404, description: 'Loan edit not found.' })
   findOneEdit(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.loanManagementService.findRequestByEdit(id, targetTenantId);
   }
 
   @Get('by-associate/:associateId')
-  @Permissions('read:loans-by-associate')
+  @Permissions('portfolio:loans:read')
   @ApiOperation({ summary: 'Get all loans for a specific associate' })
   @ApiResponse({
     status: 200,
@@ -112,8 +149,30 @@ export class LoanManagementController {
     };
   }
 
+
+
+  @Patch('approve/:id')
+  @Permissions('portfolio:loans:approve')
+  async approve(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.loanManagementService.approve(targetTenantId, userId, id);
+  }
+
+  @Post('disburse/:id')
+  @Permissions('portfolio:loans:process')
+  async disburse(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidatorPipe(DisburseLoanSchema)) dto: DisburseLoanDto,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    return this.loanManagementService.disburse(targetTenantId, userId, id, dto);
+  }
+
   @Get(':id/details')
-  @Permissions('read:loan-management')
+  @Permissions('portfolio:loans:read')
   @ApiOperation({ summary: 'Get loan details by ID' })
   @ApiResponse({ status: 200, description: 'Return loan details.' })
   @ApiResponse({ status: 404, description: 'Loan not found.' })
@@ -122,14 +181,15 @@ export class LoanManagementController {
     return this.loanManagementService.findLoanDetails(id, targetTenantId);
   }
 
-  @Patch('approve/:id')
-  async approve(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId, userId } =
-      this.tenantContextService.getTenantContext(req);
-    return this.loanManagementService.approve(id, targetTenantId, userId);
+  @Get(':id')
+  @Permissions('portfolio:loans:read')
+  findOne(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.loanManagementService.findOne(targetTenantId, id);
   }
 
   @Patch(':id')
+  @Permissions('portfolio:loans:update')
   @UsePipes(new ZodValidatorPipe(UpdateLoanSchema))
   async update(
     @Req() req: Request,
@@ -147,8 +207,8 @@ export class LoanManagementController {
   }
 
   @Delete(':id')
-  @Permissions('delete:loan-management')
-  @ApiOperation({ summary: 'Cancel a Loan ' })
+  @Permissions('portfolio:loans:reject')
+  @ApiOperation({ summary: 'Cancel a Loan' })
   @ApiResponse({
     status: 200,
     description: 'Loan cancelled successfully.',

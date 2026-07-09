@@ -2,62 +2,69 @@ import { z } from 'zod';
 
 export const loanManagementSchema = z.object({
   id: z.string().optional(),
-  associateId: z.number(),
-  creditTypeId: z.string({
+  associateId: z.string({
+    required_error: 'Por favor seleccione un asociado',
+  }),
+  loanTypeId: z.string({
     required_error: 'Por favor seleccione el tipo de préstamo',
   }),
-  creditModality: z.string({
+  loanModality: z.string({
     required_error: 'Por favor seleccione la modalidad',
   }),
   requestDate: z.date({
     required_error: 'Por favor seleccione la fecha de solicitud',
   }),
-  requestedAmount: z.string().min(1, {
-    message: 'Por favor ingrese el monto del préstamo',
-  }),
+  requestedAmount: z.preprocess(
+    (v) => (typeof v === 'string' ? parseFloat(v) || 0 : v),
+    z.number().min(1, { message: 'Por favor ingrese el monto del préstamo' }),
+  ),
+  interestRate: z.preprocess(
+    (v) => (typeof v === 'string' ? parseFloat(v) || 0 : v),
+    z.number().min(0, { message: 'La tasa de interés es requerida' }),
+  ),
   startDate: z.date({
     required_error: 'Por favor seleccione la fecha de inicio',
   }),
   endDate: z.string().optional(),
-  expensesAmount: z.string().optional(),
-  overdraftAmount: z.string().optional().nullable(),
-  paymentMethod: z.string({
-    required_error: 'Por favor seleccione el método de pago',
-  }),
-  disbursementAccountId: z.string({
-    required_error: 'Por favor seleccione la cuenta de desembolso',
-  }),
+  paymentMethod: z.string().optional(),
+  expensesPercentage: z.preprocess(
+    (v) => (typeof v === 'string' ? parseFloat(v) || 0 : v),
+    z.number().min(0).max(100).optional(),
+  ),
+  termType: z.string().default('installments'),
+  termUnits: z.preprocess(
+    (v) => (typeof v === 'string' ? parseInt(v, 10) || 1 : v),
+    z.number().int().min(1, { message: 'La cantidad de plazos es requerida' }),
+  ),
   status: z.string().optional(),
-  notes: z.string().optional(),
-  termUnits: z.string().min(1, {
-    message: 'La cantidad de plazos es requerida',
-  }),
-  interestRate: z.string().min(1, {
-    message: 'La tasa de interés es requerida',
-  }),
-  termType: z.string({
-    required_error: 'Por favor seleccione el tipo de plazo',
-  }),
-
+  notes: z.string().optional().nullable(),
   loanTypeName: z.string().optional(),
-  loanModality: z.string().optional(),
+  customReference: z.string().optional(),
   associateCedula: z.string().optional(),
   associateFullname: z.string().optional(),
-  customReference: z.string().optional(),
   disbursedAmount: z.string().optional(),
   totalInterest: z.string().optional(),
   totalPayable: z.string().optional(),
+  expensesAmount: z.string().optional(),
   approvalDate: z.string().optional(),
-  loanTypeId: z.string().optional(),
   loanTypeInterestRate: z.string().optional(),
-  invoiceNumber: z.string().optional(),
-  associatePhone: z.string().optional(),
-  associateEmail: z.string().optional(),
-  associateDateAdmission: z.string().optional(),
-  associateIsPayrollCredit: z.boolean().optional().nullable(),
-  associateAccountId: z.number().optional().nullable(),
   associateAccountNumber: z.string().optional(),
-  associateBalance: z.string().optional(),
+  disbursedAmount: z.string().optional(),
+  accountNumber: z.string().optional(),
+  approvedAmount: z.string().optional(),
+  currencyCode: z.string().optional(),
 });
 
 export type LoanManagement = z.infer<typeof loanManagementSchema>;
+
+export const loanDefaults: LoanManagement = {
+  associateId: '',
+  loanTypeId: '',
+  loanModality: 'ORDINARY',
+  requestDate: new Date(),
+  requestedAmount: 0,
+  interestRate: 0,
+  startDate: new Date(),
+  termType: 'installments',
+  termUnits: 1,
+};

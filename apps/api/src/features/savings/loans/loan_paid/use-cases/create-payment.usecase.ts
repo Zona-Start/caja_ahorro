@@ -15,7 +15,6 @@ import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
 import { LoanPaymentBank } from '../domain/loan-payment.bank';
 import { LoanPaymentAudit } from '../domain/loan-payment.audit';
-import { LoanPaymentEvents } from '../domain/loan-payment.events';
 import { EPSILON_COMPARISON } from '../domain/loan-payment.types';
 import { LOAN_PAYMENT_EVENTS } from '../events/loan-payment.events';
 
@@ -29,7 +28,6 @@ export class CreatePaymentUseCase {
     private readonly accounting: LoanPaymentAccounting,
     private readonly bank: LoanPaymentBank,
     private readonly audit: LoanPaymentAudit,
-    private readonly events: LoanPaymentEvents,
   ) {}
 
   async execute(
@@ -144,7 +142,7 @@ export class CreatePaymentUseCase {
 
         this.audit.logPaymentCreated(
           userId, loan.associateFullname,
-          insertedPayment.id, insertedPayment.customReference,
+          insertedPayment.id, insertedPayment.customReference ?? '',
           {
             loanId, paymentDate, paymentType, amount,
             balancePending: String(newBalancePending.toFixed(6)),
@@ -154,8 +152,6 @@ export class CreatePaymentUseCase {
             customReference: insertedPayment.customReference,
           },
         );
-
-        this.events.emitPaymentCreated(loanId, insertedPayment.id, amount);
       }
 
       const acc = await this.processor.getAssociateAccount(loan.associateId, tx);
@@ -217,8 +213,6 @@ export class CreatePaymentUseCase {
           );
         }
       }
-
-      this.events.emitLoanPaid(loanId, insertedPayment.id, amount);
 
       const createdPayload = {
         tenantId,

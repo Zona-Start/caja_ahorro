@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
@@ -30,12 +30,14 @@ import {
   SelectValue,
 } from '@repo/shadcn/select';
 import { Textarea } from '@repo/shadcn/textarea';
+import { AlertModal } from '@/components/shared/alert-modal';
 import { useDisburseIndividualLoan } from '../hooks/use-loans-management-mutation';
 import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import {
   disburseIndividualLoanSchema,
   type DisburseIndividualLoan,
 } from '../schemas/disburse-loan.schema';
+import { formatCurrency } from '@/lib/format-utils';
 import { PAYMENT_METHOD } from '../schemas/loans-management-options';
 import { type LoanManagement } from '../schemas/loans-management.schema';
 
@@ -54,11 +56,13 @@ export function DisburseLoanModal({
   const bankAccounts = bankAccountsResponse?.data || [];
 
   const { mutate: disburseLoan, isPending } = useDisburseIndividualLoan();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [validatedData, setValidatedData] = useState<DisburseIndividualLoan | null>(null);
 
   const form = useForm<DisburseIndividualLoan>({
     resolver: zodResolver(disburseIndividualLoanSchema),
     defaultValues: {
-      loanId: 0,
+      loanId: '',
       bankAccountId: '',
       currencyCode: 'VES',
       paymentMethod: '',
@@ -71,7 +75,7 @@ export function DisburseLoanModal({
   useEffect(() => {
     if (loan && isOpen) {
       form.reset({
-        loanId: Number(loan.id),
+        loanId: String(loan.id),
         bankAccountId: '',
         currencyCode: 'VES',
         paymentMethod: loan.paymentMethod ?? '',
@@ -83,20 +87,25 @@ export function DisburseLoanModal({
   }, [loan, isOpen, form]);
 
   const onSubmit = (data: DisburseIndividualLoan) => {
-    disburseLoan(
-      {
-        ...data,
-        bankAccountId: Number(data.bankAccountId),
+    setValidatedData(data);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDisburse = () => {
+    if (!validatedData) return;
+    disburseLoan(validatedData, {
+      onSuccess: () => {
+        setConfirmOpen(false);
+        setValidatedData(null);
+        onClose();
       },
-      {
-        onSuccess: () => {
-          onClose();
-        },
-      },
-    );
+    });
   };
 
   if (!loan) return null;
+
+  const disbursedAmount =
+    loan.disbursedAmount || loan.approvedAmount || loan.requestedAmount;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -104,9 +113,45 @@ export function DisburseLoanModal({
         <DialogHeader>
           <DialogTitle>Desembolsar Préstamo</DialogTitle>
           <DialogDescription>
-            {loan.customReference} - {loan.associateFullname}
+            Complete los datos para efectuar el desembolso
           </DialogDescription>
         </DialogHeader>
+
+        {/* Datos del Préstamo */}
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+          <h3 className="text-sm font-semibold uppercase text-muted-foreground">
+            Datos del Préstamo
+          </h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-muted-foreground">Referencia:</span>{' '}
+              <span className="font-mono font-medium">
+                {loan.customReference || 'Pendiente'}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Asociado:</span>{' '}
+              <span className="font-medium">{loan.associateFullname}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Nro. Cuenta:</span>{' '}
+              <span className="font-mono">
+                {loan.associateAccountNumber || '—'}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Monto a Desembolsar:</span>{' '}
+              <span className="font-bold text-emerald-600">
+                {formatCurrency(
+                  Number(disbursedAmount),
+                  'VES',
+                )}{' '}
+                Bs
+              </span>
+            </div>
+          </div>
+        </div>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
@@ -121,14 +166,14 @@ export function DisburseLoanModal({
                     disabled={isPending}
                   >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue placeholder="Seleccione la cuenta" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       {bankAccounts.map((account: any) => (
                         <SelectItem key={account.id} value={String(account.id)}>
-                          {account.bankName} - {account.accountNumber}
+                          {account.accountName} - {account.accountNumber}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -242,7 +287,7 @@ export function DisburseLoanModal({
                 <FormItem>
                   <FormLabel>Descripción / Concepto</FormLabel>
                   <FormControl>
-                     <Textarea
+                    <Textarea
                       placeholder="Concepto del desembolso..."
                       className="resize-none"
                       {...field}
@@ -269,6 +314,15 @@ export function DisburseLoanModal({
             </DialogFooter>
           </form>
         </Form>
+
+        <AlertModal
+          isOpen={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          onConfirm={handleConfirmDisburse}
+          loading={isPending}
+          title="Confirmar Desembolso"
+          description={`¿Está seguro que desea desembolsar ${formatCurrency(Number(disbursedAmount), 'VES')} Bs ${loan.currencyCode || 'VES'} a ${loan.associateFullname}?`}
+        />
       </DialogContent>
     </Dialog>
   );

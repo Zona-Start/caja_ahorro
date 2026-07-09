@@ -8,7 +8,7 @@ export const CreditItemSchema = z.object({
   itemType: z.enum(['PRODUCT', 'SERVICE', 'EXTERNAL']),
   quantity: z.number().int().positive(),
   saleDate: z.coerce.date(),
-  days: z.number().int().positive().optional(),
+  days: z.string().uuid().optional(),
 });
 
 export const CreateCreditSchema = z.object({

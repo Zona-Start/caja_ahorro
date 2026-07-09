@@ -1,40 +1,55 @@
 import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/lib/utils';
 import { Progress } from '@repo/shadcn/progress';
-import { type ColumnDef } from '@tanstack/react-table';
-import z from 'zod';
+import type { ColumnDef } from '@tanstack/react-table';
 import { LOAN_STATUS_TYPES } from '../../../schemas/inquiry-options';
-import { type loanSchema } from '../../../schemas/inquiry-schema';
+import type { LoanListItem } from '../../../schemas/inquiry-schema';
 import { CellAction } from './cell-action';
 
-export type Loan = z.infer<typeof loanSchema>;
-
-export const columns: ColumnDef<Loan>[] = [
+export const columns: ColumnDef<LoanListItem>[] = [
+  {
+    accessorKey: 'customReference',
+    header: 'Ref.',
+    cell: ({ row }) => (
+      <span className="font-mono text-xs">
+        {row.original.customReference || 'N/A'}
+      </span>
+    ),
+  },
   {
     accessorKey: 'loanType',
     header: 'Tipo',
+    cell: ({ row }) => row.original.loanType || 'N/A',
   },
   {
     accessorKey: 'loanAmount',
     header: 'Monto Solicitado',
-    cell: ({ row }) => formatCurrency(Number(row.original.loanAmount), 'VES'),
+    cell: ({ row }) => (
+      <span className="font-mono">
+        {formatCurrency(Number(row.original.loanAmount), 'VES')}
+      </span>
+    ),
   },
   {
     accessorKey: 'outstandingBalance',
     header: 'Saldo Pendiente',
-    cell: ({ row }) =>
-      formatCurrency(Number(row.original.outstandingBalance), 'VES'),
+    cell: ({ row }) => (
+      <span className="font-mono text-amber-600">
+        {formatCurrency(Number(row.original.outstandingBalance || 0), 'VES')}
+      </span>
+    ),
   },
   {
     accessorKey: 'progress',
     header: 'Progreso',
     cell: ({ row }) => {
-      const progress = parseFloat(row.original.progress);
+      const progress = parseFloat(row.original.progress) * 100;
       return (
-        <div className="flex items-center gap-2">
-          <Progress value={progress * 10} className="w-[60%]" />
-          <span>{progress.toFixed(1)}/10</span>
+        <div className="flex items-center gap-2 min-w-[100px]">
+          <Progress value={progress} className="h-2 flex-1" />
+          <span className="text-xs text-muted-foreground w-10 text-right">
+            {progress.toFixed(0)}%
+          </span>
         </div>
       );
     },
@@ -42,52 +57,44 @@ export const columns: ColumnDef<Loan>[] = [
   {
     accessorKey: 'requestDate',
     header: 'Fecha Sol.',
-    cell: ({ row }) =>
-      new Date(row.original.requestDate).toLocaleDateString('es-VE'),
+    cell: ({ row }) => {
+      const d = row.original.requestDate;
+      if (!d) return <span className="text-muted-foreground">N/A</span>;
+      return new Date(d).toLocaleDateString('es-VE');
+    },
   },
   {
     accessorKey: 'status',
-    header: 'Estatus',
+    header: 'Estado',
     cell: ({ row }) => {
       const status = row.original.status;
       const statusText =
         LOAN_STATUS_TYPES[status as keyof typeof LOAN_STATUS_TYPES] || status;
-
-      const variant:
-        | 'default'
-        | 'destructive'
-        | 'outline'
-        | 'secondary'
-        | 'success'
-        | 'warning' = (() => {
+      const variant = (() => {
         switch (status) {
           case 'REQUESTED':
-            return 'default';
+            return 'default' as const;
           case 'APPROVED':
-            return 'secondary';
+            return 'outline' as const;
           case 'DISBURSED':
-            return 'warning';
+            return 'warning' as const;
           case 'IN_PAYMENT':
-            return 'outline';
+            return 'secondary' as const;
           case 'PAID':
-            return 'success';
+            return 'success' as const;
           case 'CANCELLED':
-            return 'destructive';
+          case 'REJECTED':
+            return 'destructive' as const;
           default:
-            return 'default';
+            return 'default' as const;
         }
       })();
-
-      return (
-        <div className={cn('p-2 h-full w-full')}>
-          <Badge variant={variant as any}>{statusText}</Badge>
-        </div>
-      );
+      return <Badge variant={variant as any}>{statusText}</Badge>;
     },
   },
   {
     id: 'actions',
-    header: 'Acciones',
+    header: '',
     cell: ({ row }) => <CellAction data={row.original} />,
   },
 ];

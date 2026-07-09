@@ -91,6 +91,7 @@ export class InventoryMovementsService {
           invoiceNumber: dto.invoiceNumber ?? null,
           associateId: dto.associateId ?? null,
           purchaseOrderId: dto.purchaseOrderId ?? null,
+          creditId: dto.creditId ?? null,
           createdBy: userId,
           createdById: userId,
         })

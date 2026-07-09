@@ -556,7 +556,7 @@ export function CreditForm({
                   value={watchTermType}
                   onValueChange={(v) => setValue('termType', v)}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

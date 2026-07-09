@@ -4,7 +4,6 @@ import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { Plus } from 'lucide-react';
-import { Link } from 'react-router';
 import { useLoanTypesQuery } from '../../../type-loans/hooks/use-type-loans-query';
 import {
   ESTATUS_TYPES,
@@ -16,6 +15,7 @@ import type { Options } from 'nuqs';
 interface LoansTableActionProps {
   filters: LoansFilters;
   setFilters: (newFilters: Partial<LoansFilters>) => void;
+  onNewLoan: () => void;
 }
 
 const ESTATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(([value, label]) => ({
@@ -33,6 +33,7 @@ const LOAN_MODALITY_OPTIONS = Object.entries(LOAN_MODALITY).map(
 export function LoansTableAction({
   filters,
   setFilters,
+  onNewLoan,
 }: LoansTableActionProps) {
   const { data: loanTypes } = useLoanTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
@@ -117,11 +118,9 @@ export function LoansTableAction({
           filterValue={filters.modality || ''}
         />
       </div>
-      <Link to="/dashboard/prestamos/gestion/nuevo">
-        <Button size="sm">
-          <Plus className="h-4 w-4" /> Nuevo Préstamo
-        </Button>
-      </Link>
+      <Button size="sm" onClick={onNewLoan}>
+        <Plus className="h-4 w-4" /> Nuevo Préstamo
+      </Button>
     </div>
   );
 }
