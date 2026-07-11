@@ -1,8 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import {
-  roles,
-} from '@/database/schema';
+import { roles } from '@/database/schema';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import {
   ConflictException,
@@ -15,13 +13,12 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateRoleDto } from './dtos/create-role.dto';
 import { RoleQueryDto } from './dtos/roles-query.dto';
 
-
 @Injectable()
 export class RolesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async findAll(dto: RoleQueryDto, currentTenantId?: string): Promise<any> {
     const { page = 1, limit = 10, search, tenantId } = dto;
@@ -73,10 +70,10 @@ export class RolesService {
   async findById(id: string, tenantId?: string): Promise<any | null> {
     const condition = tenantId
       ? and(
-        eq(roles.id, id),
-        eq(roles.tenantId, tenantId),
-        isNull(roles.deletedAt),
-      )
+          eq(roles.id, id),
+          eq(roles.tenantId, tenantId),
+          isNull(roles.deletedAt),
+        )
       : and(eq(roles.id, id), isNull(roles.deletedAt));
 
     return await this.db.query.roles.findFirst({

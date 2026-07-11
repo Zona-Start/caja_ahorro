@@ -5,8 +5,16 @@ describe('SecurityService', () => {
   let service: SecurityService;
 
   const mockBcrypt = {
-    hash: jest.fn().mockImplementation((password: string) => Promise.resolve(`hashed_${password}`)),
-    compare: jest.fn().mockImplementation((password: string, hash: string) => Promise.resolve(password === hash.replace('hashed_', ''))),
+    hash: jest
+      .fn()
+      .mockImplementation((password: string) =>
+        Promise.resolve(`hashed_${password}`),
+      ),
+    compare: jest
+      .fn()
+      .mockImplementation((password: string, hash: string) =>
+        Promise.resolve(password === hash.replace('hashed_', '')),
+      ),
   };
 
   beforeEach(async () => {

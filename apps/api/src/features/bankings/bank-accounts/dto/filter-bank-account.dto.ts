@@ -6,7 +6,14 @@ export const FilterBankAccountSchema = z.object({
   limit: z.coerce.number().int().positive().optional().default(10),
   search: z.string().optional(),
   sortBy: z
-    .enum(['accountNumber', 'accountName', 'accountType', 'currencyCode', 'openingDate', 'createdAt'])
+    .enum([
+      'accountNumber',
+      'accountName',
+      'accountType',
+      'currencyCode',
+      'openingDate',
+      'createdAt',
+    ])
     .optional()
     .default('accountNumber'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),

@@ -1,3 +1,6 @@
+import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -8,14 +11,11 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AssociateAccountsService } from './associate-accounts.service';
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { Request } from 'express';
-import { TenantContextService } from '@/common/services/tenant-context.service';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { AssociateAccountsService } from './associate-accounts.service';
 import {
-  UpdateAssociateAccountsSchema,
   UpdateAssociateAccountsDto,
+  UpdateAssociateAccountsSchema,
 } from './dto/update-associate-accounts.zod.dto';
 
 @ApiTags('savings-banks/associate-accounts')
@@ -33,7 +33,10 @@ export class AssociateAccountsController {
   @ApiResponse({ status: 404, description: 'Account not found.' })
   async findOne(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContext.getTenantContext(req);
-    const data = await this.associateAccountsService.findOne(targetTenantId, id);
+    const data = await this.associateAccountsService.findOne(
+      targetTenantId,
+      id,
+    );
     return { message: 'Associate Account fetched successfully', data };
   }
 
@@ -47,10 +50,19 @@ export class AssociateAccountsController {
   async update(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body(new ZodValidatorPipe(UpdateAssociateAccountsSchema)) dto: UpdateAssociateAccountsDto,
+    @Body(new ZodValidatorPipe(UpdateAssociateAccountsSchema))
+    dto: UpdateAssociateAccountsDto,
   ) {
-    const { targetTenantId, userId } = this.tenantContext.getTenantContext(req, dto);
-    const data = await this.associateAccountsService.update(targetTenantId, userId, id, dto);
+    const { targetTenantId, userId } = this.tenantContext.getTenantContext(
+      req,
+      dto,
+    );
+    const data = await this.associateAccountsService.update(
+      targetTenantId,
+      userId,
+      id,
+      dto,
+    );
     return { message: 'Associate Accounts updated successfully', data };
   }
 }

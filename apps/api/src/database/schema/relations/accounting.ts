@@ -4,12 +4,12 @@ import {
   accountingCycles,
   accountingEntries,
   accountingEntryDetails,
-  accountPlan,
   accountingRuleDetails,
   accountingRules,
+  accountPlan,
 } from '../tables/accounting';
-import { tenants } from '../tables/tenants';
 import { users } from '../tables/auth';
+import { tenants } from '../tables/tenants';
 
 export const accountPlanRelations = relations(accountPlan, ({ one, many }) => ({
   tenants: one(tenants, {

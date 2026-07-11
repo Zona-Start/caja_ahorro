@@ -22,8 +22,6 @@ import {
 } from './common/middlewares';
 import { DrizzleModule } from './database/drizzle.module';
 import { SeedModule } from './database/seeds/seed.module';
-import { EventBusModule } from './shared/event-bus';
-import { ProjectionModule } from './shared/projections';
 import { AccountingFeaturesModule } from './features/accounting/accounting.module';
 import { AuditModule } from './features/audit/audit.module';
 import { AuthModule } from './features/auth/auth.module';
@@ -32,6 +30,8 @@ import { CoreModule } from './features/core/core.module';
 import { InventoryFeatureModule } from './features/inventory/inventory-module';
 import { PurchasingFeaturesModule } from './features/purchasing/purchasing.module';
 import { SavingsFeaturesModule } from './features/savings/savings.module';
+import { EventBusModule } from './shared/event-bus';
+import { ProjectionModule } from './shared/projections';
 
 @Module({
   providers: [

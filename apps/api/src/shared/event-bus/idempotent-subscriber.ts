@@ -1,10 +1,10 @@
+import { DeadLetterQueueService } from './dead-letter-queue.service';
 import { type EventEnvelope } from './event-envelope';
+import { EventMetricsService } from './event-metrics.service';
+import { EventStoreService } from './event-store.service';
+import { EventTracerService } from './event-tracer.service';
 import { IdempotencyService } from './idempotency.service';
 import { RetryManager } from './retry.manager';
-import { EventTracerService } from './event-tracer.service';
-import { EventMetricsService } from './event-metrics.service';
-import { DeadLetterQueueService } from './dead-letter-queue.service';
-import { EventStoreService } from './event-store.service';
 
 export interface IdempotentHandlerOptions {
   handlerName: string;
@@ -20,11 +20,21 @@ export function createIdempotentHandler<T>(
   options: IdempotentHandlerOptions,
   handler: (envelope: EventEnvelope<T>) => Promise<void> | void,
 ): (envelope: EventEnvelope<T>) => Promise<void> {
-  const { handlerName, idempotencyService, retryManager, tracer, metrics, dlq } = options;
+  const {
+    handlerName,
+    idempotencyService,
+    retryManager,
+    tracer,
+    metrics,
+    dlq,
+  } = options;
 
   return async (envelope: EventEnvelope<T>): Promise<void> => {
     try {
-      const processed = await idempotencyService.isProcessed(envelope.eventId, handlerName);
+      const processed = await idempotencyService.isProcessed(
+        envelope.eventId,
+        handlerName,
+      );
       if (processed) {
         tracer.skipped(handlerName, envelope);
         return;
@@ -59,13 +69,7 @@ export function createIdempotentHandler<T>(
             tracer.failed(handlerName, envelope, err);
             metrics.incrementFailed(envelope.type);
 
-            await dlq.push(
-              envelope,
-              handlerName,
-              err,
-              attempt + 1,
-              maxRetries,
-            );
+            await dlq.push(envelope, handlerName, err, attempt + 1, maxRetries);
             metrics.incrementDlq(envelope.type);
             tracer.dlq(handlerName, envelope, err);
             return;

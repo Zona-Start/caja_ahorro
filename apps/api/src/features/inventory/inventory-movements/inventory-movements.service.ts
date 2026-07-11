@@ -1,7 +1,11 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { inventoryMovementItems, inventoryMovements, products } from '@/database/schema/tables/inventory';
+import {
+  inventoryMovementItems,
+  inventoryMovements,
+  products,
+} from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import {
   BadRequestException,
@@ -41,10 +45,10 @@ const ADJUST_TYPES = [
 ] as const;
 
 function getCodePrefix(movementType: string): string {
-  if (INFLOW_TYPES.includes(movementType as typeof INFLOW_TYPES[number])) {
+  if (INFLOW_TYPES.includes(movementType as (typeof INFLOW_TYPES)[number])) {
     return 'INV-IN';
   }
-  if (ADJUST_TYPES.includes(movementType as typeof ADJUST_TYPES[number])) {
+  if (ADJUST_TYPES.includes(movementType as (typeof ADJUST_TYPES)[number])) {
     return 'INV-ADJ';
   }
   return 'INV-OUT';
@@ -57,7 +61,7 @@ export class InventoryMovementsService {
     private db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async create(
     dto: CreateInventoryMovementDto,
@@ -80,7 +84,8 @@ export class InventoryMovementsService {
         .insert(inventoryMovements)
         .values({
           tenantId,
-          movementType: dto.movementType as typeof inventoryMovements.$inferInsert['movementType'],
+          movementType:
+            dto.movementType as (typeof inventoryMovements.$inferInsert)['movementType'],
           movementNumber,
           movementDate: dto.movementDate
             ? new Date(dto.movementDate)
@@ -107,11 +112,15 @@ export class InventoryMovementsService {
         })),
       );
 
-      if (INFLOW_TYPES.includes(dto.movementType as typeof INFLOW_TYPES[number])) {
+      if (
+        INFLOW_TYPES.includes(dto.movementType as (typeof INFLOW_TYPES)[number])
+      ) {
         const productIds = dto.items.map((i) => i.productId);
         await tx
           .update(products)
-          .set({ status: 'AVAILABLE' as typeof products.$inferInsert['status'] })
+          .set({
+            status: 'AVAILABLE' as (typeof products.$inferInsert)['status'],
+          })
           .where(
             and(
               inArray(products.id, productIds),
@@ -171,14 +180,17 @@ export class InventoryMovementsService {
       searchConditions.push(
         eq(
           inventoryMovements.movementType,
-          movementType as typeof inventoryMovements.$inferInsert['movementType'],
+          movementType as (typeof inventoryMovements.$inferInsert)['movementType'],
         ),
       );
     }
 
     if (status) {
       searchConditions.push(
-        eq(inventoryMovements.status, status as 'draft' | 'completed' | 'cancelled'),
+        eq(
+          inventoryMovements.status,
+          status as 'draft' | 'completed' | 'cancelled',
+        ),
       );
     }
 
@@ -263,9 +275,7 @@ export class InventoryMovementsService {
           schema.products,
           eq(inventoryMovementItems.productId, schema.products.id),
         )
-        .where(
-          sql`${inventoryMovementItems.movementId} IN ${movementIds}`,
-        );
+        .where(sql`${inventoryMovementItems.movementId} IN ${movementIds}`);
 
       itemsMap = allItems.reduce(
         (acc, item) => {
@@ -285,7 +295,9 @@ export class InventoryMovementsService {
     const formattedData = data.map((m) => ({
       ...m,
       movementDate: m.movementDate
-        ? new Date(m.movementDate as unknown as string).toISOString().split('T')[0]
+        ? new Date(m.movementDate as unknown as string)
+            .toISOString()
+            .split('T')[0]
         : null,
       createdAt: m.createdAt
         ? new Date(m.createdAt as unknown as string).toISOString()
@@ -376,7 +388,9 @@ export class InventoryMovementsService {
     return {
       ...movement,
       movementDate: movement.movementDate
-        ? new Date(movement.movementDate as unknown as string).toISOString().split('T')[0]
+        ? new Date(movement.movementDate as unknown as string)
+            .toISOString()
+            .split('T')[0]
         : null,
       createdAt: movement.createdAt
         ? new Date(movement.createdAt as unknown as string).toISOString()
@@ -401,7 +415,10 @@ export class InventoryMovementsService {
     tenantId: string | null,
     userId: string,
   ) {
-    const existing = await this.findOne(id, tenantId) as InventoryMovementSelect;
+    const existing = (await this.findOne(
+      id,
+      tenantId,
+    )) as InventoryMovementSelect;
 
     if (existing.status === 'cancelled') {
       throw new BadRequestException(
@@ -421,8 +438,7 @@ export class InventoryMovementsService {
         updateData.description = dto.description;
       if (dto.movementDate !== undefined && dto.movementDate !== null)
         updateData.movementDate = new Date(dto.movementDate);
-      if (dto.supplierId !== undefined)
-        updateData.supplierId = dto.supplierId;
+      if (dto.supplierId !== undefined) updateData.supplierId = dto.supplierId;
       if (dto.invoiceNumber !== undefined)
         updateData.invoiceNumber = dto.invoiceNumber;
       if (dto.associateId !== undefined)
@@ -486,12 +502,11 @@ export class InventoryMovementsService {
     };
   }
 
-  async cancel(
-    id: string,
-    tenantId: string | null,
-    userId: string,
-  ) {
-    const existing = await this.findOne(id, tenantId) as InventoryMovementSelect;
+  async cancel(id: string, tenantId: string | null, userId: string) {
+    const existing = (await this.findOne(
+      id,
+      tenantId,
+    )) as InventoryMovementSelect;
 
     if (existing.status === 'cancelled') {
       throw new BadRequestException('El movimiento ya está cancelado');
@@ -511,7 +526,8 @@ export class InventoryMovementsService {
     const [updated] = await this.db
       .update(inventoryMovements)
       .set({
-        status: 'cancelled' as typeof inventoryMovements.$inferInsert['status'],
+        status:
+          'cancelled' as (typeof inventoryMovements.$inferInsert)['status'],
         cancelledBy: userId,
         cancelledAt: new Date(),
       })

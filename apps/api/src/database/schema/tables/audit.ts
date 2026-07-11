@@ -1,7 +1,7 @@
 import * as t from 'drizzle-orm/pg-core';
 import { index } from 'drizzle-orm/pg-core';
-import { tenants } from './tenants';
 import { auditSchema } from '../_schemas';
+import { tenants } from './tenants';
 
 export const AUDIT_ACTIONS = {
   CREATE: 'create',

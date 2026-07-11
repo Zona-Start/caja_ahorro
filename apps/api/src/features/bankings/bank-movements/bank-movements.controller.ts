@@ -1,3 +1,5 @@
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -13,17 +15,15 @@ import {
   Req,
   UsePipes,
 } from '@nestjs/common';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
-import { TenantContextService } from '@/common/services/tenant-context.service';
 import { BankMovementsService } from './bank-movements.service';
 import {
   CreateAndReconcileSchema,
   CreateBankMovementSchema,
-  UpdateBankMovementSchema,
   FilterBankMovementSchema,
+  GetLinkablesSchema,
   LinkToInternalSchema,
   ReverseMovementSchema,
-  GetLinkablesSchema,
+  UpdateBankMovementSchema,
 } from './dto/bank-movements.schema';
 
 @Controller('bankings/bank-movements')
@@ -108,10 +108,7 @@ export class BankMovementsController {
   }
 
   @Delete(':id')
-  async remove(
-    @Req() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  async remove(@Req() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req);
     return await this.service.remove(id, userId, targetTenantId);

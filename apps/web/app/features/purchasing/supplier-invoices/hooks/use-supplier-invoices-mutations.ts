@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import type { SupplierInvoiceMutation } from '../schemas/supplier-invoice.schema';
+import type { CreditNoteForm, DebitNoteForm } from '../schemas/supplier-invoice.schema';
 import type { SupplierInvoiceApi } from '../schemas/supplier-invoice-api.schema';
 import { supplierInvoicesService } from '../services/supplier-invoices-service';
 
@@ -69,6 +70,60 @@ export function useDeleteSupplierInvoiceMutation(): UseMutationResult<
       toast({
         title: 'Factura eliminada',
         description: 'La factura de proveedor fue eliminada correctamente.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useCreateCreditNoteMutation(): UseMutationResult<
+  any,
+  unknown,
+  CreditNoteForm
+> {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (payload) => supplierInvoicesService.createCreditNote(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierInvoices.all });
+      toast({
+        title: 'Nota de crédito creada',
+        description: 'La nota de crédito fue registrada correctamente.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+export function useCreateDebitNoteMutation(): UseMutationResult<
+  any,
+  unknown,
+  DebitNoteForm
+> {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (payload) => supplierInvoicesService.createDebitNote(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierInvoices.all });
+      toast({
+        title: 'Nota de débito creada',
+        description: 'La nota de débito fue registrada correctamente.',
       });
     },
     onError: (error) => {

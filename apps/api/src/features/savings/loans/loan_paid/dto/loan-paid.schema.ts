@@ -1,6 +1,6 @@
-import { z } from 'zod';
-import { loanPaymetTypeEnum, paymentMethodEnum } from '@/types/enum';
 import { PaginationSchema } from '@/common/dto/pagination.dto';
+import { loanPaymetTypeEnum, paymentMethodEnum } from '@/types/enum';
+import { z } from 'zod';
 
 export const CreateLoanPaidSchema = z.object({
   amount: z.number().positive(),

@@ -12,8 +12,14 @@ import {
   Request as Req,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { ConfigureIntegrationDto, TenantIntegrationQueryDto } from './dto/tenant-integrations.dto';
-import { TenantModuleQueryDto, ToggleModuleDto } from './dto/tenant-modules.dto';
+import {
+  ConfigureIntegrationDto,
+  TenantIntegrationQueryDto,
+} from './dto/tenant-integrations.dto';
+import {
+  TenantModuleQueryDto,
+  ToggleModuleDto,
+} from './dto/tenant-modules.dto';
 import {
   CreateTenantDto,
   TenantQueryDto,
@@ -70,7 +76,13 @@ export class TenantsController {
   ) {
     const { targetTenantId, isSystemAdmin, userId } =
       this.tenantService.getTenantContext(req, id);
-    return this.tenantsService.update(id, dto, isSystemAdmin, targetTenantId, userId);
+    return this.tenantsService.update(
+      id,
+      dto,
+      isSystemAdmin,
+      targetTenantId,
+      userId,
+    );
   }
 
   @Delete(':id')

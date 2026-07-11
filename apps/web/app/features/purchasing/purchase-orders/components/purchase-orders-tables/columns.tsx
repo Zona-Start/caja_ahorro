@@ -1,9 +1,15 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@repo/shadcn/badge';
-import { format } from 'date-fns';
 import type { PurchaseOrderApi } from '../../schemas/purchase-orders-api.schema';
 import { STATUS_LABELS, STATUS_VARIANTS } from '../../schemas/purchase-orders-options';
 import { CellAction } from './cell-action';
+
+function formatDate(value: string | Date | null | undefined): string {
+  if (!value) return '-';
+  const str = typeof value === 'string' ? value : value.toISOString();
+  const [y, m, d] = str.split('T')[0].split('-');
+  return `${d}/${m}/${y}`;
+}
 
 export const columns: ColumnDef<PurchaseOrderApi>[] = [
   {
@@ -19,10 +25,7 @@ export const columns: ColumnDef<PurchaseOrderApi>[] = [
   {
     accessorKey: 'orderDate',
     header: 'Fecha',
-    cell: ({ row }) => {
-      const d = row.original.orderDate;
-      return d ? format(new Date(d), 'dd/MM/yyyy') : '-';
-    },
+    cell: ({ row }) => formatDate(row.original.orderDate),
   },
   {
     accessorKey: 'subtotal',

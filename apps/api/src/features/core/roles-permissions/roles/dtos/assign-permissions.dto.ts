@@ -12,4 +12,6 @@ export const AssignPermissionsSchema = z.object({
   permissions: z.array(z.union([z.string(), PermissionParamSchema])),
 });
 
-export class AssignPermissionsDto extends createZodDto(AssignPermissionsSchema) {}
+export class AssignPermissionsDto extends createZodDto(
+  AssignPermissionsSchema,
+) {}

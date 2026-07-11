@@ -1,135 +1,128 @@
 import { useState } from 'react';
 import { Button } from '@repo/shadcn/button';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/shadcn/tooltip';
-import { Download, Eye, FileUp, Check, Trash } from 'lucide-react';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
+import {
+  Eye,
+  FileUp,
+  Download,
+  CheckCheck,
+  Trash,
+  MoreHorizontal,
+} from 'lucide-react';
 import { AlertModal } from '@repo/shadcn/modal';
-import { type PaymentBatch } from '../../schemas/payment-batch-api-response';
+import { type PaymentBatch } from '../../services/payment-batch-service';
 import {
   useMarkAsUploadedMutation,
   useCancelPaymentBatchMutation,
   useDownloadTxtFileMutation,
 } from '../../hooks/use-payment-batch-mutation';
+import { usePaymentBatchModalStore } from '../../store/payment-batch-store';
 
 interface CellActionProps {
   data: PaymentBatch;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const [loading, setLoading] = useState(false);
-  const [openCancel, setOpenCancel] = useState(false);
-  const [openUpload, setOpenUpload] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [alertType, setAlertType] = useState<'cancel' | 'upload' | null>(null);
+  const { openConfirmModal, openDetailModal } = usePaymentBatchModalStore();
 
-  const { mutate: cancelBatch } = useCancelPaymentBatchMutation();
-  const { mutate: markAsUploaded } = useMarkAsUploadedMutation();
+  const { mutate: cancelBatch, isPending: isCancelling } =
+    useCancelPaymentBatchMutation();
+  const { mutate: markAsUploaded, isPending: isUploading } =
+    useMarkAsUploadedMutation();
   const { mutate: downloadTxt } = useDownloadTxtFileMutation();
-
-  const onConfirmCancel = () => {
-    setLoading(true);
-    cancelBatch(data.id, {
-      onSettled: () => {
-        setLoading(false);
-        setOpenCancel(false);
-      },
-    });
-  };
-
-  const onConfirmUpload = () => {
-    setLoading(true);
-    markAsUploaded(data.id, {
-      onSettled: () => {
-        setLoading(false);
-        setOpenUpload(false);
-      },
-    });
-  };
 
   const isDraft = data.status === 'DRAFT';
   const isUploaded = data.status === 'UPLOADED';
+  const isProcessed = data.status === 'PROCESSED';
+
+  const onConfirm = () => {
+    if (alertType === 'cancel') {
+      cancelBatch(data.id, { onSettled: () => setOpen(false) });
+    } else if (alertType === 'upload') {
+      markAsUploaded(data.id, { onSettled: () => setOpen(false) });
+    }
+  };
+
+  const title =
+    alertType === 'cancel'
+      ? 'Anular Lote'
+      : 'Marcar como Subido';
+  const description =
+    alertType === 'cancel'
+      ? 'Esta acción revertirá los registros al estado anterior. No se puede deshacer.'
+      : 'Al marcar como subido, los registros origen pasarán a estado "EN PROCESO DE PAGO".';
 
   return (
     <>
       <AlertModal
-        isOpen={openCancel}
-        onClose={() => setOpenCancel(false)}
-        onConfirm={onConfirmCancel}
-        loading={loading}
-        title="Anular lote de pago"
-        description="Esta accion no se puede deshacer."
+        isOpen={open}
+        onClose={() => { if (!isCancelling && !isUploading) setOpen(false); }}
+        onConfirm={onConfirm}
+        loading={isCancelling || isUploading}
+        title={title}
+        description={description}
       />
-      <AlertModal
-        isOpen={openUpload}
-        onClose={() => setOpenUpload(false)}
-        onConfirm={onConfirmUpload}
-        loading={loading}
-        title="Marcar como subido"
-        description="Una vez subido, el lote no podra ser editado."
-      />
-      <div className="flex gap-1">
-        {isDraft && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setOpenUpload(true)}
-                  disabled={loading}
-                >
-                  <FileUp className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Marcar como Subido</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
 
-        {isUploaded && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => downloadTxt(data.id)}
-                  disabled={loading}
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Descargar TXT</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+          <DropdownMenuSeparator />
 
-        {(isDraft || isUploaded) && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setOpenCancel(true)}
-                  disabled={loading}
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Anular Lote</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
+          <DropdownMenuItem onClick={() => openDetailModal(data.id)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Ver Detalles
+          </DropdownMenuItem>
+
+          {isDraft && (
+            <DropdownMenuItem
+              onClick={() => { setAlertType('upload'); setOpen(true); }}
+            >
+              <FileUp className="mr-2 h-4 w-4" />
+              Autorizar Pagos
+            </DropdownMenuItem>
+          )}
+
+          {isUploaded && (
+            <>
+              <DropdownMenuItem onClick={() => downloadTxt({ id: data.id, filename: data.paymentBatchReference })}>
+                <Download className="mr-2 h-4 w-4" />
+                Descargar TXT
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openConfirmModal(data.id)}>
+                <CheckCheck className="mr-2 h-4 w-4" />
+                Confirmar Desembolsos
+              </DropdownMenuItem>
+            </>
+          )}
+
+          {(isDraft || isUploaded) && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => { setAlertType('cancel'); setOpen(true); }}
+              >
+                <Trash className="mr-2 h-4 w-4" />
+                Anular Lote
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </>
   );
 };

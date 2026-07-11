@@ -1,7 +1,5 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { eq } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   CanActivate,
   ExecutionContext,
@@ -11,6 +9,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ClsService } from 'nestjs-cls';
 import {
   PERMISSIONS_KEY,
@@ -85,8 +85,7 @@ export class TenantModulesGuard implements CanActivate {
     const modulesToCheck = new Set<string>();
 
     for (const perm of requiredPermissions) {
-      const resource =
-        typeof perm === 'string' ? perm : perm.resource;
+      const resource = typeof perm === 'string' ? perm : perm.resource;
       const moduleCode = resourceToModule(resource);
       if (moduleCode) {
         modulesToCheck.add(moduleCode);
@@ -103,7 +102,7 @@ export class TenantModulesGuard implements CanActivate {
         .from(schema.tenantModules)
         .where(
           eq(schema.tenantModules.tenantId, tenantId) &&
-          eq(schema.tenantModules.status as any, 'ENABLED'),
+            eq(schema.tenantModules.status as any, 'ENABLED'),
         );
 
       activeModules = new Set(rows.map((r) => r.moduleCode));

@@ -21,7 +21,12 @@ export const CreateFixedAssetPriceSchema = z.object({
   supplierInvoiceId: z.string().uuid().optional(),
 });
 
-export const UpdateFixedAssetPriceSchema = CreateFixedAssetPriceSchema.partial();
+export const UpdateFixedAssetPriceSchema =
+  CreateFixedAssetPriceSchema.partial();
 
-export type CreateFixedAssetPriceDto = z.infer<typeof CreateFixedAssetPriceSchema>;
-export type UpdateFixedAssetPriceDto = z.infer<typeof UpdateFixedAssetPriceSchema>;
+export type CreateFixedAssetPriceDto = z.infer<
+  typeof CreateFixedAssetPriceSchema
+>;
+export type UpdateFixedAssetPriceDto = z.infer<
+  typeof UpdateFixedAssetPriceSchema
+>;

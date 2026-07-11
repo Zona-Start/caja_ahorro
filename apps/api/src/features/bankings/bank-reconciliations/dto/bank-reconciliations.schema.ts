@@ -27,6 +27,12 @@ export const FilterBankReconciliationSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
 
-export type CreateBankReconciliationDto = z.infer<typeof CreateBankReconciliationSchema>;
-export type AddReconciliationDetailDto = z.infer<typeof AddReconciliationDetailSchema>;
-export type FilterBankReconciliationDto = z.infer<typeof FilterBankReconciliationSchema>;
+export type CreateBankReconciliationDto = z.infer<
+  typeof CreateBankReconciliationSchema
+>;
+export type AddReconciliationDetailDto = z.infer<
+  typeof AddReconciliationDetailSchema
+>;
+export type FilterBankReconciliationDto = z.infer<
+  typeof FilterBankReconciliationSchema
+>;

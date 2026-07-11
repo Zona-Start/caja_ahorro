@@ -27,7 +27,7 @@ export class SuppliersController {
   constructor(
     private readonly suppliersService: SuppliersService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @UsePipes(new ZodValidatorPipe(CreateSupplierSchema))
@@ -48,16 +48,14 @@ export class SuppliersController {
     description: 'Search by name or taxId',
   })
   async findAll(@Req() req: Request, @Query() dto: any) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.suppliersService.findAll(dto, targetTenantId);
   }
 
   @Get('/all')
   @ApiOperation({ summary: 'Get all suppliers' })
   async findAllSuppliers(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const data = await this.suppliersService.findAllSuppliers(targetTenantId);
     return { message: 'Supplier fetched successfully', data };
   }
@@ -65,8 +63,7 @@ export class SuppliersController {
   @Get('/count')
   @ApiOperation({ summary: 'Get supplier count' })
   async findCountSuppliers(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.suppliersService.getSupplierStatus(targetTenantId);
   }
 
@@ -75,8 +72,7 @@ export class SuppliersController {
   @ApiResponse({ status: 200, description: 'Return the supplier.' })
   @ApiResponse({ status: 404, description: 'Supplier not found.' })
   async findOne(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.suppliersService.findOne(id, targetTenantId);
   }
 
@@ -109,8 +105,7 @@ export class SuppliersController {
   @ApiResponse({ status: 200, description: 'Supplier deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Supplier not found.' })
   async remove(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.suppliersService.remove(id, targetTenantId);
   }
 }

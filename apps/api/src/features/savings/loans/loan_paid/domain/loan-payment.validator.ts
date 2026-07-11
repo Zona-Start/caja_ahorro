@@ -1,23 +1,28 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   associates,
   loanAmortizationSchedule,
-  loans,
   loanPayments,
+  loans,
 } from '@/database/schema';
 import { LoanStatusEnum } from '@/types/enum';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   EPSILON_COMPARISON,
-  ROUNDING_ACCEPTANCE_TOLERANCE,
   InstallmentResult,
   LoanInfo,
   PaidInstallmentDetail,
   PartialInstallment,
+  ROUNDING_ACCEPTANCE_TOLERANCE,
 } from './loan-payment.types';
 
 @Injectable()

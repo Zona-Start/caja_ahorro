@@ -1,5 +1,8 @@
 import type { BatchAccountingParams } from '../../contribution-batches/contribution-batches-accounting.service';
-import type { AccountingItem, ContributionMovementType } from '../schemas/individual-load.types';
+import type {
+  AccountingItem,
+  ContributionMovementType,
+} from '../schemas/individual-load.types';
 
 export interface BuildAccountingParamsInput {
   movementType: ContributionMovementType;

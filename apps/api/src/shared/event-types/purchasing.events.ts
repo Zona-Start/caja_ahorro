@@ -18,7 +18,12 @@ export interface PurchaseOrderCreatedEvent {
   orderNumber: string;
   supplierId: string;
   totalAmount: number;
-  lineItems: Array<{ itemType: string; itemId: string; quantity: number; unitPrice: number }>;
+  lineItems: Array<{
+    itemType: string;
+    itemId: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
   timestamp: string;
 }
 

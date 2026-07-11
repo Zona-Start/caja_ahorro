@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
 import * as schema from '@/database/schema';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { CurrencyCodeEnum } from '@/types/enum';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 export interface DisbursementAccountingParams {
@@ -32,7 +32,7 @@ export interface ProcessingAccountingParams {
 export class WithdrawalAssociateAccountingService {
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) { }
+  ) {}
 
   async generateDisbursementEntry(
     tenantId: string,

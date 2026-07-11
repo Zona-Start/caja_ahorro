@@ -33,6 +33,12 @@ export const UpdateSupplierTransactionSchema = z.object({
   bankReference: z.string().optional(),
 });
 
-export type CreateSupplierTransactionDto = z.infer<typeof CreateSupplierTransactionSchema>;
-export type FilterSupplierTransactionDto = z.infer<typeof FilterSupplierTransactionSchema>;
-export type UpdateSupplierTransactionDto = z.infer<typeof UpdateSupplierTransactionSchema>;
+export type CreateSupplierTransactionDto = z.infer<
+  typeof CreateSupplierTransactionSchema
+>;
+export type FilterSupplierTransactionDto = z.infer<
+  typeof FilterSupplierTransactionSchema
+>;
+export type UpdateSupplierTransactionDto = z.infer<
+  typeof UpdateSupplierTransactionSchema
+>;

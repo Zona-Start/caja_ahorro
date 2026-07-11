@@ -1,13 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { projectionInventoryStock } from '@/database/schema';
-import { eq, and } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@/database/schema';
-import { type ProjectionHandler } from './projection-handler';
+import { projectionInventoryStock } from '@/database/schema';
 import { type EventEnvelope, EventStoreService } from '@/shared/event-bus';
-import { INVENTORY_EVENTS, PURCHASING_EVENTS } from '@/shared/event-types';
+import { INVENTORY_EVENTS } from '@/shared/event-types';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { type ProjectionHandler } from './projection-handler';
 
 @Injectable()
 export class InventoryStockProjection implements ProjectionHandler {
@@ -35,7 +34,9 @@ export class InventoryStockProjection implements ProjectionHandler {
 
   async rebuild(): Promise<void> {
     this.logger.log('Rebuilding inventory stock projection from EventStore...');
-    const movements = await this.eventStore.findByEventType(INVENTORY_EVENTS.MOVEMENT_CREATED);
+    const movements = await this.eventStore.findByEventType(
+      INVENTORY_EVENTS.MOVEMENT_CREATED,
+    );
 
     await this.db.delete(projectionInventoryStock);
 
@@ -65,7 +66,11 @@ export class InventoryStockProjection implements ProjectionHandler {
         lastEventId: envelope.eventId,
       })
       .onConflictDoNothing({
-        target: [projectionInventoryStock.tenantId, projectionInventoryStock.itemId, projectionInventoryStock.itemType],
+        target: [
+          projectionInventoryStock.tenantId,
+          projectionInventoryStock.itemId,
+          projectionInventoryStock.itemType,
+        ],
       });
   }
 

@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { eventOutbox } from '@/database/schema';
+import { Injectable, Logger } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 export interface OutboxWriteEvent {
@@ -14,10 +14,7 @@ export interface OutboxWriteEvent {
 export class OutboxWriterService {
   private readonly logger = new Logger(OutboxWriterService.name);
 
-  async write(
-    tx: NodePgDatabase<any>,
-    event: OutboxWriteEvent,
-  ): Promise<void> {
+  async write(tx: NodePgDatabase<any>, event: OutboxWriteEvent): Promise<void> {
     await tx.insert(eventOutbox).values({
       eventId: event.eventId,
       eventType: event.eventType,
@@ -52,7 +49,7 @@ export class OutboxWriterService {
     );
 
     this.logger.log(
-      `[outbox.created] batch=${events.length} events=[${events.map(e => e.eventType).join(', ')}]`,
+      `[outbox.created] batch=${events.length} events=[${events.map((e) => e.eventType).join(', ')}]`,
     );
   }
 }

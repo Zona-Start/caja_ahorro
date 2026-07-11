@@ -1,7 +1,7 @@
 import { DrizzleModule } from '@/database/drizzle.module';
+import { SettingsModule } from '@/features/core/settings/settings.module';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
-import { SettingsModule } from '@/features/core/settings/settings.module';
 import { BcvScraperService } from './bcv-scraper.service';
 import { BcvService } from './bcv.service';
 import { ExchangeRatesController } from './exchange-rate.controller';

@@ -25,7 +25,7 @@ export class PermissionsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async findAll(): Promise<any[]> {
     return await this.db.query.permissions.findMany({
@@ -50,7 +50,7 @@ export class PermissionsService {
 
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [];
 
     if (search) {
       switch (searchType) {

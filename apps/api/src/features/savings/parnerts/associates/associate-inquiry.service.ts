@@ -1,5 +1,5 @@
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { and, eq, desc, sql, type SQL } from 'drizzle-orm';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/schema';
@@ -49,16 +49,15 @@ export interface AssociateStatement {
 @Injectable()
 export class AssociateInquiryService {
   constructor(
-    @Inject(DRIZZLE_PROVIDER) private readonly drizzle: NodePgDatabase<typeof schema>,
+    @Inject(DRIZZLE_PROVIDER)
+    private readonly drizzle: NodePgDatabase<typeof schema>,
   ) {}
 
   async getStatement(
     tenantId: string,
     cedula: string,
   ): Promise<AssociateStatement> {
-    const conditions: SQL<unknown>[] = [
-      eq(schema.associates.cedula, cedula),
-    ];
+    const conditions: SQL<unknown>[] = [eq(schema.associates.cedula, cedula)];
     if (tenantId) {
       conditions.push(eq(schema.associates.tenantId, tenantId));
     }
@@ -92,7 +91,10 @@ export class AssociateInquiryService {
       )
       .leftJoin(
         schema.associateHaberesBalance,
-        eq(schema.associateHaberesBalance.associateAccountId, schema.associateAccounts.id),
+        eq(
+          schema.associateHaberesBalance.associateAccountId,
+          schema.associateAccounts.id,
+        ),
       )
       .leftJoin(
         schema.states,
@@ -104,7 +106,9 @@ export class AssociateInquiryService {
       );
 
     if (!result.length) {
-      throw new NotFoundException(`Asociado con cédula ${cedula} no encontrado`);
+      throw new NotFoundException(
+        `Asociado con cédula ${cedula} no encontrado`,
+      );
     }
 
     const a = result[0];
@@ -160,7 +164,10 @@ export class AssociateInquiryService {
         .from(schema.associateAccountMovements)
         .innerJoin(
           schema.associateAccounts,
-          eq(schema.associateAccountMovements.associateAccountId, schema.associateAccounts.id),
+          eq(
+            schema.associateAccountMovements.associateAccountId,
+            schema.associateAccounts.id,
+          ),
         )
         .where(whereClause),
       this.drizzle
@@ -173,7 +180,10 @@ export class AssociateInquiryService {
         .from(schema.associateAccountMovements)
         .innerJoin(
           schema.associateAccounts,
-          eq(schema.associateAccountMovements.associateAccountId, schema.associateAccounts.id),
+          eq(
+            schema.associateAccountMovements.associateAccountId,
+            schema.associateAccounts.id,
+          ),
         )
         .where(whereClause)
         .orderBy(desc(schema.associateAccountMovements.transactionDate))
@@ -241,7 +251,10 @@ export class AssociateInquiryService {
         .from(schema.withdrawalsAssociates)
         .leftJoin(
           schema.withdrawalTypes,
-          eq(schema.withdrawalsAssociates.withdrawalTypeId, schema.withdrawalTypes.id),
+          eq(
+            schema.withdrawalsAssociates.withdrawalTypeId,
+            schema.withdrawalTypes.id,
+          ),
         )
         .where(whereClause)
         .orderBy(desc(schema.withdrawalsAssociates.withdrawalDate))
@@ -296,7 +309,8 @@ export class AssociateInquiryService {
           loanType: schema.loanTypes.name,
           interestRate: schema.loans.interestRate,
           loanAmount: schema.loans.requestedAmount,
-          outstandingBalance: schema.loanOutstandingBalance.outstandingTotalBalance,
+          outstandingBalance:
+            schema.loanOutstandingBalance.outstandingTotalBalance,
           installmentAmount: schema.loans.installmentAmount,
           requestDate: schema.loans.requestDate,
           terms: schema.loans.termUnits,
@@ -369,7 +383,8 @@ export class AssociateInquiryService {
           creditType: schema.creditsTypes.name,
           interestRate: schema.credits.interestRate,
           creditAmount: schema.credits.requestedAmount,
-          outstandingBalance: schema.creditOutstandingBalance.outstandingTotalBalance,
+          outstandingBalance:
+            schema.creditOutstandingBalance.outstandingTotalBalance,
           installmentAmount: schema.credits.installmentAmount,
           requestDate: schema.credits.requestDate,
           terms: schema.credits.termUnits,
@@ -442,7 +457,10 @@ export class AssociateInquiryService {
         .from(schema.associateAccountMovements)
         .innerJoin(
           schema.associateAccounts,
-          eq(schema.associateAccountMovements.associateAccountId, schema.associateAccounts.id),
+          eq(
+            schema.associateAccountMovements.associateAccountId,
+            schema.associateAccounts.id,
+          ),
         )
         .where(whereClause),
       this.drizzle
@@ -457,7 +475,10 @@ export class AssociateInquiryService {
         .from(schema.associateAccountMovements)
         .innerJoin(
           schema.associateAccounts,
-          eq(schema.associateAccountMovements.associateAccountId, schema.associateAccounts.id),
+          eq(
+            schema.associateAccountMovements.associateAccountId,
+            schema.associateAccounts.id,
+          ),
         )
         .where(whereClause)
         .orderBy(desc(schema.associateAccountMovements.transactionDate))
@@ -528,8 +549,14 @@ export class AssociateInquiryService {
         loanTypeName: schema.loanTypes.name,
       })
       .from(schema.loans)
-      .innerJoin(schema.associates, eq(schema.loans.associateId, schema.associates.id))
-      .innerJoin(schema.loanTypes, eq(schema.loans.loanTypeId, schema.loanTypes.id))
+      .innerJoin(
+        schema.associates,
+        eq(schema.loans.associateId, schema.associates.id),
+      )
+      .innerJoin(
+        schema.loanTypes,
+        eq(schema.loans.loanTypeId, schema.loanTypes.id),
+      )
       .where(and(...conditions));
 
     if (!loanResult) {
@@ -544,8 +571,10 @@ export class AssociateInquiryService {
         dueDate: schema.loanAmortizationSchedule.dueDate,
         principalAmount: schema.loanAmortizationSchedule.principalAmount,
         interestAmount: schema.loanAmortizationSchedule.interestAmount,
-        totalInstallmentAmount: schema.loanAmortizationSchedule.totalInstallmentAmount,
-        principalBalancePending: schema.loanAmortizationSchedule.principalBalancePending,
+        totalInstallmentAmount:
+          schema.loanAmortizationSchedule.totalInstallmentAmount,
+        principalBalancePending:
+          schema.loanAmortizationSchedule.principalBalancePending,
         paymentStatus: schema.loanAmortizationSchedule.paymentStatus,
         paidAmount: schema.loanAmortizationSchedule.paidAmount,
         lastPaymentDate: schema.loanAmortizationSchedule.lastPaymentDate,
@@ -554,8 +583,13 @@ export class AssociateInquiryService {
       .where(eq(schema.loanAmortizationSchedule.loanId, loanId))
       .orderBy(schema.loanAmortizationSchedule.installmentNumber);
 
-    const paidInstallments = schedule.filter((s) => s.paymentStatus === 'PAID').length;
-    const totalPaid = schedule.reduce((sum, s) => sum + parseFloat(s.paidAmount || '0'), 0);
+    const paidInstallments = schedule.filter(
+      (s) => s.paymentStatus === 'PAID',
+    ).length;
+    const totalPaid = schedule.reduce(
+      (sum, s) => sum + parseFloat(s.paidAmount || '0'),
+      0,
+    );
     const totalPending = schedule
       .filter((s) => s.paymentStatus !== 'PAID')
       .reduce((sum, s) => sum + parseFloat(s.totalInstallmentAmount || '0'), 0);
@@ -615,8 +649,14 @@ export class AssociateInquiryService {
         creditTypeName: schema.creditsTypes.name,
       })
       .from(schema.credits)
-      .innerJoin(schema.associates, eq(schema.credits.associateId, schema.associates.id))
-      .innerJoin(schema.creditsTypes, eq(schema.credits.creditTypeId, schema.creditsTypes.id))
+      .innerJoin(
+        schema.associates,
+        eq(schema.credits.associateId, schema.associates.id),
+      )
+      .innerJoin(
+        schema.creditsTypes,
+        eq(schema.credits.creditTypeId, schema.creditsTypes.id),
+      )
       .where(and(...conditions));
 
     if (!creditResult) {
@@ -631,8 +671,10 @@ export class AssociateInquiryService {
         dueDate: schema.creditAmortizationSchedule.dueDate,
         principalAmount: schema.creditAmortizationSchedule.principalAmount,
         interestAmount: schema.creditAmortizationSchedule.interestAmount,
-        totalInstallmentAmount: schema.creditAmortizationSchedule.totalInstallmentAmount,
-        principalBalancePending: schema.creditAmortizationSchedule.principalBalancePending,
+        totalInstallmentAmount:
+          schema.creditAmortizationSchedule.totalInstallmentAmount,
+        principalBalancePending:
+          schema.creditAmortizationSchedule.principalBalancePending,
         paymentStatus: schema.creditAmortizationSchedule.paymentStatus,
         paidAmount: schema.creditAmortizationSchedule.paidAmount,
         lastPaymentDate: schema.creditAmortizationSchedule.lastPaymentDate,
@@ -641,8 +683,13 @@ export class AssociateInquiryService {
       .where(eq(schema.creditAmortizationSchedule.creditId, creditId))
       .orderBy(schema.creditAmortizationSchedule.installmentNumber);
 
-    const paidInstallments = schedule.filter((s) => s.paymentStatus === 'PAID').length;
-    const totalPaid = schedule.reduce((sum, s) => sum + parseFloat(s.paidAmount || '0'), 0);
+    const paidInstallments = schedule.filter(
+      (s) => s.paymentStatus === 'PAID',
+    ).length;
+    const totalPaid = schedule.reduce(
+      (sum, s) => sum + parseFloat(s.paidAmount || '0'),
+      0,
+    );
     const totalPending = schedule
       .filter((s) => s.paymentStatus !== 'PAID')
       .reduce((sum, s) => sum + parseFloat(s.totalInstallmentAmount || '0'), 0);
@@ -726,7 +773,10 @@ export class AssociateInquiryService {
       .from(schema.withdrawalsAssociates)
       .innerJoin(
         schema.associateAccounts,
-        eq(schema.withdrawalsAssociates.associateAccountId, schema.associateAccounts.id),
+        eq(
+          schema.withdrawalsAssociates.associateAccountId,
+          schema.associateAccounts.id,
+        ),
       )
       .innerJoin(
         schema.associates,
@@ -734,7 +784,10 @@ export class AssociateInquiryService {
       )
       .leftJoin(
         schema.withdrawalTypes,
-        eq(schema.withdrawalsAssociates.withdrawalTypeId, schema.withdrawalTypes.id),
+        eq(
+          schema.withdrawalsAssociates.withdrawalTypeId,
+          schema.withdrawalTypes.id,
+        ),
       )
       .where(and(...conditions));
 
@@ -748,9 +801,9 @@ export class AssociateInquiryService {
         withdrawalDate: withdrawal.withdrawalDate?.toISOString() || null,
       },
       items: withdrawal.withdrawalItems
-        ? (Array.isArray(withdrawal.withdrawalItems)
-            ? withdrawal.withdrawalItems
-            : JSON.parse(String(withdrawal.withdrawalItems)))
+        ? Array.isArray(withdrawal.withdrawalItems)
+          ? withdrawal.withdrawalItems
+          : JSON.parse(String(withdrawal.withdrawalItems))
         : [],
     };
   }

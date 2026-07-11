@@ -26,7 +26,7 @@ export class FixedAssetsController {
   constructor(
     private readonly fixedAssetsService: FixedAssetsService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @Permissions({

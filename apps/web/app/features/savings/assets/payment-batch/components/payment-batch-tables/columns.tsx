@@ -3,18 +3,35 @@ import { Badge } from '@repo/shadcn/badge';
 import { cn } from '@repo/shadcn/lib/utils';
 import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/format-utils';
-import { type PaymentBatch } from '../schemas/payment-batch-api-response';
-import { PAYMENT_BATCH_STATUS } from '../schemas/payment-batch-options';
+import { type PaymentBatch } from '../../services/payment-batch-service';
+import { PAYMENT_BATCH_STATUS, BATCH_TYPE } from '../../schemas/payment-batch-options';
 import { CellAction } from './cell-action';
 
 export const paymentBatchColumns: ColumnDef<PaymentBatch>[] = [
   {
-    accessorKey: 'customReference',
+    accessorKey: 'paymentBatchReference',
     header: 'Referencia',
+    cell: ({ row }) => (
+      <span className="font-medium">{row.original.paymentBatchReference}</span>
+    ),
+  },
+  {
+    accessorKey: 'batchType',
+    header: 'Tipo',
+    cell: ({ row }) => {
+      const type = row.original.batchType;
+      const label = BATCH_TYPE[type as keyof typeof BATCH_TYPE] || type;
+      return (
+        <Badge variant="outline" className="capitalize">
+          {label}
+        </Badge>
+      );
+    },
   },
   {
     accessorKey: 'currencyCode',
     header: 'Moneda',
+    cell: ({ row }) => row.original.currencyCode,
   },
   {
     accessorKey: 'totalAmount',
@@ -26,45 +43,53 @@ export const paymentBatchColumns: ColumnDef<PaymentBatch>[] = [
     },
   },
   {
-    accessorKey: 'description',
-    header: 'Descripcion',
-    cell: ({ row }) => row.original.description || '-',
+    accessorKey: 'recordCount',
+    header: 'Registros',
+  },
+  {
+    accessorKey: 'bank',
+    header: 'Banco',
+    cell: ({ row }) => {
+      const bank = row.original.bank;
+      if (!bank) return '-';
+      return (
+        <div className="flex flex-col text-xs">
+          <span>{bank.name}</span>
+          <span className="text-muted-foreground">{bank.accountNumber}</span>
+        </div>
+      );
+    },
   },
   {
     accessorKey: 'status',
     header: 'Estatus',
     cell: ({ row }) => {
       const status = row.original.status;
-      const statusText =
+      const label =
         PAYMENT_BATCH_STATUS[status as keyof typeof PAYMENT_BATCH_STATUS] || status;
 
-      const variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' = (() => {
-        switch (status) {
-          case 'DRAFT':
-            return 'default';
-          case 'UPLOADED':
-            return 'warning';
-          case 'PROCESSED':
-            return 'success';
-          case 'CANCELLED':
-            return 'destructive';
-          default:
-            return 'default';
-        }
-      })();
+      const variant: Record<string, string> = {
+        DRAFT: 'secondary',
+        UPLOADED: 'warning',
+        PROCESSED: 'success',
+        CANCELLED: 'destructive',
+      };
 
       return (
-        <div className={cn('p-2 h-full w-full')}>
-          <Badge variant={variant as 'default' | 'destructive' | 'outline' | 'secondary' | 'success' | 'danger'}>
-            {statusText}
-          </Badge>
-        </div>
+        <Badge variant={(variant[status] || 'default') as any}>
+          {label}
+        </Badge>
       );
     },
   },
   {
+    accessorKey: 'description',
+    header: 'Descripción',
+    cell: ({ row }) => row.original.description || '-',
+  },
+  {
     accessorKey: 'createdAt',
-    header: 'Fecha Creacion',
+    header: 'Fecha Creación',
     cell: ({ row }) => {
       try {
         return format(new Date(row.original.createdAt), 'dd/MM/yyyy HH:mm');

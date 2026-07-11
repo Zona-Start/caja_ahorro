@@ -7,7 +7,9 @@ export const CreateBankAccountSchema = z.object({
   tenantId: z.string().uuid().optional(),
   bankDirectoryId: z.string().uuid(),
   accountName: z.string().optional(),
-  accountNumber: z.string().regex(/^\d{20}$/, 'El número de cuenta debe tener exactamente 20 dígitos'),
+  accountNumber: z
+    .string()
+    .regex(/^\d{20}$/, 'El número de cuenta debe tener exactamente 20 dígitos'),
   accountType: accountTypeEnum,
   currencyCode: currencyCodeEnum,
   openingDate: z.coerce.date().optional(),

@@ -1,8 +1,8 @@
+import * as schema from '@/database/schema';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { BankTransactionCategory, paymentMethodEnum } from '@/types/enum';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
-import * as schema from '@/database/schema';
-import { BankTransactionCategory, paymentMethodEnum } from '@/types/enum';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 @Injectable()

@@ -1,10 +1,19 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { IEventBus, EventHandler } from './event-bus.interface';
-import { InProcessEventBus } from './in-process-event-bus';
-import { createEnvelope, type EventEnvelope, type EventSource } from './event-envelope';
+import { EventHandler, IEventBus } from './event-bus.interface';
+import {
+  createEnvelope,
+  type EventEnvelope,
+  type EventSource,
+} from './event-envelope';
 import { EventStoreService } from './event-store.service';
 import { EventTracerService } from './event-tracer.service';
+import { InProcessEventBus } from './in-process-event-bus';
 
 interface RedisClient {
   publish(channel: string, message: string): Promise<number>;
@@ -36,7 +45,7 @@ export class RedisEventBus implements IEventBus, OnModuleInit, OnModuleDestroy {
       if (!this.redisAvailable) {
         this.logger.warn(
           'PRODUCTION mode but Redis unavailable — events will NOT be published. ' +
-          'Set REDIS_URL env var or install ioredis.',
+            'Set REDIS_URL env var or install ioredis.',
         );
       }
     }
@@ -88,7 +97,7 @@ export class RedisEventBus implements IEventBus, OnModuleInit, OnModuleDestroy {
     if (source === 'direct' && this.env === 'production') {
       this.logger.error(
         `[outbox.guard] DIRECT PUBLISH BLOCKED event=${event} id=${eventId}. ` +
-        'Use outbox pattern: inject OutboxWriterService and call write(tx, event) inside your transaction.',
+          'Use outbox pattern: inject OutboxWriterService and call write(tx, event) inside your transaction.',
       );
       return;
     }
@@ -100,7 +109,9 @@ export class RedisEventBus implements IEventBus, OnModuleInit, OnModuleDestroy {
       const channel = `${this.prefix}:${event}`;
       const message = JSON.stringify(envelope);
       this.pubClient.publish(channel, message).catch((err) => {
-        this.logger.error(`Redis publish failed for event ${eventId}: ${err.message}`);
+        this.logger.error(
+          `Redis publish failed for event ${eventId}: ${err.message}`,
+        );
         this.fallbackPublish(event, envelope);
       });
     } else if (this.env === 'production' && !this.redisAvailable) {
@@ -127,11 +138,15 @@ export class RedisEventBus implements IEventBus, OnModuleInit, OnModuleDestroy {
           const envelope = JSON.parse(message) as EventEnvelope<T>;
           handler(envelope);
         } catch (err) {
-          this.logger.error(`Redis message parse error: ${(err as Error).message}`);
+          this.logger.error(
+            `Redis message parse error: ${(err as Error).message}`,
+          );
         }
       });
     } else if (this.env !== 'production') {
-      this.logger.debug(`Dev mode: events for ${event} handled in-process only`);
+      this.logger.debug(
+        `Dev mode: events for ${event} handled in-process only`,
+      );
     }
   }
 

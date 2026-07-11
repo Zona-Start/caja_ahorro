@@ -34,15 +34,13 @@ export class CategoriesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async findAll(
     dto: CategoryQueryDto,
     currentTenantId?: string,
     tx?: NodePgDatabase<typeof schema>,
   ) {
-
-
     const db = tx ?? this.db;
     const { page = 1, limit = 10, search, type, isActive, tenantId } = dto;
     const offset = (page - 1) * limit;
@@ -57,7 +55,9 @@ export class CategoriesService {
 
     if (type) conditions.push(eq(categories.type, type));
     if (isActive !== undefined)
-      conditions.push(eq(categories.isActive, isActive === 'true' ? true : false));
+      conditions.push(
+        eq(categories.isActive, isActive === 'true' ? true : false),
+      );
 
     if (search && search.trim() !== '') {
       const searchTerm = `%${search.trim()}%`;
@@ -186,9 +186,7 @@ export class CategoriesService {
     const conditions: SQL[] = [eq(categories.id, id)];
     if (tenantId) conditions.push(eq(categories.tenantId, tenantId));
 
-    await db
-      .delete(categories)
-      .where(and(...conditions));
+    await db.delete(categories).where(and(...conditions));
 
     await this.auditHelper.logDelete(previous.tenantId, 'category', previous, {
       targetId: id,

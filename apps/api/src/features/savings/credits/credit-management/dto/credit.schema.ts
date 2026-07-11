@@ -1,5 +1,5 @@
+import { creditModalityTypeEnum } from '@/types/enum';
 import { z } from 'zod';
-import { creditModalityTypeEnum, paymentMethodEnum } from '@/types/enum';
 
 export const CreditItemSchema = z.object({
   agreedSellingPrice: z.number().positive(),
@@ -82,4 +82,6 @@ export type FilterCreditDto = z.infer<typeof FilterCreditSchema>;
 export type UpdateCreditDto = z.infer<typeof UpdateCreditSchema>;
 export type CreditItemDto = z.infer<typeof CreditItemSchema>;
 export type SearchAssociateDto = z.infer<typeof SearchAssociateSchema>;
-export type CalculateAmortizationDto = z.infer<typeof CalculateAmortizationSchema>;
+export type CalculateAmortizationDto = z.infer<
+  typeof CalculateAmortizationSchema
+>;

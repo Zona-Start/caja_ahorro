@@ -7,7 +7,7 @@ import * as schema from './schema';
 
 export const DRIZZLE_PROVIDER = 'DRIZZLE_PROVIDER';
 
-export type DrizzleDatabase = NodePgDatabase<typeof schema>;  
+export type DrizzleDatabase = NodePgDatabase<typeof schema>;
 
 export const DrizzleProvider: Provider = {
   provide: DRIZZLE_PROVIDER,

@@ -1,4 +1,4 @@
-import { accountingSchema } from "../_schemas";
+import { accountingSchema } from '../_schemas';
 
 export const accountNatureEnum = accountingSchema.enum('account_nature', [
   'DEBIT',

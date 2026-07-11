@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { BankReconciliationsService } from './bank-reconciliations.service';
-import { BankReconciliationsController } from './bank-reconciliations.controller';
-import { DrizzleModule } from '@/database/drizzle.module';
 import { TenantContextModule } from '@/common/services/tenant-context.module';
+import { DrizzleModule } from '@/database/drizzle.module';
+import { Module } from '@nestjs/common';
+import { BankReconciliationsController } from './bank-reconciliations.controller';
+import { BankReconciliationsService } from './bank-reconciliations.service';
 
 @Module({
   imports: [DrizzleModule, TenantContextModule],

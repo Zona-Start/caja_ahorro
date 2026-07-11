@@ -1,6 +1,7 @@
 import { TenantContextModule } from '@/common/services/tenant-context.module';
 import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.module';
 import { DrizzleModule } from '@/database/drizzle.module';
+import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
 import { Module } from '@nestjs/common';
 import { FixedAssetPricesModule } from '../../inventory/fixed-asset-prices/fixed-asset-prices.module';
 import { InventoryMovementsModule } from '../../inventory/inventory-movements/inventory-movements.module';
@@ -24,6 +25,7 @@ import { SupplierInvoicesService } from './supplier-invoices.service';
     GenerateCodeModule,
     SupplierTransactionsModule,
     TenantContextModule,
+    AccountingEntriesModule,
   ],
   controllers: [SupplierInvoicesController],
   providers: [SupplierInvoicesService],

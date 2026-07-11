@@ -29,10 +29,14 @@ export class AccountingCyclesController {
   constructor(
     private readonly service: AccountingCyclesService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
-  @Permissions({ resource: 'accounting:cycles', action: 'create', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:cycles',
+    action: 'create',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Crear un nuevo ciclo contable' })
   @ApiResponse({
     status: 201,
@@ -46,7 +50,11 @@ export class AccountingCyclesController {
   }
 
   @Get()
-  @Permissions({ resource: 'accounting:cycles', action: 'read', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:cycles',
+    action: 'read',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Obtener todos los ciclos contables' })
   async findAll(@Req() req: any) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
@@ -55,7 +63,11 @@ export class AccountingCyclesController {
   }
 
   @Get('/paginated')
-  @Permissions({ resource: 'accounting:cycles', action: 'read', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:cycles',
+    action: 'read',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Obtener ciclos contables con paginación' })
   async findAllPaginated(
     @Req() req: any,
@@ -71,8 +83,14 @@ export class AccountingCyclesController {
   }
 
   @Patch(':id/status')
-  @Permissions({ resource: 'accounting:cycles', action: 'update', scope: 'tenant' })
-  @ApiOperation({ summary: 'Cambiar estado de un ciclo contable (Abierto <-> Pendiente)' })
+  @Permissions({
+    resource: 'accounting:cycles',
+    action: 'update',
+    scope: 'tenant',
+  })
+  @ApiOperation({
+    summary: 'Cambiar estado de un ciclo contable (Abierto <-> Pendiente)',
+  })
   async changeStatus(
     @Req() req: any,
     @Param('id') id: string,
@@ -93,7 +111,11 @@ export class AccountingCyclesController {
   }
 
   @Get(':id')
-  @Permissions({ resource: 'accounting:cycles', action: 'read', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:cycles',
+    action: 'read',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Obtener un ciclo contable por ID' })
   async findOne(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
@@ -101,10 +123,12 @@ export class AccountingCyclesController {
     return { message: 'Ciclo contable obtenido exitosamente', data };
   }
 
-
-
   @Patch(':id')
-  @Permissions({ resource: 'accounting:cycles', action: 'update', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:cycles',
+    action: 'update',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Actualizar un ciclo contable' })
   async update(
     @Req() req: any,
@@ -118,7 +142,11 @@ export class AccountingCyclesController {
   }
 
   @Delete(':id')
-  @Permissions({ resource: 'accounting:cycles', action: 'delete', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:cycles',
+    action: 'delete',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Eliminar un ciclo contable' })
   async delete(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId, userId } =

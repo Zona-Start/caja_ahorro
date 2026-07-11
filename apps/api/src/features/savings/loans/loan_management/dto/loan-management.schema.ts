@@ -1,6 +1,10 @@
-import { z } from 'zod';
-import { loanModalityTypeEnum, paymentMethodEnum, LoanStatusEnum } from '@/types/enum';
 import { PaginationSchema } from '@/common/dto/pagination.dto';
+import {
+  loanModalityTypeEnum,
+  LoanStatusEnum,
+  paymentMethodEnum,
+} from '@/types/enum';
+import { z } from 'zod';
 
 export const CreateLoanSchema = z.object({
   associateId: z.string().uuid(),
@@ -74,5 +78,7 @@ export type CreateLoanDto = z.infer<typeof CreateLoanSchema>;
 export type FilterLoanDto = z.infer<typeof FilterLoanSchema>;
 export type UpdateLoanDto = z.infer<typeof UpdateLoanSchema>;
 export type SearchAssociateDto = z.infer<typeof SearchAssociateSchema>;
-export type CalculateAmortizationDto = z.infer<typeof CalculateAmortizationSchema>;
+export type CalculateAmortizationDto = z.infer<
+  typeof CalculateAmortizationSchema
+>;
 export type DisburseLoanDto = z.infer<typeof DisburseLoanSchema>;

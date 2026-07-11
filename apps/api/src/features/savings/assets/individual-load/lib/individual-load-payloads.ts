@@ -123,8 +123,7 @@ export function buildBankMovementPayload(
       bankAccountId: input.bankAccountId,
       transactionDate: input.transactionDate,
       paymentMethod: input.paymentMethod,
-      description:
-        input.description ?? input.fallbackDescription,
+      description: input.description ?? input.fallbackDescription,
       bankReference: input.referenceNumber ?? undefined,
       category: 'MEMBER_CONTRIBUTION' as BankTransactionCategory,
       creditAmount: input.creditAmount,

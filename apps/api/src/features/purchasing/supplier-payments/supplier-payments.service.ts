@@ -1,5 +1,18 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
+import {
+  accountsPayable,
+  purchaseOrders,
+  supplierAdvances,
+  supplierCreditNotes,
+  supplierInvoices,
+  supplierPaymentLines,
+  supplierPayments,
+  suppliers,
+  supplierTransactionApplications,
+  supplierTransactions,
+} from '@/database/schema';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   BankTransactionCategory,
@@ -15,8 +28,6 @@ import {
 } from '@nestjs/common';
 import { and, asc, desc, eq, ilike, inArray, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from '@/database/schema';
-import { accountsPayable, purchaseOrders, supplierAdvances, supplierCreditNotes, supplierInvoices, supplierPaymentLines, supplierPayments, supplierTransactionApplications, supplierTransactions, suppliers } from '@/database/schema';
 
 @Injectable()
 export class SupplierPaymentsService {
@@ -30,7 +41,9 @@ export class SupplierPaymentsService {
     const { page = 1, limit = 10, search = '', status } = paginationDto;
     const offset = (page - 1) * limit;
 
-    const conditions: SQL<unknown>[] = [eq(supplierPayments.tenantId, tenantId)];
+    const conditions: SQL<unknown>[] = [
+      eq(supplierPayments.tenantId, tenantId),
+    ];
     if (search) {
       conditions.push(ilike(supplierPayments.paymentNumber, `%${search}%`));
     }
@@ -75,7 +88,9 @@ export class SupplierPaymentsService {
     } = paginationDto;
     const offset = (page - 1) * limit;
 
-    const searchConditions: SQL<unknown>[] = [eq(supplierPayments.tenantId, tenantId)];
+    const searchConditions: SQL<unknown>[] = [
+      eq(supplierPayments.tenantId, tenantId),
+    ];
 
     let parsedSupplierIds: string[] = [];
     if (supplierIds) {
@@ -119,10 +134,7 @@ export class SupplierPaymentsService {
       .from(supplierPayments)
       .leftJoin(
         supplierPaymentLines,
-        eq(
-          supplierPayments.id,
-          supplierPaymentLines.supplierPaymentId,
-        ),
+        eq(supplierPayments.id, supplierPaymentLines.supplierPaymentId),
       )
       .where(searchCondition);
 
@@ -137,23 +149,14 @@ export class SupplierPaymentsService {
         accountPayable: accountsPayable,
       })
       .from(supplierPayments)
-      .leftJoin(
-        suppliers,
-        eq(supplierPayments.supplierId, suppliers.id),
-      )
+      .leftJoin(suppliers, eq(supplierPayments.supplierId, suppliers.id))
       .leftJoin(
         supplierPaymentLines,
-        eq(
-          supplierPayments.id,
-          supplierPaymentLines.supplierPaymentId,
-        ),
+        eq(supplierPayments.id, supplierPaymentLines.supplierPaymentId),
       )
       .leftJoin(
         accountsPayable,
-        eq(
-          accountsPayable.id,
-          supplierPaymentLines.accountsPayableId,
-        ),
+        eq(accountsPayable.id, supplierPaymentLines.accountsPayableId),
       )
       .limit(limit)
       .offset(offset)
@@ -174,10 +177,7 @@ export class SupplierPaymentsService {
             })
             .from(supplierTransactions)
             .where(
-              eq(
-                supplierTransactions.id,
-                String(row.line.relatedAdvanceId),
-              ),
+              eq(supplierTransactions.id, String(row.line.relatedAdvanceId)),
             );
 
           referen = get?.transactionNumber ?? '';
@@ -230,8 +230,12 @@ export class SupplierPaymentsService {
     } = paginationDto;
     const offset = (page - 1) * limit;
 
-    const searchConditions: SQL<unknown>[] = [eq(accountsPayable.tenantId, tenantId)];
-    const searchConditionsAdvance: SQL<unknown>[] = [eq(supplierAdvances.tenantId, tenantId)];
+    const searchConditions: SQL<unknown>[] = [
+      eq(accountsPayable.tenantId, tenantId),
+    ];
+    const searchConditionsAdvance: SQL<unknown>[] = [
+      eq(supplierAdvances.tenantId, tenantId),
+    ];
 
     if (search) {
       searchConditions.push(
@@ -255,12 +259,16 @@ export class SupplierPaymentsService {
     if (status) {
       if (Array.isArray(status)) {
         if (status.length === 1 && status[0].includes(',')) {
-          parsedSupplierStatus = status[0].split(',') as paymentAccountsPayableEnum[];
+          parsedSupplierStatus = status[0].split(
+            ',',
+          ) as paymentAccountsPayableEnum[];
         } else {
           parsedSupplierStatus = status as paymentAccountsPayableEnum[];
         }
       } else if (typeof status === 'string') {
-        parsedSupplierStatus = status.split(',') as paymentAccountsPayableEnum[];
+        parsedSupplierStatus = status.split(
+          ',',
+        ) as paymentAccountsPayableEnum[];
       }
 
       if (parsedSupplierStatus.length > 0) {
@@ -294,19 +302,22 @@ export class SupplierPaymentsService {
         supplierId: accountsPayable.supplierId,
         supplierName: suppliers.name,
         reference:
-          sql<string>`COALESCE(${accountsPayable.accountsPayableNumber}, '')`.as('reference'),
+          sql<string>`COALESCE(${accountsPayable.accountsPayableNumber}, '')`.as(
+            'reference',
+          ),
         amount:
-          sql<string>`COALESCE(${accountsPayable.remainingAmount}, '0.00')`.as('amount'),
+          sql<string>`COALESCE(${accountsPayable.remainingAmount}, '0.00')`.as(
+            'amount',
+          ),
         status:
-          sql<string>`COALESCE(${accountsPayable.status}::text, 'PENDING')`.as('status'),
+          sql<string>`COALESCE(${accountsPayable.status}::text, 'PENDING')`.as(
+            'status',
+          ),
         date: accountsPayable.dueDate!,
         type: sql<string>`'ACCOUNTS_PAYABLE'`.as('type'),
       })
       .from(accountsPayable)
-      .leftJoin(
-        suppliers,
-        eq(accountsPayable.supplierId, suppliers.id),
-      )
+      .leftJoin(suppliers, eq(accountsPayable.supplierId, suppliers.id))
       .where(searchCondition);
 
     const advanceSelect = this.db
@@ -315,19 +326,22 @@ export class SupplierPaymentsService {
         supplierId: supplierAdvances.supplierId,
         supplierName: suppliers.name,
         reference:
-          sql<string>`COALESCE(${supplierTransactions.transactionNumber}, '')`.as('reference'),
+          sql<string>`COALESCE(${supplierTransactions.transactionNumber}, '')`.as(
+            'reference',
+          ),
         amount:
-          sql<string>`COALESCE(${supplierAdvances.availableAmount}, '0.00')`.as('amount'),
+          sql<string>`COALESCE(${supplierAdvances.availableAmount}, '0.00')`.as(
+            'amount',
+          ),
         status:
-          sql<string>`COALESCE(${supplierAdvances.statusPayment}::text, 'PENDING')`.as('status'),
+          sql<string>`COALESCE(${supplierAdvances.statusPayment}::text, 'PENDING')`.as(
+            'status',
+          ),
         date: supplierTransactions.transactionDate!,
         type: sql<string>`'ADVANCE'`.as('type'),
       })
       .from(supplierAdvances)
-      .leftJoin(
-        suppliers,
-        eq(supplierAdvances.supplierId, suppliers.id),
-      )
+      .leftJoin(suppliers, eq(supplierAdvances.supplierId, suppliers.id))
       .leftJoin(
         supplierTransactions,
         eq(supplierTransactions.id, supplierAdvances.transactionId),
@@ -394,7 +408,13 @@ export class SupplierPaymentsService {
 
     return db.transaction(async (tx) => {
       const paymentNumber =
-        await this.generateCodeService.generateNextReference('PAG-P', tenantId, 'purchasing', 'payments', tx);
+        await this.generateCodeService.generateNextReference(
+          'PAG-P',
+          tenantId,
+          'purchasing',
+          'payments',
+          tx,
+        );
 
       const [newPayment] = await tx
         .insert(supplierPayments)
@@ -412,7 +432,9 @@ export class SupplierPaymentsService {
           bankDescription: dto.paymentDescription,
           bankReference: dto.bankReference,
           bankTransactionDate: dto.transactionDate
-            ? (dto.transactionDate instanceof Date ? dto.transactionDate.toISOString() : String(dto.transactionDate))
+            ? dto.transactionDate instanceof Date
+              ? dto.transactionDate.toISOString()
+              : String(dto.transactionDate)
             : new Date().toISOString(),
           observations: 'Pago de Anticipo',
           processedAt: new Date().toISOString(),
@@ -445,7 +467,9 @@ export class SupplierPaymentsService {
           bankAccountId: dto.bankAccountId,
           bankReference: dto.bankReference,
           bankTransactionDate: dto.transactionDate
-            ? (dto.transactionDate instanceof Date ? dto.transactionDate.toISOString() : String(dto.transactionDate))
+            ? dto.transactionDate instanceof Date
+              ? dto.transactionDate.toISOString()
+              : String(dto.transactionDate)
             : new Date().toISOString(),
           updatedById: userId,
         })
@@ -468,15 +492,14 @@ export class SupplierPaymentsService {
         invoiceNumber: supplierInvoices.invoiceNumber,
       })
       .from(accountsPayable)
-      .leftJoin(
-        suppliers,
-        eq(accountsPayable.supplierId, suppliers.id),
-      )
+      .leftJoin(suppliers, eq(accountsPayable.supplierId, suppliers.id))
       .leftJoin(
         supplierInvoices,
         eq(accountsPayable.supplierInvoiceId, supplierInvoices.id),
       )
-      .where(and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)));
+      .where(
+        and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
+      );
 
     const note = await this.db
       .select({
@@ -492,10 +515,12 @@ export class SupplierPaymentsService {
           supplierTransactionApplications.transactionId,
         ),
       )
-      .where(and(
-        eq(supplierTransactionApplications.accountsPayableId, id),
-        eq(supplierTransactionApplications.tenantId, tenantId),
-      ));
+      .where(
+        and(
+          eq(supplierTransactionApplications.accountsPayableId, id),
+          eq(supplierTransactionApplications.tenantId, tenantId),
+        ),
+      );
 
     return {
       data: {
@@ -516,10 +541,7 @@ export class SupplierPaymentsService {
       .from(supplierTransactions)
       .leftJoin(
         supplierAdvances,
-        eq(
-          supplierTransactions.id,
-          supplierAdvances.transactionId,
-        ),
+        eq(supplierTransactions.id, supplierAdvances.transactionId),
       )
       .where(
         and(
@@ -544,10 +566,7 @@ export class SupplierPaymentsService {
       .from(supplierTransactions)
       .leftJoin(
         supplierCreditNotes,
-        eq(
-          supplierTransactions.id,
-          supplierCreditNotes.transactionId,
-        ),
+        eq(supplierTransactions.id, supplierCreditNotes.transactionId),
       )
       .where(
         and(
@@ -595,11 +614,22 @@ export class SupplierPaymentsService {
     const [cxp] = await db
       .select()
       .from(accountsPayable)
-      .where(and(eq(accountsPayable.id, dto.accountPayableId), eq(accountsPayable.tenantId, tenantId)));
+      .where(
+        and(
+          eq(accountsPayable.id, dto.accountPayableId),
+          eq(accountsPayable.tenantId, tenantId),
+        ),
+      );
 
     return db.transaction(async (tx) => {
       const paymentNumber =
-        await this.generateCodeService.generateNextReference('PAG-P', tenantId, 'purchasing', 'payments', tx);
+        await this.generateCodeService.generateNextReference(
+          'PAG-P',
+          tenantId,
+          'purchasing',
+          'payments',
+          tx,
+        );
 
       const [newPayment] = await tx
         .insert(supplierPayments)
@@ -616,9 +646,10 @@ export class SupplierPaymentsService {
           createdById: userId,
           bankDescription: dto.paymentDescription,
           bankReference: dto.bankReference,
-          bankTransactionDate: dto.transactionDate instanceof Date
-            ? dto.transactionDate.toISOString()
-            : String(dto.transactionDate),
+          bankTransactionDate:
+            dto.transactionDate instanceof Date
+              ? dto.transactionDate.toISOString()
+              : String(dto.transactionDate),
           observations: `Pago cta. por pagar N°${cxp.accountsPayableNumber}`,
         })
         .returning({
@@ -635,7 +666,12 @@ export class SupplierPaymentsService {
       });
 
       const transactionNumber =
-        await this.generateCodeService.generateNextReference('TRS-P', tenantId, 'purchasing', 'transactions');
+        await this.generateCodeService.generateNextReference(
+          'TRS-P',
+          tenantId,
+          'purchasing',
+          'transactions',
+        );
 
       const [newTransaction] = await tx
         .insert(supplierTransactions)
@@ -644,18 +680,20 @@ export class SupplierPaymentsService {
           supplierId: dto.supplierId,
           transactionNumber: transactionNumber,
           transactionType: 'PAYMENT',
-          transactionDate: dto.transactionDate instanceof Date
-            ? dto.transactionDate.toISOString()
-            : String(dto.transactionDate),
+          transactionDate:
+            dto.transactionDate instanceof Date
+              ? dto.transactionDate.toISOString()
+              : String(dto.transactionDate),
           amount: dto.amount.toString(),
           currencyCode: 'VES',
           status: 'APPLIED',
           paymentMethod: dto.paymentMethod as paymentMethodEnum,
           bankAccountId: dto.bankAccountId,
           bankReference: dto.bankReference,
-          bankTransactionDate: dto.transactionDate instanceof Date
-            ? dto.transactionDate.toISOString()
-            : String(dto.transactionDate),
+          bankTransactionDate:
+            dto.transactionDate instanceof Date
+              ? dto.transactionDate.toISOString()
+              : String(dto.transactionDate),
           observations: `Pago de Cuenta por Pagar N° ${cxp.accountsPayableNumber} con referencia a pago N° ${newPayment.reference}`,
           createdById: userId,
         })
@@ -760,7 +798,11 @@ export class SupplierPaymentsService {
           },
         ],
       };
-      await this.bankMovementsService.createAndReconcile(dataBank as any, userId, tx as any);
+      await this.bankMovementsService.createAndReconcile(
+        dataBank as any,
+        userId,
+        tx as any,
+      );
 
       const cashAmount = Number(dto.amount);
       const creditTotal = (dto.creditAplied || []).reduce(
@@ -814,9 +856,7 @@ export class SupplierPaymentsService {
               status: 'CLOSED',
               updatedById: userId,
             })
-            .where(
-              eq(purchaseOrders.id, supplierInvoice.purchaseorderId),
-            );
+            .where(eq(purchaseOrders.id, supplierInvoice.purchaseorderId));
         }
       }
 
@@ -862,7 +902,11 @@ export class SupplierPaymentsService {
     }));
   }
 
-  async findOne(id: string, tenantId: string, tx?: NodePgDatabase<typeof schema>) {
+  async findOne(
+    id: string,
+    tenantId: string,
+    tx?: NodePgDatabase<typeof schema>,
+  ) {
     const db = tx || this.db;
 
     const [paymentRow] = await db
@@ -882,11 +926,13 @@ export class SupplierPaymentsService {
         supplierTaxId: suppliers.taxId,
       })
       .from(supplierPayments)
-      .leftJoin(
-        suppliers,
-        eq(supplierPayments.supplierId, suppliers.id),
-      )
-      .where(and(eq(supplierPayments.id, id), eq(supplierPayments.tenantId, tenantId)));
+      .leftJoin(suppliers, eq(supplierPayments.supplierId, suppliers.id))
+      .where(
+        and(
+          eq(supplierPayments.id, id),
+          eq(supplierPayments.tenantId, tenantId),
+        ),
+      );
 
     if (!paymentRow) {
       throw new NotFoundException(`Payment with ID ${id} not found`);
@@ -928,11 +974,13 @@ export class SupplierPaymentsService {
         const payment = await tx
           .select()
           .from(supplierPayments)
-          .leftJoin(
-            suppliers,
-            eq(supplierPayments.supplierId, suppliers.id),
-          )
-          .where(and(eq(supplierPayments.id, paymentId), eq(supplierPayments.tenantId, tenantId)));
+          .leftJoin(suppliers, eq(supplierPayments.supplierId, suppliers.id))
+          .where(
+            and(
+              eq(supplierPayments.id, paymentId),
+              eq(supplierPayments.tenantId, tenantId),
+            ),
+          );
 
         const paymentLines = await tx
           .select()
@@ -957,7 +1005,9 @@ export class SupplierPaymentsService {
           .values({
             tenantId,
             paymentNumber: reversedPaymentNumber,
-            supplierId: payment[0]?.suppliers?.id ?? payment[0].supplier_payments.supplierId,
+            supplierId:
+              payment[0]?.suppliers?.id ??
+              payment[0].supplier_payments.supplierId,
             totalAmount: (-parseFloat(
               payment[0].supplier_payments.totalAmount,
             )).toString(),
@@ -993,15 +1043,10 @@ export class SupplierPaymentsService {
             .from(accountsPayable)
             .leftJoin(
               supplierInvoices,
-              eq(
-                accountsPayable.supplierInvoiceId,
-                supplierInvoices.id,
-              ),
+              eq(accountsPayable.supplierInvoiceId, supplierInvoices.id),
             )
             .where(
-              and(
-                eq(accountsPayable.id, line.accountsPayableId as string),
-              ),
+              and(eq(accountsPayable.id, line.accountsPayableId as string)),
             );
 
           if (accountPayableData.length > 0) {
@@ -1012,8 +1057,9 @@ export class SupplierPaymentsService {
 
             const newPaidAmount = originalPaidAmount - lineAmount;
             const newRemainingAmount =
-              parseFloat(accountPayableData[0].accounts_payable.remainingAmount) +
-              lineAmount;
+              parseFloat(
+                accountPayableData[0].accounts_payable.remainingAmount,
+              ) + lineAmount;
 
             await tx
               .update(accountsPayable)

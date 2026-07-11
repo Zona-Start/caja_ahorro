@@ -1,4 +1,6 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
 import { suppliers } from '@/database/schema/tables';
 import {
   BadRequestException,
@@ -8,25 +10,31 @@ import {
 } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/schema';
-import { CreateSupplierDto, FilterSupplierDto, UpdateSupplierDto } from './dto/suppliers.schema';
+import {
+  CreateSupplierDto,
+  FilterSupplierDto,
+  UpdateSupplierDto,
+} from './dto/suppliers.schema';
 
 @Injectable()
 export class SuppliersService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
-  ) { }
+  ) {}
 
   async create(tenantId: string, userId: string, dto: CreateSupplierDto) {
     const [existing] = await this.drizzle
       .select()
       .from(suppliers)
-      .where(and(eq(suppliers.taxId, dto.taxId), eq(suppliers.tenantId, tenantId)));
+      .where(
+        and(eq(suppliers.taxId, dto.taxId), eq(suppliers.tenantId, tenantId)),
+      );
 
     if (existing) {
-      throw new BadRequestException(`Supplier with tax ID '${dto.taxId}' already exists.`);
+      throw new BadRequestException(
+        `Supplier with tax ID '${dto.taxId}' already exists.`,
+      );
     }
 
     const [newSupplier] = await this.drizzle
@@ -43,7 +51,12 @@ export class SuppliersService {
         state: dto.state,
         address: dto.address,
         category: dto.category as any,
-        internalCode: await this.generateCodeService.generateNextReference('PROV', tenantId, 'purchasing', 'suppliers'),
+        internalCode: await this.generateCodeService.generateNextReference(
+          'PROV',
+          tenantId,
+          'purchasing',
+          'suppliers',
+        ),
         createdById: userId,
         status: 'ACTIVE',
       })
@@ -89,7 +102,6 @@ export class SuppliersService {
       .limit(limit)
       .offset(offset);
 
-
     return {
       data,
       meta: {
@@ -119,7 +131,12 @@ export class SuppliersService {
     return supplier;
   }
 
-  async update(tenantId: string, userId: string, id: string, dto: UpdateSupplierDto) {
+  async update(
+    tenantId: string,
+    userId: string,
+    id: string,
+    dto: UpdateSupplierDto,
+  ) {
     await this.findOne(id, tenantId);
 
     const [updated] = await this.drizzle
@@ -145,7 +162,11 @@ export class SuppliersService {
     const newStatus = supplier.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const [updated] = await this.drizzle
       .update(suppliers)
-      .set({ status: newStatus, updatedById: userId, updatedAt: new Date() } as any)
+      .set({
+        status: newStatus,
+        updatedById: userId,
+        updatedAt: new Date(),
+      } as any)
       .where(and(...conditions))
       .returning();
     return updated;
@@ -162,9 +183,7 @@ export class SuppliersService {
 
     if (!supplier) throw new NotFoundException('Supplier not found');
 
-    await this.drizzle
-      .delete(suppliers)
-      .where(and(...conditions));
+    await this.drizzle.delete(suppliers).where(and(...conditions));
     return { message: 'Supplier deleted' };
   }
 
@@ -172,7 +191,9 @@ export class SuppliersService {
     const totalActive = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(suppliers)
-      .where(and(eq(suppliers.status, 'ACTIVE'), eq(suppliers.tenantId, tenantId)));
+      .where(
+        and(eq(suppliers.status, 'ACTIVE'), eq(suppliers.tenantId, tenantId)),
+      );
 
     return { totalActive: totalActive[0].count };
   }

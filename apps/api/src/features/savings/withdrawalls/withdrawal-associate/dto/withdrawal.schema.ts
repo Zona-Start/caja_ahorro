@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import { paymentMethodEnum } from '@/types/enum';
+import { z } from 'zod';
 
 const withdrawalItemSchema = z.object({
   itemType: z.string(),
@@ -40,6 +40,12 @@ export const FilterWithdrawalAssociateSchema = z.object({
   tenantId: z.string().uuid().optional(),
 });
 
-export type CreateWithdrawalAssociateDto = z.infer<typeof CreateWithdrawalAssociateSchema>;
-export type DisburseWithdrawalAssociateDto = z.infer<typeof DisburseWithdrawalAssociateSchema>;
-export type FilterWithdrawalAssociateDto = z.infer<typeof FilterWithdrawalAssociateSchema>;
+export type CreateWithdrawalAssociateDto = z.infer<
+  typeof CreateWithdrawalAssociateSchema
+>;
+export type DisburseWithdrawalAssociateDto = z.infer<
+  typeof DisburseWithdrawalAssociateSchema
+>;
+export type FilterWithdrawalAssociateDto = z.infer<
+  typeof FilterWithdrawalAssociateSchema
+>;

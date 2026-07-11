@@ -1,3 +1,5 @@
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -11,8 +13,6 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
-import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   CreateWithdrawalAssociateSchema,
   DisburseWithdrawalAssociateSchema,
@@ -37,7 +37,8 @@ export class WithdrawalAssociateController {
     @Req() req: Request,
     @Body(new ZodValidatorPipe(CreateWithdrawalAssociateSchema)) dto: any,
   ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.execute(targetTenantId, userId, dto);
   }
 
@@ -46,7 +47,8 @@ export class WithdrawalAssociateController {
   @ApiResponse({ status: 200, description: 'Return all withdrawal approved' })
   findWithdrawalAprovee(
     @Req() req: Request,
-    @Query(new ZodValidatorPipe(FilterWithdrawalAssociateSchema)) paginationDto: any,
+    @Query(new ZodValidatorPipe(FilterWithdrawalAssociateSchema))
+    paginationDto: any,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findWithdrawalAprovee(targetTenantId, paginationDto);
@@ -59,7 +61,8 @@ export class WithdrawalAssociateController {
   @ApiResponse({ status: 200, description: 'Return all withdrawals.' })
   findAll(
     @Req() req: Request,
-    @Query(new ZodValidatorPipe(FilterWithdrawalAssociateSchema)) paginationDto: any,
+    @Query(new ZodValidatorPipe(FilterWithdrawalAssociateSchema))
+    paginationDto: any,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findAll(targetTenantId, paginationDto);
@@ -86,7 +89,11 @@ export class WithdrawalAssociateController {
     @Query() filtersDto: any,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findAllByAssociate(targetTenantId, associateId, filtersDto);
+    return this.service.findAllByAssociate(
+      targetTenantId,
+      associateId,
+      filtersDto,
+    );
   }
 
   @Get(':id/details')
@@ -106,7 +113,8 @@ export class WithdrawalAssociateController {
   })
   @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
   approve(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.approve(targetTenantId, userId, id);
   }
 
@@ -122,7 +130,8 @@ export class WithdrawalAssociateController {
     @Param('id') id: string,
     @Body(new ZodValidatorPipe(DisburseWithdrawalAssociateSchema)) dto: any,
   ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.disburse(targetTenantId, userId, id, dto);
   }
 
@@ -134,7 +143,8 @@ export class WithdrawalAssociateController {
   })
   @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
   process(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.process(targetTenantId, userId, id);
   }
 
@@ -146,7 +156,8 @@ export class WithdrawalAssociateController {
   })
   @ApiResponse({ status: 404, description: 'Withdrawal not found.' })
   remove(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.remove(targetTenantId, userId, id);
   }
 }

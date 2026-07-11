@@ -1,12 +1,6 @@
 import { Permissions } from '@/common/decorators/permissions.decorator';
 import { TenantContextService } from '@/common/services/tenant-context.service';
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { ProductServiceSupplierPaginationDto } from './dto/pagination-product-service-supplier.dto';
 import { ProductServiceSuppliersService } from './product-service-suppliers.service';
@@ -16,7 +10,7 @@ export class ProductServiceSuppliersController {
   constructor(
     private readonly service: ProductServiceSuppliersService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Get()
   @Permissions({

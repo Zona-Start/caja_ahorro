@@ -1,9 +1,8 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
 import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
-import {
-  AssociateMovementTypeEnum,
-  CurrencyCodeEnum,
-} from '@/types/enum';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { AssociateMovementTypeEnum, CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -14,12 +13,8 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq, gte, ilike, lte, sql, type SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from '@/database/schema';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
-import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
-import {
-  ContributionBatchesAccountingService,
-} from './contribution-batches-accounting.service';
+import { ContributionBatchesAccountingService } from './contribution-batches-accounting.service';
 import {
   CreateContributionBatchDto,
   FilterContributionBatchDto,
@@ -151,11 +146,12 @@ export class ContributionBatchesService {
       .from(schema.contributionBatchAssociates)
       .innerJoin(
         schema.associates,
-        eq(schema.contributionBatchAssociates.associateId, schema.associates.id),
+        eq(
+          schema.contributionBatchAssociates.associateId,
+          schema.associates.id,
+        ),
       )
-      .where(
-        eq(schema.contributionBatchAssociates.contributionBatchId, id),
-      );
+      .where(eq(schema.contributionBatchAssociates.contributionBatchId, id));
 
     return { ...batch, associates: associatesList };
   }
@@ -326,8 +322,7 @@ export class ContributionBatchesService {
             userId,
             {
               associateAccountId: account.id,
-              movementType:
-                'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+              movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
               amount: -Number(batch.totalAmount),
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: new Date(),

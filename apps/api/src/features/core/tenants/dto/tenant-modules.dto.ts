@@ -27,5 +27,7 @@ export const TenantModuleQuerySchema = z.object({
   status: z.enum(['ENABLED', 'DISABLED', 'SETUP_REQUIRED']).optional(),
 });
 
-export class ToggleModuleDto extends createZodDto(ToggleModuleSchema) { }
-export class TenantModuleQueryDto extends createZodDto(TenantModuleQuerySchema) { }
+export class ToggleModuleDto extends createZodDto(ToggleModuleSchema) {}
+export class TenantModuleQueryDto extends createZodDto(
+  TenantModuleQuerySchema,
+) {}

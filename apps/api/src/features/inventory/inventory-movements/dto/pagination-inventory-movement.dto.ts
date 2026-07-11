@@ -1,6 +1,6 @@
-import { z } from 'zod';
-import { createZodDto } from 'nestjs-zod';
 import { PaginationSchema } from '@/common/dto/pagination.dto';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const InventoryMovementPaginationSchema = PaginationSchema.extend({
   movementType: z.string().optional(),
@@ -11,4 +11,6 @@ export const InventoryMovementPaginationSchema = PaginationSchema.extend({
   supplierId: z.string().uuid().optional(),
 });
 
-export class InventoryMovementPaginationDto extends createZodDto(InventoryMovementPaginationSchema) {}
+export class InventoryMovementPaginationDto extends createZodDto(
+  InventoryMovementPaginationSchema,
+) {}

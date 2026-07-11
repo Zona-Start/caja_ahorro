@@ -1,9 +1,9 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { CategoriesController } from "./categories.controller";
-import { CategoriesService } from "./categories.service";
-import { ClsService } from "nestjs-cls";
+import { Test, TestingModule } from '@nestjs/testing';
+import { ClsService } from 'nestjs-cls';
+import { CategoriesController } from './categories.controller';
+import { CategoriesService } from './categories.service';
 
-describe("CategoriesController", () => {
+describe('CategoriesController', () => {
   let controller: CategoriesController;
   let service: CategoriesService;
   let cls: ClsService;
@@ -34,9 +34,9 @@ describe("CategoriesController", () => {
     cls = module.get<ClsService>(ClsService);
   });
 
-  const tenantId = "t-1";
+  const tenantId = 't-1';
 
-  it("findAll should filter by tenant if not system admin", async () => {
+  it('findAll should filter by tenant if not system admin', async () => {
     (cls.get as jest.Mock).mockReturnValue(tenantId);
     const req = { user: { isSystemAdmin: false } };
     const query = { page: 1, limit: 10 };
@@ -45,8 +45,8 @@ describe("CategoriesController", () => {
     expect(service.findAll).toHaveBeenCalledWith(query, tenantId);
   });
 
-  it("create should be called with full dto", async () => {
-    const dto = { type: "G", code: "C", name: "N", tenantId };
+  it('create should be called with full dto', async () => {
+    const dto = { type: 'G', code: 'C', name: 'N', tenantId };
     await controller.create(
       dto as any,
       { user: { isSystemAdmin: false } } as any,

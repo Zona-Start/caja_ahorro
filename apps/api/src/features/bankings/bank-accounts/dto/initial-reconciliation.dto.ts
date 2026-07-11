@@ -8,4 +8,6 @@ export const InitialReconciliationSchema = z.object({
   reconciliationDate: z.coerce.date(),
 });
 
-export type InitialReconciliationDto = z.infer<typeof InitialReconciliationSchema>;
+export type InitialReconciliationDto = z.infer<
+  typeof InitialReconciliationSchema
+>;

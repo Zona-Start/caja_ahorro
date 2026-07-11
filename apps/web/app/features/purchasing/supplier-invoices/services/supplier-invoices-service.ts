@@ -6,6 +6,7 @@ import {
   supplierInvoiceResponseSchema,
 } from '../schemas/supplier-invoice-api.schema';
 import { type SupplierInvoiceMutation } from '../schemas/supplier-invoice.schema';
+import type { CreditNoteForm, DebitNoteForm } from '../schemas/supplier-invoice.schema';
 
 export interface SupplierInvoicesQueryParams {
   page?: number;
@@ -26,7 +27,7 @@ export const supplierInvoicesService = {
     });
 
     const response = await apiClient.get(
-      `/administration/supplier-invoices/paginated?${query.toString()}`,
+      `/purchasing/supplier-invoices/paginated?${query.toString()}`,
     );
 
     try {
@@ -47,22 +48,22 @@ export const supplierInvoicesService = {
   },
 
   getById: async (id: number) => {
-    const response = await apiClient.get(`/administration/supplier-invoices/${id}`);
+    const response = await apiClient.get(`/purchasing/supplier-invoices/${id}`);
     return supplierInvoiceResponseSchema.parse(response.data).data;
   },
 
   create: async (payload: SupplierInvoiceMutation) => {
-    const response = await apiClient.post('/administration/supplier-invoices', payload);
+    const response = await apiClient.post('/purchasing/supplier-invoices', payload);
     return supplierInvoiceApiSchema.parse(response.data);
   },
 
   update: async (id: number, payload: SupplierInvoiceMutation) => {
-    const response = await apiClient.patch(`/administration/supplier-invoices/${id}`, payload);
+    const response = await apiClient.patch(`/purchasing/supplier-invoices/${id}`, payload);
     return supplierInvoiceApiSchema.parse(response.data);
   },
 
   remove: async (id: number) => {
-    const response = await apiClient.delete(`/administration/supplier-invoices/${id}`);
+    const response = await apiClient.delete(`/purchasing/supplier-invoices/${id}`);
     return supplierInvoiceDeleteResponseSchema.parse(response.data);
   },
 
@@ -70,5 +71,21 @@ export const supplierInvoicesService = {
     return payload.id
       ? supplierInvoicesService.update(payload.id, payload)
       : supplierInvoicesService.create(payload);
+  },
+
+  createCreditNote: async (payload: CreditNoteForm) => {
+    const response = await apiClient.post(
+      '/purchasing/supplier-invoices/credit-notes',
+      payload,
+    );
+    return response.data;
+  },
+
+  createDebitNote: async (payload: DebitNoteForm) => {
+    const response = await apiClient.post(
+      '/purchasing/supplier-invoices/debit-notes',
+      payload,
+    );
+    return response.data;
   },
 };

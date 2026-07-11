@@ -1,4 +1,6 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
 import {
   accountsPayable,
   purchaseOrders,
@@ -6,9 +8,9 @@ import {
   supplierCreditNotes,
   supplierDebitNotes,
   supplierInvoices,
+  suppliers,
   supplierTransactionApplications,
   supplierTransactions,
-  suppliers,
 } from '@/database/schema';
 import {
   BadRequestException,
@@ -18,8 +20,6 @@ import {
 } from '@nestjs/common';
 import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/schema';
 
 @Injectable()
 export class AccountsPayableService {
@@ -28,21 +28,14 @@ export class AccountsPayableService {
     private readonly generateCodeService: GenerateCodeService,
   ) {}
 
-  async create(
-    userId: string,
-    data: any,
-    tx?: NodePgDatabase<typeof schema>,
-  ) {
+  async create(userId: string, data: any, tx?: NodePgDatabase<typeof schema>) {
     const db = tx ?? this.drizzle;
 
     const supplier = await db
       .select()
       .from(suppliers)
       .where(
-        and(
-          eq(suppliers.id, data.supplierId),
-          eq(suppliers.status, 'ACTIVE'),
-        ),
+        and(eq(suppliers.id, data.supplierId), eq(suppliers.status, 'ACTIVE')),
       );
 
     if (supplier.length === 0) {
@@ -68,14 +61,21 @@ export class AccountsPayableService {
         supplierId: data.supplierId,
         supplierInvoiceId: data.supplierInvoiceId,
         accountsPayableNumber:
-          await this.generateCodeService.generateNextReference('CXP', data.tenantId, 'purchasing', 'accounts-payable'),
+          await this.generateCodeService.generateNextReference(
+            'CXP',
+            data.tenantId,
+            'purchasing',
+            'accounts-payable',
+          ),
         originalAmount: data.originalAmount.toString(),
         paidAmount: data.paidAmount?.toString() || '0.00',
         remainingAmount: data.remainingAmount.toString(),
         currencyCode: data.currencyCode || 'VES',
         status: data.status || 'PENDING',
         dueDate: data.dueDate
-          ? (data.dueDate instanceof Date ? data.dueDate.toISOString() : String(data.dueDate))
+          ? data.dueDate instanceof Date
+            ? data.dueDate.toISOString()
+            : String(data.dueDate)
           : null,
         priority: data.priority || 'NORMAL',
         isAuthorizePayment: data.isAuthorizePayment ?? false,
@@ -100,16 +100,22 @@ export class AccountsPayableService {
     } = paginationDto;
     const offset = (page - 1) * limit;
 
-    const searchConditions: SQL<unknown>[] = [eq(accountsPayable.tenantId, tenantId)];
+    const searchConditions: SQL<unknown>[] = [
+      eq(accountsPayable.tenantId, tenantId),
+    ];
 
     if (search) {
-      searchConditions.push(ilike(accountsPayable.accountsPayableNumber, `%${search}%`));
+      searchConditions.push(
+        ilike(accountsPayable.accountsPayableNumber, `%${search}%`),
+      );
     }
     if (supplierId) {
       searchConditions.push(eq(accountsPayable.supplierId, supplierId));
     }
     if (supplierInvoiceId) {
-      searchConditions.push(eq(accountsPayable.supplierInvoiceId, supplierInvoiceId));
+      searchConditions.push(
+        eq(accountsPayable.supplierInvoiceId, supplierInvoiceId),
+      );
     }
     if (status) {
       if (Array.isArray(status)) {
@@ -163,10 +169,7 @@ export class AccountsPayableService {
         supplierInvoices,
         eq(accountsPayable.supplierInvoiceId, supplierInvoices.id),
       )
-      .leftJoin(
-        suppliers,
-        eq(accountsPayable.supplierId, suppliers.id),
-      )
+      .leftJoin(suppliers, eq(accountsPayable.supplierId, suppliers.id))
       .where(searchCondition)
       .orderBy(orderBy)
       .limit(limit)
@@ -190,7 +193,9 @@ export class AccountsPayableService {
     const [result] = await this.drizzle
       .select()
       .from(accountsPayable)
-      .where(and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)));
+      .where(
+        and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
+      );
 
     if (!result) throw new NotFoundException('Account payable not found');
     return result;
@@ -198,7 +203,10 @@ export class AccountsPayableService {
 
   async autorize(userId: string, id: string, tenantId: string) {
     const exist = await this.drizzle.query.accountsPayable.findFirst({
-      where: and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
+      where: and(
+        eq(accountsPayable.id, id),
+        eq(accountsPayable.tenantId, tenantId),
+      ),
     });
 
     if (!exist) {
@@ -214,10 +222,45 @@ export class AccountsPayableService {
     const [updated] = await this.drizzle
       .update(accountsPayable)
       .set({ isAuthorizePayment: true, updatedById: userId })
-      .where(and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)))
+      .where(
+        and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
+      )
       .returning();
 
     if (!updated) throw new NotFoundException('Account payable not found');
+    return updated;
+  }
+
+  async update(userId: string, id: string, dto: any, tenantId: string) {
+    const [existing] = await this.drizzle
+      .select()
+      .from(accountsPayable)
+      .where(
+        and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
+      );
+
+    if (!existing) {
+      throw new NotFoundException('Account payable not found');
+    }
+
+    const updateData: Record<string, any> = { updatedById: userId };
+    if (dto.priority !== undefined) updateData.priority = dto.priority;
+    if (dto.observations !== undefined) updateData.observations = dto.observations;
+    if (dto.dueDate !== undefined) {
+      updateData.dueDate = dto.dueDate instanceof Date
+        ? dto.dueDate.toISOString()
+        : dto.dueDate;
+    }
+    if (dto.isAuthorizePayment !== undefined) {
+      updateData.isAuthorizePayment = dto.isAuthorizePayment;
+    }
+
+    const [updated] = await this.drizzle
+      .update(accountsPayable)
+      .set(updateData)
+      .where(eq(accountsPayable.id, id))
+      .returning();
+
     return updated;
   }
 
@@ -234,7 +277,13 @@ export class AccountsPayableService {
 
     return this.drizzle.transaction(async (tx) => {
       const supplierAdvanceNumber =
-        await this.generateCodeService.generateNextReference('ADV-P', tenantId, 'purchasing', 'advances', tx);
+        await this.generateCodeService.generateNextReference(
+          'ADV-P',
+          tenantId,
+          'purchasing',
+          'advances',
+          tx,
+        );
 
       const [newSupplierTransaction] = await tx
         .insert(supplierTransactions)
@@ -261,16 +310,14 @@ export class AccountsPayableService {
           observations: supplierTransactions.observations,
         });
 
-      await tx
-        .insert(supplierAdvances)
-        .values({
-          tenantId,
-          transactionId: newSupplierTransaction.id,
-          supplierId: dto.supplierId,
-          amount: dto.amount.toString(),
-          availableAmount: dto.amount.toString(),
-          createdById: userId,
-        });
+      await tx.insert(supplierAdvances).values({
+        tenantId,
+        transactionId: newSupplierTransaction.id,
+        supplierId: dto.supplierId,
+        amount: dto.amount.toString(),
+        availableAmount: dto.amount.toString(),
+        createdById: userId,
+      });
 
       return newSupplierTransaction;
     });
@@ -298,7 +345,13 @@ export class AccountsPayableService {
       const typeReference =
         dto.transactionType === 'CREDIT_NOTE' ? 'NC-P' : 'ND-P';
       const referenceNumber =
-        await this.generateCodeService.generateNextReference(typeReference, tenantId, 'purchasing', 'transactions', tx);
+        await this.generateCodeService.generateNextReference(
+          typeReference,
+          tenantId,
+          'purchasing',
+          'transactions',
+          tx,
+        );
 
       const [newSupplierTransaction] = await tx
         .insert(supplierTransactions)
@@ -315,7 +368,8 @@ export class AccountsPayableService {
           currencyCode: 'VES',
           status: dto.transactionType === 'DEBIT_NOTE' ? 'APPLIED' : 'ACTIVE',
           observations:
-            dto.observations ?? (dto.transactionType === 'CREDIT_NOTE'
+            dto.observations ??
+            (dto.transactionType === 'CREDIT_NOTE'
               ? 'Nota de crédito a proveedor'
               : 'Nota de débito a proveedor'),
           createdById: userId,
@@ -384,7 +438,10 @@ export class AccountsPayableService {
     });
   }
 
-  async findAccountsPayableBySuppliers(supplierIds: string[], tenantId: string) {
+  async findAccountsPayableBySuppliers(
+    supplierIds: string[],
+    tenantId: string,
+  ) {
     if (supplierIds.length === 0) {
       return [];
     }
@@ -432,7 +489,10 @@ export class AccountsPayableService {
   async remove(id: string, tenantId: string) {
     return this.drizzle.transaction(async (tx) => {
       const accountPayable = await tx.query.accountsPayable.findFirst({
-        where: and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
+        where: and(
+          eq(accountsPayable.id, id),
+          eq(accountsPayable.tenantId, tenantId),
+        ),
       });
 
       if (!accountPayable) {
@@ -521,10 +581,13 @@ export class AccountsPayableService {
         amountApplied: supplierTransactionApplications.appliedAmount,
       })
       .from(supplierTransactionApplications)
-      .leftJoin(supplierTransactions, and(
-        eq(supplierTransactions.id, id),
-        eq(supplierTransactions.tenantId, tenantId),
-      ))
+      .leftJoin(
+        supplierTransactions,
+        and(
+          eq(supplierTransactions.id, id),
+          eq(supplierTransactions.tenantId, tenantId),
+        ),
+      )
       .leftJoin(
         accountsPayable,
         eq(
@@ -532,9 +595,447 @@ export class AccountsPayableService {
           accountsPayable.id,
         ),
       )
-      .where(and(
-        eq(supplierTransactionApplications.tenantId, tenantId),
-        eq(supplierTransactionApplications.transactionId, id),
-      ));
+      .where(
+        and(
+          eq(supplierTransactionApplications.tenantId, tenantId),
+          eq(supplierTransactionApplications.transactionId, id),
+        ),
+      );
+  }
+
+  async applyCreditNote(
+    userId: string,
+    accountsPayableId: string,
+    dto: { creditNoteTransactionId: string; amount: number },
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [cxp] = await tx
+        .select()
+        .from(accountsPayable)
+        .where(
+          and(
+            eq(accountsPayable.id, accountsPayableId),
+            eq(accountsPayable.tenantId, tenantId),
+          ),
+        );
+
+      if (!cxp) {
+        throw new NotFoundException('Account payable not found');
+      }
+
+      if (cxp.status === 'PAID' || cxp.status === 'CANCELLED') {
+        throw new BadRequestException(
+          `Cannot apply credit note to ${cxp.status} account payable`,
+        );
+      }
+
+      const [creditNote] = await tx
+        .select()
+        .from(supplierCreditNotes)
+        .where(
+          and(
+            eq(supplierCreditNotes.transactionId, dto.creditNoteTransactionId),
+            eq(supplierCreditNotes.tenantId, tenantId),
+          ),
+        );
+
+      if (!creditNote) {
+        throw new NotFoundException('Credit note not found');
+      }
+
+      const available = Number(creditNote.availableAmount);
+      if (dto.amount > available) {
+        throw new BadRequestException(
+          `Amount (${dto.amount}) exceeds available credit (${available})`,
+        );
+      }
+
+      const [transaction] = await tx
+        .select()
+        .from(supplierTransactions)
+        .where(
+          and(
+            eq(supplierTransactions.id, dto.creditNoteTransactionId),
+            eq(supplierTransactions.tenantId, tenantId),
+            eq(supplierTransactions.transactionType, 'CREDIT_NOTE'),
+          ),
+        );
+
+      if (!transaction) {
+        throw new NotFoundException('Credit note transaction not found');
+      }
+
+      await tx.insert(supplierTransactionApplications).values({
+        tenantId,
+        transactionId: dto.creditNoteTransactionId,
+        accountsPayableId: accountsPayableId,
+        appliedAmount: dto.amount.toString(),
+        applicationDate: new Date().toISOString(),
+        createdById: userId,
+      });
+
+      const newAvailable = available - dto.amount;
+      const newStatus = newAvailable <= 0.01 ? 'APPLIED' : 'PARTIALLY_APPLIED';
+
+      await tx
+        .update(supplierCreditNotes)
+        .set({
+          availableAmount: newAvailable.toString(),
+          updatedById: userId,
+        })
+        .where(eq(supplierCreditNotes.transactionId, dto.creditNoteTransactionId));
+
+      await tx
+        .update(supplierTransactions)
+        .set({ status: newStatus, updatedById: userId })
+        .where(eq(supplierTransactions.id, dto.creditNoteTransactionId));
+
+      const newRemaining = Number(cxp.remainingAmount) - dto.amount;
+      const newPaid = Number(cxp.paidAmount) + dto.amount;
+      const newCxpStatus = newRemaining <= 0.01 ? 'PAID' : 'PENDING';
+
+      await tx
+        .update(accountsPayable)
+        .set({
+          remainingAmount: newRemaining.toString(),
+          paidAmount: newPaid.toString(),
+          status: newCxpStatus,
+          updatedById: userId,
+        })
+        .where(eq(accountsPayable.id, accountsPayableId));
+
+      return {
+        message: 'Credit note applied successfully',
+        remainingAmount: newRemaining,
+        appliedAmount: dto.amount,
+      };
+    });
+  }
+
+  async applyDebitNote(
+    userId: string,
+    accountsPayableId: string,
+    dto: { debitNoteTransactionId: string; amount: number },
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [cxp] = await tx
+        .select()
+        .from(accountsPayable)
+        .where(
+          and(
+            eq(accountsPayable.id, accountsPayableId),
+            eq(accountsPayable.tenantId, tenantId),
+          ),
+        );
+
+      if (!cxp) {
+        throw new NotFoundException('Account payable not found');
+      }
+
+      if (cxp.status === 'PAID' || cxp.status === 'CANCELLED') {
+        throw new BadRequestException(
+          `Cannot apply debit note to ${cxp.status} account payable`,
+        );
+      }
+
+      const [transaction] = await tx
+        .select()
+        .from(supplierTransactions)
+        .where(
+          and(
+            eq(supplierTransactions.id, dto.debitNoteTransactionId),
+            eq(supplierTransactions.tenantId, tenantId),
+            eq(supplierTransactions.transactionType, 'DEBIT_NOTE'),
+          ),
+        );
+
+      if (!transaction) {
+        throw new NotFoundException('Debit note transaction not found');
+      }
+
+      const [existingApplication] = await tx
+        .select()
+        .from(supplierTransactionApplications)
+        .where(
+          and(
+            eq(supplierTransactionApplications.transactionId, dto.debitNoteTransactionId),
+            eq(supplierTransactionApplications.accountsPayableId, accountsPayableId),
+          ),
+        );
+
+      if (existingApplication) {
+        throw new BadRequestException(
+          'Debit note already applied to this account payable',
+        );
+      }
+
+      await tx.insert(supplierTransactionApplications).values({
+        tenantId,
+        transactionId: dto.debitNoteTransactionId,
+        accountsPayableId: accountsPayableId,
+        appliedAmount: dto.amount.toString(),
+        applicationDate: new Date().toISOString(),
+        createdById: userId,
+      });
+
+      const newRemaining = Number(cxp.remainingAmount) + dto.amount;
+
+      await tx
+        .update(accountsPayable)
+        .set({
+          remainingAmount: newRemaining.toString(),
+          updatedById: userId,
+        })
+        .where(eq(accountsPayable.id, accountsPayableId));
+
+      return {
+        message: 'Debit note applied successfully',
+        remainingAmount: newRemaining,
+        appliedAmount: dto.amount,
+      };
+    });
+  }
+
+  async applyAdvance(
+    userId: string,
+    accountsPayableId: string,
+    dto: { advanceTransactionId: string; amount: number },
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [cxp] = await tx
+        .select()
+        .from(accountsPayable)
+        .where(
+          and(
+            eq(accountsPayable.id, accountsPayableId),
+            eq(accountsPayable.tenantId, tenantId),
+          ),
+        );
+
+      if (!cxp) {
+        throw new NotFoundException('Account payable not found');
+      }
+
+      if (cxp.status === 'PAID' || cxp.status === 'CANCELLED') {
+        throw new BadRequestException(
+          `Cannot apply advance to ${cxp.status} account payable`,
+        );
+      }
+
+      const [advance] = await tx
+        .select()
+        .from(supplierAdvances)
+        .where(
+          and(
+            eq(supplierAdvances.transactionId, dto.advanceTransactionId),
+            eq(supplierAdvances.tenantId, tenantId),
+          ),
+        );
+
+      if (!advance) {
+        throw new NotFoundException('Advance not found');
+      }
+
+      const available = Number(advance.availableAmount);
+      if (dto.amount > available) {
+        throw new BadRequestException(
+          `Amount (${dto.amount}) exceeds available advance (${available})`,
+        );
+      }
+
+      const [transaction] = await tx
+        .select()
+        .from(supplierTransactions)
+        .where(
+          and(
+            eq(supplierTransactions.id, dto.advanceTransactionId),
+            eq(supplierTransactions.tenantId, tenantId),
+            eq(supplierTransactions.transactionType, 'ADVANCE'),
+          ),
+        );
+
+      if (!transaction) {
+        throw new NotFoundException('Advance transaction not found');
+      }
+
+      await tx.insert(supplierTransactionApplications).values({
+        tenantId,
+        transactionId: dto.advanceTransactionId,
+        accountsPayableId: accountsPayableId,
+        appliedAmount: dto.amount.toString(),
+        applicationDate: new Date().toISOString(),
+        createdById: userId,
+      });
+
+      const newAvailable = available - dto.amount;
+      const newAdvanceStatus = newAvailable <= 0.01 ? 'APPLIED' : 'PARTIALLY_APPLIED';
+
+      await tx
+        .update(supplierAdvances)
+        .set({
+          availableAmount: newAvailable.toString(),
+          statusPayment: newAvailable <= 0.01 ? 'PAID' : 'PENDING',
+          updatedById: userId,
+        })
+        .where(eq(supplierAdvances.transactionId, dto.advanceTransactionId));
+
+      await tx
+        .update(supplierTransactions)
+        .set({ status: newAdvanceStatus, updatedById: userId })
+        .where(eq(supplierTransactions.id, dto.advanceTransactionId));
+
+      const newRemaining = Number(cxp.remainingAmount) - dto.amount;
+      const newPaid = Number(cxp.paidAmount) + dto.amount;
+      const newCxpStatus = newRemaining <= 0.01 ? 'PAID' : 'PENDING';
+
+      await tx
+        .update(accountsPayable)
+        .set({
+          remainingAmount: newRemaining.toString(),
+          paidAmount: newPaid.toString(),
+          status: newCxpStatus,
+          updatedById: userId,
+        })
+        .where(eq(accountsPayable.id, accountsPayableId));
+
+      return {
+        message: 'Advance applied successfully',
+        remainingAmount: newRemaining,
+        appliedAmount: dto.amount,
+      };
+    });
+  }
+
+  async unapplyTransaction(
+    userId: string,
+    accountsPayableId: string,
+    applicationId: string,
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [application] = await tx
+        .select()
+        .from(supplierTransactionApplications)
+        .where(
+          and(
+            eq(supplierTransactionApplications.id, applicationId),
+            eq(supplierTransactionApplications.tenantId, tenantId),
+            eq(supplierTransactionApplications.accountsPayableId, accountsPayableId),
+          ),
+        );
+
+      if (!application) {
+        throw new NotFoundException('Application not found');
+      }
+
+      const [transaction] = await tx
+        .select()
+        .from(supplierTransactions)
+        .where(eq(supplierTransactions.id, application.transactionId));
+
+      if (!transaction) {
+        throw new NotFoundException('Transaction not found');
+      }
+
+      const appliedAmount = Number(application.appliedAmount);
+
+      if (transaction.transactionType === 'CREDIT_NOTE') {
+        const [creditNote] = await tx
+          .select()
+          .from(supplierCreditNotes)
+          .where(eq(supplierCreditNotes.transactionId, transaction.id));
+
+        if (creditNote) {
+          const newAvailable = Number(creditNote.availableAmount) + appliedAmount;
+          await tx
+            .update(supplierCreditNotes)
+            .set({ availableAmount: newAvailable.toString(), updatedById: userId })
+            .where(eq(supplierCreditNotes.transactionId, transaction.id));
+        }
+
+        await tx
+          .update(accountsPayable)
+          .set({
+            remainingAmount: (
+              Number(
+                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
+                  .remainingAmount,
+              ) + appliedAmount
+            ).toString(),
+            paidAmount: (
+              Number(
+                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
+                  .paidAmount,
+              ) - appliedAmount
+            ).toString(),
+            updatedById: userId,
+          })
+          .where(eq(accountsPayable.id, accountsPayableId));
+
+        await tx
+          .update(supplierTransactions)
+          .set({ status: 'ACTIVE', updatedById: userId })
+          .where(eq(supplierTransactions.id, transaction.id));
+      } else if (transaction.transactionType === 'ADVANCE') {
+        const [advance] = await tx
+          .select()
+          .from(supplierAdvances)
+          .where(eq(supplierAdvances.transactionId, transaction.id));
+
+        if (advance) {
+          const newAvailable = Number(advance.availableAmount) + appliedAmount;
+          await tx
+            .update(supplierAdvances)
+            .set({ availableAmount: newAvailable.toString(), updatedById: userId })
+            .where(eq(supplierAdvances.transactionId, transaction.id));
+        }
+
+        await tx
+          .update(accountsPayable)
+          .set({
+            remainingAmount: (
+              Number(
+                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
+                  .remainingAmount,
+              ) + appliedAmount
+            ).toString(),
+            paidAmount: (
+              Number(
+                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
+                  .paidAmount,
+              ) - appliedAmount
+            ).toString(),
+            updatedById: userId,
+          })
+          .where(eq(accountsPayable.id, accountsPayableId));
+
+        await tx
+          .update(supplierTransactions)
+          .set({ status: 'ACTIVE', updatedById: userId })
+          .where(eq(supplierTransactions.id, transaction.id));
+      } else if (transaction.transactionType === 'DEBIT_NOTE') {
+        await tx
+          .update(accountsPayable)
+          .set({
+            remainingAmount: (
+              Number(
+                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
+                  .remainingAmount,
+              ) - appliedAmount
+            ).toString(),
+            updatedById: userId,
+          })
+          .where(eq(accountsPayable.id, accountsPayableId));
+      }
+
+      await tx
+        .delete(supplierTransactionApplications)
+        .where(eq(supplierTransactionApplications.id, applicationId));
+
+      return { message: 'Application reverted successfully' };
+    });
   }
 }

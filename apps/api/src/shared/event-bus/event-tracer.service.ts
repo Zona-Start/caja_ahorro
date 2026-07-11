@@ -7,7 +7,14 @@ export interface TraceEntry {
   aggregateId: string;
   tenantId: string;
   handlerName?: string;
-  phase: 'PUBLISHED' | 'RECEIVED' | 'PROCESSED' | 'FAILED' | 'RETRIED' | 'DLQ' | 'SKIPPED';
+  phase:
+    | 'PUBLISHED'
+    | 'RECEIVED'
+    | 'PROCESSED'
+    | 'FAILED'
+    | 'RETRIED'
+    | 'DLQ'
+    | 'SKIPPED';
   attempt?: number;
   error?: string;
   timestamp: string;

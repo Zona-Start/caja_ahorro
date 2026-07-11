@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { AppWsGateway } from './websocket.gateway';
 import { GlobalEventBridgeSubscriber } from './global-event-bridge';
+import { AppWsGateway } from './websocket.gateway';
 
 @Module({
   providers: [AppWsGateway, GlobalEventBridgeSubscriber],

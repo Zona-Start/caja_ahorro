@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import * as moment from 'moment';
 
 export const getExpiry = (cant: number) => {

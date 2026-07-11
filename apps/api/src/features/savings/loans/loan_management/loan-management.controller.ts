@@ -15,26 +15,24 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
-import { LoanManagementService } from './loan-management.service';
 import {
-  CreateLoanSchema,
-  FilterLoanSchema,
-  UpdateLoanSchema,
-  SearchAssociateSchema,
   CalculateAmortizationSchema,
-  DisburseLoanSchema,
   CreateLoanDto,
+  CreateLoanSchema,
+  DisburseLoanDto,
+  DisburseLoanSchema,
   FilterLoanDto,
   UpdateLoanDto,
-  DisburseLoanDto,
+  UpdateLoanSchema,
 } from './dto/loan-management.schema';
+import { LoanManagementService } from './loan-management.service';
 
 @Controller('loan')
 export class LoanManagementController {
   constructor(
     private readonly loanManagementService: LoanManagementService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post('request')
   @Permissions('portfolio:loans:create')
@@ -48,12 +46,8 @@ export class LoanManagementController {
   @Get('search-associate/:cedula')
   @Permissions('portfolio:loans:read')
   @ApiOperation({ summary: 'Search associate by cedula for loan request' })
-  async searchAssociate(
-    @Req() req: Request,
-    @Param('cedula') cedula: string,
-  ) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+  async searchAssociate(@Req() req: Request, @Param('cedula') cedula: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.loanManagementService.searchAssociate(targetTenantId, cedula);
   }
 
@@ -74,8 +68,6 @@ export class LoanManagementController {
       expensesPercentage: query.expensesPercentage,
     });
   }
-
-
 
   @Get()
   @Permissions('portfolio:loans:read')
@@ -149,8 +141,6 @@ export class LoanManagementController {
     };
   }
 
-
-
   @Patch('approve/:id')
   @Permissions('portfolio:loans:approve')
   async approve(@Req() req: Request, @Param('id') id: string) {
@@ -198,12 +188,7 @@ export class LoanManagementController {
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return this.loanManagementService.update(
-      id,
-      targetTenantId,
-      userId,
-      dto,
-    );
+    return this.loanManagementService.update(id, targetTenantId, userId, dto);
   }
 
   @Delete(':id')

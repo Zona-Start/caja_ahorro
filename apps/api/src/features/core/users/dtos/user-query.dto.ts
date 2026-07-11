@@ -1,5 +1,5 @@
-import { createZodDto } from "nestjs-zod";
-import { z } from "zod";
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const UserQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),

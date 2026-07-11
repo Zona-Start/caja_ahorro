@@ -18,5 +18,9 @@ export const TenantIntegrationQuerySchema = z.object({
   ),
 });
 
-export class ConfigureIntegrationDto extends createZodDto(ConfigureIntegrationSchema) {}
-export class TenantIntegrationQueryDto extends createZodDto(TenantIntegrationQuerySchema) {}
+export class ConfigureIntegrationDto extends createZodDto(
+  ConfigureIntegrationSchema,
+) {}
+export class TenantIntegrationQueryDto extends createZodDto(
+  TenantIntegrationQuerySchema,
+) {}

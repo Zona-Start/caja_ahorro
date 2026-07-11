@@ -1,7 +1,7 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
+import { tenants, tenantSettings } from '@/database/schema/tables';
 import { moduleSettings } from '@/database/schema/tables/core';
-import { tenantSettings, tenants } from '@/database/schema/tables';
 import { productPrices } from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
@@ -18,7 +18,7 @@ export class ProductPricesService {
     @Inject(DRIZZLE_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   /* ───────── Leer config de tenant_settings ───────── */
   private async getTenantSetting(
@@ -29,10 +29,7 @@ export class ProductPricesService {
       .select()
       .from(tenantSettings)
       .where(
-        and(
-          eq(tenantSettings.tenantId, tenantId),
-          eq(tenantSettings.key, key),
-        ),
+        and(eq(tenantSettings.tenantId, tenantId), eq(tenantSettings.key, key)),
       )
       .limit(1);
     return setting?.value ?? null;
@@ -67,10 +64,19 @@ export class ProductPricesService {
       'USE_DIFFERENTIAL_RATES',
     );
 
-    const defaultPurchaseTax = await this.getTenantSetting(tenantId, 'TAX_PURCHASES');
+    const defaultPurchaseTax = await this.getTenantSetting(
+      tenantId,
+      'TAX_PURCHASES',
+    );
     const defaultSalesTax = await this.getTenantSetting(tenantId, 'TAX_SALES');
-    const defaultProfit = await this.getTenantSetting(tenantId, 'UTILITY-PRODUCT');
-    const defaultExpense = await this.getTenantSetting(tenantId, 'EXPENDITURE-PRODUCT');
+    const defaultProfit = await this.getTenantSetting(
+      tenantId,
+      'UTILITY-PRODUCT',
+    );
+    const defaultExpense = await this.getTenantSetting(
+      tenantId,
+      'EXPENDITURE-PRODUCT',
+    );
 
     const [tenant] = await this.db
       .select({ businessType: tenants.businessType })
@@ -103,27 +109,26 @@ export class ProductPricesService {
     currentPrice: ProductPriceSelect,
   ): boolean {
     return (
-      (currentPrice?.currencyCode ?? 'VES') !== (newPrice.currencyCode ?? 'VES') ||
+      (currentPrice?.currencyCode ?? 'VES') !==
+        (newPrice.currencyCode ?? 'VES') ||
       Number(currentPrice?.baseCost ?? 0) !== newPrice.baseCost ||
       Number(currentPrice?.otherCosts ?? 0) !== (newPrice.otherCosts ?? 0) ||
       Number(currentPrice?.purchaseTaxPercent ?? 0) !==
-      (newPrice.purchaseTaxPercent ?? 16) ||
+        (newPrice.purchaseTaxPercent ?? 16) ||
       Number(currentPrice?.salesTaxPercent ?? 0) !==
-      (newPrice.salesTaxPercent ?? 16) ||
+        (newPrice.salesTaxPercent ?? 16) ||
       Number(currentPrice?.profitPercent ?? 0) !==
-      (newPrice.profitPercent ?? 0) ||
+        (newPrice.profitPercent ?? 0) ||
       Number(currentPrice?.expensePercent ?? 0) !==
-      (newPrice.expensePercent ?? 0) ||
-      Number(currentPrice?.salePrice ?? 0) !==
-      (newPrice.salePrice ?? 0) ||
+        (newPrice.expensePercent ?? 0) ||
+      Number(currentPrice?.salePrice ?? 0) !== (newPrice.salePrice ?? 0) ||
       Number(currentPrice?.offerSalePrice ?? 0) !==
-      (newPrice.offerSalePrice ?? 0) ||
+        (newPrice.offerSalePrice ?? 0) ||
       Number(currentPrice?.purchaseExchangeRate ?? 1) !==
-      (newPrice.purchaseExchangeRate ?? 1) ||
+        (newPrice.purchaseExchangeRate ?? 1) ||
       Number(currentPrice?.salesExchangeRate ?? 1) !==
-      (newPrice.salesExchangeRate ?? 1) ||
-      Number(currentPrice?.bsPriceAmount ?? 0) !==
-      (newPrice.bsPriceAmount ?? 0)
+        (newPrice.salesExchangeRate ?? 1) ||
+      Number(currentPrice?.bsPriceAmount ?? 0) !== (newPrice.bsPriceAmount ?? 0)
     );
   }
 
@@ -166,10 +171,7 @@ export class ProductPricesService {
   }
 
   /* ───────── Cálculo de precios multi-modo ───────── */
-  private async calculatePrices(
-    tenantId: string,
-    dto: CreateProductPriceDto,
-  ) {
+  private async calculatePrices(tenantId: string, dto: CreateProductPriceDto) {
     const config = await this.resolvePricingConfig(tenantId);
 
     // Resolver moneda y tasas
@@ -207,7 +209,11 @@ export class ProductPricesService {
     let finalPriceNet: number;
     let finalPriceGross: number;
 
-    if (currencyCode !== 'VES' && dto.priceType === 'OFFER' && (dto.offerSalePrice ?? 0) > 0) {
+    if (
+      currencyCode !== 'VES' &&
+      dto.priceType === 'OFFER' &&
+      (dto.offerSalePrice ?? 0) > 0
+    ) {
       // Precio oferta directo en divisa
       finalPriceGross = dto.offerSalePrice!;
       finalPriceNet = +(finalPriceGross / (1 + salesTaxPct / 100)).toFixed(6);
@@ -255,7 +261,6 @@ export class ProductPricesService {
     userId: string,
     calculated: Awaited<ReturnType<typeof this.calculatePrices>>,
   ) {
-
     const valuesToInsert = {
       productId: data.productId,
       suppliersId: data.suppliersId ?? null,
@@ -274,15 +279,19 @@ export class ProductPricesService {
       expensePercent: String(calculated.expensePercent),
       salesTaxPercent: String(calculated.salesTaxPercent),
       salePrice: data.salePrice != null ? String(data.salePrice) : null,
-      offerSalePrice: data.offerSalePrice != null ? String(data.offerSalePrice) : null,
-      bsPriceAmount: data.bsPriceAmount != null ? String(data.bsPriceAmount) : null,
+      offerSalePrice:
+        data.offerSalePrice != null ? String(data.offerSalePrice) : null,
+      bsPriceAmount:
+        data.bsPriceAmount != null ? String(data.bsPriceAmount) : null,
       finalPriceNet: String(calculated.finalPriceNet),
       finalPriceGross: String(calculated.finalPriceGross),
       finalPriceNetVes: String(calculated.finalPriceNetVes),
       finalPriceGrossVes: String(calculated.finalPriceGrossVes),
       createdById: userId,
       isActive: true,
-      startDate: this.formatDate(data.startDate) ?? new Date().toISOString().split('T')[0],
+      startDate:
+        this.formatDate(data.startDate) ??
+        new Date().toISOString().split('T')[0],
       endDate: data.endDate ?? null,
       supplierInvoiceId: data.supplierInvoiceId ?? null,
     };
@@ -367,7 +376,6 @@ export class ProductPricesService {
     if (productId) {
       searchConditions.push(eq(productPrices.productId, productId));
     }
-
 
     const searchCondition = and(...searchConditions);
 

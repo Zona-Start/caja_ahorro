@@ -46,31 +46,37 @@ export const tenantMembersRelations = relations(tenantMembers, ({ one }) => ({
   }),
 }));
 
-export const userPermissionsRelations = relations(userPermissions, ({ one }) => ({
-  user: one(users, {
-    fields: [userPermissions.userId],
-    references: [users.id],
+export const userPermissionsRelations = relations(
+  userPermissions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [userPermissions.userId],
+      references: [users.id],
+    }),
+    permission: one(permissions, {
+      fields: [userPermissions.permissionId],
+      references: [permissions.id],
+    }),
+    tenant: one(tenants, {
+      fields: [userPermissions.tenantId],
+      references: [tenants.id],
+    }),
   }),
-  permission: one(permissions, {
-    fields: [userPermissions.permissionId],
-    references: [permissions.id],
-  }),
-  tenant: one(tenants, {
-    fields: [userPermissions.tenantId],
-    references: [tenants.id],
-  }),
-}));
+);
 
-export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
-  role: one(roles, {
-    fields: [rolePermissions.roleId],
-    references: [roles.id],
+export const rolePermissionsRelations = relations(
+  rolePermissions,
+  ({ one }) => ({
+    role: one(roles, {
+      fields: [rolePermissions.roleId],
+      references: [roles.id],
+    }),
+    permission: one(permissions, {
+      fields: [rolePermissions.permissionId],
+      references: [permissions.id],
+    }),
   }),
-  permission: one(permissions, {
-    fields: [rolePermissions.permissionId],
-    references: [permissions.id],
-  }),
-}));
+);
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {

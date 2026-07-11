@@ -1,5 +1,5 @@
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@/database/schema';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 export const ROUNDING_ACCEPTANCE_TOLERANCE = 0.005;
 export const EPSILON_COMPARISON = 0.05;

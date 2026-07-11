@@ -1,6 +1,6 @@
 export { LOAN_PAYMENT_EVENTS } from './loan-payment.events';
 export type {
-  LoanPaymentCreatedEvent,
   LoanPaymentCancelledEvent,
   LoanPaymentCompletedEvent,
+  LoanPaymentCreatedEvent,
 } from './loan-payment.events';

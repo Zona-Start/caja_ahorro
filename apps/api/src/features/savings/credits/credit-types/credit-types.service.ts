@@ -10,8 +10,10 @@ import {
 } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { CreateCreditTypeDto } from './dto/credit-types.schema';
-import { UpdateCreditTypeDto } from './dto/credit-types.schema';
+import {
+  CreateCreditTypeDto,
+  UpdateCreditTypeDto,
+} from './dto/credit-types.schema';
 import { CreditTypePaginationDto } from './dto/pagination-credit-type.dto';
 
 type CreditTypeSelect = typeof creditsTypes.$inferSelect;
@@ -22,7 +24,7 @@ export class CreditTypesService {
     @Inject(DRIZZLE_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async create(
     dto: CreateCreditTypeDto,
@@ -56,13 +58,11 @@ export class CreditTypesService {
         termUnits: dto.termUnits,
         cancellationPercentage: dto.cancellationPercentage?.toString() ?? null,
         creditAccountChartId: dto.creditAccountChartId ?? null,
-        interestEarnedAccountChartId:
-          dto.interestEarnedAccountChartId ?? null,
+        interestEarnedAccountChartId: dto.interestEarnedAccountChartId ?? null,
         specialQuotaAccountChartId: dto.specialQuotaAccountChartId ?? null,
         expenseAccountChartId: dto.expenseAccountChartId ?? null,
         specialQuotaNumber: dto.specialQuotaNumber ?? 0,
-        specialQuotaPercentage:
-          dto.specialQuotaPercentage?.toString() ?? '0',
+        specialQuotaPercentage: dto.specialQuotaPercentage?.toString() ?? '0',
         maxCreditAmount: dto.maxCreditAmount?.toString() ?? null,
         minCreditAmount: dto.minCreditAmount?.toString() ?? null,
         payrollTypeId: dto.payrollTypeId ?? null,
@@ -109,9 +109,7 @@ export class CreditTypesService {
           searchConditions.push(ilike(creditsTypes.name, `%${search}%`));
           break;
         case 'description':
-          searchConditions.push(
-            ilike(creditsTypes.description, `%${search}%`),
-          );
+          searchConditions.push(ilike(creditsTypes.description, `%${search}%`));
           break;
         default:
           searchConditions.push(ilike(creditsTypes.name, `%${search}%`));
@@ -205,21 +203,18 @@ export class CreditTypesService {
   ): Promise<CreditTypeSelect> {
     const existing = await this.findOne(id, tenantId);
 
-
     const updateData: Record<string, unknown> = {
       updatedById: userId,
     };
 
     if (dto.name !== undefined) updateData.name = dto.name.toUpperCase();
-    if (dto.description !== undefined)
-      updateData.description = dto.description;
+    if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.interestRate !== undefined)
       updateData.interestRate = dto.interestRate.toString();
     if (dto.termType !== undefined) updateData.termType = dto.termType;
     if (dto.termUnits !== undefined) updateData.termUnits = dto.termUnits;
     if (dto.cancellationPercentage !== undefined)
-      updateData.cancellationPercentage =
-        dto.cancellationPercentage.toString();
+      updateData.cancellationPercentage = dto.cancellationPercentage.toString();
     if (dto.creditAccountChartId !== undefined)
       updateData.creditAccountChartId = dto.creditAccountChartId;
     if (dto.interestEarnedAccountChartId !== undefined)
@@ -232,8 +227,7 @@ export class CreditTypesService {
     if (dto.specialQuotaNumber !== undefined)
       updateData.specialQuotaNumber = dto.specialQuotaNumber;
     if (dto.specialQuotaPercentage !== undefined)
-      updateData.specialQuotaPercentage =
-        dto.specialQuotaPercentage.toString();
+      updateData.specialQuotaPercentage = dto.specialQuotaPercentage.toString();
     if (dto.maxCreditAmount !== undefined)
       updateData.maxCreditAmount = dto.maxCreditAmount.toString();
     if (dto.minCreditAmount !== undefined)
@@ -271,17 +265,11 @@ export class CreditTypesService {
       );
     }
 
-    await this.auditHelper.logUpdate(
-      userId,
-      'credit_type',
-      existing,
-      updated,
-      {
-        tenantId: existing.tenantId,
-        targetId: updated.id,
-        description: `Updated credit type ${updated.name}`,
-      },
-    );
+    await this.auditHelper.logUpdate(userId, 'credit_type', existing, updated, {
+      tenantId: existing.tenantId,
+      targetId: updated.id,
+      description: `Updated credit type ${updated.name}`,
+    });
 
     return updated;
   }

@@ -3,15 +3,10 @@ import * as schema from '@/database/schema';
 import { moduleSettings } from '@/database/schema/tables/core';
 import { fixedAssetsPrices } from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreateFixedAssetPriceDto } from './dto/fixed-asset-prices.schema';
-import { UpdateFixedAssetPriceDto } from './dto/fixed-asset-prices.schema';
 import { FixedAssetPricePaginationDto } from './dto/pagination-fixed-asset-price.dto';
 
 type FixedAssetPriceSelect = typeof fixedAssetsPrices.$inferSelect;
@@ -92,7 +87,10 @@ export class FixedAssetPricesService {
     tenantId: string,
     db: NodePgDatabase<typeof schema>,
   ) {
-    const lastPrice = await this.findLastActivePriceByFixedAssetId(current.fixedAssetsId, db);
+    const lastPrice = await this.findLastActivePriceByFixedAssetId(
+      current.fixedAssetsId,
+      db,
+    );
     if (lastPrice) {
       await this.deactivatePrice(lastPrice.id, db);
     }
@@ -153,7 +151,13 @@ export class FixedAssetPricesService {
 
     if (existingPrice.length > 0) {
       if (this.havePricesChanged(existingPrice[0], data)) {
-        return this.handlePriceChange(existingPrice[0], userId, data, tenantId, db);
+        return this.handlePriceChange(
+          existingPrice[0],
+          userId,
+          data,
+          tenantId,
+          db,
+        );
       } else {
         return {
           message: 'No se detectaron cambios, precio del activo no actualizado',

@@ -1,5 +1,4 @@
-import { purchasingSchema } from "../_schemas";
-
+import { purchasingSchema } from '../_schemas';
 
 export const categorySuppliers = purchasingSchema.enum('category_suppliers', [
   'ASSETS',

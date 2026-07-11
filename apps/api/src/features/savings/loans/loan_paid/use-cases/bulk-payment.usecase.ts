@@ -1,20 +1,20 @@
-import { Inject, Injectable, BadRequestException } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { associates, loans } from '@/database/schema';
+import { loans } from '@/database/schema';
+import { OutboxWriterService } from '@/shared/outbox';
 import {
   AssociateMovementTypeEnum,
   CurrencyCodeEnum,
   LoanStatusEnum,
 } from '@/types/enum';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { v4 as uuidv4 } from 'uuid';
-import { OutboxWriterService } from '@/shared/outbox';
 import * as ExcelJS from 'exceljs';
-import { LoanPaymentValidator } from '../domain/loan-payment.validator';
-import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
+import { v4 as uuidv4 } from 'uuid';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
+import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
+import { LoanPaymentValidator } from '../domain/loan-payment.validator';
 import { LOAN_PAYMENT_EVENTS } from '../events/loan-payment.events';
 
 @Injectable()
@@ -38,7 +38,8 @@ export class BulkPaymentUseCase {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(file.buffer as any);
     const worksheet = workbook.getWorksheet(1);
-    const itemsFromExcel: { cedula: string; amount: number; fecha: Date }[] = [];
+    const itemsFromExcel: { cedula: string; amount: number; fecha: Date }[] =
+      [];
     let finalPaymentDate: Date = new Date();
 
     if (!worksheet)
@@ -91,12 +92,15 @@ export class BulkPaymentUseCase {
       for (const item of itemsFromExcel) {
         try {
           const associate = await this.validator.findAssociateByCedula(
-            item.cedula, tenantId, tx,
+            item.cedula,
+            tenantId,
+            tx,
           );
 
           if (!associate) {
             results.errors.push({
-              cedula: item.cedula, error: 'Asociado no encontrado',
+              cedula: item.cedula,
+              error: 'Asociado no encontrado',
             });
             continue;
           }
@@ -121,38 +125,50 @@ export class BulkPaymentUseCase {
           const loan = activeLoans[0];
           if (!loan) {
             results.errors.push({
-              cedula: item.cedula, error: 'No se encontró préstamo activo',
+              cedula: item.cedula,
+              error: 'No se encontró préstamo activo',
             });
             continue;
           }
 
-          const installmentResult = await this.validator.calculateCoveredInstallments(
-            loan.id, item.amount, tx,
-          );
+          const installmentResult =
+            await this.validator.calculateCoveredInstallments(
+              loan.id,
+              item.amount,
+              tx,
+            );
 
           const appliedAmountExact = this.processor.getAppliedAmount(
-            item.amount, installmentResult.remainingAmount,
+            item.amount,
+            installmentResult.remainingAmount,
           );
 
           if (appliedAmountExact <= 0) {
             results.errors.push({
-              cedula: item.cedula, error: 'Monto insuficiente para abonar',
+              cedula: item.cedula,
+              error: 'Monto insuficiente para abonar',
             });
             continue;
           }
 
-          const currentBalance = await this.validator.calculateBalancePending(loan.id, tx);
+          const currentBalance = await this.validator.calculateBalancePending(
+            loan.id,
+            tx,
+          );
           const newBalancePending = this.processor.getNewBalancePending(
-            currentBalance, appliedAmountExact,
+            currentBalance,
+            appliedAmountExact,
           );
 
-          const customReference = await this.processor.generateReference(tenantId);
+          const customReference =
+            await this.processor.generateReference(tenantId);
 
           const insertedPayment = await this.processor.insertPayment(
             {
               tenantId,
               loanId: loan.id,
-              paymentDate: item.fecha instanceof Date ? item.fecha : new Date(item.fecha),
+              paymentDate:
+                item.fecha instanceof Date ? item.fecha : new Date(item.fecha),
               paymentType: 'PAYING',
               amount: item.amount,
               balancePending: newBalancePending,
@@ -174,7 +190,11 @@ export class BulkPaymentUseCase {
             localInterest += inst.interest;
 
             await this.processor.insertPaymentDetail(
-              insertedPayment.id, inst.id, inst.amount, userId, tx,
+              insertedPayment.id,
+              inst.id,
+              inst.amount,
+              userId,
+              tx,
             );
             await this.processor.updateInstallmentPaid(inst.id, userId, tx);
           }
@@ -186,7 +206,8 @@ export class BulkPaymentUseCase {
             await this.processor.updateInstallmentPartial(
               installmentResult.partialInstallment.id,
               installmentResult.partialInstallment.paidAmount,
-              userId, tx,
+              userId,
+              tx,
             );
 
             const amountAppliedToPartial =
@@ -197,17 +218,27 @@ export class BulkPaymentUseCase {
               insertedPayment.id,
               installmentResult.partialInstallment.id,
               amountAppliedToPartial,
-              userId, tx,
+              userId,
+              tx,
             );
           }
 
-          const newLoanStatus = this.processor.determinNewLoanStatus(newBalancePending);
+          const newLoanStatus =
+            this.processor.determinNewLoanStatus(newBalancePending);
 
           await this.processor.updateLoanStatus(
-            loan.id, tenantId, newLoanStatus, installmentResult.remainingAmount, userId, tx,
+            loan.id,
+            tenantId,
+            newLoanStatus,
+            installmentResult.remainingAmount,
+            userId,
+            tx,
           );
 
-          const acc = await this.processor.getAssociateAccount(associate.id, tx);
+          const acc = await this.processor.getAssociateAccount(
+            associate.id,
+            tx,
+          );
 
           if (acc?.id) {
             await this.processor.createAssociateMovement(
@@ -217,12 +248,16 @@ export class BulkPaymentUseCase {
                 movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
                 amount: item.amount,
                 currencyCode: (loan.currencyCode ?? 'VES') as CurrencyCodeEnum,
-                transactionDate: item.fecha instanceof Date ? item.fecha : new Date(item.fecha),
+                transactionDate:
+                  item.fecha instanceof Date
+                    ? item.fecha
+                    : new Date(item.fecha),
                 description: 'Pago Préstamo (Carga Masiva Excel)',
                 referenceId: insertedPayment.id,
                 referenceType: 'loansPayments',
               },
-              tenantId, tx,
+              tenantId,
+              tx,
             );
           }
 
@@ -280,10 +315,13 @@ export class BulkPaymentUseCase {
 
       if (results.totalProcessed > 0) {
         await this.accounting.generateBulkEntry(
-          tenantId, userId,
+          tenantId,
+          userId,
           accountingItemsForEntry,
-          totalAmountApplied, finalPaymentDate,
-          results.totalProcessed, tx,
+          totalAmountApplied,
+          finalPaymentDate,
+          results.totalProcessed,
+          tx,
         );
       }
 

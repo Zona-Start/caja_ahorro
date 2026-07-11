@@ -33,12 +33,12 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, desc, eq, ilike, inArray, or, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
-import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 import {
   CreateWithdrawalAssociateDto,
   DisburseWithdrawalAssociateDto,
   FilterWithdrawalAssociateDto,
 } from './dto/withdrawal.schema';
+import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 
 @Injectable()
 export class WithdrawalAssociateService {
@@ -50,7 +50,7 @@ export class WithdrawalAssociateService {
     private readonly withdrawalAccountingService: WithdrawalAssociateAccountingService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   private _hasElapsedMonths(
     currentDate: Date,
@@ -550,7 +550,12 @@ export class WithdrawalAssociateService {
     const associateId = result[0].id;
     const accountId = result[0].associateAccountId;
 
-    const [totalLoansAssociate, totalCreditsAssociate, timeSetting, lastDisbursedWithdrawal] = await Promise.all([
+    const [
+      totalLoansAssociate,
+      totalCreditsAssociate,
+      timeSetting,
+      lastDisbursedWithdrawal,
+    ] = await Promise.all([
       this.db
         .select({ count: sql<number>`count(*)` })
         .from(loans)
@@ -588,20 +593,26 @@ export class WithdrawalAssociateService {
       }),
       accountId
         ? this.db
-          .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
-          .from(withdrawalsAssociates)
-          .where(
-            and(
-              eq(withdrawalsAssociates.associateAccountId, accountId),
-              eq(withdrawalsAssociates.tenantId, tenantId),
-              or(
-                eq(withdrawalsAssociates.status, withdrawalStatusEnum.DISBURSED),
-                eq(withdrawalsAssociates.status, withdrawalStatusEnum.PROCESSED),
+            .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
+            .from(withdrawalsAssociates)
+            .where(
+              and(
+                eq(withdrawalsAssociates.associateAccountId, accountId),
+                eq(withdrawalsAssociates.tenantId, tenantId),
+                or(
+                  eq(
+                    withdrawalsAssociates.status,
+                    withdrawalStatusEnum.DISBURSED,
+                  ),
+                  eq(
+                    withdrawalsAssociates.status,
+                    withdrawalStatusEnum.PROCESSED,
+                  ),
+                ),
               ),
-            ),
-          )
-          .orderBy(desc(withdrawalsAssociates.withdrawalDate))
-          .limit(1)
+            )
+            .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+            .limit(1)
         : Promise.resolve([]),
     ]);
 
@@ -610,9 +621,10 @@ export class WithdrawalAssociateService {
     const hasActiveCredit = Number(totalCreditsAssociate[0].count) > 0;
     const hasPayrollCredit = result[0].isPayrollCredit ?? false;
     const withdrawalTimeMonths = parseInt(timeSetting?.value ?? '0', 10);
-    const lastWithdrawalDate = lastDisbursedWithdrawal.length > 0
-      ? lastDisbursedWithdrawal[0].withdrawalDate
-      : null;
+    const lastWithdrawalDate =
+      lastDisbursedWithdrawal.length > 0
+        ? lastDisbursedWithdrawal[0].withdrawalDate
+        : null;
 
     return {
       id: result[0].id,
@@ -1012,7 +1024,7 @@ export class WithdrawalAssociateService {
       throw new NotFoundException('Withdrawal not found');
     }
 
-    let items: WithdrawalItem[] = [];
+    const items: WithdrawalItem[] = [];
     if (
       withdrawal.withdrawalItems &&
       Array.isArray(withdrawal.withdrawalItems)
@@ -1048,6 +1060,7 @@ export class WithdrawalAssociateService {
     id: string,
     dto: DisburseWithdrawalAssociateDto,
     tx?: NodePgDatabase<typeof schema>,
+    skipBankTransaction = false,
   ) {
     const executeCore = async (trx: any) => {
       const [withdrawal] = await trx
@@ -1079,9 +1092,12 @@ export class WithdrawalAssociateService {
         throw new NotFoundException('El retiro no tiene un asociado vinculado');
       }
 
-      if (withdrawalRecord.status !== withdrawalStatusEnum.APPROVED) {
+      if (
+        withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
+        withdrawalRecord.status !== withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+      ) {
         throw new BadRequestException(
-          'Solo se pueden desembolsar retiros aprobados',
+          'Solo se pueden desembolsar retiros aprobados o en lote de pago',
         );
       }
 
@@ -1091,8 +1107,14 @@ export class WithdrawalAssociateService {
         .set({ status: 'COMPLETED' as movementStatusEnum })
         .where(
           and(
-            eq(schema.associateAccountMovements.referenceId, withdrawalRecord.id),
-            eq(schema.associateAccountMovements.referenceType, 'withdrawalsAssociates'),
+            eq(
+              schema.associateAccountMovements.referenceId,
+              withdrawalRecord.id,
+            ),
+            eq(
+              schema.associateAccountMovements.referenceType,
+              'withdrawalsAssociates',
+            ),
             inArray(schema.associateAccountMovements.movementType, [
               AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
               AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
@@ -1100,37 +1122,41 @@ export class WithdrawalAssociateService {
           ),
         );
 
-      // 2. Crear transacción bancaria
-      const bankResult = await this.bankMovementsService.createAndReconcile(
-        {
-          movement: {
-            bankAccountId: dto.bankAccountId,
-            transactionDate: new Date(dto.processedAt),
-            paymentMethod: paymentMethodEnum.BANK_TRANSFER,
-            description: `Desembolso de Retiro - ${withdrawalRecord.referenceCode}`,
-            bankReference: dto.bankReference,
-            category: 'MEMBER_WITHDRAWAL' as BankTransactionCategory,
-            creditAmount: 0,
-            debitAmount: Number(withdrawalRecord.disbursedAmount) ?? 0,
-          },
-          links: [
-            {
-              internalRecordType: 'MEMBER_WITHDRAWAL',
-              internalRecordId: withdrawalRecord.id,
+      // 2. Crear transacción bancaria (si no se omite por lote)
+      let bankTransactionId: string | null = null;
+      if (!skipBankTransaction) {
+        const bankResult = await this.bankMovementsService.createAndReconcile(
+          {
+            movement: {
+              bankAccountId: dto.bankAccountId,
+              transactionDate: new Date(dto.processedAt),
+              paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+              description: `Desembolso de Retiro - ${withdrawalRecord.referenceCode}`,
+              bankReference: dto.bankReference,
+              category: 'MEMBER_WITHDRAWAL' as BankTransactionCategory,
+              creditAmount: 0,
+              debitAmount: Number(withdrawalRecord.disbursedAmount) ?? 0,
             },
-          ],
-        },
-        userId,
-        tenantId,
-        trx,
-      );
+            links: [
+              {
+                internalRecordType: 'MEMBER_WITHDRAWAL',
+                internalRecordId: withdrawalRecord.id,
+              },
+            ],
+          },
+          userId,
+          tenantId,
+          trx,
+        );
+        bankTransactionId = bankResult.movement.id;
+      }
 
       // 3. Actualizar estatus del retiro
       const [updated] = await trx
         .update(withdrawalsAssociates)
         .set({
           status: withdrawalStatusEnum.DISBURSED,
-          bankTransactionId: bankResult.movement.id,
+          bankTransactionId: bankTransactionId,
           updatedById: userId,
         })
         .where(
@@ -1164,7 +1190,8 @@ export class WithdrawalAssociateService {
           associateId: associateRecord.id,
           associateFullname: associateRecord.fullname,
           associateCedula: associateRecord.cedula ?? '',
-          withdrawalTypeDescription: withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
+          withdrawalTypeDescription:
+            withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
           requestedAmount: Number(withdrawalRecord.requestedAmount),
           administrativeFee: Number(withdrawalRecord.administrativeFee),
           disbursedAmount: Number(withdrawalRecord.disbursedAmount),
@@ -1230,8 +1257,13 @@ export class WithdrawalAssociateService {
         throw new NotFoundException('El retiro no tiene un asociado vinculado');
       }
 
-      if (withdrawalRecord.status !== withdrawalStatusEnum.APPROVED) {
-        throw new BadRequestException('Solo se pueden procesar retiros aprobados');
+      if (
+        withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
+        withdrawalRecord.status !== withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+      ) {
+        throw new BadRequestException(
+          'Solo se pueden procesar retiros aprobados o en lote de pago',
+        );
       }
 
       // 1. Completar movimientos de la cuenta del asociado
@@ -1240,8 +1272,14 @@ export class WithdrawalAssociateService {
         .set({ status: 'COMPLETED' as movementStatusEnum })
         .where(
           and(
-            eq(schema.associateAccountMovements.referenceId, withdrawalRecord.id),
-            eq(schema.associateAccountMovements.referenceType, 'withdrawalsAssociates'),
+            eq(
+              schema.associateAccountMovements.referenceId,
+              withdrawalRecord.id,
+            ),
+            eq(
+              schema.associateAccountMovements.referenceType,
+              'withdrawalsAssociates',
+            ),
             inArray(schema.associateAccountMovements.movementType, [
               AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
               AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
@@ -1311,8 +1349,10 @@ export class WithdrawalAssociateService {
           associateId: associateRecord.id,
           associateFullname: associateRecord.fullname,
           associateCedula: associateRecord.cedula ?? '',
-          withdrawalTypeDescription: withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
-          withdrawalDate: new Date(withdrawalRecord.withdrawalDate) ?? new Date(),
+          withdrawalTypeDescription:
+            withdrawalTypeRecord?.description ?? 'RETIRO DE HABERES',
+          withdrawalDate:
+            new Date(withdrawalRecord.withdrawalDate) ?? new Date(),
           requestedAmount: Number(withdrawalRecord.requestedAmount),
           administrativeFee: Number(withdrawalRecord.administrativeFee),
           disbursedAmount: Number(withdrawalRecord.disbursedAmount),

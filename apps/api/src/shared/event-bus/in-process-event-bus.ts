@@ -1,8 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { IEventBus, EventHandler } from './event-bus.interface';
-import { createEnvelope, type EventEnvelope, type EventSource } from './event-envelope';
+import { EventHandler, IEventBus } from './event-bus.interface';
+import {
+  createEnvelope,
+  type EventEnvelope,
+  type EventSource,
+} from './event-envelope';
 import { EventStoreService } from './event-store.service';
 import { EventTracerService } from './event-tracer.service';
 
@@ -27,12 +31,14 @@ export class InProcessEventBus implements IEventBus {
     if (source === 'direct' && this.env === 'production') {
       this.logger.error(
         `[outbox.guard] DIRECT PUBLISH BLOCKED event=${event} id=${eventId}. ` +
-        'Use outbox pattern: inject OutboxWriterService and call write(tx, event) inside your transaction.',
+          'Use outbox pattern: inject OutboxWriterService and call write(tx, event) inside your transaction.',
       );
       return;
     }
 
-    this.logger.debug(`Event published: ${event} (id: ${eventId}, source: ${source})`);
+    this.logger.debug(
+      `Event published: ${event} (id: ${eventId}, source: ${source})`,
+    );
     this.tracer.published(envelope);
     this.eventStore.store(envelope);
     this.eventEmitter.emit(event, envelope);

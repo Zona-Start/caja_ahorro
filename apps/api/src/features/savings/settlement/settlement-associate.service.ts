@@ -298,6 +298,7 @@ export class SettlementAssociateService {
     liquidationId: string,
     dto: DisburseSettlementAssociateDto,
     tx?: any,
+    skipBankTransaction = false,
   ) {
     const executeInTransaction = async (trx: any) => {
       const [liquidation] = await trx
@@ -320,9 +321,12 @@ export class SettlementAssociateService {
         );
       }
 
-      if (liquidation.liquidations_associates.status !== 'PROCESSED') {
+      if (
+        liquidation.liquidations_associates.status !== 'PROCESSED' &&
+        liquidation.liquidations_associates.status !== 'PENDING_DISBURSEMENT_BANK_BATCH'
+      ) {
         throw new BadRequestException(
-          `Solo se pueden desembolsar liquidaciones en estado 'PROCESADO'. Estado actual: ${liquidation.liquidations_associates.status}.`,
+          `Solo se pueden desembolsar liquidaciones en estado 'PROCESADO' o en lote de pago.`,
         );
       }
 
@@ -330,32 +334,37 @@ export class SettlementAssociateService {
         liquidation.liquidations_associates.netLiquidationAmount,
       );
 
-      const [bankTransaction] = await trx
-        .insert(bankTransactions)
-        .values({
-          tenantId,
-          bankAccountId: dto.bankAccountId,
-          paymentMethod: 'BANK_TRANSFER',
-          transactionDate: dto.transferDate.toISOString().split('T')[0],
-          description: `Liquidación Final - Socio - ${liquidation.associates?.fullname}`,
-          category: 'PAYROLL_SETTLEMENT',
-          bankReference: dto.bankReference,
-          creditAmount: netAmount.toString(),
-          debitAmount: '0.00',
-          reconciliationStatus: 'RECONCILED',
-          internalLinkStatus: 'LINKED',
-          createdById: userId,
-        })
-        .returning({ id: bankTransactions.id });
+      let bankTransactionId: string | null = null;
+      if (!skipBankTransaction) {
+        const [bankTransaction] = await trx
+          .insert(bankTransactions)
+          .values({
+            tenantId,
+            bankAccountId: dto.bankAccountId,
+            paymentMethod: 'BANK_TRANSFER',
+            transactionDate: dto.transferDate.toISOString().split('T')[0],
+            description: `Liquidación Final - Socio - ${liquidation.associates?.fullname}`,
+            category: 'PAYROLL_SETTLEMENT',
+            bankReference: dto.bankReference,
+            creditAmount: netAmount.toString(),
+            debitAmount: '0.00',
+            reconciliationStatus: 'RECONCILED',
+            internalLinkStatus: 'LINKED',
+            createdById: userId,
+          })
+          .returning({ id: bankTransactions.id });
 
-      await trx.insert(internalTransactionBankLinks).values({
-        tenantId,
-        bankTransactionId: bankTransaction.id,
-        internalRecordType: 'PAYROLL_SETTLEMENT',
-        internalRecordId: liquidationId,
-        linkedBy: userId,
-        createdById: userId,
-      });
+        await trx.insert(internalTransactionBankLinks).values({
+          tenantId,
+          bankTransactionId: bankTransaction.id,
+          internalRecordType: 'PAYROLL_SETTLEMENT',
+          internalRecordId: liquidationId,
+          linkedBy: userId,
+          createdById: userId,
+        });
+
+        bankTransactionId = bankTransaction.id;
+      }
 
       await trx
         .update(liquidationsAssociates)
@@ -374,7 +383,7 @@ export class SettlementAssociateService {
       return {
         message: 'Desembolso procesado exitosamente',
         liquidationId: liquidationId,
-        bankTransactionId: bankTransaction.id,
+        bankTransactionId: bankTransactionId,
       };
     };
 

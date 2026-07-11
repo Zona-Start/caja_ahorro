@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ClsService } from 'nestjs-cls';
 import { RolesController } from './roles.controller';
 import { RolesService } from './roles.service';
-import { ClsService } from 'nestjs-cls';
 
 describe('RolesController', () => {
   let controller: RolesController;
@@ -39,7 +39,7 @@ describe('RolesController', () => {
   it('findAll should filter by tenant for non-admin', async () => {
     const req = { user: { isSystemAdmin: false } };
     (cls.get as jest.Mock).mockReturnValue(tenantId);
-    
+
     await controller.findAll({} as any, req as any);
     expect(service.findAll).toHaveBeenCalledWith({}, tenantId);
   });
@@ -47,7 +47,7 @@ describe('RolesController', () => {
   it('findOne should filter by tenant for non-admin', async () => {
     const req = { user: { isSystemAdmin: false } };
     (cls.get as jest.Mock).mockReturnValue(tenantId);
-    
+
     await controller.findOne('r-1', req as any);
     expect(service.findById).toHaveBeenCalledWith('r-1', tenantId);
   });

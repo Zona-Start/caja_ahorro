@@ -1,3 +1,5 @@
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
 import {
   BadRequestException,
   Inject,
@@ -6,8 +8,6 @@ import {
 } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/schema';
 
 @Injectable()
 export class SupplierTransactionsService {
@@ -161,11 +161,7 @@ export class SupplierTransactionsService {
       );
   }
 
-  async autorizeAdvancePayment(
-    tenantId: string,
-    userId: string,
-    id: string,
-  ) {
+  async autorizeAdvancePayment(tenantId: string, userId: string, id: string) {
     const [exist] = await this.drizzle
       .select()
       .from(schema.supplierTransactions)

@@ -1,5 +1,5 @@
-import { createZodDto } from "nestjs-zod";
-import { z } from "zod";
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const CreateCategorySchema = z.object({
   type: z.string().min(1).max(50),
@@ -26,8 +26,8 @@ export const UpdateCategorySchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export class CreateCategoryDto extends createZodDto(CreateCategorySchema) { }
-export class UpdateCategoryDto extends createZodDto(UpdateCategorySchema) { }
+export class CreateCategoryDto extends createZodDto(CreateCategorySchema) {}
+export class UpdateCategoryDto extends createZodDto(UpdateCategorySchema) {}
 
 export const CategoryQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
@@ -41,4 +41,4 @@ export const CategoryQuerySchema = z.object({
   search: z.string().optional(),
 });
 
-export class CategoryQueryDto extends createZodDto(CategoryQuerySchema) { }
+export class CategoryQueryDto extends createZodDto(CategoryQuerySchema) {}

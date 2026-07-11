@@ -1,3 +1,6 @@
+import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   BadRequestException,
   Body,
@@ -13,16 +16,13 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
-import { TenantContextService } from '@/common/services/tenant-context.service';
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
-import { IndividualLoadService } from './individual-load.service';
 import {
   BulkIndividualLoadDto,
   BulkIndividualLoadSchema,
   CreateIndividualLoadDto,
   CreateIndividualLoadSchema,
 } from './dto/individual-load.zod.dto';
+import { IndividualLoadService } from './individual-load.service';
 
 @ApiTags('savings-banks/individual-load')
 @Controller('savings-banks/individual-load')
@@ -41,9 +41,11 @@ export class IndividualLoadController {
   })
   create(
     @Req() req: Request,
-    @Body(new ZodValidatorPipe(CreateIndividualLoadSchema)) dto: CreateIndividualLoadDto,
+    @Body(new ZodValidatorPipe(CreateIndividualLoadSchema))
+    dto: CreateIndividualLoadDto,
   ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.individualLoadService.create(targetTenantId, userId, dto);
   }
 
@@ -66,12 +68,19 @@ export class IndividualLoadController {
   async createBulk(
     @Req() req: Request,
     @UploadedFile() file: Express.Multer.File,
-    @Body(new ZodValidatorPipe(BulkIndividualLoadSchema)) dto: BulkIndividualLoadDto,
+    @Body(new ZodValidatorPipe(BulkIndividualLoadSchema))
+    dto: BulkIndividualLoadDto,
   ) {
     if (!file) {
       throw new BadRequestException('El archivo es requerido');
     }
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
-    return this.individualLoadService.createBulk(targetTenantId, userId, file.buffer, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    return this.individualLoadService.createBulk(
+      targetTenantId,
+      userId,
+      file.buffer,
+      dto,
+    );
   }
 }

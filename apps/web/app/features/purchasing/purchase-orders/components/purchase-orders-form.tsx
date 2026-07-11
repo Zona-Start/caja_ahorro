@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@repo/shadcn/textarea';
 import { Separator } from '@repo/shadcn/separator';
 import { Plus, Trash2, FileText, ListOrdered, Calculator } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth.store';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@repo/shadcn/dialog';
 import { LINE_TYPES } from '../schemas/purchase-orders-options';
 import { type PurchaseOrder, purchaseOrderSchema } from '../schemas/purchase-orders.schema';
 import { usePurchaseOrderMutation } from '../hooks/use-purchase-orders-mutations';
@@ -51,6 +52,8 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
   const { data: defaults } = usePurchaseOrderDefaults();
   const { user } = useAuthStore();
   const isEmpresaComercial = user?.memberships?.[0]?.bussinessType === 'EMPRESA_COMERCIAL';
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingData, setPendingData] = useState<PurchaseOrder | null>(null);
 
   const form = useForm<PurchaseOrder>({
     resolver: zodResolver(purchaseOrderSchema),
@@ -128,21 +131,30 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
   }, [totals, form]);
 
   const onSubmit = async (data: PurchaseOrder) => {
-    const items = (data.items || []).map((item) => ({
+    setPendingData(data);
+    setShowConfirm(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (!pendingData) return;
+    const items = (pendingData.items || []).map((item) => ({
       ...item,
       totalCost: (Number(item.quantity) || 0) * (Number(item.unitCost) || 0),
     }));
     const payload = {
-      ...data,
+      ...pendingData,
       items,
       ...(defaultValues?.id ? { id: defaultValues.id } : {}),
     };
     await saveOrder(payload);
+    setShowConfirm(false);
+    setPendingData(null);
     form.reset();
     onSuccess?.();
   };
 
-  const currentSupplierTaxId = suppliers?.find((s) => s.id === watchSupplierId)?.taxId ?? '';
+  const supplierName = suppliers?.find((s) => s.id === watchSupplierId)?.name ?? '—';
+  const currentSupplierTaxId = suppliers?.find((s) => s.id === watchSupplierId)?.taxId ?? '—';
 
   return (
     <Form {...form}>
@@ -414,11 +426,79 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
           </Button>
           {!readOnly && (
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Guardando...' : 'Guardar'}
+              {isPending ? 'Guardando...' : (defaultValues?.id ? 'Actualizar Orden' : 'Crear Orden')}
             </Button>
           )}
         </div>
       </form>
+
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Confirmar Orden de Compra</DialogTitle>
+            <DialogDescription>
+              Revise los datos antes de crear la orden.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm py-2">
+            <div className="grid grid-cols-2 gap-2">
+              <span className="text-muted-foreground">Proveedor:</span>
+              <span className="font-medium">{supplierName}</span>
+              <span className="text-muted-foreground">RIF:</span>
+              <span className="font-medium">{currentSupplierTaxId}</span>
+              <span className="text-muted-foreground">Moneda:</span>
+              <span className="font-medium">{currencyCode}</span>
+              {isForeignCurrency && (
+                <>
+                  <span className="text-muted-foreground">Tasa:</span>
+                  <span className="font-medium">{Number(purchaseRate) || 1}</span>
+                </>
+              )}
+              <span className="text-muted-foreground">Fecha:</span>
+              <span className="font-medium">{pendingData?.orderDate?.toString().slice(0, 10) ?? '—'}</span>
+            </div>
+            <Separator />
+            <p className="text-xs text-muted-foreground font-medium">Ítems ({pendingData?.items?.length || 0})</p>
+            <div className="max-h-[140px] overflow-y-auto space-y-1">
+              {(pendingData?.items || []).map((item: any, i: number) => {
+                const itemName = item.itemId
+                  ? (products?.find((p) => p.id === item.itemId)?.name || services?.find((s) => s.id === item.itemId)?.name || item.description || `Ítem ${i + 1}`)
+                  : (item.description || `Ítem ${i + 1}`);
+                const lineTotal = (Number(item.quantity) || 0) * (Number(item.unitCost) || 0);
+                return (
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="truncate max-w-[280px]">{itemName} × {item.quantity || 0}</span>
+                    <span className="font-mono">{sym} {lineTotal.toFixed(2)}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <Separator />
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal:</span>
+                <span className="font-mono">{sym} {totals.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">IVA:</span>
+                <span className="font-mono">{sym} {totals.taxAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-base font-bold">
+                <span>Total:</span>
+                <span className="font-mono">{sym} {totals.totalAmount.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setShowConfirm(false); setPendingData(null); }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmSave} disabled={isPending}>
+              {isPending ? 'Guardando...' : 'Confirmar y Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Form>
   );
 }

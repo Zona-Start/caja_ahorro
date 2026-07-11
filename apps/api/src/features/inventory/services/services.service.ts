@@ -1,7 +1,10 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { productServiceSuppliers, services } from '@/database/schema/tables/inventory';
+import {
+  productServiceSuppliers,
+  services,
+} from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { ServicePricesService } from '@/features/inventory/services-prices/services-prices.service';
 import {
@@ -167,7 +170,10 @@ export class ServicesService {
     }
     if (status) {
       searchConditions.push(
-        eq(services.status, status as (typeof services.$inferInsert)['status'] & {}),
+        eq(
+          services.status,
+          status as (typeof services.$inferInsert)['status'] & {},
+        ),
       );
     }
 
@@ -238,26 +244,32 @@ export class ServicesService {
 
   async findAll(
     tenantId: string | null,
-  ): Promise<{ id: string; name: string }[]> {
+  ): Promise<{ id: string; name: string; internalCode: string | null; status: string }[]> {
     const conditions: SQL<unknown>[] = [];
-
     if (tenantId) {
       conditions.push(eq(services.tenantId, tenantId));
     }
+    const searchCondition = and(...conditions);
 
     return this.db
       .select({
         id: services.id,
         name: services.name,
+        internalCode: services.internalCode,
+        status: services.status,
       })
       .from(services)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .where(searchCondition)
   }
 
   async findOne(
     id: string,
     tenantId: string | null,
-  ): Promise<ServiceSelect & { category?: Record<string, unknown> | Record<string, unknown>[] }> {
+  ): Promise<
+    ServiceSelect & {
+      category?: Record<string, unknown> | Record<string, unknown>[];
+    }
+  > {
     const conditions = [eq(services.id, id)];
 
     if (tenantId) {
@@ -275,7 +287,9 @@ export class ServicesService {
       throw new NotFoundException('Service not found');
     }
 
-    return data as ServiceSelect & { category?: Record<string, unknown> | Record<string, unknown>[] };
+    return data as ServiceSelect & {
+      category?: Record<string, unknown> | Record<string, unknown>[];
+    };
   }
 
   async update(
@@ -292,10 +306,12 @@ export class ServicesService {
       };
 
       if (dto.name !== undefined) updateData.name = dto.name;
-      if (dto.description !== undefined) updateData.description = dto.description;
+      if (dto.description !== undefined)
+        updateData.description = dto.description;
       if (dto.categoryId !== undefined) updateData.categoryId = dto.categoryId;
       if (dto.status !== undefined) updateData.status = dto.status;
-      if (dto.serviceType !== undefined) updateData.serviceType = dto.serviceType;
+      if (dto.serviceType !== undefined)
+        updateData.serviceType = dto.serviceType;
 
       const whereConditions = [eq(services.id, id)];
       if (tenantId) {

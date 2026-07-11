@@ -41,3 +41,41 @@ export function useDeletePurchaseOrderMutation() {
     },
   });
 }
+
+export function useApprovePurchaseOrderMutation() {
+  const qc = useQueryClient();
+  const { success, error } = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id: string) => PurchaseOrdersApi.approve(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: purchaseOrdersKeys.lists() });
+      success('Orden aprobada exitosamente.');
+    },
+    onError: (err: unknown) => {
+      error(err instanceof Error ? err.message : 'Error al aprobar la orden.');
+    },
+  });
+}
+
+export function useDownloadPurchaseOrderPdfMutation() {
+  const { error } = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id: string) => PurchaseOrdersApi.downloadPdf(id),
+    onSuccess: (data) => {
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `orden_compra.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    },
+    onError: (err: unknown) => {
+      error(err instanceof Error ? err.message : 'Error al descargar el PDF.');
+    },
+  });
+}

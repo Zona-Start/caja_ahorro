@@ -39,7 +39,7 @@ export class SeedService implements OnModuleInit {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly securityService: SecurityService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     const shouldSeed = this.configService.get<boolean>('RUN_SEED');

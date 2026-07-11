@@ -13,13 +13,13 @@ import { eq, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import { AuditHelper } from '../../audit/audit-event.service';
+import { ConfigureIntegrationDto } from './dto/tenant-integrations.dto';
+import { ToggleModuleDto } from './dto/tenant-modules.dto';
 import {
   CreateTenantDto,
   TenantQueryDto,
   UpdateTenantDto,
 } from './dto/tenants.dto';
-import { ToggleModuleDto } from './dto/tenant-modules.dto';
-import { ConfigureIntegrationDto } from './dto/tenant-integrations.dto';
 import { TenantIntegrationService } from './services/tenant-integrations.service';
 import { TenantProvisioningService } from './services/tenant-provisioning.service';
 
@@ -126,7 +126,12 @@ export class TenantsService {
 
     this.eventEmitter.emit(
       'tenant.created',
-      new TenantCreatedEvent(tenant.id, dto.businessType, dto.moduleCodes, userId),
+      new TenantCreatedEvent(
+        tenant.id,
+        dto.businessType,
+        dto.moduleCodes,
+        userId,
+      ),
     );
 
     return tenant;
@@ -148,9 +153,17 @@ export class TenantsService {
       );
     }
 
-    const previous = await this.findById(id, currentTenantId, isSystemAdmin, tx);
+    const previous = await this.findById(
+      id,
+      currentTenantId,
+      isSystemAdmin,
+      tx,
+    );
 
-    const updateData: Record<string, any> = { updatedAt: new Date(), updatedBy: userId || null };
+    const updateData: Record<string, any> = {
+      updatedAt: new Date(),
+      updatedBy: userId || null,
+    };
 
     if (isSystemAdmin) {
       if (dto.name) updateData.name = dto.name;
@@ -179,8 +192,12 @@ export class TenantsService {
         .filter((m) => m.status === 'ENABLED')
         .map((m) => m.moduleCode);
 
-      const codesToAdd = newModuleCodes.filter((c) => !activeCodes.includes(c as any));
-      const codesToRemove = activeCodes.filter((c) => !newModuleCodes.includes(c as any));
+      const codesToAdd = newModuleCodes.filter(
+        (c) => !activeCodes.includes(c as any),
+      );
+      const codesToRemove = activeCodes.filter(
+        (c) => !newModuleCodes.includes(c as any),
+      );
 
       for (const code of codesToAdd) {
         await this.provisioningService.activate(id, code, userId, tx);
@@ -190,10 +207,16 @@ export class TenantsService {
       }
     }
 
-    await this.auditHelper.logUpdate(userId || undefined, 'tenant', previous, updated, {
-      targetId: id,
-      description: `Updated tenant ${previous.name}`,
-    });
+    await this.auditHelper.logUpdate(
+      userId || undefined,
+      'tenant',
+      previous,
+      updated,
+      {
+        targetId: id,
+        description: `Updated tenant ${previous.name}`,
+      },
+    );
 
     return updated;
   }
@@ -222,11 +245,7 @@ export class TenantsService {
     return result.length;
   }
 
-  async toggleModule(
-    tenantId: string,
-    dto: ToggleModuleDto,
-    userId?: string,
-  ) {
+  async toggleModule(tenantId: string, dto: ToggleModuleDto, userId?: string) {
     await this.findById(tenantId, tenantId, true);
 
     return this.db.transaction(async (tx) => {
@@ -253,10 +272,7 @@ export class TenantsService {
     });
   }
 
-  async configureIntegration(
-    tenantId: string,
-    dto: ConfigureIntegrationDto,
-  ) {
+  async configureIntegration(tenantId: string, dto: ConfigureIntegrationDto) {
     await this.findById(tenantId, tenantId, true);
 
     return this.db.transaction(async (tx) => {

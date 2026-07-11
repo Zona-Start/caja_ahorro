@@ -1,13 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { projectionLedgerBalances } from '@/database/schema';
-import { eq, and } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@/database/schema';
-import { type ProjectionHandler } from './projection-handler';
+import { projectionLedgerBalances } from '@/database/schema';
 import { type EventEnvelope, EventStoreService } from '@/shared/event-bus';
 import { ACCOUNTING_EVENTS } from '@/shared/event-types';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { type ProjectionHandler } from './projection-handler';
 
 @Injectable()
 export class LedgerBalanceProjection implements ProjectionHandler {
@@ -35,7 +34,9 @@ export class LedgerBalanceProjection implements ProjectionHandler {
 
   async rebuild(): Promise<void> {
     this.logger.log('Rebuilding ledger balance projection from EventStore...');
-    const entries = await this.eventStore.findByEventType(ACCOUNTING_EVENTS.ENTRY_POSTED);
+    const entries = await this.eventStore.findByEventType(
+      ACCOUNTING_EVENTS.ENTRY_POSTED,
+    );
 
     await this.db.delete(projectionLedgerBalances);
 
@@ -50,7 +51,8 @@ export class LedgerBalanceProjection implements ProjectionHandler {
   }
 
   private async applyEntryPosted(envelope: EventEnvelope): Promise<void> {
-    const { tenantId, entryId, totalDebit, totalCredit, cycleId } = envelope.payload;
+    const { tenantId, entryId, totalDebit, totalCredit, cycleId } =
+      envelope.payload;
 
     const existing = await this.db
       .select()

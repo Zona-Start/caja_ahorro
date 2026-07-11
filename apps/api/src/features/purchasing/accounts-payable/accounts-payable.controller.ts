@@ -1,3 +1,5 @@
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -9,13 +11,19 @@ import {
   Post,
   Query,
   Req,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { TenantContextService } from '@/common/services/tenant-context.service';
 import { AccountsPayableService } from './accounts-payable.service';
-import { CreateAdvanceSupplierSchema, CreateSupplierTransactionSchema } from './dto/accounts-payable.schema';
+import {
+  ApplyAdvanceSchema,
+  ApplyCreditNoteSchema,
+  ApplyDebitNoteSchema,
+  UnapplyTransactionSchema,
+  UpdateAccountPayableSchema,
+} from './dto/accounts-payable.schema';
 
-@ApiTags('administration/accounts-payable')
+@ApiTags('purchasing/accounts-payable')
 @Controller('administration/accounts-payable')
 export class AccountsPayableController {
   constructor(
@@ -49,7 +57,10 @@ export class AccountsPayableController {
     supplierIds: string[],
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    const data = await this.service.findAccountsPayableBySuppliers(supplierIds, targetTenantId);
+    const data = await this.service.findAccountsPayableBySuppliers(
+      supplierIds,
+      targetTenantId,
+    );
     return {
       message: 'Cuentas por pagar obtenidas exitosamente.',
       data: data,
@@ -61,7 +72,10 @@ export class AccountsPayableController {
   @ApiResponse({ status: 200, description: 'Return applied transactions.' })
   async getAppliedTransactions(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    const result = await this.service.getAppliedTransactions(id, targetTenantId);
+    const result = await this.service.getAppliedTransactions(
+      id,
+      targetTenantId,
+    );
     return {
       message: 'Applied transactions fetched successfully',
       data: result,
@@ -90,6 +104,21 @@ export class AccountsPayableController {
     return { message: 'Account payable fetched successfully', data };
   }
 
+  @Patch(':id')
+  @UsePipes(new ZodValidatorPipe(UpdateAccountPayableSchema))
+  @ApiOperation({ summary: 'Update an account payable' })
+  @ApiResponse({ status: 200, description: 'Account payable updated.' })
+  async update(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    const data = await this.service.update(userId, id, dto, targetTenantId);
+    return { message: 'Account payable updated successfully', data };
+  }
+
   @Patch('/authorize/:id')
   @ApiOperation({ summary: 'Authorize an account payable' })
   @ApiResponse({
@@ -98,17 +127,91 @@ export class AccountsPayableController {
   })
   @ApiResponse({ status: 404, description: 'Account payable not found.' })
   async autorize(@Req() req: any, @Param('id') id: string) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
     const data = await this.service.autorize(userId, id, targetTenantId);
     return { message: 'Account payable authorized successfully', data };
   }
 
-  @Post('advance')
-  async createAdvancePayment(
+  @Post('/:id/apply-credit-note')
+  @UsePipes(new ZodValidatorPipe(ApplyCreditNoteSchema))
+  @ApiOperation({ summary: 'Apply a credit note to an account payable' })
+  @ApiResponse({ status: 200, description: 'Credit note applied.' })
+  async applyCreditNote(
     @Req() req: any,
+    @Param('id') id: string,
     @Body() dto: any,
   ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    return await this.service.applyCreditNote(
+      userId,
+      id,
+      dto,
+      targetTenantId,
+    );
+  }
+
+  @Post('/:id/apply-debit-note')
+  @UsePipes(new ZodValidatorPipe(ApplyDebitNoteSchema))
+  @ApiOperation({ summary: 'Apply a debit note to an account payable' })
+  @ApiResponse({ status: 200, description: 'Debit note applied.' })
+  async applyDebitNote(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    return await this.service.applyDebitNote(
+      userId,
+      id,
+      dto,
+      targetTenantId,
+    );
+  }
+
+  @Post('/:id/apply-advance')
+  @UsePipes(new ZodValidatorPipe(ApplyAdvanceSchema))
+  @ApiOperation({ summary: 'Apply an advance to an account payable' })
+  @ApiResponse({ status: 200, description: 'Advance applied.' })
+  async applyAdvance(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    return await this.service.applyAdvance(
+      userId,
+      id,
+      dto,
+      targetTenantId,
+    );
+  }
+
+  @Post('/:id/unapply/:applicationId')
+  @ApiOperation({ summary: 'Revert an applied transaction' })
+  @ApiResponse({ status: 200, description: 'Application reverted.' })
+  async unapply(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Param('applicationId') applicationId: string,
+  ) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    return await this.service.unapplyTransaction(
+      userId,
+      id,
+      applicationId,
+      targetTenantId,
+    );
+  }
+
+  @Post('advance')
+  async createAdvancePayment(@Req() req: any, @Body() dto: any) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.createAdvanceSupplier(dto, userId, targetTenantId);
   }
 
@@ -118,12 +221,14 @@ export class AccountsPayableController {
     status: 201,
     description: 'Transaction created successfully.',
   })
-  async createCreditDebitNote(
-    @Req() req: any,
-    @Body() dto: any,
-  ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
-    const data = await this.service.createCreditDebitNote(userId, dto, targetTenantId);
+  async createCreditDebitNote(@Req() req: any, @Body() dto: any) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    const data = await this.service.createCreditDebitNote(
+      userId,
+      dto,
+      targetTenantId,
+    );
     return { message: 'Transaction created successfully', data };
   }
 

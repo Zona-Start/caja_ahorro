@@ -39,7 +39,7 @@ export function useSupplierInvoiceQuery(
 }
 
 const supplierSelectSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
 });
 
@@ -47,20 +47,21 @@ export function useSuppliersAllQuery(enabled = true) {
   return useQuery({
     queryKey: ['suppliers', 'all'],
     queryFn: async () => {
-      const response = await apiClient.get('/administration/suppliers/all');
-      return supplierSelectSchema.array().parse(response.data);
+      const response = await apiClient.get('/purchasing/suppliers/all');
+      const raw = response.data?.data ?? response.data ?? [];
+      return supplierSelectSchema.array().parse(raw);
     },
     enabled,
   });
 }
 
 const purchaseOrderSelectSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   orderNumber: z.string(),
 });
 
 export function usePurchaseOrdersForInvoiceQuery(
-  supplierId: number | undefined,
+  supplierId: string | undefined,
   enabled = true,
 ) {
   return useQuery({
@@ -70,7 +71,83 @@ export function usePurchaseOrdersForInvoiceQuery(
       const response = await apiClient.get(
         `/administration/purchase-orders/for-invoice?supplierId=${supplierId}`,
       );
-      return purchaseOrderSelectSchema.array().parse(response.data);
+      const raw = response.data?.data ?? response.data ?? [];
+      return purchaseOrderSelectSchema.array().parse(raw);
+    },
+    enabled: enabled && !!supplierId,
+  });
+}
+
+const productSelectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  unitOfMeasure: z.string().nullable().optional(),
+  sku: z.string().nullable().optional(),
+});
+
+export function useProductsAllQuery(enabled = true) {
+  return useQuery({
+    queryKey: ['products', 'all'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/inventory/products/all');
+        const data = response.data?.data ?? response.data ?? [];
+        return productSelectSchema.array().parse(data);
+      } catch {
+        return [];
+      }
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+const serviceSelectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export function useServicesAllQuery(enabled = true) {
+  return useQuery({
+    queryKey: ['services', 'all'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get('/inventory/services/all');
+        const data = response.data?.data ?? response.data ?? [];
+        return serviceSelectSchema.array().parse(data);
+      } catch {
+        return [];
+      }
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+const accountsPayableBySupplierSchema = z.object({
+  id: z.string(),
+  accountsPayableNumber: z.string(),
+  supplierName: z.string().optional(),
+  remainingAmount: z.number().optional(),
+});
+
+export function useAccountsPayableBySupplierQuery(
+  supplierId: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ['accounts-payable', 'by-supplier', supplierId],
+    queryFn: async () => {
+      if (!supplierId) return [];
+      const response = await apiClient.get(
+        `/administration/accounts-payable/paginated?supplierId=${supplierId}&limit=200`,
+      );
+      try {
+        const data = response.data?.data ?? response.data ?? [];
+        return z.array(accountsPayableBySupplierSchema).parse(data);
+      } catch {
+        return [];
+      }
     },
     enabled: enabled && !!supplierId,
   });

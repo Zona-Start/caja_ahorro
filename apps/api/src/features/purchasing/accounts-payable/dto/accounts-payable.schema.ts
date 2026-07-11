@@ -59,8 +59,42 @@ export const CreateSupplierTransactionSchema = z.object({
   observations: z.string().optional(),
 });
 
-export type CreateAccountPayableDto = z.infer<typeof CreateAccountPayableSchema>;
-export type FilterAccountPayableDto = z.infer<typeof FilterAccountPayableSchema>;
-export type UpdateAccountPayableDto = z.infer<typeof UpdateAccountPayableSchema>;
-export type CreateAdvanceSupplierDto = z.infer<typeof CreateAdvanceSupplierSchema>;
-export type CreateSupplierTransactionDto = z.infer<typeof CreateSupplierTransactionSchema>;
+export type CreateAccountPayableDto = z.infer<
+  typeof CreateAccountPayableSchema
+>;
+export type FilterAccountPayableDto = z.infer<
+  typeof FilterAccountPayableSchema
+>;
+export type UpdateAccountPayableDto = z.infer<
+  typeof UpdateAccountPayableSchema
+>;
+export type CreateAdvanceSupplierDto = z.infer<
+  typeof CreateAdvanceSupplierSchema
+>;
+export type CreateSupplierTransactionDto = z.infer<
+  typeof CreateSupplierTransactionSchema
+>;
+
+export const ApplyCreditNoteSchema = z.object({
+  creditNoteTransactionId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+});
+
+export const ApplyDebitNoteSchema = z.object({
+  debitNoteTransactionId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+});
+
+export const ApplyAdvanceSchema = z.object({
+  advanceTransactionId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+});
+
+export const UnapplyTransactionSchema = z.object({
+  applicationId: z.string().uuid(),
+});
+
+export type ApplyCreditNoteDto = z.infer<typeof ApplyCreditNoteSchema>;
+export type ApplyDebitNoteDto = z.infer<typeof ApplyDebitNoteSchema>;
+export type ApplyAdvanceDto = z.infer<typeof ApplyAdvanceSchema>;
+export type UnapplyTransactionDto = z.infer<typeof UnapplyTransactionSchema>;

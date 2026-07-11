@@ -1,12 +1,22 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
 import {
-  IEventBus, EVENT_BUS_TOKEN, IdempotencyService,
-  RetryManager, EventTracerService, EventMetricsService,
-  DeadLetterQueueService, createIdempotentHandler, EventEnvelope,
+  createIdempotentHandler,
+  DeadLetterQueueService,
+  EVENT_BUS_TOKEN,
+  EventEnvelope,
+  EventMetricsService,
+  EventTracerService,
+  IdempotencyService,
+  IEventBus,
+  RetryManager,
 } from '@/shared/event-bus';
 import { AppWsGateway } from '@/shared/websocket';
-import { LOAN_PAYMENT_EVENTS, LoanPaymentCreatedEvent, LoanPaymentCancelledEvent, LoanPaymentCompletedEvent } from '../events/loan-payment.events';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  LOAN_PAYMENT_EVENTS,
+  LoanPaymentCancelledEvent,
+  LoanPaymentCompletedEvent,
+  LoanPaymentCreatedEvent,
+} from '../events/loan-payment.events';
 
 const HANDLER_NAME = 'LoanPaymentWsSubscriber';
 
@@ -74,14 +84,30 @@ export class LoanPaymentWsSubscriber implements OnModuleInit {
   }
 
   private broadcastCreated(envelope: EventEnvelope<LoanPaymentCreatedEvent>) {
-    this.wsGateway.broadcastToTenant(envelope.tenantId, LOAN_PAYMENT_EVENTS.CREATED, envelope.payload);
+    this.wsGateway.broadcastToTenant(
+      envelope.tenantId,
+      LOAN_PAYMENT_EVENTS.CREATED,
+      envelope.payload,
+    );
   }
 
-  private broadcastCancelled(envelope: EventEnvelope<LoanPaymentCancelledEvent>) {
-    this.wsGateway.broadcastToTenant(envelope.tenantId, LOAN_PAYMENT_EVENTS.CANCELLED, envelope.payload);
+  private broadcastCancelled(
+    envelope: EventEnvelope<LoanPaymentCancelledEvent>,
+  ) {
+    this.wsGateway.broadcastToTenant(
+      envelope.tenantId,
+      LOAN_PAYMENT_EVENTS.CANCELLED,
+      envelope.payload,
+    );
   }
 
-  private broadcastCompleted(envelope: EventEnvelope<LoanPaymentCompletedEvent>) {
-    this.wsGateway.broadcastToTenant(envelope.tenantId, LOAN_PAYMENT_EVENTS.COMPLETED, envelope.payload);
+  private broadcastCompleted(
+    envelope: EventEnvelope<LoanPaymentCompletedEvent>,
+  ) {
+    this.wsGateway.broadcastToTenant(
+      envelope.tenantId,
+      LOAN_PAYMENT_EVENTS.COMPLETED,
+      envelope.payload,
+    );
   }
 }

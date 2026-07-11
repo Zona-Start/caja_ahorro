@@ -60,10 +60,7 @@ export class BankAccountsController {
       req,
       dto,
     );
-    const result = await this.service.findAllByPagination(
-      targetTenantId,
-      dto,
-    );
+    const result = await this.service.findAllByPagination(targetTenantId, dto);
     return {
       message: 'Bank Accounts fetched successfully',
       data: result.data,
@@ -127,10 +124,8 @@ export class BankAccountsController {
     @Param('id') id: string,
     @Query('tenantId') tenantId?: string,
   ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
-      req,
-      tenantId,
-    );
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, tenantId);
     return await this.service.remove(id, userId, targetTenantId);
   }
 
@@ -145,10 +140,8 @@ export class BankAccountsController {
     @Param('id') id: string,
     @Query('tenantId') tenantId?: string,
   ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
-      req,
-      tenantId,
-    );
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, tenantId);
     return await this.service.reverse(id, userId, targetTenantId);
   }
 }

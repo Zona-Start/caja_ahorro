@@ -10,8 +10,10 @@ import {
 } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { CreateInventoryCategoryDto } from './dto/inventories-categories.schema';
-import { UpdateInventoryCategoryDto } from './dto/inventories-categories.schema';
+import {
+  CreateInventoryCategoryDto,
+  UpdateInventoryCategoryDto,
+} from './dto/inventories-categories.schema';
 import { InventoryCategoryPaginationDto } from './dto/pagination-inventory-category.dto';
 
 type InventoryCategorySelect = typeof inventoriesCategories.$inferSelect;
@@ -68,7 +70,10 @@ export class InventoriesCategoriesService {
   async findAllByPagination(
     tenantId: string | null,
     paginationDto?: InventoryCategoryPaginationDto,
-  ): Promise<{ data: InventoryCategorySelect[]; meta: Record<string, unknown> }> {
+  ): Promise<{
+    data: InventoryCategorySelect[];
+    meta: Record<string, unknown>;
+  }> {
     const {
       page = 1,
       limit = 10,
@@ -168,9 +173,7 @@ export class InventoriesCategoriesService {
     group: string,
     tenantId: string | null,
   ): Promise<InventoryCategorySelect[]> {
-    const conditions: SQL<unknown>[] = [
-      eq(inventoriesCategories.group, group),
-    ];
+    const conditions: SQL<unknown>[] = [eq(inventoriesCategories.group, group)];
 
     if (tenantId) {
       conditions.push(eq(inventoriesCategories.tenantId, tenantId));
@@ -199,9 +202,7 @@ export class InventoriesCategoriesService {
       .where(and(...conditions));
 
     if (!result) {
-      throw new NotFoundException(
-        `Inventory category with ID ${id} not found`,
-      );
+      throw new NotFoundException(`Inventory category with ID ${id} not found`);
     }
 
     return result;
@@ -239,8 +240,7 @@ export class InventoriesCategoriesService {
 
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.group !== undefined) updateData.group = dto.group;
-    if (dto.description !== undefined)
-      updateData.description = dto.description;
+    if (dto.description !== undefined) updateData.description = dto.description;
 
     const whereConditions = [eq(inventoriesCategories.id, id)];
     if (tenantId) {
@@ -286,9 +286,7 @@ export class InventoriesCategoriesService {
       whereConditions.push(eq(inventoriesCategories.tenantId, tenantId));
     }
 
-    await this.db
-      .delete(inventoriesCategories)
-      .where(and(...whereConditions));
+    await this.db.delete(inventoriesCategories).where(and(...whereConditions));
 
     await this.auditHelper.logDelete(userId, 'inventory_category', existing, {
       tenantId: existing.tenantId,

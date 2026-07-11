@@ -1,8 +1,8 @@
 import { Global, Module, OnModuleInit } from '@nestjs/common';
-import { ProjectionRunner } from './projection-runner';
-import { LoanBalanceProjection } from './loan-balance.projection';
 import { InventoryStockProjection } from './inventory-stock.projection';
 import { LedgerBalanceProjection } from './ledger-balance.projection';
+import { LoanBalanceProjection } from './loan-balance.projection';
+import { ProjectionRunner } from './projection-runner';
 
 @Global()
 @Module({
@@ -12,7 +12,12 @@ import { LedgerBalanceProjection } from './ledger-balance.projection';
     InventoryStockProjection,
     LedgerBalanceProjection,
   ],
-  exports: [ProjectionRunner, LoanBalanceProjection, InventoryStockProjection, LedgerBalanceProjection],
+  exports: [
+    ProjectionRunner,
+    LoanBalanceProjection,
+    InventoryStockProjection,
+    LedgerBalanceProjection,
+  ],
 })
 export class ProjectionModule implements OnModuleInit {
   constructor(

@@ -22,7 +22,7 @@ export const EnvSchema = z.object({
   MAIL_HOST: z.string(),
   MAIL_USERNAME: z.string(),
   MAIL_PASSWORD: z.string(),
-  DATABASE_URL:  z.string(),
+  DATABASE_URL: z.string(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

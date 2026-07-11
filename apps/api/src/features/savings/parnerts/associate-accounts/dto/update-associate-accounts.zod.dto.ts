@@ -1,6 +1,6 @@
-import { z } from 'zod';
-import { createZodDto } from 'nestjs-zod';
 import { CurrencyCodeEnum } from '@/types/enum';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const UpdateAssociateAccountsSchema = z.object({
   tenantId: z.string().uuid().optional(),
@@ -13,4 +13,6 @@ export const UpdateAssociateAccountsSchema = z.object({
   status: z.string().optional(),
 });
 
-export class UpdateAssociateAccountsDto extends createZodDto(UpdateAssociateAccountsSchema) {}
+export class UpdateAssociateAccountsDto extends createZodDto(
+  UpdateAssociateAccountsSchema,
+) {}

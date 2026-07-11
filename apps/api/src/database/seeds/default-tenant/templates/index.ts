@@ -1,6 +1,6 @@
-import type { BusinessTypeTemplate } from './template.types';
 import { CAJA_AHORRO_TEMPLATE } from './CAJA_AHORRO/template';
 import { EMPRESA_COMERCIAL_TEMPLATE } from './EMPRESA_COMERCIAL/template';
+import type { BusinessTypeTemplate } from './template.types';
 
 const templateRegistry: Record<string, BusinessTypeTemplate> = {
   CAJA_AHORRO: CAJA_AHORRO_TEMPLATE,

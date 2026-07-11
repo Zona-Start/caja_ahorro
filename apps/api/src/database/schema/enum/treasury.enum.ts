@@ -1,4 +1,4 @@
-import { treasurySchema } from "../_schemas";
+import { treasurySchema } from '../_schemas';
 
 export const bankTransactionCategory = treasurySchema.enum(
   'bank_transaction_category',

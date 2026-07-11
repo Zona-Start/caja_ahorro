@@ -1,3 +1,4 @@
+import { TenantContextModule } from '@/common/services/tenant-context.module';
 import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.module';
 import { DrizzleModule } from '@/database/drizzle.module';
 import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
@@ -6,7 +7,6 @@ import { AccountsPayableModule } from '../accounts-payable/accounts-payable.modu
 import { SupplierInvoicesModule } from '../supplier-invoices/supplier-invoices.module';
 import { SupplierPaymentsController } from './supplier-payments.controller';
 import { SupplierPaymentsService } from './supplier-payments.service';
-import { TenantContextModule } from '@/common/services/tenant-context.module';
 
 @Module({
   imports: [

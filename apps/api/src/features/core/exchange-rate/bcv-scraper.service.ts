@@ -4,14 +4,24 @@ import { exchangeRates } from '@/database/schema';
 import { SettingsService } from '@/features/core/settings/settings.service';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { and, eq } from 'drizzle-orm';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { and, eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 const SPANISH_MONTHS: Record<string, number> = {
-  enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5,
-  julio: 6, agosto: 7, septiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
+  enero: 0,
+  febrero: 1,
+  marzo: 2,
+  abril: 3,
+  mayo: 4,
+  junio: 5,
+  julio: 6,
+  agosto: 7,
+  septiembre: 8,
+  octubre: 9,
+  noviembre: 10,
+  diciembre: 11,
 };
 
 @Injectable()
@@ -87,7 +97,8 @@ export class BcvScraperService implements OnModuleInit {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
       },
       timeout: 20_000,
@@ -117,9 +128,11 @@ export class BcvScraperService implements OnModuleInit {
 
     const bodyText = $('body').text().replace(/\s+/g, ' ');
     const idx = bodyText.indexOf('Fecha Valor:');
-    if (idx === -1) throw new Error('Could not find exchange rate text in BCV HTML');
+    if (idx === -1)
+      throw new Error('Could not find exchange rate text in BCV HTML');
     const start = bodyText.lastIndexOf('EUR', idx);
-    if (start === -1) throw new Error('Could not find EUR rate before Fecha Valor');
+    if (start === -1)
+      throw new Error('Could not find EUR rate before Fecha Valor');
     return bodyText.slice(start, Math.min(idx + 60, bodyText.length)).trim();
   }
 
@@ -184,7 +197,10 @@ export class BcvScraperService implements OnModuleInit {
       date.getFullYear(),
       date.getMonth(),
       date.getDate(),
-      0, 0, 0, 0,
+      0,
+      0,
+      0,
+      0,
     );
 
     const existing = await this.db

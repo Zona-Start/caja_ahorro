@@ -1,19 +1,25 @@
-import { Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { associateAccounts, loanPaymentsDetails, loans } from '@/database/schema';
 import {
-  AssociateMovementTypeEnum,
-  CurrencyCodeEnum,
-} from '@/types/enum';
+  associateAccounts,
+  loanPaymentsDetails,
+  loans,
+} from '@/database/schema';
+import { OutboxWriterService } from '@/shared/outbox';
+import { AssociateMovementTypeEnum, CurrencyCodeEnum } from '@/types/enum';
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { v4 as uuidv4 } from 'uuid';
-import { OutboxWriterService } from '@/shared/outbox';
-import { LoanPaymentValidator } from '../domain/loan-payment.validator';
-import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
 import { LoanPaymentAudit } from '../domain/loan-payment.audit';
+import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
+import { LoanPaymentValidator } from '../domain/loan-payment.validator';
 import { LOAN_PAYMENT_EVENTS } from '../events/loan-payment.events';
 
 @Injectable()
@@ -29,7 +35,11 @@ export class CancelPaymentUseCase {
 
   async execute(paymentId: string, tenantId: string, userId: string) {
     return await this.db.transaction(async (tx) => {
-      const payment = await this.validator.findPaymentWithDetails(paymentId, tenantId, tx);
+      const payment = await this.validator.findPaymentWithDetails(
+        paymentId,
+        tenantId,
+        tx,
+      );
 
       if (!payment) {
         throw new NotFoundException('The payment was not found.');
@@ -50,13 +60,18 @@ export class CancelPaymentUseCase {
         const amountToRevert = Number(detail.amount);
 
         if (installmentId == null) {
-          throw new InternalServerErrorException('installmentId is null or undefined.');
+          throw new InternalServerErrorException(
+            'installmentId is null or undefined.',
+          );
         }
 
         await this.processor.cancelPaymentDetail(detail.id, tx);
 
         const reverted = await this.processor.revertInstallment(
-          installmentId, amountToRevert, userId, tx,
+          installmentId,
+          amountToRevert,
+          userId,
+          tx,
         );
 
         totalPrincipalReverted += reverted.principalReverted;
@@ -64,7 +79,9 @@ export class CancelPaymentUseCase {
       }
 
       const paymentCount = await this.validator.countPaymentsForLoan(
-        payment.loanId!, tenantId, tx,
+        payment.loanId!,
+        tenantId,
+        tx,
       );
 
       const newStatusLoan = paymentCount === 1 ? 'DISBURSED' : 'IN_PAYMENT';
@@ -85,7 +102,8 @@ export class CancelPaymentUseCase {
           userId,
           {
             associateAccountId: associateAccount.id,
-            movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
+            movementType:
+              AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
             amount: Number(payment.amount),
             currencyCode: 'VES' as CurrencyCodeEnum,
             description: `REVERSO PAGO PRESTAMO - REF: ${payment.customReference}`,
@@ -93,12 +111,14 @@ export class CancelPaymentUseCase {
             referenceType: 'loanPayments',
             area: 'PRESTAMOS',
           },
-          tenantId, tx,
+          tenantId,
+          tx,
         );
       }
 
       await this.accounting.generateReversalEntry(
-        tenantId, userId,
+        tenantId,
+        userId,
         {
           id: payment.loanId!,
           associateId: payment.associateId ?? '',
@@ -113,7 +133,11 @@ export class CancelPaymentUseCase {
         payment.customReference ?? '',
       );
 
-      this.audit.logPaymentCancelled(userId, paymentId, payment.customReference ?? '');
+      this.audit.logPaymentCancelled(
+        userId,
+        paymentId,
+        payment.customReference ?? '',
+      );
 
       await this.outbox.write(tx, {
         eventId: uuidv4(),

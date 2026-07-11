@@ -1,7 +1,7 @@
 import { Global, Module, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { OutboxWriterService } from './outbox-writer.service';
 import { OutboxProcessor } from './outbox.processor';
-import { ConfigService } from '@nestjs/config';
 
 @Global()
 @Module({

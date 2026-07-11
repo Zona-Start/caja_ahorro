@@ -1,159 +1,162 @@
 import { apiClient } from '@/lib/api-client';
-import { z } from 'zod';
 
-const paymentBatchApiSchema = z.object({
-  id: z.number(),
-  customReference: z.string().nullable(),
-  bankAccountId: z.number(),
-  currencyCode: z.string(),
-  totalAmount: z.string(),
-  status: z.string(),
-  description: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  items: z.array(z.unknown()).optional(),
-});
+export interface PaymentBatchItem {
+  id: string;
+  paymentBatchId: string;
+  itemType: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION';
+  sourceId: string;
+  amount: string;
+  beneficiaryName: string;
+  beneficiaryId: string;
+  beneficiaryAccountNumber: string;
+  beneficiaryAccountType: string;
+  status: string;
+  rejectionReason?: string | null;
+}
 
-const paymentBatchApiResponseSchema = z.object({
-  message: z.string().optional(),
-  data: z.array(paymentBatchApiSchema),
-  meta: z
-    .object({
-      page: z.number(),
-      limit: z.number(),
-      totalCount: z.number(),
-      totalPages: z.number(),
-      hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
-      nextPage: z.number().nullable(),
-      previousPage: z.number().nullable(),
-    })
-    .optional(),
-});
+export interface PaymentBatch {
+  id: string;
+  paymentBatchReference: string;
+  description: string | null;
+  batchType: string;
+  status: string;
+  recordCount: number;
+  totalAmount: string;
+  currencyCode: string;
+  bankId: string | null;
+  bankFileName: string | null;
+  bankReference: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  bank?: {
+    id: string;
+    name: string;
+    accountNumber: string;
+  };
+  items?: PaymentBatchItem[];
+}
 
-const paymentBatchMutationSchema = z.object({
-  message: z.string(),
-  paymentBatchId: z.number(),
-});
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    totalItems: number;
+    itemCount: number;
+    itemsPerPage: number;
+    totalPages: number;
+    currentPage: number;
+  };
+}
 
-const approvedSourceItemsApiResponseSchema = z.object({
-  message: z.string().optional(),
-  data: z.array(z.unknown()),
-  meta: z.object({
-    page: z.number(),
-    limit: z.number(),
-    totalCount: z.number(),
-    totalPages: z.number(),
-  }).optional(),
-});
-
-export type PaymentBatch = z.infer<typeof paymentBatchApiSchema>;
+export interface ApprovedItem {
+  id: string;
+  associateId?: string;
+  associateCedula?: string;
+  associateName?: string;
+  reference: string | null;
+  approvalDate?: string;
+  amount: string;
+}
 
 export const paymentBatchService = {
   getPaymentBatches: async (filters: {
     page?: number;
     limit?: number;
-    status?: string;
-    search?: string;
+    status?: string | null;
+    search?: string | null;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
-  }) => {
-    const searchParams = new URLSearchParams({
-      page: (filters.page || 1).toString(),
-      limit: (filters.limit || 10).toString(),
-      ...(filters.status && { status: filters.status }),
-      ...(filters.search && { search: filters.search }),
-      ...(filters.sortBy && { sortBy: filters.sortBy }),
-      ...(filters.sortOrder && { sortOrder: filters.sortOrder }),
-    });
+  }): Promise<PaginatedResponse<PaymentBatch>> => {
+    const params = new URLSearchParams();
+    params.set('page', String(filters.page || 1));
+    params.set('limit', String(filters.limit || 10));
+    if (filters.status) params.set('status', filters.status);
+    if (filters.search) params.set('search', filters.search);
+    if (filters.sortBy) params.set('sortBy', filters.sortBy);
+    if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
 
     const response = await apiClient.get(
-      `/savings-banks/payment-batches?${searchParams}`
+      `/savings-banks/payment-batches?${params}`,
     );
-    const result = paymentBatchApiResponseSchema.parse(response.data);
-
-    return {
-      data: result.data || [],
-      meta: result.meta || {
-        page: 1,
-        limit: 10,
-        totalCount: 0,
-        totalPages: 1,
-        hasNextPage: false,
-        hasPreviousPage: false,
-        nextPage: null,
-        previousPage: null,
-      },
-    };
+    return response.data;
   },
 
-  getPaymentBatchDetails: async (id: number) => {
+  getPaymentBatchDetails: async (id: string): Promise<PaymentBatch> => {
     const response = await apiClient.get(`/savings-banks/payment-batches/${id}`);
-    return paymentBatchApiSchema.parse(response.data);
+    return response.data;
   },
 
-  createPaymentBatch: async (dto: unknown) => {
+  createPaymentBatch: async (dto: {
+    bankAccountId: string;
+    currencyCode: string;
+    description?: string;
+    batchType?: string;
+    items: { type: string; sourceId: string }[];
+  }): Promise<{ id: string; recordCount: number; totalAmount: string; reference: string }> => {
     const response = await apiClient.post('/savings-banks/payment-batches', dto);
-    return paymentBatchMutationSchema.parse(response.data);
+    return response.data;
   },
 
-  markAsUploaded: async (id: number) => {
+  markAsUploaded: async (id: string) => {
     const response = await apiClient.patch(
-      `/savings-banks/payment-batches/${id}/uploaded`
+      `/savings-banks/payment-batches/${id}/uploaded`,
     );
-    return paymentBatchMutationSchema.parse(response.data);
+    return response.data;
   },
 
-  confirmPaymentBatch: async (id: number, dto: unknown) => {
+  confirmPaymentBatch: async (
+    id: string,
+    dto: {
+      processedAt: string;
+      bankReference?: string;
+      items: { itemId: string; processed: boolean; rejectionReason?: string }[];
+    },
+  ) => {
     const response = await apiClient.patch(
       `/savings-banks/payment-batches/${id}/confirm`,
-      dto
+      dto,
     );
-    return paymentBatchMutationSchema.parse(response.data);
+    return response.data;
   },
 
-  cancelPaymentBatch: async (id: number) => {
+  cancelPaymentBatch: async (id: string) => {
     const response = await apiClient.patch(
-      `/savings-banks/payment-batches/${id}/cancel`
+      `/savings-banks/payment-batches/${id}/cancel`,
     );
-    return paymentBatchMutationSchema.parse(response.data);
+    return response.data;
   },
 
-  downloadTxtFile: async (id: number) => {
-    const response = await apiClient.get(`/savings-banks/payment-batches/${id}/txt`, {
-      responseType: 'text',
-    });
+  downloadTxtFile: async (id: string, fallbackName?: string) => {
+    const response = await apiClient.get(
+      `/savings-banks/payment-batches/${id}/txt`,
+      { responseType: 'text' },
+    );
+    const headers = response.headers as Record<string, string>;
+    const fileName = fallbackName
+      ? `${fallbackName}.txt`
+      : headers['x-filename'] || `lote-${id}.txt`;
     return {
-      fileName: `pagos-por-lote-${id}.txt`,
+      fileName,
       content: response.data as string,
     };
   },
 
-  getApprovedLoans: async () => {
+  getApprovedLoans: async (): Promise<{ data: ApprovedItem[] }> => {
     const response = await apiClient.get('/loan/approved');
-    const result = approvedSourceItemsApiResponseSchema.parse(response.data);
-    return result.data;
+    return response.data;
   },
 
-  getApprovedWithdrawals: async (page = 1, limit = 20) => {
-    const searchParams = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+  getApprovedWithdrawals: async (page = 1, limit = 50) => {
     const response = await apiClient.get(
-      `/savings-banks/withdrawal-associate/approved?${searchParams}`
+      `/savings-banks/withdrawal-associate/approved?page=${page}&limit=${limit}`,
     );
-    return approvedSourceItemsApiResponseSchema.parse(response.data);
+    return response.data as PaginatedResponse<ApprovedItem>;
   },
 
-  getApprovedLiquidations: async (page = 1, limit = 20) => {
-    const searchParams = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+  getApprovedLiquidations: async (page = 1, limit = 50) => {
     const response = await apiClient.get(
-      `/savings-banks/settlement-associate/approved?${searchParams}`
+      `/savings-banks/settlement-associate/approved?page=${page}&limit=${limit}`,
     );
-    return approvedSourceItemsApiResponseSchema.parse(response.data);
+    return response.data as PaginatedResponse<ApprovedItem>;
   },
 };

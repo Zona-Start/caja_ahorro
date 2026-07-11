@@ -25,6 +25,10 @@ export const CreateSupplierInvoiceSchema = z.object({
   status: z.string().optional(),
   observations: z.string().optional(),
   items: z.array(ItemSchema).optional(),
+  currencyCode: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  bankAccountId: z.string().uuid().optional(),
+  bankReference: z.string().optional(),
 });
 
 export const FilterSupplierInvoiceSchema = z.object({
@@ -56,6 +60,60 @@ export const UpdateSupplierInvoiceSchema = z.object({
   items: z.array(ItemSchema).optional(),
 });
 
-export type CreateSupplierInvoiceDto = z.infer<typeof CreateSupplierInvoiceSchema>;
-export type FilterSupplierInvoiceDto = z.infer<typeof FilterSupplierInvoiceSchema>;
-export type UpdateSupplierInvoiceDto = z.infer<typeof UpdateSupplierInvoiceSchema>;
+export type CreateSupplierInvoiceDto = z.infer<
+  typeof CreateSupplierInvoiceSchema
+>;
+export type FilterSupplierInvoiceDto = z.infer<
+  typeof FilterSupplierInvoiceSchema
+>;
+export type UpdateSupplierInvoiceDto = z.infer<
+  typeof UpdateSupplierInvoiceSchema
+>;
+
+export const CreateCreditNoteSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  supplierId: z.string().uuid(),
+  accountsPayableId: z.string().uuid().optional(),
+  reason: z.string().min(3),
+  amount: z.coerce.number().positive(),
+  taxAmount: z.coerce.number().optional().default(0),
+  observations: z.string().optional(),
+  creditNoteNumber: z.string(),
+  notesDate: z.coerce.date(),
+  returnItems: z
+    .array(
+      z.object({
+        itemId: z.number().int().positive(),
+        itemType: z.enum(['PRODUCT', 'FIXED_ASSET']),
+        quantity: z.number().int().positive(),
+        unitCost: z.coerce.number().nonnegative(),
+        description: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+export const CreateDebitNoteSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  supplierId: z.string().uuid(),
+  accountsPayableId: z.string().uuid().optional(),
+  reason: z.string().min(3),
+  amount: z.coerce.number().positive(),
+  taxAmount: z.coerce.number().optional().default(0),
+  observations: z.string().optional(),
+  debitNoteNumber: z.string(),
+  notesDate: z.coerce.date(),
+});
+
+export const VoidInvoiceSchema = z.object({
+  reason: z.string().min(3),
+});
+
+export const StatusTransitionSchema = z.object({
+  status: z.enum(['DRAFT', 'PENDING', 'CANCELLED']),
+});
+
+export type CreateCreditNoteDto = z.infer<typeof CreateCreditNoteSchema>;
+export type CreateDebitNoteDto = z.infer<typeof CreateDebitNoteSchema>;
+export type VoidInvoiceDto = z.infer<typeof VoidInvoiceSchema>;
+export type StatusTransitionDto = z.infer<typeof StatusTransitionSchema>;

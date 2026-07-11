@@ -1,6 +1,6 @@
-import { z } from 'zod';
-import { createZodDto } from 'nestjs-zod';
 import { PaginationSchema } from '@/common/dto/pagination.dto';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const ServicePaginationSchema = PaginationSchema.extend({
   name: z.string().optional(),
@@ -8,4 +8,6 @@ export const ServicePaginationSchema = PaginationSchema.extend({
   status: z.string().optional(),
 });
 
-export class ServicePaginationDto extends createZodDto(ServicePaginationSchema) {}
+export class ServicePaginationDto extends createZodDto(
+  ServicePaginationSchema,
+) {}

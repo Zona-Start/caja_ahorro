@@ -7,7 +7,10 @@ export const UpdateBankAccountSchema = z.object({
   tenantId: z.string().uuid().optional(),
   bankDirectoryId: z.string().uuid().optional(),
   accountName: z.string().optional(),
-  accountNumber: z.string().regex(/^\d{20}$/).optional(),
+  accountNumber: z
+    .string()
+    .regex(/^\d{20}$/)
+    .optional(),
   accountType: accountTypeEnum.optional(),
   currencyCode: currencyCodeEnum.optional(),
   openingDate: z.coerce.date().optional(),

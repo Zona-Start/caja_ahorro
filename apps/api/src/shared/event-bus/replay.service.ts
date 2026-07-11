@@ -1,7 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { EVENT_BUS_TOKEN, IEventBus } from './event-bus.interface';
 import { EventStoreService } from './event-store.service';
-import { IEventBus, EVENT_BUS_TOKEN } from './event-bus.interface';
-import { Inject } from '@nestjs/common';
 
 @Injectable()
 export class ReplayService {
@@ -40,7 +39,9 @@ export class ReplayService {
       }
     }
 
-    this.logger.log(`Replayed ${count} events from ${from.toISOString()} to ${to.toISOString()}`);
+    this.logger.log(
+      `Replayed ${count} events from ${from.toISOString()} to ${to.toISOString()}`,
+    );
     return count;
   }
 

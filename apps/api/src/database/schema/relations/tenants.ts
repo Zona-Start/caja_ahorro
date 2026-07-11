@@ -1,10 +1,5 @@
 import { relations } from 'drizzle-orm';
-import {
-  tenants,
-  tenantModuleIntegrations,
-  tenantModules,
-  tenantSettings,
-} from '../tables/tenants';
+import { accountPlan } from '../tables/accounting';
 import {
   categories,
   currencies,
@@ -14,7 +9,12 @@ import {
   parishes,
   states,
 } from '../tables/core';
-import { accountPlan } from '../tables/accounting';
+import {
+  tenantModuleIntegrations,
+  tenantModules,
+  tenants,
+  tenantSettings,
+} from '../tables/tenants';
 
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   tenantSettings: many(tenantSettings),

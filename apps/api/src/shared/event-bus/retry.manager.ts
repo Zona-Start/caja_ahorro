@@ -16,7 +16,10 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 
 const HANDLER_CONFIGS = new Map<string, RetryConfig>();
 
-export function configureRetry(handlerName: string, config: Partial<RetryConfig>): void {
+export function configureRetry(
+  handlerName: string,
+  config: Partial<RetryConfig>,
+): void {
   const existing = HANDLER_CONFIGS.get(handlerName) ?? DEFAULT_RETRY_CONFIG;
   HANDLER_CONFIGS.set(handlerName, { ...existing, ...config });
 }

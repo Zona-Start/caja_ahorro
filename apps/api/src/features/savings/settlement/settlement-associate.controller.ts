@@ -1,3 +1,6 @@
+import { PaginationDto } from '@/common/dto/pagination.dto';
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -10,9 +13,6 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
-import { TenantContextService } from '@/common/services/tenant-context.service';
-import { PaginationDto } from '@/common/dto/pagination.dto';
 import {
   CreateSettlementAssociateSchema,
   DisburseSettlementAssociateSchema,
@@ -36,7 +36,8 @@ export class SettlementAssociateController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   createRequest(@Req() req: Request, @Body() dto: any) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.create(targetTenantId, userId, dto);
   }
 
@@ -48,7 +49,8 @@ export class SettlementAssociateController {
   })
   @ApiResponse({ status: 404, description: 'Settlement request not found.' })
   approveRequest(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
     return this.service.approve(targetTenantId, userId, id);
   }
 
@@ -70,14 +72,18 @@ export class SettlementAssociateController {
     @Param('id') id: string,
     @Body() dto: any,
   ) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(req, dto);
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.disburse(targetTenantId, userId, id, dto);
   }
 
   @Get('approved')
   @ApiOperation({ summary: 'Get all settlement approved' })
   @ApiResponse({ status: 200, description: 'Return all settlement approved' })
-  findSettlementAprovee(@Req() req: Request, @Query() paginationDto: PaginationDto) {
+  findSettlementAprovee(
+    @Req() req: Request,
+    @Query() paginationDto: PaginationDto,
+  ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findSettlementAprovee(targetTenantId, paginationDto);
   }

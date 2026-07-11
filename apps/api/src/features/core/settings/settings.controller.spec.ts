@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ClsService } from 'nestjs-cls';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
-import { ClsService } from 'nestjs-cls';
 
 describe('SettingsController', () => {
   let controller: SettingsController;
@@ -53,18 +53,18 @@ describe('SettingsController', () => {
     it('should call findAllModule with current tenantId for non-admin', async () => {
       (cls.get as jest.Mock).mockReturnValue(tenantId);
       const req = { user: { isSystemAdmin: false } };
-      
+
       await controller.findAllModule({} as any, req as any);
-      
+
       expect(service.findAllModule).toHaveBeenCalledWith({}, tenantId);
     });
 
     it('should call findAllModule with undefined tenantId for system admin', async () => {
       (cls.get as jest.Mock).mockReturnValue(tenantId);
       const req = { user: { isSystemAdmin: true } };
-      
+
       await controller.findAllModule({} as any, req as any);
-      
+
       expect(service.findAllModule).toHaveBeenCalledWith({}, undefined);
     });
 
@@ -72,9 +72,9 @@ describe('SettingsController', () => {
       (cls.get as jest.Mock).mockReturnValue(tenantId);
       const req = { user: { isSystemAdmin: false } };
       const dto = { value: 'new' };
-      
+
       await controller.updateModule('id-1', dto, req as any);
-      
+
       expect(service.updateModule).toHaveBeenCalledWith('id-1', dto, tenantId);
     });
   });

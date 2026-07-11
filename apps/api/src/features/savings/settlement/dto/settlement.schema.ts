@@ -19,6 +19,12 @@ export const UpdateSettlementAssociateSchema = z.object({
   description: z.string().optional(),
 });
 
-export type CreateSettlementAssociateDto = z.infer<typeof CreateSettlementAssociateSchema>;
-export type DisburseSettlementAssociateDto = z.infer<typeof DisburseSettlementAssociateSchema>;
-export type UpdateSettlementAssociateDto = z.infer<typeof UpdateSettlementAssociateSchema>;
+export type CreateSettlementAssociateDto = z.infer<
+  typeof CreateSettlementAssociateSchema
+>;
+export type DisburseSettlementAssociateDto = z.infer<
+  typeof DisburseSettlementAssociateSchema
+>;
+export type UpdateSettlementAssociateDto = z.infer<
+  typeof UpdateSettlementAssociateSchema
+>;

@@ -59,9 +59,7 @@ export class BankMovementsService {
     }
 
     if (category) {
-      conditions.push(
-        eq(schema.bankTransactions.category, category as any),
-      );
+      conditions.push(eq(schema.bankTransactions.category, category as any));
     }
 
     if (startDate) {
@@ -371,8 +369,7 @@ export class BankMovementsService {
         ),
       );
 
-    if (!existing)
-      throw new NotFoundException(`Bank movement ${id} not found`);
+    if (!existing) throw new NotFoundException(`Bank movement ${id} not found`);
 
     if (existing.reconciliationStatus === 'RECONCILED') {
       throw new BadRequestException(
@@ -448,7 +445,10 @@ export class BankMovementsService {
         );
       }
 
-      return { message: 'Movement created and reconciled successfully', movement };
+      return {
+        message: 'Movement created and reconciled successfully',
+        movement,
+      };
     });
   }
 
@@ -490,9 +490,10 @@ export class BankMovementsService {
             type: sql<string>`'MEMBER_CONTRIBUTION'`.as('type'),
             amount: schema.associateAccountMovements.amount,
             date: schema.associateAccountMovements.transactionDate,
-            concept: sql<string>`CONCAT('Aporte Socio ', ${schema.associates.fullname})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Aporte Socio ', ${schema.associates.fullname})`.as(
+                'concept',
+              ),
           })
           .from(schema.associateAccountMovements)
           .innerJoin(
@@ -528,9 +529,10 @@ export class BankMovementsService {
             type: sql<string>`'MEMBER_WITHDRAWAL'`.as('type'),
             amount: schema.withdrawalsAssociates.requestedAmount,
             date: schema.withdrawalsAssociates.withdrawalDate,
-            concept: sql<string>`CONCAT('Retiro Socio ', ${schema.withdrawalsAssociates.referenceCode})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Retiro Socio ', ${schema.withdrawalsAssociates.referenceCode})`.as(
+                'concept',
+              ),
           })
           .from(schema.withdrawalsAssociates)
           .leftJoin(
@@ -555,9 +557,10 @@ export class BankMovementsService {
             type: sql<string>`'PAYROLL_SETTLEMENT'`.as('type'),
             amount: schema.liquidationsAssociates.netLiquidationAmount,
             date: schema.liquidationsAssociates.liquidationDate,
-            concept: sql<string>`CONCAT('Liquidacion Socio ', ${schema.liquidationsAssociates.customReference})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Liquidacion Socio ', ${schema.liquidationsAssociates.customReference})`.as(
+                'concept',
+              ),
           })
           .from(schema.liquidationsAssociates)
           .leftJoin(
@@ -583,9 +586,10 @@ export class BankMovementsService {
             type: sql<string>`'LOAN_DISBURSEMENT'`.as('type'),
             amount: schema.loans.disbursedAmount,
             date: schema.loans.disbursementDate,
-            concept: sql<string>`CONCAT('Desembolso Prestamo N ', ${schema.loans.customReference})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Desembolso Prestamo N ', ${schema.loans.customReference})`.as(
+                'concept',
+              ),
           })
           .from(schema.loans)
           .leftJoin(
@@ -610,9 +614,10 @@ export class BankMovementsService {
             type: sql<string>`'LOAN_PAYMENT'`.as('type'),
             amount: schema.loanPayments.amount,
             date: schema.loanPayments.paymentDate,
-            concept: sql<string>`CONCAT('Pago Cuota Prestamo ', ${schema.loanPayments.customReference})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Pago Cuota Prestamo ', ${schema.loanPayments.customReference})`.as(
+                'concept',
+              ),
           })
           .from(schema.loanPayments)
           .leftJoin(
@@ -637,9 +642,10 @@ export class BankMovementsService {
             type: sql<string>`'CREDIT_DISBURSEMENT'`.as('type'),
             amount: schema.credits.requestedAmount,
             date: schema.credits.approvalDate,
-            concept: sql<string>`CONCAT('Desembolso Credito ', ${schema.credits.customReference})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Desembolso Credito ', ${schema.credits.customReference})`.as(
+                'concept',
+              ),
           })
           .from(schema.credits)
           .leftJoin(
@@ -664,9 +670,10 @@ export class BankMovementsService {
             type: sql<string>`'CREDIT_PAYMENT'`.as('type'),
             amount: schema.creditPayments.amount,
             date: schema.creditPayments.paymentDate,
-            concept: sql<string>`CONCAT('Pago Credito ', ${schema.creditPayments.customReference})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Pago Credito ', ${schema.creditPayments.customReference})`.as(
+                'concept',
+              ),
           })
           .from(schema.creditPayments)
           .leftJoin(
@@ -691,9 +698,10 @@ export class BankMovementsService {
             type: sql<string>`'SUPPLIER_PAYMENT'`.as('type'),
             amount: schema.supplierPaymentLines.amount,
             date: schema.supplierPayments.bankTransactionDate,
-            concept: sql<string>`CONCAT('Prov ', ${schema.suppliers.internalCode}, ' - ', ${schema.accountsPayable.accountsPayableNumber})`.as(
-              'concept',
-            ),
+            concept:
+              sql<string>`CONCAT('Prov ', ${schema.suppliers.internalCode}, ' - ', ${schema.accountsPayable.accountsPayableNumber})`.as(
+                'concept',
+              ),
           })
           .from(schema.supplierPaymentLines)
           .innerJoin(
@@ -820,7 +828,10 @@ export class BankMovementsService {
         recordId: bankTransactionId,
         description: `Bank movement reconciled with ${dto.internalRecordType} #${dto.internalRecordId}`,
         area: 'Treasury',
-        newData: { internalRecordType: dto.internalRecordType, internalRecordId: dto.internalRecordId },
+        newData: {
+          internalRecordType: dto.internalRecordType,
+          internalRecordId: dto.internalRecordId,
+        },
         tenantId,
       }),
     );
@@ -834,13 +845,18 @@ export class BankMovementsService {
       .from(schema.internalTransactionBankLinks)
       .where(
         and(
-          eq(schema.internalTransactionBankLinks.bankTransactionId, bankTransactionId),
+          eq(
+            schema.internalTransactionBankLinks.bankTransactionId,
+            bankTransactionId,
+          ),
           eq(schema.internalTransactionBankLinks.tenantId, tenantId),
         ),
       );
 
     if (!link) {
-      throw new NotFoundException(`No link found for bank transaction ${bankTransactionId}`);
+      throw new NotFoundException(
+        `No link found for bank transaction ${bankTransactionId}`,
+      );
     }
     return link;
   }
@@ -850,14 +866,19 @@ export class BankMovementsService {
       .delete(schema.internalTransactionBankLinks)
       .where(
         and(
-          eq(schema.internalTransactionBankLinks.bankTransactionId, bankTransactionId),
+          eq(
+            schema.internalTransactionBankLinks.bankTransactionId,
+            bankTransactionId,
+          ),
           eq(schema.internalTransactionBankLinks.tenantId, tenantId),
         ),
       )
       .returning();
 
     if (!link) {
-      throw new NotFoundException(`No link found for bank transaction ${bankTransactionId}`);
+      throw new NotFoundException(
+        `No link found for bank transaction ${bankTransactionId}`,
+      );
     }
 
     await this.db
@@ -887,10 +908,16 @@ export class BankMovementsService {
 
       if (!orig) throw new NotFoundException('Bank movement not found');
       if (orig.reconciliationStatus !== 'RECONCILED') {
-        throw new ConflictException('Only reconciled movements can be reversed');
+        throw new ConflictException(
+          'Only reconciled movements can be reversed',
+        );
       }
 
-      const internalCode = await this._getNextMovementCode(tenantId, userId, tx);
+      const internalCode = await this._getNextMovementCode(
+        tenantId,
+        userId,
+        tx,
+      );
 
       const [rev] = await tx
         .insert(schema.bankTransactions)
@@ -915,14 +942,20 @@ export class BankMovementsService {
         .delete(schema.internalTransactionBankLinks)
         .where(
           and(
-            eq(schema.internalTransactionBankLinks.bankTransactionId, bankTransactionId),
+            eq(
+              schema.internalTransactionBankLinks.bankTransactionId,
+              bankTransactionId,
+            ),
             eq(schema.internalTransactionBankLinks.tenantId, tenantId),
           ),
         );
 
       await tx
         .update(schema.bankTransactions)
-        .set({ reconciliationStatus: 'PENDING', internalLinkStatus: 'UNLINKED' })
+        .set({
+          reconciliationStatus: 'PENDING',
+          internalLinkStatus: 'UNLINKED',
+        })
         .where(eq(schema.bankTransactions.id, bankTransactionId));
 
       this.eventEmitter.emit(
@@ -939,7 +972,11 @@ export class BankMovementsService {
         }),
       );
 
-      return { originalId: bankTransactionId, reversalId: rev.id, message: 'Movement reversed successfully' };
+      return {
+        originalId: bankTransactionId,
+        reversalId: rev.id,
+        message: 'Movement reversed successfully',
+      };
     });
   }
 

@@ -1,12 +1,21 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
 import {
-  IEventBus, EVENT_BUS_TOKEN, IdempotencyService,
-  RetryManager, EventTracerService, EventMetricsService,
-  DeadLetterQueueService, createIdempotentHandler, EventEnvelope,
+  createIdempotentHandler,
+  DeadLetterQueueService,
+  EVENT_BUS_TOKEN,
+  EventEnvelope,
+  EventMetricsService,
+  EventTracerService,
+  IdempotencyService,
+  IEventBus,
+  RetryManager,
 } from '@/shared/event-bus';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { LoanPaymentAudit } from '../domain/loan-payment.audit';
-import { LOAN_PAYMENT_EVENTS, LoanPaymentCreatedEvent, LoanPaymentCancelledEvent } from '../events/loan-payment.events';
+import {
+  LOAN_PAYMENT_EVENTS,
+  LoanPaymentCancelledEvent,
+  LoanPaymentCreatedEvent,
+} from '../events/loan-payment.events';
 
 const HANDLER_NAME = 'LoanPaymentAuditSubscriber';
 
@@ -58,7 +67,9 @@ export class LoanPaymentAuditSubscriber implements OnModuleInit {
     this.logger.log(`${HANDLER_NAME} registered with reliability layer`);
   }
 
-  private handlePaymentCreated(envelope: EventEnvelope<LoanPaymentCreatedEvent>) {
+  private handlePaymentCreated(
+    envelope: EventEnvelope<LoanPaymentCreatedEvent>,
+  ) {
     const { payload } = envelope;
     this.audit.logPaymentCreated(
       '',
@@ -74,8 +85,14 @@ export class LoanPaymentAuditSubscriber implements OnModuleInit {
     );
   }
 
-  private handlePaymentCancelled(envelope: EventEnvelope<LoanPaymentCancelledEvent>) {
+  private handlePaymentCancelled(
+    envelope: EventEnvelope<LoanPaymentCancelledEvent>,
+  ) {
     const { payload } = envelope;
-    this.audit.logPaymentCancelled('', payload.paymentId, payload.customReference);
+    this.audit.logPaymentCancelled(
+      '',
+      payload.paymentId,
+      payload.customReference,
+    );
   }
 }

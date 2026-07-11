@@ -9,7 +9,12 @@ import { AuditLogListener } from './events/audit-log.listener';
 
 @Module({
   imports: [DrizzleModule],
-  providers: [AuditEventService, AuditHelper, SystemEventHelper, AuditLogListener],
+  providers: [
+    AuditEventService,
+    AuditHelper,
+    SystemEventHelper,
+    AuditLogListener,
+  ],
   exports: [AuditEventService, AuditHelper, SystemEventHelper],
 })
 export class AuditModule {}

@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const PaginationSchema = z.object({
   page: z
@@ -25,7 +25,11 @@ export const PaginationSchema = z.object({
     .default('asc')
     .optional(),
 
-  tenantId: z.string().uuid().optional().describe("Tenant ID (opcional para superadmins)"),
+  tenantId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe('Tenant ID (opcional para superadmins)'),
 });
 
 export class PaginationDto extends createZodDto(PaginationSchema) {}

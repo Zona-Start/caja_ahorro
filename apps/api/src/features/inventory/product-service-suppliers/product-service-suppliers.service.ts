@@ -10,9 +10,11 @@ import {
 } from '@nestjs/common';
 import { and, eq, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { CreateProductServiceSupplierDto } from './dto/product-service-suppliers.schema';
-import { UpdateProductServiceSupplierDto } from './dto/product-service-suppliers.schema';
 import { ProductServiceSupplierPaginationDto } from './dto/pagination-product-service-supplier.dto';
+import {
+  CreateProductServiceSupplierDto,
+  UpdateProductServiceSupplierDto,
+} from './dto/product-service-suppliers.schema';
 
 type ProductServiceSupplierSelect = typeof productServiceSuppliers.$inferSelect;
 
@@ -40,7 +42,9 @@ export class ProductServiceSuppliersService {
       conditions.push(eq(productServiceSuppliers.serviceId, dto.serviceId));
     }
     if (dto.fixedAssetsId) {
-      conditions.push(eq(productServiceSuppliers.fixedAssetsId, dto.fixedAssetsId));
+      conditions.push(
+        eq(productServiceSuppliers.fixedAssetsId, dto.fixedAssetsId),
+      );
     }
 
     const [exist] = await this.db
@@ -67,11 +71,16 @@ export class ProductServiceSuppliersService {
       })
       .returning();
 
-    await this.auditHelper.logCreate(userId, 'product_service_supplier', created, {
-      tenantId,
-      targetId: created.id,
-      description: `Created product service supplier relationship`,
-    });
+    await this.auditHelper.logCreate(
+      userId,
+      'product_service_supplier',
+      created,
+      {
+        tenantId,
+        targetId: created.id,
+        description: `Created product service supplier relationship`,
+      },
+    );
 
     return created;
   }
@@ -79,7 +88,10 @@ export class ProductServiceSuppliersService {
   async findAllByPagination(
     tenantId: string | null,
     paginationDto?: ProductServiceSupplierPaginationDto,
-  ): Promise<{ data: Record<string, unknown>[]; meta: Record<string, unknown> }> {
+  ): Promise<{
+    data: Record<string, unknown>[];
+    meta: Record<string, unknown>;
+  }> {
     const {
       page = 1,
       limit = 10,
@@ -102,10 +114,14 @@ export class ProductServiceSuppliersService {
       searchConditions.push(eq(productServiceSuppliers.serviceId, serviceId));
     }
     if (fixedAssetsId) {
-      searchConditions.push(eq(productServiceSuppliers.fixedAssetsId, fixedAssetsId));
+      searchConditions.push(
+        eq(productServiceSuppliers.fixedAssetsId, fixedAssetsId),
+      );
     }
     if (suppliersId) {
-      searchConditions.push(eq(productServiceSuppliers.suppliersId, suppliersId));
+      searchConditions.push(
+        eq(productServiceSuppliers.suppliersId, suppliersId),
+      );
     }
 
     if (tenantId) {
@@ -158,7 +174,13 @@ export class ProductServiceSuppliersService {
   async findOne(
     id: string,
     tenantId?: string | null,
-  ): Promise<ProductServiceSupplierSelect & { product?: unknown; service?: unknown; supplier?: unknown }> {
+  ): Promise<
+    ProductServiceSupplierSelect & {
+      product?: unknown;
+      service?: unknown;
+      supplier?: unknown;
+    }
+  > {
     const conditions: SQL<unknown>[] = [eq(productServiceSuppliers.id, id)];
 
     if (tenantId) {
@@ -193,9 +215,11 @@ export class ProductServiceSuppliersService {
 
     if (dto.productId !== undefined) updateData.productId = dto.productId;
     if (dto.serviceId !== undefined) updateData.serviceId = dto.serviceId;
-    if (dto.fixedAssetsId !== undefined) updateData.fixedAssetsId = dto.fixedAssetsId;
+    if (dto.fixedAssetsId !== undefined)
+      updateData.fixedAssetsId = dto.fixedAssetsId;
     if (dto.suppliersId !== undefined) updateData.suppliersId = dto.suppliersId;
-    if (dto.leadTimeDays !== undefined) updateData.leadTimeDays = dto.leadTimeDays;
+    if (dto.leadTimeDays !== undefined)
+      updateData.leadTimeDays = dto.leadTimeDays;
     if (dto.preferred !== undefined) updateData.preferred = dto.preferred;
 
     const whereConditions = [eq(productServiceSuppliers.id, id)];
@@ -210,7 +234,9 @@ export class ProductServiceSuppliersService {
       .returning();
 
     if (!updated) {
-      throw new NotFoundException('Product service supplier not found after update');
+      throw new NotFoundException(
+        'Product service supplier not found after update',
+      );
     }
 
     await this.auditHelper.logUpdate(
@@ -244,11 +270,16 @@ export class ProductServiceSuppliersService {
       .delete(productServiceSuppliers)
       .where(and(...whereConditions));
 
-    await this.auditHelper.logDelete(userId, 'product_service_supplier', existing, {
-      tenantId: existing.tenantId,
-      targetId: id,
-      description: `Deleted product service supplier relationship`,
-    });
+    await this.auditHelper.logDelete(
+      userId,
+      'product_service_supplier',
+      existing,
+      {
+        tenantId: existing.tenantId,
+        targetId: id,
+        description: `Deleted product service supplier relationship`,
+      },
+    );
   }
 
   async syncForFixedAsset(

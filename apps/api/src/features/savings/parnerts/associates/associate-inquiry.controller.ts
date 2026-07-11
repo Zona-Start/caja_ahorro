@@ -1,6 +1,3 @@
-import { ReqLogInterceptor } from 'src/common/interceptors/req-log.interceptor';
-import { ZodValidatorPipe } from 'src/common/pipes/zod-validator.pipe';
-import { TenantContextService } from 'src/common/services/tenant-context.service';
 import {
   Controller,
   Get,
@@ -12,11 +9,13 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
+import { ReqLogInterceptor } from 'src/common/interceptors/req-log.interceptor';
+import { ZodValidatorPipe } from 'src/common/pipes/zod-validator.pipe';
+import { TenantContextService } from 'src/common/services/tenant-context.service';
 import { AssociateInquiryService } from './associate-inquiry.service';
 import {
-  InquiryFilterSchema,
-  InquiryStatementFilterSchema,
   InquiryStatementFilterDto,
+  InquiryStatementFilterSchema,
 } from './dto/inquiry-filter.zod.dto';
 
 @ApiTags('savings-banks/associates/inquiry')

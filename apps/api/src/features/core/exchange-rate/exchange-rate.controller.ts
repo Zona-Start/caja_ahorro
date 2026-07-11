@@ -7,7 +7,9 @@ export class ExchangeRatesController {
 
   @Get('latest/:currencyCode')
   async getLatestRate(@Param('currencyCode') currencyCode: string) {
-    const rate = await this.bcvService.getLatestRate(currencyCode.toUpperCase() as 'USD' | 'EUR');
+    const rate = await this.bcvService.getLatestRate(
+      currencyCode.toUpperCase() as 'USD' | 'EUR',
+    );
     if (!rate) {
       return { rate: null, fetchedAt: null };
     }

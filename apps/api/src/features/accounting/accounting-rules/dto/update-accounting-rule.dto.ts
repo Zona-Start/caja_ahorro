@@ -10,4 +10,4 @@ export const UpdateAccountingRuleSchema = CreateAccountingRuleSchema.partial();
 
 export class UpdateAccountingRuleDto extends createZodDto(
   UpdateAccountingRuleSchema,
-) { }
+) {}

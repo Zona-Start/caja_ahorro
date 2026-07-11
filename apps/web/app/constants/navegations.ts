@@ -9,6 +9,7 @@ import {
   FileText,
   HandCoins,
   Landmark,
+  Layers,
   LayoutDashboard,
   Lock,
   LucideIcon,
@@ -99,10 +100,6 @@ export const navGroups: NavGroup[] = [
             href: '/dashboard/caja-ahorro/liquidacion',
           },
           {
-            label: 'Desembolsos',
-            href: '/dashboard/caja-ahorro/desembolsos',
-          },
-          {
             label: 'Tipos de Retiros',
             href: '/dashboard/caja-ahorro/tipo-retiros',
           },
@@ -153,6 +150,11 @@ export const navGroups: NavGroup[] = [
             href: '/dashboard/caja-ahorro/tipo-creditos',
           },
         ],
+      },
+      {
+        label: 'Pagos por Lotes',
+        href: '/dashboard/caja-ahorro/pagos-por-lotes',
+        icon: Layers,
       },
     ],
   },

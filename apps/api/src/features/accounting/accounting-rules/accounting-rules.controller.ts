@@ -1,5 +1,4 @@
 import { ReqLogInterceptor } from '@/common/interceptors';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
@@ -16,10 +15,7 @@ import {
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AccountingRulesService } from './accounting-rules.service';
-import {
-  CreateAccountingRuleDto,
-  CreateAccountingRuleSchema,
-} from './dto/create-accounting-rule.dto';
+import { CreateAccountingRuleDto } from './dto/create-accounting-rule.dto';
 import { FilterAccountingRulesDto } from './dto/filter-accounting-rule.dto';
 import { UpdateAccountingRuleDto } from './dto/update-accounting-rule.dto';
 
@@ -30,7 +26,7 @@ export class AccountingRulesController {
   constructor(
     private readonly accountingRulesService: AccountingRulesService,
     private readonly tenantContext: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new accounting rule' })
@@ -38,19 +34,20 @@ export class AccountingRulesController {
     status: 201,
     description: 'Accounting rule created successfully.',
   })
-  async create(
-    @Req() req: Request,
-    @Body() dto: CreateAccountingRuleDto,
-  ) {
+  async create(@Req() req: Request, @Body() dto: CreateAccountingRuleDto) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(
       req,
       dto,
     );
-    const result = await this.accountingRulesService.create(targetTenantId, userId, dto);
+    const result = await this.accountingRulesService.create(
+      targetTenantId,
+      userId,
+      dto,
+    );
     return {
       message: 'accounting rule created successfully',
       data: result,
-    }
+    };
   }
 
   @Get()

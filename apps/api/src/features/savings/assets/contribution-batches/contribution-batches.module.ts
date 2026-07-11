@@ -19,10 +19,7 @@ import { ContributionBatchesService } from './contribution-batches.service';
     AccountingEntriesModule,
   ],
   controllers: [ContributionBatchesController],
-  providers: [
-    ContributionBatchesService,
-    ContributionBatchesAccountingService,
-  ],
+  providers: [ContributionBatchesService, ContributionBatchesAccountingService],
   exports: [ContributionBatchesService, ContributionBatchesAccountingService],
 })
 export class ContributionBatchesModule {}

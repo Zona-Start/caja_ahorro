@@ -1,17 +1,22 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
 import {
   accountsPayable,
   purchaseOrderItems,
   purchaseOrders,
+  supplierCreditNotes,
+  supplierDebitNotes,
   supplierInvoiceItems,
   supplierInvoices,
   supplierPaymentLines,
   supplierPayments,
+  suppliers,
   supplierTransactionApplications,
   supplierTransactions,
-  suppliers,
 } from '@/database/schema';
-import { priceTypeEnum } from '@/types/enum';
+import { CurrencyCodeEnum, priceTypeEnum } from '@/types/enum';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import {
   BadRequestException,
   ConflictException,
@@ -22,8 +27,6 @@ import {
 import { differenceInDays } from 'date-fns';
 import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/schema';
 import { FixedAssetPricesService } from '../../inventory/fixed-asset-prices/fixed-asset-prices.service';
 import { InventoryMovementsService } from '../../inventory/inventory-movements/inventory-movements.service';
 import { ProductPricesService } from '../../inventory/product-prices/product-prices.service';
@@ -40,10 +43,11 @@ export class SupplierInvoicesService {
     private readonly inventoryMovementsService: InventoryMovementsService,
     private readonly fixedAssetPricesService: FixedAssetPricesService,
     private readonly servicePricesService: ServicePricesService,
+    private readonly accountingEntriesService: AccountingEntriesService,
   ) {}
 
   async create(userId: string, dto: any, tenantId: string) {
-    const { status } = dto;
+    const isCash = dto.paymentType === 'CASH';
 
     const supplier = await this.drizzle
       .select()
@@ -54,13 +58,28 @@ export class SupplierInvoicesService {
       throw new NotFoundException('Supplier not found');
     }
 
-    if (status !== 'DRAFT' && status !== 'PENDING') {
+    const invoiceStatus = isCash ? 'PAID' : (dto.status ?? 'DRAFT');
+
+    if (!isCash && invoiceStatus !== 'DRAFT' && invoiceStatus !== 'PENDING') {
       throw new BadRequestException(
-        `Invalid status for creation: ${status}. Only 'DRAFT' or 'PENDING' are allowed.`,
+        `Invalid status for creation: ${invoiceStatus}. Only 'DRAFT' or 'PENDING' are allowed.`,
+      );
+    }
+
+    if (isCash && (!dto.paymentMethod || !dto.bankAccountId)) {
+      throw new BadRequestException(
+        'Payment method and bank account are required for cash invoices.',
       );
     }
 
     return this.drizzle.transaction(async (tx) => {
+      const invoiceNumber = await this.generateCodeService.generateNextReference(
+        'FAC-P',
+        tenantId,
+        'purchasing',
+        'invoices',
+      );
+
       const newInvoice = await tx
         .insert(supplierInvoices)
         .values({
@@ -69,33 +88,123 @@ export class SupplierInvoicesService {
           purchaseOrderId: dto.purchaseOrderId ?? null,
           invoiceNumber: dto.invoiceNumber,
           controlNumber: dto.controlNumber,
-          invoiceDate: dto.invoiceDate instanceof Date ? dto.invoiceDate.toISOString() : dto.invoiceDate,
-          dueDate: dto.dueDate ? (dto.dueDate instanceof Date ? dto.dueDate.toISOString() : dto.dueDate) : null,
+          invoiceDate:
+            dto.invoiceDate instanceof Date
+              ? dto.invoiceDate.toISOString()
+              : dto.invoiceDate,
+          dueDate: dto.dueDate
+            ? dto.dueDate instanceof Date
+              ? dto.dueDate.toISOString()
+              : dto.dueDate
+            : null,
           subtotal: dto.subtotal.toString(),
           taxAmount: dto.taxAmount?.toString() ?? '0.00',
           totalAmount: dto.totalAmount.toString(),
-          currencyCode: 'VES',
+          currencyCode: dto.currencyCode ?? 'VES',
           paymentType: dto.paymentType ?? 'CREDIT',
-          status: dto.status ?? 'DRAFT',
+          status: invoiceStatus,
           observations: dto.observations,
           createdById: userId,
-          supplierInvoiceNumber:
-            await this.generateCodeService.generateNextReference('FAC-P', tenantId, 'purchasing', 'invoices'),
+          supplierInvoiceNumber: invoiceNumber,
         })
         .returning({
           status: supplierInvoices.status,
           id: supplierInvoices.id,
         });
 
+      const invoiceId = newInvoice[0].id;
+
       if (dto.items && dto.items.length > 0) {
         const itemsToInsert = dto.items.map((item: any) => ({
           ...item,
-          invoiceId: newInvoice[0].id,
+          invoiceId,
           unitCost: item.unitCost.toString(),
           totalLine: item.totalLine.toString(),
           createdById: userId,
         }));
         await tx.insert(supplierInvoiceItems).values(itemsToInsert as any);
+      }
+
+      // ── Flujo CONTADO ──
+      if (isCash) {
+        // Crear Cuenta por Pagar en 0
+        await tx.insert(accountsPayable).values({
+          tenantId,
+          supplierId: dto.supplierId,
+          supplierInvoiceId: invoiceId,
+          accountsPayableNumber:
+            await this.generateCodeService.generateNextReference(
+              'CXP',
+              tenantId,
+              'purchasing',
+              'accounts-payable',
+            ),
+          originalAmount: dto.totalAmount.toString(),
+          paidAmount: dto.totalAmount.toString(),
+          remainingAmount: '0.00',
+          currencyCode: dto.currencyCode ?? 'VES',
+          status: 'PAID',
+          dueDate: dto.dueDate
+            ? dto.dueDate instanceof Date
+              ? dto.dueDate.toISOString()
+              : String(dto.dueDate)
+            : new Date().toISOString(),
+          createdById: userId,
+        });
+
+        // Crear transacción de proveedor (PAYMENT)
+        const paymentRef = await this.generateCodeService.generateNextReference(
+          'PAG-P',
+          tenantId,
+          'purchasing',
+          'payments',
+        );
+
+        const [transaction] = await tx
+          .insert(supplierTransactions)
+          .values({
+            tenantId,
+            supplierId: dto.supplierId,
+            transactionNumber: paymentRef,
+            transactionType: 'PAYMENT',
+            transactionDate: new Date().toISOString(),
+            amount: dto.totalAmount.toString(),
+            currencyCode: dto.currencyCode ?? 'VES',
+            status: 'APPLIED',
+            paymentMethod: dto.paymentMethod,
+            bankAccountId: dto.bankAccountId,
+            bankReference: dto.bankReference,
+            observations: `Pago de contado factura ${dto.invoiceNumber}`,
+            createdById: userId,
+          })
+          .returning({ id: supplierTransactions.id });
+
+        // Crear movimiento bancario
+        await tx.insert(schema.bankTransactions).values({
+          tenantId,
+          bankAccountId: dto.bankAccountId,
+          paymentMethod: dto.paymentMethod,
+          transactionDate: new Date().toISOString().split('T')[0],
+          description: `Pago a proveedor - Factura ${dto.invoiceNumber}`,
+          category: 'SUPPLIER_PAYMENT',
+          bankReference: dto.bankReference ?? paymentRef,
+          debitAmount: dto.totalAmount.toString(),
+          creditAmount: '0.00',
+          reconciliationStatus: 'PENDING',
+          createdById: userId,
+        } as any);
+      }
+
+      // ── Flujo CRÉDITO ──
+      if (!isCash) {
+        await this.handlePaymentAndAccountsPayable(
+          userId,
+          tenantId,
+          invoiceId,
+          invoiceNumber,
+          dto,
+          tx,
+        );
       }
 
       const [completeInvoice] = await tx
@@ -115,7 +224,7 @@ export class SupplierInvoicesService {
           observations: supplierInvoices.observations,
         })
         .from(supplierInvoices)
-        .where(eq(supplierInvoices.id, newInvoice[0].id));
+        .where(eq(supplierInvoices.id, invoiceId));
 
       const items = await tx
         .select({
@@ -129,7 +238,7 @@ export class SupplierInvoicesService {
           expenseAccountId: supplierInvoiceItems.expenseAccountId,
         })
         .from(supplierInvoiceItems)
-        .where(eq(supplierInvoiceItems.invoiceId, newInvoice[0].id));
+        .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
 
       return {
         data: { ...completeInvoice, items },
@@ -138,17 +247,17 @@ export class SupplierInvoicesService {
     });
   }
 
-  async update(
-    invoiceId: string,
-    userId: string,
-    dto: any,
-    tenantId: string,
-  ) {
+  async update(invoiceId: string, userId: string, dto: any, tenantId: string) {
     return this.drizzle.transaction(async (tx) => {
       const [currentInvoice] = await tx
         .select({ status: supplierInvoices.status })
         .from(supplierInvoices)
-        .where(and(eq(supplierInvoices.id, invoiceId), eq(supplierInvoices.tenantId, tenantId)));
+        .where(
+          and(
+            eq(supplierInvoices.id, invoiceId),
+            eq(supplierInvoices.tenantId, tenantId),
+          ),
+        );
 
       if (
         !currentInvoice ||
@@ -167,8 +276,15 @@ export class SupplierInvoicesService {
           purchaseOrderId: dto.purchaseOrderId ?? null,
           invoiceNumber: dto.invoiceNumber,
           controlNumber: dto.controlNumber,
-          invoiceDate: dto.invoiceDate instanceof Date ? dto.invoiceDate.toISOString() : dto.invoiceDate,
-          dueDate: dto.dueDate ? (dto.dueDate instanceof Date ? dto.dueDate.toISOString() : dto.dueDate) : null,
+          invoiceDate:
+            dto.invoiceDate instanceof Date
+              ? dto.invoiceDate.toISOString()
+              : dto.invoiceDate,
+          dueDate: dto.dueDate
+            ? dto.dueDate instanceof Date
+              ? dto.dueDate.toISOString()
+              : dto.dueDate
+            : null,
           subtotal: dto.subtotal?.toString(),
           taxAmount: dto.taxAmount?.toString(),
           totalAmount: dto.totalAmount?.toString(),
@@ -239,7 +355,12 @@ export class SupplierInvoicesService {
       const existingInvoice = await tx
         .select()
         .from(supplierInvoices)
-        .where(and(eq(supplierInvoices.id, id), eq(supplierInvoices.tenantId, tenantId)))
+        .where(
+          and(
+            eq(supplierInvoices.id, id),
+            eq(supplierInvoices.tenantId, tenantId),
+          ),
+        )
         .leftJoin(
           supplierInvoiceItems,
           eq(supplierInvoices.id, supplierInvoiceItems.invoiceId),
@@ -360,7 +481,9 @@ export class SupplierInvoicesService {
           tx as any,
         );
       } else if (item.lineType === 'FIXED_ASSET') {
-        const resultFixedAsset = await (this.fixedAssetPricesService as any).create(
+        const resultFixedAsset = await (
+          this.fixedAssetPricesService as any
+        ).create(
           userId,
           {
             fixedAssetsId: item.itemId ?? 0,
@@ -459,6 +582,49 @@ export class SupplierInvoicesService {
       dto,
       tx,
     );
+
+    try {
+      await this.accountingEntriesService.createAutomaticEntry(
+        tenantId,
+        userId,
+        {
+          module: 'purchasing',
+          submodule: 'supplier-invoices',
+          category: 'PURCHASING',
+          operationType: 'INVOICE_ACCOUNTED',
+          description: `Factura de compra ${dto.invoiceNumber} - ${supplier[0].name}`,
+          entryDate: new Date(
+            dto.invoiceDate instanceof Date
+              ? dto.invoiceDate
+              : new Date(dto.invoiceDate),
+          ),
+          currencyCode: CurrencyCodeEnum.VES,
+          originReferenceId: invoiceId,
+          originType: 'SUPPLIER_INVOICE',
+          items: [
+            {
+              supplierId: dto.supplierId,
+              amounts: {
+                SUBTOTAL: Number(dto.subtotal),
+                TAX: Number(dto.taxAmount || 0),
+                TOTAL_AMOUNT: Number(dto.totalAmount),
+              },
+              description: `Factura ${dto.invoiceNumber}`,
+            },
+          ],
+        },
+        tx,
+      );
+    } catch (error) {
+      if (
+        error instanceof BadRequestException &&
+        error.message.includes('No existe una regla contable')
+      ) {
+        // Silently skip if no accounting rules configured
+      } else {
+        throw error;
+      }
+    }
 
     return { ...finalInvoice[0], items };
   }
@@ -660,7 +826,9 @@ export class SupplierInvoicesService {
         dueDate: dto.dueDate || new Date(),
         priority: this.isOverdue(
           dto.dueDate
-            ? (dto.dueDate instanceof Date ? dto.dueDate.toISOString() : String(dto.dueDate))
+            ? dto.dueDate instanceof Date
+              ? dto.dueDate.toISOString()
+              : String(dto.dueDate)
             : null,
         )
           ? 'HIGH'
@@ -716,7 +884,7 @@ export class SupplierInvoicesService {
     } = paginationDto;
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [];
     if (tenantId) {
       searchConditions.push(eq(supplierInvoices.tenantId, tenantId));
     }
@@ -854,7 +1022,10 @@ export class SupplierInvoicesService {
 
   async findOne(id: string, tenantId: string) {
     const data = await this.drizzle.query.supplierInvoices.findFirst({
-      where: and(eq(supplierInvoices.id, id), eq(supplierInvoices.tenantId, tenantId)),
+      where: and(
+        eq(supplierInvoices.id, id),
+        eq(supplierInvoices.tenantId, tenantId),
+      ),
       with: {
         supplier: true,
         items: true,
@@ -871,7 +1042,10 @@ export class SupplierInvoicesService {
   async remove(id: string, tenantId: string) {
     return this.drizzle.transaction(async (tx) => {
       const invoice = await tx.query.supplierInvoices.findFirst({
-        where: and(eq(supplierInvoices.id, id), eq(supplierInvoices.tenantId, tenantId)),
+        where: and(
+          eq(supplierInvoices.id, id),
+          eq(supplierInvoices.tenantId, tenantId),
+        ),
       });
       if (!invoice) {
         throw new NotFoundException('Supplier invoice not found');
@@ -896,17 +1070,11 @@ export class SupplierInvoicesService {
         .from(supplierPayments)
         .leftJoin(
           supplierPaymentLines,
-          eq(
-            supplierPayments.id,
-            supplierPaymentLines.supplierPaymentId,
-          ),
+          eq(supplierPayments.id, supplierPaymentLines.supplierPaymentId),
         )
         .leftJoin(
           accountsPayable,
-          eq(
-            supplierPaymentLines.accountsPayableId,
-            accountsPayable.id,
-          ),
+          eq(supplierPaymentLines.accountsPayableId, accountsPayable.id),
         )
         .where(
           and(
@@ -978,7 +1146,353 @@ export class SupplierInvoicesService {
     });
   }
 
-  async findDraftPendiend(tenantId: string) {
+  async createCreditNote(
+    userId: string,
+    dto: any,
+    tenantId: string,
+  ) {
+    const supplier = await this.drizzle
+      .select()
+      .from(suppliers)
+      .where(
+        and(eq(suppliers.id, dto.supplierId), eq(suppliers.status, 'ACTIVE')),
+      );
+
+    if (supplier.length === 0) {
+      throw new NotFoundException('Supplier not found or inactive');
+    }
+
+    return this.drizzle.transaction(async (tx) => {
+      const referenceNumber =
+        await this.generateCodeService.generateNextReference(
+          'NC-P',
+          tenantId,
+          'purchasing',
+          'transactions',
+          tx,
+        );
+
+      const [newTransaction] = await tx
+        .insert(supplierTransactions)
+        .values({
+          tenantId,
+          supplierId: dto.supplierId,
+          transactionNumber: referenceNumber,
+          transactionType: 'CREDIT_NOTE',
+          transactionDate:
+            dto.notesDate instanceof Date
+              ? dto.notesDate.toISOString()
+              : dto.notesDate,
+          amount: dto.amount.toString(),
+          currencyCode: 'VES',
+          status: 'ACTIVE',
+          observations:
+            dto.observations ??
+            `Nota de crédito ${dto.creditNoteNumber}: ${dto.reason}`,
+          createdById: userId,
+        })
+        .returning();
+
+      await tx.insert(supplierCreditNotes).values({
+        tenantId,
+        transactionId: newTransaction.id,
+        supplierId: dto.supplierId,
+        accountsPayableId: dto.accountsPayableId || null,
+        creditNoteNumber: dto.creditNoteNumber,
+        reason: dto.reason,
+        amount: dto.amount.toString(),
+        availableAmount: dto.amount.toString(),
+        createdById: userId,
+      });
+
+      if (dto.returnItems && dto.returnItems.length > 0) {
+        for (const item of dto.returnItems) {
+          await (this.inventoryMovementsService as any).create(
+            userId,
+            {
+              movementType: 'OUT',
+              description: `DEVOLUCIÓN POR NC ${dto.creditNoteNumber}: ${dto.reason}`,
+              documentType: 'NC_COMPRA',
+              documentNumber: dto.creditNoteNumber,
+              items: [
+                {
+                  itemId: item.itemId,
+                  itemType: item.itemType,
+                  quantity: item.quantity,
+                  unitCost: item.unitCost,
+                },
+              ],
+            } as any,
+            tx as any,
+          );
+        }
+      }
+
+      return {
+        data: {
+          id: newTransaction.id,
+          transactionNumber: newTransaction.transactionNumber,
+          transactionType: newTransaction.transactionType,
+          amount: newTransaction.amount,
+          status: newTransaction.status,
+          observations: newTransaction.observations,
+        },
+        message: 'Credit note created successfully',
+      };
+    });
+  }
+
+  async createDebitNote(
+    userId: string,
+    dto: any,
+    tenantId: string,
+  ) {
+    const supplier = await this.drizzle
+      .select()
+      .from(suppliers)
+      .where(
+        and(eq(suppliers.id, dto.supplierId), eq(suppliers.status, 'ACTIVE')),
+      );
+
+    if (supplier.length === 0) {
+      throw new NotFoundException('Supplier not found or inactive');
+    }
+
+    return this.drizzle.transaction(async (tx) => {
+      const referenceNumber =
+        await this.generateCodeService.generateNextReference(
+          'ND-P',
+          tenantId,
+          'purchasing',
+          'transactions',
+          tx,
+        );
+
+      const [newTransaction] = await tx
+        .insert(supplierTransactions)
+        .values({
+          tenantId,
+          supplierId: dto.supplierId,
+          transactionNumber: referenceNumber,
+          transactionType: 'DEBIT_NOTE',
+          transactionDate:
+            dto.notesDate instanceof Date
+              ? dto.notesDate.toISOString()
+              : dto.notesDate,
+          amount: dto.amount.toString(),
+          currencyCode: 'VES',
+          status: 'APPLIED',
+          observations:
+            dto.observations ??
+            `Nota de débito ${dto.debitNoteNumber}: ${dto.reason}`,
+          createdById: userId,
+        })
+        .returning();
+
+      await tx.insert(supplierDebitNotes).values({
+        tenantId,
+        transactionId: newTransaction.id,
+        supplierId: dto.supplierId,
+        accountsPayableId: dto.accountsPayableId || null,
+        debitNoteNumber: dto.debitNoteNumber,
+        reason: dto.reason,
+        amount: dto.amount.toString(),
+        createdById: userId,
+      });
+
+      if (dto.accountsPayableId) {
+        await tx.insert(supplierTransactionApplications).values({
+          tenantId,
+          transactionId: newTransaction.id,
+          accountsPayableId: dto.accountsPayableId,
+          appliedAmount: dto.amount.toString(),
+          applicationDate: new Date().toISOString(),
+          createdById: userId,
+        });
+
+        const [cxp] = await tx
+          .select()
+          .from(accountsPayable)
+          .where(eq(accountsPayable.id, dto.accountsPayableId));
+
+        if (cxp) {
+          const newRemaining =
+            Number(cxp.remainingAmount) + Number(dto.amount);
+          const newPaid =
+            Number(cxp.paidAmount) - Number(dto.amount);
+
+          await tx
+            .update(accountsPayable)
+            .set({
+              remainingAmount: newRemaining.toString(),
+              paidAmount: Math.max(newPaid, 0).toString(),
+              updatedById: userId,
+            })
+            .where(eq(accountsPayable.id, dto.accountsPayableId));
+        }
+      }
+
+      return {
+        data: {
+          id: newTransaction.id,
+          transactionNumber: newTransaction.transactionNumber,
+          transactionType: newTransaction.transactionType,
+          amount: newTransaction.amount,
+          status: newTransaction.status,
+          observations: newTransaction.observations,
+        },
+        message: 'Debit note created successfully',
+      };
+    });
+  }
+
+  async voidInvoice(
+    userId: string,
+    invoiceId: string,
+    dto: any,
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [invoice] = await tx
+        .select()
+        .from(supplierInvoices)
+        .where(
+          and(
+            eq(supplierInvoices.id, invoiceId),
+            eq(supplierInvoices.tenantId, tenantId),
+          ),
+        );
+
+      if (!invoice) {
+        throw new NotFoundException('Supplier invoice not found');
+      }
+
+      if (invoice.status !== 'ACCOUNTED_FOR') {
+        throw new BadRequestException(
+          `Cannot void invoice with status '${invoice.status}'. Only ACCOUNTED_FOR invoices can be voided.`,
+        );
+      }
+
+      const [cxp] = await tx
+        .select()
+        .from(accountsPayable)
+        .where(eq(accountsPayable.supplierInvoiceId, invoiceId));
+
+      if (cxp) {
+        const appliedTransactions = await tx
+          .select()
+          .from(supplierTransactionApplications)
+          .where(
+            eq(supplierTransactionApplications.accountsPayableId, cxp.id),
+          );
+
+        if (appliedTransactions.length > 0) {
+          throw new BadRequestException(
+            'Cannot void invoice: there are applied transactions (payments, NC, ND). Revert them first.',
+          );
+        }
+
+        await tx
+          .update(accountsPayable)
+          .set({ status: 'CANCELLED', remainingAmount: '0.00', updatedById: userId })
+          .where(eq(accountsPayable.id, cxp.id));
+      }
+
+      const invoiceItems = await tx
+        .select()
+        .from(supplierInvoiceItems)
+        .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
+
+      for (const item of invoiceItems) {
+        if (
+          item.lineType === 'SALES_INVENTORY' ||
+          item.lineType === 'FIXED_ASSET'
+        ) {
+          await (this.inventoryMovementsService as any).create(
+            userId,
+            {
+              movementType: 'OUT',
+              description: `ANULACIÓN FACTURA ${invoice.invoiceNumber}: ${dto.reason}`,
+              documentType: 'ANULACION_COMPRA',
+              documentNumber: invoice.invoiceNumber,
+              items: [
+                {
+                  itemId: item.itemId ?? 0,
+                  itemType:
+                    item.lineType === 'FIXED_ASSET' ? 'FIXED_ASSET' : 'PRODUCT',
+                  quantity: Number(item.quantity),
+                  unitCost: Number(item.unitCost),
+                },
+              ],
+            } as any,
+            tx as any,
+          );
+        }
+      }
+
+      await tx
+        .update(supplierInvoices)
+        .set({
+          status: 'CANCELLED',
+          observations: `ANULADO: ${dto.reason}`,
+          updatedById: userId,
+        })
+        .where(eq(supplierInvoices.id, invoiceId));
+
+      if (invoice.purchaseOrderId) {
+        await this.updatePurchaseOrderStatusOnCancel(
+          invoice.purchaseOrderId,
+          invoiceId,
+          tx,
+        );
+      }
+
+      return { message: 'Invoice voided successfully' };
+    });
+  }
+
+  async updateInvoiceStatus(
+    userId: string,
+    invoiceId: string,
+    dto: { status: string },
+    tenantId: string,
+  ) {
+    const [invoice] = await this.drizzle
+      .select()
+      .from(supplierInvoices)
+      .where(
+        and(
+          eq(supplierInvoices.id, invoiceId),
+          eq(supplierInvoices.tenantId, tenantId),
+        ),
+      );
+
+    if (!invoice) {
+      throw new NotFoundException('Supplier invoice not found');
+    }
+
+    const validTransitions: Record<string, string[]> = {
+      DRAFT: ['PENDING', 'CANCELLED'],
+      PENDING: ['ACCOUNTED_FOR', 'CANCELLED'],
+      ACCOUNTED_FOR: ['PAID', 'CANCELLED'],
+    };
+
+    const allowed = validTransitions[invoice.status];
+    if (!allowed || !allowed.includes(dto.status)) {
+      throw new BadRequestException(
+        `Invalid status transition from '${invoice.status}' to '${dto.status}'`,
+      );
+    }
+
+    await this.drizzle
+      .update(supplierInvoices)
+      .set({ status: dto.status as any, updatedById: userId })
+      .where(eq(supplierInvoices.id, invoiceId));
+
+    return { message: `Invoice status updated to ${dto.status}` };
+  }
+
+  async findDraftPending(tenantId: string) {
     const rawData = await this.drizzle
       .select({
         invoice: supplierInvoices,
@@ -1114,7 +1628,7 @@ export class SupplierInvoicesService {
 
     const otherInvoiceIds = otherInvoices.map((inv) => inv.id);
 
-    let totalInvoicedPerItem = new Map<string, number>();
+    const totalInvoicedPerItem = new Map<string, number>();
 
     const getUniqueKey = (item: {
       itemId: string | null;

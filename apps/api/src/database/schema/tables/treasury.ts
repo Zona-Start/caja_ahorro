@@ -75,8 +75,10 @@ export const bankAccounts = treasurySchema.table(
       scale: 6,
     }), //Saldo del último extracto cargado
     lastStatementDate: date('last_statement_date'),
-    linkedChartAccountId: uuid('linked_chart_account_id')
-      .references(() => accountPlan.id, { onDelete: 'set null' }),
+    linkedChartAccountId: uuid('linked_chart_account_id').references(
+      () => accountPlan.id,
+      { onDelete: 'set null' },
+    ),
     isActive: boolean('is_active').default(true).notNull(),
     openingEntryPosted: boolean('opening_entry_posted').default(false),
     ruleAccountId: uuid('rule_account_id').references(() => accountingRules.id),

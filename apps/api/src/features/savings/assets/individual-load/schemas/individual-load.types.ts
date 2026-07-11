@@ -38,7 +38,10 @@ export interface BankMovementPayloadInput {
 
 export interface BankMovementPayload {
   movement: BankMovementPayloadInput & { createdById: string };
-  links: { internalRecordType: 'MEMBER_CONTRIBUTION'; internalRecordId: string }[];
+  links: {
+    internalRecordType: 'MEMBER_CONTRIBUTION';
+    internalRecordId: string;
+  }[];
 }
 
 export interface BankMovementResult {

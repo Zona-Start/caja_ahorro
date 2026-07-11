@@ -12,25 +12,22 @@ export const CreateCreditTypeSchema = z.object({
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number().int().positive(),
   ),
-  cancellationPercentage: z
-    .preprocess(
-      (val) => (typeof val === 'string' ? parseFloat(val) : val),
-      z.number().min(0).max(100).optional(),
-    ),
+  cancellationPercentage: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).max(100).optional(),
+  ),
   creditAccountChartId: z.string().uuid().optional(),
   interestEarnedAccountChartId: z.string().uuid().optional(),
   specialQuotaAccountChartId: z.string().uuid().optional(),
   expenseAccountChartId: z.string().uuid().optional(),
-  specialQuotaNumber: z
-    .preprocess(
-      (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
-      z.number().int().min(0).optional(),
-    ),
-  specialQuotaPercentage: z
-    .preprocess(
-      (val) => (typeof val === 'string' ? parseFloat(val) : val),
-      z.number().min(0).max(100).optional(),
-    ),
+  specialQuotaNumber: z.preprocess(
+    (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
+    z.number().int().min(0).optional(),
+  ),
+  specialQuotaPercentage: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).max(100).optional(),
+  ),
   maxCreditAmount: z.preprocess(
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).optional(),
@@ -40,16 +37,14 @@ export const CreateCreditTypeSchema = z.object({
     z.number().min(0).optional(),
   ),
   payrollTypeId: z.string().uuid().optional(),
-  administrativeExpensePercentage: z
-    .preprocess(
-      (val) => (typeof val === 'string' ? parseFloat(val) : val),
-      z.number().min(0).max(100).optional(),
-    ),
-  minimumSeniorityMonths: z
-    .preprocess(
-      (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
-      z.number().int().min(0).optional(),
-    ),
+  administrativeExpensePercentage: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).max(100).optional(),
+  ),
+  minimumSeniorityMonths: z.preprocess(
+    (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
+    z.number().int().min(0).optional(),
+  ),
   acceptsDebitBalance: z.boolean().default(false),
   acceptsGuarantors: z.boolean().default(false),
   acceptsAvailability: z.boolean().default(false),

@@ -1,6 +1,6 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TenantSettingsService } from './tenant-settings.service';
-import { NotFoundException } from '@nestjs/common';
 
 describe('TenantSettingsService', () => {
   let service: TenantSettingsService;
@@ -50,7 +50,12 @@ describe('TenantSettingsService', () => {
 
   describe('update', () => {
     it('should update a setting', async () => {
-      const mockSetting = { id: '1', key: 'setting1', tenantId: 'tenant-a', value: 'old' };
+      const mockSetting = {
+        id: '1',
+        key: 'setting1',
+        tenantId: 'tenant-a',
+        value: 'old',
+      };
       db.query.tenantSettings.findFirst.mockResolvedValue(mockSetting);
       db.returning.mockResolvedValue([{ ...mockSetting, value: 'new' }]);
 
@@ -61,7 +66,9 @@ describe('TenantSettingsService', () => {
 
     it('should throw NotFoundException if setting not found', async () => {
       db.query.tenantSettings.findFirst.mockResolvedValue(null);
-      await expect(service.update('999', { value: 'new' }, 'tenant-a')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.update('999', { value: 'new' }, 'tenant-a'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

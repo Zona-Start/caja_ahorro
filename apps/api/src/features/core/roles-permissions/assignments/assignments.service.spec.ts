@@ -1,7 +1,7 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { AssignmentsService } from './assignments.service';
-import { AuditHelper } from '../../core/audit/audit-event.service';
 import { NotFoundException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { AuditHelper } from '../../core/audit/audit-event.service';
+import { AssignmentsService } from './assignments.service';
 
 describe('AssignmentsService', () => {
   let service: AssignmentsService;
@@ -41,12 +41,24 @@ describe('AssignmentsService', () => {
   });
 
   it('should assign permissions to role', async () => {
-    mockDb.query.roles.findFirst.mockResolvedValue({ id: roleId, tenantId, name: 'Admin' });
-    mockDb.query.permissions.findFirst.mockResolvedValue({ id: 'p1', resource: 'r1', action: 'a1' });
+    mockDb.query.roles.findFirst.mockResolvedValue({
+      id: roleId,
+      tenantId,
+      name: 'Admin',
+    });
+    mockDb.query.permissions.findFirst.mockResolvedValue({
+      id: 'p1',
+      resource: 'r1',
+      action: 'a1',
+    });
     mockDb.returning.mockResolvedValue([{ id: 'rp1' }]);
 
-    await service.assignPermissions(roleId, [{ resource: 'r1', action: 'a1' }], tenantId);
-    
+    await service.assignPermissions(
+      roleId,
+      [{ resource: 'r1', action: 'a1' }],
+      tenantId,
+    );
+
     expect(mockDb.delete).toHaveBeenCalled();
     expect(mockDb.insert).toHaveBeenCalled();
     expect(mockAudit.logUpdate).toHaveBeenCalled();
@@ -54,6 +66,8 @@ describe('AssignmentsService', () => {
 
   it('should throw NotFoundException if role belongs to another tenant', async () => {
     mockDb.query.roles.findFirst.mockResolvedValue(null);
-    await expect(service.getRolePermissions(roleId, 'wrong-tenant')).rejects.toThrow(NotFoundException);
+    await expect(
+      service.getRolePermissions(roleId, 'wrong-tenant'),
+    ).rejects.toThrow(NotFoundException);
   });
 });

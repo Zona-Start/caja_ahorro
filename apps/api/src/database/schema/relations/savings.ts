@@ -1,11 +1,15 @@
 import { relations } from 'drizzle-orm';
+import { accountPlan, accountingEntries } from '../tables/accounting';
+import { users } from '../tables/auth';
+import { categories, exchangeRates, states } from '../tables/core';
+import { suppliers } from '../tables/purchasing';
 import {
   associateAccountBalanceHistory,
   associateAccountMovements,
   associateAccounts,
   associates,
-  contributionBatches,
   contributionBatchAssociates,
+  contributionBatches,
   creditAmortizationSchedule,
   creditItemSales,
   creditPayments,
@@ -26,11 +30,11 @@ import {
   withdrawalsAssociates,
 } from '../tables/savings';
 import { tenants } from '../tables/tenants';
-import { states, categories, exchangeRates } from '../tables/core';
-import { bankAccounts, bankDirectory, bankTransactions } from '../tables/treasury';
-import { accountPlan, accountingEntries } from '../tables/accounting';
-import { users } from '../tables/auth';
-import { suppliers } from '../tables/purchasing';
+import {
+  bankAccounts,
+  bankDirectory,
+  bankTransactions,
+} from '../tables/treasury';
 
 export const associatesRelations = relations(associates, ({ one, many }) => ({
   tenants: one(tenants, {

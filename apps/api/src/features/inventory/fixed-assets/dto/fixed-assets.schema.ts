@@ -15,21 +15,50 @@ export const CreateFixedAssetSchema = z.object({
   model: z.string().max(100).optional().nullable(),
   brand: z.string().max(100).optional().nullable(),
   acquisitionDate: z.string().date().or(z.string().datetime()),
-  assetStatus: z.enum(['ACTIVE', 'UNDER_MAINTENANCE', 'INACTIVE', 'DEREGISTERED']).default('ACTIVE').optional().nullable(),
+  assetStatus: z
+    .enum(['ACTIVE', 'UNDER_MAINTENANCE', 'INACTIVE', 'DEREGISTERED'])
+    .default('ACTIVE')
+    .optional()
+    .nullable(),
   usefulLifeYears: z.preprocess(
-    (val) => (typeof val === 'string' ? parseInt(val, 10) : val === null ? undefined : val),
+    (val) =>
+      typeof val === 'string'
+        ? parseInt(val, 10)
+        : val === null
+          ? undefined
+          : val,
     z.number().int().min(0).optional().nullable(),
   ),
   depreciationMethod: z.string().max(50).optional().nullable(),
   accumulatedDepreciation: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val === null ? undefined : val),
+    (val) =>
+      typeof val === 'string'
+        ? parseFloat(val)
+        : val === null
+          ? undefined
+          : val,
     z.number().min(0).optional().nullable(),
   ),
-  lastDepreciationDate: z.string().date().or(z.string().datetime()).optional().nullable(),
-  disposalDate: z.string().date().or(z.string().datetime()).optional().nullable(),
+  lastDepreciationDate: z
+    .string()
+    .date()
+    .or(z.string().datetime())
+    .optional()
+    .nullable(),
+  disposalDate: z
+    .string()
+    .date()
+    .or(z.string().datetime())
+    .optional()
+    .nullable(),
   disposalReason: z.string().optional().nullable(),
   disposalValue: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val === null ? undefined : val),
+    (val) =>
+      typeof val === 'string'
+        ? parseFloat(val)
+        : val === null
+          ? undefined
+          : val,
     z.number().min(0).optional().nullable(),
   ),
   baseCost: z.preprocess(
@@ -41,7 +70,12 @@ export const CreateFixedAssetSchema = z.object({
     z.number().min(0).default(0),
   ),
   purchaseTax: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val === null ? undefined : val),
+    (val) =>
+      typeof val === 'string'
+        ? parseFloat(val)
+        : val === null
+          ? undefined
+          : val,
     z.number().min(0).optional().nullable(),
   ),
   suppliers: z.array(supplierSchema).optional().nullable(),

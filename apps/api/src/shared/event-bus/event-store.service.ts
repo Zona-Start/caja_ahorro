@@ -1,9 +1,9 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { eventStore } from '@/database/schema';
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@/database/schema';
+import { eventStore } from '@/database/schema';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { type EventEnvelope } from './event-envelope';
 
 @Injectable()
@@ -26,7 +26,9 @@ export class EventStoreService {
         status: 'PUBLISHED',
       });
     } catch (error) {
-      this.logger.error(`Failed to store event ${envelope.eventId}: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to store event ${envelope.eventId}: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -43,10 +45,7 @@ export class EventStoreService {
       .select()
       .from(eventStore)
       .where(
-        and(
-          gte(eventStore.createdAt, from),
-          lte(eventStore.createdAt, to),
-        ),
+        and(gte(eventStore.createdAt, from), lte(eventStore.createdAt, to)),
       )
       .orderBy(desc(eventStore.createdAt));
   }
@@ -60,10 +59,10 @@ export class EventStoreService {
   }
 
   async countByStatus(status: string) {
-      const rows = await this.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(eventStore)
-        .where(eq(eventStore.status, status));
-      return Number(rows[0]?.count ?? 0);
+    const rows = await this.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(eventStore)
+      .where(eq(eventStore.status, status));
+    return Number(rows[0]?.count ?? 0);
   }
 }

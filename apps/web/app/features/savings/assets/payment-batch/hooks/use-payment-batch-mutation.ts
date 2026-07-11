@@ -1,129 +1,92 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToastSystem } from '@/hooks/use-toast-system';
-import {
-  useMutation,
-  UseMutationResult,
-  useQueryClient,
-} from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
 import { paymentBatchService } from '../services/payment-batch-service';
+import { paymentBatchKeys } from '../keys/payment-batch-keys';
 
-export function useCreatePaymentBatchMutation(): UseMutationResult<
-  unknown,
-  Error,
-  unknown,
-  unknown
-> {
+export function useCreatePaymentBatchMutation() {
   const queryClient = useQueryClient();
-  const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (dto: unknown) => paymentBatchService.createPaymentBatch(dto),
+    mutationFn: (dto: Parameters<typeof paymentBatchService.createPaymentBatch>[0]) =>
+      paymentBatchService.createPaymentBatch(dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.paymentBatches.all(),
-      });
-      toast.success('Lote de pago creado exitosamente');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Error al crear el lote de pago');
+      queryClient.invalidateQueries({ queryKey: paymentBatchKeys.lists() });
     },
   });
 }
 
-export function useMarkAsUploadedMutation(): UseMutationResult<
-  unknown,
-  Error,
-  number,
-  unknown
-> {
+export function useMarkAsUploadedMutation() {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => paymentBatchService.markAsUploaded(id),
+    mutationFn: (id: string) => paymentBatchService.markAsUploaded(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.paymentBatches.all(),
-      });
       toast.success('Lote marcado como subido');
+      queryClient.invalidateQueries({ queryKey: paymentBatchKeys.lists() });
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al marcar el lote');
+      toast.error(error.message || 'Error al marcar como subido');
     },
   });
 }
 
-export function useConfirmPaymentBatchMutation(): UseMutationResult<
-  unknown,
-  Error,
-  { id: number; dto: unknown },
-  unknown
-> {
+export function useConfirmPaymentBatchMutation() {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: ({ id, dto }: { id: number; dto: unknown }) =>
-      paymentBatchService.confirmPaymentBatch(id, dto),
+    mutationFn: ({
+      id,
+      dto,
+    }: {
+      id: string;
+      dto: Parameters<typeof paymentBatchService.confirmPaymentBatch>[1];
+    }) => paymentBatchService.confirmPaymentBatch(id, dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.paymentBatches.all(),
-      });
-      toast.success('Lote confirmado exitosamente');
+      toast.success('Lote procesado exitosamente');
+      queryClient.invalidateQueries({ queryKey: paymentBatchKeys.lists() });
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al confirmar el lote');
+      toast.error(error.message || 'Error al procesar el lote');
     },
   });
 }
 
-export function useCancelPaymentBatchMutation(): UseMutationResult<
-  unknown,
-  Error,
-  number,
-  unknown
-> {
+export function useCancelPaymentBatchMutation() {
   const queryClient = useQueryClient();
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => paymentBatchService.cancelPaymentBatch(id),
+    mutationFn: (id: string) => paymentBatchService.cancelPaymentBatch(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.paymentBatches.all(),
-      });
-      toast.success('Lote cancelado exitosamente');
+      toast.success('Lote anulado');
+      queryClient.invalidateQueries({ queryKey: paymentBatchKeys.lists() });
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al cancelar el lote');
+      toast.error(error.message || 'Error al anular el lote');
     },
   });
 }
 
-export function useDownloadTxtFileMutation(): UseMutationResult<
-  { fileName: string; content: string },
-  Error,
-  number,
-  unknown
-> {
+export function useDownloadTxtFileMutation() {
   const toast = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => paymentBatchService.downloadTxtFile(id),
-    onSuccess: (data) => {
-      const blob = new Blob([data.content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
+    mutationFn: ({ id, filename }: { id: string; filename?: string }) =>
+      paymentBatchService.downloadTxtFile(id, filename),
+    onSuccess: (result) => {
+      const blob = new Blob([result.content], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = data.fileName;
-      document.body.appendChild(a);
+      a.download = result.fileName;
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(url);
       toast.success('Archivo TXT descargado');
     },
     onError: (error: Error) => {
-      toast.error(error.message || 'Error al descargar el archivo');
+      toast.error(error.message || 'Error al descargar');
     },
   });
 }

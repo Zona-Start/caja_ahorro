@@ -48,12 +48,33 @@ export class AccountPlanSeederService {
         ? payload.moduleCodes
         : template.defaultModules;
 
-      await this.provisionModules(payload.tenantId, activeModules, payload.systemUserId);
-      await this.seedAllAccountPlanData(payload.tenantId, template, payload.systemUserId);
+      await this.provisionModules(
+        payload.tenantId,
+        activeModules,
+        payload.systemUserId,
+      );
+      await this.seedAllAccountPlanData(
+        payload.tenantId,
+        template,
+        payload.systemUserId,
+      );
       await this.seedRoles(payload.tenantId, template, payload.systemUserId);
-      await this.seedDefaultCategories(payload.tenantId, payload.systemUserId, template);
-      await this.seedTenantSettings(payload.tenantId, payload.systemUserId, template);
-      await this.seedModuleSettings(payload.tenantId, payload.systemUserId, template, activeModules);
+      await this.seedDefaultCategories(
+        payload.tenantId,
+        payload.systemUserId,
+        template,
+      );
+      await this.seedTenantSettings(
+        payload.tenantId,
+        payload.systemUserId,
+        template,
+      );
+      await this.seedModuleSettings(
+        payload.tenantId,
+        payload.systemUserId,
+        template,
+        activeModules,
+      );
       this.logger.log(
         `✅ Seeding completado para Tenant: ${payload.tenantId} con módulos: ${activeModules.join(', ')}`,
       );
@@ -65,8 +86,14 @@ export class AccountPlanSeederService {
     }
   }
 
-  private async provisionModules(tenantId: string, moduleCodes: string[], userId?: string) {
-    this.logger.log(`Provisionando ${moduleCodes.length} módulos para tenant: ${tenantId}`);
+  private async provisionModules(
+    tenantId: string,
+    moduleCodes: string[],
+    userId?: string,
+  ) {
+    this.logger.log(
+      `Provisionando ${moduleCodes.length} módulos para tenant: ${tenantId}`,
+    );
     const values = moduleCodes.map((code) => ({
       tenantId,
       moduleCode: code as any,
@@ -77,9 +104,12 @@ export class AccountPlanSeederService {
       updatedById: userId || null,
     }));
     if (values.length > 0) {
-      await this.db.insert(tenantModules).values(values).onConflictDoNothing({
-        target: [tenantModules.tenantId, tenantModules.moduleCode],
-      });
+      await this.db
+        .insert(tenantModules)
+        .values(values)
+        .onConflictDoNothing({
+          target: [tenantModules.tenantId, tenantModules.moduleCode],
+        });
     }
   }
 
@@ -91,7 +121,9 @@ export class AccountPlanSeederService {
     const accountsToInsert: AccountEntry[] = template?.accounts ?? [];
 
     if (accountsToInsert.length === 0) {
-      this.logger.warn(`No accounts defined in template for tenant: ${tenantId}`);
+      this.logger.warn(
+        `No accounts defined in template for tenant: ${tenantId}`,
+      );
       return;
     }
 
@@ -306,7 +338,10 @@ export class AccountPlanSeederService {
       ? allModuleSettings.filter((s: any) => {
           const moduleUpper = s.module.toUpperCase();
           if (moduleUpper === 'PORTFOLIO') {
-            return activeModules.includes('LOANS') || activeModules.includes('CREDITS');
+            return (
+              activeModules.includes('LOANS') ||
+              activeModules.includes('CREDITS')
+            );
           }
           return activeModules.includes(moduleUpper);
         })

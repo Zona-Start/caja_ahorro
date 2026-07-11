@@ -1,5 +1,9 @@
+import {
+  CurrencyCodeEnum,
+  paymentBatchItemType,
+  paymentBatchStatus,
+} from '@/types/enum';
 import { z } from 'zod';
-import { CurrencyCodeEnum, paymentBatchItemType, paymentBatchStatus } from '@/types/enum';
 
 export const CreatePaymentBatchItemSchema = z.object({
   type: z.nativeEnum(paymentBatchItemType),
@@ -26,9 +30,16 @@ export const CreateSinglePaymentBatchItemSchema = z.object({
   bankAccountId: z.string().uuid(),
 });
 
+export const ConfirmPaymentBatchItemSchema = z.object({
+  itemId: z.string().uuid(),
+  processed: z.boolean(),
+  rejectionReason: z.string().optional(),
+});
+
 export const ConfirmPaymentBatchSchema = z.object({
   processedAt: z.string().datetime(),
   bankReference: z.string().min(1).optional(),
+  items: z.array(ConfirmPaymentBatchItemSchema).min(1),
 });
 
 export const FilterPaymentBatchSchema = z.object({
@@ -42,6 +53,9 @@ export const FilterPaymentBatchSchema = z.object({
 });
 
 export type CreatePaymentBatchDto = z.infer<typeof CreatePaymentBatchSchema>;
-export type CreateSinglePaymentBatchItemDto = z.infer<typeof CreateSinglePaymentBatchItemSchema>;
+export type CreateSinglePaymentBatchItemDto = z.infer<
+  typeof CreateSinglePaymentBatchItemSchema
+>;
 export type ConfirmPaymentBatchDto = z.infer<typeof ConfirmPaymentBatchSchema>;
+export type ConfirmPaymentBatchItemDto = z.infer<typeof ConfirmPaymentBatchItemSchema>;
 export type FilterPaymentBatchDto = z.infer<typeof FilterPaymentBatchSchema>;

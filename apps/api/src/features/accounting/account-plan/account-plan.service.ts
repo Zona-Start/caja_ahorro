@@ -94,7 +94,7 @@ export class AccountPlanService {
 
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [];
 
     if (search) {
       switch (searchType) {

@@ -22,7 +22,7 @@ export class AccountingBalanceService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async bootstrapping(
     userId: string,
@@ -62,7 +62,13 @@ export class AccountingBalanceService {
         });
       }
       const totalBalance = finalRows.reduce((sum, row) => {
-        const val = row.balance ?? row.SALDO_ACTUAL ?? row.saldo_actual ?? row.SALDO ?? row.saldo ?? 0;
+        const val =
+          row.balance ??
+          row.SALDO_ACTUAL ??
+          row.saldo_actual ??
+          row.SALDO ??
+          row.saldo ??
+          0;
         return sum + Number(val);
       }, 0);
 
@@ -180,12 +186,14 @@ export class AccountingBalanceService {
     }
 
     // Evitamos problemas de precisión decimal multiplicando por 100 antes de restar
-    const diff = Math.abs(Math.round(totalDebits * 100) - Math.round(totalCredits * 100)) / 100;
+    const diff =
+      Math.abs(Math.round(totalDebits * 100) - Math.round(totalCredits * 100)) /
+      100;
 
     // Si la diferencia es mayor a 1 unidad monetaria (o un centavo, según tu nivel de tolerancia)
     if (diff > 1.0) {
       throw new ConflictException(
-        `Initial Load Imbalance. Total Debits: ${totalDebits.toFixed(2)}, Total Credits: ${totalCredits.toFixed(2)}. Difference: ${diff.toFixed(2)}`
+        `Initial Load Imbalance. Total Debits: ${totalDebits.toFixed(2)}, Total Credits: ${totalCredits.toFixed(2)}. Difference: ${diff.toFixed(2)}`,
       );
     }
 

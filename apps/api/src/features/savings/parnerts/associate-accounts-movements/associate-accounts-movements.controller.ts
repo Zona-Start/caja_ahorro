@@ -1,3 +1,5 @@
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -9,13 +11,11 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
-import { TenantContextService } from '@/common/services/tenant-context.service';
+import { AssociateAccountsMovementsService } from './associate-accounts-movements.service';
 import {
   CreateAssociateAccountMovementSchema,
   FilterMovementsSchema,
 } from './dto/movements.schema';
-import { AssociateAccountsMovementsService } from './associate-accounts-movements.service';
 
 @Controller('savings-banks/associate-accounts-movements')
 export class AssociateAccountsMovementsController {
@@ -83,10 +83,8 @@ export class AssociateAccountsMovementsController {
     description: 'Associate Accounts Movement created successfully.',
   })
   create(@Req() req: any, @Body() dto: any) {
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
-      req,
-      dto,
-    );
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.create(userId, dto, targetTenantId);
   }
 }

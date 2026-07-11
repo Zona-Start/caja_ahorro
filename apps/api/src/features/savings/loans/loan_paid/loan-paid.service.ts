@@ -2,8 +2,8 @@ import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generato
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
-  associates,
   associateAccounts,
+  associates,
   bankAccounts,
   loanAmortizationSchedule,
   loanPayments,
@@ -12,26 +12,21 @@ import {
   loanTypes,
 } from '@/database/schema';
 import {
-  LoanStatusEnum,
   loanPaymetTypeEnum,
+  LoanStatusEnum,
   paymentMethodEnum,
 } from '@/types/enum';
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { format } from 'date-fns';
 import { and, eq, ilike, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
-import { CreateLoanPaidDto, FilterLoanPaidDto } from './dto/loan-paid.schema';
-import { LoanPaymentValidator } from './domain/loan-payment.validator';
 import { LoanPaymentProcessor } from './domain/loan-payment.processor';
-import { CreatePaymentUseCase } from './use-cases/create-payment.usecase';
+import { LoanPaymentValidator } from './domain/loan-payment.validator';
+import { CreateLoanPaidDto, FilterLoanPaidDto } from './dto/loan-paid.schema';
 import { BulkPaymentUseCase } from './use-cases/bulk-payment.usecase';
 import { CancelPaymentUseCase } from './use-cases/cancel-payment.usecase';
+import { CreatePaymentUseCase } from './use-cases/create-payment.usecase';
 
 @Injectable()
 export class LoanPaidService {
@@ -52,7 +47,13 @@ export class LoanPaidService {
     tx?: NodePgDatabase<typeof schema>,
     liquidationActive?: boolean,
   ) {
-    return this.createPayment.execute(tenantId, userId, dto, tx, liquidationActive);
+    return this.createPayment.execute(
+      tenantId,
+      userId,
+      dto,
+      tx,
+      liquidationActive,
+    );
   }
 
   async downloadTemplate() {
@@ -111,7 +112,9 @@ export class LoanPaidService {
       conditions.push(eq(loanPayments.paymentType, type as loanPaymetTypeEnum));
     }
     if (method) {
-      conditions.push(eq(loanPayments.paymentMethod, method as paymentMethodEnum));
+      conditions.push(
+        eq(loanPayments.paymentMethod, method as paymentMethodEnum),
+      );
     }
 
     const where = and(...conditions);
@@ -198,13 +201,17 @@ export class LoanPaidService {
           eq(associateAccounts.status, 'ACTIVE'),
         ),
       )
-      .where(and(eq(associates.cedula, cedula), eq(associates.tenantId, tenantId)));
+      .where(
+        and(eq(associates.cedula, cedula), eq(associates.tenantId, tenantId)),
+      );
 
     if (!associate.length) {
       throw new NotFoundException(`Associate with cedula ${cedula} not found`);
     }
     if (associate[0].status === 'INACTIVE') {
-      throw new NotFoundException(`Associate with cedula ${cedula} is inactive`);
+      throw new NotFoundException(
+        `Associate with cedula ${cedula} is inactive`,
+      );
     }
     if (associate[0].status === 'RETIRED') {
       throw new NotFoundException(`Associate with cedula ${cedula} is retired`);
@@ -243,7 +250,8 @@ export class LoanPaidService {
         quotaDate: loanAmortizationSchedule.dueDate,
         quotaStatus: loanAmortizationSchedule.paymentStatus,
         quotaPartial: loanAmortizationSchedule.paidAmount,
-        principalBalancePending: loanAmortizationSchedule.principalBalancePending,
+        principalBalancePending:
+          loanAmortizationSchedule.principalBalancePending,
         paidAmount: loanAmortizationSchedule.paidAmount,
       })
       .from(loanAmortizationSchedule)
@@ -296,17 +304,17 @@ export class LoanPaidService {
       loanType: result.length === 0 ? null : result[0]?.loanType,
       loanTotalAmount: String(totalPendingAmount.toFixed(2)),
       loanModality: result.length === 0 ? null : result[0]?.loanModality,
-      loanCustomReference: result.length === 0 ? null : result[0]?.loanCustomReference,
-      loanRequestedAmount: result.length === 0 ? null : result[0]?.loanRequestedAmount,
+      loanCustomReference:
+        result.length === 0 ? null : result[0]?.loanCustomReference,
+      loanRequestedAmount:
+        result.length === 0 ? null : result[0]?.loanRequestedAmount,
       loanAmortization: transformLoandAdmortization || null,
       loanStatus: result.length === 0 ? null : result[0]?.status,
     };
   }
 
   async findOne(tenantId: string, paymentId: string) {
-    const conditions: SQL<unknown>[] = [
-      eq(loanPayments.id, paymentId),
-    ];
+    const conditions: SQL<unknown>[] = [eq(loanPayments.id, paymentId)];
     if (tenantId) {
       conditions.push(eq(loanPayments.tenantId, tenantId));
     }
@@ -347,27 +355,18 @@ export class LoanPaidService {
       .select({
         id: loanPaymentsDetails.id,
         amount: loanPaymentsDetails.amount,
-        installmentNumber:
-          loanAmortizationSchedule.installmentNumber,
+        installmentNumber: loanAmortizationSchedule.installmentNumber,
         dueDate: loanAmortizationSchedule.dueDate,
-        totalInstallmentAmount:
-          loanAmortizationSchedule.totalInstallmentAmount,
-        principalAmount:
-          loanAmortizationSchedule.principalAmount,
-        interestAmount:
-          loanAmortizationSchedule.interestAmount,
+        totalInstallmentAmount: loanAmortizationSchedule.totalInstallmentAmount,
+        principalAmount: loanAmortizationSchedule.principalAmount,
+        interestAmount: loanAmortizationSchedule.interestAmount,
       })
       .from(loanPaymentsDetails)
       .leftJoin(
         loanAmortizationSchedule,
-        eq(
-          loanAmortizationSchedule.id,
-          loanPaymentsDetails.installmentId,
-        ),
+        eq(loanAmortizationSchedule.id, loanPaymentsDetails.installmentId),
       )
-      .where(
-        eq(loanPaymentsDetails.loanPaymentId, paymentId),
-      );
+      .where(eq(loanPaymentsDetails.loanPaymentId, paymentId));
 
     return {
       ...payment,
@@ -395,10 +394,10 @@ export class LoanPaidService {
       rawData = payload.data;
     } else {
       rawData = await this.db
-      .select({
-        id: loanPayments.id,
-        loanId: loanPayments.loanId,
-        customReference: loanPayments.customReference,
+        .select({
+          id: loanPayments.id,
+          loanId: loanPayments.loanId,
+          customReference: loanPayments.customReference,
           paymentDate: loanPayments.paymentDate,
           paymentType: loanPayments.paymentType,
           paymentMethod: loanPayments.paymentMethod,

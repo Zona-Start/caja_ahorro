@@ -2,18 +2,18 @@ import { z } from 'zod';
 import { supplierInvoiceSchema } from './supplier-invoice.schema';
 
 export const supplierInvoiceApiSchema = z.object({
-  id: z.number(),
-  supplierId: z.number(),
+  id: z.string(),
+  supplierId: z.string(),
   supplier: z
     .object({
-      id: z.number(),
+      id: z.string(),
       name: z.string(),
     })
     .optional(),
-  purchaseOrderId: z.number().optional().nullable(),
+  purchaseOrderId: z.string().optional().nullable(),
   purchaseOrder: z
     .object({
-      id: z.number(),
+      id: z.string(),
       orderNumber: z.string(),
     })
     .optional()
@@ -27,14 +27,18 @@ export const supplierInvoiceApiSchema = z.object({
   totalAmount: z.number(),
   paymentType: z.string(),
   status: z.string(),
+  currencyCode: z.string().optional().nullable(),
+  paymentMethod: z.string().optional().nullable(),
+  bankAccountId: z.string().optional().nullable(),
+  bankReference: z.string().optional().nullable(),
   observations: z.string().optional().nullable(),
   items: z
     .array(
       z.object({
-        id: z.number().optional(),
+        id: z.string().optional(),
         lineType: z.string(),
-        itemId: z.number().optional().nullable(),
-        expenseAccountId: z.number().optional().nullable(),
+        itemId: z.string().optional().nullable(),
+        expenseAccountId: z.string().optional().nullable(),
         description: z.string(),
         quantity: z.number(),
         unitCost: z.number(),

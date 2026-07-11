@@ -54,6 +54,12 @@ export const TenantSettingQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
 });
 
-export class CreateTenantSettingDto extends createZodDto(CreateTenantSettingSchema) { }
-export class UpdateTenantSettingDto extends createZodDto(UpdateTenantSettingSchema) { }
-export class TenantSettingQueryDto extends createZodDto(TenantSettingQuerySchema) { }
+export class CreateTenantSettingDto extends createZodDto(
+  CreateTenantSettingSchema,
+) {}
+export class UpdateTenantSettingDto extends createZodDto(
+  UpdateTenantSettingSchema,
+) {}
+export class TenantSettingQueryDto extends createZodDto(
+  TenantSettingQuerySchema,
+) {}

@@ -14,7 +14,7 @@ export interface ParsedBalance {
 export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
   try {
     const workbook = new ExcelJS.Workbook();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await workbook.xlsx.load(buffer as any);
 
     const worksheet = workbook.worksheets[0];

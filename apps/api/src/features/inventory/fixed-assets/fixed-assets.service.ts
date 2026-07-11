@@ -30,7 +30,7 @@ export class FixedAssetsService {
     private readonly productServiceSuppliersService: ProductServiceSuppliersService,
     private readonly generateCode: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async create(
     dto: CreateFixedAssetDto,
@@ -300,7 +300,9 @@ export class FixedAssetsService {
         ? new Date(asset.acquisitionDate as string).toISOString().split('T')[0]
         : null,
       lastDepreciationDate: asset.lastDepreciationDate
-        ? new Date(asset.lastDepreciationDate as string).toISOString().split('T')[0]
+        ? new Date(asset.lastDepreciationDate as string)
+            .toISOString()
+            .split('T')[0]
         : null,
       disposalDate: asset.disposalDate
         ? new Date(asset.disposalDate as string).toISOString().split('T')[0]
@@ -441,8 +443,10 @@ export class FixedAssetsService {
         updatedById: userId,
       };
 
-      if (dtoClean.categoryId !== undefined) updateData.categoryId = dtoClean.categoryId;
-      if (dtoClean.assetCode !== undefined) updateData.assetCode = dtoClean.assetCode;
+      if (dtoClean.categoryId !== undefined)
+        updateData.categoryId = dtoClean.categoryId;
+      if (dtoClean.assetCode !== undefined)
+        updateData.assetCode = dtoClean.assetCode;
       if (dtoClean.name !== undefined) updateData.name = dtoClean.name;
       if (dtoClean.description !== undefined)
         updateData.description = dtoClean.description;
@@ -459,8 +463,9 @@ export class FixedAssetsService {
       if (dtoClean.depreciationMethod !== undefined)
         updateData.depreciationMethod = dtoClean.depreciationMethod;
       if (dtoClean.accumulatedDepreciation !== undefined)
-        updateData.accumulatedDepreciation =
-          String(dtoClean.accumulatedDepreciation);
+        updateData.accumulatedDepreciation = String(
+          dtoClean.accumulatedDepreciation,
+        );
       if (dtoClean.lastDepreciationDate !== undefined)
         updateData.lastDepreciationDate = dtoClean.lastDepreciationDate;
       if (dtoClean.disposalDate !== undefined)

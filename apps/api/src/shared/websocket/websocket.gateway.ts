@@ -1,11 +1,11 @@
+import { Logger } from '@nestjs/common';
 import {
   WebSocketGateway as NestWsGateway,
-  WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
 
 @NestWsGateway({
   cors: { origin: '*', credentials: true },
@@ -41,6 +41,10 @@ export class AppWsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   broadcastGlobal<T>(event: string, payload: T) {
     if (!this.server) return;
-    this.server.emit(event, { event, payload, timestamp: new Date().toISOString() });
+    this.server.emit(event, {
+      event,
+      payload,
+      timestamp: new Date().toISOString(),
+    });
   }
 }

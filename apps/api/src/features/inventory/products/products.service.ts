@@ -1,10 +1,14 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { products, productServiceSuppliers } from '@/database/schema/tables/inventory';
 import { tenantSettings } from '@/database/schema/tables';
+import {
+  products,
+  productServiceSuppliers,
+} from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { ProductPricesService } from '@/features/inventory/product-prices/product-prices.service';
+import { CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,
   Inject,
@@ -15,7 +19,6 @@ import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ProductPaginationDto } from './dto/pagination-product.dto';
 import { CreateProductDto, UpdateProductDto } from './dto/products.schema';
-import { CurrencyCodeEnum } from '@/types/enum';
 
 type ProductSelect = typeof products.$inferSelect;
 
@@ -27,7 +30,7 @@ export class ProductsService {
     private readonly generateCode: GenerateCodeService,
     private readonly productPricesService: ProductPricesService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async create(
     dto: CreateProductDto,
@@ -60,15 +63,13 @@ export class ProductsService {
       throw new NotFoundException('Category not found');
     }
 
-
     const transaction = await this.db.transaction(async (tx) => {
-
       const code = await this.generateCode.generateGlobalCode(
         'PRD',
         tenantId,
         'inventory',
         'products',
-        tx
+        tx,
       );
       const [result] = await tx
         .insert(products)
@@ -95,7 +96,11 @@ export class ProductsService {
           status: products.status,
         });
 
-      if (dto.supplierCost !== 0 || (dto.currencyCode && dto.currencyCode !== 'VES') || (dto.salePrice ?? 0) > 0) {
+      if (
+        dto.supplierCost !== 0 ||
+        (dto.currencyCode && dto.currencyCode !== 'VES') ||
+        (dto.salePrice ?? 0) > 0
+      ) {
         const priceBase = {
           productId: result.id,
           currencyCode: dto.currencyCode as CurrencyCodeEnum,
@@ -117,18 +122,35 @@ export class ProductsService {
           { ...priceBase, priceType: 'SELLING' },
           userId,
           tenantId,
-          tx
+          tx,
         );
 
         if ((dto.profitSupply ?? 0) > 0 || (dto.offerSalePrice ?? 0) > 0) {
           const offerBase: Record<string, unknown> = dto.offerSalePrice
-            ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice, salePrice: undefined, bsPriceAmount: undefined }
-            : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0, salePrice: undefined, bsPriceAmount: undefined };
+            ? {
+                ...priceBase,
+                priceType: 'OFFER' as const,
+                profitPercent: 0,
+                offerSalePrice: dto.offerSalePrice,
+                salePrice: undefined,
+                bsPriceAmount: undefined,
+              }
+            : {
+                ...priceBase,
+                priceType: 'OFFER' as const,
+                profitPercent: dto.profitSupply ?? 0,
+                salePrice: undefined,
+                bsPriceAmount: undefined,
+              };
           await this.productPricesService.create(
-            { ...offerBase, startDate: dto.offerStartDate, endDate: dto.offerEndDate } as any,
+            {
+              ...offerBase,
+              startDate: dto.offerStartDate,
+              endDate: dto.offerEndDate,
+            } as any,
             userId,
             tenantId,
-            tx
+            tx,
           );
         }
       }
@@ -147,10 +169,8 @@ export class ProductsService {
         }
       }
 
-      return result
-
-    })
-
+      return result;
+    });
 
     if (!transaction) {
       throw new BadRequestException('Product not created');
@@ -191,7 +211,10 @@ export class ProductsService {
 
     if (status) {
       searchConditions.push(
-        eq(products.status, status as (typeof products.$inferInsert)['status'] & {}),
+        eq(
+          products.status,
+          status as (typeof products.$inferInsert)['status'] & {},
+        ),
       );
     }
 
@@ -275,12 +298,7 @@ export class ProductsService {
           availableQuantity: schema.inventoryAvailability.availableQuantity,
         })
         .from(schema.inventoryAvailability)
-        .where(
-          inArray(
-            schema.inventoryAvailability.itemId,
-            productIds,
-          ),
-        );
+        .where(inArray(schema.inventoryAvailability.itemId, productIds));
     }
 
     const pricesMap = new Map(prices.map((p) => [p.productId, p]));
@@ -333,6 +351,7 @@ export class ProductsService {
         id: products.id,
         internalCode: products.internalCode,
         name: products.name,
+        sku: products.sku,
       })
       .from(products)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
@@ -421,12 +440,7 @@ export class ProductsService {
     const dataAvailable = await this.db
       .select()
       .from(schema.inventoryAvailability)
-      .where(
-        eq(
-          schema.inventoryAvailability.itemId,
-          id,
-        ),
-      );
+      .where(eq(schema.inventoryAvailability.itemId, id));
 
     return {
       dataProduct,
@@ -461,7 +475,8 @@ export class ProductsService {
     if (dto.unitOfMeasure !== undefined)
       updateData.unitOfMeasure = dto.unitOfMeasure;
     if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.sku !== undefined && dto.sku.trim()) updateData.sku = dto.sku.trim();
+    if (dto.sku !== undefined && dto.sku.trim())
+      updateData.sku = dto.sku.trim();
 
     const result = await this.db.transaction(async (tx) => {
       const whereConditions = [eq(products.id, id)];
@@ -484,7 +499,11 @@ export class ProductsService {
         throw new NotFoundException('Product not found after update');
       }
 
-      if (dto.supplierCost !== 0 || (dto.currencyCode && dto.currencyCode !== 'VES') || (dto.salePrice ?? 0) > 0) {
+      if (
+        dto.supplierCost !== 0 ||
+        (dto.currencyCode && dto.currencyCode !== 'VES') ||
+        (dto.salePrice ?? 0) > 0
+      ) {
         const priceBase = {
           productId: id,
           currencyCode: dto.currencyCode ?? 'VES',
@@ -511,10 +530,27 @@ export class ProductsService {
 
         if ((dto.profitSupply ?? 0) > 0 || (dto.offerSalePrice ?? 0) > 0) {
           const offerBase: Record<string, unknown> = dto.offerSalePrice
-            ? { ...priceBase, priceType: 'OFFER' as const, profitPercent: 0, offerSalePrice: dto.offerSalePrice, salePrice: undefined, bsPriceAmount: undefined }
-            : { ...priceBase, priceType: 'OFFER' as const, profitPercent: dto.profitSupply ?? 0, salePrice: undefined, bsPriceAmount: undefined };
+            ? {
+                ...priceBase,
+                priceType: 'OFFER' as const,
+                profitPercent: 0,
+                offerSalePrice: dto.offerSalePrice,
+                salePrice: undefined,
+                bsPriceAmount: undefined,
+              }
+            : {
+                ...priceBase,
+                priceType: 'OFFER' as const,
+                profitPercent: dto.profitSupply ?? 0,
+                salePrice: undefined,
+                bsPriceAmount: undefined,
+              };
           await this.productPricesService.create(
-            { ...offerBase, startDate: dto.offerStartDate, endDate: dto.offerEndDate } as any,
+            {
+              ...offerBase,
+              startDate: dto.offerStartDate,
+              endDate: dto.offerEndDate,
+            } as any,
             userId,
             existingProduct.tenantId,
             tx,
@@ -603,7 +639,12 @@ export class ProductsService {
   }
 
   async getDefaults(tenantId: string): Promise<Record<string, unknown>> {
-    const keys = ['TAX_PURCHASES', 'TAX_SALES', 'UTILITY-PRODUCT', 'EXPENDITURE-PRODUCT'];
+    const keys = [
+      'TAX_PURCHASES',
+      'TAX_SALES',
+      'UTILITY-PRODUCT',
+      'EXPENDITURE-PRODUCT',
+    ];
     const rows = await this.db
       .select()
       .from(tenantSettings)

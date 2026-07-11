@@ -10,8 +10,7 @@ import {
 } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { CreateLoanTypeDto } from './dto/loan-types.schema';
-import { UpdateLoanTypeDto } from './dto/loan-types.schema';
+import { CreateLoanTypeDto, UpdateLoanTypeDto } from './dto/loan-types.schema';
 import { LoanTypePaginationDto } from './dto/pagination-loan-type.dto';
 
 type LoanTypeSelect = typeof loanTypes.$inferSelect;
@@ -56,13 +55,11 @@ export class LoanTypesService {
         termUnits: dto.termUnits,
         cancellationPercentage: dto.cancellationPercentage?.toString() ?? null,
         loanAccountChartId: dto.loanAccountChartId ?? null,
-        interestEarnedAccountChartId:
-          dto.interestEarnedAccountChartId ?? null,
+        interestEarnedAccountChartId: dto.interestEarnedAccountChartId ?? null,
         specialQuotaAccountChartId: dto.specialQuotaAccountChartId ?? null,
         expenseAccountChartId: dto.expenseAccountChartId ?? null,
         specialQuotaNumber: dto.specialQuotaNumber ?? 0,
-        specialQuotaPercentage:
-          dto.specialQuotaPercentage?.toString() ?? '0',
+        specialQuotaPercentage: dto.specialQuotaPercentage?.toString() ?? '0',
         maxLoanAmount: dto.maxLoanAmount?.toString() ?? null,
         minLoanAmount: dto.minLoanAmount?.toString() ?? null,
         payrollTypeId: dto.payrollTypeId ?? null,
@@ -173,10 +170,7 @@ export class LoanTypesService {
       .orderBy(sql`${loanTypes.createdAt} desc`);
   }
 
-  async findOne(
-    id: string,
-    tenantId: string | null,
-  ): Promise<LoanTypeSelect> {
+  async findOne(id: string, tenantId: string | null): Promise<LoanTypeSelect> {
     const conditions = [eq(loanTypes.id, id)];
 
     if (tenantId) {
@@ -226,15 +220,13 @@ export class LoanTypesService {
     };
 
     if (dto.name !== undefined) updateData.name = dto.name.toUpperCase();
-    if (dto.description !== undefined)
-      updateData.description = dto.description;
+    if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.interestRate !== undefined)
       updateData.interestRate = dto.interestRate.toString();
     if (dto.termType !== undefined) updateData.termType = dto.termType;
     if (dto.termUnits !== undefined) updateData.termUnits = dto.termUnits;
     if (dto.cancellationPercentage !== undefined)
-      updateData.cancellationPercentage =
-        dto.cancellationPercentage.toString();
+      updateData.cancellationPercentage = dto.cancellationPercentage.toString();
     if (dto.loanAccountChartId !== undefined)
       updateData.loanAccountChartId = dto.loanAccountChartId;
     if (dto.interestEarnedAccountChartId !== undefined)
@@ -247,8 +239,7 @@ export class LoanTypesService {
     if (dto.specialQuotaNumber !== undefined)
       updateData.specialQuotaNumber = dto.specialQuotaNumber;
     if (dto.specialQuotaPercentage !== undefined)
-      updateData.specialQuotaPercentage =
-        dto.specialQuotaPercentage.toString();
+      updateData.specialQuotaPercentage = dto.specialQuotaPercentage.toString();
     if (dto.maxLoanAmount !== undefined)
       updateData.maxLoanAmount = dto.maxLoanAmount.toString();
     if (dto.minLoanAmount !== undefined)
@@ -286,17 +277,11 @@ export class LoanTypesService {
       );
     }
 
-    await this.auditHelper.logUpdate(
-      userId,
-      'loan_type',
-      existing,
-      updated,
-      {
-        tenantId: existing.tenantId,
-        targetId: updated.id,
-        description: `Updated loan type ${updated.name}`,
-      },
-    );
+    await this.auditHelper.logUpdate(userId, 'loan_type', existing, updated, {
+      tenantId: existing.tenantId,
+      targetId: updated.id,
+      description: `Updated loan type ${updated.name}`,
+    });
 
     return updated;
   }

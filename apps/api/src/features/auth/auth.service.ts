@@ -57,7 +57,7 @@ export class AuthService {
     private readonly cryptographyService: CryptographyService,
     private readonly jwtService: JwtService,
     private readonly systemEventHelper: SystemEventHelper,
-  ) { }
+  ) {}
 
   async login(loginDto: LoginInput, context: LoginContext = {}): Promise<any> {
     const { username, password } = loginDto;

@@ -188,7 +188,7 @@ export class AssociatesService {
 
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [];
 
     if (tenantId) {
       searchConditions.push(eq(associates.tenantId, tenantId));
@@ -324,7 +324,10 @@ export class AssociatesService {
       })
       .from(associates)
       .where(and(...conditions))
-      .leftJoin(associateAccounts, eq(associateAccounts.associateId, associates.id));
+      .leftJoin(
+        associateAccounts,
+        eq(associateAccounts.associateId, associates.id),
+      );
 
     if (!result.length) {
       throw new NotFoundException(`Associate with ID ${id} not found`);
@@ -624,19 +627,17 @@ export class AssociatesService {
     }
 
     await this.drizzle.transaction(async (tx) => {
-      const associateAccount =
-        await tx.query.associateAccounts.findFirst({
-          where: eq(schema.associateAccounts.associateId, id),
-        });
+      const associateAccount = await tx.query.associateAccounts.findFirst({
+        where: eq(schema.associateAccounts.associateId, id),
+      });
 
       if (associateAccount) {
-        const movements =
-          await tx.query.associateAccountMovements.findMany({
-            where: eq(
-              schema.associateAccountMovements.associateAccountId,
-              associateAccount.id,
-            ),
-          });
+        const movements = await tx.query.associateAccountMovements.findMany({
+          where: eq(
+            schema.associateAccountMovements.associateAccountId,
+            associateAccount.id,
+          ),
+        });
 
         if (movements.length > 0) {
           throw new BadRequestException(
@@ -666,79 +667,85 @@ export class AssociatesService {
       );
     }
 
-    return this.drizzle.transaction(async (tx) => {
-      const associateAccount =
-        await tx.query.associateAccounts.findFirst({
+    return this.drizzle
+      .transaction(async (tx) => {
+        const associateAccount = await tx.query.associateAccounts.findFirst({
           where: eq(schema.associateAccounts.associateId, id),
         });
 
-      if (!associateAccount) {
-        await tx
-          .update(associates)
-          .set({ status: 'INACTIVE' as any, updatedById: userId })
-          .where(eq(associates.id, id));
-        return { message: 'Associate set to INACTIVE successfully' };
-      }
+        if (!associateAccount) {
+          await tx
+            .update(associates)
+            .set({ status: 'INACTIVE' as any, updatedById: userId })
+            .where(eq(associates.id, id));
+          return { message: 'Associate set to INACTIVE successfully' };
+        }
 
-      const movements =
-        await tx.query.associateAccountMovements.findMany({
+        const movements = await tx.query.associateAccountMovements.findMany({
           where: eq(
             schema.associateAccountMovements.associateAccountId,
             associateAccount.id,
           ),
         });
 
-      if (
-        movements.length === 1 &&
-        movements[0].description === 'APERTURA CUENTA'
-      ) {
-        await tx
-          .delete(schema.associateAccountMovements)
-          .where(
-            eq(
-              schema.associateAccountMovements.associateAccountId,
-              associateAccount.id,
-            ),
+        if (
+          movements.length === 1 &&
+          movements[0].description === 'APERTURA CUENTA'
+        ) {
+          await tx
+            .delete(schema.associateAccountMovements)
+            .where(
+              eq(
+                schema.associateAccountMovements.associateAccountId,
+                associateAccount.id,
+              ),
+            );
+          await tx
+            .delete(schema.associateAccounts)
+            .where(eq(schema.associateAccounts.associateId, id));
+          await tx.delete(associates).where(eq(associates.id, id));
+          return { message: 'Associate deleted successfully' };
+        }
+
+        if (movements.length > 0) {
+          throw new BadRequestException(
+            'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
           );
+        }
+
         await tx
-          .delete(schema.associateAccounts)
-          .where(eq(schema.associateAccounts.associateId, id));
-        await tx.delete(associates).where(eq(associates.id, id));
-        return { message: 'Associate deleted successfully' };
-      }
+          .update(associates)
+          .set({ status: 'INACTIVE' as any, updatedById: userId })
+          .where(eq(associates.id, id));
 
-      if (movements.length > 0) {
-        throw new BadRequestException(
-          'The partner cannot be deleted because there are transactions in their account other than the opening transaction.',
+        return { message: 'Associate set to INACTIVE successfully' };
+      })
+      .then(async (result) => {
+        // Registra el log auditoria (fuera de la transacción)
+        await this.auditHelper.logUpdate(
+          userId,
+          'associate',
+          existingAssociate,
+          {
+            targetId: id,
+            description: `Asociado INACTIVO: ${existingAssociate.fullname} (${existingAssociate.cedula})`,
+            tenantId: tenantId,
+          },
         );
-      }
-
-      await tx
-        .update(associates)
-        .set({ status: 'INACTIVE' as any, updatedById: userId })
-        .where(eq(associates.id, id));
-
-      return { message: 'Associate set to INACTIVE successfully' };
-    }).then(async (result) => {
-      // Registra el log auditoria (fuera de la transacción)
-      await this.auditHelper.logUpdate(userId, 'associate', existingAssociate, {
-        targetId: id,
-        description: `Asociado INACTIVO: ${existingAssociate.fullname} (${existingAssociate.cedula})`,
-        tenantId: tenantId,
+        return result;
+      })
+      .catch((error) => {
+        if (
+          error instanceof NotFoundException ||
+          error instanceof BadRequestException
+        ) {
+          throw error;
+        }
+        console.error('Error during inactive associate:', error);
+        throw new InternalServerErrorException(
+          'A problem occurred while inactivating the associate.',
+        );
       });
-      return result;
-    }).catch((error) => {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      console.error('Error during inactive associate:', error);
-      throw new InternalServerErrorException(
-        'A problem occurred while inactivating the associate.',
-      );
-    });
   }
 
   async findByIdAssociateAccounts(tenantId: string, id: string) {

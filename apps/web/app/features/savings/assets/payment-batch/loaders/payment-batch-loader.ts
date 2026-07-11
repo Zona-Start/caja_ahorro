@@ -1,7 +1,7 @@
 import { type ClientLoaderFunctionArgs } from 'react-router';
 import { QueryClient } from '@tanstack/react-query';
-import { QUERY_KEYS } from '@/lib/query-keys';
 import { paymentBatchService } from '../services/payment-batch-service';
+import { paymentBatchKeys } from '../keys/payment-batch-keys';
 
 export const paymentBatchLoader =
   (queryClient: QueryClient) =>
@@ -9,11 +9,13 @@ export const paymentBatchLoader =
     const url = new URL(request.url);
     const page = Number(url.searchParams.get('page')) || 1;
     const limit = Number(url.searchParams.get('limit')) || 10;
-    
-    const filters = { page, limit };
+    const search = url.searchParams.get('search') || undefined;
+    const status = url.searchParams.get('status') || undefined;
+
+    const filters = { page, limit, search, status };
 
     return await queryClient.ensureQueryData({
-      queryKey: QUERY_KEYS.paymentBatches.list(JSON.stringify(filters)),
+      queryKey: paymentBatchKeys.list(filters),
       queryFn: () => paymentBatchService.getPaymentBatches(filters),
     });
   };

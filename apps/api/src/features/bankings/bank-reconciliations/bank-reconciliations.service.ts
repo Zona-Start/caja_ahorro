@@ -1,3 +1,6 @@
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import {
   BadRequestException,
   Inject,
@@ -7,12 +10,9 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/schema';
-import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import {
-  CreateBankReconciliationDto,
   AddReconciliationDetailDto,
+  CreateBankReconciliationDto,
   FilterBankReconciliationDto,
 } from './dto/bank-reconciliations.schema';
 
@@ -23,7 +23,11 @@ export class BankReconciliationsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async create(dto: CreateBankReconciliationDto, userId: string, tenantId: string) {
+  async create(
+    dto: CreateBankReconciliationDto,
+    userId: string,
+    tenantId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const [bankAccount] = await tx
         .select({
@@ -82,7 +86,10 @@ export class BankReconciliationsService {
     tenantId: string,
   ) {
     const [recon] = await this.drizzle
-      .select({ id: schema.bankReconciliations.id, status: schema.bankReconciliations.status })
+      .select({
+        id: schema.bankReconciliations.id,
+        status: schema.bankReconciliations.status,
+      })
       .from(schema.bankReconciliations)
       .where(
         and(
@@ -159,11 +166,19 @@ export class BankReconciliationsService {
 
       const adjustmentsTotal = details
         .filter((d) => d.isBookAdjustment)
-        .reduce((sum, d) => sum + (d.adjustmentAmount ? Number(d.adjustmentAmount) : 0), 0);
+        .reduce(
+          (sum, d) =>
+            sum + (d.adjustmentAmount ? Number(d.adjustmentAmount) : 0),
+          0,
+        );
 
-      const bookBalanceAfter = (bookBalanceBefore + adjustmentsTotal).toString();
+      const bookBalanceAfter = (
+        bookBalanceBefore + adjustmentsTotal
+      ).toString();
       const statementBalance = Number(recon.statementEndingBalance);
-      const difference = (Number(bookBalanceAfter) - statementBalance).toString();
+      const difference = (
+        Number(bookBalanceAfter) - statementBalance
+      ).toString();
       const reconciliationDate = new Date();
 
       const [updated] = await tx
@@ -207,7 +222,9 @@ export class BankReconciliationsService {
       eq(schema.bankReconciliations.tenantId, tenantId),
     ];
     if (bankAccountId) {
-      conditions.push(eq(schema.bankReconciliations.bankAccountId, bankAccountId));
+      conditions.push(
+        eq(schema.bankReconciliations.bankAccountId, bankAccountId),
+      );
     }
 
     return this.drizzle
@@ -217,7 +234,10 @@ export class BankReconciliationsService {
       .orderBy(sql`${schema.bankReconciliations.statementDate} desc`);
   }
 
-  async findAllByPagination(dto: FilterBankReconciliationDto, tenantId: string) {
+  async findAllByPagination(
+    dto: FilterBankReconciliationDto,
+    tenantId: string,
+  ) {
     const {
       page = 1,
       limit = 10,
@@ -294,9 +314,7 @@ export class BankReconciliationsService {
     const details = await this.drizzle
       .select()
       .from(schema.bankReconciliationDetails)
-      .where(
-        eq(schema.bankReconciliationDetails.bankReconciliationId, id),
-      );
+      .where(eq(schema.bankReconciliationDetails.bankReconciliationId, id));
 
     return { ...recon, details };
   }

@@ -1,8 +1,8 @@
+import * as schema from '@/database/schema';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { CurrencyCodeEnum } from '@/types/enum';
 import { Injectable, Logger } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from '@/database/schema';
 
 export interface AccountingItemInput {
   associateId?: string;
@@ -38,11 +38,13 @@ interface BuildEntryContext {
 
 @Injectable()
 export class ContributionBatchesAccountingService {
-  private readonly logger = new Logger(ContributionBatchesAccountingService.name);
+  private readonly logger = new Logger(
+    ContributionBatchesAccountingService.name,
+  );
 
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) { }
+  ) {}
 
   /**
    * Genera el asiento contable automático para una carga de haberes.
@@ -115,8 +117,7 @@ export class ContributionBatchesAccountingService {
     originalBatch: typeof schema.contributionBatches.$inferSelect,
     tx: NodePgDatabase<typeof schema>,
   ): Promise<{ reversalEntryId?: string; warning?: string }> {
-    const isPatronal =
-      originalBatch.movementType === 'contribution_patronal';
+    const isPatronal = originalBatch.movementType === 'contribution_patronal';
     const fullDesc = originalBatch.description || 'Carga de haberes';
 
     const roleAliases: Record<string, string> = isPatronal
@@ -139,16 +140,22 @@ export class ContributionBatchesAccountingService {
       reversalAmounts['EMPLOYER_CONTRIBUTION'] = -Number(
         originalBatch.amountPatrono ?? 0,
       );
-      reversalDescs['ASSOCIATED_SAVINGS'] = `REVERSO: AHORRO SOCIO DEL ${originalBatch.entryDate}`;
-      reversalDescs['EMPLOYER_CONTRIBUTION'] = `REVERSO: APORTE PATRONO DEL ${originalBatch.entryDate}`;
-      reversalGlobals['ASSOCIATED_SAVINGS'] = `REVERSO: APORTES SOCIO DEL ${originalBatch.entryDate}`;
-      reversalGlobals['EMPLOYER_CONTRIBUTION'] = `REVERSO: APORTE PATRONO DEL ${originalBatch.entryDate}`;
+      reversalDescs['ASSOCIATED_SAVINGS'] =
+        `REVERSO: AHORRO SOCIO DEL ${originalBatch.entryDate}`;
+      reversalDescs['EMPLOYER_CONTRIBUTION'] =
+        `REVERSO: APORTE PATRONO DEL ${originalBatch.entryDate}`;
+      reversalGlobals['ASSOCIATED_SAVINGS'] =
+        `REVERSO: APORTES SOCIO DEL ${originalBatch.entryDate}`;
+      reversalGlobals['EMPLOYER_CONTRIBUTION'] =
+        `REVERSO: APORTE PATRONO DEL ${originalBatch.entryDate}`;
     } else {
       reversalAmounts['VOLUNTARY_SAVINGS'] = -Number(
         originalBatch.amountVoluntario ?? 0,
       );
-      reversalDescs['VOLUNTARY_SAVINGS'] = `REVERSO: AHORRO VOLUNTARIO DEL ${originalBatch.entryDate}`;
-      reversalGlobals['VOLUNTARY_SAVINGS'] = `REVERSO: APORTES VOLUNTARIOS DEL ${originalBatch.entryDate}`;
+      reversalDescs['VOLUNTARY_SAVINGS'] =
+        `REVERSO: AHORRO VOLUNTARIO DEL ${originalBatch.entryDate}`;
+      reversalGlobals['VOLUNTARY_SAVINGS'] =
+        `REVERSO: APORTES VOLUNTARIOS DEL ${originalBatch.entryDate}`;
     }
 
     const associateId = originalBatch.associateId ?? undefined;
@@ -218,8 +225,7 @@ export class ContributionBatchesAccountingService {
       items.push(...params.items);
     } else {
       const associateIds =
-        params.associateIds ??
-        (params.associateId ? [params.associateId] : []);
+        params.associateIds ?? (params.associateId ? [params.associateId] : []);
 
       if (isPatronal) {
         const totalHalf = params.totalAmount / 2;

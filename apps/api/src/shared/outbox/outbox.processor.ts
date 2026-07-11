@@ -1,14 +1,13 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
+import { eventOutbox } from '@/database/schema';
+import type { EventEnvelope } from '@/shared/event-bus/event-envelope';
+import { EventStoreService } from '@/shared/event-bus/event-store.service';
+import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { eventOutbox } from '@/database/schema';
-import { eq, and, lte, asc, sql } from 'drizzle-orm';
+import { and, asc, eq, lte, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from '@/database/schema';
-import { EventStoreService } from '@/shared/event-bus/event-store.service';
-import type { EventEnvelope } from '@/shared/event-bus/event-envelope';
 
 const LOG = 'outbox';
 
@@ -29,10 +28,12 @@ export class OutboxProcessor implements OnModuleDestroy {
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
   ) {
-    this.pollIntervalMs = this.configService.get<number>('OUTBOX_POLL_MS') ?? 1000;
+    this.pollIntervalMs =
+      this.configService.get<number>('OUTBOX_POLL_MS') ?? 1000;
     this.batchSize = this.configService.get<number>('OUTBOX_BATCH_SIZE') ?? 100;
     this.maxRetries = this.configService.get<number>('OUTBOX_MAX_RETRIES') ?? 5;
-    this.baseBackoffMs = this.configService.get<number>('OUTBOX_BACKOFF_MS') ?? 2000;
+    this.baseBackoffMs =
+      this.configService.get<number>('OUTBOX_BACKOFF_MS') ?? 2000;
   }
 
   start(): void {
@@ -64,7 +65,9 @@ export class OutboxProcessor implements OnModuleDestroy {
 
     const remaining = await this.countPending();
     if (remaining > 0) {
-      this.logger.warn(`[${LOG}.flush.incomplete] ${remaining} events still PENDING`);
+      this.logger.warn(
+        `[${LOG}.flush.incomplete] ${remaining} events still PENDING`,
+      );
     } else {
       this.logger.log(`[${LOG}.flush.complete] all pending events drained`);
     }
@@ -117,7 +120,15 @@ export class OutboxProcessor implements OnModuleDestroy {
   private async publishOne(
     row: typeof eventOutbox.$inferSelect,
   ): Promise<boolean> {
-    const { id, eventId, eventType, aggregateId, tenantId, payload, retryCount } = row;
+    const {
+      id,
+      eventId,
+      eventType,
+      aggregateId,
+      tenantId,
+      payload,
+      retryCount,
+    } = row;
 
     const envelope: EventEnvelope = {
       eventId,
@@ -138,7 +149,9 @@ export class OutboxProcessor implements OnModuleDestroy {
         .set({ status: 'SENT', sentAt: new Date() })
         .where(eq(eventOutbox.id, id));
 
-      this.logger.log(`[${LOG}.sent] event=${eventType} id=${eventId} aggregate=${aggregateId}`);
+      this.logger.log(
+        `[${LOG}.sent] event=${eventType} id=${eventId} aggregate=${aggregateId}`,
+      );
       return true;
     } catch (error) {
       const newRetryCount = retryCount + 1;

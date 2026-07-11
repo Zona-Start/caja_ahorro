@@ -1,4 +1,4 @@
-import { supplierPayments, supplierPaymentLines } from '@/database/schema';
+import { supplierPaymentLines, supplierPayments } from '@/database/schema';
 import { InferSelectModel } from 'drizzle-orm';
 
 export type SupplierPayment = InferSelectModel<typeof supplierPayments>;

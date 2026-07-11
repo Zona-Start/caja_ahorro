@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router';
+import { useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/shadcn/tabs';
 import {
   PiggyBank,
@@ -26,28 +26,47 @@ const tabs = [
   { value: 'creditos', label: 'Créditos', icon: ShoppingCart },
 ] as const;
 
+type TabValue = (typeof tabs)[number]['value'];
+
+interface TabPageState {
+  page: number;
+  limit: number;
+}
+
+const DEFAULT_PAGE_STATE: TabPageState = { page: 1, limit: 10 };
+
 export function InquiryTabs({ associate }: InquiryTabsProps) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<TabValue>('haberes');
 
-  const activeTab = searchParams.get('tab') || 'haberes';
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '10');
+  const [pageStates, setPageStates] = useState<
+    Record<TabValue, TabPageState>
+  >({
+    haberes: { ...DEFAULT_PAGE_STATE },
+    retiros: { ...DEFAULT_PAGE_STATE },
+    historial: { ...DEFAULT_PAGE_STATE },
+    prestamos: { ...DEFAULT_PAGE_STATE },
+    creditos: { ...DEFAULT_PAGE_STATE },
+  });
 
-  const handleTabChange = (newTab: string) => {
-    setSearchParams((prev) => {
-      prev.set('tab', newTab);
-      prev.set('page', '1');
-      prev.set('limit', '10');
-      return prev;
-    });
-  };
+  const handleTabChange = useCallback((newTab: string) => {
+    setActiveTab(newTab as TabValue);
+    setPageStates((prev) => ({
+      ...prev,
+      [newTab as TabValue]: { ...DEFAULT_PAGE_STATE },
+    }));
+  }, []);
 
-  const setPage = (newPage: number) => {
-    setSearchParams((prev) => {
-      prev.set('page', newPage.toString());
-      return prev;
-    });
-  };
+  const createSetPage = useCallback(
+    (tab: TabValue) => (newPage: number) => {
+      setPageStates((prev) => ({
+        ...prev,
+        [tab]: { ...prev[tab], page: newPage },
+      }));
+    },
+    [],
+  );
+
+  const state = pageStates[activeTab];
 
   return (
     <div className="w-full">
@@ -69,46 +88,48 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
           ))}
         </TabsList>
 
-        <TabsContent value="haberes" className="mt-4">
-          <HaberesTab
-            id={associate.id}
-            page={page}
-            setPage={setPage}
-            limit={limit}
-          />
-        </TabsContent>
-        <TabsContent value="retiros" className="mt-4">
-          <WithdrawalsTab
-            id={associate.id}
-            page={page}
-            setPage={setPage}
-            limit={limit}
-          />
-        </TabsContent>
-        <TabsContent value="historial" className="mt-4">
-          <HistoryTab
-            id={associate.id}
-            page={page}
-            setPage={setPage}
-            limit={limit}
-          />
-        </TabsContent>
-        <TabsContent value="prestamos" className="mt-4">
-          <LoansTab
-            id={associate.id}
-            page={page}
-            setPage={setPage}
-            limit={limit}
-          />
-        </TabsContent>
-        <TabsContent value="creditos" className="mt-4">
-          <CreditsTab
-            id={associate.id}
-            page={page}
-            setPage={setPage}
-            limit={limit}
-          />
-        </TabsContent>
+        <div className="mt-4">
+          <TabsContent value="haberes" forceMount hidden={activeTab !== 'haberes'}>
+            <HaberesTab
+              id={associate.id}
+              page={pageStates.haberes.page}
+              setPage={createSetPage('haberes')}
+              limit={pageStates.haberes.limit}
+            />
+          </TabsContent>
+          <TabsContent value="retiros" forceMount hidden={activeTab !== 'retiros'}>
+            <WithdrawalsTab
+              id={associate.id}
+              page={pageStates.retiros.page}
+              setPage={createSetPage('retiros')}
+              limit={pageStates.retiros.limit}
+            />
+          </TabsContent>
+          <TabsContent value="historial" forceMount hidden={activeTab !== 'historial'}>
+            <HistoryTab
+              id={associate.id}
+              page={pageStates.historial.page}
+              setPage={createSetPage('historial')}
+              limit={pageStates.historial.limit}
+            />
+          </TabsContent>
+          <TabsContent value="prestamos" forceMount hidden={activeTab !== 'prestamos'}>
+            <LoansTab
+              id={associate.id}
+              page={pageStates.prestamos.page}
+              setPage={createSetPage('prestamos')}
+              limit={pageStates.prestamos.limit}
+            />
+          </TabsContent>
+          <TabsContent value="creditos" forceMount hidden={activeTab !== 'creditos'}>
+            <CreditsTab
+              id={associate.id}
+              page={pageStates.creditos.page}
+              setPage={createSetPage('creditos')}
+              limit={pageStates.creditos.limit}
+            />
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   );

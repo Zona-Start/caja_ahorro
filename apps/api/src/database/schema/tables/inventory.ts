@@ -5,13 +5,13 @@ import {
   index,
   integer,
   numeric,
-  pgSchema,
   text,
   timestamp,
   uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { inventorySchema } from '../_schemas';
 import {
   currencyCodeEnum,
   fixedAssetsInventoryStatus,
@@ -22,12 +22,15 @@ import {
   statusSuppliers,
   unitOfMeasureEnum,
 } from '../enum';
-import { purchaseOrderItems, purchaseOrders, supplierInvoices, suppliers } from './purchasing';
-import { tenants } from './tenants';
-import { inventorySchema } from "../_schemas";
-import { associates } from './savings';
 import { accountingEntries } from './accounting';
-
+import {
+  purchaseOrderItems,
+  purchaseOrders,
+  supplierInvoices,
+  suppliers,
+} from './purchasing';
+import { associates } from './savings';
+import { tenants } from './tenants';
 
 // Tabla para las categorías de los productos que se venden
 export const inventoriesCategories = inventorySchema.table(
@@ -103,35 +106,76 @@ export const productPrices = inventorySchema.table('product_prices', {
 
   // 1. Contexto de Moneda y Tasa de Cambio en el momento del cálculo
   currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
-  purchaseExchangeRate: numeric('purchase_exchange_rate', { precision: 18, scale: 6 }).notNull().default('1.000000'),
-  salesExchangeRate: numeric('sales_exchange_rate', { precision: 18, scale: 6 }).notNull().default('1.000000'),
+  purchaseExchangeRate: numeric('purchase_exchange_rate', {
+    precision: 18,
+    scale: 6,
+  })
+    .notNull()
+    .default('1.000000'),
+  salesExchangeRate: numeric('sales_exchange_rate', { precision: 18, scale: 6 })
+    .notNull()
+    .default('1.000000'),
 
   // 2. Bloque de Costos (Moneda Origen de la transacción)
-  baseCost: numeric('base_cost', { precision: 18, scale: 6 }).notNull().default('0'), // costo neto factura
-  otherCosts: numeric('other_costs', { precision: 18, scale: 6 }).notNull().default('0'), // flete, seguro, etc.
-  purchaseTaxPercent: numeric('purchase_tax_percent', { precision: 5, scale: 2 }).notNull().default('16.00'), // % IVA compra
-  totalCost: numeric('total_cost', { precision: 18, scale: 6 }).notNull().default('0'), // Costo total en moneda origen
+  baseCost: numeric('base_cost', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'), // costo neto factura
+  otherCosts: numeric('other_costs', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'), // flete, seguro, etc.
+  purchaseTaxPercent: numeric('purchase_tax_percent', {
+    precision: 5,
+    scale: 2,
+  })
+    .notNull()
+    .default('16.00'), // % IVA compra
+  totalCost: numeric('total_cost', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'), // Costo total en moneda origen
 
   // 3. Bloque de Costos en Bolívares (Calculados/Espejo)
-  baseCostVes: numeric('base_cost_ves', { precision: 18, scale: 6 }).notNull().default('0'),
-  otherCostsVes: numeric('other_costs_ves', { precision: 18, scale: 6 }).notNull().default('0'),
-  totalCostVes: numeric('total_cost_ves', { precision: 18, scale: 6 }).notNull().default('0'),
+  baseCostVes: numeric('base_cost_ves', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'),
+  otherCostsVes: numeric('other_costs_ves', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'),
+  totalCostVes: numeric('total_cost_ves', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'),
 
   // 4. Bloque de Venta y Utilidad (Moneda Origen)
-  profitPercent: numeric('profit_percent', { precision: 5, scale: 2 }).notNull().default('0'), // % utilidad
-  expensePercent: numeric('expense_percent', { precision: 5, scale: 2 }).notNull().default('0'), // % gastos
-  salesTaxPercent: numeric('sales_tax_percent', { precision: 5, scale: 2 }).notNull().default('16.00'), // % IVA venta
+  profitPercent: numeric('profit_percent', { precision: 5, scale: 2 })
+    .notNull()
+    .default('0'), // % utilidad
+  expensePercent: numeric('expense_percent', { precision: 5, scale: 2 })
+    .notNull()
+    .default('0'), // % gastos
+  salesTaxPercent: numeric('sales_tax_percent', { precision: 5, scale: 2 })
+    .notNull()
+    .default('16.00'), // % IVA venta
 
   salePrice: numeric('sale_price', { precision: 18, scale: 6 }), // Precio directo en divisa (sin margen)
   offerSalePrice: numeric('offer_sale_price', { precision: 18, scale: 6 }), // Precio oferta directo en divisa
   bsPriceAmount: numeric('bs_price_amount', { precision: 18, scale: 6 }), // Monto en divisa para pago en Bs
 
-  finalPriceNet: numeric('final_price_net', { precision: 18, scale: 6 }).notNull().default('0'), // Precio de venta sin IVA
-  finalPriceGross: numeric('final_price_gross', { precision: 18, scale: 6 }).notNull().default('0'), // Precio de venta con IVA
+  finalPriceNet: numeric('final_price_net', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'), // Precio de venta sin IVA
+  finalPriceGross: numeric('final_price_gross', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'), // Precio de venta con IVA
 
   // 5. Bloque de Venta en Bolívares (Espejo calculado)
-  finalPriceNetVes: numeric('final_price_net_ves', { precision: 18, scale: 6 }).notNull().default('0'),
-  finalPriceGrossVes: numeric('final_price_gross_ves', { precision: 18, scale: 6 }).notNull().default('0'),
+  finalPriceNetVes: numeric('final_price_net_ves', { precision: 18, scale: 6 })
+    .notNull()
+    .default('0'),
+  finalPriceGrossVes: numeric('final_price_gross_ves', {
+    precision: 18,
+    scale: 6,
+  })
+    .notNull()
+    .default('0'),
 
   // Backward compatibility alias
   finalPrice: numeric('final_price', { precision: 18, scale: 6 }),
@@ -173,7 +217,12 @@ export const servicePrices = inventorySchema.table('service_prices', {
   suppliersId: uuid('supplier_id').references(() => suppliers.id), // opcional
 
   currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
-  purchaseExchangeRate: numeric('purchase_exchange_rate', { precision: 18, scale: 6 }).notNull().default('1.000000'),
+  purchaseExchangeRate: numeric('purchase_exchange_rate', {
+    precision: 18,
+    scale: 6,
+  })
+    .notNull()
+    .default('1.000000'),
 
   /* =========  COSTO  ========= */
   baseCost: numeric('base_cost', { precision: 18, scale: 6 }), // costo neto factura
@@ -320,17 +369,30 @@ export const inventoryMovements = inventorySchema.table(
     description: text('description'),
 
     // Referencias opcionales de documentos de origen / destino
-    purchaseOrderId: uuid('purchase_order_id').references(() => purchaseOrders.id, { onDelete: 'set null' }),
-    supplierId: uuid('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
+    purchaseOrderId: uuid('purchase_order_id').references(
+      () => purchaseOrders.id,
+      { onDelete: 'set null' },
+    ),
+    supplierId: uuid('supplier_id').references(() => suppliers.id, {
+      onDelete: 'set null',
+    }),
     invoiceNumber: varchar('invoice_number', { length: 50 }),
-    associateId: uuid('associate_id').references(() => associates.id, { onDelete: 'set null' }),
+    associateId: uuid('associate_id').references(() => associates.id, {
+      onDelete: 'set null',
+    }),
 
     // Autorreferencia para trazabilidad (ej. una devolución que apunta al movimiento original)
-    originMovementId: uuid('origin_movement_id').references((): any => inventoryMovements.id, { onDelete: 'set null' }),
+    originMovementId: uuid('origin_movement_id').references(
+      (): any => inventoryMovements.id,
+      { onDelete: 'set null' },
+    ),
 
     // Enlaces de integración financiera
     creditId: uuid('credit_id'), // Añade la referencia .references(() => credits.id) si aplica
-    accountingEntryId: uuid('accounting_entry_id').references(() => accountingEntries.id, { onDelete: 'set null' }),
+    accountingEntryId: uuid('accounting_entry_id').references(
+      () => accountingEntries.id,
+      { onDelete: 'set null' },
+    ),
 
     // Auditoría avanzada de estados
     createdBy: uuid('created_by'),
@@ -342,10 +404,13 @@ export const inventoryMovements = inventorySchema.table(
   },
   (table) => [
     // Índices compuestos optimizados para multi-tenant reflejando tu diseño de Convex
-    uniqueIndex('inv_mov_tenant_number_idx').on(table.tenantId, table.movementNumber),
+    uniqueIndex('inv_mov_tenant_number_idx').on(
+      table.tenantId,
+      table.movementNumber,
+    ),
     index('inv_mov_tenant_type_idx').on(table.tenantId, table.movementType),
     index('inv_mov_tenant_date_idx').on(table.tenantId, table.movementDate),
-  ]
+  ],
 );
 
 /* ---------- 7.2. DETALLE: ÍTEMS DEL MOVIMIENTO (DETALLE) ---------- */
@@ -363,16 +428,23 @@ export const inventoryMovementItems = inventorySchema.table(
     quantity: integer('quantity').notNull(),
 
     // Mantenemos alta precisión numérica para costos en el ERP (precision: 18, scale: 6)
-    unitCost: numeric('unit_cost', { precision: 18, scale: 6 }).notNull().default('0.000000'),
-    totalCost: numeric('total_cost', { precision: 18, scale: 6 }).notNull().default('0.000000'),
+    unitCost: numeric('unit_cost', { precision: 18, scale: 6 })
+      .notNull()
+      .default('0.000000'),
+    totalCost: numeric('total_cost', { precision: 18, scale: 6 })
+      .notNull()
+      .default('0.000000'),
 
     // Enlace opcional a la línea de la orden de compra original
-    purchaseOrderItemId: uuid('purchase_order_item_id').references(() => purchaseOrderItems.id, { onDelete: 'set null' }),
+    purchaseOrderItemId: uuid('purchase_order_item_id').references(
+      () => purchaseOrderItems.id,
+      { onDelete: 'set null' },
+    ),
 
     ...timestamps,
   },
   (table) => [
     index('inv_mov_items_movement_idx').on(table.movementId),
     index('inv_mov_items_product_idx').on(table.productId),
-  ]
+  ],
 );

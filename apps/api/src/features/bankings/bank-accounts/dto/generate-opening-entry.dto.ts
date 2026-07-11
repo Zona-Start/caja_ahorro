@@ -6,4 +6,6 @@ export const GenerateOpeningEntrySchema = z.object({
   openingDate: z.coerce.date(),
 });
 
-export type GenerateOpeningEntryDto = z.infer<typeof GenerateOpeningEntrySchema>;
+export type GenerateOpeningEntryDto = z.infer<
+  typeof GenerateOpeningEntrySchema
+>;

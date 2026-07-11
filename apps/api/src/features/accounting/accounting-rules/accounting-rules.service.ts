@@ -14,7 +14,7 @@ export class AccountingRulesService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async create(
     tenantId: string,
@@ -87,7 +87,7 @@ export class AccountingRulesService {
 
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [];
 
     if (search) {
       searchConditions.push(

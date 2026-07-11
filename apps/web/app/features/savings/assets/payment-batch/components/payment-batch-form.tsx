@@ -1,70 +1,46 @@
-'use client';
-import { IconWrapper } from '@/components/icon-wrapper';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@repo/shadcn/card';
-import { Skeleton } from '@repo/shadcn/components/ui/skeleton';
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@repo/shadcn/form';
 import { Form } from '@repo/shadcn/form';
-import { Banknote } from 'lucide-react';
+import { SelectSearchable } from '@repo/shadcn/select-searchable';
+import { Textarea } from '@repo/shadcn/textarea';
+import { Skeleton } from '@repo/shadcn/skeleton';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useToastSystem } from '@/hooks/use-toast-system';
 import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import {
-  useApprovedLiquidations,
+  useApprovedLoans,
   useApprovedWithdrawals,
+  useApprovedLiquidations,
 } from '../hooks/use-payment-batch-query';
+import { useCreatePaymentBatchMutation } from '../hooks/use-payment-batch-mutation';
 import {
-  type CreatePaymentBatch,
   createPaymentBatchSchema,
+  type CreatePaymentBatch,
 } from '../schemas/payment-batch-schema';
 import { DisbursementTabs } from './disbursement-tabs';
 import { type PaymentBatchApprovedItem } from './payment-batch-columns';
-import { PaymentBatchHeaderForm } from './payment-batch-header-form';
-import { type SelectedItem } from './payment-batch-types';
 import { SelectionSummary } from './selection-summary';
 
 interface PaymentBatchFormProps {
-  isSubmitting: boolean;
-  onSubmit: (data: CreatePaymentBatch) => void;
   onCancel: () => void;
-  initialData?: any; 
-  isEdit?: boolean;
+  onSuccess: () => void;
 }
 
-const DetailsSkeleton = () => {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-full" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-[400px] w-full" />
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+export function PaymentBatchForm({ onCancel, onSuccess }: PaymentBatchFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToastSystem();
 
-export function PaymentBatchForm({
-  isSubmitting,
-  onSubmit,
-  onCancel,
-  initialData,
-  isEdit,
-}: PaymentBatchFormProps) {
   const form = useForm<CreatePaymentBatch>({
     resolver: zodResolver(createPaymentBatchSchema),
-    defaultValues: initialData || {
-      bankAccountId: undefined,
-      currencyCode: 'VES', 
-      description: '',
-      status: 'DRAFT', 
+    defaultValues: {
+      currencyCode: 'VES',
       items: [],
     },
   });
@@ -72,8 +48,12 @@ export function PaymentBatchForm({
   const { data: bankAccountsData, isLoading: isLoadingBankAccounts } =
     useBankAccountAllQuery();
   const bankAccounts = bankAccountsData?.data || [];
-  
-  // Fetch approved items
+
+  const {
+    data: loansData,
+    isLoading: isLoadingLoans,
+  } = useApprovedLoans();
+
   const {
     data: withdrawalsData,
     isLoading: isLoadingWithdrawals,
@@ -90,111 +70,163 @@ export function PaymentBatchForm({
     isFetchingNextPage: isFetchingNextLiquidations,
   } = useApprovedLiquidations();
 
-  // Flatten the infinite data for logic (selection/totals)
+  const { mutate: createPaymentBatch } = useCreatePaymentBatchMutation();
+
+  const approvedLoans = useMemo<PaymentBatchApprovedItem[]>(
+    () => (loansData as { data: PaymentBatchApprovedItem[] })?.data || [],
+    [loansData],
+  );
+
   const approvedWithdrawals = useMemo<PaymentBatchApprovedItem[]>(
-    () => (withdrawalsData?.pages.flatMap((page: any) => page?.data || []) || []) as PaymentBatchApprovedItem[],
+    () => withdrawalsData?.pages?.flatMap((page: { data?: PaymentBatchApprovedItem[] }) => page?.data || []) || [],
     [withdrawalsData],
   );
 
   const approvedLiquidations = useMemo<PaymentBatchApprovedItem[]>(
-    () => (liquidationsData?.pages.flatMap((page: any) => page?.data || []) || []) as PaymentBatchApprovedItem[],
+    () => liquidationsData?.pages?.flatMap((page: { data?: PaymentBatchApprovedItem[] }) => page?.data || []) || [],
     [liquidationsData],
   );
 
-  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>(
-    initialData?.items || [],
-  );
+  const [selectedItems, setSelectedItems] = useState<
+    { type: 'LOAN' | 'WITHDRAWAL' | 'LIQUIDATION'; sourceId: string }[]
+  >([]);
 
-  // Keep form items in sync with selectedItems state
   useEffect(() => {
-    form.setValue('items', selectedItems);
+    form.setValue('items', selectedItems, { shouldValidate: selectedItems.length > 0 });
   }, [selectedItems, form]);
 
-  const handleSelectionChange = (newSelectedItems: SelectedItem[]) => {
-    setSelectedItems(newSelectedItems);
-  };
+  const allApprovedItemsMap = useMemo(() => {
+    const map = new Map<string, PaymentBatchApprovedItem>();
+    approvedLoans.forEach((i) => map.set(`LOAN:${i.id}`, i));
+    approvedWithdrawals.forEach((i) => map.set(`WITHDRAWAL:${i.id}`, i));
+    approvedLiquidations.forEach((i) => map.set(`LIQUIDATION:${i.id}`, i));
+    return map;
+  }, [approvedLoans, approvedWithdrawals, approvedLiquidations]);
 
   const totalSelectedAmount = useMemo(() => {
     let total = 0;
     selectedItems.forEach((selected) => {
-      let item;
-      if (selected.type === 'WITHDRAWAL') {
-        item = approvedWithdrawals.find(
-          (withdrawal) => withdrawal.id === selected.sourceId,
-        );
-      } else if (selected.type === 'LIQUIDATION') {
-        item = approvedLiquidations.find(
-          (liquidation) => liquidation.id === selected.sourceId,
-        );
-      }
+      const key = `${selected.type}:${selected.sourceId}`;
+      const item = allApprovedItemsMap.get(key);
       if (item) {
-        total += Number(item.amount);
+        total += parseFloat(item.amount || '0');
       }
     });
     return total;
-  }, [selectedItems, approvedWithdrawals, approvedLiquidations]);
+  }, [selectedItems, allApprovedItemsMap]);
 
   const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data);
+    if (data.items.length === 0) {
+      toast.error('Debe seleccionar al menos un registro');
+      return;
+    }
+    if (!data.bankAccountId) {
+      toast.error('Debe seleccionar una cuenta bancaria');
+      return;
+    }
+    setIsSubmitting(true);
+    createPaymentBatch(data, {
+      onSuccess: () => {
+        toast.success('Lote creado exitosamente');
+        onSuccess();
+      },
+      onError: (error) => {
+        toast.error((error as Error).message || 'Error al crear el lote');
+      },
+      onSettled: () => {
+        setIsSubmitting(false);
+      },
+    });
   });
 
-  if (isLoadingWithdrawals || isLoadingLiquidations) {
-    return <DetailsSkeleton />;
-  }
+  const isLoading = isLoadingLoans || isLoadingWithdrawals || isLoadingLiquidations;
+
+  const loansTotalCount = (loansData as { data: PaymentBatchApprovedItem[] })?.data?.length;
 
   return (
-    <>
-      <Card className="mb-24">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IconWrapper className="w-8 h-8">
-              <Banknote />
-            </IconWrapper>
-            Datos del Lote de Pago
-          </CardTitle>
-          <CardDescription>
-            Ingrese la información para crear un nuevo lote de pago.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <PaymentBatchHeaderForm
-                formMethods={form}
-                bankAccounts={bankAccounts}
-                isLoadingBankAccounts={isLoadingBankAccounts}
-                isSubmitting={isSubmitting}
-              />
+    <Form {...form}>
+      <form onSubmit={handleSubmit} className="space-y-6 pb-4">
+        <div className="grid grid-cols-1 gap-4">
+          <FormField
+            control={form.control}
+            name="bankAccountId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cuenta Bancaria Origen</FormLabel>
+                <SelectSearchable
+                  options={bankAccounts.map((acc: { id: string; accountName: string | null; accountNumber: string }) => ({
+                    value: acc.id,
+                    label: `${acc.accountName} - ${acc.accountNumber}`,
+                  }))}
+                  onValueChange={(value) => field.onChange(value)}
+                  placeholder="Seleccione cuenta bancaria"
+                  defaultValue={field.value || ''}
+                  disabled={isSubmitting || isLoadingBankAccounts}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-              <DisbursementTabs
-                approvedWithdrawals={approvedWithdrawals}
-                approvedLiquidations={approvedLiquidations}
-                selectedItems={selectedItems}
-                onSelectionChange={handleSelectionChange}
-                withdrawalsInfinite={{
-                  fetchNextPage: fetchNextWithdrawals,
-                  hasNextPage: !!hasNextWithdrawals,
-                  isFetchingNextPage: isFetchingNextWithdrawals,
-                }}
-                liquidationsInfinite={{
-                  fetchNextPage: fetchNextLiquidations,
-                  hasNextPage: !!hasNextLiquidations,
-                  isFetchingNextPage: isFetchingNextLiquidations,
-                }}
-              />
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Descripción</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Descripción del lote (opcional)"
+                    {...field}
+                    disabled={isSubmitting}
+                    rows={2}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-      <SelectionSummary
-        selectedCount={selectedItems.length}
-        totalAmount={totalSelectedAmount}
-        currencyCode={form.getValues('currencyCode')}
-        isSubmitting={isSubmitting}
-        onProcess={handleSubmit}
-        isEdit={isEdit}
-      />
-    </>
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-[300px] w-full" />
+          </div>
+        ) : (
+          <DisbursementTabs
+            approvedLoans={approvedLoans}
+            approvedWithdrawals={approvedWithdrawals}
+            approvedLiquidations={approvedLiquidations}
+            selectedItems={selectedItems}
+            onSelectionChange={setSelectedItems}
+            isLoadingLoans={isLoadingLoans}
+            isLoadingWithdrawals={isLoadingWithdrawals}
+            isLoadingLiquidations={isLoadingLiquidations}
+            loansPagination={{ totalCount: loansTotalCount }}
+            withdrawalsPagination={{
+              fetchNextPage: fetchNextWithdrawals,
+              hasNextPage: hasNextWithdrawals,
+              isFetchingNextPage: isFetchingNextWithdrawals,
+              totalCount: withdrawalsData?.pages?.[0]?.meta?.totalItems,
+            }}
+            liquidationsPagination={{
+              fetchNextPage: fetchNextLiquidations,
+              hasNextPage: hasNextLiquidations,
+              isFetchingNextPage: isFetchingNextLiquidations,
+              totalCount: liquidationsData?.pages?.[0]?.meta?.totalItems,
+            }}
+          />
+        )}
+
+        <SelectionSummary
+          selectedCount={selectedItems.length}
+          totalAmount={totalSelectedAmount}
+          currencyCode={form.getValues('currencyCode')}
+          isSubmitting={isSubmitting}
+          onProcess={handleSubmit}
+        />
+      </form>
+    </Form>
   );
 }

@@ -2,25 +2,24 @@ import { PaginationDto } from '@/common/dto/pagination.dto';
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
+import { moduleSettings } from '@/database/schema/tables/core';
+import { productPrices, products } from '@/database/schema/tables/inventory';
+import { suppliers } from '@/database/schema/tables/purchasing';
 import {
   associateAccounts,
   associates,
-  credits,
   creditAmortizationSchedule,
   creditItemSales,
+  credits,
   creditStatusHistory,
   creditsTypes,
   loans,
-  withdrawalTypes,
 } from '@/database/schema/tables/savings';
-import { exchangeRates, moduleSettings } from '@/database/schema/tables/core';
-import { suppliers } from '@/database/schema/tables/purchasing';
-import { products, productPrices } from '@/database/schema/tables/inventory';
 import { associateHaberesBalance } from '@/database/schema/views';
-import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
-import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
-import { WithdrawalAssociateService } from '@/features/savings/withdrawalls/withdrawal-associate/withdrawal-associate.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
+import { WithdrawalAssociateService } from '@/features/savings/withdrawalls/withdrawal-associate/withdrawal-associate.service';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
@@ -59,7 +58,7 @@ export class CreditManagementService {
     private readonly withdrawalAssociateService: WithdrawalAssociateService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -71,7 +70,8 @@ export class CreditManagementService {
   ): number {
     const periodsPerYear = termType === 'installments' ? 24 : 12;
     const r = annualRate / 100 / periodsPerYear;
-    if (r === 0 || numInstallments === 0) return amount / (numInstallments || 1);
+    if (r === 0 || numInstallments === 0)
+      return amount / (numInstallments || 1);
     const factor = Math.pow(1 + r, numInstallments);
     return (amount * r * factor) / (factor - 1);
   }
@@ -104,9 +104,8 @@ export class CreditManagementService {
     const r = annualInterestRate / 100 / periodsPerYear;
     const n = numInstallments;
     const factor = r === 0 ? 1 : Math.pow(1 + r, n);
-    const frenchInstallment = r === 0
-      ? creditAmount / n
-      : (creditAmount * r * factor) / (factor - 1);
+    const frenchInstallment =
+      r === 0 ? creditAmount / n : (creditAmount * r * factor) / (factor - 1);
     const expensePerInstallment = expensesAmount / n;
     const totalInstallmentAmount = frenchInstallment + expensePerInstallment;
 
@@ -131,9 +130,7 @@ export class CreditManagementService {
         }
         return new Date(targetYear, targetMonth, 16);
       } else {
-        const lastDay = getLastDayOfMonth(
-          new Date(targetYear, targetMonth, 1),
-        );
+        const lastDay = getLastDayOfMonth(new Date(targetYear, targetMonth, 1));
         if (current.getDate() > lastDay.getDate() - 1) {
           targetMonth += 1;
           if (targetMonth > 11) {
@@ -163,7 +160,7 @@ export class CreditManagementService {
     for (let i = 1; i <= n; i++) {
       const interestThisPeriod = remaining * r;
       let principalThisPeriod = frenchInstallment - interestThisPeriod;
-      let expenseComponent = expensePerInstallment;
+      const expenseComponent = expensePerInstallment;
       let total = totalInstallmentAmount;
 
       if (i === n) {
@@ -195,11 +192,7 @@ export class CreditManagementService {
         }
       } else {
         nextDueDate = getLastDayOfMonth(
-          new Date(
-            nextDueDate.getFullYear(),
-            nextDueDate.getMonth() + 1,
-            1,
-          ),
+          new Date(nextDueDate.getFullYear(), nextDueDate.getMonth() + 1, 1),
         );
       }
     }
@@ -245,10 +238,7 @@ export class CreditManagementService {
       .from(associateAccounts)
       .leftJoin(
         associateHaberesBalance,
-        eq(
-          associateHaberesBalance.associateAccountId,
-          associateAccounts.id,
-        ),
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       )
       .where(eq(associateAccounts.associateId, assoc.id));
 
@@ -303,7 +293,7 @@ export class CreditManagementService {
 
     const balance = Number(account.balance ?? 0);
     const available80 = balance * 0.8;
-    const paymentCapacity = (Number(assoc.baseSalary ?? 0)) * 0.3;
+    const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
 
     return {
       associate: assoc,
@@ -454,10 +444,7 @@ export class CreditManagementService {
       })
       .from(associates)
       .where(
-        and(
-          eq(associates.id, associateId),
-          eq(associates.tenantId, tenantId),
-        ),
+        and(eq(associates.id, associateId), eq(associates.tenantId, tenantId)),
       );
 
     if (!assoc) {
@@ -470,12 +457,20 @@ export class CreditManagementService {
       );
     }
 
-    if (creditType.minCreditAmount && Number(creditType.minCreditAmount) > 0 && requestedAmount < Number(creditType.minCreditAmount)) {
+    if (
+      creditType.minCreditAmount &&
+      Number(creditType.minCreditAmount) > 0 &&
+      requestedAmount < Number(creditType.minCreditAmount)
+    ) {
       throw new BadRequestException(
         `El monto mínimo para este tipo de crédito es ${Number(creditType.minCreditAmount).toLocaleString('es')}`,
       );
     }
-    if (creditType.maxCreditAmount && Number(creditType.maxCreditAmount) > 0 && requestedAmount > Number(creditType.maxCreditAmount)) {
+    if (
+      creditType.maxCreditAmount &&
+      Number(creditType.maxCreditAmount) > 0 &&
+      requestedAmount > Number(creditType.maxCreditAmount)
+    ) {
       throw new BadRequestException(
         `El monto máximo para este tipo de crédito es ${Number(creditType.maxCreditAmount).toLocaleString('es')}`,
       );
@@ -538,10 +533,7 @@ export class CreditManagementService {
       .from(associateAccounts)
       .leftJoin(
         associateHaberesBalance,
-        eq(
-          associateHaberesBalance.associateAccountId,
-          associateAccounts.id,
-        ),
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       )
       .where(eq(associateAccounts.associateId, associateId));
 
@@ -560,7 +552,8 @@ export class CreditManagementService {
 
     const haberesPaymentAmount = haberesPayment ?? 0;
     const directPaymentAmount = directPayment ?? 0;
-    const amortizableAmount = requestedAmount - haberesPaymentAmount - directPaymentAmount;
+    const amortizableAmount =
+      requestedAmount - haberesPaymentAmount - directPaymentAmount;
 
     if (amortizableAmount < 0) {
       throw new BadRequestException(
@@ -570,8 +563,12 @@ export class CreditManagementService {
 
     const finalRate = interestRate ?? Number(creditType.interestRate);
     const finalTermUnits = termUnits ?? creditType.termUnits;
-    const finalTermType = (termType ?? creditType.termType) as 'installments' | 'quotas';
-    const expensePct = expensesPercentage ?? Number(creditType.administrativeExpensePercentage ?? 0);
+    const finalTermType = (termType ?? creditType.termType) as
+      | 'installments'
+      | 'quotas';
+    const expensePct =
+      expensesPercentage ??
+      Number(creditType.administrativeExpensePercentage ?? 0);
 
     if (amortizableAmount > 0) {
       const monthlyPayment = this.calculateMonthlyPayment(
@@ -580,7 +577,7 @@ export class CreditManagementService {
         finalTermUnits,
         finalTermType,
       );
-      const paymentCapacity = (Number(assoc.baseSalary ?? 0)) * 0.3;
+      const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
       if (monthlyPayment > paymentCapacity) {
         throw new BadRequestException(
           `La cuota mensual (${monthlyPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
@@ -615,37 +612,38 @@ export class CreditManagementService {
     const currencyCode: CurrencyCodeEnum =
       setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
 
-    const endDate = this.calculateEndDate(startDate, finalTermUnits, finalTermType);
+    const endDate = this.calculateEndDate(
+      startDate,
+      finalTermUnits,
+      finalTermType,
+    );
     const capital = Math.max(amortizableAmount, 0);
-    const expensesAmount = capital > 0
-      ? (capital * expensePct) / 100
-      : 0;
+    const expensesAmount = capital > 0 ? (capital * expensePct) / 100 : 0;
 
     // Cálculos financieros con Sistema Francés
     const periodsPerYear = finalTermType === 'installments' ? 24 : 12;
     const r = finalRate / 100 / periodsPerYear;
     const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
-    const frenchInstallment = capital > 0
-      ? (capital * r * factor) / (factor - 1)
-      : 0;
+    const frenchInstallment =
+      capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
     const totalInterest = frenchInstallment * finalTermUnits - capital;
     const totalPayable = frenchInstallment * finalTermUnits + expensesAmount;
-    const installmentAmount = capital > 0
-      ? frenchInstallment + expensesAmount / finalTermUnits
-      : 0;
+    const installmentAmount =
+      capital > 0 ? frenchInstallment + expensesAmount / finalTermUnits : 0;
 
-    const schedule = capital > 0
-      ? this.generateAmortizationSchedule(
-        capital,
-        finalTermUnits,
-        finalRate,
-        startDate,
-        '',
-        userId,
-        finalTermType,
-        expensesAmount,
-      )
-      : [];
+    const schedule =
+      capital > 0
+        ? this.generateAmortizationSchedule(
+            capital,
+            finalTermUnits,
+            finalRate,
+            startDate,
+            '',
+            userId,
+            finalTermType,
+            expensesAmount,
+          )
+        : [];
 
     const newCredit = await this.db.transaction(async (tx) => {
       const [ins] = await tx
@@ -676,7 +674,9 @@ export class CreditManagementService {
           invoiceNumber: dto.invoiceNumber ?? null,
           previousCreditId: dto.previousCreditId ?? null,
           allowOverdraft: dto.allowOverdraft ?? false,
-          haberesPayment: dto.haberesPayment ? String(dto.haberesPayment) : null,
+          haberesPayment: dto.haberesPayment
+            ? String(dto.haberesPayment)
+            : null,
           directPayment: dto.directPayment ? String(dto.directPayment) : null,
           directPaymentMethod: dto.directPaymentMethod ?? null,
           directPaymentReference: dto.directPaymentReference ?? null,
@@ -788,10 +788,7 @@ export class CreditManagementService {
       })
       .from(associates)
       .where(
-        and(
-          eq(associates.id, associateId),
-          eq(associates.tenantId, tenantId),
-        ),
+        and(eq(associates.id, associateId), eq(associates.tenantId, tenantId)),
       )
       .leftJoin(
         associateAccounts,
@@ -799,17 +796,14 @@ export class CreditManagementService {
       )
       .leftJoin(
         associateHaberesBalance,
-        eq(
-          associateHaberesBalance.associateAccountId,
-          associateAccounts.id,
-        ),
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       );
 
     if (assoc?.isPayrollCredit)
       throw new BadRequestException('Crédito nómina activo');
 
     if (!allowOverdraft) {
-      const avail = (Number(assoc?.balance ?? 0)) * 0.8;
+      const avail = Number(assoc?.balance ?? 0) * 0.8;
       if (Number(avail) < Number(requestedAmount))
         throw new BadRequestException('Disponibilidad insuficiente');
     }
@@ -866,15 +860,15 @@ export class CreditManagementService {
         const schedule =
           amortizableAmount > 0
             ? this.generateAmortizationSchedule(
-              amortizableAmount,
-              finalTermUnits,
-              finalRate,
-              startDate ? new Date(startDate) : new Date(),
-              id,
-              userId,
-              finalTermType,
-              expensesAmount,
-            )
+                amortizableAmount,
+                finalTermUnits,
+                finalRate,
+                startDate ? new Date(startDate) : new Date(),
+                id,
+                userId,
+                finalTermType,
+                expensesAmount,
+              )
             : [];
 
         if (schedule.length > 0) {
@@ -909,7 +903,9 @@ export class CreditManagementService {
             )
             .limit(1);
 
-          const unitCost = Number(productPrice?.totalCost ?? item.agreedSellingPrice ?? 0);
+          const unitCost = Number(
+            productPrice?.totalCost ?? item.agreedSellingPrice ?? 0,
+          );
 
           await this.inventoryMovementsService.create(
             {
@@ -966,7 +962,9 @@ export class CreditManagementService {
           check: paymentMethodEnum.CHECK,
           cash: paymentMethodEnum.CASH,
         };
-        const paymentMethod = methodMap[directPaymentMethod as string] ?? paymentMethodEnum.BANK_TRANSFER;
+        const paymentMethod =
+          methodMap[directPaymentMethod as string] ??
+          paymentMethodEnum.BANK_TRANSFER;
 
         await this.bankMovementsService.createAndReconcile(
           {
@@ -1026,7 +1024,8 @@ export class CreditManagementService {
             userId,
             {
               associateAccountId: assoc.associateAccountId,
-              movementType: AssociateMovementTypeEnum.COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT,
+              movementType:
+                AssociateMovementTypeEnum.COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT,
               amount: directAmt,
               currencyCode: currencyCode as CurrencyCodeEnum,
               transactionDate: new Date(),
@@ -1072,11 +1071,17 @@ export class CreditManagementService {
         }
       }
 
-      await this.auditHelper.logUpdate(userId, 'credit', credit, updatedCredit, {
-        tenantId,
-        targetId: id,
-        description: `Crédito Aprobado N°${customReference}`,
-      });
+      await this.auditHelper.logUpdate(
+        userId,
+        'credit',
+        credit,
+        updatedCredit,
+        {
+          tenantId,
+          targetId: id,
+          description: `Crédito Aprobado N°${customReference}`,
+        },
+      );
 
       return updatedCredit;
     });
@@ -1113,17 +1118,13 @@ export class CreditManagementService {
           searchConditions.push(ilike(associates.cedula, `%${search}%`));
           break;
         case 'fullname':
-          searchConditions.push(
-            ilike(associates.fullname, `%${search}%`),
-          );
+          searchConditions.push(ilike(associates.fullname, `%${search}%`));
           break;
       }
     }
 
     if (status) {
-      searchConditions.push(
-        eq(credits.status, status as CreditStatusEnum),
-      );
+      searchConditions.push(eq(credits.status, status as CreditStatusEnum));
     }
 
     if (type) {
@@ -1355,10 +1356,7 @@ export class CreditManagementService {
       .from(associateAccounts)
       .leftJoin(
         associateHaberesBalance,
-        eq(
-          associateHaberesBalance.associateAccountId,
-          associateAccounts.id,
-        ),
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       )
       .where(eq(associateAccounts.associateId, associate.id));
 
@@ -1389,8 +1387,7 @@ export class CreditManagementService {
     return {
       associate: {
         ...associate,
-        associateAccountId:
-          associateAccount?.associateAccountId,
+        associateAccountId: associateAccount?.associateAccountId,
         accountNumber: associateAccount?.accountNumber,
         balance: Number(associateAccount?.balance ?? 0).toFixed(2),
       },
@@ -1445,9 +1442,7 @@ export class CreditManagementService {
         .delete(creditAmortizationSchedule)
         .where(eq(creditAmortizationSchedule.creditId, id));
 
-      await tx
-        .delete(creditItemSales)
-        .where(eq(creditItemSales.creditId, id));
+      await tx.delete(creditItemSales).where(eq(creditItemSales.creditId, id));
 
       await tx
         .delete(creditStatusHistory)
@@ -1493,10 +1488,7 @@ export class CreditManagementService {
       .where(
         and(
           ...conditions,
-          eq(
-            credits.creditModality,
-            creditModalityTypeEnum.SPECIAL_QUOTAS,
-          ),
+          eq(credits.creditModality, creditModalityTypeEnum.SPECIAL_QUOTAS),
           or(eq(credits.status, CreditStatusEnum.APPROVED)),
         ),
       );
@@ -1530,9 +1522,7 @@ export class CreditManagementService {
   ) {
     const { page = 1, limit = 10 } = filtersDto;
 
-    const conditions: SQL<unknown>[] = [
-      eq(credits.associateId, associateId),
-    ];
+    const conditions: SQL<unknown>[] = [eq(credits.associateId, associateId)];
     if (tenantId) {
       conditions.push(eq(credits.tenantId, tenantId));
     }
@@ -1596,17 +1586,15 @@ export class CreditManagementService {
         progress = (paidAmount / totalAmount) * 10;
       }
 
-      const formattedProgress = Math.max(0, Math.min(10, progress)).toFixed(
-        2,
-      );
+      const formattedProgress = Math.max(0, Math.min(10, progress)).toFixed(2);
 
       return {
         ...credit,
         creditAmount: totalAmount.toFixed(2),
         outstandingBalance: outstanding.toFixed(2),
-        installmentAmount: parseFloat(
-          credit.installmentAmount || '0',
-        ).toFixed(2),
+        installmentAmount: parseFloat(credit.installmentAmount || '0').toFixed(
+          2,
+        ),
         progress: formattedProgress,
       };
     });
@@ -1712,10 +1700,7 @@ export class CreditManagementService {
 
     const totalPaid = amortizationSchedule
       .filter((item) => item.paymentStatus === 'PAID')
-      .reduce(
-        (acc, item) => acc + parseFloat(item.paidAmount || '0'),
-        0,
-      );
+      .reduce((acc, item) => acc + parseFloat(item.paidAmount || '0'), 0);
 
     const totalPending = Number(credit.totalPayable || '0') - totalPaid;
 

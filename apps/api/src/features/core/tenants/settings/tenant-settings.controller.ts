@@ -23,7 +23,7 @@ export class TenantSettingsController {
   constructor(
     private readonly tenantSettingsService: TenantSettingsService,
     private readonly tenantService: TenantContextService,
-  ) { }
+  ) {}
 
   @Get()
   @Permissions({
@@ -66,10 +66,7 @@ export class TenantSettingsController {
     @Query() dto: TenantSettingQueryDto,
   ) {
     const { targetTenantId } = this.tenantService.getTenantContext(req, dto);
-    return this.tenantSettingsService.findByTenantAndKey(
-      targetTenantId,
-      key,
-    );
+    return this.tenantSettingsService.findByTenantAndKey(targetTenantId, key);
   }
 
   @Get(':id')

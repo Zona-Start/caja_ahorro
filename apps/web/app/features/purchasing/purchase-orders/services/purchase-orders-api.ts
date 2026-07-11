@@ -97,4 +97,16 @@ export const PurchaseOrdersApi = {
       expenditureProduct: number;
     };
   },
+
+  async approve(id: string) {
+    const res = await apiClient.patch(`${BASE}/approve/${id}`);
+    return res.data;
+  },
+
+  async downloadPdf(id: string): Promise<ArrayBuffer> {
+    const res = await apiClient.get(`${BASE}/pdf/${id}`, {
+      responseType: 'arraybuffer',
+    });
+    return res.data as ArrayBuffer;
+  },
 };

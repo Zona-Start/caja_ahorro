@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import { creditPaymetTypeEnum, paymentMethodEnum } from '@/types/enum';
+import { z } from 'zod';
 
 export const CreateCreditPaidSchema = z.object({
   tenantId: z.string().uuid().optional(),

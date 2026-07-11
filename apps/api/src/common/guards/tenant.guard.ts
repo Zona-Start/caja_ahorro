@@ -1,5 +1,13 @@
 // src/common/guards/tenant.guard.ts
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
+import {
+  permissions,
+  rolePermissions,
+  roles,
+  tenantMembers,
+  userPermissions,
+} from '@/database/schema';
 import {
   CanActivate,
   ExecutionContext,
@@ -10,14 +18,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from '@/database/schema';
-import {
-  permissions,
-  rolePermissions,
-  roles,
-  tenantMembers,
-  userPermissions,
-} from '@/database/schema';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()

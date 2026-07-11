@@ -1,11 +1,20 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
 import {
-  IEventBus, EVENT_BUS_TOKEN, IdempotencyService,
-  RetryManager, EventTracerService, EventMetricsService,
-  DeadLetterQueueService, createIdempotentHandler, EventEnvelope,
+  createIdempotentHandler,
+  DeadLetterQueueService,
+  EVENT_BUS_TOKEN,
+  EventEnvelope,
+  EventMetricsService,
+  EventTracerService,
+  IdempotencyService,
+  IEventBus,
+  RetryManager,
 } from '@/shared/event-bus';
-import { LOAN_PAYMENT_EVENTS, LoanPaymentCreatedEvent, LoanPaymentCancelledEvent } from '../events/loan-payment.events';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  LOAN_PAYMENT_EVENTS,
+  LoanPaymentCancelledEvent,
+  LoanPaymentCreatedEvent,
+} from '../events/loan-payment.events';
 
 const HANDLER_NAME = 'LoanPaymentBankingSubscriber';
 
@@ -56,11 +65,19 @@ export class LoanPaymentBankingSubscriber implements OnModuleInit {
     this.logger.log(`${HANDLER_NAME} registered with reliability layer`);
   }
 
-  private handlePaymentCreated(envelope: EventEnvelope<LoanPaymentCreatedEvent>) {
-    this.logger.debug(`Banking event: payment ${envelope.payload.customReference} for loan ${envelope.payload.loanId}, amount ${envelope.payload.amount}`);
+  private handlePaymentCreated(
+    envelope: EventEnvelope<LoanPaymentCreatedEvent>,
+  ) {
+    this.logger.debug(
+      `Banking event: payment ${envelope.payload.customReference} for loan ${envelope.payload.loanId}, amount ${envelope.payload.amount}`,
+    );
   }
 
-  private handlePaymentCancelled(envelope: EventEnvelope<LoanPaymentCancelledEvent>) {
-    this.logger.debug(`Banking event: payment ${envelope.payload.customReference} cancelled for loan ${envelope.payload.loanId}`);
+  private handlePaymentCancelled(
+    envelope: EventEnvelope<LoanPaymentCancelledEvent>,
+  ) {
+    this.logger.debug(
+      `Banking event: payment ${envelope.payload.customReference} cancelled for loan ${envelope.payload.loanId}`,
+    );
   }
 }

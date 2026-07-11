@@ -1,4 +1,13 @@
 import { relations } from 'drizzle-orm';
+import { accountPlan } from '../tables/accounting';
+import { states } from '../tables/core';
+import {
+  fixedAssetsPrices,
+  inventoryMovements,
+  productPrices,
+  productServiceSuppliers,
+  servicePrices,
+} from '../tables/inventory';
 import {
   accountsPayable,
   purchaseOrderItems,
@@ -14,11 +23,8 @@ import {
   supplierTransactions,
   suppliers,
 } from '../tables/purchasing';
-import { accountPlan } from '../tables/accounting';
-import { states } from '../tables/core';
 import { tenants } from '../tables/tenants';
 import { bankAccounts } from '../tables/treasury';
-import { fixedAssetsPrices, productPrices, servicePrices, productServiceSuppliers, inventoryMovements } from '../tables/inventory';
 
 export const suppliersRelations = relations(suppliers, ({ one, many }) => ({
   tenants: one(tenants, {

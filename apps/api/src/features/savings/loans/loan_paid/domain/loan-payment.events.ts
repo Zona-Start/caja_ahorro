@@ -10,7 +10,11 @@ export class LoanPaymentEvents {
   }
 
   emitPaymentCreated(loanId: string, paymentId: string, amount: number): void {
-    this.eventEmitter.emit('loan.payment.created', { loanId, paymentId, amount });
+    this.eventEmitter.emit('loan.payment.created', {
+      loanId,
+      paymentId,
+      amount,
+    });
   }
 
   emitPaymentCancelled(loanId: string, paymentId: string): void {

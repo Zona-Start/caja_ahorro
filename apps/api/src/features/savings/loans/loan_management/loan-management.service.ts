@@ -1,20 +1,19 @@
-import { PaginationDto } from '@/common/dto/pagination.dto';
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
+import { moduleSettings } from '@/database/schema/tables/core';
 import {
   associateAccounts,
   associates,
-  loans,
   loanAmortizationSchedule,
+  loans,
   loanStatusHistory,
   loanTypes,
 } from '@/database/schema/tables/savings';
-import { moduleSettings } from '@/database/schema/tables/core';
 import { associateHaberesBalance } from '@/database/schema/views';
-import { AssociateAccountsMovementsService } from '@/features/savings/parnerts/associate-accounts-movements/associate-accounts-movements.service';
-import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { AssociateAccountsMovementsService } from '@/features/savings/parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
@@ -50,7 +49,7 @@ export class LoanManagementService {
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -62,7 +61,8 @@ export class LoanManagementService {
   ): number {
     const periodsPerYear = termType === 'installments' ? 24 : 12;
     const r = annualRate / 100 / periodsPerYear;
-    if (r === 0 || numInstallments === 0) return amount / (numInstallments || 1);
+    if (r === 0 || numInstallments === 0)
+      return amount / (numInstallments || 1);
     const factor = Math.pow(1 + r, numInstallments);
     return (amount * r * factor) / (factor - 1);
   }
@@ -95,9 +95,8 @@ export class LoanManagementService {
     const r = annualInterestRate / 100 / periodsPerYear;
     const n = numInstallments;
     const factor = r === 0 ? 1 : Math.pow(1 + r, n);
-    const frenchInstallment = r === 0
-      ? capitalAmount / n
-      : (capitalAmount * r * factor) / (factor - 1);
+    const frenchInstallment =
+      r === 0 ? capitalAmount / n : (capitalAmount * r * factor) / (factor - 1);
     const expensePerInstallment = expensesAmount / n;
 
     const getLastDayOfMonth = (date: Date) =>
@@ -121,9 +120,7 @@ export class LoanManagementService {
         }
         return new Date(targetYear, targetMonth, 16);
       } else {
-        const lastDay = getLastDayOfMonth(
-          new Date(targetYear, targetMonth, 1),
-        );
+        const lastDay = getLastDayOfMonth(new Date(targetYear, targetMonth, 1));
         if (current.getDate() > lastDay.getDate() - 1) {
           targetMonth += 1;
           if (targetMonth > 11) {
@@ -157,7 +154,8 @@ export class LoanManagementService {
 
       if (i === n) {
         principalThisPeriod = remaining;
-        total = principalThisPeriod + interestThisPeriod + expensePerInstallment;
+        total =
+          principalThisPeriod + interestThisPeriod + expensePerInstallment;
       }
 
       remaining -= principalThisPeriod;
@@ -184,11 +182,7 @@ export class LoanManagementService {
         }
       } else {
         nextDueDate = getLastDayOfMonth(
-          new Date(
-            nextDueDate.getFullYear(),
-            nextDueDate.getMonth() + 1,
-            1,
-          ),
+          new Date(nextDueDate.getFullYear(), nextDueDate.getMonth() + 1, 1),
         );
       }
     }
@@ -213,10 +207,7 @@ export class LoanManagementService {
       })
       .from(associates)
       .where(
-        and(
-          eq(associates.cedula, cedula),
-          eq(associates.tenantId, tenantId),
-        ),
+        and(eq(associates.cedula, cedula), eq(associates.tenantId, tenantId)),
       );
 
     if (!assoc) {
@@ -234,10 +225,7 @@ export class LoanManagementService {
       .from(associateAccounts)
       .leftJoin(
         associateHaberesBalance,
-        eq(
-          associateHaberesBalance.associateAccountId,
-          associateAccounts.id,
-        ),
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       )
       .where(eq(associateAccounts.associateId, assoc.id));
 
@@ -291,7 +279,7 @@ export class LoanManagementService {
 
     const balance = Number(account.balance ?? 0);
     const available80 = balance * 0.8;
-    const paymentCapacity = (Number(assoc.baseSalary ?? 0)) * 0.3;
+    const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
 
     return {
       associate: assoc,
@@ -345,8 +333,6 @@ export class LoanManagementService {
     };
   }
 
-
-
   // ─── SOLICITAR PRÉSTAMO ─────────────────────────────────────────────────
 
   async request(
@@ -369,10 +355,7 @@ export class LoanManagementService {
       .select()
       .from(loanTypes)
       .where(
-        and(
-          eq(loanTypes.id, loanTypeId),
-          eq(loanTypes.tenantId, tenantId),
-        ),
+        and(eq(loanTypes.id, loanTypeId), eq(loanTypes.tenantId, tenantId)),
       );
 
     if (!loanType) {
@@ -386,10 +369,7 @@ export class LoanManagementService {
       })
       .from(associates)
       .where(
-        and(
-          eq(associates.id, associateId),
-          eq(associates.tenantId, tenantId),
-        ),
+        and(eq(associates.id, associateId), eq(associates.tenantId, tenantId)),
       );
 
     if (!assoc) {
@@ -402,12 +382,20 @@ export class LoanManagementService {
       );
     }
 
-    if (loanType.minLoanAmount && Number(loanType.minLoanAmount) > 0 && requestedAmount < Number(loanType.minLoanAmount)) {
+    if (
+      loanType.minLoanAmount &&
+      Number(loanType.minLoanAmount) > 0 &&
+      requestedAmount < Number(loanType.minLoanAmount)
+    ) {
       throw new BadRequestException(
         `El monto mínimo para este tipo de préstamo es ${Number(loanType.minLoanAmount).toLocaleString('es')}`,
       );
     }
-    if (loanType.maxLoanAmount && Number(loanType.maxLoanAmount) > 0 && requestedAmount > Number(loanType.maxLoanAmount)) {
+    if (
+      loanType.maxLoanAmount &&
+      Number(loanType.maxLoanAmount) > 0 &&
+      requestedAmount > Number(loanType.maxLoanAmount)
+    ) {
       throw new BadRequestException(
         `El monto máximo para este tipo de préstamo es ${Number(loanType.maxLoanAmount).toLocaleString('es')}`,
       );
@@ -473,10 +461,7 @@ export class LoanManagementService {
       .from(associateAccounts)
       .leftJoin(
         associateHaberesBalance,
-        eq(
-          associateHaberesBalance.associateAccountId,
-          associateAccounts.id,
-        ),
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       )
       .where(eq(associateAccounts.associateId, associateId));
 
@@ -495,8 +480,12 @@ export class LoanManagementService {
 
     const finalRate = interestRate ?? Number(loanType.interestRate);
     const finalTermUnits = termUnits ?? loanType.termUnits;
-    const finalTermType = (termType ?? loanType.termType) as 'installments' | 'quotas';
-    const expensePct = expensesPercentage ?? Number(loanType.administrativeExpensePercentage ?? 0);
+    const finalTermType = (termType ?? loanType.termType) as
+      | 'installments'
+      | 'quotas';
+    const expensePct =
+      expensesPercentage ??
+      Number(loanType.administrativeExpensePercentage ?? 0);
     const expensesAmount = (requestedAmount * expensePct) / 100;
 
     const capital = requestedAmount;
@@ -510,7 +499,7 @@ export class LoanManagementService {
         finalTermType,
       );
       const totalPeriodPayment = monthlyPayment + expensePerInstallment;
-      const paymentCapacity = (Number(assoc.baseSalary ?? 0)) * 0.3;
+      const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
       if (totalPeriodPayment > paymentCapacity) {
         throw new BadRequestException(
           `La cuota mensual (${totalPeriodPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
@@ -545,30 +534,34 @@ export class LoanManagementService {
     const currencyCode: CurrencyCodeEnum =
       setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
 
-    const endDate = this.calculateEndDate(startDate, finalTermUnits, finalTermType);
+    const endDate = this.calculateEndDate(
+      startDate,
+      finalTermUnits,
+      finalTermType,
+    );
 
     const periodsPerYear = finalTermType === 'installments' ? 24 : 12;
     const r = finalRate / 100 / periodsPerYear;
     const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
-    const frenchInstallment = capital > 0
-      ? (capital * r * factor) / (factor - 1)
-      : 0;
+    const frenchInstallment =
+      capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
     const totalInterest = frenchInstallment * finalTermUnits - capital;
     const totalInstallment = frenchInstallment + expensePerInstallment;
     const totalPayable = totalInstallment * finalTermUnits;
 
-    const schedule = capital > 0
-      ? this.generateAmortizationSchedule(
-        capital,
-        finalTermUnits,
-        finalRate,
-        startDate,
-        '',
-        userId,
-        finalTermType,
-        expensesAmount,
-      )
-      : [];
+    const schedule =
+      capital > 0
+        ? this.generateAmortizationSchedule(
+            capital,
+            finalTermUnits,
+            finalRate,
+            startDate,
+            '',
+            userId,
+            finalTermType,
+            expensesAmount,
+          )
+        : [];
 
     const newLoan = await this.db.transaction(async (tx) => {
       const [ins] = await tx
@@ -671,7 +664,9 @@ export class LoanManagementService {
           ),
         );
       if (active.length)
-        throw new BadRequestException('El asociado ya tiene un préstamo aprobado');
+        throw new BadRequestException(
+          'El asociado ya tiene un préstamo aprobado',
+        );
 
       const [assoc] = await tx
         .select({
@@ -692,19 +687,18 @@ export class LoanManagementService {
         )
         .leftJoin(
           associateHaberesBalance,
-          eq(
-            associateHaberesBalance.associateAccountId,
-            associateAccounts.id,
-          ),
+          eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
         );
 
       if (assoc?.isPayrollCredit)
         throw new BadRequestException('Crédito nómina activo');
 
-      const avail = (Number(assoc?.balance ?? 0)) * 0.8;
+      const avail = Number(assoc?.balance ?? 0) * 0.8;
       const reqAmt = Number(requestedAmount);
       if (reqAmt > avail)
-        throw new BadRequestException('Disponibilidad insuficiente (80% regla)');
+        throw new BadRequestException(
+          'Disponibilidad insuficiente (80% regla)',
+        );
 
       const [loanType] = await tx
         .select()
@@ -717,7 +711,9 @@ export class LoanManagementService {
         ? Number(loan.interestRate)
         : Number(loanType?.interestRate ?? 0);
       const finalTermUnits = loan.termUnits ?? loanType?.termUnits ?? 1;
-      const finalTermType = (loan.termType ?? loanType?.termType ?? 'PLAZO') as 'installments' | 'quotas';
+      const finalTermType = (loan.termType ?? loanType?.termType ?? 'PLAZO') as
+        | 'installments'
+        | 'quotas';
 
       const expensePct = savedExpensesPercentage
         ? Number(savedExpensesPercentage)
@@ -731,9 +727,8 @@ export class LoanManagementService {
       const r = finalRate / 100 / periodsPerYear;
       const n = finalTermUnits;
       const factor = Math.pow(1 + r, n);
-      const frenchInstallment = capital > 0
-        ? (capital * r * factor) / (factor - 1)
-        : 0;
+      const frenchInstallment =
+        capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
       const totalInterest = frenchInstallment * n - capital;
       const totalInstallment = frenchInstallment + expensePerInstallment;
       const totalPayable = totalInstallment * n;
@@ -874,18 +869,23 @@ export class LoanManagementService {
     userId: string,
     id: string,
     dto: DisburseLoanDto,
+    tx?: NodePgDatabase<typeof schema>,
+    skipBankTransaction = false,
   ): Promise<{ id: string; customReference: string | null }> {
-    return this.db.transaction(async (tx) => {
-      const [loan] = await tx
+    const executeCore = async (trx: any) => {
+      const [loan] = await trx
         .select()
         .from(loans)
         .where(and(eq(loans.id, id), eq(loans.tenantId, tenantId)))
         .for('update');
 
       if (!loan) throw new NotFoundException('Préstamo no encontrado');
-      if (loan.status !== LoanStatusEnum.APPROVED)
+      if (
+        loan.status !== LoanStatusEnum.APPROVED &&
+        loan.status !== LoanStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+      )
         throw new BadRequestException(
-          'Solo se pueden desembolsar préstamos en estado APPROVED',
+          'Solo se pueden desembolsar préstamos en estado APPROVED o en lote de pago',
         );
 
       const disbursementDate = dto.disbursementDate ?? new Date();
@@ -897,9 +897,11 @@ export class LoanManagementService {
         check: paymentMethodEnum.CHECK,
         cash: paymentMethodEnum.CASH,
       };
-      const paymentMethod = methodMap[dto.paymentMethod as string] ?? paymentMethodEnum.BANK_TRANSFER;
+      const paymentMethod =
+        methodMap[dto.paymentMethod as string] ??
+        paymentMethodEnum.BANK_TRANSFER;
 
-      const [updatedLoan] = await tx
+      const [updatedLoan] = await trx
         .update(loans)
         .set({
           status: LoanStatusEnum.DISBURSED,
@@ -914,25 +916,29 @@ export class LoanManagementService {
           customReference: loans.customReference,
         });
 
-      await tx.insert(loanStatusHistory).values({
+      await trx.insert(loanStatusHistory).values({
         loanId: id,
         status: LoanStatusEnum.DISBURSED,
         changedByUserId: userId,
         comment: dto.description ?? 'LOAN DISBURSED',
       });
 
-      if (dto.bankAccountId) {
+      if (dto.bankAccountId && !skipBankTransaction) {
         await this.bankMovementsService.createAndReconcile(
           {
             movement: {
               bankAccountId: dto.bankAccountId,
               transactionDate: disbursementDate,
               paymentMethod,
-              description: dto.description ?? `Desembolso Préstamo N°${loan.customReference ?? id}`,
+              description:
+                dto.description ??
+                `Desembolso Préstamo N°${loan.customReference ?? id}`,
               bankReference: dto.bankReference ?? undefined,
               category: 'LOAN_DISBURSEMENT' as BankTransactionCategory,
               creditAmount: 0,
-              debitAmount: Number(loan.disbursedAmount ?? loan.requestedAmount ?? 0),
+              debitAmount: Number(
+                loan.disbursedAmount ?? loan.requestedAmount ?? 0,
+              ),
             },
             links: [
               {
@@ -952,8 +958,13 @@ export class LoanManagementService {
         description: `Préstamo Desembolsado N°${loan.customReference ?? id}`,
       });
 
-      return { id: updatedLoan.id, customReference: updatedLoan.customReference ?? null };
-    });
+      return {
+        id: updatedLoan.id,
+        customReference: updatedLoan.customReference ?? null,
+      };
+    };
+
+    return tx ? executeCore(tx) : this.db.transaction(executeCore);
   }
 
   // ─── LISTAR TODOS (PAGINADO) ────────────────────────────────────────────
@@ -1339,13 +1350,12 @@ export class LoanManagementService {
     const r = annualInterestRate / 100 / periodsPerYear;
     const n = numInstallments;
     const factor = Math.pow(1 + r, n);
-    const frenchInstallment = capital > 0
-      ? (capital * r * factor) / (factor - 1)
-      : 0;
+    const frenchInstallment =
+      capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
 
-    let totalInterest = frenchInstallment * n - capital;
-    let totalQuota = frenchInstallment + expensePerInstallment;
-    let totalPayable = totalQuota * n;
+    const totalInterest = frenchInstallment * n - capital;
+    const totalQuota = frenchInstallment + expensePerInstallment;
+    const totalPayable = totalQuota * n;
 
     const currentDate = new Date();
     const finalDate = this.calculateEndDate(

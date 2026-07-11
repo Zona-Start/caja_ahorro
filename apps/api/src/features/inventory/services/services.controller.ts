@@ -23,7 +23,7 @@ export class ServicesController {
   constructor(
     private readonly service: ServicesService,
     private readonly tenantContextService: TenantContextService,
-  ) {}
+  ) { }
 
   @Post()
   @Permissions({
@@ -42,16 +42,16 @@ export class ServicesController {
     return { message: 'Service created successfully', data };
   }
 
-  @Get()
-  @Permissions({
-    resource: 'inventory:services',
-    action: 'read',
-    scope: 'tenant',
-  })
-  async findAll(@Req() req: Request) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findAll(targetTenantId);
-  }
+  // @Get()
+  // @Permissions({
+  //   resource: 'inventory:services',
+  //   action: 'read',
+  //   scope: 'tenant',
+  // })
+  // async findAll(@Req() req: Request) {
+  //   const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+  //   return this.service.findAll(targetTenantId);
+  // }
 
   @Get('paginated')
   @Permissions({
@@ -68,6 +68,17 @@ export class ServicesController {
       paginationDto,
     );
     return this.service.findAllByPagination(targetTenantId, paginationDto);
+  }
+
+  @Get('all')
+  @Permissions({
+    resource: 'inventory:services',
+    action: 'read',
+    scope: 'tenant',
+  })
+  async findAllServices(@Req() req: Request) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.service.findAll(targetTenantId);
   }
 
   @Get(':id')

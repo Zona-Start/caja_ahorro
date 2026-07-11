@@ -1,17 +1,29 @@
 import { create } from 'zustand';
 
-interface PaymentBatchState {
-  selectedPaymentBatch: unknown | null;
-  setSelectedPaymentBatch: (batch: unknown | null) => void;
-  clearAllPaymentBatchData: () => void;
+interface PaymentBatchModalState {
+  isCreateOpen: boolean;
+  isConfirmOpen: boolean;
+  confirmBatchId: string | null;
+  isDetailOpen: boolean;
+  detailBatchId: string | null;
+  openCreateModal: () => void;
+  closeCreateModal: () => void;
+  openConfirmModal: (batchId: string) => void;
+  closeConfirmModal: () => void;
+  openDetailModal: (batchId: string) => void;
+  closeDetailModal: () => void;
 }
 
-const initialState = {
-  selectedPaymentBatch: null,
-};
-
-export const usePaymentBatchStore = create<PaymentBatchState>((set) => ({
-  ...initialState,
-  setSelectedPaymentBatch: (batch) => set({ selectedPaymentBatch: batch }),
-  clearAllPaymentBatchData: () => set({ ...initialState }),
+export const usePaymentBatchModalStore = create<PaymentBatchModalState>((set) => ({
+  isCreateOpen: false,
+  isConfirmOpen: false,
+  confirmBatchId: null,
+  isDetailOpen: false,
+  detailBatchId: null,
+  openCreateModal: () => set({ isCreateOpen: true }),
+  closeCreateModal: () => set({ isCreateOpen: false }),
+  openConfirmModal: (batchId) => set({ isConfirmOpen: true, confirmBatchId: batchId }),
+  closeConfirmModal: () => set({ isConfirmOpen: false, confirmBatchId: null }),
+  openDetailModal: (batchId) => set({ isDetailOpen: true, detailBatchId: batchId }),
+  closeDetailModal: () => set({ isDetailOpen: false, detailBatchId: null }),
 }));

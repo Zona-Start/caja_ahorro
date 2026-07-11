@@ -1,6 +1,5 @@
 import { pgSchema } from 'drizzle-orm/pg-core';
 
-
 export const accountingSchema = pgSchema('accounting'); //contabilidad
 export const auditSchema = pgSchema('audit');
 export const authSchema = pgSchema('auth');

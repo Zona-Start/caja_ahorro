@@ -10,10 +10,11 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import {
   CreatePurchaseOrderSchema,
   FilterPurchaseOrderSchema,
@@ -22,7 +23,7 @@ import {
 } from './dto/purchase-orders.schema';
 import { PurchaseOrdersService } from './purchase-orders.service';
 
-@ApiTags('administration/purchase-orders')
+@ApiTags('purchasing/purchase-orders')
 @Controller('administration/purchase-orders')
 export class PurchaseOrdersController {
   constructor(
@@ -44,9 +45,11 @@ export class PurchaseOrdersController {
   @UsePipes(new ZodValidatorPipe(FindAllForInvoiceSchema))
   @ApiOperation({ summary: 'Get all purchase orders for invoice form' })
   async findAllForInvoice(@Req() req: Request, @Query() params: any) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
-    const result = await this.services.findAllForInvoice(params, targetTenantId);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const result = await this.services.findAllForInvoice(
+      params,
+      targetTenantId,
+    );
     return {
       message: 'Purchase orders fetched successfully',
       data: result,
@@ -58,8 +61,7 @@ export class PurchaseOrdersController {
   @ApiOperation({ summary: 'Get all purchase orders' })
   @ApiQuery({ name: 'search', required: false, type: String })
   async findAll(@Req() req: Request, @Query() paginationDto: any) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const result = await this.services.findAll(paginationDto, targetTenantId);
     return {
       message: 'Purchase orders fetched successfully',
@@ -68,13 +70,38 @@ export class PurchaseOrdersController {
     };
   }
 
+  @Patch('/approve/:id')
+  @ApiOperation({ summary: 'Approve a purchase order (DRAFT → PENDING)' })
+  @ApiResponse({ status: 200, description: 'Order approved.' })
+  async approve(@Req() req: Request, @Param('id') id: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const data = await this.services.approve(id, targetTenantId);
+    return { message: 'Purchase order approved successfully', data };
+  }
+
+  @Get('/pdf/:id')
+  @ApiOperation({ summary: 'Download purchase order PDF' })
+  @ApiResponse({ status: 200, description: 'PDF file.' })
+  async downloadPdf(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const pdfDoc = await this.services.generatePdf(id, targetTenantId);
+    const filename = `orden_compra_${id.slice(0, 8)}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a purchase order by ID' })
   @ApiResponse({ status: 200, description: 'Return the purchase order.' })
   @ApiResponse({ status: 404, description: 'Purchase order not found.' })
   async findOne(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const data = await this.services.findOne(id, targetTenantId);
     return { message: 'Purchase order fetched successfully', data };
   }
@@ -87,11 +114,7 @@ export class PurchaseOrdersController {
     description: 'Purchase order updated successfully.',
   })
   @ApiResponse({ status: 404, description: 'Purchase order not found.' })
-  async update(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: any,
-  ) {
+  async update(@Req() req: Request, @Param('id') id: string, @Body() dto: any) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     const data = await this.services.update(targetTenantId, userId, id, dto);
@@ -106,8 +129,7 @@ export class PurchaseOrdersController {
   })
   @ApiResponse({ status: 404, description: 'Purchase order not found.' })
   async remove(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.services.remove(id, targetTenantId);
   }
 }

@@ -12,7 +12,6 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
-
 type ActionType = (typeof permissionActionEnum)[number];
 type ScopeType = (typeof permissionScopeEnum)[number];
 
@@ -21,7 +20,7 @@ export class AssignmentsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   private async checkRoleOwnership(roleId: string, tenantId?: string) {
     const role = await this.db.query.roles.findFirst({

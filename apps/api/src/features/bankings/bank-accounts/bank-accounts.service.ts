@@ -115,9 +115,7 @@ export class BankAccountsService {
     }
 
     if (accountType) {
-      conditions.push(
-        eq(schema.bankAccounts.accountType, accountType as any),
-      );
+      conditions.push(eq(schema.bankAccounts.accountType, accountType as any));
     }
 
     if (currencyCode) {
@@ -182,9 +180,7 @@ export class BankAccountsService {
       )
       .where(whereClause)
       .orderBy(
-        sortOrder === 'asc'
-          ? sql`${sortColumn} asc`
-          : sql`${sortColumn} desc`,
+        sortOrder === 'asc' ? sql`${sortColumn} asc` : sql`${sortColumn} desc`,
       )
       .limit(limit)
       .offset(offset);
@@ -359,7 +355,9 @@ export class BankAccountsService {
         const [currencyRecord] = await tx
           .select()
           .from(currencies)
-          .where(eq(currencies.code, data.currencyCode as 'VES' | 'USD' | 'EUR'));
+          .where(
+            eq(currencies.code, data.currencyCode as 'VES' | 'USD' | 'EUR'),
+          );
 
         if (currencyRecord) {
           formatData.currencyCode = currencyRecord.code;
@@ -570,18 +568,11 @@ export class BankAccountsService {
         .select()
         .from(schema.accountingEntryDetails)
         .where(
-          eq(
-            schema.accountingEntryDetails.accountingEntryId,
-            openingEntry.id,
-          ),
+          eq(schema.accountingEntryDetails.accountingEntryId, openingEntry.id),
         );
 
-      const creditDetail = openingDetails.find(
-        (d) => Number(d.credit) > 0,
-      );
-      const debitDetail = openingDetails.find(
-        (d) => Number(d.debit) > 0,
-      );
+      const creditDetail = openingDetails.find((d) => Number(d.credit) > 0);
+      const debitDetail = openingDetails.find((d) => Number(d.debit) > 0);
 
       if (!creditDetail || !debitDetail) {
         throw new BadRequestException(
@@ -641,7 +632,9 @@ export class BankAccountsService {
         })
         .where(eq(schema.bankAccounts.id, id));
 
-      return { message: 'Cuenta bancaria reversada e inactivada correctamente' };
+      return {
+        message: 'Cuenta bancaria reversada e inactivada correctamente',
+      };
     });
   }
 

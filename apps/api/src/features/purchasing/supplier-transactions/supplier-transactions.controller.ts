@@ -15,8 +15,7 @@ export class SupplierTransactionsController {
   @Get('/advance')
   @ApiOperation({ summary: 'Get all supplier transactions advance' })
   async getSupplierTransactionAdvance(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const result =
       await this.services.getSupplierTransactionAdvance(targetTenantId);
     return {
@@ -28,8 +27,7 @@ export class SupplierTransactionsController {
   @Get('/note-credit')
   @ApiOperation({ summary: 'Get all supplier transactions note credit' })
   async getSupplierTransactionNoteCredit(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const result =
       await this.services.getSupplierTransactionNoteCredit(targetTenantId);
     return {
@@ -41,8 +39,7 @@ export class SupplierTransactionsController {
   @Get('/note-debit')
   @ApiOperation({ summary: 'Get all supplier transactions note debit' })
   async getSupplierTransactionNoteDebit(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const result =
       await this.services.getSupplierTransactionNoteDebit(targetTenantId);
     return {
@@ -61,10 +58,7 @@ export class SupplierTransactionsController {
     status: 404,
     description: 'Supplier transactions Advance not found.',
   })
-  async autorizeAdvancePayment(
-    @Req() req: Request,
-    @Param('id') id: string,
-  ) {
+  async autorizeAdvancePayment(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req);
     const data = await this.services.autorizeAdvancePayment(

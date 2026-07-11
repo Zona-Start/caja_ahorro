@@ -62,7 +62,7 @@ const routes: RouteConfig = [
       'routes/dashboard/savings/savings-settlement.tsx',
     ),
     route(
-      'caja-ahorro/desembolsos',
+      'caja-ahorro/pagos-por-lotes',
       'routes/dashboard/savings/savings-payment-batch.tsx',
     ),
     route(

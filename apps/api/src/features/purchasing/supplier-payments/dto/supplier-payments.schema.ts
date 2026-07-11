@@ -38,7 +38,9 @@ export const FilterSupplierPaymentSchema = z.object({
   search: z.string().optional(),
   sortBy: z.string().optional().default('id'),
   sortOrder: z.string().optional().default('asc'),
-  supplierIds: z.union([z.array(z.string().uuid()), z.string().uuid()]).optional(),
+  supplierIds: z
+    .union([z.array(z.string().uuid()), z.string().uuid()])
+    .optional(),
   status: z.union([z.string(), z.array(z.string())]).optional(),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
@@ -60,8 +62,16 @@ export const ReversePaymentsSchema = z.object({
   paymentIds: z.array(z.string().uuid()),
 });
 
-export type CreateSupplierPaymentDto = z.infer<typeof CreateSupplierPaymentSchema>;
-export type CreateSupplierPaymentAdvanceDto = z.infer<typeof CreateSupplierPaymentAdvanceSchema>;
-export type FilterSupplierPaymentDto = z.infer<typeof FilterSupplierPaymentSchema>;
-export type FilterAccountPayableDto = z.infer<typeof FilterAccountPayableSchema>;
+export type CreateSupplierPaymentDto = z.infer<
+  typeof CreateSupplierPaymentSchema
+>;
+export type CreateSupplierPaymentAdvanceDto = z.infer<
+  typeof CreateSupplierPaymentAdvanceSchema
+>;
+export type FilterSupplierPaymentDto = z.infer<
+  typeof FilterSupplierPaymentSchema
+>;
+export type FilterAccountPayableDto = z.infer<
+  typeof FilterAccountPayableSchema
+>;
 export type ReversePaymentsDto = z.infer<typeof ReversePaymentsSchema>;

@@ -1,5 +1,12 @@
 import { relations } from 'drizzle-orm';
 import {
+  accountPlan,
+  accountingEntries,
+  accountingEntryDetails,
+} from '../tables/accounting';
+import { users } from '../tables/auth';
+import { tenants } from '../tables/tenants';
+import {
   bankAccounts,
   bankCategoryRule,
   bankDirectory,
@@ -8,9 +15,6 @@ import {
   bankTransactions,
   internalTransactionBankLinks,
 } from '../tables/treasury';
-import { tenants } from '../tables/tenants';
-import { accountPlan, accountingEntries, accountingEntryDetails } from '../tables/accounting';
-import { users } from '../tables/auth';
 
 export const bankDirectoryRelations = relations(bankDirectory, ({ many }) => ({
   bankAccounts: many(bankAccounts),

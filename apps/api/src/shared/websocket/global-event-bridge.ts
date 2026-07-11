@@ -1,11 +1,14 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
-import { IEventBus, EVENT_BUS_TOKEN, EventEnvelope } from '@/shared/event-bus';
-import { AppWsGateway } from './websocket.gateway';
+import { EVENT_BUS_TOKEN, EventEnvelope, IEventBus } from '@/shared/event-bus';
 import {
-  LOAN_EVENTS, INVENTORY_EVENTS, ACCOUNTING_EVENTS,
-  BANKING_EVENTS, PURCHASING_EVENTS, PARTNER_EVENTS,
+  ACCOUNTING_EVENTS,
+  BANKING_EVENTS,
+  INVENTORY_EVENTS,
+  LOAN_EVENTS,
+  PARTNER_EVENTS,
+  PURCHASING_EVENTS,
 } from '@/shared/event-types';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { AppWsGateway } from './websocket.gateway';
 
 const HANDLER_NAME = 'GlobalEventBridge';
 
@@ -34,14 +37,22 @@ export class GlobalEventBridgeSubscriber implements OnModuleInit {
           if (!envelope.tenantId) {
             this.wsGateway.broadcastGlobal(event, envelope.payload);
           } else {
-            this.wsGateway.broadcastToTenant(envelope.tenantId, event, envelope.payload);
+            this.wsGateway.broadcastToTenant(
+              envelope.tenantId,
+              event,
+              envelope.payload,
+            );
           }
         } catch (error) {
-          this.logger.error(`WS broadcast failed for ${event}: ${(error as Error).message}`);
+          this.logger.error(
+            `WS broadcast failed for ${event}: ${(error as Error).message}`,
+          );
         }
       });
     }
 
-    this.logger.log(`${HANDLER_NAME} listening to ${this.ALL_EVENTS.length} event types`);
+    this.logger.log(
+      `${HANDLER_NAME} listening to ${this.ALL_EVENTS.length} event types`,
+    );
   }
 }

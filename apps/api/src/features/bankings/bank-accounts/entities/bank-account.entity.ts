@@ -7,7 +7,9 @@ export class BankAccount {
   @ApiProperty({ description: 'ID del tenant al que pertenece' })
   tenantId: string;
 
-  @ApiProperty({ description: 'ID del banco al que pertenece la cuenta bancaria' })
+  @ApiProperty({
+    description: 'ID del banco al que pertenece la cuenta bancaria',
+  })
   bankDirectoryId: string;
 
   @ApiProperty({ description: 'Número de cuenta bancaria completo' })
@@ -16,22 +18,36 @@ export class BankAccount {
   @ApiProperty({ description: 'Nombre de la cuenta bancaria', required: false })
   accountName?: string;
 
-  @ApiProperty({ description: 'Tipo de cuenta bancaria (Ej: Corriente, Ahorro)' })
+  @ApiProperty({
+    description: 'Tipo de cuenta bancaria (Ej: Corriente, Ahorro)',
+  })
   accountType: string;
 
   @ApiProperty({ description: 'Código de moneda de la cuenta bancaria' })
   currencyCode: string;
 
-  @ApiProperty({ description: 'Fecha de apertura de la cuenta bancaria', required: false })
+  @ApiProperty({
+    description: 'Fecha de apertura de la cuenta bancaria',
+    required: false,
+  })
   openingDate?: Date;
 
-  @ApiProperty({ description: 'Saldo actual de la cuenta bancaria', required: false })
+  @ApiProperty({
+    description: 'Saldo actual de la cuenta bancaria',
+    required: false,
+  })
   currentBalance?: string;
 
-  @ApiProperty({ description: 'Saldo del último extracto cargado', required: false })
+  @ApiProperty({
+    description: 'Saldo del último extracto cargado',
+    required: false,
+  })
   lastStatementBalance?: string;
 
-  @ApiProperty({ description: 'Fecha del último extracto cargado', required: false })
+  @ApiProperty({
+    description: 'Fecha del último extracto cargado',
+    required: false,
+  })
   lastStatementDate?: Date;
 
   @ApiProperty({ description: 'ID de la cuenta contable vinculada' })

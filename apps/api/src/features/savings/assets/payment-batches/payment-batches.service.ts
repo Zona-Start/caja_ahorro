@@ -15,16 +15,28 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { format } from 'date-fns';
-import { and, eq, ilike, inArray, SQL, sql } from 'drizzle-orm';
+import { and, eq, ilike, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { LoanManagementService } from '../../loans/loan_management/loan-management.service';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { SettlementAssociateService } from '../../settlement/settlement-associate.service';
 import { WithdrawalAssociateService } from '../../withdrawalls/withdrawal-associate/withdrawal-associate.service';
 import {
   ConfirmPaymentBatchDto,
+  ConfirmPaymentBatchItemDto,
   CreatePaymentBatchDto,
   CreateSinglePaymentBatchItemDto,
   FilterPaymentBatchDto,
 } from './dto/payment-batches.schema';
+
+function mapSnakeToCamel(row: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    result[camelKey] = value;
+  }
+  return result;
+}
 
 @Injectable()
 export class PaymentBatchesService {
@@ -34,7 +46,9 @@ export class PaymentBatchesService {
     private readonly eventEmitter: EventEmitter2,
     private readonly withdrawService: WithdrawalAssociateService,
     private readonly settlementService: SettlementAssociateService,
-  ) {}
+    private readonly loanService: LoanManagementService,
+    private readonly bankMovementsService: BankMovementsService,
+  ) { }
 
   async create(tenantId: string, userId: string, dto: CreatePaymentBatchDto) {
     return this.db.transaction(async (tx) => {
@@ -57,23 +71,28 @@ export class PaymentBatchesService {
       let totalAmount = 0;
       const lines: (typeof schema.paymentBatchItems.$inferInsert)[] = [];
 
+      const prefix = 'LOT-D';
+
       for (const it of items) {
-        let rec: any,
-          net: number,
-          assocAccId: string,
-          curr: string,
-          assocCedula: string,
-          assocNationality: string;
+        let net: number;
+        let assocAccId: string | null = null;
+        let curr: string;
+        let assocCedula: string;
+        let assocNationality: string;
+        let beneficiaryName: string;
+        let beneficiaryAccountNumber: string | null = null;
 
         switch (it.type) {
-          case paymentBatchItemType.WITHDRAWAL:
-            rec = await tx
+          case paymentBatchItemType.WITHDRAWAL: {
+            const rec = await tx
               .select({
                 status: schema.withdrawalsAssociates.status,
                 disbursedAmount: schema.withdrawalsAssociates.disbursedAmount,
                 disbursementAccountId: schema.associateAccounts.id,
                 associateNationality: schema.associates.nationality,
                 associateCedula: schema.associates.cedula,
+                associateFullname: schema.associates.fullname,
+                accountNumber: schema.associateAccounts.accountNumber,
               })
               .from(schema.withdrawalsAssociates)
               .leftJoin(
@@ -99,14 +118,17 @@ export class PaymentBatchesService {
                 `Retiro ${it.sourceId} no aprobado`,
               );
             net = Number(rec[0].disbursedAmount);
-            assocAccId = rec[0].disbursementAccountId;
             assocNationality = rec[0].associateNationality?.[0] || '';
             assocCedula = `${assocNationality}${rec[0].associateCedula}`;
+            beneficiaryName = rec[0].associateFullname ?? '';
+            beneficiaryAccountNumber = rec[0].accountNumber;
+            assocAccId = rec[0].disbursementAccountId;
             curr = 'VES';
             break;
+          }
 
-          case paymentBatchItemType.LIQUIDATION:
-            rec = await tx
+          case paymentBatchItemType.LIQUIDATION: {
+            const rec = await tx
               .select({
                 status: schema.liquidationsAssociates.status,
                 netLiquidationAmount:
@@ -115,6 +137,8 @@ export class PaymentBatchesService {
                 currencyCode: schema.liquidationsAssociates.currencyCode,
                 associateNationality: schema.associates.nationality,
                 associateCedula: schema.associates.cedula,
+                associateFullname: schema.associates.fullname,
+                accountNumber: schema.associateAccounts.accountNumber,
               })
               .from(schema.liquidationsAssociates)
               .leftJoin(
@@ -135,21 +159,66 @@ export class PaymentBatchesService {
                 ),
               );
 
-            if (rec.length === 0 || rec[0].status !== 'APPROVED')
+            if (rec.length === 0 || rec[0].status !== 'PROCESSED')
               throw new BadRequestException(
-                `Liquidación ${it.sourceId} no aprobada`,
+                `Liquidación ${it.sourceId} no procesada`,
               );
             net = Number(rec[0].netLiquidationAmount);
             assocNationality = rec[0].associateNationality?.[0] || '';
             assocCedula = `${assocNationality}${rec[0].associateCedula}`;
+            beneficiaryName = rec[0].associateFullname ?? '';
+            beneficiaryAccountNumber = rec[0].accountNumber;
             assocAccId = rec[0].disbursementAccountId;
             curr = 'VES';
             break;
+          }
+
+          case paymentBatchItemType.LOAN: {
+            const rec = await tx
+              .select({
+                status: schema.loans.status,
+                approvedAmount: schema.loans.approvedAmount,
+                disbursementAccountId: schema.loans.disbursementAccountId,
+                associateNationality: schema.associates.nationality,
+                associateCedula: schema.associates.cedula,
+                associateFullname: schema.associates.fullname,
+                accountNumber: schema.associateAccounts.accountNumber,
+              })
+              .from(schema.loans)
+              .leftJoin(
+                schema.associateAccounts,
+                eq(
+                  schema.associateAccounts.id,
+                  schema.loans.disbursementAccountId,
+                ),
+              )
+              .leftJoin(
+                schema.associates,
+                eq(schema.associates.id, schema.loans.associateId),
+              )
+              .where(
+                and(
+                  eq(schema.loans.id, it.sourceId),
+                  eq(schema.loans.tenantId, tenantId),
+                ),
+              );
+
+            if (rec.length === 0 || rec[0].status !== 'APPROVED')
+              throw new BadRequestException(
+                `Préstamo ${it.sourceId} no aprobado`,
+              );
+            net = Number(rec[0].approvedAmount ?? 0);
+            assocNationality = rec[0].associateNationality?.[0] || '';
+            assocCedula = `${assocNationality}${rec[0].associateCedula}`;
+            beneficiaryName = rec[0].associateFullname ?? '';
+            beneficiaryAccountNumber = rec[0].accountNumber;
+            assocAccId = rec[0].disbursementAccountId;
+            curr = 'VES';
+            break;
+          }
 
           default:
-            throw new BadRequestException(
-              `Tipo de ítem inválido: ${it.type}. Este lote solo admite WITHDRAWAL y LIQUIDATION.`,
-            );
+            throw new BadRequestException(`Tipo de ítem inválido: ${it.type}`);
         }
 
         if (curr !== currencyCode)
@@ -157,54 +226,45 @@ export class PaymentBatchesService {
             `Moneda diferente en ${it.type} ${it.sourceId}`,
           );
 
-        const dup = await tx.query.paymentBatchItems.findFirst({
-          where: and(
-            eq(schema.paymentBatchItems.sourceId, it.sourceId),
-            eq(schema.paymentBatchItems.itemType, it.type),
-            sql`${schema.paymentBatchItems.paymentBatchId} in (select id from ${schema.paymentBatches} where status not in ('PROCESSED','CANCELLED') and ${schema.paymentBatches.tenantId} = ${tenantId})`,
-          ),
-        });
+        const dupResult = await tx.execute(
+          sql`SELECT 1 FROM savings.payment_batch_items pbi
+              INNER JOIN savings.payment_batches pb ON pb.id = pbi.payment_batch_id
+              WHERE pbi.source_id = ${it.sourceId}
+              AND pbi.item_type = ${it.type}
+              AND pb.status NOT IN ('PROCESSED', 'CANCELLED')
+              AND pb.tenant_id = ${tenantId}
+              LIMIT 1`,
+        );
 
-        if (dup)
+        if (dupResult.rows.length > 0)
           throw new BadRequestException(
             `${it.type} ${it.sourceId} ya está en otro lote activo`,
-          );
-
-        const assocAcc = await tx
-          .select()
-          .from(schema.associateAccounts)
-          .innerJoin(
-            schema.associates,
-            and(
-              eq(schema.associateAccounts.associateId, schema.associates.id),
-              eq(schema.associates.tenantId, tenantId),
-            ),
-          )
-          .where(eq(schema.associateAccounts.id, assocAccId));
-
-        if (assocAcc.length === 0)
-          throw new BadRequestException('Cuenta asociado no encontrada');
-        if (assocAcc[0].associate_accounts.status !== 'ACTIVE')
-          throw new BadRequestException(
-            `Cuenta ${assocAcc[0].associate_accounts.accountNumber} no está verificada`,
           );
 
         totalAmount += net;
 
         lines.push({
-          paymentBatchId: '0',
           itemType: it.type,
           sourceId: it.sourceId,
-          associateAccountId: assocAccId,
+          associateAccountId: assocAccId || null,
           beneficiaryAccountNumber:
-            assocAcc[0].associate_accounts.accountNumber,
+            beneficiaryAccountNumber || bankAcc.accountNumber,
           beneficiaryAccountType: 'CORRIENTE',
           beneficiaryId: assocCedula,
-          beneficiaryName: assocAcc[0].associates?.fullname ?? '',
+          beneficiaryName: beneficiaryName,
           amount: net.toFixed(4),
           status: paymentBatchItemStatus.PENDING,
-        } as any);
+        });
       }
+
+      const batchReference =
+        await this.generateCodeService.generateNextReference(
+          prefix,
+          tenantId,
+          'savings',
+          'payment_batches',
+          tx,
+        );
 
       const [batch] = await tx
         .insert(schema.paymentBatches)
@@ -218,22 +278,18 @@ export class PaymentBatchesService {
           status: paymentBatchStatus.DRAFT,
           description: dto.description ?? 'Lote automático',
           createdById: userId,
-          batchType: 'PAYMENT',
-          paymentBatchReference:
-            await this.generateCodeService.generateNextReference(
-              'LOT-P',
-              tenantId,
-              'savings',
-              'payment_batches',
-              tx,
-            ),
+          paymentBatchReference: batchReference,
         } as any)
         .returning();
 
       if (lines.length) {
-        await tx
-          .insert(schema.paymentBatchItems)
-          .values(lines.map((l) => ({ ...l, paymentBatchId: batch.id })));
+        for (const line of lines) {
+          await tx.execute(
+            sql`INSERT INTO savings.payment_batch_items 
+              (payment_batch_id, item_type, source_id, associate_account_id, beneficiary_account_number, beneficiary_account_type, beneficiary_id, beneficiary_name, amount, status)
+              VALUES (${batch.id}, ${line.itemType}, ${line.sourceId}, ${line.associateAccountId}, ${line.beneficiaryAccountNumber}, ${line.beneficiaryAccountType}, ${line.beneficiaryId}, ${line.beneficiaryName}, ${line.amount}, ${line.status})`,
+          );
+        }
       }
 
       this.eventEmitter.emit(
@@ -254,6 +310,7 @@ export class PaymentBatchesService {
         id: batch.id,
         recordCount: batch.recordCount,
         totalAmount: batch.totalAmount,
+        reference: batch.paymentBatchReference,
       };
     });
   }
@@ -307,9 +364,10 @@ export class PaymentBatchesService {
     if (batch[0].payment_batches.status !== paymentBatchStatus.UPLOADED)
       throw new BadRequestException('Lote debe estar en estado UPLOADED');
 
-    const items = await this.db.query.paymentBatchItems.findMany({
-      where: eq(schema.paymentBatchItems.paymentBatchId, batchId),
-    });
+    const itemsResult = await this.db.execute(
+      sql`SELECT * FROM savings.payment_batch_items WHERE payment_batch_id = ${batchId}`,
+    );
+    const items = itemsResult.rows as (typeof schema.paymentBatchItems.$inferSelect)[];
 
     if (!items.length) throw new BadRequestException('Lote sin ítems');
 
@@ -323,7 +381,7 @@ export class PaymentBatchesService {
 
     let content = '';
     content += '10';
-    content += codeBank[0].value ?? '0';
+    content += codeBank[0]?.value ?? '0';
     content += rzf(batch[0]?.bank_accounts?.accountNumber ?? '', 20).slice(
       0,
       20,
@@ -334,20 +392,23 @@ export class PaymentBatchesService {
     content += '\n';
 
     for (const it of items) {
-      const cents = Number(it.amount) * 100;
-      const idType = it.beneficiaryId.charAt(0).toUpperCase();
-      const idNum = it.beneficiaryId.substring(1);
+      const row = it as Record<string, unknown>;
+      const amount = Number(row.amount) * 100;
+      const beneficiaryId = String(row.beneficiary_id ?? '');
+      const idType = beneficiaryId.charAt(0).toUpperCase();
+      const idNum = beneficiaryId.substring(1);
 
       let line = '';
       line += '20';
       line += idType;
       line += rzf(idNum, 9);
-      line += rzf(it.beneficiaryAccountNumber, 20).slice(0, 20);
-      line += rzf(cents, 15);
+      line += rzf(String(row.beneficiary_account_number ?? ''), 20).slice(0, 20);
+      line += rzf(amount, 15);
       content += line + '\n';
     }
 
-    const fileName = `${format(now, 'yyyyMMdd-HHmmss')}-${batchId}.txt`;
+    const reference = batch[0].payment_batches.paymentBatchReference;
+    const fileName = `${reference}.txt`;
     await this.db
       .update(schema.paymentBatches)
       .set({ bankFileName: fileName })
@@ -359,6 +420,89 @@ export class PaymentBatchesService {
       );
 
     return { fileName, content };
+  }
+
+  async markAsUploaded(batchId: string, userId: string, tenantId: string) {
+    return this.db.transaction(async (tx) => {
+      const batch = await tx.query.paymentBatches.findFirst({
+        where: and(
+          eq(schema.paymentBatches.id, batchId),
+          eq(schema.paymentBatches.tenantId, tenantId),
+        ),
+        with: { items: true },
+      });
+
+      if (!batch) throw new NotFoundException('Lote no encontrado');
+      if (batch.status !== paymentBatchStatus.DRAFT)
+        throw new BadRequestException(
+          'Solo se puede marcar como subido un lote en borrador',
+        );
+
+      for (const item of batch.items) {
+        switch (item.itemType) {
+          case 'WITHDRAWAL':
+            await tx
+              .update(schema.withdrawalsAssociates)
+              .set({ status: 'PENDING_DISBURSEMENT_BANK_BATCH' })
+              .where(
+                and(
+                  eq(schema.withdrawalsAssociates.id, item.sourceId),
+                  eq(schema.withdrawalsAssociates.tenantId, tenantId),
+                ),
+              );
+            break;
+          case 'LIQUIDATION':
+            await tx
+              .update(schema.liquidationsAssociates)
+              .set({ status: 'PENDING_DISBURSEMENT_BANK_BATCH' })
+              .where(
+                and(
+                  eq(schema.liquidationsAssociates.id, item.sourceId),
+                  eq(schema.liquidationsAssociates.tenantId, tenantId),
+                ),
+              );
+            break;
+          case 'LOAN':
+            await tx
+              .update(schema.loans)
+              .set({ status: 'PENDING_DISBURSEMENT_BANK_BATCH' })
+              .where(
+                and(
+                  eq(schema.loans.id, item.sourceId),
+                  eq(schema.loans.tenantId, tenantId),
+                ),
+              );
+            break;
+        }
+      }
+
+      const [updated] = await tx
+        .update(schema.paymentBatches)
+        .set({ status: paymentBatchStatus.UPLOADED, updatedById: userId })
+        .where(
+          and(
+            eq(schema.paymentBatches.id, batchId),
+            eq(schema.paymentBatches.tenantId, tenantId),
+          ),
+        )
+        .returning();
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId,
+          action: 'UPDATE',
+          tableName: 'paymentBatches',
+          recordId: String(batchId),
+          description: `Lote marcado como SUBIDO: ${batch.paymentBatchReference}`,
+          area: 'Caja de Ahorro',
+          newData: [updated],
+          tenantId,
+        }),
+      );
+
+      return updated;
+    });
   }
 
   async confirm(
@@ -388,42 +532,126 @@ export class PaymentBatchesService {
         );
       }
 
-      for (const item of batch.items) {
-        if (item.itemType === 'WITHDRAWAL') {
-          await this.withdrawService.disburse(
-            tenantId,
-            userId,
-            item.sourceId,
-            {
-              bankAccountId: batch.bankId!,
-              processedAt: new Date(dto.processedAt),
-              bankReference: dto.bankReference,
-            },
-            tx,
-          );
-        } else if (item.itemType === 'SETTLEMENT') {
-          await this.settlementService.disburse(
-            tenantId,
-            userId,
-            item.sourceId,
-            {
-              bankAccountId: batch.bankId!,
-              transferDate: new Date(dto.processedAt),
-              bankReference: dto.bankReference!,
-            },
-            tx,
-          );
+      const processedAt = new Date(dto.processedAt);
+      const bankLinks: {
+        internalRecordType: string;
+        internalRecordId: string;
+      }[] = [];
+      let totalProcessedAmount = 0;
+
+      for (const itemResult of dto.items) {
+        const item = batch.items.find((i) => i.id === itemResult.itemId);
+        if (!item) {
+          throw new BadRequestException(`Ítem ${itemResult.itemId} no pertenece al lote`);
         }
+
+        if (!itemResult.processed) {
+          await tx.execute(
+            sql`UPDATE savings.payment_batch_items SET status = 'REJECTED', rejection_reason = ${itemResult.rejectionReason || null}, updated_by_id = ${userId} WHERE id = ${item.id}`,
+          );
+          continue;
+        }
+
+        totalProcessedAmount += Number(item.amount);
+
+        switch (item.itemType) {
+          case 'WITHDRAWAL':
+            await this.withdrawService.disburse(
+              tenantId,
+              userId,
+              item.sourceId,
+              {
+                bankAccountId: batch.bankId!,
+                processedAt,
+                bankReference: dto.bankReference,
+              },
+              tx,
+              true,
+            );
+            bankLinks.push({
+              internalRecordType: 'MEMBER_WITHDRAWAL',
+              internalRecordId: item.sourceId,
+            });
+            break;
+
+          case 'LIQUIDATION':
+            await this.settlementService.disburse(
+              tenantId,
+              userId,
+              item.sourceId,
+              {
+                bankAccountId: batch.bankId!,
+                transferDate: processedAt,
+                bankReference: dto.bankReference!,
+              },
+              tx,
+              true,
+            );
+            bankLinks.push({
+              internalRecordType: 'PAYROLL_SETTLEMENT',
+              internalRecordId: item.sourceId,
+            });
+            break;
+
+          case 'LOAN':
+            await this.loanService.disburse(
+              tenantId,
+              userId,
+              item.sourceId,
+              {
+                bankAccountId: batch.bankId!,
+                currencyCode: batch.currencyCode,
+                paymentMethod: 'transfer',
+                disbursementDate: processedAt,
+                bankReference: dto.bankReference,
+                description: `Desembolso por Lote ${batch.paymentBatchReference}`,
+              },
+              tx,
+              true,
+            );
+            bankLinks.push({
+              internalRecordType: 'LOAN_DISBURSEMENT',
+              internalRecordId: item.sourceId,
+            });
+            break;
+        }
+
+        await tx.execute(
+          sql`UPDATE savings.payment_batch_items SET status = 'PROCESSED', updated_by_id = ${userId} WHERE id = ${item.id}`,
+        );
+      }
+
+      const hasAnyProcessed = dto.items.some((i) => i.processed);
+      const newStatus = hasAnyProcessed ? 'PROCESSED' : 'CANCELLED';
+
+      if (hasAnyProcessed && bankLinks.length > 0) {
+        await this.bankMovementsService.createAndReconcile(
+          {
+            movement: {
+              bankAccountId: batch.bankId!,
+              transactionDate: processedAt,
+              paymentMethod: 'BANK_TRANSFER' as any,
+              description: `Lote de Pago ${batch.paymentBatchReference} - ${dto.bankReference || ''}`,
+              bankReference: dto.bankReference,
+              category: 'BATCH_DISBURSEMENT' as any,
+              creditAmount: 0,
+              debitAmount: totalProcessedAmount,
+            },
+            links: bankLinks,
+          },
+          userId,
+          tenantId,
+          tx,
+        );
       }
 
       await tx
         .update(schema.paymentBatches)
         .set({
-          status: 'PROCESSED',
+          status: newStatus,
           bankReference: dto.bankReference,
           processedAt: new Date(dto.processedAt),
           updatedById: userId,
-          updatedAt: new Date(),
         })
         .where(
           and(
@@ -459,81 +687,90 @@ export class PaymentBatchesService {
   }
 
   async cancel(batchId: string, userId: string, tenantId: string) {
-    const batch = await this.db.query.paymentBatches.findFirst({
-      where: and(
-        eq(schema.paymentBatches.id, batchId),
-        eq(schema.paymentBatches.tenantId, tenantId),
-      ),
-    });
-    if (!batch) throw new NotFoundException('Lote no encontrado');
-    if (!['DRAFT', 'UPLOADED'].includes(batch.status))
-      throw new BadRequestException(
-        'Solo se puede anular un lote en borrador o subido',
-      );
-
-    await this.db
-      .update(schema.paymentBatches)
-      .set({ status: paymentBatchStatus.CANCELLED })
-      .where(
-        and(
+    return this.db.transaction(async (tx) => {
+      const batch = await tx.query.paymentBatches.findFirst({
+        where: and(
           eq(schema.paymentBatches.id, batchId),
           eq(schema.paymentBatches.tenantId, tenantId),
         ),
+        with: { items: true },
+      });
+
+      if (!batch) throw new NotFoundException('Lote no encontrado');
+      if (!['DRAFT', 'UPLOADED'].includes(batch.status))
+        throw new BadRequestException(
+          'Solo se puede anular un lote en borrador o subido',
+        );
+
+      if (batch.status === 'UPLOADED') {
+        for (const item of batch.items) {
+          switch (item.itemType) {
+            case 'WITHDRAWAL':
+              await tx
+                .update(schema.withdrawalsAssociates)
+                .set({ status: 'APPROVED' })
+                .where(
+                  and(
+                    eq(schema.withdrawalsAssociates.id, item.sourceId),
+                    eq(schema.withdrawalsAssociates.tenantId, tenantId),
+                    eq(schema.withdrawalsAssociates.status, 'PENDING_DISBURSEMENT_BANK_BATCH'),
+                  ),
+                );
+              break;
+            case 'LIQUIDATION':
+              await tx
+                .update(schema.liquidationsAssociates)
+                .set({ status: 'PROCESSED' })
+                .where(
+                  and(
+                    eq(schema.liquidationsAssociates.id, item.sourceId),
+                    eq(schema.liquidationsAssociates.tenantId, tenantId),
+                    eq(schema.liquidationsAssociates.status, 'PENDING_DISBURSEMENT_BANK_BATCH'),
+                  ),
+                );
+              break;
+            case 'LOAN':
+              await tx
+                .update(schema.loans)
+                .set({ status: 'APPROVED' })
+                .where(
+                  and(
+                    eq(schema.loans.id, item.sourceId),
+                    eq(schema.loans.tenantId, tenantId),
+                    eq(schema.loans.status, 'PENDING_DISBURSEMENT_BANK_BATCH'),
+                  ),
+                );
+              break;
+          }
+        }
+      }
+
+      await tx
+        .update(schema.paymentBatches)
+        .set({ status: paymentBatchStatus.CANCELLED, updatedById: userId })
+        .where(
+          and(
+            eq(schema.paymentBatches.id, batchId),
+            eq(schema.paymentBatches.tenantId, tenantId),
+          ),
+        );
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          userId,
+          action: 'UPDATE',
+          tableName: 'paymentBatches',
+          recordId: String(batchId),
+          description: `Lote anulado: ${batch.paymentBatchReference}`,
+          area: 'Caja de Ahorro',
+          newData: [{ status: 'CANCELLED' }],
+          tenantId,
+        }),
       );
 
-    this.eventEmitter.emit(
-      'audit.log',
-      new AuditLogEvent({
-        userId,
-        action: 'UPDATE',
-        tableName: 'paymentBatches',
-        recordId: String(batchId),
-        description: `Lote anulado: ${batch.paymentBatchReference}`,
-        area: 'Caja de Ahorro',
-        newData: [{ status: 'CANCELLED' }],
-        tenantId,
-      }),
-    );
-  }
-
-  async markAsUploaded(batchId: string, userId: string, tenantId: string) {
-    const batch = await this.db.query.paymentBatches.findFirst({
-      where: and(
-        eq(schema.paymentBatches.id, batchId),
-        eq(schema.paymentBatches.tenantId, tenantId),
-      ),
+      return { message: 'Lote anulado exitosamente.' };
     });
-    if (!batch) throw new NotFoundException('Lote no encontrado');
-    if (batch.status !== paymentBatchStatus.DRAFT)
-      throw new BadRequestException(
-        'Solo se puede marcar como subido un lote en borrador',
-      );
-
-    const [updated] = await this.db
-      .update(schema.paymentBatches)
-      .set({ status: paymentBatchStatus.UPLOADED })
-      .where(
-        and(
-          eq(schema.paymentBatches.id, batchId),
-          eq(schema.paymentBatches.tenantId, tenantId),
-        ),
-      )
-      .returning();
-
-    this.eventEmitter.emit(
-      'audit.log',
-      new AuditLogEvent({
-        userId,
-        action: 'UPDATE',
-        tableName: 'paymentBatches',
-        recordId: String(batchId),
-        description: `Lote marcado como SUBIDO: ${batch.paymentBatchReference}`,
-        area: 'Caja de Ahorro',
-        newData: [updated],
-        tenantId,
-      }),
-    );
-    return updated;
   }
 
   async findAll(dto: FilterPaymentBatchDto, tenantId: string) {
@@ -549,7 +786,6 @@ export class PaymentBatchesService {
     const offset = (page - 1) * limit;
 
     const conditions: SQL<unknown>[] = [
-      eq(schema.paymentBatches.batchType, 'PAYMENT'),
       eq(schema.paymentBatches.tenantId, tenantId),
     ];
 
@@ -559,8 +795,8 @@ export class PaymentBatchesService {
 
     if (search) {
       conditions.push(
-        sql`(${ilike(schema.paymentBatches.description, `%${search}%`)} or ${ilike(
-          schema.paymentBatches.bankReference,
+        sql`(${ilike(schema.paymentBatches.paymentBatchReference, `%${search}%`)} or ${ilike(
+          schema.paymentBatches.description ?? sql`''`,
           `%${search}%`,
         )})`,
       );
@@ -571,6 +807,10 @@ export class PaymentBatchesService {
     const [{ count }] = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(schema.paymentBatches)
+      .leftJoin(
+        schema.bankAccounts,
+        eq(schema.bankAccounts.id, schema.paymentBatches.bankId),
+      )
       .where(where);
 
     const totalCount = Number(count);
@@ -584,8 +824,9 @@ export class PaymentBatchesService {
     const rows = await this.db
       .select({
         id: schema.paymentBatches.id,
-        description: schema.paymentBatches.description,
         paymentBatchReference: schema.paymentBatches.paymentBatchReference,
+        description: schema.paymentBatches.description,
+        batchType: schema.paymentBatches.batchType,
         status: schema.paymentBatches.status,
         recordCount: schema.paymentBatches.recordCount,
         totalAmount: schema.paymentBatches.totalAmount,
@@ -596,41 +837,37 @@ export class PaymentBatchesService {
         processedAt: schema.paymentBatches.processedAt,
         createdAt: schema.paymentBatches.createdAt,
         updatedAt: schema.paymentBatches.updatedAt,
-        bankIdRel: schema.bankAccounts.id,
-        bankName: schema.bankAccounts.accountName,
+        bankAccountName: schema.bankAccounts.accountName,
         bankAccountNumber: schema.bankAccounts.accountNumber,
-        bankCurrencyCode: schema.bankAccounts.currencyCode,
       })
       .from(schema.paymentBatches)
-      .where(where)
       .leftJoin(
         schema.bankAccounts,
         eq(schema.bankAccounts.id, schema.paymentBatches.bankId),
       )
+      .where(where)
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
 
     const batchIds = rows.map((r) => r.id);
-    const allItems = batchIds.length
-      ? await this.db
-          .select()
-          .from(schema.paymentBatchItems)
-          .where(
-            and(inArray(schema.paymentBatchItems.paymentBatchId, batchIds)),
-          )
-      : [];
+    let allItems: any[] = [];
+    if (batchIds.length) {
+      const result = await this.db.execute(
+        sql`SELECT * FROM savings.payment_batch_items WHERE payment_batch_id = ANY(${sql`ARRAY[${sql.join(batchIds.map(id => sql`${id}::uuid`), sql`, `)}]`})`,
+      );
+      allItems = result.rows.map(mapSnakeToCamel);
+    }
 
     const data = rows.map((row) => ({
       ...row,
       totalAmount: Number(row.totalAmount).toFixed(2),
-      bank: row.bankIdRel
+      bank: row.bankId
         ? {
-            id: row.bankIdRel,
-            name: row.bankName,
-            accountNumber: row.bankAccountNumber,
-            currencyCode: row.bankCurrencyCode,
-          }
+          id: row.bankId,
+          name: row.bankAccountName,
+          accountNumber: row.bankAccountNumber,
+        }
         : undefined,
       items: allItems.filter((it) => it.paymentBatchId === row.id),
     }));
@@ -650,8 +887,9 @@ export class PaymentBatchesService {
     const rows = await this.db
       .select({
         id: schema.paymentBatches.id,
-        description: schema.paymentBatches.description,
         paymentBatchReference: schema.paymentBatches.paymentBatchReference,
+        description: schema.paymentBatches.description,
+        batchType: schema.paymentBatches.batchType,
         status: schema.paymentBatches.status,
         recordCount: schema.paymentBatches.recordCount,
         totalAmount: schema.paymentBatches.totalAmount,
@@ -662,10 +900,8 @@ export class PaymentBatchesService {
         processedAt: schema.paymentBatches.processedAt,
         createdAt: schema.paymentBatches.createdAt,
         updatedAt: schema.paymentBatches.updatedAt,
-        bankIdRel: schema.bankAccounts.id,
-        bankName: schema.bankAccounts.accountName,
+        bankAccountName: schema.bankAccounts.accountName,
         bankAccountNumber: schema.bankAccounts.accountNumber,
-        bankCurrencyCode: schema.bankAccounts.currencyCode,
       })
       .from(schema.paymentBatches)
       .where(
@@ -683,28 +919,24 @@ export class PaymentBatchesService {
       throw new NotFoundException('Lote no encontrado');
     }
 
-    const batchIds = rows.map((r) => r.id);
-    const allItems = batchIds.length
-      ? await this.db
-          .select()
-          .from(schema.paymentBatchItems)
-          .where(inArray(schema.paymentBatchItems.paymentBatchId, batchIds))
-      : [];
+    const allItemsResult = await this.db.execute(
+      sql`SELECT * FROM savings.payment_batch_items WHERE payment_batch_id = ${id}`,
+    );
+    const allItems = allItemsResult.rows.map(mapSnakeToCamel);
 
-    const data = rows.map((row) => ({
+    const row = rows[0];
+
+    return {
       ...row,
       totalAmount: Number(row.totalAmount).toFixed(2),
-      bank: row.bankIdRel
+      bank: row.bankId
         ? {
-            id: row.bankIdRel,
-            name: row.bankName,
-            accountNumber: row.bankAccountNumber,
-            currencyCode: row.bankCurrencyCode,
-          }
+          id: row.bankId,
+          name: row.bankAccountName,
+          accountNumber: row.bankAccountNumber,
+        }
         : undefined,
-      items: allItems.filter((it) => it.paymentBatchId === row.id),
-    }));
-
-    return data[0];
+      items: allItems,
+    };
   }
 }

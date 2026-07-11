@@ -755,7 +755,9 @@ export const credits = savingsSchema.table(
     haberesPayment: numeric('haberes_payment', { precision: 20, scale: 6 }), // Monto pagado con haberes (retiro)
     directPayment: numeric('direct_payment', { precision: 20, scale: 6 }), // Monto de pago directo (inicial)
     directPaymentMethod: varchar('direct_payment_method', { length: 30 }), // Método del pago directo
-    directPaymentReference: varchar('direct_payment_reference', { length: 100 }), // Referencia del pago directo
+    directPaymentReference: varchar('direct_payment_reference', {
+      length: 100,
+    }), // Referencia del pago directo
     directPaymentBankAccountId: uuid('direct_payment_bank_account_id'), // Banco receptor del pago directo
     ...timestamps, // created_at y updated_at
   },
@@ -1002,7 +1004,9 @@ export const paymentBatches = savingsSchema.table('payment_batches', {
     .notNull()
     .default('0'),
   currencyCode: currencyCodeEnum('currency_code').notNull(),
-  bankId: uuid('bank_id').references(() => bankDirectory.id),
+  bankId: uuid('bank_id').references(() => bankAccounts.id, {
+    onDelete: 'set null',
+  }),
   bankFileName: varchar('bank_file_name', { length: 150 }), // nombre TXT que bajas
   bankReference: varchar('bank_reference', { length: 50 }), // devuelto por banco
   processedAt: timestamp('processed_at'),
@@ -1082,9 +1086,7 @@ export const contributionBatches = savingsSchema.table(
   },
   (table) => ({
     tenantIdx: index('contrib_batches_tenant_idx').on(table.tenantId),
-    entryDateIdx: index('contrib_batches_entry_date_idx').on(
-      table.entryDate,
-    ),
+    entryDateIdx: index('contrib_batches_entry_date_idx').on(table.entryDate),
     statusIdx: index('contrib_batches_status_idx').on(table.status),
   }),
 );

@@ -4,15 +4,14 @@ import {
   index,
   integer,
   numeric,
-  pgSchema,
   text,
   uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
 import { timestamps } from '../../timestamps';
+import { purchasingSchema } from '../_schemas';
 import {
-  categorySuppliers,
   currencyCodeEnum,
   invoiceSuppliersStatusEnum,
   paymentAccountsPayableEnum,
@@ -28,8 +27,6 @@ import { accountPlan } from './accounting';
 import { states } from './core';
 import { tenants } from './tenants';
 import { bankAccounts } from './treasury';
-import { purchasingSchema } from "../_schemas";
-
 
 // tabla proveedores
 export const suppliers = purchasingSchema.table(

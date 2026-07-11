@@ -1,19 +1,19 @@
+import { DrizzleModule } from '@/database/drizzle.module';
+import { OutboxModule } from '@/shared/outbox';
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { DrizzleModule } from '@/database/drizzle.module';
+import { CrossDomainModule } from './cross-domain.module';
+import { DeadLetterQueueService } from './dead-letter-queue.service';
+import { EVENT_BUS_TOKEN } from './event-bus.interface';
+import { EventMetricsService } from './event-metrics.service';
+import { EventRouter } from './event-router';
+import { EventStoreService } from './event-store.service';
+import { EventTracerService } from './event-tracer.service';
+import { IdempotencyService } from './idempotency.service';
 import { InProcessEventBus } from './in-process-event-bus';
 import { RedisEventBus } from './redis-event-bus';
-import { EVENT_BUS_TOKEN } from './event-bus.interface';
-import { IdempotencyService } from './idempotency.service';
-import { EventStoreService } from './event-store.service';
-import { DeadLetterQueueService } from './dead-letter-queue.service';
-import { RetryManager } from './retry.manager';
-import { EventTracerService } from './event-tracer.service';
-import { EventMetricsService } from './event-metrics.service';
 import { ReplayService } from './replay.service';
-import { EventRouter } from './event-router';
-import { CrossDomainModule } from './cross-domain.module';
-import { OutboxModule } from '@/shared/outbox';
+import { RetryManager } from './retry.manager';
 
 @Global()
 @Module({

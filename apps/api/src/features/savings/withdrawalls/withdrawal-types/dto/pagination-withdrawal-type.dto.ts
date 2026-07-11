@@ -1,7 +1,8 @@
-import { z } from 'zod';
-import { createZodDto } from 'nestjs-zod';
 import { PaginationSchema } from '@/common/dto/pagination.dto';
+import { createZodDto } from 'nestjs-zod';
 
 export const WithdrawalTypePaginationSchema = PaginationSchema.extend({});
 
-export class WithdrawalTypePaginationDto extends createZodDto(WithdrawalTypePaginationSchema) {}
+export class WithdrawalTypePaginationDto extends createZodDto(
+  WithdrawalTypePaginationSchema,
+) {}

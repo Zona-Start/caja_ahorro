@@ -22,7 +22,6 @@ export const CreateAccountingRuleSchema = z.object({
   details: z.array(CreateAccountingRuleDetailSchema),
 });
 
-
-
-export class CreateAccountingRuleDto extends createZodDto(CreateAccountingRuleSchema) { }
-
+export class CreateAccountingRuleDto extends createZodDto(
+  CreateAccountingRuleSchema,
+) {}

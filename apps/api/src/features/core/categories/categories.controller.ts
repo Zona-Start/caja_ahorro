@@ -24,7 +24,7 @@ export class CategoriesController {
   constructor(
     private readonly categoriesService: CategoriesService,
     private readonly tenantService: TenantContextService,
-  ) { }
+  ) {}
 
   @Get()
   @Permissions({
@@ -71,7 +71,6 @@ export class CategoriesController {
 
     console.log('tenantId', targetTenantId);
 
-
     return this.categoriesService.create(dto, targetTenantId, userId);
   }
 
@@ -99,8 +98,15 @@ export class CategoriesController {
     action: 'delete',
     scope: 'tenant',
   })
-  async remove(@Param('id') id: string, @Query('tenantId') tenantId: string, @Req() req: Request) {
-    const { targetTenantId } = this.tenantService.getTenantContext(req, tenantId);
+  async remove(
+    @Param('id') id: string,
+    @Query('tenantId') tenantId: string,
+    @Req() req: Request,
+  ) {
+    const { targetTenantId } = this.tenantService.getTenantContext(
+      req,
+      tenantId,
+    );
     return this.categoriesService.remove(id, targetTenantId);
   }
 }

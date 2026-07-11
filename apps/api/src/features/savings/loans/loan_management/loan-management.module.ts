@@ -19,5 +19,6 @@ import { LoanManagementService } from './loan-management.service';
   ],
   controllers: [LoanManagementController],
   providers: [LoanManagementService],
+  exports: [LoanManagementService],
 })
 export class LoanManagementModule {}

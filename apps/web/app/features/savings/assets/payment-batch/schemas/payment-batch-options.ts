@@ -1,34 +1,27 @@
 export const PAYMENT_BATCH_STATUS = {
-  DRAFT: 'Pendiente',
-  UPLOADED: 'En Proceso',
+  DRAFT: 'Borrador',
+  UPLOADED: 'Subido',
   PROCESSED: 'Procesado',
   CANCELLED: 'Cancelado',
 } as const;
 
 export const PAYMENT_BATCH_ITEM_TYPE = {
-  LOAN: 'Prestamo',
+  LOAN: 'Préstamo',
   WITHDRAWAL: 'Retiro',
   LIQUIDATION: 'Liquidación',
 } as const;
 
-export const CURRENCY_CODE_ENUM = {
-  VES: 'VES',
-  USD: 'USD',
+export const BATCH_TYPE = {
+  PAYMENT: 'Pago',
+  LOAN_DISBURSEMENT: 'Desembolso Préstamo',
 } as const;
 
 export type PaymentBatchStatus = keyof typeof PAYMENT_BATCH_STATUS;
 export type PaymentBatchItemType = keyof typeof PAYMENT_BATCH_ITEM_TYPE;
-export type CurrencyCodeEnum = keyof typeof CURRENCY_CODE_ENUM;
 
-export const paymentBatchStatusEnum = Object.values(PAYMENT_BATCH_STATUS) as [
-  string,
-  ...string[],
-];
-
-export const paymentBatchItemTypeEnum = Object.values(
-  PAYMENT_BATCH_ITEM_TYPE,
-) as [string, ...string[]];
-export const currencyCodeEnum = Object.values(CURRENCY_CODE_ENUM) as [
-  string,
-  ...string[],
-];
+export const paymentBatchStatusOptions = Object.entries(PAYMENT_BATCH_STATUS).map(
+  ([value, label]) => ({ value, label }),
+);
+export const paymentBatchItemTypeOptions = Object.entries(PAYMENT_BATCH_ITEM_TYPE).map(
+  ([value, label]) => ({ value, label }),
+);

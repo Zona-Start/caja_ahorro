@@ -1,6 +1,6 @@
+import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 
 @Injectable()
 export class LoanPaymentAudit {

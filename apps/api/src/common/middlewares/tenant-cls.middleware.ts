@@ -1,7 +1,7 @@
 // src/common/middleware/tenant-cls.middleware.ts
-import { Injectable, NestMiddleware } from "@nestjs/common";
-import { Request, Response, NextFunction } from "express";
-import { ClsService } from "nestjs-cls";
+import { Injectable, NestMiddleware } from '@nestjs/common';
+import { NextFunction, Request, Response } from 'express';
+import { ClsService } from 'nestjs-cls';
 
 /**
  * Middleware que toma el tenantId ya validado por TenantGuard
@@ -18,9 +18,9 @@ export class TenantClsInterceptorMiddleware implements NestMiddleware {
 
   use(req: Request, _res: Response, next: NextFunction) {
     // Pre-set desde header (será validado/sobrescrito por TenantGuard)
-    const tenantId = req.headers["x-tenant-id"] as string | undefined;
+    const tenantId = req.headers['x-tenant-id'] as string | undefined;
     if (tenantId) {
-      this.cls.set("tenantId", tenantId);
+      this.cls.set('tenantId', tenantId);
     }
     next();
   }

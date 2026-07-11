@@ -1,4 +1,6 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
+import * as schema from '@/database/schema';
 import {
   fixedAssets,
   products,
@@ -6,6 +8,7 @@ import {
   purchaseOrders,
   services,
   suppliers,
+  tenants,
 } from '@/database/schema/tables';
 import { CurrencyCodeEnum } from '@/types/enum';
 import {
@@ -14,10 +17,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, ne, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import * as schema from '@/database/schema';
+import { PurchasingPdfService } from '../pdf/purchasing-pdf.service';
 import {
   CreatePurchaseOrderDto,
   FilterPurchaseOrderDto,
@@ -30,6 +32,7 @@ export class PurchaseOrdersService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
+    private readonly purchasingPdfService: PurchasingPdfService,
   ) {}
 
   private async getItemNameByType(
@@ -201,7 +204,7 @@ export class PurchaseOrdersService {
     } = paginationDto;
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [
+    const searchConditions: SQL<unknown>[] = [
       eq(purchaseOrders.tenantId, tenantId),
     ];
     if (search) {
@@ -339,7 +342,7 @@ export class PurchaseOrdersService {
   async findAllForInvoice(params: FindAllForInvoiceDto, tenantId: string) {
     const { supplierId, status } = params;
 
-    let searchConditions: SQL<unknown>[] = [
+    const searchConditions: SQL<unknown>[] = [
       eq(purchaseOrders.tenantId, tenantId),
     ];
 
@@ -427,7 +430,47 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Purchase order not found');
     }
 
-    return data;
+    const itemIds = (data.items ?? [])
+      .filter((item: any) => item.itemId)
+      .map((item: any) => item.itemId);
+
+    const productMap = new Map<string, string>();
+    const serviceMap = new Map<string, string>();
+
+    if (itemIds.length > 0) {
+      const productRows = await this.drizzle
+        .select({ id: products.id, name: products.name })
+        .from(products)
+        .where(inArray(products.id, itemIds as any));
+
+      for (const p of productRows) {
+        productMap.set(String(p.id), p.name);
+      }
+
+      const serviceRows = await this.drizzle
+        .select({ id: services.id, name: services.name })
+        .from(services)
+        .where(inArray(services.id, itemIds as any));
+
+      for (const s of serviceRows) {
+        serviceMap.set(String(s.id), s.name);
+      }
+    }
+
+    const enrichedItems = (data.items ?? []).map((item: any) => {
+      let itemName: string | null = null;
+      if (item.itemId) {
+        const id = String(item.itemId);
+        if (item.lineType === 'SALES_INVENTORY' || item.lineType === 'FIXED_ASSET') {
+          itemName = productMap.get(id) || null;
+        } else if (item.lineType === 'SERVICE' || item.lineType === 'SERVICE_EXPENSE') {
+          itemName = serviceMap.get(id) || null;
+        }
+      }
+      return { ...item, itemName };
+    });
+
+    return { ...data, items: enrichedItems };
   }
 
   async update(
@@ -593,10 +636,7 @@ export class PurchaseOrdersService {
       .select()
       .from(purchaseOrders)
       .where(
-        and(
-          eq(purchaseOrders.id, id),
-          eq(purchaseOrders.tenantId, tenantId),
-        ),
+        and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)),
       );
 
     if (order.length === 0) {
@@ -613,13 +653,160 @@ export class PurchaseOrdersService {
       .update(purchaseOrders)
       .set({ status: 'CLOSED' })
       .where(
-        and(
-          eq(purchaseOrders.id, id),
-          eq(purchaseOrders.tenantId, tenantId),
-        ),
+        and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)),
       )
       .returning();
 
     return updatedOrder;
+  }
+
+  async approve(id: string, tenantId: string) {
+    const order = await this.drizzle.query.purchaseOrders.findFirst({
+      where: and(
+        eq(purchaseOrders.id, id),
+        eq(purchaseOrders.tenantId, tenantId),
+      ),
+    });
+
+    if (!order) {
+      throw new NotFoundException('Orden de compra no encontrada');
+    }
+
+    if (order.status !== 'DRAFT') {
+      throw new BadRequestException(
+        `La orden en estatus '${order.status}' no puede ser aprobada. Solo se permite aprobar desde DRAFT.`,
+      );
+    }
+
+    const [updated] = await this.drizzle
+      .update(purchaseOrders)
+      .set({ status: 'PENDING' })
+      .where(
+        and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)),
+      )
+      .returning();
+
+    return updated;
+  }
+
+  async generatePdf(
+    id: string,
+    tenantId: string,
+  ): Promise<PDFKit.PDFDocument> {
+    const order = await this.drizzle.query.purchaseOrders.findFirst({
+      where: and(
+        eq(purchaseOrders.id, id),
+        eq(purchaseOrders.tenantId, tenantId),
+      ),
+      with: {
+        supplier: true,
+        items: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Orden de compra no encontrada');
+    }
+
+    const [tenant] = await this.drizzle
+      .select({
+        name: tenants.name,
+        rif: tenants.rif,
+        address: tenants.address,
+        phone: tenants.phone,
+        email: tenants.email,
+      })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId));
+
+    if (!tenant) {
+      throw new NotFoundException('Empresa no encontrada');
+    }
+
+    const itemIds = (order.items ?? [])
+      .filter((item: any) => item.itemId)
+      .map((item: any) => item.itemId);
+
+    const productMap = new Map<string, string>();
+    const serviceMap = new Map<string, string>();
+
+    if (itemIds.length > 0) {
+      const productRows = await this.drizzle
+        .select({ id: products.id, name: products.name })
+        .from(products)
+        .where(inArray(products.id, itemIds as any));
+
+      for (const p of productRows) {
+        productMap.set(String(p.id), p.name);
+      }
+
+      const serviceRows = await this.drizzle
+        .select({ id: services.id, name: services.name })
+        .from(services)
+        .where(inArray(services.id, itemIds as any));
+
+      for (const s of serviceRows) {
+        serviceMap.set(String(s.id), s.name);
+      }
+    }
+
+    const items =
+      order.items?.map((item: any) => {
+        const qty = Number(item.quantity);
+        const unitCost = Number(item.unitCost);
+        const subtotal = qty * unitCost;
+
+        let description = item.description ?? '';
+        if (item.itemId) {
+          const id = String(item.itemId);
+          if (item.lineType === 'SALES_INVENTORY' || item.lineType === 'FIXED_ASSET') {
+            description = productMap.get(id) || item.description || 'Producto sin nombre';
+          } else if (item.lineType === 'SERVICE' || item.lineType === 'SERVICE_EXPENSE') {
+            description = serviceMap.get(id) || item.description || 'Servicio sin nombre';
+          }
+        }
+        if (!description) {
+          description = item.lineType === 'EXPENSE' ? 'Gasto' : `Ítem ${item.lineType}`;
+        }
+
+        return {
+          description,
+          quantity: qty,
+          unitCost,
+          taxPercent: 16,
+          totalLine: Number(item.totalCost ?? subtotal),
+        };
+      }) ?? [];
+
+    const subtotal = Number(order.subtotal);
+    const taxAmount = Number(order.taxAmount);
+    const totalAmount = Number(order.totalAmount);
+
+    const numericRef = order.orderNumber.replace(/^[A-Z]+-/, '');
+
+    return this.purchasingPdfService.generate({
+      title: 'ORDEN DE COMPRA',
+      reference: order.orderNumber,
+      numericReference: numericRef,
+      date: new Date(order.orderDate),
+      supplier: {
+        name: (order.supplier as any)?.name ?? '—',
+        taxId: (order.supplier as any)?.taxId ?? '—',
+        address: (order.supplier as any)?.address ?? null,
+        phone: (order.supplier as any)?.phone ?? null,
+        email: (order.supplier as any)?.email ?? null,
+      },
+      currencyCode: order.currencyCode,
+      items,
+      totals: { subtotal, taxAmount, totalAmount },
+      observations: order.observations ?? undefined,
+      tenant: {
+        name: tenant.name,
+        rif: tenant.rif,
+        address: tenant.address,
+        phone: tenant.phone,
+        email: tenant.email,
+      },
+    });
   }
 }

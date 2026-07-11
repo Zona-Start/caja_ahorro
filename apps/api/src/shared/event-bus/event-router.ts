@@ -29,7 +29,9 @@ export class EventRouter {
   }
 
   getRoutesBySource(sourceModule: string): RouteEntry[] {
-    return Array.from(this.routes.values()).filter((r) => r.sourceModule === sourceModule);
+    return Array.from(this.routes.values()).filter(
+      (r) => r.sourceModule === sourceModule,
+    );
   }
 
   getRoutesByTarget(targetModule: string): RouteEntry[] {

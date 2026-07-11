@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
@@ -8,22 +8,17 @@ import {
   loanPaymentsDetails,
   loans,
 } from '@/database/schema';
-import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
-import { AssociateAccountsMovementsService } from '../../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
   AssociateMovementTypeEnum,
   CurrencyCodeEnum,
   loanPaymetTypeEnum,
   paymentMethodEnum,
 } from '@/types/enum';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import {
-  EPSILON_COMPARISON,
-  InstallmentResult,
-  LoanInfo,
-  PaymentInsertResult,
-} from './loan-payment.types';
+import { AssociateAccountsMovementsService } from '../../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
+import { EPSILON_COMPARISON, PaymentInsertResult } from './loan-payment.types';
 
 @Injectable()
 export class LoanPaymentProcessor {
@@ -31,11 +26,9 @@ export class LoanPaymentProcessor {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
-  ) { }
+  ) {}
 
-  async generateReference(
-    tenantId: string,
-  ): Promise<string> {
+  async generateReference(tenantId: string): Promise<string> {
     return this.generateCodeService.generateNextReference(
       'PRE-PAG',
       tenantId,
@@ -217,7 +210,8 @@ export class LoanPaymentProcessor {
       Number(currentInstallment.paidAmount) - amountToRevert,
     );
 
-    const newStatus: 'PENDING' | 'PARTIAL' = newPaidAmount > 0 ? 'PARTIAL' : 'PENDING';
+    const newStatus: 'PENDING' | 'PARTIAL' =
+      newPaidAmount > 0 ? 'PARTIAL' : 'PENDING';
 
     await tx
       .update(loanAmortizationSchedule)
@@ -286,10 +280,7 @@ export class LoanPaymentProcessor {
     return amount - remainingAmount;
   }
 
-  getNewBalancePending(
-    currentBalance: number,
-    appliedAmount: number,
-  ): number {
+  getNewBalancePending(currentBalance: number, appliedAmount: number): number {
     const balance = Math.max(0, currentBalance - appliedAmount);
     return balance < EPSILON_COMPARISON ? 0 : balance;
   }

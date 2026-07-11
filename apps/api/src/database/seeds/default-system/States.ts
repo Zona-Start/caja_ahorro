@@ -1,102 +1,102 @@
 export const States = [
   {
     id: 1,
-    name: "DTTO. CAPITAL",
+    name: 'DTTO. CAPITAL',
   },
   {
     id: 22,
-    name: "EDO. AMAZONAS",
+    name: 'EDO. AMAZONAS',
   },
   {
     id: 2,
-    name: "EDO. ANZOATEGUI",
+    name: 'EDO. ANZOATEGUI',
   },
   {
     id: 3,
-    name: "EDO. APURE",
+    name: 'EDO. APURE',
   },
   {
     id: 4,
-    name: "EDO. ARAGUA",
+    name: 'EDO. ARAGUA',
   },
   {
     id: 5,
-    name: "EDO. BARINAS",
+    name: 'EDO. BARINAS',
   },
   {
     id: 6,
-    name: "EDO. BOLIVAR",
+    name: 'EDO. BOLIVAR',
   },
   {
     id: 7,
-    name: "EDO. CARABOBO",
+    name: 'EDO. CARABOBO',
   },
   {
     id: 8,
-    name: "EDO. COJEDES",
+    name: 'EDO. COJEDES',
   },
   {
     id: 23,
-    name: "EDO. DELTA AMAC",
+    name: 'EDO. DELTA AMAC',
   },
   {
     id: 9,
-    name: "EDO. FALCON",
+    name: 'EDO. FALCON',
   },
   {
     id: 10,
-    name: "EDO. GUARICO",
+    name: 'EDO. GUARICO',
   },
   {
     id: 24,
-    name: "EDO. LA GUAIRA",
+    name: 'EDO. LA GUAIRA',
   },
   {
     id: 11,
-    name: "EDO. LARA",
+    name: 'EDO. LARA',
   },
   {
     id: 12,
-    name: "EDO. MERIDA",
+    name: 'EDO. MERIDA',
   },
   {
     id: 13,
-    name: "EDO. MIRANDA",
+    name: 'EDO. MIRANDA',
   },
   {
     id: 14,
-    name: "EDO. MONAGAS",
+    name: 'EDO. MONAGAS',
   },
   {
     id: 15,
-    name: "EDO.NVA.ESPARTA",
+    name: 'EDO.NVA.ESPARTA',
   },
   {
     id: 16,
-    name: "EDO. PORTUGUESA",
+    name: 'EDO. PORTUGUESA',
   },
   {
     id: 17,
-    name: "EDO. SUCRE",
+    name: 'EDO. SUCRE',
   },
   {
     id: 18,
-    name: "EDO. TACHIRA",
+    name: 'EDO. TACHIRA',
   },
   {
     id: 19,
-    name: "EDO. TRUJILLO",
+    name: 'EDO. TRUJILLO',
   },
   {
     id: 20,
-    name: "EDO. YARACUY",
+    name: 'EDO. YARACUY',
   },
   {
     id: 21,
-    name: "EDO. ZULIA",
+    name: 'EDO. ZULIA',
   },
   {
     id: 99,
-    name: "EMBAJADA",
+    name: 'EMBAJADA',
   },
 ];

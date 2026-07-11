@@ -27,10 +27,14 @@ export class AccountingEntriesController {
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
     private readonly tenantContext: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
-  @Permissions({ resource: 'accounting:journal_entries', action: 'create', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'create',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Crear un nuevo asiento contable (Borrador)' })
   @ApiResponse({
     status: 201,
@@ -50,8 +54,14 @@ export class AccountingEntriesController {
   }
 
   @Get()
-  @Permissions({ resource: 'accounting:journal_entries', action: 'read', scope: 'tenant' })
-  @ApiOperation({ summary: 'Obtener todos los asientos contables con paginación' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'read',
+    scope: 'tenant',
+  })
+  @ApiOperation({
+    summary: 'Obtener todos los asientos contables con paginación',
+  })
   async findAllPaginated(
     @Req() req: Request,
     @Query() dto: FilterAccountingEntryDto,
@@ -69,7 +79,11 @@ export class AccountingEntriesController {
   }
 
   @Get(':id')
-  @Permissions({ resource: 'accounting:journal_entries', action: 'read', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'read',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Obtener un asiento contable por ID' })
   async findOne(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContext.getTenantContext(req);
@@ -81,7 +95,11 @@ export class AccountingEntriesController {
   }
 
   @Patch(':id')
-  @Permissions({ resource: 'accounting:journal_entries', action: 'update', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'update',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Actualizar un asiento contable' })
   async update(
     @Req() req: Request,
@@ -102,7 +120,11 @@ export class AccountingEntriesController {
   }
 
   @Delete(':id')
-  @Permissions({ resource: 'accounting:journal_entries', action: 'delete', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'delete',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Eliminar un asiento contable' })
   async remove(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
@@ -114,7 +136,11 @@ export class AccountingEntriesController {
   }
 
   @Post(':id/submit')
-  @Permissions({ resource: 'accounting:journal_entries', action: 'update', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'update',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Enviar asiento (Borrador → Pendiente)' })
   async submit(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
@@ -127,7 +153,11 @@ export class AccountingEntriesController {
   }
 
   @Post(':id/post')
-  @Permissions({ resource: 'accounting:journal_entries', action: 'update', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'update',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Contabilizar asiento (Pendiente → Contabilizado)' })
   async post(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
@@ -140,8 +170,14 @@ export class AccountingEntriesController {
   }
 
   @Post(':id/cancel')
-  @Permissions({ resource: 'accounting:journal_entries', action: 'update', scope: 'tenant' })
-  @ApiOperation({ summary: 'Anular asiento (Contabilizado → Anulado) y crear reverso' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'update',
+    scope: 'tenant',
+  })
+  @ApiOperation({
+    summary: 'Anular asiento (Contabilizado → Anulado) y crear reverso',
+  })
   async cancel(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
     const data = await this.accountingEntriesService.cancelEntry(
@@ -156,7 +192,11 @@ export class AccountingEntriesController {
   }
 
   @Post('validate')
-  @Permissions({ resource: 'accounting:journal_entries', action: 'read', scope: 'tenant' })
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'read',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Validar cuadre de un asiento sin guardar' })
   async validateEntry(
     @Req() req: Request,

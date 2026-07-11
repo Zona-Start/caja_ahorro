@@ -134,6 +134,13 @@
       "when": 1783561775106,
       "tag": "0018_known_leper_queen",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1783649139276,
+      "tag": "0019_loose_bloodstrike",
+      "breakpoints": true
     }
   ]
 }

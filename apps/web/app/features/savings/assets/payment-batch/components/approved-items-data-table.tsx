@@ -1,4 +1,3 @@
-'use client';
 import {
   Table,
   TableBody,
@@ -7,15 +6,15 @@ import {
   TableHeader,
   TableRow,
 } from '@repo/shadcn/table';
+import { Button } from '@repo/shadcn/button';
 import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useEffect, useRef } from 'react';
-import { type PaymentBatchApprovedItem } from './payment-batch-columns';
 import { Loader2 } from 'lucide-react';
+import { type PaymentBatchApprovedItem } from './payment-batch-columns';
 
 interface ApprovedItemsDataTableProps {
   columns: ColumnDef<PaymentBatchApprovedItem>[];
@@ -25,6 +24,8 @@ interface ApprovedItemsDataTableProps {
   fetchNextPage?: () => void;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
+  isLoading?: boolean;
+  totalCount?: number;
 }
 
 export function ApprovedItemsDataTable({
@@ -35,6 +36,8 @@ export function ApprovedItemsDataTable({
   fetchNextPage,
   hasNextPage,
   isFetchingNextPage,
+  isLoading,
+  totalCount,
 }: ApprovedItemsDataTableProps) {
   const table = useReactTable({
     data,
@@ -50,54 +53,48 @@ export function ApprovedItemsDataTable({
     state: {
       rowSelection,
     },
-    getRowId: (row) => row.id.toString(),
+    getRowId: (row) => row.id,
     enableRowSelection: true,
   });
 
-  // Infinite scroll logic
-  const observerTarget = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage?.();
-        }
-      },
-      { threshold: 1.0 },
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
     );
+  }
 
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+        <p className="text-sm">No hay registros pendientes</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md border max-h-[500px] overflow-auto">
+    <>
+      <div className="rounded-md border max-h-[400px] overflow-y-auto">
         <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
+          <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                    </TableHead>
-                  );
-                })}
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext(),
+                        )}
+                  </TableHead>
+                ))}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -113,29 +110,33 @@ export function ApprovedItemsDataTable({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
+                  Sin resultados
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
-        
-        {/* Intersection target */}
-        <div ref={observerTarget} className="h-4 w-full" />
       </div>
 
-      {isFetchingNextPage && (
-        <div className="flex justify-center p-4">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-sm text-muted-foreground">Cargando más...</span>
+      {hasNextPage && (
+        <div className="flex items-center justify-center py-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchNextPage}
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? (
+              <>
+                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                Cargando...
+              </>
+            ) : (
+              `Cargar más (${data.length} de ${totalCount || '...'})`
+            )}
+          </Button>
         </div>
       )}
-      
-      {!hasNextPage && data.length > 0 && (
-        <p className="text-center text-xs text-muted-foreground pb-2">
-          Has llegado al final de la lista.
-        </p>
-      )}
-    </div>
+    </>
   );
 }

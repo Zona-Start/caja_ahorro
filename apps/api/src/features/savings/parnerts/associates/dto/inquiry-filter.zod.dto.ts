@@ -1,6 +1,6 @@
 import { createZodDto } from 'nestjs-zod';
-import { z } from 'zod';
 import { PaginationSchema } from 'src/common/dto/pagination.dto';
+import { z } from 'zod';
 
 export const InquiryFilterSchema = PaginationSchema.extend({
   associateId: z.string().uuid(),

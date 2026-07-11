@@ -1,4 +1,4 @@
-import { savingsSchema } from "../_schemas";
+import { savingsSchema } from '../_schemas';
 
 export const associateMovementTypeEnum = savingsSchema.enum(
   'associate_movement_type',
@@ -95,7 +95,7 @@ export const movementStatusEnum = savingsSchema.enum('movement_status', [
   'COMPLETED',
   'CANCELLED',
   'REVERSED',
-  'DONE'
+  'DONE',
 ]);
 
 export const creditModalityTypeEnum = savingsSchema.enum(
@@ -185,4 +185,3 @@ export const paymentStatusEnum = savingsSchema.enum('payment_status', [
 ]);
 
 export const paymentStatus = paymentStatusEnum;
-

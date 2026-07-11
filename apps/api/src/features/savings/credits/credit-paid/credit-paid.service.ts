@@ -2,13 +2,13 @@ import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
+  associateAccounts,
   associates,
   creditAmortizationSchedule,
   creditPayments,
   creditPaymentsDetails,
   credits,
   creditsTypes,
-  associateAccounts,
 } from '@/database/schema/tables/savings';
 import { bankAccounts } from '@/database/schema/tables/treasury';
 import { AuditHelper } from '@/features/audit/audit-event.service';
@@ -22,12 +22,12 @@ import {
   paymentMethodEnum,
 } from '@/types/enum';
 import {
+  ConflictException,
   Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
   OnModuleInit,
-  ConflictException,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
@@ -51,7 +51,7 @@ export class CreditPaidService implements OnModuleInit {
     private readonly generateCodeService: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
     private moduleRef: ModuleRef,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.bankMovementsService = this.moduleRef.get(BankMovementsService, {
@@ -120,7 +120,7 @@ export class CreditPaidService implements OnModuleInit {
     for (const installment of pendingInstallments) {
       const installmentTotal = Number(installment.totalInstallmentAmount);
       const installmentPaid = Number(installment.paidAmount || 0);
-      let dueAmountExact = installmentTotal - installmentPaid;
+      const dueAmountExact = installmentTotal - installmentPaid;
 
       if (dueAmountExact <= EPSILON_COMPARISON) {
         continue;
@@ -290,7 +290,7 @@ export class CreditPaidService implements OnModuleInit {
       }
 
       let newCreditStatus = 'APPROVED';
-      let balanceInFavorValue = remainingAmount;
+      const balanceInFavorValue = remainingAmount;
 
       if (newBalancePending <= 0) {
         newCreditStatus = 'PAID';
@@ -439,7 +439,7 @@ export class CreditPaidService implements OnModuleInit {
 
     const offset = (page - 1) * limit;
 
-    let searchConditions: SQL<unknown>[] = [];
+    const searchConditions: SQL<unknown>[] = [];
 
     if (tenantId) {
       searchConditions.push(eq(creditPayments.tenantId, tenantId));
@@ -597,20 +597,20 @@ export class CreditPaidService implements OnModuleInit {
 
     const creditAmortization = result[0]?.creditId
       ? await this.db
-        .select({
-          id: creditAmortizationSchedule.id,
-          quotaNumber: creditAmortizationSchedule.installmentNumber,
-          quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
-          quotaDate: creditAmortizationSchedule.dueDate,
-          quotaStatus: creditAmortizationSchedule.paymentStatus,
-          quotaPartial: creditAmortizationSchedule.paidAmount,
-          principalBalancePending:
-            creditAmortizationSchedule.principalBalancePending,
-          paidAmount: creditAmortizationSchedule.paidAmount,
-        })
-        .from(creditAmortizationSchedule)
-        .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
-        .orderBy(sql<string>`
+          .select({
+            id: creditAmortizationSchedule.id,
+            quotaNumber: creditAmortizationSchedule.installmentNumber,
+            quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+            quotaDate: creditAmortizationSchedule.dueDate,
+            quotaStatus: creditAmortizationSchedule.paymentStatus,
+            quotaPartial: creditAmortizationSchedule.paidAmount,
+            principalBalancePending:
+              creditAmortizationSchedule.principalBalancePending,
+            paidAmount: creditAmortizationSchedule.paidAmount,
+          })
+          .from(creditAmortizationSchedule)
+          .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
+          .orderBy(sql<string>`
     CASE payment_status
       WHEN 'PARTIAL' THEN 1
       WHEN 'PENDING' THEN 2
@@ -684,9 +684,7 @@ export class CreditPaidService implements OnModuleInit {
   }
 
   async findOne(tenantId: string | null, paymentId: string) {
-    const conditions: SQL<unknown>[] = [
-      eq(creditPayments.id, paymentId),
-    ];
+    const conditions: SQL<unknown>[] = [eq(creditPayments.id, paymentId)];
     if (tenantId) {
       conditions.push(eq(creditPayments.tenantId, tenantId));
     }
@@ -727,27 +725,19 @@ export class CreditPaidService implements OnModuleInit {
       .select({
         id: creditPaymentsDetails.id,
         amount: creditPaymentsDetails.amount,
-        installmentNumber:
-          creditAmortizationSchedule.installmentNumber,
+        installmentNumber: creditAmortizationSchedule.installmentNumber,
         dueDate: creditAmortizationSchedule.dueDate,
         totalInstallmentAmount:
           creditAmortizationSchedule.totalInstallmentAmount,
-        principalAmount:
-          creditAmortizationSchedule.principalAmount,
-        interestAmount:
-          creditAmortizationSchedule.interestAmount,
+        principalAmount: creditAmortizationSchedule.principalAmount,
+        interestAmount: creditAmortizationSchedule.interestAmount,
       })
       .from(creditPaymentsDetails)
       .leftJoin(
         creditAmortizationSchedule,
-        eq(
-          creditAmortizationSchedule.id,
-          creditPaymentsDetails.installmentId,
-        ),
+        eq(creditAmortizationSchedule.id, creditPaymentsDetails.installmentId),
       )
-      .where(
-        eq(creditPaymentsDetails.creditPaymentId, paymentId),
-      );
+      .where(eq(creditPaymentsDetails.creditPaymentId, paymentId));
 
     return {
       ...payment,
@@ -792,12 +782,7 @@ export class CreditPaidService implements OnModuleInit {
           amount: creditPaymentsDetails.amount,
         })
         .from(creditPaymentsDetails)
-        .where(
-          eq(
-            creditPaymentsDetails.creditPaymentId,
-            paymentId,
-          ),
-        );
+        .where(eq(creditPaymentsDetails.creditPaymentId, paymentId));
 
       for (const detail of details) {
         const [installment] = await tx
@@ -806,9 +791,7 @@ export class CreditPaidService implements OnModuleInit {
             paidAmount: creditAmortizationSchedule.paidAmount,
           })
           .from(creditAmortizationSchedule)
-          .where(
-            eq(creditAmortizationSchedule.id, detail.installmentId!),
-          );
+          .where(eq(creditAmortizationSchedule.id, detail.installmentId!));
 
         if (installment) {
           const currentPaid = Number(installment.paidAmount || 0);
@@ -832,9 +815,7 @@ export class CreditPaidService implements OnModuleInit {
               paidAmount: String(newPaidAmount.toFixed(6)),
               updatedById: userId,
             })
-            .where(
-              eq(creditAmortizationSchedule.id, detail.installmentId!),
-            );
+            .where(eq(creditAmortizationSchedule.id, detail.installmentId!));
         }
       }
 
@@ -846,10 +827,10 @@ export class CreditPaidService implements OnModuleInit {
         })
         .where(eq(creditPayments.id, paymentId));
 
-      const newBalancePending =
-        await this._calculateBalancePending(payment.creditId);
-      const newCreditStatus =
-        newBalancePending <= 0 ? 'PAID' : 'IN_PAYMENT';
+      const newBalancePending = await this._calculateBalancePending(
+        payment.creditId,
+      );
+      const newCreditStatus = newBalancePending <= 0 ? 'PAID' : 'IN_PAYMENT';
 
       await tx
         .update(credits)

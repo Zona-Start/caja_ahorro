@@ -1,5 +1,7 @@
+import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
-  Body,
   Controller,
   Get,
   Param,
@@ -11,9 +13,6 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import { TenantContextService } from '@/common/services/tenant-context.service';
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { ContributionBatchesService } from './contribution-batches.service';
 import {
   FilterContributionBatchDto,
@@ -33,9 +32,11 @@ export class ContributionBatchesController {
   @UsePipes(new ZodValidatorPipe(FilterContributionBatchSchema))
   @ApiOperation({ summary: 'Listar lotes de carga de haberes' })
   @ApiResponse({ status: 200, description: 'Lista de lotes' })
-  async findAll(@Req() req: Request, @Query() filterDto: FilterContributionBatchDto) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+  async findAll(
+    @Req() req: Request,
+    @Query() filterDto: FilterContributionBatchDto,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const result = await this.contributionBatchesService.findAll(
       targetTenantId,
       filterDto,
@@ -51,8 +52,7 @@ export class ContributionBatchesController {
   @Get(':id')
   @ApiOperation({ summary: 'Obtener lote por ID' })
   async findOne(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const data = await this.contributionBatchesService.findOne(
       targetTenantId,
       id,
@@ -66,10 +66,6 @@ export class ContributionBatchesController {
   async reverse(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req);
-    return this.contributionBatchesService.reverse(
-      targetTenantId,
-      userId,
-      id,
-    );
+    return this.contributionBatchesService.reverse(targetTenantId, userId, id);
   }
 }

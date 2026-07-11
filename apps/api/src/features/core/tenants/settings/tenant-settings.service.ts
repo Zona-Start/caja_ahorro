@@ -1,7 +1,12 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { tenantSettings } from '@/database/schema';
-import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, eq, ilike, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { TenantProvisioningService } from '../services/tenant-provisioning.service';
@@ -16,7 +21,7 @@ export class TenantSettingsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly provisioningService: TenantProvisioningService,
-  ) { }
+  ) {}
 
   async findAll(
     tenantId: string | null,
@@ -128,7 +133,6 @@ export class TenantSettingsService {
     });
   }
 
-
   async create(
     tenantId: string,
     dto: CreateTenantSettingDto,
@@ -165,7 +169,6 @@ export class TenantSettingsService {
         description: dto.description,
         category: dto.moduleCode ?? dto.category,
         createdById: userId,
-
       } as unknown as typeof tenantSettings.$inferInsert)
       .returning();
 
@@ -242,7 +245,12 @@ export class TenantSettingsService {
 
     return this.create(
       tenantId,
-      { key, value, category: moduleCode ?? category, moduleCode: moduleCode as any },
+      {
+        key,
+        value,
+        category: moduleCode ?? category,
+        moduleCode: moduleCode as any,
+      },
       userId,
       tx,
     );

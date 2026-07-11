@@ -14,7 +14,7 @@ export class BcvService implements OnModuleInit {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.logger.log('BCV Service initialized');

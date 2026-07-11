@@ -1,13 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { projectionLoanBalances, projectionCheckpoints, loans, loanPayments } from '@/database/schema';
-import { eq, and, sql } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@/database/schema';
-import { type ProjectionHandler } from './projection-handler';
+import { projectionLoanBalances } from '@/database/schema';
 import { type EventEnvelope, EventStoreService } from '@/shared/event-bus';
 import { LOAN_EVENTS } from '@/shared/event-types';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { type ProjectionHandler } from './projection-handler';
 
 @Injectable()
 export class LoanBalanceProjection implements ProjectionHandler {
@@ -38,8 +37,12 @@ export class LoanBalanceProjection implements ProjectionHandler {
 
   async rebuild(): Promise<void> {
     this.logger.log('Rebuilding loan balance projection from EventStore...');
-    const events = await this.eventStore.findByEventType(LOAN_EVENTS.PAYMENT_CREATED);
-    const loanEvents = await this.eventStore.findByEventType(LOAN_EVENTS.LOAN_DISBURSED);
+    const events = await this.eventStore.findByEventType(
+      LOAN_EVENTS.PAYMENT_CREATED,
+    );
+    const loanEvents = await this.eventStore.findByEventType(
+      LOAN_EVENTS.LOAN_DISBURSED,
+    );
 
     await this.db.delete(projectionLoanBalances);
 
@@ -50,7 +53,9 @@ export class LoanBalanceProjection implements ProjectionHandler {
       }
     }
 
-    this.logger.log(`Rebuild complete: ${loanEvents.length + events.length} events replayed`);
+    this.logger.log(
+      `Rebuild complete: ${loanEvents.length + events.length} events replayed`,
+    );
   }
 
   private async applyLoanDisbursed(envelope: EventEnvelope): Promise<void> {
@@ -70,7 +75,10 @@ export class LoanBalanceProjection implements ProjectionHandler {
         lastEventId: envelope.eventId,
       })
       .onConflictDoUpdate({
-        target: [projectionLoanBalances.tenantId, projectionLoanBalances.loanId],
+        target: [
+          projectionLoanBalances.tenantId,
+          projectionLoanBalances.loanId,
+        ],
         set: {
           totalAmount: String(amount),
           pendingBalance: String(amount),

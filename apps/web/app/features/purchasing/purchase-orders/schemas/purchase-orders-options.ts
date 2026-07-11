@@ -6,7 +6,7 @@ export const LINE_TYPES = [
 
 export const ORDER_STATUS_OPTIONS = [
   { value: 'DRAFT', label: 'Borrador' },
-  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'PENDING', label: 'Aprobada' },
   { value: 'RECEIVED', label: 'Recibido' },
   { value: 'INVOICED', label: 'Facturado' },
   { value: 'CLOSED', label: 'Cerrado' },
@@ -15,7 +15,7 @@ export const ORDER_STATUS_OPTIONS = [
 
 export const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Borrador',
-  PENDING: 'Pendiente',
+  PENDING: 'Aprobada',
   RECEIVED: 'Recibido',
   INVOICED: 'Facturado',
   CLOSED: 'Cerrado',

@@ -8,20 +8,20 @@ import { EventBusModule } from '@/shared/event-bus';
 import { WsModule } from '@/shared/websocket';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
+import { LoanPaymentAccounting } from './domain/loan-payment.accounting';
+import { LoanPaymentAudit } from './domain/loan-payment.audit';
+import { LoanPaymentBank } from './domain/loan-payment.bank';
+import { LoanPaymentProcessor } from './domain/loan-payment.processor';
+import { LoanPaymentValidator } from './domain/loan-payment.validator';
 import { LoanPaidController } from './loan-paid.controller';
 import { LoanPaidService } from './loan-paid.service';
-import { LoanPaymentValidator } from './domain/loan-payment.validator';
-import { LoanPaymentProcessor } from './domain/loan-payment.processor';
-import { LoanPaymentAccounting } from './domain/loan-payment.accounting';
-import { LoanPaymentBank } from './domain/loan-payment.bank';
-import { LoanPaymentAudit } from './domain/loan-payment.audit';
-import { CreatePaymentUseCase } from './use-cases/create-payment.usecase';
+import { LoanPaymentAccountingSubscriber } from './subscribers/loan-payment-accounting.subscriber';
+import { LoanPaymentAuditSubscriber } from './subscribers/loan-payment-audit.subscriber';
+import { LoanPaymentBankingSubscriber } from './subscribers/loan-payment-banking.subscriber';
+import { LoanPaymentWsSubscriber } from './subscribers/loan-payment-ws.subscriber';
 import { BulkPaymentUseCase } from './use-cases/bulk-payment.usecase';
 import { CancelPaymentUseCase } from './use-cases/cancel-payment.usecase';
-import { LoanPaymentAuditSubscriber } from './subscribers/loan-payment-audit.subscriber';
-import { LoanPaymentWsSubscriber } from './subscribers/loan-payment-ws.subscriber';
-import { LoanPaymentAccountingSubscriber } from './subscribers/loan-payment-accounting.subscriber';
-import { LoanPaymentBankingSubscriber } from './subscribers/loan-payment-banking.subscriber';
+import { CreatePaymentUseCase } from './use-cases/create-payment.usecase';
 
 @Module({
   imports: [

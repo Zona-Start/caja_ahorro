@@ -19,14 +19,15 @@ import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/schema';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
-  BulkIndividualLoadDto,
-  CreateIndividualLoadDto,
-} from './dto/individual-load.zod.dto';
-import { ContributionBatchesService } from '../contribution-batches/contribution-batches.service';
-import {
   ContributionBatchesAccountingService,
   type BatchAccountingParams,
 } from '../contribution-batches/contribution-batches-accounting.service';
+import { ContributionBatchesService } from '../contribution-batches/contribution-batches.service';
+import {
+  BulkIndividualLoadDto,
+  CreateIndividualLoadDto,
+} from './dto/individual-load.zod.dto';
+import { buildContributionAccountingParams } from './lib/individual-load-accounting';
 import {
   buildAssociateMovementPayloads,
   buildBankMovementPayload,
@@ -36,7 +37,6 @@ import {
   extractBankTransactionId,
   resolveContributionMovementType,
 } from './lib/individual-load-payloads';
-import { buildContributionAccountingParams } from './lib/individual-load-accounting';
 import type {
   AccountingItem,
   AccountingOutcome,
@@ -92,11 +92,14 @@ export class IndividualLoadService {
         const movementType = resolveContributionMovementType(dto.movementType);
         const totalAmount = isEmployerContribution
           ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
-          : dto.amount ?? 0;
+          : (dto.amount ?? 0);
 
         const batchDescription =
           dto.description ||
-          defaultLoadDescription(isEmployerContribution, account.associates.fullname);
+          defaultLoadDescription(
+            isEmployerContribution,
+            account.associates.fullname,
+          );
 
         // 2) Registrar el lote + detalle (sin asiento contable aún)
         const batch = await this.contributionBatchesService.createBatchRecord(
@@ -111,8 +114,12 @@ export class IndividualLoadService {
             fallbackDescription: batchDescription,
             associateId: account.associates.id,
             amountVoluntario: isEmployerContribution ? undefined : dto.amount,
-            amountPatrono: isEmployerContribution ? dto.employerAmount : undefined,
-            amountAsociado: isEmployerContribution ? dto.associateAmount : undefined,
+            amountPatrono: isEmployerContribution
+              ? dto.employerAmount
+              : undefined,
+            amountAsociado: isEmployerContribution
+              ? dto.associateAmount
+              : undefined,
             totalAmount,
             associateCount: 1,
           }),
@@ -133,7 +140,10 @@ export class IndividualLoadService {
             transactionDate: dto.transactionDate,
             description: dto.description,
           },
-          defaultLoadDescription(isEmployerContribution, account.associates.fullname),
+          defaultLoadDescription(
+            isEmployerContribution,
+            account.associates.fullname,
+          ),
         );
 
         const results: AssociateMovementResult[] = [];
@@ -151,9 +161,7 @@ export class IndividualLoadService {
 
         // 4) Si hay datos bancarios -> crear la transacción bancaria y referenciar
         const hasBankingDetails =
-          !!dto.bankAccountId &&
-          !!dto.paymentMethod &&
-          !!dto.referenceNumber;
+          !!dto.bankAccountId && !!dto.paymentMethod && !!dto.referenceNumber;
 
         if (hasBankingDetails) {
           const bankPayload = buildBankMovementPayload(
@@ -170,12 +178,13 @@ export class IndividualLoadService {
             userId,
           );
 
-          const bankResult = (await this.bankMovementsService.createAndReconcile(
-            bankPayload,
-            userId,
-            tenantId,
-            tx,
-          )) as BankMovementResult;
+          const bankResult =
+            (await this.bankMovementsService.createAndReconcile(
+              bankPayload,
+              userId,
+              tenantId,
+              tx,
+            )) as BankMovementResult;
 
           const bankTransactionId = extractBankTransactionId(bankResult);
 
@@ -224,11 +233,9 @@ export class IndividualLoadService {
       totalAmount:
         dto.movementType === 'EMPLOYER_CONTRIBUTION'
           ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
-          : dto.amount ?? 0,
+          : (dto.amount ?? 0),
       amountVoluntario:
-        dto.movementType === 'EMPLOYER_CONTRIBUTION'
-          ? undefined
-          : dto.amount,
+        dto.movementType === 'EMPLOYER_CONTRIBUTION' ? undefined : dto.amount,
       amountPatrono:
         dto.movementType === 'EMPLOYER_CONTRIBUTION'
           ? dto.employerAmount
@@ -297,7 +304,8 @@ export class IndividualLoadService {
     fileBuffer: Buffer,
     dto: BulkIndividualLoadDto,
   ): Promise<LoadResult> {
-    const { typeCell, validDate, rows } = await this.parseBulkWorkbook(fileBuffer);
+    const { typeCell, validDate, rows } =
+      await this.parseBulkWorkbook(fileBuffer);
     if (typeCell !== 'APORTE EMPLEADOS' && typeCell !== 'DESCUENTOS CAJA') {
       throw new BadRequestException(
         'El tipo de carga en la celda B1 debe ser APORTE EMPLEADOS o DESCUENTOS CAJA',
@@ -351,36 +359,36 @@ export class IndividualLoadService {
 
           if (isPatronal) {
             const resEmp = (await this.associateMovementsService.create(
-                userId,
-                {
-                  associateAccountId: associate.associateAccountId,
-                  movementType:
-                    'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
-                  amount: row.monto,
-                  currencyCode: 'VES' as CurrencyCodeEnum,
-                  transactionDate: movementDate,
-                  description: 'Aporte Patronales',
-                  status: 'COMPLETED' as movementStatusEnum,
-                },
-                tenantId,
-                tx,
-              )) as AssociateMovementResult;
+              userId,
+              {
+                associateAccountId: associate.associateAccountId,
+                movementType:
+                  'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+                amount: row.monto,
+                currencyCode: 'VES' as CurrencyCodeEnum,
+                transactionDate: movementDate,
+                description: 'Aporte Patronales',
+                status: 'COMPLETED' as movementStatusEnum,
+              },
+              tenantId,
+              tx,
+            )) as AssociateMovementResult;
 
             const resPat = (await this.associateMovementsService.create(
-                userId,
-                {
-                  associateAccountId: associate.associateAccountId,
-                  movementType:
-                    'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
-                  amount: row.monto,
-                  currencyCode: 'VES' as CurrencyCodeEnum,
-                  transactionDate: movementDate,
-                  description: 'Aporte Patronales',
-                  status: 'COMPLETED' as movementStatusEnum,
-                },
-                tenantId,
-                tx,
-              )) as AssociateMovementResult;
+              userId,
+              {
+                associateAccountId: associate.associateAccountId,
+                movementType:
+                  'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
+                amount: row.monto,
+                currencyCode: 'VES' as CurrencyCodeEnum,
+                transactionDate: movementDate,
+                description: 'Aporte Patronales',
+                status: 'COMPLETED' as movementStatusEnum,
+              },
+              tenantId,
+              tx,
+            )) as AssociateMovementResult;
 
             movementResults.push(resEmp, resPat);
             totalAmountProcessed += row.monto * 2;
@@ -463,9 +471,7 @@ export class IndividualLoadService {
 
         // 3) Si hay datos bancarios -> transacción bancaria + referencias
         const hasBankingDetails =
-          !!dto.bankAccountId &&
-          !!dto.paymentMethod &&
-          !!dto.referenceNumber;
+          !!dto.bankAccountId && !!dto.paymentMethod && !!dto.referenceNumber;
 
         if (hasBankingDetails) {
           const bankPayload = buildBankMovementPayload(
@@ -482,12 +488,13 @@ export class IndividualLoadService {
             userId,
           );
 
-          const bankResult = (await this.bankMovementsService.createAndReconcile(
-            bankPayload,
-            userId,
-            tenantId,
-            tx,
-          )) as BankMovementResult;
+          const bankResult =
+            (await this.bankMovementsService.createAndReconcile(
+              bankPayload,
+              userId,
+              tenantId,
+              tx,
+            )) as BankMovementResult;
 
           const bankTransactionId = extractBankTransactionId(bankResult);
 

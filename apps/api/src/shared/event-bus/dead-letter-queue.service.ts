@@ -1,11 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
-import { deadLetterQueue } from '@/database/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '@/database/schema';
+import { deadLetterQueue } from '@/database/schema';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { EVENT_BUS_TOKEN, IEventBus } from './event-bus.interface';
 import { type EventEnvelope } from './event-envelope';
-import { IEventBus, EVENT_BUS_TOKEN } from './event-bus.interface';
 
 @Injectable()
 export class DeadLetterQueueService {
@@ -51,8 +51,10 @@ export class DeadLetterQueueService {
 
   async findAll(filter?: { status?: string; handlerName?: string }) {
     const conditions: ReturnType<typeof eq>[] = [];
-    if (filter?.status) conditions.push(eq(deadLetterQueue.status, filter.status));
-    if (filter?.handlerName) conditions.push(eq(deadLetterQueue.handlerName, filter.handlerName));
+    if (filter?.status)
+      conditions.push(eq(deadLetterQueue.status, filter.status));
+    if (filter?.handlerName)
+      conditions.push(eq(deadLetterQueue.handlerName, filter.handlerName));
 
     return this.db
       .select()

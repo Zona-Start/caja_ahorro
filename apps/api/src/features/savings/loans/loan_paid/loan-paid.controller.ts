@@ -17,23 +17,22 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Response, Request } from 'express';
-import { LoanPaidService } from './loan-paid.service';
+import { Request, Response } from 'express';
 import {
-  CreateLoanPaidSchema,
-  FilterLoanPaidSchema,
+  CreateBulkLoanPaidDto,
   CreateBulkLoanPaidSchema,
   CreateLoanPaidDto,
+  CreateLoanPaidSchema,
   FilterLoanPaidDto,
-  CreateBulkLoanPaidDto,
 } from './dto/loan-paid.schema';
+import { LoanPaidService } from './loan-paid.service';
 
 @Controller('loan-paid')
 export class LoanPaidController {
   constructor(
     private readonly loanPaidService: LoanPaidService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @Permissions('portfolio:payments-loans:read')
@@ -83,14 +82,19 @@ export class LoanPaidController {
 
   @Get('report/pdf')
   @Permissions('portfolio:payments-loans:read')
-  @ApiOperation({ summary: 'Generate and download PDF report of loan payments' })
+  @ApiOperation({
+    summary: 'Generate and download PDF report of loan payments',
+  })
   async downloadReportPdf(
     @Req() req: Request,
     @Query() filterDto: FilterLoanPaidDto,
     @Res() res: Response,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    const pdfDoc = await this.loanPaidService.getReportsPdf(targetTenantId, filterDto);
+    const pdfDoc = await this.loanPaidService.getReportsPdf(
+      targetTenantId,
+      filterDto,
+    );
     const filename = `reporte_pagos_prestamos_${Date.now()}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);

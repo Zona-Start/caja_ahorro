@@ -19,8 +19,12 @@ export const CreateProductSchema = z.object({
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number().int().min(0).default(0),
   ),
-  status: z.enum(['AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE']).default('COMMING_SOON'),
-  unitOfMeasure: z.enum(['UNIT', 'KILOGRAM', 'LITER', 'METER', 'BOX', 'PACK']).optional(),
+  status: z
+    .enum(['AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE'])
+    .default('COMMING_SOON'),
+  unitOfMeasure: z
+    .enum(['UNIT', 'KILOGRAM', 'LITER', 'METER', 'BOX', 'PACK'])
+    .optional(),
 
   // Pricing fields (mapped to product_prices)
   currencyCode: z.enum(['VES', 'USD', 'EUR']).default('VES'),

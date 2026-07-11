@@ -1,5 +1,5 @@
-import { DrizzleModule } from '@/database/drizzle.module';
 import { TenantContextModule } from '@/common/services/tenant-context.module';
+import { DrizzleModule } from '@/database/drizzle.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsController } from './associate-accounts.controller';
 import { AssociateAccountsService } from './associate-accounts.service';

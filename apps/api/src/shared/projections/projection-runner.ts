@@ -1,8 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
-import { IEventBus, EVENT_BUS_TOKEN, EventEnvelope, EventStoreService } from '@/shared/event-bus';
+import {
+  EVENT_BUS_TOKEN,
+  EventEnvelope,
+  EventStoreService,
+  IEventBus,
+} from '@/shared/event-bus';
+import {
+  ACCOUNTING_EVENTS,
+  BANKING_EVENTS,
+  INVENTORY_EVENTS,
+  LOAN_EVENTS,
+  PARTNER_EVENTS,
+  PURCHASING_EVENTS,
+} from '@/shared/event-types';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { type ProjectionHandler } from './projection-handler';
-import { LOAN_EVENTS, INVENTORY_EVENTS, ACCOUNTING_EVENTS, BANKING_EVENTS, PURCHASING_EVENTS, PARTNER_EVENTS } from '@/shared/event-types';
 
 const ALL_EVENTS = [
   ...Object.values(LOAN_EVENTS),
@@ -30,12 +41,16 @@ export class ProjectionRunner {
     for (const event of ALL_EVENTS) {
       this.eventBus.subscribe(event, (envelope: EventEnvelope) => {
         handler.handle(event, envelope).catch((err) => {
-          this.logger.error(`Projection ${handler.name} failed for ${event}: ${err.message}`);
+          this.logger.error(
+            `Projection ${handler.name} failed for ${event}: ${err.message}`,
+          );
         });
       });
     }
 
-    this.logger.log(`Projection ${handler.name} listening to ${ALL_EVENTS.length} event types`);
+    this.logger.log(
+      `Projection ${handler.name} listening to ${ALL_EVENTS.length} event types`,
+    );
   }
 
   getHandler(name: string): ProjectionHandler | undefined {

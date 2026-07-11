@@ -2,7 +2,7 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { tenantModuleIntegrations } from '@/database/schema';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, SQL } from 'drizzle-orm';
+import { eq, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ConfigureIntegrationDto } from '../dto/tenant-integrations.dto';
 

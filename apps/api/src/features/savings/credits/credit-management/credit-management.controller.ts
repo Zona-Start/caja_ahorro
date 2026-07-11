@@ -1,3 +1,6 @@
+import { PaginationDto } from '@/common/dto/pagination.dto';
+import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
+import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
   Controller,
@@ -10,21 +13,16 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
-import { TenantContextService } from '@/common/services/tenant-context.service';
 import { Request } from 'express';
-import { PaginationDto } from '@/common/dto/pagination.dto';
+import { CreditManagementService } from './credit-management.service';
 import {
-  CreateCreditSchema,
-  FilterCreditSchema,
-  SearchAssociateSchema,
+  CalculateAmortizationDto,
   CalculateAmortizationSchema,
   CreateCreditDto,
+  CreateCreditSchema,
   FilterCreditDto,
-  SearchAssociateDto,
-  CalculateAmortizationDto,
+  FilterCreditSchema,
 } from './dto/credit.schema';
-import { CreditManagementService } from './credit-management.service';
 
 @ApiTags('credit')
 @Controller('credit')
@@ -44,12 +42,8 @@ export class CreditManagementController {
 
   @Get('search-associate/:cedula')
   @ApiOperation({ summary: 'Search associate by cedula for credit request' })
-  async searchAssociate(
-    @Req() req: Request,
-    @Param('cedula') cedula: string,
-  ) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+  async searchAssociate(@Req() req: Request, @Param('cedula') cedula: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.searchAssociate(targetTenantId, cedula);
   }
 
@@ -73,32 +67,28 @@ export class CreditManagementController {
   @Get('credit-types')
   @ApiOperation({ summary: 'List all credit types for the tenant' })
   async listCreditTypes(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.listCreditTypes(targetTenantId);
   }
 
   @Get('bank-accounts')
   @ApiOperation({ summary: 'List bank accounts for the tenant' })
   async listBankAccounts(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.listBankAccounts(targetTenantId);
   }
 
   @Get('suppliers')
   @ApiOperation({ summary: 'List suppliers for the tenant' })
   async listSuppliers(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.listSuppliers(targetTenantId);
   }
 
   @Get('products')
   @ApiOperation({ summary: 'List products for the tenant' })
   async listProducts(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.listProducts(targetTenantId);
   }
 
@@ -106,8 +96,7 @@ export class CreditManagementController {
   @ApiOperation({ summary: 'Get all credit count' })
   @ApiResponse({ status: 200, description: 'Return all credit count.' })
   findCountAllCredits(@Req() req: Request) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findCountAllCredits(targetTenantId);
   }
 
@@ -116,8 +105,7 @@ export class CreditManagementController {
   @ApiResponse({ status: 200, description: 'Return on credit edit.' })
   @ApiResponse({ status: 404, description: 'credit edit not found.' })
   findOneEdit(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findRequestByEdit(targetTenantId, id);
   }
 
@@ -126,8 +114,7 @@ export class CreditManagementController {
   @ApiResponse({ status: 200, description: 'Return on credit associate.' })
   @ApiResponse({ status: 404, description: 'credit Associate not found.' })
   findOneRequest(@Req() req: Request, @Param('cedula') cedula: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findOneRequest(targetTenantId, cedula);
   }
 
@@ -142,8 +129,7 @@ export class CreditManagementController {
     @Param('associateId') associateId: string,
     @Query() filtersDto: PaginationDto,
   ) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findAllByAssociate(
       targetTenantId,
       associateId,
@@ -156,15 +142,13 @@ export class CreditManagementController {
   @ApiResponse({ status: 200, description: 'Return credit details.' })
   @ApiResponse({ status: 404, description: 'Credit not found.' })
   findCreditDetails(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findCreditDetails(targetTenantId, id);
   }
 
   @Get(':id')
   findOne(@Req() req: Request, @Param('id') id: string) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findOne(targetTenantId, id);
   }
 
@@ -176,8 +160,7 @@ export class CreditManagementController {
     @Query(new ZodValidatorPipe(FilterCreditSchema))
     query: FilterCreditDto,
   ) {
-    const { targetTenantId } =
-      this.tenantContextService.getTenantContext(req);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findAll(targetTenantId, query);
   }
 

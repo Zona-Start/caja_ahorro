@@ -1,21 +1,21 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
+import { OutboxWriterService } from '@/shared/outbox';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
   CurrencyCodeEnum,
 } from '@/types/enum';
+import { Inject, Injectable } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { v4 as uuidv4 } from 'uuid';
-import { OutboxWriterService } from '@/shared/outbox';
-import { CreateLoanPaidDto } from '../dto/loan-paid.schema';
-import { LoanPaymentValidator } from '../domain/loan-payment.validator';
-import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
-import { LoanPaymentBank } from '../domain/loan-payment.bank';
 import { LoanPaymentAudit } from '../domain/loan-payment.audit';
+import { LoanPaymentBank } from '../domain/loan-payment.bank';
+import { LoanPaymentProcessor } from '../domain/loan-payment.processor';
 import { EPSILON_COMPARISON } from '../domain/loan-payment.types';
+import { LoanPaymentValidator } from '../domain/loan-payment.validator';
+import { CreateLoanPaidDto } from '../dto/loan-paid.schema';
 import { LOAN_PAYMENT_EVENTS } from '../events/loan-payment.events';
 
 @Injectable()
@@ -53,22 +53,25 @@ export class CreatePaymentUseCase {
     this.validator.validateLoanStatus(loan);
 
     const result = await this.db.transaction(async (tx) => {
-      const installmentResult = await this.validator.calculateCoveredInstallments(
-        loanId, amount, tx,
+      const installmentResult =
+        await this.validator.calculateCoveredInstallments(loanId, amount, tx);
+
+      const currentBalance = await this.validator.calculateBalancePending(
+        loanId,
+        tx,
       );
 
-      const currentBalance =
-        await this.validator.calculateBalancePending(loanId, tx);
-
       const appliedAmountExact = this.processor.getAppliedAmount(
-        amount, installmentResult.remainingAmount,
+        amount,
+        installmentResult.remainingAmount,
       );
 
       let totalPrincipalPaid = 0;
       let totalInterestPaid = 0;
 
       const newBalancePending = this.processor.getNewBalancePending(
-        currentBalance, appliedAmountExact,
+        currentBalance,
+        appliedAmountExact,
       );
 
       const customReference = await this.processor.generateReference(tenantId);
@@ -96,7 +99,11 @@ export class CreatePaymentUseCase {
         totalInterestPaid += installment.interest;
 
         await this.processor.insertPaymentDetail(
-          insertedPayment.id, installment.id, installment.amount, userId, tx,
+          insertedPayment.id,
+          installment.id,
+          installment.amount,
+          userId,
+          tx,
         );
         await this.processor.updateInstallmentPaid(installment.id, userId, tx);
       }
@@ -125,36 +132,56 @@ export class CreatePaymentUseCase {
         );
       }
 
-      const newLoanStatus = this.processor.determinNewLoanStatus(newBalancePending);
+      const newLoanStatus =
+        this.processor.determinNewLoanStatus(newBalancePending);
       const balanceInFavorValue = installmentResult.remainingAmount;
 
       await this.processor.updateLoanStatus(
-        loanId, tenantId, newLoanStatus, balanceInFavorValue, userId, tx,
+        loanId,
+        tenantId,
+        newLoanStatus,
+        balanceInFavorValue,
+        userId,
+        tx,
       );
 
       if (!liquidationActive) {
         await this.accounting.generatePaymentEntry(
-          tenantId, userId, loan,
-          appliedAmountExact, totalPrincipalPaid, totalInterestPaid,
+          tenantId,
+          userId,
+          loan,
+          appliedAmountExact,
+          totalPrincipalPaid,
+          totalInterestPaid,
           paymentDate ? new Date(paymentDate) : new Date(),
           tx,
         );
 
         this.audit.logPaymentCreated(
-          userId, loan.associateFullname,
-          insertedPayment.id, insertedPayment.customReference ?? '',
+          userId,
+          loan.associateFullname,
+          insertedPayment.id,
+          insertedPayment.customReference ?? '',
           {
-            loanId, paymentDate, paymentType, amount,
+            loanId,
+            paymentDate,
+            paymentType,
+            amount,
             balancePending: String(newBalancePending.toFixed(6)),
-            bankId: bankId ?? undefined, paymentMethod,
-            transactionReference, comment,
+            bankId: bankId ?? undefined,
+            paymentMethod,
+            transactionReference,
+            comment,
             createdBy: userId,
             customReference: insertedPayment.customReference,
           },
         );
       }
 
-      const acc = await this.processor.getAssociateAccount(loan.associateId, tx);
+      const acc = await this.processor.getAssociateAccount(
+        loan.associateId,
+        tx,
+      );
 
       if (acc?.id) {
         await this.processor.createAssociateMovement(
@@ -171,7 +198,8 @@ export class CreatePaymentUseCase {
             referenceNumber: insertedPayment.customReference ?? undefined,
             area: 'PRESTAMOS',
           },
-          tenantId, tx,
+          tenantId,
+          tx,
         );
       }
 
@@ -190,7 +218,9 @@ export class CreatePaymentUseCase {
             internalRecordType: 'LOAN_PAYMENT',
             internalRecordId: String(acc?.id ?? ''),
           },
-          userId, tenantId, tx,
+          userId,
+          tenantId,
+          tx,
         );
       }
 
@@ -209,7 +239,8 @@ export class CreatePaymentUseCase {
               referenceType: 'loans',
               area: 'PRESTAMOS',
             },
-            tenantId, tx,
+            tenantId,
+            tx,
           );
         }
       }

@@ -89,7 +89,6 @@ export const exchangeRates = coreSchema.table(
   {
     id: uuid('id').primaryKey().defaultRandom(),
 
-
     currencyId: uuid('currency_id')
       .notNull()
       .references(() => currencies.id, { onDelete: 'cascade' }),
@@ -321,15 +320,24 @@ export const projectionLoanBalances = coreSchema.table(
     loanId: uuid('loan_id').notNull(),
     associateId: uuid('associate_id'),
     associateName: varchar('associate_name', { length: 200 }),
-    totalAmount: numeric('total_amount', { precision: 20, scale: 6 }).notNull().default('0'),
-    paidAmount: numeric('paid_amount', { precision: 20, scale: 6 }).notNull().default('0'),
-    pendingBalance: numeric('pending_balance', { precision: 20, scale: 6 }).notNull().default('0'),
+    totalAmount: numeric('total_amount', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
+    paidAmount: numeric('paid_amount', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
+    pendingBalance: numeric('pending_balance', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
     status: varchar('status', { length: 20 }),
     lastEventId: uuid('last_event_id'),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
-    loanTenantIdx: uniqueIndex('proj_loan_tenant_loan_idx').on(table.tenantId, table.loanId),
+    loanTenantIdx: uniqueIndex('proj_loan_tenant_loan_idx').on(
+      table.tenantId,
+      table.loanId,
+    ),
   }),
 );
 
@@ -341,14 +349,30 @@ export const projectionInventoryStock = coreSchema.table(
     itemId: uuid('item_id').notNull(),
     itemType: varchar('item_type', { length: 50 }).notNull(),
     itemName: varchar('item_name', { length: 200 }),
-    currentQuantity: numeric('current_quantity', { precision: 20, scale: 6 }).notNull().default('0'),
-    committedQuantity: numeric('committed_quantity', { precision: 20, scale: 6 }).notNull().default('0'),
-    availableQuantity: numeric('available_quantity', { precision: 20, scale: 6 }).notNull().default('0'),
+    currentQuantity: numeric('current_quantity', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
+    committedQuantity: numeric('committed_quantity', {
+      precision: 20,
+      scale: 6,
+    })
+      .notNull()
+      .default('0'),
+    availableQuantity: numeric('available_quantity', {
+      precision: 20,
+      scale: 6,
+    })
+      .notNull()
+      .default('0'),
     lastEventId: uuid('last_event_id'),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
-    stockItemIdx: uniqueIndex('proj_stock_item_idx').on(table.tenantId, table.itemId, table.itemType),
+    stockItemIdx: uniqueIndex('proj_stock_item_idx').on(
+      table.tenantId,
+      table.itemId,
+      table.itemType,
+    ),
   }),
 );
 
@@ -361,14 +385,24 @@ export const projectionLedgerBalances = coreSchema.table(
     accountCode: varchar('account_code', { length: 50 }),
     accountName: varchar('account_name', { length: 200 }),
     cycleId: uuid('cycle_id'),
-    totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull().default('0'),
-    totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull().default('0'),
-    balance: numeric('balance', { precision: 20, scale: 6 }).notNull().default('0'),
+    totalDebit: numeric('total_debit', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
+    totalCredit: numeric('total_credit', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
+    balance: numeric('balance', { precision: 20, scale: 6 })
+      .notNull()
+      .default('0'),
     lastEventId: uuid('last_event_id'),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
-    ledgerIdx: uniqueIndex('proj_ledger_idx').on(table.tenantId, table.accountPlanId, table.cycleId),
+    ledgerIdx: uniqueIndex('proj_ledger_idx').on(
+      table.tenantId,
+      table.accountPlanId,
+      table.cycleId,
+    ),
   }),
 );
 

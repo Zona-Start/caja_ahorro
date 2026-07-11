@@ -15,7 +15,9 @@ export class AuditLogListener {
       const tenantId =
         typeof event.tenantId === 'string' ? event.tenantId : undefined;
       const userId =
-        typeof event.userId === 'string' ? event.userId : String(event.userId ?? '');
+        typeof event.userId === 'string'
+          ? event.userId
+          : String(event.userId ?? '');
 
       await this.auditEventService.emit({
         action: event.action,

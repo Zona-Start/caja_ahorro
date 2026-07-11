@@ -1,7 +1,7 @@
 import { relations } from 'drizzle-orm';
 import { auditEvents, systemEvents } from '../tables/audit';
-import { tenants } from '../tables/tenants';
 import { users } from '../tables/auth';
+import { tenants } from '../tables/tenants';
 
 export const auditEventsRelations = relations(auditEvents, ({ one }) => ({
   tenant: one(tenants, {

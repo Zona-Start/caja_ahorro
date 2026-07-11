@@ -1,5 +1,5 @@
-import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
 import { TenantContextModule } from '@/common/services/tenant-context.module';
+import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
 import { ContributionBatchesModule } from '../contribution-batches/contribution-batches.module';

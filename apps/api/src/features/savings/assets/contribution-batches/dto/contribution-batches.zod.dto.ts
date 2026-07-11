@@ -1,6 +1,6 @@
 import { PaginationSchema } from '@/common/dto/pagination.dto';
-import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
 export const FilterContributionBatchSchema = PaginationSchema.extend({
   status: z.string().optional(),

@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import { AssociateMovementTypeEnum, paymentMethodEnum } from '@/types/enum';
+import { z } from 'zod';
 
 export const CreateIndividualLoadSchema = z.object({
   tenantId: z.string().uuid().optional(),
@@ -15,7 +15,9 @@ export const CreateIndividualLoadSchema = z.object({
   referenceNumber: z.string().optional().nullable(),
 });
 
-export type CreateIndividualLoadDto = z.infer<typeof CreateIndividualLoadSchema>;
+export type CreateIndividualLoadDto = z.infer<
+  typeof CreateIndividualLoadSchema
+>;
 
 export const BulkIndividualLoadSchema = z.object({
   tenantId: z.string().uuid().optional(),
