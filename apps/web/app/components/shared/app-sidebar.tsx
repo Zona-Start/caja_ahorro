@@ -73,7 +73,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <Collapsible
                     key={item.label}
                     asChild
-                    defaultOpen={location.pathname.startsWith(item.href)}
+                    defaultOpen={item.items?.some((sub) => location.pathname.startsWith(sub.href)) ?? false}
                     className="group/collapsible"
                   >
                     <SidebarMenuItem>

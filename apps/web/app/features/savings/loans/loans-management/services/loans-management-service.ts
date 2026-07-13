@@ -101,7 +101,14 @@ export const loansManagementService = {
 
   getLoansManagementAllCount: async () => {
     const response = await apiClient.get('/loan/count');
-    return response.data;
+    const schema = z.object({
+      total: z.number(),
+      pending: z.number(),
+      approved: z.number(),
+      disbursed: z.number(),
+      rejected: z.number(),
+    });
+    return schema.parse(response.data);
   },
 
   getLoansManagementById: async (id: number) => {

@@ -40,6 +40,7 @@ import { inquiryKeys } from '@/features/savings/partners/inquiry/keys/inquiry-ke
 import { settlementKeys } from '@/features/savings/settlement/keys/settlement-keys';
 import { WITHDRAWAL_TYPES_KEYS as withdrawalTypesKeys } from '@/features/savings/withdrawals/withdrawal-types/keys/withdrawal-types-keys';
 import { withdrawalKeys } from '@/features/savings/withdrawals/withdrawal/keys/withdrawal-keys';
+import { reportsKeys } from '@/features/reports/keys/reports-keys';
 
 export const QUERY_KEYS = {
   tenants: tenantsKeys,
@@ -83,4 +84,5 @@ export const QUERY_KEYS = {
   supplierInvoices: supplierInvoicesKeys,
   supplierPayments: supplierPaymentsKeys,
   states: statesKeys,
+  reports: reportsKeys,
 } as const;

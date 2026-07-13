@@ -98,6 +98,20 @@ const routes: RouteConfig = [
       'routes/dashboard/savings/savings-credit-types.tsx',
     ),
 
+    // ── Módulo de Reportes ──
+    route(
+      'reportes/socios-haberes',
+      'routes/dashboard/reports/reports-socios-haberes.tsx',
+    ),
+    route(
+      'reportes/prestamos',
+      'routes/dashboard/reports/reports-prestamos.tsx',
+    ),
+    route(
+      'reportes/creditos',
+      'routes/dashboard/reports/reports-creditos.tsx',
+    ),
+
     // ── Módulo de Inventario ──
     route(
       'inventario/categorias',

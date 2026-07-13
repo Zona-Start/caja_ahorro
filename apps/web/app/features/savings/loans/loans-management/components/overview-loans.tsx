@@ -5,12 +5,12 @@ import { useQueryLoansManagementCount } from '../hooks/use-loans-management-quer
 
 export function OverviewLoans() {
   const { data } = useQueryLoansManagementCount();
-  const stats = data as {
+  const stats = (data ?? {}) as {
     total: number;
     pending: number;
     approved: number;
-    rejected: number;
     disbursed: number;
+    rejected: number;
   };
 
   return (

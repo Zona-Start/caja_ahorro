@@ -156,6 +156,29 @@ export const navGroups: NavGroup[] = [
         href: '/dashboard/caja-ahorro/pagos-por-lotes',
         icon: Layers,
       },
+      {
+        label: 'Reportes',
+        href: '#',
+        icon: FileText,
+        // requiresPermission: {
+        //   resource: 'portfolio:credits-types',
+        //   action: 'read',
+        // },
+        items: [
+          {
+            label: 'Socios y Haberes',
+            href: '/dashboard/reportes/socios-haberes',
+          },
+          {
+            label: 'Préstamos',
+            href: '/dashboard/reportes/prestamos',
+          },
+          {
+            label: 'Créditos',
+            href: '/dashboard/reportes/creditos',
+          },
+        ],
+      },
     ],
   },
   {
@@ -220,42 +243,42 @@ export const navGroups: NavGroup[] = [
         //   action: 'read',
         // },
       },
-      {
-        label: 'Ordenes de Compra',
-        href: '/dashboard/compras/ordenes-compra',
-        icon: ShoppingCart,
-        // requiresPermission: {
-        //   resource: 'purchasing:purchase-orders',
-        //   action: 'read',
-        // },
-      },
-      {
-        label: 'Ctas. por Pagar',
-        href: '/dashboard/compras/cuentas-por-pagar',
-        icon: DollarSign,
-        // requiresPermission: {
-        //   resource: 'purchasing:accounts-payable',
-        //   action: 'read',
-        // },
-      },
-      {
-        label: 'Facturas',
-        href: '/dashboard/compras/facturas',
-        icon: Receipt,
-        // requiresPermission: {
-        //   resource: 'purchasing:supplier-invoices',
-        //   action: 'read',
-        // },
-      },
-      {
-        label: 'Pagos',
-        href: '/dashboard/compras/pagos',
-        icon: FileText,
-        // requiresPermission: {
-        //   resource: 'purchasing:supplier-payments',
-        //   action: 'read',
-        // },
-      },
+      // {
+      //   label: 'Ordenes de Compra',
+      //   href: '/dashboard/compras/ordenes-compra',
+      //   icon: ShoppingCart,
+      //   // requiresPermission: {
+      //   //   resource: 'purchasing:purchase-orders',
+      //   //   action: 'read',
+      //   // },
+      // },
+      // {
+      //   label: 'Ctas. por Pagar',
+      //   href: '/dashboard/compras/cuentas-por-pagar',
+      //   icon: DollarSign,
+      //   // requiresPermission: {
+      //   //   resource: 'purchasing:accounts-payable',
+      //   //   action: 'read',
+      //   // },
+      // },
+      // {
+      //   label: 'Facturas',
+      //   href: '/dashboard/compras/facturas',
+      //   icon: Receipt,
+      //   // requiresPermission: {
+      //   //   resource: 'purchasing:supplier-invoices',
+      //   //   action: 'read',
+      //   // },
+      // },
+      // {
+      //   label: 'Pagos',
+      //   href: '/dashboard/compras/pagos',
+      //   icon: FileText,
+      //   // requiresPermission: {
+      //   //   resource: 'purchasing:supplier-payments',
+      //   //   action: 'read',
+      //   // },
+      // },
     ],
   },
   {

@@ -1541,56 +1541,17 @@ export class LoanManagementService {
   // ─── CONTADOR DE PRÉSTAMOS ──────────────────────────────────────────────
 
   async findCountAllLoans(tenantId: string) {
-    const totalLoansOrdinary = await this.db
+    const totalQuery = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(loans)
       .where(
         and(
           eq(loans.tenantId, tenantId),
-          eq(loans.loanModality, loanModalityTypeEnum.ORDINARY),
-          or(
-            eq(loans.status, LoanStatusEnum.APPROVED),
-            eq(loans.status, LoanStatusEnum.DISBURSED),
-            eq(loans.status, LoanStatusEnum.IN_PAYMENT),
-          ),
+          ne(loans.status, LoanStatusEnum.CANCELLED),
         ),
       );
 
-    const totalLoanSpecialQuotas = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(loans)
-      .where(
-        and(
-          eq(loans.tenantId, tenantId),
-          eq(loans.loanModality, loanModalityTypeEnum.SPECIAL_QUOTAS),
-          or(
-            eq(loans.status, LoanStatusEnum.APPROVED),
-            eq(loans.status, LoanStatusEnum.DISBURSED),
-          ),
-        ),
-      );
-
-    const totalLoanPaid = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(loans)
-      .where(
-        and(
-          eq(loans.tenantId, tenantId),
-          eq(loans.status, LoanStatusEnum.PAID),
-        ),
-      );
-
-    const totalLoanInPaymet = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(loans)
-      .where(
-        and(
-          eq(loans.tenantId, tenantId),
-          eq(loans.status, LoanStatusEnum.IN_PAYMENT),
-        ),
-      );
-
-    const totalLoanRequested = await this.db
+    const pendingQuery = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(loans)
       .where(
@@ -1600,7 +1561,17 @@ export class LoanManagementService {
         ),
       );
 
-    const totalLoanDisbursed = await this.db
+    const approvedQuery = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.tenantId, tenantId),
+          eq(loans.status, LoanStatusEnum.APPROVED),
+        ),
+      );
+
+    const disbursedQuery = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(loans)
       .where(
@@ -1610,13 +1581,22 @@ export class LoanManagementService {
         ),
       );
 
+    const rejectedQuery = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(loans)
+      .where(
+        and(
+          eq(loans.tenantId, tenantId),
+          eq(loans.status, LoanStatusEnum.REJECTED),
+        ),
+      );
+
     return {
-      totalLoansOrdinary: Number(totalLoansOrdinary[0].count),
-      totalLoanSpecialQuotas: Number(totalLoanSpecialQuotas[0].count),
-      totalLoanPaid: Number(totalLoanPaid[0].count),
-      totalLoanInPaymet: Number(totalLoanInPaymet[0].count),
-      totalLoanRequested: Number(totalLoanRequested[0].count),
-      totalLoanDisbursed: Number(totalLoanDisbursed[0].count),
+      total: Number(totalQuery[0].count),
+      pending: Number(pendingQuery[0].count),
+      approved: Number(approvedQuery[0].count),
+      disbursed: Number(disbursedQuery[0].count),
+      rejected: Number(rejectedQuery[0].count),
     };
   }
 
