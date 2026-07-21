@@ -1,12 +1,49 @@
 import { z } from 'zod';
 
-const PurchaseOrderItemSchema = z.object({
-  lineType: z.string(),
-  itemId: z.string().uuid().optional(),
+const emptyStrToUndef = (v: unknown) =>
+  v === '' || v == null ? undefined : v;
+
+export const PurchaseOrderItemSchema = z.object({
+  lineType: z.enum([
+    'SALES_INVENTORY',
+    'FIXED_ASSET',
+    'SERVICE',
+    'EXPENSE',
+    'SERVICE_EXPENSE',
+  ]),
+  productId: z.preprocess(emptyStrToUndef, z.string().uuid().optional()),
+  itemId: z.preprocess(emptyStrToUndef, z.string().uuid().optional()),
   description: z.string().optional(),
-  quantity: z.number().int().positive(),
+  quantity: z.coerce.number().positive(),
   unitCost: z.coerce.number(),
   totalCost: z.coerce.number().optional(),
+}).superRefine((data, ctx) => {
+  if (data.lineType === 'SALES_INVENTORY' && !data.productId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'productId es requerido para SALES_INVENTORY',
+      path: ['productId'],
+    });
+  }
+  if (
+    (data.lineType === 'SERVICE' ||
+      data.lineType === 'SERVICE_EXPENSE' ||
+      data.lineType === 'FIXED_ASSET') &&
+    !data.itemId
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `itemId es requerido para ${data.lineType}`,
+      path: ['itemId'],
+    });
+  }
+  if (data.lineType === 'EXPENSE' && !data.description) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'description es requerida para EXPENSE',
+      path: ['description'],
+    });
+  }
 });
 
 export const CreatePurchaseOrderSchema = z.object({

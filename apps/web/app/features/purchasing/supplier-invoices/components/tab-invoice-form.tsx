@@ -2,7 +2,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@repo/shadcn/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@repo/shadcn/form';
 import { Input } from '@repo/shadcn/input';
+import { Modal } from '@repo/shadcn/modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@repo/shadcn/select';
+import { Separator } from '@repo/shadcn/separator';
 import { Textarea } from '@repo/shadcn/textarea';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -27,12 +29,16 @@ import {
   PAYMENT_METHOD_LABELS,
 } from '../schemas/supplier-invoice-options';
 import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
+import { movementsService } from '@/features/inventory/movements/services/movements-service';
+import type { InventoryMovement } from '@/features/inventory/movements/schemas/movements.schema';
+import { MOVEMENT_TYPE_OPTIONS } from '@/features/inventory/movements/schemas/movements-options';
 
 function toFormValues(data: Partial<SupplierInvoiceMutation>): SupplierInvoiceForm {
   return {
     documentType: 'INVOICE',
     supplierId: data.supplierId ?? '',
     purchaseOrderId: data.purchaseOrderId ?? null,
+    inventoryMovementId: data.inventoryMovementId ?? null,
     invoiceNumber: data.invoiceNumber ?? '',
     controlNumber: data.controlNumber ?? '',
     invoiceDate: data.invoiceDate ? new Date(data.invoiceDate) : new Date(),
@@ -50,7 +56,7 @@ function toFormValues(data: Partial<SupplierInvoiceMutation>): SupplierInvoiceFo
     items: (data.items?.length
       ? data.items.map((item) => ({
         lineType: item.lineType ?? 'SALES_INVENTORY',
-        itemId: item.itemId ?? null,
+        itemId: item.itemId ?? item.productId ?? null,
         expenseAccountId: item.expenseAccountId ?? null,
         description: item.description ?? '',
         quantity: item.quantity ?? 1,
@@ -115,8 +121,19 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
     queryKey: ['purchase-order', watchedPurchaseOrderId],
     queryFn: async () => {
       if (!watchedPurchaseOrderId) return null;
-      const res = await apiClient.get(`/administration/purchase-orders/${watchedPurchaseOrderId}`);
+      const res = await apiClient.get(`/purchasing/purchase-orders/${watchedPurchaseOrderId}`);
       return res.data?.data ?? res.data;
+    },
+    enabled: !!watchedPurchaseOrderId,
+  });
+
+  // ── Movimientos de inventario asociados a la OC ──
+  const { data: poMovements = [] } = useQuery({
+    queryKey: ['purchase-order-movements', watchedPurchaseOrderId],
+    queryFn: async () => {
+      if (!watchedPurchaseOrderId) return [];
+      const result = await movementsService.getAll({ purchaseOrderId: watchedPurchaseOrderId, limit: 50 });
+      return result.data;
     },
     enabled: !!watchedPurchaseOrderId,
   });
@@ -124,21 +141,26 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
   useEffect(() => {
     if (selectedPO?.items?.length) {
       form.setValue('items', selectedPO.items.map((item: any) => {
+        const itemId = item.itemId ?? item.productId ?? null;
         const prod = (item.lineType === 'SALES_INVENTORY' || item.lineType === 'PRODUCT')
-          ? products.find((p: any) => p.id === String(item.itemId))
+          ? products.find((p: any) => p.id === String(itemId))
           : null;
         const svc = item.lineType === 'SERVICE'
-          ? services.find((s: any) => s.id === String(item.itemId))
+          ? services.find((s: any) => s.id === String(itemId))
           : null;
         const name = prod?.name || svc?.name || item.itemName || item.description || '';
+        // Sugerir pendiente por facturar = quantityReceived - quantityInvoiced
+        const received = Number(item.quantityReceived) || 0;
+        const invoiced = Number(item.quantityInvoiced) || 0;
+        const pending = Math.max(0, received - invoiced) || Number(item.quantity) || 1;
         return {
           lineType: item.lineType ?? 'PRODUCT',
-          itemId: item.itemId ?? null,
+          itemId,
           expenseAccountId: null,
           description: name,
-          quantity: Number(item.quantity) || 1,
+          quantity: pending,
           unitCost: Number(item.unitCost) || 0,
-          totalLine: Number(item.totalCost) || (Number(item.quantity) || 1) * (Number(item.unitCost) || 0),
+          totalLine: pending * (Number(item.unitCost) || 0),
         };
       }));
     }
@@ -173,9 +195,23 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
     setTaxPercent(defaultTaxPercent);
   }, [defaultTaxPercent]);
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingData, setPendingData] = useState<SupplierInvoiceForm | null>(null);
+
   const onSubmit = (data: SupplierInvoiceForm) => {
-    saveInvoice(data, { onSuccess: () => onSuccess?.() });
+    setPendingData(data);
+    setConfirmOpen(true);
   };
+
+  const handleConfirmSave = () => {
+    if (pendingData) {
+      saveInvoice(pendingData, { onSuccess: () => onSuccess?.() });
+    }
+    setConfirmOpen(false);
+    setPendingData(null);
+  };
+
+  const supplierName = suppliers.find((s) => s.id === watchedSupplierId)?.name;
 
   return (
     <Form {...form}>
@@ -202,6 +238,29 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
               <FormMessage />
             </FormItem>
           )} />
+
+          {!!watchedPurchaseOrderId && poMovements.length > 0 && (
+            <FormField control={form.control} name="inventoryMovementId" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Movimiento de Inventario (opcional)</FormLabel>
+                <Select disabled={disabled} value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Seleccionar movimiento..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {poMovements.map((m) => (
+                      <SelectItem key={m.id} value={m.id ?? ''}>
+                        {m.movementNumber ?? '—'} — {MOVEMENT_TYPE_OPTIONS[m.movementType as keyof typeof MOVEMENT_TYPE_OPTIONS] || m.movementType}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+          )}
 
           <FormField control={form.control} name="invoiceNumber" render={({ field }) => (
             <FormItem>
@@ -425,6 +484,64 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
             </>
           )}
         </div>
+
+        {/* ── Confirmación ── */}
+        <Modal
+          title="Confirmar Factura"
+          description="Revise el resumen antes de guardar la factura."
+          isOpen={confirmOpen}
+          onClose={() => { setConfirmOpen(false); setPendingData(null); }}
+        >
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="text-xs text-muted-foreground">Proveedor</span>
+                <p className="font-medium">{supplierName}</p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Tipo de Pago</span>
+                <p className="font-medium">{watchedPaymentType === 'CREDIT' ? 'A Crédito' : 'De Contado'}</p>
+              </div>
+              {pendingData?.invoiceNumber && (
+                <div>
+                  <span className="text-xs text-muted-foreground">N° Factura</span>
+                  <p className="font-medium">{pendingData.invoiceNumber}</p>
+                </div>
+              )}
+              {pendingData?.purchaseOrderId && (
+                <div>
+                  <span className="text-xs text-muted-foreground">Orden de Compra</span>
+                  <p className="font-medium">{purchaseOrders.find((po) => po.id === pendingData.purchaseOrderId)?.orderNumber || pendingData.purchaseOrderId}</p>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              {pendingData?.items?.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-xs">
+                  <span className="truncate max-w-[200px]">{item.description || '—'}</span>
+                  <span>{item.quantity} × {item.unitCost} = {(item.quantity * item.unitCost).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>Bs. {totals.subtotal.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">IVA ({taxPercent}%)</span><span>Bs. {totals.taxAmount.toFixed(2)}</span></div>
+              <Separator />
+              <div className="flex justify-between font-semibold"><span>Total</span><span>Bs. {totals.totalAmount.toFixed(2)}</span></div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => { setConfirmOpen(false); setPendingData(null); }}>Cancelar</Button>
+            <Button onClick={handleConfirmSave} disabled={isSaving}>{isSaving ? 'Guardando...' : 'Confirmar y Guardar'}</Button>
+          </div>
+        </Modal>
       </form>
     </Form>
   );
@@ -567,5 +684,4 @@ function ItemComposer({
   );
 }
 
-// ── Separator ──
-function Separator() { return <hr className="my-0.5 border-border" />; }
+

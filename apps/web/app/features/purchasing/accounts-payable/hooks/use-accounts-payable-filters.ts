@@ -6,7 +6,7 @@ export const accountsPayableFilterSchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(10),
   search: z.string().optional(),
   status: z.string().optional(),
-  supplierId: z.coerce.number().optional(),
+  supplierId: z.string().optional(),
 });
 
 export type AccountsPayableFilters = z.infer<typeof accountsPayableFilterSchema>;

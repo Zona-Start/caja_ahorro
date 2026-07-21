@@ -4,7 +4,7 @@ import type { PurchaseOrderRaw } from '../schemas/purchase-orders-api.schema';
 import type { PurchaseOrderApi } from '../schemas/purchase-orders-api.schema';
 import type { PurchaseOrder } from '../schemas/purchase-orders.schema';
 
-const BASE = '/administration/purchase-orders';
+const BASE = '/purchasing/purchase-orders';
 
 export interface PurchaseOrderFilterParams {
   page?: number;
@@ -41,6 +41,7 @@ function rawToApi(raw: PurchaseOrderRaw): PurchaseOrderApi {
       id: item.id,
       purchaseOrderId: item.purchaseOrderId,
       lineType: item.lineType,
+      productId: item.productId ?? null,
       itemId: item.itemId ?? null,
       description: item.description ?? null,
       itemName: item.itemName ?? null,

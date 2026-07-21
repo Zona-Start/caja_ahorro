@@ -109,6 +109,34 @@ export function useCreateCreditNoteMutation(): UseMutationResult<
   });
 }
 
+export function useApproveSupplierInvoiceMutation(): UseMutationResult<
+  { message: string },
+  unknown,
+  string
+> {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (id) => supplierInvoicesService.approve(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierInvoices.all });
+      queryClient.invalidateQueries({ queryKey: ['accounts-payable'] });
+      toast({
+        title: 'Factura aprobada',
+        description: 'La factura de proveedor fue aprobada correctamente.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function useCreateDebitNoteMutation(): UseMutationResult<
   any,
   unknown,

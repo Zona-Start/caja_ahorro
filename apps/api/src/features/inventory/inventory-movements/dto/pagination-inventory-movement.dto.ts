@@ -9,6 +9,7 @@ export const InventoryMovementPaginationSchema = PaginationSchema.extend({
   endDate: z.string().date().or(z.string().datetime()).optional(),
   productId: z.string().uuid().optional(),
   supplierId: z.string().uuid().optional(),
+  purchaseOrderId: z.string().uuid().optional(),
 });
 
 export class InventoryMovementPaginationDto extends createZodDto(

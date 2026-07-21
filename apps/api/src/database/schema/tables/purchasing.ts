@@ -27,6 +27,7 @@ import { accountPlan } from './accounting';
 import { states } from './core';
 import { tenants } from './tenants';
 import { bankAccounts } from './treasury';
+import { inventoryMovements, products } from './inventory';
 
 // tabla proveedores
 export const suppliers = purchasingSchema.table(
@@ -38,9 +39,9 @@ export const suppliers = purchasingSchema.table(
         onDelete: 'cascade',
       })
       .notNull(),
-    internalCode: varchar('internal_code', { length: 50 }).unique().notNull(),
+    internalCode: varchar('internal_code', { length: 50 }).notNull(),
     name: varchar('name', { length: 255 }).notNull(), // Nombre del proveedor
-    taxId: varchar('tax_id', { length: 50 }).unique().notNull(), // RIF, RUC, NIT, o equivalente fiscal
+    taxId: varchar('tax_id', { length: 50 }).notNull(), // RIF, RUC, NIT, o equivalente fiscal
     phone: varchar('phone', { length: 50 }),
     email: varchar('email', { length: 255 }),
     contactName: varchar('contact_name', { length: 255 }),
@@ -56,8 +57,16 @@ export const suppliers = purchasingSchema.table(
     ...timestamps,
   },
   (table) => ({
+    // Índice compuesto único para internalCode por tenant
+    supplierTenantInternalCodeUnique: uniqueIndex('supplier_tenant_internal_code_unique')
+      .on(table.tenantId, table.internalCode),
+
+    // Índice compuesto único para taxId por tenant
+    supplierTenantTaxUnique: uniqueIndex('supplier_tenant_tax_unique')
+      .on(table.tenantId, table.taxId),
+
+    // Índice normal para búsqueda rápida por nombre
     supplierNameIdx: index('supplier_name_idx').on(table.name),
-    supplierTaxIdx: index('supplier_tax_idx').on(table.taxId),
   }),
 );
 
@@ -74,8 +83,8 @@ export const purchaseOrders = purchasingSchema.table(
     supplierId: uuid('supplier_id')
       .notNull()
       .references(() => suppliers.id),
-    orderNumber: varchar('order_number', { length: 50 }).notNull().unique(),
-    status: purchaseOrderStatusEnum('status').notNull().default('PENDING'), // Utiliza el enum de cuentas por pagar: PENDING, PAID, CANCELLED, etc.
+    orderNumber: varchar('order_number', { length: 50 }).notNull(),
+    status: purchaseOrderStatusEnum('status').notNull().default('DRAFT'), // Utiliza el enum de cuentas por pagar: PENDING, PAID, CANCELLED, etc.
     orderDate: date('order_date').notNull(),
     expectedDeliveryDate: date('expected_delivery_date'),
 
@@ -92,8 +101,19 @@ export const purchaseOrders = purchasingSchema.table(
     ...timestamps,
   },
   (table) => ({
-    // Índice para asegurar que el número de factura sea único por proveedor
-    orderNumberIdx: uniqueIndex('po_order_number_idx').on(table.orderNumber),
+    // Índice compuesto uni para asegurar que el número de factura sea único por tenants
+    orderNumberIdx: uniqueIndex('po_order_number_idx').on(table.tenantId, table.orderNumber),
+
+
+    // Índice para búsqueda por proveedor
+    supplierIdx: index('po_supplier_idx').on(table.supplierId),
+
+    // Índice para búsqueda por estado
+    statusIdx: index('po_status_idx').on(table.status),
+
+    // Índice para rango de fechas
+    dateRangeIdx: index('po_date_range_idx').on(table.orderDate),
+
   }),
 );
 
@@ -106,10 +126,13 @@ export const purchaseOrderItems = purchasingSchema.table(
       .notNull()
       .references(() => purchaseOrders.id, { onDelete: 'cascade' }),
     lineType: purchaseOrderTypeEnum('line_type').notNull(),
+    productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
     itemId: uuid('itemId'),
     // Datos genéricos del ítem comprado
     description: varchar('description', { length: 255 }),
-    quantity: integer('quantity').notNull(),
+    quantity: numeric('quantity', { precision: 12, scale: 4 }).notNull(),
+    quantityReceived: numeric('quantity_received', { precision: 12, scale: 4 }).notNull().default('0.0000'),
+    quantityInvoiced: numeric('quantity_invoiced', { precision: 12, scale: 4 }).notNull().default('0.0000'),
     unitCost: numeric('unit_cost', { precision: 18, scale: 6 }).notNull(),
     totalCost: numeric('total_cost', { precision: 18, scale: 2 }).notNull(),
     ...timestamps,
@@ -136,8 +159,9 @@ export const supplierInvoices = purchasingSchema.table(
       { onDelete: 'set null' },
     ),
     supplierInvoiceNumber: varchar('supplier_invoice_number', { length: 50 })
-      .notNull()
-      .unique(),
+      .notNull(),
+    // VÍNCULO DIRECTO OPCIONAL A LA RECEPCIÓN DE ALMACÉN
+    inventoryMovementId: uuid('inventory_movement_id').references(() => inventoryMovements.id, { onDelete: 'set null' }),
     invoiceNumber: varchar('invoice_number', { length: 100 }).notNull(),
     controlNumber: varchar('control_number', { length: 100 }), // Nº control fiscal
     invoiceDate: date('invoice_date').notNull(),
@@ -153,6 +177,12 @@ export const supplierInvoices = purchasingSchema.table(
       .notNull()
       .default('CREDIT'),
 
+    paymentMethod: paymentMethodEnum('payment_method'),
+    bankAccountId: uuid('bank_account_id').references(() => bankAccounts.id, {
+      onDelete: 'set null',
+    }),
+    bankReference: varchar('bank_reference', { length: 100 }),
+
     status: invoiceSuppliersStatusEnum('status').notNull().default('DRAFT'),
     observations: text('observations'),
 
@@ -163,9 +193,20 @@ export const supplierInvoices = purchasingSchema.table(
   },
   (table) => ({
     invoiceUnique: uniqueIndex('si_invoice_unique_idx').on(
-      table.supplierId,
-      table.invoiceNumber,
+      table.tenantId,
+      table.supplierInvoiceNumber,
     ),
+    // Índice para buscar por proveedor
+    supplierIdx: index('si_supplier_idx').on(table.supplierId),
+
+    // Índice para buscar por estado
+    statusIdx: index('si_status_idx').on(table.status),
+
+    // Índice para rango de fechas
+    dateRangeIdx: index('si_date_range_idx').on(table.invoiceDate),
+
+    // Índice para buscar por número de factura
+    invoiceNumberIdx: index('si_invoice_number_idx').on(table.invoiceNumber),
   }),
 );
 
@@ -179,6 +220,7 @@ export const supplierInvoiceItems = purchasingSchema.table(
       .references(() => supplierInvoices.id, { onDelete: 'cascade' }),
 
     lineType: purchaseOrderTypeEnum('line_type').notNull(),
+    productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
     itemId: uuid('item_id'), // Puede ser producto, servicio o activo fijo
     expenseAccountId: uuid('expense_account_id').references(
       () => accountPlan.id,
@@ -210,8 +252,7 @@ export const accountsPayable = purchasingSchema.table(
       .unique()
       .references(() => supplierInvoices.id, { onDelete: 'cascade' }),
     accountsPayableNumber: varchar('ap_number', { length: 50 })
-      .notNull()
-      .unique(),
+      .notNull(),
     /* saldos calculados o actualizados por triggers */
     originalAmount: numeric('original_amount', {
       precision: 18,
@@ -238,9 +279,19 @@ export const accountsPayable = purchasingSchema.table(
   (table) => ({
     payableInvoiceUnique: uniqueIndex('payable_invoice_uidx').on(
       table.tenantId,
-      table.supplierInvoiceId,
+      table.accountsPayableNumber,
     ), // Factura única por proveedor y compañía
+
     payableStatusIdx: index('ap_status_idx').on(table.status),
+
+    // Índice para buscar por proveedor
+    supplierIdx: index('ap_supplier_idx').on(table.supplierId),
+
+    // Índice para rango de fechas
+    dateRangeIdx: index('ap_date_range_idx').on(table.dueDate),
+
+    // Índice para búsqueda por número de factura
+    invoiceNumberIdx: index('ap_invoice_number_idx').on(table.accountsPayableNumber),
   }),
 );
 
@@ -250,6 +301,8 @@ export const supplierAdvances = purchasingSchema.table('supplier_advances', {
     .references(() => tenants.id, {
       onDelete: 'cascade',
     })
+    .notNull(),
+  supplierAdvanceNumber: varchar('supplier_advance_number', { length: 50 })
     .notNull(),
   transactionId: uuid('transaction_id')
     .notNull()
@@ -270,7 +323,13 @@ export const supplierAdvances = purchasingSchema.table('supplier_advances', {
     enum: ['PENDING', 'PAID'],
   }).default('PENDING'),
   ...timestamps,
-});
+},
+  (table) => ({
+    advanceUnique: uniqueIndex('advance_unique_uidx').on(
+      table.tenantId,
+      table.supplierAdvanceNumber,
+    ),
+  }),);
 
 export const supplierCreditNotes = purchasingSchema.table(
   'supplier_credit_notes',
@@ -291,8 +350,7 @@ export const supplierCreditNotes = purchasingSchema.table(
       () => accountsPayable.id,
     ),
     creditNoteNumber: varchar('credit_note_number', { length: 50 })
-      .notNull()
-      .unique(),
+      .notNull(),
     reason: text('reason'),
     amount: numeric('amount', {
       precision: 18,
@@ -304,6 +362,12 @@ export const supplierCreditNotes = purchasingSchema.table(
     }).default('0.00'),
     ...timestamps,
   },
+  (table) => ({
+    creditNoteUnique: uniqueIndex('credit_note_unique_uidx').on(
+      table.tenantId,
+      table.creditNoteNumber,
+    ),
+  }),
 );
 
 export const supplierDebitNotes = purchasingSchema.table(
@@ -325,8 +389,7 @@ export const supplierDebitNotes = purchasingSchema.table(
       .notNull()
       .references(() => accountsPayable.id, { onDelete: 'cascade' }),
     debitNoteNumber: varchar('debit_note_number', { length: 50 })
-      .notNull()
-      .unique(),
+      .notNull(),
     reason: text('reason'),
     amount: numeric('amount', {
       precision: 18,
@@ -334,6 +397,12 @@ export const supplierDebitNotes = purchasingSchema.table(
     }).default('0.00'),
     ...timestamps,
   },
+  (table) => ({
+    debitNoteUnique: uniqueIndex('debit_note_unique_uidx').on(
+      table.tenantId,
+      table.debitNoteNumber,
+    ),
+  }),
 );
 
 export const supplierPayments = purchasingSchema.table('supplier_payments', {
@@ -343,7 +412,7 @@ export const supplierPayments = purchasingSchema.table('supplier_payments', {
       onDelete: 'cascade',
     })
     .notNull(),
-  paymentNumber: varchar('payment_number', { length: 50 }).notNull().unique(), // PAG-P-2025-000123
+  paymentNumber: varchar('payment_number', { length: 50 }).notNull(), // PAG-P-2025-000123
   supplierId: uuid('supplier_id')
     .notNull()
     .references(() => suppliers.id, { onDelete: 'cascade' }),
@@ -369,7 +438,13 @@ export const supplierPayments = purchasingSchema.table('supplier_payments', {
   observations: text('observations'),
 
   ...timestamps,
-});
+},
+  (table) => ({
+    paymentUnique: uniqueIndex('payment_unique_uidx').on(
+      table.tenantId,
+      table.paymentNumber,
+    ),
+  }),);
 
 export const supplierPaymentLines = purchasingSchema.table(
   'supplier_payment_lines',
@@ -404,8 +479,7 @@ export const supplierTransactions = purchasingSchema.table(
       .references(() => suppliers.id, { onDelete: 'cascade' }),
 
     transactionNumber: varchar('transaction_number', { length: 50 })
-      .notNull()
-      .unique(),
+      .notNull(),
     transactionType: supplierTransactionsTypeEnum('transaction_type').notNull(), // PAYMENT | CREDIT_NOTE | DEBIT_NOTE | ADVANCE
     transactionDate: date('transaction_date').notNull(),
     amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo

@@ -85,6 +85,7 @@ export function MovementsForm({
         quantity: item.quantity ?? 1,
         unitCost: item.unitCost ?? 0,
         totalCost: (item.quantity ?? 1) * (item.unitCost ?? 0),
+        purchaseOrderItemId: (item as any).purchaseOrderItemId ?? undefined,
       })) ?? [{ productId: '', productName: '', productCode: '', quantity: 1, unitCost: 0, totalCost: 0 }],
     },
   });
@@ -125,6 +126,11 @@ export function MovementsForm({
     !!selectedOrderId && movementType === 'PURCHASE_RECEIPT',
   );
 
+  // Sync purchaseOrderId into form when a PO is selected
+  useEffect(() => {
+    form.setValue('purchaseOrderId', selectedOrderId);
+  }, [selectedOrderId, form]);
+
   // Supplier Invoice selector state
   const { data: supplierInvoices } = useSupplierInvoicesQuery();
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
@@ -137,12 +143,13 @@ export function MovementsForm({
   useEffect(() => {
     if (purchaseOrderDetail?.items && purchaseOrderDetail.items.length > 0) {
       const newItems = purchaseOrderDetail.items.map((item) => ({
-        productId: item.itemId ?? '',
-        productName: '',
+        productId: item.productId ?? item.itemId ?? '',
+        productName: item.itemName ?? '',
         productCode: '',
         quantity: item.quantity,
         unitCost: Number(item.unitCost ?? 0),
         totalCost: item.quantity * Number(item.unitCost ?? 0),
+        purchaseOrderItemId: item.id,
       }));
       form.setValue('items', newItems);
       if (purchaseOrderDetail.supplierId) {
@@ -312,7 +319,7 @@ export function MovementsForm({
               variant="outline"
               size="sm"
               onClick={() =>
-                append({ productId: '', productName: '', productCode: '', quantity: 1, unitCost: 0, totalCost: 0 })
+                append({ productId: '', productName: '', productCode: '', quantity: 1, unitCost: 0, totalCost: 0, purchaseOrderItemId: undefined })
               }
             >
               <Plus className="mr-1 h-4 w-4" /> Agregar Producto
@@ -378,23 +385,27 @@ function ProductItemRow({
 
   const filtered = searchTerm
     ? allProducts.filter(
-        (p) =>
-          p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.internalCode?.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+      (p) =>
+        p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.internalCode?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
     : allProducts;
 
   const selectedProductId = form.watch(`items.${index}.productId`);
+  const productName = form.watch(`items.${index}.productName`);
   const quantity = form.watch(`items.${index}.quantity`);
   const unitCost = form.watch(`items.${index}.unitCost`);
+  const purchaseOrderItemId = form.watch(`items.${index}.purchaseOrderItemId`);
+
+  const isFromPo = !!purchaseOrderItemId;
 
   const { data: productPrice } = useProductPriceQuery(
     selectedProductId ?? '',
-    !!selectedProductId,
+    !isFromPo && !!selectedProductId,
   );
 
   useEffect(() => {
-    if (productPrice && selectedProductId) {
+    if (!isFromPo && productPrice && selectedProductId) {
       const currentUnitCost = form.getValues(`items.${index}.unitCost` as never) as unknown as number;
       if (!currentUnitCost || currentUnitCost === 0) {
         form.setValue(`items.${index}.unitCost` as never, productPrice.baseCost as never, {
@@ -404,7 +415,7 @@ function ProductItemRow({
         });
       }
     }
-  }, [productPrice, selectedProductId]);
+  }, [productPrice, selectedProductId, isFromPo]);
 
   const qty = quantity ?? 0;
   const cost = unitCost ?? 0;
@@ -417,76 +428,82 @@ function ProductItemRow({
           #{index + 1}
         </span>
         <div className="flex-1">
-          <FormField
-            control={form.control}
-            name={`items.${index}.productId`}
-            render={({ field: f }) => (
-              <FormItem className="flex flex-col">
-                <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className={cn(
-                          'w-full justify-between',
-                          !f.value && 'text-muted-foreground',
-                        )}
-                      >
-                        {f.value
-                          ? (form.watch(`items.${index}.productName`) ||
-                             form.watch(`items.${index}.productCode`) ||
-                             f.value)
-                          : 'Buscar producto...'}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Buscar por nombre o código..."
-                        value={searchTerm}
-                        onValueChange={setSearchTerm}
-                      />
-                      <CommandList>
-                        <CommandEmpty>Sin resultados</CommandEmpty>
-                        <CommandGroup>
-                          {filtered.map((p) => (
-                            <CommandItem
-                              key={p.id}
-                              value={p.id}
-                              onSelect={() => {
-                                f.onChange(p.id);
-                                form.setValue(`items.${index}.productName` as never, p.name as never);
-                                form.setValue(`items.${index}.productCode` as never, p.internalCode as never);
-                                setSearchOpen(false);
-                                setSearchTerm('');
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  'mr-2 h-4 w-4',
-                                  p.id === f.value ? 'opacity-100' : 'opacity-0',
-                                )}
-                              />
-                              <span className="font-medium">{p.internalCode}</span>
-                              <span className="ml-2 text-muted-foreground truncate">
-                                {p.name}
-                              </span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {isFromPo ? (
+            <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm">
+              {productName || 'Producto sin nombre'}
+            </div>
+          ) : (
+            <FormField
+              control={form.control}
+              name={`items.${index}.productId`}
+              render={({ field: f }) => (
+                <FormItem className="flex flex-col">
+                  <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            'w-full justify-between',
+                            !f.value && 'text-muted-foreground',
+                          )}
+                        >
+                          {f.value
+                            ? (productName ||
+                              form.watch(`items.${index}.productCode`) ||
+                              f.value)
+                            : 'Buscar producto...'}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Buscar por nombre o código..."
+                          value={searchTerm}
+                          onValueChange={setSearchTerm}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Sin resultados</CommandEmpty>
+                          <CommandGroup>
+                            {filtered.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.id}
+                                onSelect={() => {
+                                  f.onChange(p.id);
+                                  form.setValue(`items.${index}.productName` as never, p.name as never);
+                                  form.setValue(`items.${index}.productCode` as never, p.internalCode as never);
+                                  setSearchOpen(false);
+                                  setSearchTerm('');
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    'mr-2 h-4 w-4',
+                                    p.id === f.value ? 'opacity-100' : 'opacity-0',
+                                  )}
+                                />
+                                <span className="font-medium">{p.internalCode}</span>
+                                <span className="ml-2 text-muted-foreground truncate">
+                                  {p.name}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
-        {canRemove && (
+        {canRemove && !isFromPo && (
           <Button
             type="button"
             variant="ghost"
@@ -523,33 +540,12 @@ function ProductItemRow({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name={`items.${index}.unitCost`}
-          render={({ field: f }) => (
-            <FormItem>
-              <FormLabel className="text-xs">Costo Unitario</FormLabel>
-              <FormControl>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  min="0"
-                  placeholder="0.00"
-                  value={f.value ?? ''}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/[^0-9.]/g, '');
-                    const parts = raw.split('.');
-                    const clean = parts[0] + (parts.length > 1 ? '.' + parts.slice(1).join('') : '');
-                    const num = clean === '' || clean === '.' ? 0 : parseFloat(clean);
-                    f.onChange(isNaN(num) ? 0 : num);
-                  }}
-                  onBlur={f.onBlur}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Costo Unitario</p>
+          <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">
+            {isFromPo ? `Bs. ${cost.toFixed(2)}` : `Bs. ${cost.toFixed(2)}`}
+          </div>
+        </div>
         <div>
           <p className="text-xs text-muted-foreground mb-1">Subtotal</p>
           <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">

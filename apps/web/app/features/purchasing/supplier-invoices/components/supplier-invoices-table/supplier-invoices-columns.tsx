@@ -7,10 +7,10 @@ import type { InvoiceStatus } from '../../schemas/supplier-invoice-options';
 import { SupplierInvoicesCellAction } from './supplier-invoices-cell-action';
 
 const statusVariant = (status: string) => {
-  const map: Record<string, 'default' | 'secondary' | 'success' | 'destructive' | 'outline'> = {
+  const map: Record<string, 'default' | 'secondary' | 'success' | 'destructive' | 'outline' | 'warning'> = {
     DRAFT: 'secondary',
-    PENDING: 'outline',
     APPROVED: 'default',
+    PARTIALLY_PAID: 'warning',
     PAID: 'success',
     CANCELLED: 'destructive',
   };

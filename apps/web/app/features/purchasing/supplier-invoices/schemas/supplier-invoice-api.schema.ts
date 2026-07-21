@@ -11,6 +11,7 @@ export const supplierInvoiceApiSchema = z.object({
     })
     .optional(),
   purchaseOrderId: z.string().optional().nullable(),
+  inventoryMovementId: z.string().optional().nullable(),
   purchaseOrder: z
     .object({
       id: z.string(),
@@ -22,9 +23,9 @@ export const supplierInvoiceApiSchema = z.object({
   controlNumber: z.string().optional().nullable(),
   invoiceDate: z.string(),
   dueDate: z.string(),
-  subtotal: z.number(),
-  taxAmount: z.number(),
-  totalAmount: z.number(),
+  subtotal: z.coerce.number(),
+  taxAmount: z.coerce.number(),
+  totalAmount: z.coerce.number(),
   paymentType: z.string(),
   status: z.string(),
   currencyCode: z.string().optional().nullable(),
@@ -41,8 +42,8 @@ export const supplierInvoiceApiSchema = z.object({
         expenseAccountId: z.string().optional().nullable(),
         description: z.string(),
         quantity: z.number(),
-        unitCost: z.number(),
-        totalLine: z.number(),
+        unitCost: z.coerce.number(),
+        totalLine: z.coerce.number(),
       }),
     )
     .optional()

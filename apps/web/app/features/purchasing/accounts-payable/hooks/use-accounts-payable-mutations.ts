@@ -26,13 +26,13 @@ const getErrorMessage = (error: unknown): string => {
 export function useAuthorizeAccountsPayableMutation(): UseMutationResult<
   AccountsPayableApi,
   unknown,
-  number
+  string
 > {
   const queryClient = useQueryClient();
   const { success: toastSuccess, error: toastError } = useToastSystem();
 
   return useMutation({
-    mutationFn: (id: number) => accountsPayableService.authorize(id),
+    mutationFn: (id: string) => accountsPayableService.authorize(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: accountsPayableKeys.all });
       toastSuccess('Cuenta por pagar autorizada correctamente');

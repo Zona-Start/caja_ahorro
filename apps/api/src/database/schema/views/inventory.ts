@@ -1,17 +1,17 @@
 import { sql } from 'drizzle-orm';
-import { integer, uuid, varchar } from 'drizzle-orm/pg-core';
+import { numeric, uuid, varchar } from 'drizzle-orm/pg-core';
 import { inventorySchema } from '../_schemas';
 import { inventoryMovementItems, inventoryMovements } from '../tables';
 
 //Cantidad disponible por ítem según movimientos de inventario.
 export const inventoryAvailability = inventorySchema.view(
-  'inventory_availability',
-  {
-    itemId: uuid('item_id').notNull(),
-    itemType: varchar('item_type', { length: 50 }).notNull(),
-    availableQuantity: integer('available_quantity').notNull(),
-    tenantId: uuid('tenant_id').notNull(),
-  },
+    'inventory_availability',
+    {
+        itemId: uuid('item_id').notNull(),
+        itemType: varchar('item_type', { length: 50 }).notNull(),
+        availableQuantity: numeric('available_quantity', { precision: 12, scale: 4 }).notNull(),
+        tenantId: uuid('tenant_id').notNull(),
+    },
 ).as(sql`
   SELECT
     imi.product_id AS item_id,

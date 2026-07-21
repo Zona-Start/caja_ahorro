@@ -22,7 +22,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [openAuthorize, setOpenAuthorize] = useState(false);
   const [openView, setOpenView] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const { mutate: authorize } = useAuthorizeAccountsPayableMutation();
   const { data: detailData } = useAccountsPayableDetailQuery(
@@ -85,15 +85,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                 <p className="font-medium">{detailData.supplierName}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">RIF</p>
-                <p className="font-medium">{detailData.supplierTaxId}</p>
+                <p className="text-sm text-muted-foreground">
+                  N° CXP
+                </p>
+                <p className="font-medium">{detailData.accountsPayableNumber}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">
                   Monto Original
                 </p>
                 <p className="font-medium">
-                  {formatCurrency(detailData.originalAmount, detailData.currencyCode as 'VES' | 'USD')}
+                  {formatCurrency(detailData.originalAmount, 'VES')}
                 </p>
               </div>
               <div>
@@ -101,7 +103,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
                   Saldo Pendiente
                 </p>
                 <p className="font-medium">
-                  {formatCurrency(detailData.remainingAmount, detailData.currencyCode as 'VES' | 'USD')}
+                  {formatCurrency(detailData.remainingAmount, 'VES')}
                 </p>
               </div>
               {detailData.observations && (

@@ -814,8 +814,8 @@ export class SupplierPaymentsService {
       const newPaid = Number(cxp.paidAmount) + totalApplied;
       const newRem = Number(cxp.remainingAmount) - newPaid;
 
-      let newStatus: string = 'IN_PROGRESS';
-      if (newRem === 0) newStatus = 'PAID';
+      let newStatus: string = 'PARTIALLY_PAID';
+      if (newRem <= 0) newStatus = 'PAID';
 
       await tx
         .update(accountsPayable)
@@ -1079,7 +1079,7 @@ export class SupplierPaymentsService {
             if (accountPayableData[0].accounts_payable.supplierInvoiceId) {
               await tx
                 .update(supplierInvoices)
-                .set({ status: 'ACCOUNTED_FOR', updatedById: userId })
+                .set({ status: 'APPROVED', updatedById: userId })
                 .where(
                   eq(
                     supplierInvoices.id,
@@ -1090,7 +1090,7 @@ export class SupplierPaymentsService {
               if (accountPayableData[0]?.supplier_invoices?.purchaseOrderId) {
                 await tx
                   .update(purchaseOrders)
-                  .set({ status: 'INVOICED', updatedById: userId })
+                  .set({ status: 'RECEIVED', updatedById: userId })
                   .where(
                     eq(
                       purchaseOrders.id,

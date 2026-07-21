@@ -1,7 +1,7 @@
 export const INVOICE_STATUS = {
   DRAFT: 'DRAFT',
-  PENDING: 'PENDING',
   APPROVED: 'APPROVED',
+  PARTIALLY_PAID: 'PARTIALLY_PAID',
   PAID: 'PAID',
   CANCELLED: 'CANCELLED',
 } as const;
@@ -10,8 +10,8 @@ export type InvoiceStatus = (typeof INVOICE_STATUS)[keyof typeof INVOICE_STATUS]
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   DRAFT: 'Borrador',
-  PENDING: 'Pendiente',
   APPROVED: 'Aprobada',
+  PARTIALLY_PAID: 'Parcialmente Pagada',
   PAID: 'Pagada',
   CANCELLED: 'Anulada',
 };

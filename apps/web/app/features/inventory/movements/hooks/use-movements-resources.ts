@@ -6,12 +6,15 @@ export interface PurchaseOrderOption {
   orderNumber: string;
   supplierId: string;
   supplierName: string;
+  status: string;
   createdAt: string;
 }
 
 export interface PurchaseOrderItem {
   id: string;
+  productId: string | null;
   itemId: string;
+  itemName?: string;
   productName?: string;
   productCode?: string;
   quantity: number;
@@ -64,8 +67,11 @@ export function usePurchaseOrdersQuery(): UseQueryResult<PurchaseOrderOption[]> 
   return useQuery({
     queryKey: ['purchase-orders', 'options'],
     queryFn: async () => {
-      const resp = await apiClient.get('/administration/purchase-orders/paginated?limit=100&status=PENDING');
-      return (resp.data?.data ?? []) as PurchaseOrderOption[];
+      const resp = await apiClient.get('/purchasing/purchase-orders/paginated?limit=100');
+      const allOrders = (resp.data?.data ?? []) as PurchaseOrderOption[];
+      return allOrders.filter(
+        (o) => o.status === 'APPROVED' || o.status === 'PARTIALLY_RECEIVED',
+      );
     },
     staleTime: 60 * 1000,
   });
@@ -78,7 +84,7 @@ export function usePurchaseOrderQuery(
   return useQuery({
     queryKey: ['purchase-orders', id],
     queryFn: async () => {
-      const resp = await apiClient.get(`/administration/purchase-orders/${id}`);
+      const resp = await apiClient.get(`/purchasing/purchase-orders/${id}`);
       return resp.data?.data as PurchaseOrderDetail;
     },
     enabled: enabled && !!id,
@@ -89,7 +95,7 @@ export function useSupplierInvoicesQuery(): UseQueryResult<SupplierInvoiceOption
   return useQuery({
     queryKey: ['supplier-invoices', 'options'],
     queryFn: async () => {
-      const resp = await apiClient.get('/administration/supplier-invoices/status/draft-pending');
+      const resp = await apiClient.get('/purchasing/supplier-invoices/status/return');
       return (resp.data?.data ?? []) as SupplierInvoiceOption[];
     },
     staleTime: 60 * 1000,
@@ -103,7 +109,7 @@ export function useSupplierInvoiceQuery(
   return useQuery({
     queryKey: ['supplier-invoices', id],
     queryFn: async () => {
-      const resp = await apiClient.get(`/administration/supplier-invoices/${id}`);
+      const resp = await apiClient.get(`/purchasing/supplier-invoices/${id}`);
       return resp.data?.data as SupplierInvoiceDetail;
     },
     enabled: enabled && !!id,

@@ -20,7 +20,7 @@ export function useAccountsPayableQuery(
 }
 
 export function useAccountsPayableDetailQuery(
-  id: number,
+  id: string,
   enabled = true,
 ): UseQueryResult<AccountsPayableApi> {
   return useQuery({
@@ -31,7 +31,7 @@ export function useAccountsPayableDetailQuery(
 }
 
 export function useAppliedTransactionsQuery(
-  id: number,
+  id: string,
   enabled = true,
 ): UseQueryResult<AppliedTransactionsListResponse> {
   return useQuery({

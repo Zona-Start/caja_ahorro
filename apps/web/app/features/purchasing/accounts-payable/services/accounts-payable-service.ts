@@ -14,7 +14,7 @@ export interface AccountsPayableQueryParams {
   limit?: number;
   search?: string;
   status?: string;
-  supplierId?: number;
+  supplierId?: string;
 }
 
 export interface AccountsPayablePaginatedResponse {
@@ -46,34 +46,35 @@ export const accountsPayableService = {
     params: AccountsPayableQueryParams,
   ): Promise<AccountsPayablePaginatedResponse> => {
     const response = await apiClient.get(
-      `/administration/accounts-payable?${buildQueryParams(params)}`,
+      `/purchasing/accounts-payable/paginated?${buildQueryParams(params)}`,
     );
     const parsed = accountsPayableListResponseSchema.parse(response.data);
+
     return {
       data: parsed.data,
       meta: parsed.meta,
     };
   },
 
-  getById: async (id: number): Promise<AccountsPayableApi> => {
+  getById: async (id: string): Promise<AccountsPayableApi> => {
     const response = await apiClient.get(
-      `/administration/accounts-payable/${id}`,
+      `/purchasing/accounts-payable/${id}`,
     );
     return accountsPayableResponseSchema.parse(response.data).data;
   },
 
   getAppliedTransactions: async (
-    id: number,
+    id: string,
   ): Promise<AppliedTransactionsListResponse> => {
     const response = await apiClient.get(
-      `/administration/accounts-payable/applied-transactions/${id}`,
+      `/purchasing/accounts-payable/applied-transactions/${id}`,
     );
     return appliedTransactionsListResponseSchema.parse(response.data);
   },
 
-  authorize: async (id: number): Promise<AccountsPayableApi> => {
+  authorize: async (id: string): Promise<AccountsPayableApi> => {
     const response = await apiClient.patch(
-      `/administration/accounts-payable/authorize/${id}`,
+      `/purchasing/accounts-payable/authorize/${id}`,
     );
     return accountsPayableResponseSchema.parse(response.data).data;
   },

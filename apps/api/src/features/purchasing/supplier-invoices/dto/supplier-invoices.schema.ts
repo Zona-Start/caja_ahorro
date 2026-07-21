@@ -2,8 +2,9 @@ import { z } from 'zod';
 
 const ItemSchema = z.object({
   lineType: z.string(),
-  itemId: z.number().int().positive().optional(),
-  expenseAccountId: z.string().uuid().optional(),
+  productId: z.string().uuid().optional().nullable(),
+  itemId: z.string().uuid().optional().nullable(),
+  expenseAccountId: z.string().uuid().optional().nullable(),
   description: z.string().optional(),
   quantity: z.number().int().positive(),
   unitCost: z.coerce.number().nonnegative(),
@@ -14,6 +15,7 @@ export const CreateSupplierInvoiceSchema = z.object({
   tenantId: z.string().uuid().optional(),
   supplierId: z.string().uuid(),
   purchaseOrderId: z.string().uuid().optional(),
+  inventoryMovementId: z.string().uuid().optional().nullable(),
   invoiceNumber: z.string(),
   controlNumber: z.string().optional(),
   invoiceDate: z.coerce.date(),
@@ -22,12 +24,11 @@ export const CreateSupplierInvoiceSchema = z.object({
   taxAmount: z.coerce.number().optional(),
   totalAmount: z.coerce.number(),
   paymentType: z.string().optional(),
-  status: z.string().optional(),
   observations: z.string().optional(),
   items: z.array(ItemSchema).optional(),
   currencyCode: z.string().optional(),
   paymentMethod: z.string().optional(),
-  bankAccountId: z.string().uuid().optional(),
+  bankAccountId: z.string().uuid().optional().nullable(),
   bankReference: z.string().optional(),
 });
 
@@ -47,6 +48,7 @@ export const UpdateSupplierInvoiceSchema = z.object({
   tenantId: z.string().uuid().optional(),
   supplierId: z.string().uuid().optional(),
   purchaseOrderId: z.string().uuid().optional(),
+  inventoryMovementId: z.string().uuid().optional().nullable(),
   invoiceNumber: z.string().optional(),
   controlNumber: z.string().optional(),
   invoiceDate: z.coerce.date().optional(),
@@ -55,6 +57,9 @@ export const UpdateSupplierInvoiceSchema = z.object({
   taxAmount: z.coerce.number().optional(),
   totalAmount: z.coerce.number().optional(),
   paymentType: z.string().optional(),
+  paymentMethod: z.string().optional(),
+  bankAccountId: z.string().uuid().optional().nullable(),
+  bankReference: z.string().optional(),
   status: z.string().optional(),
   observations: z.string().optional(),
   items: z.array(ItemSchema).optional(),
@@ -110,7 +115,7 @@ export const VoidInvoiceSchema = z.object({
 });
 
 export const StatusTransitionSchema = z.object({
-  status: z.enum(['DRAFT', 'PENDING', 'CANCELLED']),
+  status: z.enum(['DRAFT', 'APPROVED', 'PARTIALLY_PAID', 'PAID', 'CANCELLED']),
 });
 
 export type CreateCreditNoteDto = z.infer<typeof CreateCreditNoteSchema>;

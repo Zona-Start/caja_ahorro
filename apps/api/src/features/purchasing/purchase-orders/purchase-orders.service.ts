@@ -76,6 +76,7 @@ export class PurchaseOrdersService {
   private validateOrderItems(
     items?: {
       lineType: string;
+      productId?: string;
       itemId?: string;
       description?: string;
       quantity?: number;
@@ -86,31 +87,26 @@ export class PurchaseOrdersService {
     if (!items) return;
     for (const item of items) {
       switch (item.lineType) {
-        case 'PRODUCT':
-          if (!item.itemId) {
+        case 'SALES_INVENTORY':
+          if (!item.productId) {
             throw new BadRequestException(
-              `For lineType 'PRODUCT', productId is required.`,
+              `For lineType 'SALES_INVENTORY', productId is required.`,
             );
           }
           break;
         case 'FIXED_ASSET':
-          if (!item.itemId) {
-            throw new BadRequestException(
-              `For lineType 'FIXED_ASSET', fixedAssetId is required.`,
-            );
-          }
-          break;
         case 'SERVICE':
+        case 'SERVICE_EXPENSE':
           if (!item.itemId) {
             throw new BadRequestException(
-              `For lineType 'SERVICE', serviceId is required.`,
+              `For lineType '${item.lineType}', itemId is required.`,
             );
           }
           break;
         case 'EXPENSE':
           if (!item.description) {
             throw new BadRequestException(
-              `For lineType 'EXPENSE', expenseAccountId is required.`,
+              `For lineType 'EXPENSE', description is required.`,
             );
           }
           break;
@@ -430,18 +426,24 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Purchase order not found');
     }
 
+    const productIds = (data.items ?? [])
+      .filter((item: any) => item.productId && item.lineType === 'SALES_INVENTORY')
+      .map((item: any) => item.productId);
+
     const itemIds = (data.items ?? [])
-      .filter((item: any) => item.itemId)
+      .filter((item: any) => item.itemId && !item.productId)
       .map((item: any) => item.itemId);
 
     const productMap = new Map<string, string>();
     const serviceMap = new Map<string, string>();
 
-    if (itemIds.length > 0) {
+    const allIds = [...productIds, ...itemIds];
+
+    if (allIds.length > 0) {
       const productRows = await this.drizzle
         .select({ id: products.id, name: products.name })
         .from(products)
-        .where(inArray(products.id, itemIds as any));
+        .where(inArray(products.id, allIds as any));
 
       for (const p of productRows) {
         productMap.set(String(p.id), p.name);
@@ -450,7 +452,7 @@ export class PurchaseOrdersService {
       const serviceRows = await this.drizzle
         .select({ id: services.id, name: services.name })
         .from(services)
-        .where(inArray(services.id, itemIds as any));
+        .where(inArray(services.id, allIds as any));
 
       for (const s of serviceRows) {
         serviceMap.set(String(s.id), s.name);
@@ -459,12 +461,12 @@ export class PurchaseOrdersService {
 
     const enrichedItems = (data.items ?? []).map((item: any) => {
       let itemName: string | null = null;
-      if (item.itemId) {
-        const id = String(item.itemId);
+      const lookupId = String(item.productId || item.itemId || '');
+      if (lookupId) {
         if (item.lineType === 'SALES_INVENTORY' || item.lineType === 'FIXED_ASSET') {
-          itemName = productMap.get(id) || null;
+          itemName = productMap.get(lookupId) || null;
         } else if (item.lineType === 'SERVICE' || item.lineType === 'SERVICE_EXPENSE') {
-          itemName = serviceMap.get(id) || null;
+          itemName = serviceMap.get(lookupId) || null;
         }
       }
       return { ...item, itemName };
@@ -492,10 +494,10 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Orden de compra no encontrada');
     }
 
-    const editableStatuses = ['DRAFT', 'PENDING'];
+    const editableStatuses = ['DRAFT'];
     if (!editableStatuses.includes(existingOrder.status)) {
       throw new BadRequestException(
-        `La orden con estatus '${existingOrder.status}' no puede ser modificada.`,
+        `La orden con estatus '${existingOrder.status}' no puede ser modificada. Solo se permite editar en DRAFT.`,
       );
     }
 
@@ -607,28 +609,56 @@ export class PurchaseOrdersService {
         eq(purchaseOrders.id, id),
         eq(purchaseOrders.tenantId, tenantId),
       ),
+      with: { items: true },
     });
 
     if (!order) {
       throw new NotFoundException('Orden de compra no encontrada');
     }
 
-    const allowedStatus = ['DRAFT', 'PENDING'];
+    const allowedStatus = ['DRAFT', 'APPROVED'];
 
     if (!allowedStatus.includes(order.status)) {
       throw new BadRequestException(
-        `La orden con estatus '${order.status}' no puede ser anulada.`,
+        `La orden con estatus '${order.status}' no puede ser anulada. Solo DRAFT y APPROVED.`,
       );
     }
 
-    await this.drizzle
-      .update(purchaseOrders)
-      .set({ status: 'CANCELLED' })
-      .where(
-        and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)),
+    const hasRecepcion = (order.items ?? []).some(
+      (item) => Number(item.quantityReceived) > 0,
+    );
+    if (hasRecepcion) {
+      throw new BadRequestException(
+        'No se puede anular la orden porque ya tiene recepciones registradas (quantityReceived > 0).',
       );
+    }
 
-    return { message: 'Orden de compra anulada exitosamente' };
+    return this.drizzle.transaction(async (tx) => {
+      if (order.status === 'APPROVED') {
+        for (const item of order.items ?? []) {
+          if (
+            item.lineType === 'SALES_INVENTORY' &&
+            item.productId
+          ) {
+            await tx
+              .update(products)
+              .set({
+                stockOnOrder: sql`${products.stockOnOrder} - ${Number(item.quantity)}`,
+              })
+              .where(eq(products.id, item.productId));
+          }
+        }
+      }
+
+      await tx
+        .update(purchaseOrders)
+        .set({ status: 'CANCELLED' })
+        .where(
+          and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)),
+        );
+
+      return { message: 'Orden de compra anulada exitosamente' };
+    });
   }
 
   async updateStatusToClosed(id: string, tenantId: string) {
@@ -643,7 +673,7 @@ export class PurchaseOrdersService {
       throw new NotFoundException(`Purchase Order with ID ${id} not found`);
     }
 
-    if (order[0].status === 'CLOSED' || order[0].status === 'CANCELLED') {
+    if (order[0].status === 'CLOSED' || order[0].status === 'CANCELLED' || order[0].status === 'DRAFT') {
       throw new BadRequestException(
         `Purchase Order ${id} cannot be closed from its current status: ${order[0].status}`,
       );
@@ -666,6 +696,7 @@ export class PurchaseOrdersService {
         eq(purchaseOrders.id, id),
         eq(purchaseOrders.tenantId, tenantId),
       ),
+      with: { items: true },
     });
 
     if (!order) {
@@ -678,15 +709,32 @@ export class PurchaseOrdersService {
       );
     }
 
-    const [updated] = await this.drizzle
-      .update(purchaseOrders)
-      .set({ status: 'PENDING' })
-      .where(
-        and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)),
-      )
-      .returning();
+    return this.drizzle.transaction(async (tx) => {
+      // Incrementar stockOnOrder para productos
+      for (const item of order.items ?? []) {
+        if (
+          item.lineType === 'SALES_INVENTORY' &&
+          item.productId
+        ) {
+          await tx
+            .update(products)
+            .set({
+              stockOnOrder: sql`${products.stockOnOrder} + ${Number(item.quantity)}`,
+            })
+            .where(eq(products.id, item.productId));
+        }
+      }
 
-    return updated;
+      const [updated] = await tx
+        .update(purchaseOrders)
+        .set({ status: 'APPROVED' })
+        .where(
+          and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)),
+        )
+        .returning();
+
+      return updated;
+    });
   }
 
   async generatePdf(
@@ -723,18 +771,23 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Empresa no encontrada');
     }
 
-    const itemIds = (order.items ?? [])
-      .filter((item: any) => item.itemId)
+    const productIds = (order.items ?? [])
+      .filter((item: any) => item.productId && item.lineType === 'SALES_INVENTORY')
+      .map((item: any) => item.productId);
+    const legacyItemIds = (order.items ?? [])
+      .filter((item: any) => item.itemId && !item.productId)
       .map((item: any) => item.itemId);
+
+    const allLookupIds = [...productIds, ...legacyItemIds];
 
     const productMap = new Map<string, string>();
     const serviceMap = new Map<string, string>();
 
-    if (itemIds.length > 0) {
+    if (allLookupIds.length > 0) {
       const productRows = await this.drizzle
         .select({ id: products.id, name: products.name })
         .from(products)
-        .where(inArray(products.id, itemIds as any));
+        .where(inArray(products.id, allLookupIds as any));
 
       for (const p of productRows) {
         productMap.set(String(p.id), p.name);
@@ -743,7 +796,7 @@ export class PurchaseOrdersService {
       const serviceRows = await this.drizzle
         .select({ id: services.id, name: services.name })
         .from(services)
-        .where(inArray(services.id, itemIds as any));
+        .where(inArray(services.id, allLookupIds as any));
 
       for (const s of serviceRows) {
         serviceMap.set(String(s.id), s.name);
@@ -757,12 +810,12 @@ export class PurchaseOrdersService {
         const subtotal = qty * unitCost;
 
         let description = item.description ?? '';
-        if (item.itemId) {
-          const id = String(item.itemId);
+        const lookupId = String(item.productId || item.itemId || '');
+        if (lookupId) {
           if (item.lineType === 'SALES_INVENTORY' || item.lineType === 'FIXED_ASSET') {
-            description = productMap.get(id) || item.description || 'Producto sin nombre';
+            description = productMap.get(lookupId) || item.description || 'Producto sin nombre';
           } else if (item.lineType === 'SERVICE' || item.lineType === 'SERVICE_EXPENSE') {
-            description = serviceMap.get(id) || item.description || 'Servicio sin nombre';
+            description = serviceMap.get(lookupId) || item.description || 'Servicio sin nombre';
           }
         }
         if (!description) {

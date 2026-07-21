@@ -371,9 +371,9 @@ export enum purchaseOrderTypeEnum {
 
 export enum purchaseOrderStatusEnum {
   DRAFT = 'DRAFT', // 	Se crea la OC, se puede editar.
-  PENDING = 'PENDING', // Se envía al proveedor.
-  RECEIVED = 'RECEIVED', // Llega una factura que cubre solo parte de la OC.
-  INVOICED = 'INVOICED', //Todas las líneas de la OC ya tienen factura.
+  APPROVED = 'APPROVED', // Aprobada, lista para recibir mercancia.
+  RECEIVED = 'RECEIVED', // Todas las líneas de la OC ya tienen factura.
+  PARTIALLY_RECEIVED = 'PARTIALLY_RECEIVED', // Llega una factura que cubre solo parte de la OC.
   CLOSED = 'CLOSED', // OC finalizada sin pendientes.
   CANCELLED = 'CANCELLED', //Se cancela antes de recibir factura.
 }
@@ -386,10 +386,10 @@ export enum supplierInvoicesPaymentEnum {
 // Enum para el estado de una factura (Cuentas por Pagar)
 export enum invoiceSuppliersStatusEnum {
   DRAFT = 'DRAFT', // Captura inicial de la factura. se puede editar
-  PENDING = 'PENDING', // Validada y lista para contabilizar.
-  ACCOUNTED_FOR = 'ACCOUNTED_FOR', // Se contabiliza y genera CxP si es crédito o pago si es contado.
-  PAID = 'PAID', // Totalmente pagada (si fue de contado y se pagó al momento).
-  CANCELLED = 'CANCELLED', //Se cancela.
+  APPROVED = 'APPROVED', // Aprobada, se generan CxP, movimientos de inventario y asientos contables
+  PARTIALLY_PAID = 'PARTIALLY_PAID', // Pagada parcialmente (aplica pagos o NC)
+  PAID = 'PAID', // Totalmente pagada
+  CANCELLED = 'CANCELLED', // Anulada
 }
 
 export enum priceTypeEnum {
@@ -401,10 +401,9 @@ export enum priceTypeEnum {
 // Enum para el estado de un pago a proveedor
 export enum paymentAccountsPayableEnum {
   PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
+  PARTIALLY_PAID = 'PARTIALLY_PAID',
   PAID = 'PAID',
   CANCELLED = 'CANCELLED',
-  EXPIRED = 'EXPIRED',
 }
 
 export enum supplierTransactionsTypeEnum {

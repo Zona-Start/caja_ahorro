@@ -243,42 +243,43 @@ export const navGroups: NavGroup[] = [
         //   action: 'read',
         // },
       },
-      // {
-      //   label: 'Ordenes de Compra',
-      //   href: '/dashboard/compras/ordenes-compra',
-      //   icon: ShoppingCart,
-      //   // requiresPermission: {
-      //   //   resource: 'purchasing:purchase-orders',
-      //   //   action: 'read',
-      //   // },
-      // },
-      // {
-      //   label: 'Ctas. por Pagar',
-      //   href: '/dashboard/compras/cuentas-por-pagar',
-      //   icon: DollarSign,
-      //   // requiresPermission: {
-      //   //   resource: 'purchasing:accounts-payable',
-      //   //   action: 'read',
-      //   // },
-      // },
-      // {
-      //   label: 'Facturas',
-      //   href: '/dashboard/compras/facturas',
-      //   icon: Receipt,
-      //   // requiresPermission: {
-      //   //   resource: 'purchasing:supplier-invoices',
-      //   //   action: 'read',
-      //   // },
-      // },
-      // {
-      //   label: 'Pagos',
-      //   href: '/dashboard/compras/pagos',
-      //   icon: FileText,
-      //   // requiresPermission: {
-      //   //   resource: 'purchasing:supplier-payments',
-      //   //   action: 'read',
-      //   // },
-      // },
+      {
+        label: 'Ordenes de Compra',
+        href: '/dashboard/compras/ordenes-compra',
+        icon: ShoppingCart,
+        // requiresPermission: {
+        //   resource: 'purchasing:purchase-orders',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Facturas',
+        href: '/dashboard/compras/facturas',
+        icon: Receipt,
+        // requiresPermission: {
+        //   resource: 'purchasing:supplier-invoices',
+        //   action: 'read',
+        // },
+      },
+      {
+        label: 'Ctas. por Pagar',
+        href: '/dashboard/compras/cuentas-por-pagar',
+        icon: DollarSign,
+        // requiresPermission: {
+        //   resource: 'purchasing:accounts-payable',
+        //   action: 'read',
+        // },
+      },
+
+      {
+        label: 'Pagos',
+        href: '/dashboard/compras/pagos',
+        icon: FileText,
+        // requiresPermission: {
+        //   resource: 'purchasing:supplier-payments',
+        //   action: 'read',
+        // },
+      },
     ],
   },
   {

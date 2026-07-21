@@ -24,12 +24,12 @@ import {
 import { PurchaseOrdersService } from './purchase-orders.service';
 
 @ApiTags('purchasing/purchase-orders')
-@Controller('administration/purchase-orders')
+@Controller('purchasing/purchase-orders')
 export class PurchaseOrdersController {
   constructor(
     private readonly services: PurchaseOrdersService,
     private readonly tenantContextService: TenantContextService,
-  ) {}
+  ) { }
 
   @Post()
   @UsePipes(new ZodValidatorPipe(CreatePurchaseOrderSchema))
@@ -71,7 +71,7 @@ export class PurchaseOrdersController {
   }
 
   @Patch('/approve/:id')
-  @ApiOperation({ summary: 'Approve a purchase order (DRAFT → PENDING)' })
+  @ApiOperation({ summary: 'Approve a purchase order (DRAFT → APPROVED)' })
   @ApiResponse({ status: 200, description: 'Order approved.' })
   async approve(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);

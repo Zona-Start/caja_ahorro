@@ -15,6 +15,7 @@ export interface MovementsQueryParams {
   endDate?: string;
   productId?: string;
   supplierId?: string;
+  purchaseOrderId?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
@@ -44,6 +45,7 @@ const buildQueryParams = (params: MovementsQueryParams): string => {
   if (params.endDate) query.set('endDate', params.endDate);
   if (params.productId) query.set('productId', params.productId);
   if (params.supplierId) query.set('supplierId', params.supplierId);
+  if (params.purchaseOrderId) query.set('purchaseOrderId', params.purchaseOrderId);
   if (params.sortBy) query.set('sortBy', params.sortBy);
   if (params.sortOrder) query.set('sortOrder', params.sortOrder);
   return query.toString();

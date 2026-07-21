@@ -69,7 +69,7 @@ export function usePurchaseOrdersForInvoiceQuery(
     queryFn: async () => {
       if (!supplierId) return [];
       const response = await apiClient.get(
-        `/administration/purchase-orders/for-invoice?supplierId=${supplierId}`,
+        `/purchasing/purchase-orders/for-invoice?supplierId=${supplierId}&status=RECEIVED,PARTIALLY_RECEIVED`,
       );
       const raw = response.data?.data ?? response.data ?? [];
       return purchaseOrderSelectSchema.array().parse(raw);
@@ -140,7 +140,7 @@ export function useAccountsPayableBySupplierQuery(
     queryFn: async () => {
       if (!supplierId) return [];
       const response = await apiClient.get(
-        `/administration/accounts-payable/paginated?supplierId=${supplierId}&limit=200`,
+        `/purchasing/accounts-payable/paginated?supplierId=${supplierId}&limit=200`,
       );
       try {
         const data = response.data?.data ?? response.data ?? [];

@@ -4,6 +4,7 @@ export const purchaseOrderItemApiSchema = z.object({
   id: z.string(),
   purchaseOrderId: z.string().optional(),
   lineType: z.string(),
+  productId: z.string().nullable().optional(),
   itemId: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   itemName: z.string().nullable().optional(),
@@ -69,6 +70,7 @@ export interface PurchaseOrderItemRaw {
   id: string;
   purchaseOrderId?: string;
   lineType: string;
+  productId?: string | null;
   itemId?: string | null;
   description?: string | null;
   itemName?: string | null;

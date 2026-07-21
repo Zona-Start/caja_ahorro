@@ -7,6 +7,7 @@ import {
   products,
 } from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
+import { updatePurchaseOrderStatus } from '@/features/purchasing/shared/update-purchase-order-status';
 import {
   BadRequestException,
   Inject,
@@ -61,7 +62,7 @@ export class InventoryMovementsService {
     private db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   async create(
     dto: CreateInventoryMovementDto,
@@ -106,7 +107,8 @@ export class InventoryMovementsService {
         dto.items.map((item) => ({
           movementId: movement.id,
           productId: item.productId,
-          quantity: item.quantity,
+          purchaseOrderItemId: item.purchaseOrderItemId ?? null,
+          quantity: String(item.quantity),
           unitCost: String(item.unitCost ?? 0),
           totalCost: String((item.unitCost ?? 0) * item.quantity),
         })),
@@ -120,6 +122,7 @@ export class InventoryMovementsService {
           .update(products)
           .set({
             status: 'AVAILABLE' as (typeof products.$inferInsert)['status'],
+            updatedById: userId,
           })
           .where(
             and(
@@ -128,6 +131,21 @@ export class InventoryMovementsService {
               eq(products.tenantId, tenantId),
             ),
           );
+      }
+
+      // PURCHASE_RECEIPT: update stock and PO status
+      if (dto.movementType === 'PURCHASE_RECEIPT' && dto.purchaseOrderId) {
+        for (const item of dto.items) {
+          await tx
+            .update(products)
+            .set({
+              stockOnHand: sql`${products.stockOnHand} + ${item.quantity}`,
+              stockOnOrder: sql`${products.stockOnOrder} - ${item.quantity}`,
+            })
+            .where(eq(products.id, item.productId));
+        }
+
+        await updatePurchaseOrderStatus(dto.purchaseOrderId, tx);
       }
 
       return movement;
@@ -164,6 +182,7 @@ export class InventoryMovementsService {
       endDate,
       productId,
       supplierId,
+      purchaseOrderId,
     } = paginationDto || {};
 
     const offset = (page - 1) * limit;
@@ -196,6 +215,10 @@ export class InventoryMovementsService {
 
     if (supplierId) {
       searchConditions.push(eq(inventoryMovements.supplierId, supplierId));
+    }
+
+    if (purchaseOrderId) {
+      searchConditions.push(eq(inventoryMovements.purchaseOrderId, purchaseOrderId));
     }
 
     if (startDate && endDate) {
@@ -283,6 +306,7 @@ export class InventoryMovementsService {
           if (!acc[mId]) acc[mId] = [];
           acc[mId].push({
             ...item,
+            quantity: Number(item.quantity),
             unitCost: Number(item.unitCost ?? 0),
             totalCost: Number(item.totalCost ?? 0),
           });
@@ -296,8 +320,8 @@ export class InventoryMovementsService {
       ...m,
       movementDate: m.movementDate
         ? new Date(m.movementDate as unknown as string)
-            .toISOString()
-            .split('T')[0]
+          .toISOString()
+          .split('T')[0]
         : null,
       createdAt: m.createdAt
         ? new Date(m.createdAt as unknown as string).toISOString()
@@ -389,8 +413,8 @@ export class InventoryMovementsService {
       ...movement,
       movementDate: movement.movementDate
         ? new Date(movement.movementDate as unknown as string)
-            .toISOString()
-            .split('T')[0]
+          .toISOString()
+          .split('T')[0]
         : null,
       createdAt: movement.createdAt
         ? new Date(movement.createdAt as unknown as string).toISOString()
@@ -473,7 +497,7 @@ export class InventoryMovementsService {
             dto.items.map((item) => ({
               movementId: updated.id,
               productId: item.productId,
-              quantity: item.quantity,
+              quantity: String(item.quantity),
               unitCost: String(item.unitCost ?? 0),
               totalCost: String((item.unitCost ?? 0) * item.quantity),
             })),

@@ -141,6 +141,34 @@
       "when": 1783649139276,
       "tag": "0019_loose_bloodstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784570539382,
+      "tag": "0020_glamorous_skrulls",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784573426230,
+      "tag": "0021_nifty_valkyrie",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784582342245,
+      "tag": "0022_supreme_jack_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784586712474,
+      "tag": "0023_goofy_ben_grimm",
+      "breakpoints": true
     }
   ]
 }

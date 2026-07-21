@@ -25,7 +25,8 @@ function apiToForm(order: PurchaseOrderApi, defaultTax: number): Partial<Purchas
     observations: order.observations ?? '',
     items: (order.items || []).map((item) => ({
       id: item.id,
-      lineType: item.lineType as 'SALES_INVENTORY' | 'SERVICE' | 'EXPENSE',
+      lineType: item.lineType as 'SALES_INVENTORY' | 'FIXED_ASSET' | 'SERVICE' | 'EXPENSE' | 'SERVICE_EXPENSE',
+      productId: item.productId ?? '',
       itemId: item.itemId ?? '',
       description: item.description ?? '',
       quantity: Number(item.quantity) || 1,

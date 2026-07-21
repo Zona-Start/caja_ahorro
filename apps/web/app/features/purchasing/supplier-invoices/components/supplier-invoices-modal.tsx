@@ -9,6 +9,7 @@ import type { SupplierInvoiceMutation } from '../schemas/supplier-invoice.schema
 import type { SupplierInvoiceApi } from '../schemas/supplier-invoice-api.schema';
 import { useSupplierInvoicesModalStore } from '../store/supplier-invoices-modal.store';
 import { SupplierInvoicesForm } from './supplier-invoices-form';
+import { SupplierInvoicesViewModal } from './supplier-invoices-view-modal';
 
 function toFormValues(invoice: SupplierInvoiceApi): Partial<SupplierInvoiceMutation> {
   return Object.fromEntries(
@@ -30,8 +31,17 @@ export function SupplierInvoicesModal() {
     closeModal();
   };
 
-  const isViewMode = mode === 'view';
   const isEditMode = mode === 'edit';
+
+  if (mode === 'view') {
+    return (
+      <SupplierInvoicesViewModal
+        open={isOpen}
+        onOpenChange={(o) => { if (!o) closeModal(); }}
+        invoiceId={data?.id}
+      />
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeModal()}>
@@ -41,25 +51,20 @@ export function SupplierInvoicesModal() {
       >
         <DialogHeader>
           <DialogTitle>
-            {isViewMode
-              ? 'Detalles de la Factura'
-              : isEditMode
-                ? 'Editar Factura'
-                : 'Nueva Factura de Proveedor'}
+            {isEditMode
+              ? 'Editar Factura'
+              : 'Nueva Factura de Proveedor'}
           </DialogTitle>
           <DialogDescription>
-            {isViewMode
-              ? 'Información completa de la factura.'
-              : isEditMode
-                ? 'Actualiza la información de la factura.'
-                : 'Registra una nueva factura de proveedor.'}
+            {isEditMode
+              ? 'Actualiza la información de la factura.'
+              : 'Registra una nueva factura de proveedor.'}
           </DialogDescription>
         </DialogHeader>
         <SupplierInvoicesForm
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           defaultValues={data ? toFormValues(data) : undefined}
-          disabled={isViewMode}
         />
       </DialogContent>
     </Dialog>

@@ -41,6 +41,7 @@ export const supplierInvoiceBaseSchema = z.object({
   documentType: z.nativeEnum(DOCUMENT_TYPE).default('INVOICE'),
   supplierId: z.string().min(1, 'El proveedor es requerido'),
   purchaseOrderId: z.string().optional().nullable(),
+  inventoryMovementId: z.string().optional().nullable(),
   invoiceNumber: z.string().min(1, 'El número de factura es requerido'),
   controlNumber: z.string().optional(),
   invoiceDate: z.coerce.date({ errorMap: () => ({ message: 'La fecha de factura es requerida' }) }),
@@ -61,14 +62,6 @@ export const supplierInvoiceBaseSchema = z.object({
 });
 
 export const supplierInvoiceFormSchema = supplierInvoiceBaseSchema.superRefine((data, ctx) => {
-  if (data.paymentType === 'CASH') {
-    if (!data.paymentMethod) {
-      ctx.addIssue({ code: 'custom', message: 'El método de pago es requerido', path: ['paymentMethod'] });
-    }
-    if (!data.bankAccountId) {
-      ctx.addIssue({ code: 'custom', message: 'La cuenta bancaria es requerida', path: ['bankAccountId'] });
-    }
-  }
   if (data.paymentType === 'CREDIT') {
     if (!data.dueDate) {
       ctx.addIssue({ code: 'custom', message: 'La fecha de vencimiento es requerida para pagos a crédito', path: ['dueDate'] });

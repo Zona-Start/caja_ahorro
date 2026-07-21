@@ -24,12 +24,12 @@ import {
 } from './dto/accounts-payable.schema';
 
 @ApiTags('purchasing/accounts-payable')
-@Controller('administration/accounts-payable')
+@Controller('purchasing/accounts-payable')
 export class AccountsPayableController {
   constructor(
     private readonly service: AccountsPayableService,
     private readonly tenantContextService: TenantContextService,
-  ) {}
+  ) { }
 
   @Get('/paginated')
   @ApiOperation({ summary: 'Get all accounts payable' })

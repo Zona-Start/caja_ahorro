@@ -2,10 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Badge } from '@repo/shadcn/badge';
 import { formatCurrency } from '@/lib/format-utils';
 import { format } from 'date-fns';
-import {
-  STATUS_OPTIONS,
-  PRIORITY_OPTIONS,
-} from '../../schemas/accounts-payable-options';
+import { STATUS_OPTIONS } from '../../schemas/accounts-payable-options';
 import type { AccountsPayableApi } from '../../schemas/accounts-payable-api.schema';
 import { CellAction } from './cell-action';
 
@@ -16,13 +13,11 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'o
   CANCELLED: 'destructive',
 };
 
-const priorityVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  HIGH: 'destructive',
-  MEDIUM: 'default',
-  LOW: 'secondary',
-};
-
 export const accountsPayableColumns: ColumnDef<AccountsPayableApi>[] = [
+  {
+    accessorKey: 'accountsPayableNumber',
+    header: 'N° CXP',
+  },
   {
     accessorKey: 'invoiceNumber',
     header: 'N° Factura',
@@ -32,16 +27,11 @@ export const accountsPayableColumns: ColumnDef<AccountsPayableApi>[] = [
     header: 'Proveedor',
   },
   {
-    accessorKey: 'supplierTaxId',
-    header: 'RIF',
-  },
-  {
     accessorKey: 'originalAmount',
     header: 'Monto Original',
     cell: ({ row }) => {
       const value = row.original.originalAmount;
-      const currency = row.original.currencyCode as 'VES' | 'USD';
-      return value != null ? formatCurrency(value, currency) : '-';
+      return value != null ? formatCurrency(value, 'VES') : '-';
     },
   },
   {
@@ -49,8 +39,7 @@ export const accountsPayableColumns: ColumnDef<AccountsPayableApi>[] = [
     header: 'Monto Pagado',
     cell: ({ row }) => {
       const value = row.original.paidAmount;
-      const currency = row.original.currencyCode as 'VES' | 'USD';
-      return value != null ? formatCurrency(value, currency) : '-';
+      return value != null ? formatCurrency(value, 'VES') : '-';
     },
   },
   {
@@ -58,8 +47,7 @@ export const accountsPayableColumns: ColumnDef<AccountsPayableApi>[] = [
     header: 'Saldo Pendiente',
     cell: ({ row }) => {
       const value = row.original.remainingAmount;
-      const currency = row.original.currencyCode as 'VES' | 'USD';
-      return value != null ? formatCurrency(value, currency) : '-';
+      return value != null ? formatCurrency(value, 'VES') : '-';
     },
   },
   {
@@ -82,18 +70,6 @@ export const accountsPayableColumns: ColumnDef<AccountsPayableApi>[] = [
       return value
         ? format(new Date(value as string), 'dd/MM/yyyy')
         : '-';
-    },
-  },
-  {
-    accessorKey: 'priority',
-    header: 'Prioridad',
-    cell: ({ getValue }) => {
-      const value = getValue<string>();
-      const label =
-        PRIORITY_OPTIONS[value as keyof typeof PRIORITY_OPTIONS] || value;
-      return (
-        <Badge variant={priorityVariant[value] || 'secondary'}>{label}</Badge>
-      );
     },
   },
   {

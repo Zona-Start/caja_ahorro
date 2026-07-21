@@ -34,16 +34,28 @@ export class SupplierInvoicesController {
 
   @Post()
   @UsePipes(new ZodValidatorPipe(CreateSupplierInvoiceSchema))
-  @ApiOperation({ summary: 'Create a new supplier invoice' })
+  @ApiOperation({ summary: 'Create a new supplier invoice (DRAFT)' })
   @ApiResponse({
     status: 201,
-    description: 'Supplier invoice created successfully.',
+    description: 'Supplier invoice created as DRAFT.',
   })
   async create(@Req() req: any, @Body() dto: any) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     const data = await this.service.create(userId, dto, targetTenantId);
     return { message: 'Supplier invoice created successfully', data };
+  }
+
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'Approve a DRAFT supplier invoice' })
+  @ApiResponse({
+    status: 200,
+    description: 'Supplier invoice approved successfully.',
+  })
+  async approve(@Req() req: any, @Param('id') id: string) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    return await this.service.approve(userId, id, targetTenantId);
   }
 
   @Post('/credit-notes')
@@ -85,13 +97,13 @@ export class SupplierInvoicesController {
     };
   }
 
-  @Get('/status/draft-pending')
-  @ApiOperation({ summary: 'Get all supplier invoices by draft and pending' })
-  async findDraftPending(@Req() req: any) {
+  @Get('/status/return')
+  @ApiOperation({ summary: 'Get all supplier invoices by draft' })
+  async findDraft(@Req() req: any) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    const result = await this.service.findDraftPending(targetTenantId);
+    const result = await this.service.findDraft(targetTenantId);
     return {
-      message: 'Supplier invoices fetched by draft and pending successfully',
+      message: 'Supplier invoices fetched by draft successfully',
       data: result,
     };
   }
@@ -116,15 +128,6 @@ export class SupplierInvoicesController {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     return await this.service.update(id, userId, dto, targetTenantId);
-  }
-
-  @Patch('/accountFor/:id')
-  @ApiOperation({ summary: 'Account for a supplier invoice' })
-  async accountFor(@Param('id') id: string, @Body() dto: any, @Req() req: any) {
-    const { targetTenantId, userId } =
-      this.tenantContextService.getTenantContext(req, dto);
-    const data = await this.service.accountFor(userId, id, dto, targetTenantId);
-    return { message: 'Supplier invoice accounted successfully', data };
   }
 
   @Patch('/void/:id')

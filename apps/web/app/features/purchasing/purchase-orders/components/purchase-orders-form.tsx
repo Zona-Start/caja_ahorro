@@ -36,6 +36,7 @@ function todayStr() { return new Date().toISOString().slice(0, 10); }
 
 const emptyItem = {
   lineType: 'SALES_INVENTORY' as const,
+  productId: '',
   itemId: '',
   description: '',
   quantity: 1,
@@ -94,7 +95,7 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
           }
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [currencyCode]);
 
   useEffect(() => {
@@ -130,6 +131,7 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
     form.setValue('totalAmount', totals.totalAmount, { shouldValidate: false });
   }, [totals, form]);
 
+
   const onSubmit = async (data: PurchaseOrder) => {
     setPendingData(data);
     setShowConfirm(true);
@@ -137,10 +139,15 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
 
   const handleConfirmSave = async () => {
     if (!pendingData) return;
-    const items = (pendingData.items || []).map((item) => ({
-      ...item,
-      totalCost: (Number(item.quantity) || 0) * (Number(item.unitCost) || 0),
-    }));
+    const items = (pendingData.items || []).map((item) => {
+      const { productId, itemId, ...rest } = item;
+      return {
+        ...rest,
+        ...(item.lineType === 'SALES_INVENTORY' ? { productId: productId || undefined } : {}),
+        ...(item.lineType !== 'SALES_INVENTORY' && item.lineType !== 'EXPENSE' ? { itemId: itemId || undefined } : {}),
+        totalCost: (Number(item.quantity) || 0) * (Number(item.unitCost) || 0),
+      };
+    });
     const payload = {
       ...pendingData,
       items,
@@ -282,10 +289,13 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
                     )} />
 
                     {lineType === 'SALES_INVENTORY' && (
-                      <FormField control={form.control} name={`items.${idx}.itemId`} render={({ field: fld }) => (
+                      <FormField control={form.control} name={`items.${idx}.productId`} render={({ field: fld }) => (
                         <FormItem>
                           <FormLabel>Producto</FormLabel>
-                          <Select onValueChange={fld.onChange} value={fld.value ?? ''} disabled={readOnly}>
+                          <Select onValueChange={(val) => {
+                            fld.onChange(val);
+                            form.setValue(`items.${idx}.itemId` as any, undefined);
+                          }} value={fld.value ?? ''} disabled={readOnly}>
                             <FormControl><SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger></FormControl>
                             <SelectContent>
                               {products?.map((p) => (
@@ -298,7 +308,7 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
                       )} />
                     )}
 
-                    {lineType === 'SERVICE' && (
+                    {(lineType === 'SERVICE' || lineType === 'SERVICE_EXPENSE') && (
                       <FormField control={form.control} name={`items.${idx}.itemId`} render={({ field: fld }) => (
                         <FormItem>
                           <FormLabel>Servicio</FormLabel>
@@ -315,11 +325,11 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
                       )} />
                     )}
 
-                    {lineType === 'EXPENSE' && (
+                    {(lineType === 'EXPENSE' || lineType === 'FIXED_ASSET') && (
                       <FormField control={form.control} name={`items.${idx}.description`} render={({ field: fld }) => (
                         <FormItem>
-                          <FormLabel>Descripción</FormLabel>
-                          <FormControl><Input placeholder="Descripción del gasto" {...fld} value={fld.value ?? ''} disabled={readOnly} /></FormControl>
+                          <FormLabel>{lineType === 'FIXED_ASSET' ? 'Activo Fijo' : 'Descripción'}</FormLabel>
+                          <FormControl><Input placeholder={lineType === 'FIXED_ASSET' ? 'Nombre del activo fijo' : 'Descripción del gasto'} {...fld} value={fld.value ?? ''} disabled={readOnly} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -461,9 +471,11 @@ export function PurchaseOrdersForm({ onSuccess, onCancel, defaultValues, readOnl
             <p className="text-xs text-muted-foreground font-medium">Ítems ({pendingData?.items?.length || 0})</p>
             <div className="max-h-[140px] overflow-y-auto space-y-1">
               {(pendingData?.items || []).map((item: any, i: number) => {
-                const itemName = item.itemId
-                  ? (products?.find((p) => p.id === item.itemId)?.name || services?.find((s) => s.id === item.itemId)?.name || item.description || `Ítem ${i + 1}`)
-                  : (item.description || `Ítem ${i + 1}`);
+                const itemName = item.productId
+                  ? (products?.find((p) => p.id === item.productId)?.name || `Ítem ${i + 1}`)
+                  : item.itemId
+                    ? (services?.find((s) => s.id === item.itemId)?.name || item.description || `Ítem ${i + 1}`)
+                    : (item.description || `Ítem ${i + 1}`);
                 const lineTotal = (Number(item.quantity) || 0) * (Number(item.unitCost) || 0);
                 return (
                   <div key={i} className="flex justify-between text-xs">

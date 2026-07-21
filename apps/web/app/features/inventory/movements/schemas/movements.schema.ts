@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const movementItemSchema = z.object({
   id: z.string().optional(),
   productId: z.string().min(1, 'Debe seleccionar un producto'),
+  purchaseOrderItemId: z.string().optional(),
   productName: z.string().optional(),
   productCode: z.string().optional(),
   quantity: z.coerce.number().int().positive('La cantidad debe ser mayor a 0'),

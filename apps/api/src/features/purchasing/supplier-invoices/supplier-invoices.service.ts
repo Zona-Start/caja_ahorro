@@ -3,7 +3,6 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
   accountsPayable,
-  purchaseOrderItems,
   purchaseOrders,
   supplierCreditNotes,
   supplierDebitNotes,
@@ -17,6 +16,7 @@ import {
 } from '@/database/schema';
 import { CurrencyCodeEnum, priceTypeEnum } from '@/types/enum';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
+import { updatePurchaseOrderStatus } from '@/features/purchasing/shared/update-purchase-order-status';
 import {
   BadRequestException,
   ConflictException,
@@ -25,7 +25,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { differenceInDays } from 'date-fns';
-import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, inArray, ne, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { FixedAssetPricesService } from '../../inventory/fixed-asset-prices/fixed-asset-prices.service';
 import { InventoryMovementsService } from '../../inventory/inventory-movements/inventory-movements.service';
@@ -44,11 +44,9 @@ export class SupplierInvoicesService {
     private readonly fixedAssetPricesService: FixedAssetPricesService,
     private readonly servicePricesService: ServicePricesService,
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) {}
+  ) { }
 
   async create(userId: string, dto: any, tenantId: string) {
-    const isCash = dto.paymentType === 'CASH';
-
     const supplier = await this.drizzle
       .select()
       .from(suppliers)
@@ -56,20 +54,6 @@ export class SupplierInvoicesService {
 
     if (supplier.length === 0) {
       throw new NotFoundException('Supplier not found');
-    }
-
-    const invoiceStatus = isCash ? 'PAID' : (dto.status ?? 'DRAFT');
-
-    if (!isCash && invoiceStatus !== 'DRAFT' && invoiceStatus !== 'PENDING') {
-      throw new BadRequestException(
-        `Invalid status for creation: ${invoiceStatus}. Only 'DRAFT' or 'PENDING' are allowed.`,
-      );
-    }
-
-    if (isCash && (!dto.paymentMethod || !dto.bankAccountId)) {
-      throw new BadRequestException(
-        'Payment method and bank account are required for cash invoices.',
-      );
     }
 
     return this.drizzle.transaction(async (tx) => {
@@ -86,6 +70,7 @@ export class SupplierInvoicesService {
           tenantId,
           supplierId: dto.supplierId,
           purchaseOrderId: dto.purchaseOrderId ?? null,
+          inventoryMovementId: dto.inventoryMovementId ?? null,
           invoiceNumber: dto.invoiceNumber,
           controlNumber: dto.controlNumber,
           invoiceDate:
@@ -102,15 +87,15 @@ export class SupplierInvoicesService {
           totalAmount: dto.totalAmount.toString(),
           currencyCode: dto.currencyCode ?? 'VES',
           paymentType: dto.paymentType ?? 'CREDIT',
-          status: invoiceStatus,
+          paymentMethod: dto.paymentMethod ?? null,
+          bankAccountId: dto.bankAccountId ?? null,
+          bankReference: dto.bankReference ?? null,
+          status: 'DRAFT',
           observations: dto.observations,
           createdById: userId,
           supplierInvoiceNumber: invoiceNumber,
         })
-        .returning({
-          status: supplierInvoices.status,
-          id: supplierInvoices.id,
-        });
+        .returning({ id: supplierInvoices.id, status: supplierInvoices.status });
 
       const invoiceId = newInvoice[0].id;
 
@@ -125,93 +110,12 @@ export class SupplierInvoicesService {
         await tx.insert(supplierInvoiceItems).values(itemsToInsert as any);
       }
 
-      // ── Flujo CONTADO ──
-      if (isCash) {
-        // Crear Cuenta por Pagar en 0
-        await tx.insert(accountsPayable).values({
-          tenantId,
-          supplierId: dto.supplierId,
-          supplierInvoiceId: invoiceId,
-          accountsPayableNumber:
-            await this.generateCodeService.generateNextReference(
-              'CXP',
-              tenantId,
-              'purchasing',
-              'accounts-payable',
-            ),
-          originalAmount: dto.totalAmount.toString(),
-          paidAmount: dto.totalAmount.toString(),
-          remainingAmount: '0.00',
-          currencyCode: dto.currencyCode ?? 'VES',
-          status: 'PAID',
-          dueDate: dto.dueDate
-            ? dto.dueDate instanceof Date
-              ? dto.dueDate.toISOString()
-              : String(dto.dueDate)
-            : new Date().toISOString(),
-          createdById: userId,
-        });
-
-        // Crear transacción de proveedor (PAYMENT)
-        const paymentRef = await this.generateCodeService.generateNextReference(
-          'PAG-P',
-          tenantId,
-          'purchasing',
-          'payments',
-        );
-
-        const [transaction] = await tx
-          .insert(supplierTransactions)
-          .values({
-            tenantId,
-            supplierId: dto.supplierId,
-            transactionNumber: paymentRef,
-            transactionType: 'PAYMENT',
-            transactionDate: new Date().toISOString(),
-            amount: dto.totalAmount.toString(),
-            currencyCode: dto.currencyCode ?? 'VES',
-            status: 'APPLIED',
-            paymentMethod: dto.paymentMethod,
-            bankAccountId: dto.bankAccountId,
-            bankReference: dto.bankReference,
-            observations: `Pago de contado factura ${dto.invoiceNumber}`,
-            createdById: userId,
-          })
-          .returning({ id: supplierTransactions.id });
-
-        // Crear movimiento bancario
-        await tx.insert(schema.bankTransactions).values({
-          tenantId,
-          bankAccountId: dto.bankAccountId,
-          paymentMethod: dto.paymentMethod,
-          transactionDate: new Date().toISOString().split('T')[0],
-          description: `Pago a proveedor - Factura ${dto.invoiceNumber}`,
-          category: 'SUPPLIER_PAYMENT',
-          bankReference: dto.bankReference ?? paymentRef,
-          debitAmount: dto.totalAmount.toString(),
-          creditAmount: '0.00',
-          reconciliationStatus: 'PENDING',
-          createdById: userId,
-        } as any);
-      }
-
-      // ── Flujo CRÉDITO ──
-      if (!isCash) {
-        await this.handlePaymentAndAccountsPayable(
-          userId,
-          tenantId,
-          invoiceId,
-          invoiceNumber,
-          dto,
-          tx,
-        );
-      }
-
       const [completeInvoice] = await tx
         .select({
           id: supplierInvoices.id,
           supplierId: supplierInvoices.supplierId,
           purchaseOrderId: supplierInvoices.purchaseOrderId,
+          inventoryMovementId: supplierInvoices.inventoryMovementId,
           invoiceNumber: supplierInvoices.invoiceNumber,
           controlNumber: supplierInvoices.controlNumber,
           invoiceDate: supplierInvoices.invoiceDate,
@@ -240,10 +144,278 @@ export class SupplierInvoicesService {
         .from(supplierInvoiceItems)
         .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
 
-      return {
-        data: { ...completeInvoice, items },
-        message: 'Supplier invoice created successfully',
-      };
+      return { ...completeInvoice, items };
+    });
+  }
+
+  async approve(userId: string, invoiceId: string, tenantId: string) {
+    return this.drizzle.transaction(async (tx) => {
+      const invoice = await tx.query.supplierInvoices.findFirst({
+        where: and(
+          eq(supplierInvoices.id, invoiceId),
+          eq(supplierInvoices.tenantId, tenantId),
+        ),
+        with: { items: true },
+      });
+
+      if (!invoice) {
+        throw new NotFoundException('Supplier invoice not found');
+      }
+
+      if (invoice.status !== 'DRAFT') {
+        throw new BadRequestException(
+          `Cannot approve invoice with status '${invoice.status}'. Only DRAFT invoices can be approved.`,
+        );
+      }
+
+      const supplier = await tx
+        .select()
+        .from(suppliers)
+        .where(
+          and(eq(suppliers.id, invoice.supplierId), eq(suppliers.status, 'ACTIVE')),
+        );
+
+      if (supplier.length === 0) {
+        throw new BadRequestException('Supplier is not active or does not exist.');
+      }
+
+      const existing = await tx
+        .select()
+        .from(supplierInvoices)
+        .where(
+          and(
+            eq(supplierInvoices.invoiceNumber, invoice.invoiceNumber),
+            eq(supplierInvoices.supplierId, invoice.supplierId),
+            ne(supplierInvoices.id, invoiceId),
+          ),
+        );
+
+      if (existing.length !== 0) {
+        throw new ConflictException(
+          'An invoice with this number and supplier already exists.',
+        );
+      }
+
+      const totalAmount = Number(invoice.totalAmount);
+      if (totalAmount <= 0) {
+        throw new BadRequestException('Total amount must be greater than 0.');
+      }
+
+      const isCash = invoice.paymentType === 'CASH';
+      const subtotal = Number(invoice.subtotal);
+      const taxAmount = Number(invoice.taxAmount);
+
+      // ── Crear precios y movimientos de inventario ──
+      // for (const item of invoice.items) {
+      //   const quantity = item.quantity;
+      //   const unitCost = Number(item.unitCost);
+
+      //   if (item.lineType === 'SALES_INVENTORY') {
+      //     const resultProduct = await this.productPricesService.create(
+      //       {
+      //         productId: item?.itemId ?? 0,
+      //         suppliersId: invoice.supplierId,
+      //         priceType: 'SELLING' as priceTypeEnum,
+      //         baseCost: unitCost,
+      //         otherCosts: 0,
+      //         isActive: true,
+      //         supplierInvoiceId: invoiceId,
+      //       } as any,
+      //       userId,
+      //       tx as any,
+      //     );
+
+      //     await (this.inventoryMovementsService as any).create(
+      //       userId,
+      //       {
+      //         movementType: 'IN',
+      //         description: `INGRESO PRODUCTO POR FACTURA DE PROVEEDOR ${invoice.invoiceNumber}`,
+      //         documentType: 'COMPRA',
+      //         documentNumber: invoice.invoiceNumber,
+      //         supplierInvoiceId: invoiceId,
+      //         items: [
+      //           {
+      //             itemId: item.itemId ?? 0,
+      //             itemType: 'PRODUCT',
+      //             quantity: quantity,
+      //             unitCost: Number(resultProduct.data.totalCost),
+      //           },
+      //         ],
+      //       } as any,
+      //       tx as any,
+      //     );
+      //   } else if (item.lineType === 'FIXED_ASSET') {
+      //     const resultFixedAsset = await (
+      //       this.fixedAssetPricesService as any
+      //     ).create(
+      //       userId,
+      //       {
+      //         fixedAssetsId: item.itemId ?? 0,
+      //         baseCost: unitCost,
+      //         otherCosts: 0,
+      //         purchaseTax: 0,
+      //         startDate: invoice.invoiceDate,
+      //         supplierInvoiceId: invoiceId,
+      //         isActive: true,
+      //       } as any,
+      //       tx as any,
+      //     );
+
+      //     await (this.inventoryMovementsService as any).create(
+      //       userId,
+      //       {
+      //         movementType: 'IN',
+      //         description: `INGRESO ACTIVO POR FACTURA PROVEEDOR ${invoice.invoiceNumber}`,
+      //         documentType: 'COMPRA',
+      //         documentNumber: invoice.invoiceNumber,
+      //         supplierInvoiceId: invoiceId,
+      //         items: [
+      //           {
+      //             itemId: item.itemId ?? 0,
+      //             itemType: 'FIXED_ASSET',
+      //             quantity: quantity,
+      //             unitCost: Number(resultFixedAsset.data.totalCost),
+      //           },
+      //         ],
+      //       } as any,
+      //       tx as any,
+      //     );
+      //   } else if (item.lineType === 'SERVICE') {
+      //     await (this.servicePricesService as any).create(
+      //       userId,
+      //       {
+      //         serviceId: item.itemId ?? 0,
+      //         baseCost: unitCost,
+      //         otherCosts: 0,
+      //         purchaseTax: 0,
+      //         startDate: invoice.invoiceDate,
+      //         isActive: true,
+      //         supplierInvoiceId: invoiceId,
+      //       } as any,
+      //       tx as any,
+      //     );
+      //   }
+      // }
+
+      // ── Crear Cuenta por Pagar ──
+      const cxpStatus = isCash ? 'PAID' : 'PENDING';
+      const rr = await this.accountsPayableService.create(
+        userId,
+        {
+          tenantId,
+          supplierId: invoice.supplierId,
+          supplierInvoiceId: invoiceId,
+          originalAmount: totalAmount,
+          paidAmount: isCash ? totalAmount : 0,
+          remainingAmount: isCash ? 0 : totalAmount,
+          currencyCode: invoice.currencyCode ?? 'VES',
+          status: cxpStatus,
+          dueDate: invoice.dueDate || new Date(),
+          priority: this.isOverdue(invoice.dueDate) ? 'ALTA' : 'NORMAL',
+          observations: `CUENTA POR PAGAR POR FACTURA N° ${invoice.supplierInvoiceNumber}`,
+        },
+        tx,
+      );
+
+
+      // ── Flujo CONTADO: crear transacción bancaria ──
+      if (isCash) {
+        if (!invoice.paymentMethod || !invoice.bankAccountId) {
+          throw new BadRequestException(
+            'Payment method and bank account are required for cash invoices.',
+          );
+        }
+
+        const paymentRef = await this.generateCodeService.generateNextReference(
+          'CXP-PAG',
+          tenantId,
+          'purchasing',
+          'accounts_payables',
+        );
+
+        await tx.insert(supplierTransactions).values({
+          tenantId,
+          supplierId: invoice.supplierId,
+          transactionNumber: paymentRef,
+          transactionType: 'PAYMENT',
+          transactionDate: new Date().toISOString(),
+          amount: totalAmount.toString(),
+          currencyCode: invoice.currencyCode ?? 'VES',
+          status: 'APPLIED',
+          paymentMethod: invoice.paymentMethod,
+          bankAccountId: invoice.bankAccountId,
+          bankReference: invoice.bankReference,
+          observations: `Pago de contado factura ${invoice.invoiceNumber}`,
+          createdById: userId,
+        });
+
+        await tx.insert(schema.bankTransactions).values({
+          tenantId,
+          bankAccountId: invoice.bankAccountId,
+          paymentMethod: invoice.paymentMethod,
+          transactionDate: new Date().toISOString().split('T')[0],
+          description: `Pago a proveedor - Factura ${invoice.invoiceNumber}`,
+          category: 'SUPPLIER_PAYMENT',
+          bankReference: invoice.bankReference ?? paymentRef,
+          debitAmount: totalAmount.toString(),
+          creditAmount: '0.00',
+          reconciliationStatus: 'PENDING',
+          createdById: userId,
+        } as any);
+      }
+
+      // ── Actualizar estado de la OC si está vinculada ──
+      if (invoice.purchaseOrderId) {
+        await updatePurchaseOrderStatus(invoice.purchaseOrderId, tx);
+      }
+
+      // ── Asiento contable ──
+      // try {
+      //   await this.accountingEntriesService.createAutomaticEntry(
+      //     tenantId,
+      //     userId,
+      //     {
+      //       module: 'purchasing',
+      //       submodule: 'supplier-invoices',
+      //       category: 'PURCHASING',
+      //       operationType: 'INVOICE_APPROVED',
+      //       description: `Factura de compra ${invoice.invoiceNumber} - ${supplier[0].name}`,
+      //       entryDate: new Date(invoice.invoiceDate),
+      //       currencyCode: CurrencyCodeEnum.VES,
+      //       originReferenceId: invoiceId,
+      //       originType: 'SUPPLIER_INVOICE',
+      //       items: [
+      //         {
+      //           supplierId: invoice.supplierId,
+      //           amounts: {
+      //             SUBTOTAL: subtotal,
+      //             TAX: taxAmount,
+      //             TOTAL_AMOUNT: totalAmount,
+      //           },
+      //           description: `Factura ${invoice.invoiceNumber}`,
+      //         },
+      //       ],
+      //     },
+      //     tx,
+      //   );
+      // } catch (error: any) {
+      //   if (
+      //     error instanceof BadRequestException &&
+      //     error.message.includes('No existe una regla contable')
+      //   ) {
+      //     // Silently skip if no accounting rules configured
+      //   } else {
+      //     throw error;
+      //   }
+      // }
+
+      // ── Marcar como APROBADA ──
+      await tx
+        .update(supplierInvoices)
+        .set({ status: cxpStatus === 'PAID' ? 'PAID' : 'APPROVED', updatedById: userId })
+        .where(eq(supplierInvoices.id, invoiceId));
+
+      return { message: 'Supplier invoice approved successfully' };
     });
   }
 
@@ -259,13 +431,9 @@ export class SupplierInvoicesService {
           ),
         );
 
-      if (
-        !currentInvoice ||
-        (currentInvoice.status !== 'DRAFT' &&
-          currentInvoice.status !== 'PENDING')
-      ) {
+      if (!currentInvoice || currentInvoice.status !== 'DRAFT') {
         throw new BadRequestException(
-          `Cannot update invoice. Current status is '${currentInvoice?.status}', only 'DRAFT' and 'PENDING' can be modified.`,
+          `Cannot update invoice. Current status is '${currentInvoice?.status}', only DRAFT can be modified.`,
         );
       }
 
@@ -289,7 +457,9 @@ export class SupplierInvoicesService {
           taxAmount: dto.taxAmount?.toString(),
           totalAmount: dto.totalAmount?.toString(),
           paymentType: dto.paymentType ?? 'CREDIT',
-          status: dto.status,
+          paymentMethod: dto.paymentMethod ?? null,
+          bankAccountId: dto.bankAccountId ?? null,
+          bankReference: dto.bankReference ?? null,
           observations: dto.observations,
           updatedById: userId,
         })
@@ -350,447 +520,7 @@ export class SupplierInvoicesService {
     });
   }
 
-  async accountFor(userId: string, id: string, dto: any, tenantId: string) {
-    return this.drizzle.transaction(async (tx) => {
-      const existingInvoice = await tx
-        .select()
-        .from(supplierInvoices)
-        .where(
-          and(
-            eq(supplierInvoices.id, id),
-            eq(supplierInvoices.tenantId, tenantId),
-          ),
-        )
-        .leftJoin(
-          supplierInvoiceItems,
-          eq(supplierInvoices.id, supplierInvoiceItems.invoiceId),
-        );
 
-      if (existingInvoice.length === 0) {
-        throw new NotFoundException('Supplier invoice not found');
-      }
-
-      const originalStatus = existingInvoice[0].supplier_invoices.status;
-      const newStatus = dto.status;
-
-      if (originalStatus === 'PENDING') {
-        if (newStatus === 'ACCOUNTED_FOR') {
-          return this.accountForInvoice(userId, id, dto, tenantId, tx);
-        }
-        throw new BadRequestException(
-          `Cannot update PENDING invoice to status '${newStatus}'. Only 'ACCOUNTED_FOR' is allowed.`,
-        );
-      }
-
-      throw new BadRequestException(
-        `Cannot update invoice with status '${originalStatus}'.`,
-      );
-    });
-  }
-
-  private async accountForInvoice(
-    userId: string,
-    invoiceId: string,
-    dto: any,
-    tenantId: string,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const supplier = await tx
-      .select()
-      .from(suppliers)
-      .where(
-        and(eq(suppliers.id, dto.supplierId), eq(suppliers.status, 'ACTIVE')),
-      );
-
-    if (supplier.length === 0) {
-      throw new BadRequestException(
-        'Supplier is not active or does not exist.',
-      );
-    }
-
-    const existingInvoice = await tx
-      .select()
-      .from(supplierInvoices)
-      .where(
-        and(
-          eq(supplierInvoices.invoiceNumber, dto.invoiceNumber),
-          eq(supplierInvoices.supplierId, dto.supplierId),
-          ne(supplierInvoices.id, invoiceId),
-        ),
-      );
-
-    if (existingInvoice.length !== 0) {
-      throw new ConflictException(
-        'An invoice with this number and supplier already exists.',
-      );
-    }
-
-    if (dto.totalAmount <= 0) {
-      throw new BadRequestException('Total amount must be greater than 0.');
-    }
-
-    if (dto.purchaseOrderId) {
-      await this.updatePurchaseOrderStatus(dto.purchaseOrderId, invoiceId, tx);
-    }
-
-    if (dto.purchaseOrderId) {
-      await this.checkAndClosePurchaseOrder(dto.purchaseOrderId, tx);
-    }
-
-    const invoiceItems = await tx
-      .select()
-      .from(supplierInvoiceItems)
-      .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
-
-    for (const item of invoiceItems) {
-      const quantity = Number(item.quantity);
-      const unitCost = Number(item.unitCost);
-
-      if (item.lineType === 'SALES_INVENTORY') {
-        const resultProduct = await this.productPricesService.create(
-          {
-            productId: item?.itemId ?? 0,
-            suppliersId: dto.supplierId,
-            priceType: 'SELLING' as priceTypeEnum,
-            baseCost: unitCost,
-            otherCosts: 0,
-            isActive: true,
-            supplierInvoiceId: invoiceId,
-          } as any,
-          userId,
-          tx as any,
-        );
-
-        await (this.inventoryMovementsService as any).create(
-          userId,
-          {
-            movementType: 'IN',
-            description: `INGRESO PRODUCTO POR FACTURA DE PROVEEDOR ${dto.invoiceNumber}`,
-            documentType: 'COMPRA',
-            documentNumber: dto.invoiceNumber,
-            supplierInvoiceId: invoiceId,
-            items: [
-              {
-                itemId: item.itemId ?? 0,
-                itemType: 'PRODUCT',
-                quantity: quantity,
-                unitCost: Number(resultProduct.data.totalCost),
-              },
-            ],
-          } as any,
-          tx as any,
-        );
-      } else if (item.lineType === 'FIXED_ASSET') {
-        const resultFixedAsset = await (
-          this.fixedAssetPricesService as any
-        ).create(
-          userId,
-          {
-            fixedAssetsId: item.itemId ?? 0,
-            baseCost: unitCost,
-            otherCosts: 0,
-            purchaseTax: 0,
-            startDate: dto.invoiceDate,
-            supplierInvoiceId: invoiceId,
-            isActive: true,
-          } as any,
-          tx as any,
-        );
-
-        await (this.inventoryMovementsService as any).create(
-          userId,
-          {
-            movementType: 'IN',
-            description: `INGRESO ACTIVO POR FACTURA PROVEEDOR ${dto.invoiceNumber}`,
-            documentType: 'COMPRA',
-            documentNumber: dto.invoiceNumber,
-            supplierInvoiceId: invoiceId,
-            items: [
-              {
-                itemId: item.itemId ?? 0,
-                itemType: 'FIXED_ASSET',
-                quantity: quantity,
-                unitCost: Number(resultFixedAsset.data.totalCost),
-              },
-            ],
-          } as any,
-          tx as any,
-        );
-      } else if (item.lineType === 'SERVICE') {
-        await (this.servicePricesService as any).create(
-          userId,
-          {
-            serviceId: item.itemId ?? 0,
-            baseCost: unitCost,
-            otherCosts: 0,
-            purchaseTax: 0,
-            startDate: dto.invoiceDate,
-            isActive: true,
-            supplierInvoiceId: invoiceId,
-          } as any,
-          tx as any,
-        );
-      }
-    }
-
-    const finalStatus = 'ACCOUNTED_FOR';
-
-    await tx
-      .update(supplierInvoices)
-      .set({ status: finalStatus, updatedById: userId })
-      .where(eq(supplierInvoices.id, invoiceId));
-
-    const finalInvoice = await tx
-      .select({
-        id: supplierInvoices.id,
-        supplierId: supplierInvoices.supplierId,
-        purchaseOrderId: supplierInvoices.purchaseOrderId,
-        invoiceNumber: supplierInvoices.invoiceNumber,
-        controlNumber: supplierInvoices.controlNumber,
-        invoiceDate: supplierInvoices.invoiceDate,
-        dueDate: supplierInvoices.dueDate,
-        subtotal: supplierInvoices.subtotal,
-        taxAmount: supplierInvoices.taxAmount,
-        totalAmount: supplierInvoices.totalAmount,
-        paymentType: supplierInvoices.paymentType,
-        status: supplierInvoices.status,
-        observations: supplierInvoices.observations,
-        supplierInvoiceNumber: supplierInvoices.supplierInvoiceNumber,
-      })
-      .from(supplierInvoices)
-      .where(eq(supplierInvoices.id, invoiceId));
-
-    const items = await tx
-      .select({
-        id: supplierInvoiceItems.id,
-        lineType: supplierInvoiceItems.lineType,
-        description: supplierInvoiceItems.description,
-        quantity: supplierInvoiceItems.quantity,
-        unitCost: supplierInvoiceItems.unitCost,
-        totalLine: supplierInvoiceItems.totalLine,
-        itemId: supplierInvoiceItems.itemId,
-        expenseAccountId: supplierInvoiceItems.expenseAccountId,
-      })
-      .from(supplierInvoiceItems)
-      .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
-
-    await this.handlePaymentAndAccountsPayable(
-      userId,
-      tenantId,
-      invoiceId,
-      finalInvoice[0].supplierInvoiceNumber,
-      dto,
-      tx,
-    );
-
-    try {
-      await this.accountingEntriesService.createAutomaticEntry(
-        tenantId,
-        userId,
-        {
-          module: 'purchasing',
-          submodule: 'supplier-invoices',
-          category: 'PURCHASING',
-          operationType: 'INVOICE_ACCOUNTED',
-          description: `Factura de compra ${dto.invoiceNumber} - ${supplier[0].name}`,
-          entryDate: new Date(
-            dto.invoiceDate instanceof Date
-              ? dto.invoiceDate
-              : new Date(dto.invoiceDate),
-          ),
-          currencyCode: CurrencyCodeEnum.VES,
-          originReferenceId: invoiceId,
-          originType: 'SUPPLIER_INVOICE',
-          items: [
-            {
-              supplierId: dto.supplierId,
-              amounts: {
-                SUBTOTAL: Number(dto.subtotal),
-                TAX: Number(dto.taxAmount || 0),
-                TOTAL_AMOUNT: Number(dto.totalAmount),
-              },
-              description: `Factura ${dto.invoiceNumber}`,
-            },
-          ],
-        },
-        tx,
-      );
-    } catch (error) {
-      if (
-        error instanceof BadRequestException &&
-        error.message.includes('No existe una regla contable')
-      ) {
-        // Silently skip if no accounting rules configured
-      } else {
-        throw error;
-      }
-    }
-
-    return { ...finalInvoice[0], items };
-  }
-
-  private async updatePurchaseOrderStatus(
-    purchaseOrderId: string,
-    invoiceId: string,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const poItems = await tx
-      .select({
-        id: purchaseOrderItems.id,
-        itemId: purchaseOrderItems.itemId,
-        quantity: purchaseOrderItems.quantity,
-        lineType: purchaseOrderItems.lineType,
-        description: purchaseOrderItems.description,
-      })
-      .from(purchaseOrderItems)
-      .where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
-
-    if (poItems.length === 0) {
-      throw new NotFoundException('Purchase Order not found or has no items.');
-    }
-
-    const invoicedItems = await tx
-      .select({
-        id: supplierInvoiceItems.id,
-        itemId: supplierInvoiceItems.itemId,
-        quantity: supplierInvoiceItems.quantity,
-        lineType: supplierInvoiceItems.lineType,
-        description: supplierInvoiceItems.description,
-      })
-      .from(supplierInvoiceItems)
-      .leftJoin(
-        supplierInvoices,
-        eq(supplierInvoiceItems.invoiceId, supplierInvoices.id),
-      )
-      .where(
-        and(
-          eq(supplierInvoices.purchaseOrderId, purchaseOrderId),
-          ne(supplierInvoices.status, 'CANCELLED'),
-          ne(supplierInvoices.id, invoiceId),
-        ),
-      );
-
-    const currentInvoiceItems = await tx
-      .select({
-        id: supplierInvoiceItems.id,
-        itemId: supplierInvoiceItems.itemId,
-        quantity: supplierInvoiceItems.quantity,
-        lineType: supplierInvoiceItems.lineType,
-        description: supplierInvoiceItems.description,
-      })
-      .from(supplierInvoiceItems)
-      .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
-
-    const totalInvoicedPerItem = new Map<string, number>();
-
-    const getUniqueKey = (item: {
-      itemId: string | null;
-      lineType: string;
-      description: string | null;
-    }): string => {
-      if (item.lineType === 'EXPENSE') {
-        if (!item.description) {
-          throw new BadRequestException(
-            'Expense item is missing a description.',
-          );
-        }
-        return `${item.lineType}-${item.description.trim()}`;
-      }
-
-      if (item.itemId === null || item.itemId === undefined) {
-        throw new BadRequestException(
-          `Item with lineType '${item.lineType}' is missing a valid itemId.`,
-        );
-      }
-
-      return `${item.lineType}-${item.itemId}`;
-    };
-
-    for (const item of invoicedItems) {
-      const key = getUniqueKey(item);
-      const currentQty = totalInvoicedPerItem.get(key) || 0;
-      totalInvoicedPerItem.set(key, currentQty + item.quantity);
-    }
-
-    for (const item of currentInvoiceItems) {
-      const key = getUniqueKey(item);
-      const currentQty = totalInvoicedPerItem.get(key) || 0;
-      totalInvoicedPerItem.set(key, currentQty + item.quantity);
-    }
-
-    let isFullyInvoiced = true;
-    for (const poItem of poItems) {
-      const key = getUniqueKey({
-        itemId: poItem.itemId,
-        lineType: poItem.lineType,
-        description: poItem.description,
-      });
-
-      const invoicedQty = totalInvoicedPerItem.get(key) || 0;
-
-      if (invoicedQty > poItem.quantity) {
-        throw new BadRequestException(`Item is being over-invoiced.`);
-      }
-
-      if (invoicedQty < poItem.quantity) {
-        isFullyInvoiced = false;
-      }
-    }
-
-    const newStatus = isFullyInvoiced ? 'INVOICED' : 'RECEIVED';
-
-    await tx
-      .update(purchaseOrders)
-      .set({ status: newStatus })
-      .where(eq(purchaseOrders.id, purchaseOrderId));
-  }
-
-  private async applyCreditNote(
-    cxpId: string,
-    amountToApply: number,
-    userId: string,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const [creditNoteCxp] = await tx
-      .select()
-      .from(accountsPayable)
-      .where(eq(accountsPayable.id, cxpId));
-
-    if (!creditNoteCxp) {
-      throw new NotFoundException(
-        `Credit note with CXP ID ${cxpId} not found.`,
-      );
-    }
-
-    if (Number(creditNoteCxp.remainingAmount) >= 0) {
-      throw new BadRequestException(
-        `CXP ID ${cxpId} is not a valid, open credit note.`,
-      );
-    }
-
-    const availableCredit = Math.abs(Number(creditNoteCxp.remainingAmount));
-
-    if (amountToApply > availableCredit) {
-      throw new BadRequestException(
-        `Amount to apply (${amountToApply}) exceeds the available credit (${availableCredit}) for CXP ID ${cxpId}.`,
-      );
-    }
-
-    const newRemainingAmount =
-      Number(creditNoteCxp.remainingAmount) + amountToApply;
-    const newPaidAmount = creditNoteCxp.paidAmount;
-    const newStatus = newRemainingAmount >= 0 ? 'PAID' : 'PENDING';
-
-    await tx
-      .update(accountsPayable)
-      .set({
-        remainingAmount: newRemainingAmount.toString(),
-        paidAmount: newPaidAmount.toString(),
-        status: newStatus,
-        updatedById: userId,
-      })
-      .where(eq(accountsPayable.id, cxpId));
-  }
 
   private isOverdue(dueDate: string | null): boolean {
     if (!dueDate) return false;
@@ -799,75 +529,6 @@ export class SupplierInvoicesService {
     date.setHours(0, 0, 0, 0);
     now.setHours(0, 0, 0, 0);
     return differenceInDays(date, now) < 0;
-  }
-
-  private async handlePaymentAndAccountsPayable(
-    userId: string,
-    tenantId: string,
-    invoiceId: string,
-    invoiceReference: string,
-    dto: any,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const remainingAmount = dto.totalAmount;
-    const paidAmount = 0;
-
-    const invoiceAP = await this.accountsPayableService.create(
-      userId,
-      {
-        tenantId,
-        supplierId: dto.supplierId,
-        supplierInvoiceId: invoiceId,
-        originalAmount: remainingAmount,
-        paidAmount: paidAmount,
-        remainingAmount: remainingAmount,
-        currencyCode: 'VES',
-        status: remainingAmount <= 0 ? 'PAID' : 'PENDING',
-        dueDate: dto.dueDate || new Date(),
-        priority: this.isOverdue(
-          dto.dueDate
-            ? dto.dueDate instanceof Date
-              ? dto.dueDate.toISOString()
-              : String(dto.dueDate)
-            : null,
-        )
-          ? 'HIGH'
-          : 'NORMAL',
-        observations: `CUENTA POR PAGAR POR FACTURA N° ${invoiceReference}`,
-      },
-      tx,
-    );
-
-    return invoiceAP;
-  }
-
-  private async checkAndClosePurchaseOrder(
-    purchaseOrderId: string,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const po = await tx.query.purchaseOrders.findFirst({
-      where: eq(purchaseOrders.id, purchaseOrderId),
-    });
-
-    if (po?.status !== 'INVOICED') {
-      return;
-    }
-
-    const relatedInvoices = await tx
-      .select()
-      .from(supplierInvoices)
-      .where(eq(supplierInvoices.purchaseOrderId, purchaseOrderId));
-
-    const allPaid = relatedInvoices.every(
-      (invoice) => invoice.status === 'PAID',
-    );
-
-    if (allPaid) {
-      await tx
-        .update(purchaseOrders)
-        .set({ status: 'CLOSED' })
-        .where(eq(purchaseOrders.id, purchaseOrderId));
-    }
   }
 
   async findAll(paginationDto: any, tenantId: string) {
@@ -983,6 +644,11 @@ export class SupplierInvoicesService {
         taxAmount: Number(invoiceRow.invoice.taxAmount),
         totalAmount: Number(invoiceRow.invoice.totalAmount),
         paymentType: invoiceRow.invoice.paymentType,
+        paymentMethod: invoiceRow.invoice.paymentMethod,
+        bankAccountId: invoiceRow.invoice.bankAccountId,
+        bankReference: invoiceRow.invoice.bankReference,
+        currencyCode: invoiceRow.invoice.currencyCode,
+        inventoryMovementId: invoiceRow.invoice.inventoryMovementId,
         status: invoiceRow.invoice.status,
         observations: invoiceRow.invoice.observations,
         items: [] as any[],
@@ -1050,9 +716,9 @@ export class SupplierInvoicesService {
       if (!invoice) {
         throw new NotFoundException('Supplier invoice not found');
       }
-      if (invoice.status === 'CANCELLED' || invoice.status === 'PAID') {
+      if (invoice.status !== 'DRAFT') {
         throw new BadRequestException(
-          'Cannot cancel an invoice that has been accounted for.',
+          'Only DRAFT invoices can be cancelled.',
         );
       }
 
@@ -1133,13 +799,6 @@ export class SupplierInvoicesService {
           .update(accountsPayable)
           .set({ status: 'CANCELLED', remainingAmount: '0.00' })
           .where(eq(accountsPayable.id, accountsPayableToUpdate.id));
-      }
-
-      if (invoice.purchaseOrderId) {
-        await this.drizzle
-          .update(purchaseOrders)
-          .set({ status: 'PENDING' })
-          .where(eq(purchaseOrders.id, invoice.purchaseOrderId));
       }
 
       return { message: 'Supplier invoice cancelled successfully' };
@@ -1367,9 +1026,9 @@ export class SupplierInvoicesService {
         throw new NotFoundException('Supplier invoice not found');
       }
 
-      if (invoice.status !== 'ACCOUNTED_FOR') {
+      if (!['APPROVED', 'PARTIALLY_PAID', 'PAID'].includes(invoice.status)) {
         throw new BadRequestException(
-          `Cannot void invoice with status '${invoice.status}'. Only ACCOUNTED_FOR invoices can be voided.`,
+          `Cannot void invoice with status '${invoice.status}'. Only APPROVED, PARTIALLY_PAID, or PAID invoices can be voided.`,
         );
       }
 
@@ -1440,11 +1099,7 @@ export class SupplierInvoicesService {
         .where(eq(supplierInvoices.id, invoiceId));
 
       if (invoice.purchaseOrderId) {
-        await this.updatePurchaseOrderStatusOnCancel(
-          invoice.purchaseOrderId,
-          invoiceId,
-          tx,
-        );
+        await updatePurchaseOrderStatus(invoice.purchaseOrderId, tx);
       }
 
       return { message: 'Invoice voided successfully' };
@@ -1472,9 +1127,10 @@ export class SupplierInvoicesService {
     }
 
     const validTransitions: Record<string, string[]> = {
-      DRAFT: ['PENDING', 'CANCELLED'],
-      PENDING: ['ACCOUNTED_FOR', 'CANCELLED'],
-      ACCOUNTED_FOR: ['PAID', 'CANCELLED'],
+      DRAFT: ['CANCELLED'],
+      APPROVED: ['PARTIALLY_PAID', 'PAID', 'CANCELLED'],
+      PARTIALLY_PAID: ['PAID', 'CANCELLED'],
+      PAID: ['CANCELLED'],
     };
 
     const allowed = validTransitions[invoice.status];
@@ -1492,7 +1148,7 @@ export class SupplierInvoicesService {
     return { message: `Invoice status updated to ${dto.status}` };
   }
 
-  async findDraftPending(tenantId: string) {
+  async findDraft(tenantId: string) {
     const rawData = await this.drizzle
       .select({
         invoice: supplierInvoices,
@@ -1508,13 +1164,9 @@ export class SupplierInvoicesService {
       .where(
         and(
           eq(supplierInvoices.tenantId, tenantId),
-          or(
-            eq(supplierInvoices.status, 'DRAFT'),
-            eq(supplierInvoices.status, 'PENDING'),
-          ),
+          inArray(supplierInvoices.status, ['APPROVED', 'PARTIALLY_PAID', 'PAID'])
         ),
       );
-
     const groupedData = new Map<string, any>();
 
     rawData.forEach((row) => {
@@ -1560,138 +1212,4 @@ export class SupplierInvoicesService {
     return data;
   }
 
-  async updateStatusToPaid(id: string, tx?: NodePgDatabase<typeof schema>) {
-    const db = tx ?? this.drizzle;
-    const supplierInvoice = await db
-      .select()
-      .from(supplierInvoices)
-      .where(eq(supplierInvoices.id, id));
-
-    if (supplierInvoice.length === 0) {
-      throw new NotFoundException(`Supplier Invoice with ID ${id} not found`);
-    }
-
-    if (supplierInvoice[0].status !== 'ACCOUNTED_FOR') {
-      throw new BadRequestException(
-        `Supplier Invoice ${id} cannot be paid from its current status: ${supplierInvoice[0].status}`,
-      );
-    }
-
-    const [updatedSupplierinvoice] = await db
-      .update(supplierInvoices)
-      .set({ status: 'PAID' })
-      .where(eq(supplierInvoices.id, id))
-      .returning();
-    if (supplierInvoice[0].purchaseOrderId) {
-      await this.checkAndClosePurchaseOrder(
-        supplierInvoice[0].purchaseOrderId,
-        db,
-      );
-    }
-
-    return updatedSupplierinvoice;
-  }
-
-  async updatePurchaseOrderStatusOnCancel(
-    purchaseOrderId: string,
-    cancelledInvoiceId: string,
-    tx: NodePgDatabase<typeof schema>,
-  ) {
-    const poItems = await tx
-      .select({
-        id: purchaseOrderItems.id,
-        itemId: purchaseOrderItems.itemId,
-        quantity: purchaseOrderItems.quantity,
-        lineType: purchaseOrderItems.lineType,
-        description: purchaseOrderItems.description,
-      })
-      .from(purchaseOrderItems)
-      .where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
-
-    if (poItems.length === 0) {
-      return;
-    }
-
-    const otherInvoices = await tx
-      .select({
-        id: supplierInvoices.id,
-        status: supplierInvoices.status,
-      })
-      .from(supplierInvoices)
-      .where(
-        and(
-          eq(supplierInvoices.purchaseOrderId, purchaseOrderId),
-          ne(supplierInvoices.id, cancelledInvoiceId),
-          ne(supplierInvoices.status, 'CANCELLED'),
-        ),
-      );
-
-    const otherInvoiceIds = otherInvoices.map((inv) => inv.id);
-
-    const totalInvoicedPerItem = new Map<string, number>();
-
-    const getUniqueKey = (item: {
-      itemId: string | null;
-      lineType: string;
-      description: string | null;
-    }): string => {
-      if (item.lineType === 'EXPENSE') {
-        if (!item.description) {
-          throw new BadRequestException(
-            'Expense item is missing a description.',
-          );
-        }
-        return `${item.lineType}-${item.description.trim()}`;
-      }
-
-      if (item.itemId === null || item.itemId === undefined) {
-        throw new BadRequestException(
-          `Item with lineType '${item.lineType}' is missing a valid itemId.`,
-        );
-      }
-
-      return `${item.lineType}-${item.itemId}`;
-    };
-
-    if (otherInvoiceIds.length > 0) {
-      const itemsFromOtherInvoices = await tx
-        .select({
-          itemId: supplierInvoiceItems.itemId,
-          quantity: supplierInvoiceItems.quantity,
-          lineType: supplierInvoiceItems.lineType,
-          description: supplierInvoiceItems.description,
-        })
-        .from(supplierInvoiceItems)
-        .where(inArray(supplierInvoiceItems.invoiceId, otherInvoiceIds));
-
-      for (const item of itemsFromOtherInvoices) {
-        const key = getUniqueKey(item);
-        const currentQty = totalInvoicedPerItem.get(key) || 0;
-        totalInvoicedPerItem.set(key, currentQty + item.quantity);
-      }
-    }
-
-    let isFullyCoveredByOtherInvoices = true;
-    for (const poItem of poItems) {
-      const key = getUniqueKey({
-        itemId: poItem.itemId,
-        lineType: poItem.lineType,
-        description: poItem.description,
-      });
-
-      const invoicedQty = totalInvoicedPerItem.get(key) || 0;
-
-      if (invoicedQty < poItem.quantity) {
-        isFullyCoveredByOtherInvoices = false;
-        break;
-      }
-    }
-
-    const newPoStatus = isFullyCoveredByOtherInvoices ? 'RECEIVED' : 'PENDING';
-
-    await tx
-      .update(purchaseOrders)
-      .set({ status: newPoStatus })
-      .where(eq(purchaseOrders.id, purchaseOrderId));
-  }
 }

@@ -1,21 +1,21 @@
 import { z } from 'zod';
 
 export const accountsPayableApiSchema = z.object({
-  id: z.number(),
+  id: z.string(),
+  supplierId: z.string().optional(),
   supplierName: z.string(),
-  supplierTaxId: z.string(),
+  accountsPayableNumber: z.string().optional(),
+  supplierInvoiceId: z.string().optional(),
+  supplierInvoiceNumber: z.string().optional(),
   invoiceNumber: z.string(),
-  originalAmount: z.number(),
-  paidAmount: z.number(),
-  remainingAmount: z.number(),
-  currencyCode: z.string(),
+  originalAmount: z.coerce.number(),
+  paidAmount: z.coerce.number(),
+  remainingAmount: z.coerce.number(),
   status: z.enum(['PENDING', 'AUTHORIZED', 'PAID', 'CANCELLED']),
   dueDate: z.string(),
-  priority: z.enum(['HIGH', 'MEDIUM', 'LOW']),
   isAuthorizePayment: z.boolean(),
   observations: z.string().optional().nullable(),
   createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
 });
 
 export type AccountsPayableApi = z.infer<typeof accountsPayableApiSchema>;

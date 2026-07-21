@@ -312,6 +312,7 @@ export class AccountsPayableService {
 
       await tx.insert(supplierAdvances).values({
         tenantId,
+        supplierAdvanceNumber: supplierAdvanceNumber,
         transactionId: newSupplierTransaction.id,
         supplierId: dto.supplierId,
         amount: dto.amount.toString(),
@@ -476,8 +477,7 @@ export class AccountsPayableService {
           inArray(accountsPayable.supplierId, supplierIds),
           or(
             eq(accountsPayable.status, 'PENDING'),
-            eq(accountsPayable.status, 'IN_PROGRESS'),
-            eq(accountsPayable.status, 'EXPIRED'),
+            eq(accountsPayable.status, 'PARTIALLY_PAID'),
           ),
           eq(accountsPayable.isAuthorizePayment, true),
         ),

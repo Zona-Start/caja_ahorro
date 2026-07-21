@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const InventoryMovementItemSchema = z.object({
   productId: z.string().uuid('ID de producto inválido'),
+  purchaseOrderItemId: z.string().uuid().optional().nullable(),
   quantity: z.preprocess(
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number().int().positive('La cantidad debe ser mayor a 0'),

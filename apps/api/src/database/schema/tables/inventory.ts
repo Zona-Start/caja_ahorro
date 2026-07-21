@@ -425,7 +425,7 @@ export const inventoryMovementItems = inventorySchema.table(
     // ID del producto o ítem de inventario
     productId: uuid('product_id').notNull(), // Añade .references(() => products.id) si tienes la tabla products suelta
 
-    quantity: integer('quantity').notNull(),
+    quantity: numeric('quantity', { precision: 12, scale: 4 }).notNull(),
 
     // Mantenemos alta precisión numérica para costos en el ERP (precision: 18, scale: 6)
     unitCost: numeric('unit_cost', { precision: 18, scale: 6 })

@@ -15,7 +15,7 @@ export function CellAction({ data }: { data: PurchaseOrderApi }) {
   const { mutate: approveOrder, isPending: approving } = useApprovePurchaseOrderMutation();
   const { mutate: downloadPdf, isPending: downloading } = useDownloadPurchaseOrderPdfMutation();
 
-  const canEdit = data.status === 'DRAFT' || data.status === 'PENDING';
+  const canEdit = data.status === 'DRAFT';
   const canApprove = data.status === 'DRAFT';
   const canDownload = data.status !== 'DRAFT';
 

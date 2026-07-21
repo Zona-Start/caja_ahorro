@@ -53,13 +53,15 @@ export const supplierInvoicesService = {
   },
 
   create: async (payload: SupplierInvoiceMutation) => {
-    const response = await apiClient.post('/purchasing/supplier-invoices', payload);
-    return supplierInvoiceApiSchema.parse(response.data);
+    const clean = JSON.parse(JSON.stringify(payload), (_, v) => v === null ? undefined : v);
+    const response = await apiClient.post('/purchasing/supplier-invoices', clean);
+    return supplierInvoiceResponseSchema.parse(response.data).data;
   },
 
   update: async (id: number, payload: SupplierInvoiceMutation) => {
-    const response = await apiClient.patch(`/purchasing/supplier-invoices/${id}`, payload);
-    return supplierInvoiceApiSchema.parse(response.data);
+    const clean = JSON.parse(JSON.stringify(payload), (_, v) => v === null ? undefined : v);
+    const response = await apiClient.patch(`/purchasing/supplier-invoices/${id}`, clean);
+    return supplierInvoiceResponseSchema.parse(response.data).data;
   },
 
   remove: async (id: number) => {
@@ -71,6 +73,11 @@ export const supplierInvoicesService = {
     return payload.id
       ? supplierInvoicesService.update(payload.id, payload)
       : supplierInvoicesService.create(payload);
+  },
+
+  approve: async (id: string) => {
+    const response = await apiClient.post(`/purchasing/supplier-invoices/${id}/approve`);
+    return response.data;
   },
 
   createCreditNote: async (payload: CreditNoteForm) => {
