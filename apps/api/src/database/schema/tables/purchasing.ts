@@ -458,7 +458,7 @@ export const supplierPaymentLines = purchasingSchema.table(
       () => accountsPayable.id,
       { onDelete: 'cascade' },
     ),
-    relatedAdvanceId: integer('related_advance_id'),
+    relatedAdvanceId: uuid('related_advance_id'),
     amount: numeric('amount', { precision: 18, scale: 2 }).notNull(), // siempre positivo
     description: varchar('description', { length: 255 }),
     ...timestamps,

@@ -27,6 +27,49 @@ export const FilterBankReconciliationSchema = z.object({
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
 
+export const AddManualMovementSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  bankAccountId: z.string().uuid(),
+  transactionDate: z.coerce.date(),
+  valueDate: z.coerce.date().optional(),
+  description: z.string().min(1),
+  category: z.string().min(1),
+  bankReference: z.string().max(100).optional(),
+  paymentMethod: z.string().min(1),
+  debitAmount: z.coerce.number().optional().default(0),
+  creditAmount: z.coerce.number().optional().default(0),
+  resultingBalance: z.coerce.number().optional(),
+  note: z.string().optional(),
+});
+
+export const BulkAddMovementsSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  bankAccountId: z.string().uuid(),
+  statementDate: z.coerce.date(),
+  statementEndingBalance: z.coerce.number(),
+  notes: z.string().optional(),
+  movements: z.array(
+    z.object({
+      transactionDate: z.coerce.date(),
+      valueDate: z.coerce.date().optional(),
+      description: z.string().min(1),
+      category: z.string().min(1),
+      bankReference: z.string().max(100).optional(),
+      paymentMethod: z.string().min(1),
+      debitAmount: z.coerce.number().optional().default(0),
+      creditAmount: z.coerce.number().optional().default(0),
+      resultingBalance: z.coerce.number().optional(),
+      note: z.string().optional(),
+    }),
+  ),
+});
+
+export const FilterBankTransactionsForReconciliationSchema = z.object({
+  bankAccountId: z.string().uuid(),
+  reconciliationStatus: z.string().optional(),
+  search: z.string().optional(),
+});
+
 export type CreateBankReconciliationDto = z.infer<
   typeof CreateBankReconciliationSchema
 >;
@@ -35,4 +78,9 @@ export type AddReconciliationDetailDto = z.infer<
 >;
 export type FilterBankReconciliationDto = z.infer<
   typeof FilterBankReconciliationSchema
+>;
+export type AddManualMovementDto = z.infer<typeof AddManualMovementSchema>;
+export type BulkAddMovementsDto = z.infer<typeof BulkAddMovementsSchema>;
+export type FilterBankTransactionsForReconciliationDto = z.infer<
+  typeof FilterBankTransactionsForReconciliationSchema
 >;

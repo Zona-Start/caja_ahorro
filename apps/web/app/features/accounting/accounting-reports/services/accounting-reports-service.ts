@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import {
+  associatesBalanceResponseSchema,
   balanceSheetResponseSchema,
   generalLedgerResponseSchema,
   incomeStatementResponseSchema,
@@ -61,5 +62,16 @@ export class AccountingReportsService {
     });
     const response = await apiClient.get(`/accounting-reports/income-statement?${queryParams.toString()}`);
     return incomeStatementResponseSchema.parse(response.data);
+  }
+
+  static async getAssociatesBalance(filters: any) {
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        queryParams.append(key, String(value));
+      }
+    });
+    const response = await apiClient.get(`/accounting-reports/associates-balance?${queryParams.toString()}`);
+    return associatesBalanceResponseSchema.parse(response.data);
   }
 }

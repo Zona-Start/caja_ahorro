@@ -37,7 +37,11 @@ export class OutboxProcessor implements OnModuleDestroy {
   }
 
   start(): void {
-    if (this.timer) return;
+    // TODO: descomentar cuando se resuelva el error de BD:
+    // invalid input syntax for type integer: "bank_transactions" en audit_events.target_type
+    this.logger.warn(`[${LOG}.started] OutboxProcessor DESHABILITADO temporalmente`);
+    return;
+    // if (this.timer) return;
     this.logger.log(
       `[${LOG}.started] pollMs=${this.pollIntervalMs} batch=${this.batchSize} maxRetries=${this.maxRetries} backoffMs=${this.baseBackoffMs}`,
     );

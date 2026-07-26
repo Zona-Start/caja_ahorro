@@ -66,7 +66,7 @@ export function OpenCycleModal({ open, onOpenChange }: OpenCycleModalProps) {
 
     try {
       await openCycleMutation.mutateAsync({
-        targetCycleId: parseInt(targetCycleId),
+        targetCycleId,
       });
       handleOpenChange(false);
     } catch (error) {

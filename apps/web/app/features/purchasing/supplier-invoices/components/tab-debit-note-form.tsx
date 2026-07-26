@@ -89,16 +89,12 @@ export function TabDebitNoteForm({ onSuccess, onCancel, suppliers, saveMutation,
               <FormLabel>CxP asociada (opcional)</FormLabel>
               <Select value={field.value ?? ''} onValueChange={(v) => field.onChange(v || null)}>
                 <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar CxP" /></SelectTrigger></FormControl>
-                <SelectContent>{supplierCxPs.map((cxp) => (<SelectItem key={cxp.id} value={cxp.id}>{cxp.accountsPayableNumber} - Pend: {cxp.remainingAmount}</SelectItem>))}</SelectContent>
+                <SelectContent>{supplierCxPs.map((cxp: any) => (
+                  <SelectItem key={cxp.id} value={cxp.id}>
+                    {cxp.accountsPayableNumber || cxp.invoiceNumber || cxp.id} - {cxp.status || 'N/A'}
+                  </SelectItem>
+                ))}</SelectContent>
               </Select>
-              <FormMessage />
-            </FormItem>
-          )} />
-
-          <FormField control={form.control} name="debitNoteNumber" render={({ field }) => (
-            <FormItem>
-              <FormLabel>Número de ND</FormLabel>
-              <FormControl><Input placeholder="N° nota de débito" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )} />

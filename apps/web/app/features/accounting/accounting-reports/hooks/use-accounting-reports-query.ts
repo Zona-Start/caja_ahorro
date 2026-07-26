@@ -41,3 +41,11 @@ export function useIncomeStatement(params: any) {
     enabled: !!params.accountingCycleId,
   });
 }
+
+export function useAssociatesBalance(params: any) {
+  return useQuery({
+    queryKey: QUERY_KEYS.accountingReports.associatesBalance(params),
+    queryFn: () => AccountingReportsService.getAssociatesBalance(params),
+    enabled: !!params.accountingCycleId,
+  });
+}

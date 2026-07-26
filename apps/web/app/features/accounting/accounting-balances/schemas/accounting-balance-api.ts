@@ -3,7 +3,8 @@ import { accountingBalanceSchema } from './accounting-balance.schema';
 
 export const accountingBalanceApiResponseSchema = z.object({
   message: z.string(),
-  data: accountingBalanceSchema,
+  data: accountingBalanceSchema.optional(),
+  closingEntryId: z.string().optional(),
 });
 
 export const accountingBalanceListApiResponseSchema = z.object({
@@ -14,31 +15,20 @@ export const accountingBalanceListApiResponseSchema = z.object({
       limit: z.number(),
       totalCount: z.number(),
       totalPages: z.number(),
-      hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
-      nextPage: z.number().nullable(),
-      previousPage: z.number().nullable(),
     })
     .optional(),
 });
 
 export const bootstrappingResponseSchema = z.object({
   message: z.string(),
-  stats: z.object({
-    count: z.number(),
-    totalAmount: z.number(),
-  }),
+  processedAccounts: z.number().optional(),
 });
 
 export const closeCycleResponseSchema = z.object({
   message: z.string(),
+  closingEntryId: z.string().optional(),
 });
 
 export const openCycleResponseSchema = z.object({
-  id: z.number(),
-  companyId: z.number(),
-  startDate: z.string(),
-  endDate: z.string(),
-  description: z.string().optional(),
-  status: z.string(),
+  message: z.string(),
 });

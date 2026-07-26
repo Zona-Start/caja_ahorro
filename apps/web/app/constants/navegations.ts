@@ -253,7 +253,7 @@ export const navGroups: NavGroup[] = [
         // },
       },
       {
-        label: 'Facturas',
+        label: 'Recepción Facturas',
         href: '/dashboard/compras/facturas',
         icon: Receipt,
         // requiresPermission: {
@@ -272,7 +272,7 @@ export const navGroups: NavGroup[] = [
       },
 
       {
-        label: 'Pagos',
+        label: 'Pagos Proveedores',
         href: '/dashboard/compras/pagos',
         icon: FileText,
         // requiresPermission: {
@@ -311,6 +311,15 @@ export const navGroups: NavGroup[] = [
           resource: 'banking:transactions',
           action: 'read',
         },
+      },
+      {
+        label: 'Conciliación',
+        href: '/dashboard/configuracion/conciliaciones',
+        icon: ArrowRightLeft,
+        // requiresPermission: {
+        //   resource: 'banking:reconciliations',
+        //   action: 'read',
+        // },
       },
 
     ],
@@ -355,15 +364,31 @@ export const navGroups: NavGroup[] = [
       {
         label: 'Reportes Contables',
         href: '#',
-        icon: Users,
+        icon: FileText,
         items: [
           {
             label: 'Libro Diario',
-            href: '/dashboard/contabilidad/libro-diario',
+            href: '/dashboard/contabilidad/reportes?tab=journal-book',
           },
           {
-            label: 'Mayor General',
-            href: '/dashboard/contabilidad/mayor-general',
+            label: 'Libro Mayor',
+            href: '/dashboard/contabilidad/reportes?tab=general-ledger',
+          },
+          {
+            label: 'Bal. Comprobación',
+            href: '/dashboard/contabilidad/reportes?tab=trial-balance',
+          },
+          {
+            label: 'Balance General',
+            href: '/dashboard/contabilidad/reportes?tab=balance-sheet',
+          },
+          {
+            label: 'Est. de Resultados',
+            href: '/dashboard/contabilidad/reportes?tab=income-statement',
+          },
+          {
+            label: 'Bal. de Asociados',
+            href: '/dashboard/contabilidad/reportes?tab=associates-balance',
           },
         ],
       },

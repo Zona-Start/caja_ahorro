@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge } from '@repo/shadcn/badge';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
 import { type ColumnDef } from '@tanstack/react-table';
 import { type SettlementPaymentApi } from '../../schemas/settlement-api-response';
 import { ESTATUS_TYPES } from '../../schemas/settlement-options';

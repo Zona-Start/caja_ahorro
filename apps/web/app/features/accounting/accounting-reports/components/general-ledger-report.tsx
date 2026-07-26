@@ -1,4 +1,4 @@
-import { useAccountingAccounts } from '@/features/accounting-accounts/hooks/use-accounting-accounts-query';
+import { useAccountingAccounts } from '@/features/accounting/accounting-accounts/hooks/use-accounting-accounts-query';
 import { useAccountingCycles } from '@/features/accounting/accounting-cycles/hooks/use-accounting-cycles-query';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
@@ -51,7 +51,12 @@ export function GeneralLedgerReport() {
   };
 
   const handleExport = () => {
-    console.log('Exportar a Excel');
+    const params = new URLSearchParams();
+    if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.accountPlanId) params.append('accountPlanId', filters.accountPlanId);
+    window.open(`/accounting-reports/general-ledger/pdf?${params.toString()}`, '_blank');
   };
 
   return (
@@ -187,17 +192,17 @@ export function GeneralLedgerReport() {
                           <TableCell className="text-right font-mono">
                             {Number(entry.debit) > 0
                               ? Number(entry.debit).toLocaleString('es-VE', {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })
                               : ''}
                           </TableCell>
                           <TableCell className="text-right font-mono">
                             {Number(entry.credit) > 0
                               ? Number(entry.credit).toLocaleString('es-VE', {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })
                               : ''}
                           </TableCell>
                           <TableCell className="text-right font-mono">

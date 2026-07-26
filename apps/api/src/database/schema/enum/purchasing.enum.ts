@@ -53,6 +53,7 @@ export const paymentAccountsPayableEnum = purchasingSchema.enum(
   'payment_accounts_payable',
   [
     'PENDING', // 	Se crea CxP con fecha de vencimiento.
+    'APPROVED', //  Aprobada, lista para pagar.
     'PARTIALLY_PAID', //Se genera un pago parcial o está en lote bancario.
     'PAID', // Totalmente saldada.
     'CANCELLED', //Se cancela por nota de crédito o error.

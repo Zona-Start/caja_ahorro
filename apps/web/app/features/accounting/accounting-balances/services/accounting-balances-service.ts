@@ -65,7 +65,7 @@ export class AccountingBalancesService {
     return bootstrappingResponseSchema.parse(response.data);
   }
 
-  static async closeCycle(cycleId: number, payload: CloseCycle) {
+  static async closeCycle(cycleId: string, payload: CloseCycle) {
     const response = await apiClient.post(`/accounting-balance/close/${cycleId}`, payload);
     return closeCycleResponseSchema.parse(response.data);
   }

@@ -37,7 +37,11 @@ export function TrialBalanceReport() {
   };
 
   const handleExport = () => {
-    console.log('Exportar a Excel');
+    const params = new URLSearchParams();
+    if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
+    if (filters.level) params.append('level', filters.level);
+    if (filters.onlyWithMovements) params.append('onlyWithMovements', filters.onlyWithMovements);
+    window.open(`/accounting-reports/trial-balance/pdf?${params.toString()}`, '_blank');
   };
 
   return (

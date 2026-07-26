@@ -134,13 +134,10 @@ export class GenerateCodeService {
     tenantId: string,
     module: string,
     submodule: string,
-    tx?: NodePgDatabase<typeof schema>,
+    txPassed?: NodePgDatabase<typeof schema>,
   ): Promise<string> {
-    const db = tx ?? this.db;
-    // const year = new Date().getFullYear();
-
-    return db.transaction(async (transaction) => {
-      const [setting] = await transaction
+    const run = async (db: NodePgDatabase<typeof schema>) => {
+      const [setting] = await db
         .select()
         .from(moduleSettings)
         .where(
@@ -156,7 +153,7 @@ export class GenerateCodeService {
 
       if (!setting) {
         const initialValue = '1';
-        const [newSetting] = await transaction
+        const [newSetting] = await db
           .insert(moduleSettings)
           .values({
             tenantId,
@@ -173,14 +170,18 @@ export class GenerateCodeService {
       const next = parseInt(setting.value ?? '0', 10) + 1;
       const nextStr = next.toString().padStart(6, '0');
 
-      await transaction
+      await db
         .update(moduleSettings)
         .set({ value: next.toString(), updatedAt: new Date() })
         .where(eq(moduleSettings.id, setting.id));
 
-      // return `${prefix}-${year}-${nextStr}`;
       return `${prefix}-${nextStr}`;
-    });
+    };
+
+    if (txPassed) {
+      return run(txPassed);
+    }
+    return this.db.transaction(run);
   }
 
   async generateGlobalCode(

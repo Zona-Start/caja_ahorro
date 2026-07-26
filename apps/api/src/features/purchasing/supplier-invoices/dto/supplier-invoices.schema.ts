@@ -83,7 +83,7 @@ export const CreateCreditNoteSchema = z.object({
   amount: z.coerce.number().positive(),
   taxAmount: z.coerce.number().optional().default(0),
   observations: z.string().optional(),
-  creditNoteNumber: z.string(),
+  creditNoteNumber: z.string().optional(),
   notesDate: z.coerce.date(),
   returnItems: z
     .array(
@@ -106,7 +106,7 @@ export const CreateDebitNoteSchema = z.object({
   amount: z.coerce.number().positive(),
   taxAmount: z.coerce.number().optional().default(0),
   observations: z.string().optional(),
-  debitNoteNumber: z.string(),
+  debitNoteNumber: z.string().optional(),
   notesDate: z.coerce.date(),
 });
 

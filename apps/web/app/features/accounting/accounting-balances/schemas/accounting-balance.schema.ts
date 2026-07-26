@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const accountingBalanceSchema = z.object({
-  id: z.number().optional(),
-  companyId: z.number(),
-  accountingCycleId: z.number(),
-  accountPlanId: z.number(),
+  id: z.string().optional(),
+  companyId: z.string().optional(),
+  accountingCycleId: z.string().optional(),
+  accountPlanId: z.string().optional(),
   initialBalance: z.string(),
   debitBalance: z.string(),
   creditBalance: z.string(),
@@ -17,7 +17,7 @@ export const accountingBalanceSchema = z.object({
 export const balanceItemSchema = z.object({
   accountCode: z.string().min(1, 'El código de cuenta es requerido'),
   descripcion: z.string().min(1, 'La descripción es requerida'),
-  balance: z.number().min(0, 'El balance debe ser mayor o igual a 0'),
+  balance: z.number(),
 });
 
 export const initialLoadSchema = z.object({
@@ -31,7 +31,7 @@ export const closeCycleSchema = z.object({
 });
 
 export const openCycleSchema = z.object({
-  targetCycleId: z.number().min(1, 'El ID del ciclo a abrir es requerido'),
+  targetCycleId: z.string().min(1, 'El ID del ciclo a abrir es requerido'),
 });
 
 export type AccountingBalance = z.infer<typeof accountingBalanceSchema>;

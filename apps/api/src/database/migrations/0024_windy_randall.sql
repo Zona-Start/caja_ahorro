@@ -1,0 +1,1 @@
+ALTER TYPE "purchasing"."payment_accounts_payable" ADD VALUE 'APPROVED' BEFORE 'PARTIALLY_PAID';

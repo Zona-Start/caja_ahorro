@@ -40,7 +40,12 @@ export function JournalBookReport() {
   };
 
   const handleExport = () => {
-    console.log('Exportar a Excel');
+    const params = new URLSearchParams();
+    if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.search) params.append('search', filters.search);
+    window.open(`/accounting-reports/journal-book/pdf?${params.toString()}`, '_blank');
   };
 
   return (
@@ -138,18 +143,14 @@ export function JournalBookReport() {
                   key={entry.entryId}
                   className="border rounded-lg overflow-hidden"
                 >
-                  <div className="bg-muted/50 px-4 py-3 grid grid-cols-4 gap-4 text-sm">
+                  <div className="bg-muted/50 px-4 py-3 grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="font-medium">Fecha:</span>{' '}
                       {new Date(entry.entryDate).toLocaleDateString()}
                     </div>
                     <div>
                       <span className="font-medium">Asiento:</span>{' '}
-                      {entry.entryId}
-                    </div>
-                    <div>
-                      <span className="font-medium">Referencia:</span>{' '}
-                      {entry.originReferenceId || 'N/A'}
+                      {entry.voucherNo ?? entry.entryId.slice(0, 8)}
                     </div>
                     <div>
                       <span className="font-medium">Descripción:</span>{' '}

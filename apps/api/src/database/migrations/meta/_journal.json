@@ -169,6 +169,27 @@
       "when": 1784586712474,
       "tag": "0023_goofy_ben_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784937801255,
+      "tag": "0024_windy_randall",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784941639100,
+      "tag": "0025_sparkling_queen_noir",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1784941674474,
+      "tag": "0026_misty_maddog",
+      "breakpoints": true
     }
   ]
 }

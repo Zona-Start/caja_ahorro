@@ -9,10 +9,9 @@ import {
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
 import { CheckCircle, Eye, MoreHorizontal } from 'lucide-react';
-import { formatCurrency } from '@/lib/format-utils';
-import { useAccountsPayableDetailQuery } from '../../hooks/use-accounts-payable-queries';
 import { useAuthorizeAccountsPayableMutation } from '../../hooks/use-accounts-payable-mutations';
 import type { AccountsPayableApi } from '../../schemas/accounts-payable-api.schema';
+import { AccountsPayableViewModal } from './accounts-payable-view-modal';
 
 interface CellActionProps {
   data: AccountsPayableApi;
@@ -22,35 +21,21 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [openAuthorize, setOpenAuthorize] = useState(false);
   const [openView, setOpenView] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const { mutate: authorize } = useAuthorizeAccountsPayableMutation();
-  const { data: detailData } = useAccountsPayableDetailQuery(
-    selectedId!,
-    selectedId !== null,
-  );
+  const { mutateAsync: authorize } = useAuthorizeAccountsPayableMutation();
 
   const isPending = data.status === 'PENDING';
 
   const onConfirm = async () => {
     try {
       setLoading(true);
-      authorize(data.id);
+      await authorize(data.id);
       setOpenAuthorize(false);
     } catch {
-      // Error handled in mutation
+      return;
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleView = () => {
-    setSelectedId(data.id);
-    setOpenView(true);
-  };
-
-  const handleAuthorize = () => {
-    setOpenAuthorize(true);
   };
 
   return (
@@ -64,71 +49,11 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         description="Una vez autorizada, la cuenta por pagar estará disponible para su pago."
       />
 
-      {detailData && openView && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => {
-            setOpenView(false);
-            setSelectedId(null);
-          }}
-        >
-          <div
-            className="bg-background rounded-lg shadow-lg w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-xl font-semibold mb-4">
-              Cuenta por Pagar #{detailData.invoiceNumber}
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Proveedor</p>
-                <p className="font-medium">{detailData.supplierName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  N° CXP
-                </p>
-                <p className="font-medium">{detailData.accountsPayableNumber}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Monto Original
-                </p>
-                <p className="font-medium">
-                  {formatCurrency(detailData.originalAmount, 'VES')}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Saldo Pendiente
-                </p>
-                <p className="font-medium">
-                  {formatCurrency(detailData.remainingAmount, 'VES')}
-                </p>
-              </div>
-              {detailData.observations && (
-                <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground">
-                    Observaciones
-                  </p>
-                  <p className="font-medium">{detailData.observations}</p>
-                </div>
-              )}
-            </div>
-            <div className="mt-6 flex justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setOpenView(false);
-                  setSelectedId(null);
-                }}
-              >
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AccountsPayableViewModal
+        open={openView}
+        onOpenChange={setOpenView}
+        accountId={openView ? data.id : undefined}
+      />
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -137,7 +62,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleView}>
+          <DropdownMenuItem onClick={() => setOpenView(true)}>
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
@@ -145,7 +70,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={handleAuthorize}
+                onClick={() => setOpenAuthorize(true)}
                 className="text-green-600 focus:text-green-600 focus:bg-green-50"
               >
                 <CheckCircle className="mr-2 h-4 w-4" />

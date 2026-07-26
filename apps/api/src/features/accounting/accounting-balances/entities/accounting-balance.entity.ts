@@ -2,16 +2,16 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class AccountBalance {
   @ApiProperty()
-  id: number;
+  id: string;
 
   @ApiProperty()
-  companyId: number;
+  tenantId: string;
 
   @ApiProperty()
-  accountPlanId: number;
+  accountPlanId: string;
 
   @ApiProperty()
-  accountingCyclesId: number;
+  accountingCyclesId: string;
 
   @ApiProperty()
   initialBalance: string;

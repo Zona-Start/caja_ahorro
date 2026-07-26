@@ -59,7 +59,7 @@ export function useCloseCycleMutation() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ cycleId, payload }: { cycleId: number; payload: CloseCycle }) => 
+    mutationFn: ({ cycleId, payload }: { cycleId: string; payload: CloseCycle }) => 
       AccountingBalancesService.closeCycle(cycleId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({

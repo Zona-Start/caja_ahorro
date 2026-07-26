@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/shadcn/tabs';
 import { useSearchParams } from 'react-router';
 import { useCallback, useEffect, useState } from 'react';
+import { AssociatesBalanceReport } from './associates-balance-report';
 import { BalanceSheetReport } from './balance-sheet-report';
 import { GeneralLedgerReport } from './general-ledger-report';
 import { IncomeStatementReport } from './income-statement-report';
@@ -69,9 +70,7 @@ export function AccountingReportsPage() {
         </TabsContent>
 
         <TabsContent value="associates-balance">
-          <div className="text-center py-12 text-muted-foreground">
-            Próximamente: Balance de Asociados
-          </div>
+          <AssociatesBalanceReport />
         </TabsContent>
       </Tabs>
     </div>

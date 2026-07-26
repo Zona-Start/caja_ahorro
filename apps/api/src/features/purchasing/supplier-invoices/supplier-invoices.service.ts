@@ -14,7 +14,7 @@ import {
   supplierTransactionApplications,
   supplierTransactions,
 } from '@/database/schema';
-import { CurrencyCodeEnum, priceTypeEnum } from '@/types/enum';
+import { CurrencyCodeEnum, paymentAccountsPayableEnum, priceTypeEnum } from '@/types/enum';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { updatePurchaseOrderStatus } from '@/features/purchasing/shared/update-purchase-order-status';
 import {
@@ -831,6 +831,8 @@ export class SupplierInvoicesService {
           tx,
         );
 
+      const creditNoteNumber = dto.creditNoteNumber || referenceNumber;
+
       const [newTransaction] = await tx
         .insert(supplierTransactions)
         .values({
@@ -845,9 +847,8 @@ export class SupplierInvoicesService {
           amount: dto.amount.toString(),
           currencyCode: 'VES',
           status: 'ACTIVE',
-          observations:
-            dto.observations ??
-            `Nota de crédito ${dto.creditNoteNumber}: ${dto.reason}`,
+          observations: dto.observations ??
+            `Nota de crédito ${creditNoteNumber}: ${dto.reason}`,
           createdById: userId,
         })
         .returning();
@@ -857,7 +858,7 @@ export class SupplierInvoicesService {
         transactionId: newTransaction.id,
         supplierId: dto.supplierId,
         accountsPayableId: dto.accountsPayableId || null,
-        creditNoteNumber: dto.creditNoteNumber,
+        creditNoteNumber,
         reason: dto.reason,
         amount: dto.amount.toString(),
         availableAmount: dto.amount.toString(),
@@ -884,6 +885,49 @@ export class SupplierInvoicesService {
             } as any,
             tx as any,
           );
+        }
+      }
+
+      if (dto.accountsPayableId) {
+        const [cxp] = await tx
+          .select()
+          .from(accountsPayable)
+          .where(eq(accountsPayable.id, dto.accountsPayableId));
+
+        if (cxp && cxp.status !== 'PAID' && cxp.status !== 'CANCELLED') {
+          const ncAmount = Number(dto.amount);
+          const newRemaining = Number(cxp.remainingAmount) - ncAmount;
+          const newPaid = Number(cxp.paidAmount) + ncAmount;
+          const newStatus = newRemaining <= 0 ? 'PAID' : 'PARTIALLY_PAID';
+
+          await tx
+            .update(accountsPayable)
+            .set({
+              remainingAmount: String(Math.max(0, newRemaining)),
+              paidAmount: String(newPaid),
+              status: newStatus as paymentAccountsPayableEnum,
+              updatedById: userId,
+            })
+            .where(eq(accountsPayable.id, dto.accountsPayableId));
+
+          await tx.insert(supplierTransactionApplications).values({
+            tenantId,
+            transactionId: newTransaction.id,
+            accountsPayableId: dto.accountsPayableId,
+            appliedAmount: dto.amount.toString(),
+            applicationDate: new Date().toISOString(),
+            createdById: userId,
+          });
+
+          await tx
+            .update(supplierCreditNotes)
+            .set({ availableAmount: '0.00' })
+            .where(eq(supplierCreditNotes.transactionId, newTransaction.id));
+
+          await tx
+            .update(supplierTransactions)
+            .set({ status: 'APPLIED' })
+            .where(eq(supplierTransactions.id, newTransaction.id));
         }
       }
 
@@ -927,6 +971,8 @@ export class SupplierInvoicesService {
           tx,
         );
 
+      const debitNoteNumber = dto.debitNoteNumber || referenceNumber;
+
       const [newTransaction] = await tx
         .insert(supplierTransactions)
         .values({
@@ -941,9 +987,8 @@ export class SupplierInvoicesService {
           amount: dto.amount.toString(),
           currencyCode: 'VES',
           status: 'APPLIED',
-          observations:
-            dto.observations ??
-            `Nota de débito ${dto.debitNoteNumber}: ${dto.reason}`,
+          observations: dto.observations ??
+            `Nota de débito ${debitNoteNumber}: ${dto.reason}`,
           createdById: userId,
         })
         .returning();
@@ -953,38 +998,61 @@ export class SupplierInvoicesService {
         transactionId: newTransaction.id,
         supplierId: dto.supplierId,
         accountsPayableId: dto.accountsPayableId || null,
-        debitNoteNumber: dto.debitNoteNumber,
+        debitNoteNumber,
         reason: dto.reason,
         amount: dto.amount.toString(),
         createdById: userId,
       });
 
       if (dto.accountsPayableId) {
-        await tx.insert(supplierTransactionApplications).values({
-          tenantId,
-          transactionId: newTransaction.id,
-          accountsPayableId: dto.accountsPayableId,
-          appliedAmount: dto.amount.toString(),
-          applicationDate: new Date().toISOString(),
-          createdById: userId,
-        });
-
         const [cxp] = await tx
           .select()
           .from(accountsPayable)
           .where(eq(accountsPayable.id, dto.accountsPayableId));
 
-        if (cxp) {
+        if (cxp && cxp.status === 'PAID') {
+          const cxpNumber = await this.generateCodeService.generateNextReference(
+            'CXP',
+            tenantId,
+            'purchasing',
+            'payables',
+            tx,
+          );
+
+          await tx.insert(accountsPayable).values({
+            tenantId,
+            supplierId: dto.supplierId,
+            supplierInvoiceId: cxp.supplierInvoiceId || null,
+            accountsPayableNumber: cxpNumber,
+            originalAmount: dto.amount.toString(),
+            paidAmount: '0.00',
+            remainingAmount: dto.amount.toString(),
+            dueDate: new Date().toISOString(),
+            currencyCode: 'VES',
+            status: 'PENDING',
+            observations: `Generada por ND ${dto.debitNoteNumber}: ${dto.reason}`,
+            createdById: userId,
+          });
+        } else if (cxp) {
+          await tx.insert(supplierTransactionApplications).values({
+            tenantId,
+            transactionId: newTransaction.id,
+            accountsPayableId: dto.accountsPayableId,
+            appliedAmount: dto.amount.toString(),
+            applicationDate: new Date().toISOString(),
+            createdById: userId,
+          });
+
           const newRemaining =
             Number(cxp.remainingAmount) + Number(dto.amount);
-          const newPaid =
-            Number(cxp.paidAmount) - Number(dto.amount);
+          const newPaid = Number(cxp.paidAmount) - Number(dto.amount);
 
           await tx
             .update(accountsPayable)
             .set({
               remainingAmount: newRemaining.toString(),
               paidAmount: Math.max(newPaid, 0).toString(),
+              status: 'APPROVED' as paymentAccountsPayableEnum,
               updatedById: userId,
             })
             .where(eq(accountsPayable.id, dto.accountsPayableId));

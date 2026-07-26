@@ -40,7 +40,7 @@ export function CloseCycleModal({ open, onOpenChange }: CloseCycleModalProps) {
 
     try {
       await closeCycleMutation.mutateAsync({
-        cycleId: parseInt(cycleId),
+        cycleId,
         payload: { isFiscalYearEnd },
       });
       onOpenChange(false);

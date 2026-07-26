@@ -191,8 +191,29 @@ export class AccountsPayableService {
 
   async findOne(id: string, tenantId: string) {
     const [result] = await this.drizzle
-      .select()
+      .select({
+        id: accountsPayable.id,
+        supplierId: suppliers.id,
+        supplierName: suppliers.name,
+        accountsPayableNumber: accountsPayable.accountsPayableNumber,
+        supplierInvoiceId: accountsPayable.supplierInvoiceId,
+        supplierInvoiceNumber: supplierInvoices.supplierInvoiceNumber,
+        originalAmount: accountsPayable.originalAmount,
+        paidAmount: accountsPayable.paidAmount,
+        remainingAmount: accountsPayable.remainingAmount,
+        status: accountsPayable.status,
+        observations: accountsPayable.observations,
+        dueDate: accountsPayable.dueDate,
+        createdAt: accountsPayable.createdAt,
+        isAuthorizePayment: accountsPayable.isAuthorizePayment,
+        invoiceNumber: supplierInvoices.invoiceNumber,
+      })
       .from(accountsPayable)
+      .leftJoin(
+        supplierInvoices,
+        eq(accountsPayable.supplierInvoiceId, supplierInvoices.id),
+      )
+      .leftJoin(suppliers, eq(accountsPayable.supplierId, suppliers.id))
       .where(
         and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
       );
@@ -221,14 +242,15 @@ export class AccountsPayableService {
 
     const [updated] = await this.drizzle
       .update(accountsPayable)
-      .set({ isAuthorizePayment: true, updatedById: userId })
+      .set({ status: 'APPROVED', isAuthorizePayment: true, updatedById: userId })
       .where(
         and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
       )
       .returning();
 
     if (!updated) throw new NotFoundException('Account payable not found');
-    return updated;
+
+    return this.findOne(id, tenantId);
   }
 
   async update(userId: string, id: string, dto: any, tenantId: string) {

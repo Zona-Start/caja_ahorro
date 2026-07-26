@@ -11,7 +11,7 @@ export const accountsPayableApiSchema = z.object({
   originalAmount: z.coerce.number(),
   paidAmount: z.coerce.number(),
   remainingAmount: z.coerce.number(),
-  status: z.enum(['PENDING', 'AUTHORIZED', 'PAID', 'CANCELLED']),
+  status: z.enum(['PENDING', 'APPROVED', 'PARTIALLY_PAID', 'PAID', 'CANCELLED']),
   dueDate: z.string(),
   isAuthorizePayment: z.boolean(),
   observations: z.string().optional().nullable(),

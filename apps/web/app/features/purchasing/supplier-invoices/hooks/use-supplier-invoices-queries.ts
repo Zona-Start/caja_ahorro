@@ -126,9 +126,13 @@ export function useServicesAllQuery(enabled = true) {
 
 const accountsPayableBySupplierSchema = z.object({
   id: z.string(),
-  accountsPayableNumber: z.string(),
+  accountsPayableNumber: z.string().optional(),
+  supplierInvoiceNumber: z.string().optional(),
+  invoiceNumber: z.string().optional(),
   supplierName: z.string().optional(),
-  remainingAmount: z.number().optional(),
+  remainingAmount: z.coerce.number().optional(),
+  originalAmount: z.coerce.number().optional(),
+  status: z.string().optional(),
 });
 
 export function useAccountsPayableBySupplierQuery(

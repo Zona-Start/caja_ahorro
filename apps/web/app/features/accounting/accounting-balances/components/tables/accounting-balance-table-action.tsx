@@ -46,7 +46,7 @@ export function AccountingBalanceTableAction() {
         <Button
           variant="outline"
           onClick={() => setIsCloseCycleOpen(true)}
-          disabled={!hasOpenCycle}
+          disabled={!hasOpenCycle || !hasBalances}
         >
           <FileLock className="mr-2 h-4 w-4" />
           Cierre Contable

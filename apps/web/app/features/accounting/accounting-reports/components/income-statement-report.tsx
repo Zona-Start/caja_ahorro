@@ -2,7 +2,7 @@ import { useAccountingCycles } from '@/features/accounting/accounting-cycles/hoo
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { Label } from '@repo/shadcn/label';
-import { cn } from '@repo/shadcn/utils';
+import { cn } from '@repo/shadcn/lib/utils';
 import {
   Select,
   SelectContent,
@@ -35,7 +35,10 @@ export function IncomeStatementReport() {
   };
 
   const handleExport = () => {
-    console.log('Exportar a Excel');
+    const params = new URLSearchParams();
+    if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
+    if (filters.detailLevel) params.append('detailLevel', filters.detailLevel);
+    window.open(`/accounting-reports/income-statement/pdf?${params.toString()}`, '_blank');
   };
 
   const renderAccount = (account: any) => {

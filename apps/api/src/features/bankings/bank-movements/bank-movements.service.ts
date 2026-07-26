@@ -25,7 +25,7 @@ export class BankMovementsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private readonly db: DrizzleDatabase,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   async findAll(tenantId: string, dto: FilterBankMovementDto) {
     const {
@@ -242,6 +242,7 @@ export class BankMovementsService {
   ) {
     const db = tx ?? this.db;
     const internalCode = await this._getNextMovementCode(tenantId, userId, db);
+
     const [row] = await db
       .insert(schema.bankTransactions)
       .values({
@@ -262,6 +263,7 @@ export class BankMovementsService {
         createdById: userId,
       })
       .returning();
+
 
     if (!tx) {
       this.eventEmitter.emit(
@@ -404,9 +406,8 @@ export class BankMovementsService {
     tenantId: string,
     tx?: DrizzleDatabase,
   ) {
-    const db = tx ?? this.db;
-    return db.transaction(async (tx) => {
-      const movement = await this.create(dto.movement, userId, tenantId, tx);
+    const run = async (db: DrizzleDatabase) => {
+      const movement = await this.create(dto.movement, userId, tenantId, db);
 
       if (dto.links && dto.links.length > 0) {
         const linkValues: (typeof schema.internalTransactionBankLinks.$inferInsert)[] =
@@ -418,9 +419,9 @@ export class BankMovementsService {
             linkedBy: userId,
           }));
 
-        await tx.insert(schema.internalTransactionBankLinks).values(linkValues);
+        await db.insert(schema.internalTransactionBankLinks).values(linkValues);
 
-        await tx
+        await db
           .update(schema.bankTransactions)
           .set({
             reconciliationStatus: 'RECONCILED',
@@ -429,27 +430,13 @@ export class BankMovementsService {
           .where(eq(schema.bankTransactions.id, movement.id));
       }
 
-      if (!tx || (tx as any)._isExternalTx !== false) {
-        this.eventEmitter.emit(
-          'audit.log',
-          new AuditLogEvent({
-            userId,
-            action: 'INSERT',
-            tableName: 'bank_transactions',
-            recordId: movement.id,
-            description: `Bank movement created and reconciled: ${movement.description}`,
-            area: 'Treasury',
-            newData: { movement, links: dto.links },
-            tenantId,
-          }),
-        );
-      }
+      return { message: 'Movement created and reconciled successfully', movement };
+    };
 
-      return {
-        message: 'Movement created and reconciled successfully',
-        movement,
-      };
-    });
+    if (tx) {
+      return run(tx);
+    }
+    return this.db.transaction(run);
   }
 
   async getLinkables(category: string, tenantId: string, dto: GetLinkablesDto) {

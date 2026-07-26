@@ -8,7 +8,8 @@ import { CellAction } from './cell-action';
 
 const statusVariant: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   PENDING: 'secondary',
-  AUTHORIZED: 'default',
+  APPROVED: 'default',
+  PARTIALLY_PAID: 'outline',
   PAID: 'outline',
   CANCELLED: 'destructive',
 };

@@ -78,6 +78,15 @@ export class SupplierPaymentsController {
     };
   }
 
+  @Get('/all-credits')
+  @ApiOperation({ summary: 'Get all available credits (advances + credit notes) globally' })
+  @ApiResponse({ status: 200, description: 'Return all available credits.' })
+  async findAllCredits(@Req() req: any) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    const data = await this.supplierPaymentsService.findAllCredits(targetTenantId);
+    return { message: 'Credits fetched successfully', data };
+  }
+
   @Get('/supplier-available-credits/:id')
   @ApiOperation({ summary: 'Get all supplier available credits' })
   @ApiResponse({

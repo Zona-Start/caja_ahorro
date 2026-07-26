@@ -35,7 +35,7 @@ export class SupplierPaymentsService {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly bankMovementsService: BankMovementsService,
     private readonly generateCodeService: GenerateCodeService,
-  ) {}
+  ) { }
 
   async findAll(paginationDto: any, tenantId: string) {
     const { page = 1, limit = 10, search = '', status } = paginationDto;
@@ -289,6 +289,7 @@ export class SupplierPaymentsService {
     const searchCondition = and(
       ...searchConditions,
       eq(accountsPayable.isAuthorizePayment, true),
+      inArray(accountsPayable.status, ['APPROVED', 'PARTIALLY_PAID'] as paymentAccountsPayableEnum[]),
     );
 
     const searchConditionAdvanceFinal = and(
@@ -475,6 +476,70 @@ export class SupplierPaymentsService {
         })
         .where(eq(supplierTransactions.id, dto.transactionId));
 
+      const transactionNumber =
+        await this.generateCodeService.generateNextReference(
+          'TRS-P',
+          tenantId,
+          'purchasing',
+          'transactions',
+          tx,
+        );
+
+      const [newTransaction] = await tx
+        .insert(supplierTransactions)
+        .values({
+          tenantId,
+          supplierId: dto.supplierId,
+          transactionNumber: transactionNumber,
+          transactionType: 'PAYMENT',
+          transactionDate:
+            dto.transactionDate instanceof Date
+              ? dto.transactionDate.toISOString()
+              : String(dto.transactionDate || new Date().toISOString()),
+          amount: dto.amount.toString(),
+          currencyCode: dto.currencyCode || 'VES',
+          status: 'APPLIED',
+          paymentMethod: dto.paymentMethod as paymentMethodEnum,
+          bankAccountId: dto.bankAccountId,
+          bankReference: dto.bankReference || null,
+          bankTransactionDate:
+            dto.transactionDate instanceof Date
+              ? dto.transactionDate.toISOString()
+              : String(dto.transactionDate || new Date().toISOString()),
+          observations: `Desembolso de anticipo N° ${paymentNumber}`,
+          createdById: userId,
+        })
+        .returning({
+          id: supplierTransactions.id,
+          reference: supplierTransactions.transactionNumber,
+        });
+
+      const dataBank = {
+        movement: {
+          bankAccountId: dto.bankAccountId,
+          transactionDate: dto.transactionDate ?? new Date(),
+          paymentMethod: dto.paymentMethod as paymentMethodEnum,
+          description: dto.paymentDescription ?? 'Anticipo a proveedor',
+          bankReference: dto?.bankReference ?? undefined,
+          category: 'SUPPLIER_PAYMENT' as BankTransactionCategory,
+          creditAmount: 0,
+          debitAmount: dto.amount,
+          createdById: userId,
+        },
+        links: [
+          {
+            internalRecordType: 'SUPPLIER_PAYMENT',
+            internalRecordId: newTransaction.id,
+          },
+        ],
+      };
+      await this.bankMovementsService.createAndReconcile(
+        dataBank as any,
+        userId,
+        tenantId,
+        tx as any,
+      );
+
       return newPayment;
     });
   }
@@ -583,6 +648,79 @@ export class SupplierPaymentsService {
     return [...advances, ...noteCredit];
   }
 
+  async findAllCredits(tenantId: string) {
+    const advances = await this.db
+      .select({
+        id: supplierTransactions.id,
+        transactionNumber: supplierTransactions.transactionNumber,
+        transactionType: supplierTransactions.transactionType,
+        amount: supplierAdvances.amount,
+        availableAmount: supplierAdvances.availableAmount,
+        status: supplierAdvances.statusPayment,
+        date: supplierTransactions.transactionDate,
+        supplierId: suppliers.id,
+        supplierName: suppliers.name,
+        observations: supplierTransactions.observations,
+      })
+      .from(supplierAdvances)
+      .leftJoin(
+        supplierTransactions,
+        eq(supplierAdvances.transactionId, supplierTransactions.id),
+      )
+      .leftJoin(suppliers, eq(supplierAdvances.supplierId, suppliers.id))
+      .where(
+        and(
+          eq(supplierAdvances.tenantId, tenantId),
+          eq(supplierAdvances.statusPayment, 'PAID'),
+        ),
+      )
+      .orderBy(desc(supplierTransactions.transactionDate));
+
+    const creditNotes = await this.db
+      .select({
+        id: supplierTransactions.id,
+        transactionNumber: supplierTransactions.transactionNumber,
+        transactionType: supplierTransactions.transactionType,
+        amount: supplierCreditNotes.amount,
+        availableAmount: supplierCreditNotes.availableAmount,
+        status: supplierTransactions.status,
+        date: supplierTransactions.transactionDate,
+        supplierId: suppliers.id,
+        supplierName: suppliers.name,
+        observations: supplierTransactions.observations,
+      })
+      .from(supplierCreditNotes)
+      .leftJoin(
+        supplierTransactions,
+        eq(supplierCreditNotes.transactionId, supplierTransactions.id),
+      )
+      .leftJoin(suppliers, eq(supplierCreditNotes.supplierId, suppliers.id))
+      .where(
+        and(
+          eq(supplierCreditNotes.tenantId, tenantId),
+          eq(supplierTransactions.status, 'ACTIVE'),
+        ),
+      )
+      .orderBy(desc(supplierTransactions.transactionDate));
+
+    const all = [...advances, ...creditNotes].sort(
+      (a, b) =>
+        new Date(b.date || '').getTime() - new Date(a.date || '').getTime(),
+    );
+
+    const summary = {
+      totalAvailable: all.reduce(
+        (sum, c) => sum + Number(c.availableAmount || 0),
+        0,
+      ),
+      advanceCount: advances.length,
+      creditNoteCount: creditNotes.length,
+      totalCount: all.length,
+    };
+
+    return { items: all, summary };
+  }
+
   async createAndExecutePayment(
     dto: any,
     userId: string,
@@ -603,23 +741,41 @@ export class SupplierPaymentsService {
             supplierPayments.paymentMethod,
             dto.paymentMethod as paymentMethodEnum,
           ),
-          eq(supplierPayments.bankReference, dto.bankReference),
+          eq(supplierPayments.bankReference, dto.bankReference || ''),
         ),
       );
 
     if (validatePayment.length !== 0) {
-      throw new NotFoundException(`Payment with the same data already exists`);
+      throw new BadRequestException(`Payment with the same data already exists`);
     }
 
-    const [cxp] = await db
+    const cxps = await db
       .select()
       .from(accountsPayable)
+      .leftJoin(suppliers, eq(accountsPayable.supplierId, suppliers.id))
       .where(
         and(
-          eq(accountsPayable.id, dto.accountPayableId),
+          inArray(accountsPayable.id, dto.accountPayableIds),
           eq(accountsPayable.tenantId, tenantId),
         ),
       );
+
+    if (cxps.length !== dto.accountPayableIds.length) {
+      throw new NotFoundException('One or more accounts payable not found');
+    }
+
+    for (const cxp of cxps) {
+      if (cxp.accounts_payable.supplierId !== dto.supplierId) {
+        throw new BadRequestException(
+          'All accounts payable must belong to the same supplier',
+        );
+      }
+      if (!['APPROVED', 'PARTIALLY_PAID'].includes(cxp.accounts_payable.status)) {
+        throw new BadRequestException(
+          `Account payable ${cxp.accounts_payable.accountsPayableNumber} is not in an authorized state`,
+        );
+      }
+    }
 
     return db.transaction(async (tx) => {
       const paymentNumber =
@@ -631,13 +787,16 @@ export class SupplierPaymentsService {
           tx,
         );
 
+      const cxpNumbers = cxps.map((c) => c.accounts_payable.accountsPayableNumber).join(', ');
+      const totalAmount = dto.totalAmount || dto.amount || 0;
+
       const [newPayment] = await tx
         .insert(supplierPayments)
         .values({
           tenantId,
           supplierId: dto.supplierId,
           paymentNumber: paymentNumber,
-          totalAmount: dto.amount.toString(),
+          totalAmount: String(totalAmount),
           currencyCode: 'VES',
           paymentMethod: dto.paymentMethod as paymentMethodEnum,
           bankAccountId: dto.bankAccountId,
@@ -645,25 +804,18 @@ export class SupplierPaymentsService {
           requestedAt: new Date().toISOString(),
           createdById: userId,
           bankDescription: dto.paymentDescription,
-          bankReference: dto.bankReference,
+          bankReference: dto.bankReference || null,
           bankTransactionDate:
             dto.transactionDate instanceof Date
               ? dto.transactionDate.toISOString()
-              : String(dto.transactionDate),
-          observations: `Pago cta. por pagar N°${cxp.accountsPayableNumber}`,
+              : String(dto.transactionDate || new Date()),
+          observations: `Pago cta. por pagar N°${cxpNumbers}`,
+          processedAt: new Date().toISOString(),
         })
         .returning({
           id: supplierPayments.id,
           reference: supplierPayments.paymentNumber,
         });
-
-      await tx.insert(supplierPaymentLines).values({
-        supplierPaymentId: newPayment.id,
-        accountsPayableId: dto.accountPayableId,
-        amount: dto.amount.toString(),
-        description: dto.paymentDescription,
-        createdById: userId,
-      });
 
       const transactionNumber =
         await this.generateCodeService.generateNextReference(
@@ -671,6 +823,7 @@ export class SupplierPaymentsService {
           tenantId,
           'purchasing',
           'transactions',
+          tx,
         );
 
       const [newTransaction] = await tx
@@ -683,18 +836,18 @@ export class SupplierPaymentsService {
           transactionDate:
             dto.transactionDate instanceof Date
               ? dto.transactionDate.toISOString()
-              : String(dto.transactionDate),
-          amount: dto.amount.toString(),
+              : String(dto.transactionDate || new Date()),
+          amount: String(totalAmount),
           currencyCode: 'VES',
           status: 'APPLIED',
           paymentMethod: dto.paymentMethod as paymentMethodEnum,
           bankAccountId: dto.bankAccountId,
-          bankReference: dto.bankReference,
+          bankReference: dto.bankReference || null,
           bankTransactionDate:
             dto.transactionDate instanceof Date
               ? dto.transactionDate.toISOString()
-              : String(dto.transactionDate),
-          observations: `Pago de Cuenta por Pagar N° ${cxp.accountsPayableNumber} con referencia a pago N° ${newPayment.reference}`,
+              : String(dto.transactionDate || new Date()),
+          observations: `Pago de Cuentas por Pagar N° ${cxpNumbers} con referencia a pago N° ${newPayment.reference}`,
           createdById: userId,
         })
         .returning({
@@ -702,16 +855,75 @@ export class SupplierPaymentsService {
           reference: supplierTransactions.transactionNumber,
         });
 
-      await tx.insert(supplierTransactionApplications).values({
-        tenantId,
-        transactionId: newTransaction.id,
-        accountsPayableId: dto.accountPayableId,
-        appliedAmount: dto.amount.toString(),
-        applicationDate: new Date().toISOString(),
-        createdById: userId,
-      });
+      const creditTotal = (dto.creditAplied || []).reduce(
+        (sum: number, c: any) => sum + Number(c.appliedAmount),
+        0,
+      );
 
-      if (dto.creditAplied && dto.creditAplied.length !== 0) {
+      let remainingToApply = totalAmount + creditTotal;
+
+      for (const cxp of cxps) {
+        const cxpData = cxp.accounts_payable;
+        const remAmount = Number(cxpData.remainingAmount);
+        if (remAmount <= 0) continue;
+
+        const cxpAmount = Math.min(remAmount, remainingToApply);
+        remainingToApply -= cxpAmount;
+
+        const newPaid = Number(cxpData.paidAmount) + cxpAmount;
+        const newRem = Number(cxpData.originalAmount) - newPaid;
+
+        let newStatus: string = 'PARTIALLY_PAID';
+        if (newRem <= 0) newStatus = 'PAID';
+
+        await tx
+          .update(accountsPayable)
+          .set({
+            paidAmount: String(newPaid),
+            remainingAmount: String(Math.max(0, newRem)),
+            status: newStatus as paymentAccountsPayableEnum,
+            updatedById: userId,
+          })
+          .where(eq(accountsPayable.id, cxpData.id));
+
+        await tx.insert(supplierPaymentLines).values({
+          supplierPaymentId: newPayment.id,
+          accountsPayableId: cxpData.id,
+          amount: String(cxpAmount),
+          description: `Línea de pago para CxP N° ${cxpData.accountsPayableNumber}`,
+          createdById: userId,
+        });
+
+        await tx.insert(supplierTransactionApplications).values({
+          tenantId,
+          transactionId: newTransaction.id,
+          accountsPayableId: cxpData.id,
+          appliedAmount: String(cxpAmount),
+          applicationDate: new Date().toISOString(),
+          createdById: userId,
+        });
+
+        if (newStatus === 'PAID' && cxpData.supplierInvoiceId) {
+          const [invoice] = await tx
+            .select({ purchaseorderId: supplierInvoices.purchaseOrderId })
+            .from(supplierInvoices)
+            .where(eq(supplierInvoices.id, cxpData.supplierInvoiceId));
+
+          await tx
+            .update(supplierInvoices)
+            .set({ status: 'PAID', updatedById: userId })
+            .where(eq(supplierInvoices.id, cxpData.supplierInvoiceId));
+
+          if (invoice?.purchaseorderId) {
+            await tx
+              .update(purchaseOrders)
+              .set({ status: 'CLOSED', updatedById: userId })
+              .where(eq(purchaseOrders.id, invoice.purchaseorderId));
+          }
+        }
+      }
+
+      if (dto.creditAplied && dto.creditAplied.length > 0) {
         for (const line of dto.creditAplied) {
           const [credit] = await tx
             .select()
@@ -726,13 +938,14 @@ export class SupplierPaymentsService {
                 ),
               ),
             );
+
           const available = Number(credit.amount) - Number(line.appliedAmount);
 
           if (line.transactionType === 'CREDIT_NOTE') {
             await tx
               .update(supplierTransactions)
               .set({
-                status: available === 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
+                status: available <= 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
                 updatedById: userId,
               })
               .where(eq(supplierTransactions.id, line.id));
@@ -740,7 +953,7 @@ export class SupplierPaymentsService {
             await tx
               .update(supplierCreditNotes)
               .set({
-                availableAmount: String(available),
+                availableAmount: String(Math.max(0, available)),
                 updatedById: userId,
               })
               .where(eq(supplierCreditNotes.transactionId, line.id));
@@ -748,7 +961,7 @@ export class SupplierPaymentsService {
             await tx.insert(supplierTransactionApplications).values({
               tenantId,
               transactionId: line.id,
-              accountsPayableId: dto.accountPayableId,
+              accountsPayableId: dto.accountPayableIds[0],
               appliedAmount: String(line.appliedAmount),
               applicationDate: new Date().toISOString(),
               createdById: userId,
@@ -757,20 +970,23 @@ export class SupplierPaymentsService {
             await tx
               .update(supplierTransactions)
               .set({
-                status: available === 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
+                status: available <= 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
                 updatedById: userId,
               })
               .where(eq(supplierTransactions.id, line.id));
 
-            await tx.update(supplierAdvances).set({
-              availableAmount: String(available),
-              updatedById: userId,
-            });
+            await tx
+              .update(supplierAdvances)
+              .set({
+                availableAmount: String(Math.max(0, available)),
+                updatedById: userId,
+              })
+              .where(eq(supplierAdvances.transactionId, line.id));
 
             await tx.insert(supplierTransactionApplications).values({
               tenantId,
               transactionId: line.id,
-              accountsPayableId: dto.accountPayableId,
+              accountsPayableId: dto.accountPayableIds[0],
               appliedAmount: String(line.appliedAmount),
               applicationDate: new Date().toISOString(),
               createdById: userId,
@@ -788,7 +1004,7 @@ export class SupplierPaymentsService {
           bankReference: dto?.bankReference ?? undefined,
           category: 'SUPPLIER_PAYMENT' as BankTransactionCategory,
           creditAmount: 0,
-          debitAmount: dto.amount,
+          debitAmount: totalAmount,
           createdById: userId,
         },
         links: [
@@ -798,70 +1014,17 @@ export class SupplierPaymentsService {
           },
         ],
       };
+
       await this.bankMovementsService.createAndReconcile(
         dataBank as any,
         userId,
+        tenantId,
         tx as any,
       );
 
-      const cashAmount = Number(dto.amount);
-      const creditTotal = (dto.creditAplied || []).reduce(
-        (sum: number, c: any) => sum + Number(c.appliedAmount),
-        0,
-      );
-
-      const totalApplied = cashAmount + creditTotal;
-      const newPaid = Number(cxp.paidAmount) + totalApplied;
-      const newRem = Number(cxp.remainingAmount) - newPaid;
-
-      let newStatus: string = 'PARTIALLY_PAID';
-      if (newRem <= 0) newStatus = 'PAID';
-
-      await tx
-        .update(accountsPayable)
-        .set({
-          paidAmount: String(newPaid),
-          remainingAmount: String(newRem),
-          status: newStatus as paymentAccountsPayableEnum,
-          updatedById: userId,
-        })
-        .where(eq(accountsPayable.id, dto.accountPayableId));
-
-      if (newStatus === 'PAID' && cxp.supplierInvoiceId) {
-        await tx
-          .update(supplierInvoices)
-          .set({
-            status: 'PAID',
-            updatedById: userId,
-          })
-          .where(eq(supplierInvoices.id, cxp.supplierInvoiceId));
-      }
-
-      if (!cxp.supplierInvoiceId) {
-        return { data: newPayment };
-      }
-
-      const [supplierInvoice] = await tx
-        .select({
-          purchaseorderId: supplierInvoices.purchaseOrderId,
-        })
-        .from(supplierInvoices)
-        .where(eq(supplierInvoices.id, cxp.supplierInvoiceId));
-
-      if (supplierInvoice?.purchaseorderId) {
-        if (newStatus === 'PAID') {
-          await tx
-            .update(purchaseOrders)
-            .set({
-              status: 'CLOSED',
-              updatedById: userId,
-            })
-            .where(eq(purchaseOrders.id, supplierInvoice.purchaseorderId));
-        }
-      }
-
       return {
         data: newPayment,
+        transaction: newTransaction,
       };
     });
   }

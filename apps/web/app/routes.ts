@@ -179,6 +179,14 @@ const routes: RouteConfig = [
       'configuracion/movimientos-bancarios',
       'routes/dashboard/configuracion/bank-movements.tsx',
     ),
+    route(
+      'configuracion/conciliaciones',
+      'routes/dashboard/configuracion/bank-reconciliation.tsx',
+    ),
+    route(
+      'configuracion/conciliaciones/:id',
+      'routes/dashboard/configuracion/bank-reconciliation-detail.tsx',
+    ),
   ]),
 ];
 

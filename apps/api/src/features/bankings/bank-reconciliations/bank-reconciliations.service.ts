@@ -8,10 +8,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { and, eq, sql, SQL } from 'drizzle-orm';
+import { and, eq, isNull, sql, SQL, or } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as ExcelJS from 'exceljs';
 import {
+  AddManualMovementDto,
   AddReconciliationDetailDto,
+  BulkAddMovementsDto,
   CreateBankReconciliationDto,
   FilterBankReconciliationDto,
 } from './dto/bank-reconciliations.schema';
@@ -22,6 +25,13 @@ export class BankReconciliationsService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  private generateInternalCode(tenantId: string): string {
+    const prefix = 'BTX';
+    const ts = Date.now().toString(36).toUpperCase().slice(-6);
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}-${ts}${random}`;
+  }
 
   async create(
     dto: CreateBankReconciliationDto,
@@ -122,6 +132,353 @@ export class BankReconciliationsService {
       .returning();
 
     return insertedDetail;
+  }
+
+  async addManualMovement(
+    reconciliationId: string,
+    dto: AddManualMovementDto,
+    userId: string,
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [recon] = await tx
+        .select()
+        .from(schema.bankReconciliations)
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
+        .for('update');
+
+      if (!recon) {
+        throw new NotFoundException('Conciliación no encontrada');
+      }
+
+      if (recon.status !== 'IN_PROGRESS') {
+        throw new BadRequestException(
+          'Solo se pueden agregar movimientos a conciliaciones en progreso',
+        );
+      }
+
+      const internalCode = this.generateInternalCode(tenantId);
+
+      const [transaction] = await tx
+        .insert(schema.bankTransactions)
+        .values({
+          tenantId,
+          bankAccountId: dto.bankAccountId,
+          transactionDate: dto.transactionDate.toISOString().split('T')[0],
+          valueDate: dto.valueDate
+            ? dto.valueDate.toISOString().split('T')[0]
+            : null,
+          description: dto.description,
+          category: dto.category as any,
+          bankReference: dto.bankReference ?? null,
+          paymentMethod: dto.paymentMethod as any,
+          debitAmount: (dto.debitAmount ?? 0).toString(),
+          creditAmount: (dto.creditAmount ?? 0).toString(),
+          resultingBalance: dto.resultingBalance?.toString() ?? null,
+          internalCode,
+          reconciliationStatus: 'RECONCILED' as any,
+          bankReconciliationId: reconciliationId,
+          note: dto.note ?? null,
+        } as any)
+        .returning();
+
+      await tx.insert(schema.bankReconciliationDetails).values({
+        bankReconciliationId: reconciliationId,
+        bankTransactionId: transaction.id,
+        description: `Movimiento manual: ${dto.description}`,
+      });
+
+      return transaction;
+    });
+  }
+
+  async addBulkMovements(
+    reconciliationId: string,
+    movementIds: string[],
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [recon] = await tx
+        .select()
+        .from(schema.bankReconciliations)
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
+        .for('update');
+
+      if (!recon) {
+        throw new NotFoundException('Conciliación no encontrada');
+      }
+
+      if (recon.status !== 'IN_PROGRESS') {
+        throw new BadRequestException(
+          'Solo se pueden agregar movimientos a conciliaciones en progreso',
+        );
+      }
+
+      for (const movementId of movementIds) {
+        await tx
+          .update(schema.bankTransactions)
+          .set({
+            reconciliationStatus: 'RECONCILED',
+            bankReconciliationId: reconciliationId,
+          })
+          .where(
+            and(
+              eq(schema.bankTransactions.id, movementId),
+              eq(schema.bankTransactions.tenantId, tenantId),
+            ),
+          );
+
+        await tx.insert(schema.bankReconciliationDetails).values({
+          bankReconciliationId: reconciliationId,
+          bankTransactionId: movementId,
+          description: `Movimiento vinculado a conciliación`,
+        });
+      }
+
+      return { message: `${movementIds.length} movimientos agregados` };
+    });
+  }
+
+  async uploadExcelAndCreateReconciliation(
+    fileBuffer: Buffer,
+    dto: { bankAccountId: string; statementDate: Date; statementEndingBalance: number; notes?: string },
+    userId: string,
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [bankAccount] = await tx
+        .select({
+          id: schema.bankAccounts.id,
+          currentBalance: schema.bankAccounts.currentBalance,
+        })
+        .from(schema.bankAccounts)
+        .where(
+          and(
+            eq(schema.bankAccounts.id, dto.bankAccountId),
+            eq(schema.bankAccounts.tenantId, tenantId),
+          ),
+        );
+
+      if (!bankAccount) {
+        throw new NotFoundException('Cuenta bancaria no encontrada');
+      }
+
+      const bookBalanceBefore = bankAccount.currentBalance?.toString() ?? '0';
+
+      const [reconciliation] = await tx
+        .insert(schema.bankReconciliations)
+        .values({
+          tenantId,
+          bankAccountId: dto.bankAccountId,
+          statementDate: dto.statementDate.toISOString().split('T')[0],
+          statementEndingBalance: dto.statementEndingBalance.toString(),
+          bookBalanceBefore,
+          preparedByUserId: userId,
+          status: 'IN_PROGRESS',
+          notes: dto.notes ?? null,
+        })
+        .returning();
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(fileBuffer);
+      const worksheet = workbook.worksheets[0];
+
+      const uploadBatchId = crypto.randomUUID();
+      const movementIds: string[] = [];
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+
+        const vals = row.values as any[];
+        const transactionDate = vals[1] ? new Date(vals[1]) : null;
+        const description = vals[2]?.toString()?.trim();
+        const category = vals[3]?.toString()?.trim() || 'OTHER_EXPENSE';
+        const bankReference = vals[4]?.toString()?.trim() || null;
+        const paymentMethod = vals[5]?.toString()?.trim() || 'BANK_TRANSFER';
+        const debitAmount = vals[6] ? Number(vals[6]) : 0;
+        const creditAmount = vals[7] ? Number(vals[7]) : 0;
+        const valueDate = vals[8] ? new Date(vals[8]) : null;
+        const note = vals[9]?.toString()?.trim() || null;
+
+        if (!transactionDate || !description) return;
+
+        movementIds.push({
+          transactionDate,
+          description,
+          category,
+          bankReference,
+          paymentMethod,
+          debitAmount,
+          creditAmount,
+          valueDate,
+          note,
+        } as any);
+      });
+
+      for (const m of movementIds) {
+        const internalCode = this.generateInternalCode(tenantId);
+        const [transaction] = await tx
+          .insert(schema.bankTransactions)
+          .values({
+            tenantId,
+            bankAccountId: dto.bankAccountId,
+            transactionDate: (m as any).transactionDate.toISOString().split('T')[0],
+            valueDate: (m as any).valueDate
+              ? (m as any).valueDate.toISOString().split('T')[0]
+              : null,
+            description: (m as any).description,
+            category: (m as any).category as any,
+            bankReference: (m as any).bankReference,
+            paymentMethod: (m as any).paymentMethod as any,
+            debitAmount: ((m as any).debitAmount ?? 0).toString(),
+            creditAmount: ((m as any).creditAmount ?? 0).toString(),
+            internalCode,
+            reconciliationStatus: 'RECONCILED' as any,
+            bankReconciliationId: reconciliation.id,
+            uploadBatchId,
+            note: (m as any).note,
+          } as any)
+          .returning();
+
+        await tx.insert(schema.bankReconciliationDetails).values({
+          bankReconciliationId: reconciliation.id,
+          bankTransactionId: transaction.id,
+          description: `Importado desde Excel: ${(m as any).description}`,
+        });
+      }
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          tableName: 'bank_reconciliations',
+          recordId: reconciliation.id,
+          action: 'CREATE',
+          userId,
+          area: 'BANKING',
+          description: `Bank reconciliation created from Excel upload. ${movementIds.length} movements imported.`,
+          newData: reconciliation,
+          tenantId,
+        }),
+      );
+
+      return {
+        reconciliation,
+        movementsImported: movementIds.length,
+      };
+    });
+  }
+
+  async getAvailableTransactions(
+    bankAccountId: string,
+    tenantId: string,
+  ) {
+    return this.drizzle
+      .select()
+      .from(schema.bankTransactions)
+      .where(
+        and(
+          eq(schema.bankTransactions.bankAccountId, bankAccountId),
+          eq(schema.bankTransactions.tenantId, tenantId),
+          or(
+            eq(schema.bankTransactions.reconciliationStatus, 'PENDING'),
+            eq(schema.bankTransactions.reconciliationStatus, 'MANUAL_MATCH'),
+          ),
+          isNull(schema.bankTransactions.bankReconciliationId),
+        ),
+      )
+      .orderBy(sql`${schema.bankTransactions.transactionDate} desc`);
+  }
+
+  async cancelReconciliation(
+    reconciliationId: string,
+    userId: string,
+    tenantId: string,
+  ) {
+    return this.drizzle.transaction(async (tx) => {
+      const [recon] = await tx
+        .select()
+        .from(schema.bankReconciliations)
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
+        .for('update');
+
+      if (!recon) {
+        throw new NotFoundException('Conciliación no encontrada');
+      }
+
+      if (recon.status === 'COMPLETED') {
+        throw new BadRequestException(
+          'No se puede cancelar una conciliación completada',
+        );
+      }
+
+      await tx
+        .update(schema.bankTransactions)
+        .set({
+          reconciliationStatus: 'PENDING',
+          bankReconciliationId: null,
+        })
+        .where(
+          and(
+            eq(schema.bankTransactions.bankReconciliationId, reconciliationId),
+            eq(schema.bankTransactions.tenantId, tenantId),
+          ),
+        );
+
+      await tx
+        .delete(schema.bankReconciliationDetails)
+        .where(
+          eq(
+            schema.bankReconciliationDetails.bankReconciliationId,
+            reconciliationId,
+          ),
+        );
+
+      const [cancelled] = await tx
+        .update(schema.bankReconciliations)
+        .set({
+          status: 'REVIEWED',
+          notes: sql`COALESCE(${schema.bankReconciliations.notes}, '') || ' [CANCELADA]'`,
+        })
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
+        .returning();
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          tableName: 'bank_reconciliations',
+          recordId: reconciliationId,
+          action: 'UPDATE',
+          userId,
+          area: 'BANKING',
+          description: `Bank reconciliation cancelled`,
+          newData: cancelled,
+          previousData: recon,
+          tenantId,
+        }),
+      );
+
+      return { message: 'Conciliación cancelada', reconciliation: cancelled };
+    });
   }
 
   async processAndComplete(
@@ -316,6 +673,16 @@ export class BankReconciliationsService {
       .from(schema.bankReconciliationDetails)
       .where(eq(schema.bankReconciliationDetails.bankReconciliationId, id));
 
-    return { ...recon, details };
+    const transactions = await this.drizzle
+      .select()
+      .from(schema.bankTransactions)
+      .where(
+        and(
+          eq(schema.bankTransactions.bankReconciliationId, id),
+          eq(schema.bankTransactions.tenantId, tenantId),
+        ),
+      );
+
+    return { ...recon, details, transactions };
   }
 }

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Balance Sheet (Balance General)
 export const balanceSheetAccountSchema: z.ZodType<any> = z.object({
-  accountPlanId: z.number(),
+  accountPlanId: z.string(),
   accountCode: z.string(),
   accountName: z.string(),
   level: z.number(),
@@ -28,16 +28,18 @@ export const balanceSheetResponseSchema = z.object({
     totalEquity: z.string(),
     totalLiabilitiesAndEquity: z.string(),
   }),
-  cycleInfo: z.object({
-    cycleId: z.number(),
-    description: z.string(),
-    endDate: z.string(),
-  }),
+  cycleInfo: z
+    .object({
+      cycleId: z.string(),
+      description: z.string(),
+      endDate: z.string(),
+    })
+    .nullable(),
 });
 
 // General Ledger (Libro Mayor)
 export const generalLedgerEntrySchema = z.object({
-  entryId: z.number(),
+  entryId: z.string(),
   entryDate: z.string(),
   description: z.string(),
   originType: z.string().nullable(),
@@ -47,7 +49,7 @@ export const generalLedgerEntrySchema = z.object({
 });
 
 export const generalLedgerAccountSchema = z.object({
-  accountPlanId: z.number(),
+  accountPlanId: z.string(),
   accountCode: z.string(),
   accountName: z.string(),
   accountNature: z.string(),
@@ -74,7 +76,7 @@ export const generalLedgerResponseSchema = z.object({
 
 // Income Statement (Estado de Resultados)
 export const incomeStatementAccountSchema: z.ZodType<any> = z.object({
-  accountPlanId: z.number(),
+  accountPlanId: z.string(),
   accountCode: z.string(),
   accountName: z.string(),
   level: z.number(),
@@ -98,17 +100,19 @@ export const incomeStatementResponseSchema = z.object({
     operatingIncome: z.string(),
     netIncome: z.string(),
   }),
-  cycleInfo: z.object({
-    cycleId: z.number(),
-    description: z.string(),
-    startDate: z.string(),
-    endDate: z.string(),
-  }),
+  cycleInfo: z
+    .object({
+      cycleId: z.string(),
+      description: z.string(),
+      startDate: z.string(),
+      endDate: z.string(),
+    })
+    .nullable(),
 });
 
 // Journal Book (Libro Diario)
 export const journalBookDetailSchema = z.object({
-  detailId: z.number(),
+  detailId: z.string(),
   accountCode: z.string(),
   accountName: z.string(),
   description: z.string().nullable(),
@@ -117,7 +121,8 @@ export const journalBookDetailSchema = z.object({
 });
 
 export const journalBookEntrySchema = z.object({
-  entryId: z.number(),
+  entryId: z.string(),
+  voucherNo: z.string().optional(),
   entryDate: z.string(),
   description: z.string(),
   originType: z.string().nullable(),
@@ -144,7 +149,7 @@ export const journalBookResponseSchema = z.object({
 
 // Trial Balance (Balance de Comprobación)
 export const trialBalanceAccountSchema = z.object({
-  accountPlanId: z.number(),
+  accountPlanId: z.string(),
   accountCode: z.string(),
   accountName: z.string(),
   accountType: z.string(),
@@ -168,12 +173,47 @@ export const trialBalanceSummarySchema = z.object({
 export const trialBalanceResponseSchema = z.object({
   accounts: z.array(trialBalanceAccountSchema),
   summary: trialBalanceSummarySchema,
-  cycleInfo: z.object({
-    cycleId: z.number(),
-    description: z.string(),
-    startDate: z.string(),
-    endDate: z.string(),
-    status: z.string(),
+  cycleInfo: z
+    .object({
+      cycleId: z.string(),
+      description: z.string(),
+      startDate: z.string(),
+      endDate: z.string(),
+      status: z.string(),
+    })
+    .nullable(),
+});
+
+// Associates Balance (Balance de Asociados)
+export const associatesBalanceAccountSchema = z.object({
+  accountPlanId: z.string(),
+  accountCode: z.string(),
+  accountName: z.string(),
+  accountNature: z.string(),
+  totalDebit: z.string(),
+  totalCredit: z.string(),
+  balance: z.string(),
+});
+
+export const associatesBalanceRowSchema = z.object({
+  associateId: z.string(),
+  cedula: z.string(),
+  fullname: z.string(),
+  accounts: z.array(associatesBalanceAccountSchema),
+  totalBalance: z.string(),
+});
+
+export const associatesBalanceResponseSchema = z.object({
+  data: z.array(associatesBalanceRowSchema),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    totalCount: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+    nextPage: z.number().nullable(),
+    previousPage: z.number().nullable(),
   }),
 });
 
@@ -182,3 +222,4 @@ export type GeneralLedgerResponse = z.infer<typeof generalLedgerResponseSchema>;
 export type IncomeStatementResponse = z.infer<typeof incomeStatementResponseSchema>;
 export type JournalBookResponse = z.infer<typeof journalBookResponseSchema>;
 export type TrialBalanceResponse = z.infer<typeof trialBalanceResponseSchema>;
+export type AssociatesBalanceResponse = z.infer<typeof associatesBalanceResponseSchema>;

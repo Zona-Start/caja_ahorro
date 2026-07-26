@@ -23,16 +23,6 @@ function toFormValues(invoice: SupplierInvoiceApi): Partial<SupplierInvoiceMutat
 export function SupplierInvoicesModal() {
   const { isOpen, mode, data, closeModal } = useSupplierInvoicesModalStore();
 
-  const handleSuccess = () => {
-    closeModal();
-  };
-
-  const handleCancel = () => {
-    closeModal();
-  };
-
-  const isEditMode = mode === 'edit';
-
   if (mode === 'view') {
     return (
       <SupplierInvoicesViewModal
@@ -43,17 +33,17 @@ export function SupplierInvoicesModal() {
     );
   }
 
+  const isEditMode = mode === 'edit';
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && closeModal()}>
-      <DialogContent 
+      <DialogContent
         className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>
-            {isEditMode
-              ? 'Editar Factura'
-              : 'Nueva Factura de Proveedor'}
+            {isEditMode ? 'Editar Factura' : 'Nueva Factura de Proveedor'}
           </DialogTitle>
           <DialogDescription>
             {isEditMode
@@ -62,8 +52,8 @@ export function SupplierInvoicesModal() {
           </DialogDescription>
         </DialogHeader>
         <SupplierInvoicesForm
-          onSuccess={handleSuccess}
-          onCancel={handleCancel}
+          onSuccess={() => closeModal()}
+          onCancel={() => closeModal()}
           defaultValues={data ? toFormValues(data) : undefined}
         />
       </DialogContent>

@@ -9,13 +9,13 @@ const CreditAppliedSchema = z.object({
 export const CreateSupplierPaymentSchema = z.object({
   tenantId: z.string().uuid().optional(),
   supplierId: z.string().uuid(),
-  accountPayableId: z.string().uuid(),
+  accountPayableIds: z.array(z.string().uuid()).min(1, 'Debe seleccionar al menos una CxP'),
   bankAccountId: z.string().uuid(),
   paymentDescription: z.string(),
   paymentMethod: z.string(),
-  bankReference: z.string(),
+  bankReference: z.string().optional(),
   transactionDate: z.coerce.date(),
-  amount: z.coerce.number(),
+  totalAmount: z.coerce.number().min(0.01),
   creditAplied: z.array(CreditAppliedSchema).default([]),
 });
 

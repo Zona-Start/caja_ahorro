@@ -16,6 +16,7 @@ import { USERS_KEYS as usersKeys } from '@/features/core/users/keys/users-keys';
 import { bankAccountKeys } from '@/features/banks/bank-account/keys/bank-account-keys';
 import { bankDirectoryKeys } from '@/features/banks/bank-directory/keys/bank-directory-keys';
 import { bankMovementsKeys } from '@/features/banks/bank-movements/keys/bank-movements-keys';
+import { bankReconciliationKeys } from '@/features/banks/bank-reconciliation/keys/bank-reconciliation-keys';
 import { CATEGORIES_KEYS as coreCategoriesKeys } from '@/features/core/categories/keys/categories-keys';
 import { statesKeys } from '@/features/core/states/keys/states.keys';
 import { CATEGORIES_KEYS as inventoryCategoriesKeys } from '@/features/inventory/categories/keys/categories-keys';
@@ -72,6 +73,7 @@ export const QUERY_KEYS = {
   bankAccounts: bankAccountKeys,
   bankDirectory: bankDirectoryKeys,
   bankMovements: bankMovementsKeys,
+  bankReconciliations: bankReconciliationKeys,
   coreCategories: coreCategoriesKeys,
   inventoryCategories: inventoryCategoriesKeys,
   products: productsKeys,

@@ -1,110 +1,65 @@
-import { QUERY_KEYS } from '@/lib/query-keys';
-import { useToast } from '@repo/shadcn/hooks/use-toast';
-import {
-  useMutation,
-  useQueryClient,
-  type UseMutationResult,
-} from '@tanstack/react-query';
+import { useToastSystem } from '@/hooks/use-toast-system';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import type {
-  SupplierPaymentPay,
-  SupplierPaymentAdvance,
-  SupplierPaymentReverse,
-} from '../schemas/supplier-payment.schema';
-import type { SupplierPaymentApi } from '../schemas/supplier-payment-api.schema';
+  BulkPaymentPayload,
+  PayAdvancePayload,
+  ReversePaymentsPayload,
+} from '../services/supplier-payments-service';
 import { supplierPaymentsService } from '../services/supplier-payments-service';
 
 const getErrorMessage = (error: unknown) => {
   if (isAxiosError<{ message?: string }>(error)) {
-    return (
-      error.response?.data?.message ||
-      error.message ||
-      'Se produjo un error al ejecutar la operación'
-    );
+    return error.response?.data?.message || error.message || 'Se produjo un error';
   }
-  if (error instanceof Error) {
-    return error.message;
-  }
+  if (error instanceof Error) return error.message;
   return 'Se produjo un error al ejecutar la operación';
 };
 
-export function useSupplierPaymentPayMutation(): UseMutationResult<
-  SupplierPaymentApi,
-  unknown,
-  SupplierPaymentPay
-> {
+export function useBulkPaymentMutation() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
 
   return useMutation({
-    mutationFn: (payload) => supplierPaymentsService.pay(payload),
+    mutationFn: (payload: BulkPaymentPayload) => supplierPaymentsService.pay(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierPayments.all });
-      toast({
-        title: 'Pago registrado',
-        description: 'El pago al proveedor fue registrado correctamente.',
-      });
+      queryClient.invalidateQueries({ queryKey: ['supplier-payments'] as const });
+      toastSuccess('Pago registrado correctamente');
     },
     onError: (error) => {
-      toast({
-        title: 'Error',
-        description: getErrorMessage(error),
-        variant: 'destructive',
-      });
+      toastError(getErrorMessage(error));
     },
   });
 }
 
-export function useSupplierPaymentPayAdvanceMutation(): UseMutationResult<
-  SupplierPaymentApi,
-  unknown,
-  SupplierPaymentAdvance
-> {
+export function usePayAdvanceMutation() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
 
   return useMutation({
-    mutationFn: (payload) => supplierPaymentsService.payAdvance(payload),
+    mutationFn: (payload: PayAdvancePayload) => supplierPaymentsService.payAdvance(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierPayments.all });
-      toast({
-        title: 'Anticipo registrado',
-        description: 'El anticipo al proveedor fue registrado correctamente.',
-      });
+      queryClient.invalidateQueries({ queryKey: ['supplier-payments'] as const });
+      toastSuccess('Anticipo registrado correctamente');
     },
     onError: (error) => {
-      toast({
-        title: 'Error',
-        description: getErrorMessage(error),
-        variant: 'destructive',
-      });
+      toastError(getErrorMessage(error));
     },
   });
 }
 
-export function useSupplierPaymentReverseMutation(): UseMutationResult<
-  { message?: string; data: SupplierPaymentApi },
-  unknown,
-  SupplierPaymentReverse
-> {
+export function useReversePaymentMutation() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
 
   return useMutation({
-    mutationFn: (payload) => supplierPaymentsService.reverse(payload),
+    mutationFn: (payload: ReversePaymentsPayload) => supplierPaymentsService.reverse(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierPayments.all });
-      toast({
-        title: 'Pago reversado',
-        description: 'El pago fue reversado correctamente.',
-      });
+      queryClient.invalidateQueries({ queryKey: ['supplier-payments'] as const });
+      toastSuccess('Pago reversado correctamente');
     },
     onError: (error) => {
-      toast({
-        title: 'Error',
-        description: getErrorMessage(error),
-        variant: 'destructive',
-      });
+      toastError(getErrorMessage(error));
     },
   });
 }
