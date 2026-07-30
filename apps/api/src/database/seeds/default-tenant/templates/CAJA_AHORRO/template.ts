@@ -171,17 +171,17 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     },
     {
       module: 'savings',
+      submodule: 'liquidations',
+      key: 'LIQ-SOC',
+      value: '0',
+      description: 'Consecutivo Liquidación Asociados',
+    },
+    {
+      module: 'savings',
       submodule: 'members',
       key: 'SOC',
       value: '0',
       description: 'Consecutivo Referencia Asociado',
-    },
-    {
-      module: 'savings',
-      submodule: 'liquidation',
-      key: 'LIQ-SOC',
-      value: '0',
-      description: 'Consecutivo Liquidación Movimiento Haberes',
     },
 
     // Portfolio
@@ -353,13 +353,6 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     {
       module: 'purchasing',
       submodule: 'accounts_payables',
-      key: 'CXP-PAG',
-      value: '0',
-      description: 'Consecutivo Pago de Cuentas por Pagar',
-    },
-    {
-      module: 'purchasing',
-      submodule: 'accounts_payables',
       key: 'ANT-PRO',
       value: '0',
       description: 'Consecutivo Anticipo Proveedor',
@@ -377,6 +370,20 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
       key: 'ND-PRO',
       value: '0',
       description: 'Consecutivo Notas de Debito a Proveedores',
+    },
+    {
+      module: 'purchasing',
+      submodule: 'suppliers_payments',
+      key: 'PAG-PRO',
+      value: '0',
+      description: 'Consecutivo Pago a Proveedores',
+    },
+    {
+      module: 'purchasing',
+      submodule: 'suppliers_transactions',
+      key: 'TRS-PRO',
+      value: '0',
+      description: 'Consecutivo Transacción Proveedores',
     },
 
     // Banking
@@ -643,5 +650,6 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
     { type: 'civil_status', code: 'viudo', name: 'Viudo' },
     { type: 'account_type', code: 'corriente', name: 'Corriente' },
     { type: 'account_type', code: 'ahorro', name: 'Ahorro' },
+    { type: 'special_days', code: 'jornadas_de_salud', name: 'Jornadas de salud' },
   ],
 };
