@@ -1,5 +1,5 @@
-import AccountsPayablePage from '@/features/purchasing/accounts-payable/pages/accounts-payable-page';
+import UnifiedAccountsPayablePage from '@/features/purchasing/accounts-payable/pages/unified-page';
 
 export default function Route() {
-  return <AccountsPayablePage />;
+  return <UnifiedAccountsPayablePage />;
 }

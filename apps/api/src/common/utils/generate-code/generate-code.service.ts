@@ -14,7 +14,7 @@ import { moduleSettings } from 'src/database/schema/tables/core';
 export class GenerateCodeService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-  ) {}
+  ) { }
 
   private findSetting(
     tx: NodePgDatabase<typeof schema>,
@@ -151,21 +151,21 @@ export class GenerateCodeService {
         .for('update')
         .limit(1);
 
-      if (!setting) {
-        const initialValue = '1';
-        const [newSetting] = await db
-          .insert(moduleSettings)
-          .values({
-            tenantId,
-            module,
-            submodule,
-            key: prefix,
-            value: initialValue,
-            description: `Secuencia ${prefix} para ${module}/${submodule}`,
-          })
-          .returning();
-        return `${prefix}-${'1'.padStart(6, '0')}`;
-      }
+      // if (!setting) {
+      //   const initialValue = '1';
+      //   const [newSetting] = await db
+      //     .insert(moduleSettings)
+      //     .values({
+      //       tenantId,
+      //       module,
+      //       submodule,
+      //       key: prefix,
+      //       value: initialValue,
+      //       description: `Secuencia ${prefix} para ${module}/${submodule}`,
+      //     })
+      //     .returning();
+      //   return `${prefix}-${'1'.padStart(6, '0')}`;
+      // }
 
       const next = parseInt(setting.value ?? '0', 10) + 1;
       const nextStr = next.toString().padStart(6, '0');

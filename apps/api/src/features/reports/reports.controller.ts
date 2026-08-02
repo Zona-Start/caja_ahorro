@@ -19,6 +19,7 @@ import { LoansReportService } from './services/loans-report.service';
 import { QuotasReportService } from './services/quotas-report.service';
 import { CreditsReportService } from './services/credits-report.service';
 import { CreditQuotasReportService } from './services/credit-quotas-report.service';
+import { PurchasingReportsService } from './services/purchasing-reports.service';
 import {
   AssociatesReportDto,
   AssociatesReportSchema,
@@ -65,6 +66,7 @@ export class ReportsController {
     private readonly quotasReportService: QuotasReportService,
     private readonly creditsReportService: CreditsReportService,
     private readonly creditQuotasReportService: CreditQuotasReportService,
+    private readonly purchasingReportsService: PurchasingReportsService,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -232,6 +234,39 @@ export class ReportsController {
     const filename = `reporte_cuotas_creditos_${today}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  }
+
+  @Get('purchasing/aging/pdf')
+  async downloadAgingPdf(@Req() req: Request, @Res() res: Response) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    const pdfDoc = await this.purchasingReportsService.generateAgingPdf(targetTenantId);
+    const today = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=antiguedad_deuda_${today}.pdf`);
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  }
+
+  @Get('purchasing/tax-book/pdf')
+  async downloadTaxBookPdf(@Req() req: Request, @Query() dto: any, @Res() res: Response) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    const pdfDoc = await this.purchasingReportsService.generateTaxBookPdf(targetTenantId, dto.startDate, dto.endDate);
+    const today = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=libro_compras_fiscal_${today}.pdf`);
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  }
+
+  @Get('purchasing/cash-flow/pdf')
+  async downloadCashFlowPdf(@Req() req: Request, @Query() dto: any, @Res() res: Response) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    const pdfDoc = await this.purchasingReportsService.generateCashFlowPdf(targetTenantId, dto.groupBy || 'month');
+    const today = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=flujo_caja_saliente_${today}.pdf`);
     pdfDoc.pipe(res);
     pdfDoc.end();
   }

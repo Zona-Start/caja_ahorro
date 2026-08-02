@@ -10,29 +10,25 @@ import {
 import { Input } from '@repo/shadcn/input';
 import { Textarea } from '@repo/shadcn/textarea';
 import { Label } from '@repo/shadcn/label';
-import {
-  SelectSearchable,
-} from '@repo/shadcn/select-searchable';
+import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { Upload } from 'lucide-react';
 import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import { useUploadExcelMutation } from '../hooks/use-bank-reconciliation-query';
 
-interface BankReconciliationUploadModalProps {
+interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function BankReconciliationUploadModal({
-  open,
-  onOpenChange,
-}: BankReconciliationUploadModalProps) {
+const today = () => new Date().toISOString().split('T')[0];
+
+export function BankReconciliationUploadModal({ open, onOpenChange }: Props) {
   const { data: accountsData } = useBankAccountAll();
   const uploadMutation = useUploadExcelMutation();
 
   const [bankAccountId, setBankAccountId] = useState('');
-  const [statementDate, setStatementDate] = useState(
-    new Date().toISOString().split('T')[0],
-  );
+  const [startDate, setStartDate] = useState(today());
+  const [statementDate, setStatementDate] = useState(today());
   const [statementEndingBalance, setStatementEndingBalance] = useState('');
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -46,35 +42,31 @@ export function BankReconciliationUploadModal({
   };
 
   const handleSubmit = () => {
-    if (!bankAccountId || !statementDate || !statementEndingBalance || !file) {
-      return;
-    }
+    if (!bankAccountId || !startDate || !statementDate || !statementEndingBalance || !file) return;
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('bankAccountId', bankAccountId);
+    formData.append('startDate', startDate);
     formData.append('statementDate', statementDate);
     formData.append('statementEndingBalance', statementEndingBalance);
     if (notes) formData.append('notes', notes);
 
     uploadMutation.mutate(formData, {
-      onSuccess: () => {
-        onOpenChange(false);
-        resetForm();
-      },
+      onSuccess: () => { onOpenChange(false); resetForm(); },
     });
   };
 
   const resetForm = () => {
     setBankAccountId('');
-    setStatementDate(new Date().toISOString().split('T')[0]);
+    setStartDate(today());
+    setStatementDate(today());
     setStatementEndingBalance('');
     setNotes('');
     setFile(null);
   };
 
-  const isValid =
-    bankAccountId && statementDate && statementEndingBalance && file;
+  const isValid = bankAccountId && startDate && statementDate && statementEndingBalance && file;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -82,9 +74,8 @@ export function BankReconciliationUploadModal({
         <DialogHeader>
           <DialogTitle>Importar Conciliación desde Excel</DialogTitle>
           <DialogDescription>
-            Sube un archivo Excel (.xlsx) con los movimientos del extracto
-            bancario. El formato esperado es: Fecha | Descripción | Categoría |
-            Referencia | Método | Débito | Crédito | Fecha Valor | Nota
+            Sube un archivo Excel (.xlsx) con los movimientos del extracto bancario.
+            Formato esperado: Fecha | Descripción | Referencia | Débito | Crédito
           </DialogDescription>
         </DialogHeader>
 
@@ -92,9 +83,9 @@ export function BankReconciliationUploadModal({
           <div className="space-y-2">
             <Label>Cuenta Bancaria</Label>
             <SelectSearchable
-              options={(accountsData?.data || []).map((account) => ({
-                value: account.id,
-                label: `${account.accountName || ''} - ${account.accountNumber}`,
+              options={(accountsData?.data || []).map((a: any) => ({
+                value: a.id,
+                label: `${a.accountName || ''} - ${a.accountNumber}`,
               }))}
               onValueChange={(v) => setBankAccountId(v || '')}
               placeholder="Buscar cuenta bancaria..."
@@ -104,64 +95,41 @@ export function BankReconciliationUploadModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Fecha de Corte</Label>
-              <Input
-                type="date"
-                value={statementDate}
-                onChange={(e) => setStatementDate(e.target.value)}
-              />
+              <Label>Fecha Inicio (Desde)</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
-
             <div className="space-y-2">
-              <Label>Saldo Final del Extracto</Label>
-              <Input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={statementEndingBalance}
-                onChange={(e) => setStatementEndingBalance(e.target.value)}
-              />
+              <Label>Fecha Fin / Corte (Hasta)</Label>
+              <Input type="date" value={statementDate} onChange={(e) => setStatementDate(e.target.value)} />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Notas</Label>
-            <Textarea
-              placeholder="Notas..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
+            <Label>Saldo Final del Extracto</Label>
+            <Input
+              type="number" step="0.01" placeholder="0.00"
+              value={statementEndingBalance}
+              onChange={(e) => setStatementEndingBalance(e.target.value)}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Notas</Label>
+            <Textarea placeholder="Notas..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
 
           <div
             onDrop={handleDrop}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOver(true);
-            }}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-              dragOver
-                ? 'border-primary bg-primary/5'
-                : 'border-muted-foreground/25 hover:border-primary/50'
+              dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
             }`}
-            onClick={() => {
-              const input = document.getElementById(
-                'excel-file-input',
-              ) as HTMLInputElement;
-              input?.click();
-            }}
+            onClick={() => (document.getElementById('excel-file-input') as HTMLInputElement)?.click()}
           >
             <input
-              id="excel-file-input"
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={(e) => {
-                const selected = e.target.files?.[0];
-                if (selected) setFile(selected);
-              }}
+              id="excel-file-input" type="file" accept=".xlsx,.xls" className="hidden"
+              onChange={(e) => { const s = e.target.files?.[0]; if (s) setFile(s); }}
             />
             {file ? (
               <div className="flex items-center justify-center gap-2">
@@ -171,27 +139,16 @@ export function BankReconciliationUploadModal({
             ) : (
               <div className="space-y-2">
                 <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Arrastra el archivo Excel aquí o haz clic para seleccionar
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Formatos: .xlsx, .xls
-                </p>
+                <p className="text-sm text-muted-foreground">Arrastra el archivo Excel aquí o haz clic para seleccionar</p>
+                <p className="text-xs text-muted-foreground">Formatos: .xlsx, .xls</p>
               </div>
             )}
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={!isValid || uploadMutation.isPending}
-            >
-              {uploadMutation.isPending
-                ? 'Importando...'
-                : 'Importar y Crear Conciliación'}
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={!isValid || uploadMutation.isPending}>
+              {uploadMutation.isPending ? 'Importando...' : 'Importar y Crear Conciliación'}
             </Button>
           </div>
         </div>

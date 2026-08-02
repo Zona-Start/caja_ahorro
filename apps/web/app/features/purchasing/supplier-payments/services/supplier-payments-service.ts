@@ -152,4 +152,16 @@ export const supplierPaymentsService = {
     const response = await apiClient.post('/administration/supplier-payments/reverse', payload);
     return response.data;
   },
+
+  getAccountStatement: async (params: {
+    supplierId?: string;
+    startDate: string;
+    endDate: string;
+  }) => {
+    const query = buildQueryParams(params);
+    const response = await apiClient.get(
+      `/administration/supplier-transactions/account-statement?${query}`,
+    );
+    return response.data.data;
+  },
 };

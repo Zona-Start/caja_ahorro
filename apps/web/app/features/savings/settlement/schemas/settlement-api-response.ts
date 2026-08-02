@@ -1,8 +1,17 @@
 import { z } from 'zod';
 
+export const beneficiaryApiSchema = z.object({
+  fullname: z.string().optional(),
+  cedula: z.string().optional(),
+  phone: z.string().optional(),
+  accountNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  bankId: z.string().optional(),
+}).nullable().optional();
+
 export const settlementApiSchema = z.object({
-  id: z.number().optional(),
-  customReference: z.string(),
+  id: z.string(),
+  customReference: z.string().nullable(),
   liquidationDate: z.string(),
   totalSavingsBalanceAtLiquidation: z.string(),
   totalOutstandingLoansAtLiquidation: z.string(),
@@ -11,44 +20,8 @@ export const settlementApiSchema = z.object({
   associateCedula: z.string(),
   associateFullname: z.string(),
   status: z.string(),
+  notes: z.string().nullable().optional(),
+  beneficiary: beneficiaryApiSchema,
 });
 
 export type SettlementPaymentApi = z.infer<typeof settlementApiSchema>;
-
-export const settlementApiResponseSchema = z.object({
-  message: z.string().optional(),
-  data: z.array(settlementApiSchema),
-  meta: z
-    .object({
-      page: z.number(),
-      limit: z.number(),
-      totalCount: z.number(),
-      totalPages: z.number(),
-      hasNextPage: z.boolean(),
-      hasPreviousPage: z.boolean(),
-      nextPage: z.number().nullable(),
-      previousPage: z.number().nullable(),
-    })
-    .optional(),
-});
-
-export const liquidationResponseSchema = z.object({
-  id: z.number(),
-  customReference: z.string().nullable(),
-});
-
-export const settlementMutationSchema = z.object({
-  message: z.string().optional(),
-  liquidation: liquidationResponseSchema,
-});
-
-export const approveSettlementResponseSchema = z.object({
-  message: z.string(),
-  liquidationId: z.number(),
-});
-
-export const disburseSettlementResponseSchema = z.object({
-  message: z.string(),
-  liquidationId: z.number(),
-  bankTransactionId: z.number(),
-});

@@ -1,52 +1,41 @@
-'use client';
-
 import { useState } from 'react';
-import { CheckSquare, Trash, Banknote } from 'lucide-react';
-import { Button } from '@repo/shadcn/button';
-import { Toaster } from '@repo/shadcn/toaster';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@repo/shadcn/tooltip';
+import { Banknote, CheckSquare, Eye, MoreHorizontal, Trash } from 'lucide-react';
 import { AlertModal } from '@/components/shared/alert-modal';
-
-import { useApproveSettlementMutation } from '../../hooks/use-settlement-mutation';
+import { Button } from '@repo/shadcn/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@repo/shadcn/dropdown-menu';
+import { useApproveSettlementMutation } from '../../hooks/use-settlement-query';
 import { type SettlementPaymentApi } from '../../schemas/settlement-api-response';
-import { DisburseSettlementModal } from './disburse-modal';
 
 interface CellActionProps {
   data: SettlementPaymentApi;
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
-  const [loading, setLoading] = useState(false);
-  const [openDelete, setOpenDelete] = useState(false);
   const [openApprove, setOpenApprove] = useState(false);
-  const [openDisburse, setOpenDisburse] = useState(false);
-
   const { mutate: approveSettlement, isPending: isApproving } =
     useApproveSettlementMutation();
 
-  const onConfirmDelete = async () => {
-    // try {
-    //   setLoading(true);
-    //   deleteWithdrawal(Number(data.id!));
-    //   setOpen(false);
-    // } catch (error) {
-    //   console.error('Error:', error);
-    // } finally {
-    //   setLoading(false);
-    // }
+  const onApproveConfirm = () => {
+    approveSettlement(data.id, {
+      onSettled: () => setOpenApprove(false),
+    });
   };
 
-  const onConfirmApprove = async () => {
-    approveSettlement(Number(data.id!), {
-      onSuccess: () => {
-        setOpenApprove(false);
-      },
-    });
+  const handleView = () => {
+    const event = new CustomEvent('settlement:view', { detail: data });
+    window.dispatchEvent(event);
+  };
+
+  const handleDisburse = () => {
+    const event = new CustomEvent('settlement:disburse', { detail: data });
+    window.dispatchEvent(event);
   };
 
   return (
@@ -54,84 +43,46 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <AlertModal
         isOpen={openApprove}
         onClose={() => setOpenApprove(false)}
-        onConfirm={onConfirmApprove}
+        onConfirm={onApproveConfirm}
         loading={isApproving}
-        title="¿Está seguro de aprobar la liquidación?"
-        description="Esta acción procesará la liquidación del asociado. Esta acción no se puede deshacer."
+        title="Aprobar Liquidación"
+        description="Esta acción procesará la liquidación, pagará préstamos/créditos pendientes con los haberes y retirará al asociado. ¿Desea continuar?"
       />
-      <DisburseSettlementModal
-        isOpen={openDisburse}
-        onClose={() => setOpenDisburse(false)}
-        data={data}
-      />
-      <AlertModal
-        isOpen={openDelete}
-        onClose={() => setOpenDelete(false)}
-        onConfirm={onConfirmDelete}
-        loading={loading}
-        title="¿Estás seguro que desea eliminar el retiro? "
-        description="Esta acción no se puede deshacer."
-      />
-      <Toaster />
-      <div className="flex gap-1">
-        {data.status === 'REQUESTED' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                  onClick={() => setOpenApprove(true)}
-                >
-                  <CheckSquare className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Aprobar Liquidación</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
 
-        {data.status === 'PROCESSED' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                  onClick={() => setOpenDisburse(true)}
-                >
-                  <Banknote className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Procesar Desembolso</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+      <div className="flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="h-8 w-8 p-0">
+              <span className="sr-only">Abrir menú de acciones</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleView}>
+              <Eye className="mr-2 h-4 w-4" />
+              Ver Detalles
+            </DropdownMenuItem>
 
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setOpenDelete(true)}
-                disabled // Disabling delete for now as it's not implemented
+            {data.status === 'REQUESTED' && (
+              <DropdownMenuItem
+                onClick={() => setOpenApprove(true)}
+                disabled={isApproving}
               >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Eliminar</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+                <CheckSquare className="mr-2 h-4 w-4" />
+                Aprobar
+              </DropdownMenuItem>
+            )}
+
+            {data.status === 'PROCESSED' && (
+              <DropdownMenuItem onClick={handleDisburse}>
+                <Banknote className="mr-2 h-4 w-4" />
+                Desembolsar
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </>
   );

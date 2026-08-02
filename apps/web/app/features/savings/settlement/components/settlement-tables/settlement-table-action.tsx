@@ -1,29 +1,40 @@
-'use client';
-import { Button } from '@repo/shadcn/button';
-import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
+import { useState, useCallback } from 'react';
 import { Plus } from 'lucide-react';
-import { Link } from 'react-router';
-import { useWithdrawalTableFilters } from './use-settlement-filters';
+import { Button } from '@repo/shadcn/button';
+import { useSettlementFilters } from '../../hooks/use-settlement-filters';
+import { SettlementModal } from '../settlement-modal';
+import { Input } from '@repo/shadcn/input';
 
 export function SettlementTableAction() {
-  const { filters, setFilters } = useWithdrawalTableFilters();
+  const { filters, setFilters } = useSettlementFilters();
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState(filters.search || '');
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchValue(value);
+      setFilters({ search: value, page: 1 });
+    },
+    [setFilters],
+  );
 
   return (
-    <div className="flex items-center justify-between mt-4 ">
-      <div className="flex items-center gap-4 flex-grow">
-        <DataTableSearch
-          title="Buscar por cédula"
-          searchKey="search"
-          searchQuery={filters.search || ''}
-          setSearchQuery={(v) => setFilters({ search: v })}
-          setPage={(p) => setFilters({ page: p })}
+    <div className="flex items-center justify-between mt-4">
+      <div className="flex items-center gap-4 grow">
+        <Input
+          placeholder="Buscar por cédula..."
+          value={searchValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="w-72 md:max-w-sm"
         />
       </div>
-      <Link to="/dashboard/caja-ahorro/liquidacion/nueva">
-        <Button size="sm">
+      <div className="flex gap-2">
+        <Button onClick={() => setOpen(true)} size="sm">
           <Plus className="mr-2 h-4 w-4" /> Nueva Liquidación
         </Button>
-      </Link>
+      </div>
+
+      <SettlementModal open={open} onOpenChange={setOpen} />
     </div>
   );
 }

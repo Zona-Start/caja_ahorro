@@ -1,35 +1,25 @@
 import { z } from 'zod';
 
 export const settlementAssociate = z.object({
-  associate_id: z.number(),
+  associate_id: z.string(),
   fullname: z.string(),
   cedula: z.string(),
   admission_date: z.string(),
   phone: z.string().nullable(),
   email: z.string().email().nullable(),
   is_payroll_credit: z.boolean(),
-  associate_account_id: z.number(),
+  associate_account_id: z.string(),
   account_number: z.string(),
-  currency_code: z.string(),
-  total_savings_balance: z.string(),
-  haberes_contribution: z.string(),
-  haberes_voluntary: z.string(),
-  haberes_employer: z.string(),
-  surpluses: z.string(),
-  total_withdrawals: z.string(),
-  total_withdrawal_fees: z.string(),
-  total_outstanding_loans: z.string(),
-  total_outstanding_credits: z.string(),
-  net_liquidation_amount: z.string(),
+  total_savings_balance: z.number(),
+  haberes_contribution: z.number(),
+  haberes_voluntary: z.number(),
+  haberes_employer: z.number(),
+  surpluses: z.number(),
+  total_withdrawals: z.number(),
+  total_withdrawal_fees: z.number(),
+  total_outstanding_loans: z.number(),
+  total_outstanding_credits: z.number(),
+  net_liquidation_amount: z.number(),
 });
 
 export type AssociatesSettlement = z.infer<typeof settlementAssociate>;
-
-export const associateLiquidationResponseSchema = z.object({
-  message: z.string(),
-  data: settlementAssociate,
-});
-
-export type AssociateLiquidationResponse = z.infer<
-  typeof associateLiquidationResponseSchema
->;

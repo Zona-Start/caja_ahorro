@@ -245,7 +245,8 @@ export const bankReconciliations = treasurySchema.table(
     bankAccountId: uuid('bank_account_id')
       .notNull()
       .references(() => bankAccounts.id, { onDelete: 'restrict' }),
-    statementDate: date('statement_date').notNull(), //Fecha de corte del extracto'
+    startDate: date('start_date').notNull(), // Fecha de inicio del periodo de conciliación
+    statementDate: date('statement_date').notNull(), //Fecha de corte del extracto (endDate)'
     statementEndingBalance: numeric('statement_ending_balance', {
       precision: 20,
       scale: 6,
@@ -271,6 +272,44 @@ export const bankReconciliations = treasurySchema.table(
       'bank_recon_account_stmt_date_uidx',
     ).on(table.bankAccountId, table.statementDate), // Una conciliación por cuenta y fecha de corte
     statusIdx: index('bank_recon_status_idx').on(table.status),
+    startDateIdx: index('bank_recon_start_date_idx').on(table.startDate),
+  }),
+);
+
+//Líneas del extracto bancario importadas/cargadas temporalmente para conciliación.
+export const bankStatementLines = treasurySchema.table(
+  'bank_statement_lines',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'cascade' })
+      .notNull(),
+    bankReconciliationId: uuid('bank_reconciliation_id')
+      .notNull()
+      .references(() => bankReconciliations.id, { onDelete: 'cascade' }),
+    bankAccountId: uuid('bank_account_id')
+      .notNull()
+      .references(() => bankAccounts.id, { onDelete: 'cascade' }),
+    transactionDate: date('transaction_date').notNull(),
+    description: text('description').notNull(),
+    bankReference: varchar('bank_reference', { length: 100 }),
+    debitAmount: numeric('debit_amount', { precision: 20, scale: 6 }).default('0.00'),
+    creditAmount: numeric('credit_amount', { precision: 20, scale: 6 }).default('0.00'),
+    status: varchar('status', { length: 20 }).notNull().default('PENDING'),
+    // PENDING | RECONCILED | GENERATED (cuando se contabiliza)
+    matchedTransactionId: uuid('matched_transaction_id').references(
+      () => bankTransactions.id,
+      { onDelete: 'set null' },
+    ),
+    isCredit: boolean('is_credit').default(false),
+    note: text('note'),
+    ...timestamps,
+  },
+  (table) => ({
+    reconIdx: index('stmt_lines_recon_idx').on(table.bankReconciliationId),
+    dateIdx: index('stmt_lines_date_idx').on(table.transactionDate),
+    refIdx: index('stmt_lines_ref_idx').on(table.bankReference),
+    statusIdx: index('stmt_lines_status_idx').on(table.status),
   }),
 );
 
@@ -283,23 +322,24 @@ export const bankReconciliationDetails = treasurySchema.table(
       .notNull()
       .references(() => bankReconciliations.id, { onDelete: 'cascade' }),
     bankTransactionId: uuid('bank_transaction_id')
-      .unique()
-      .references(() => bankTransactions.id, { onDelete: 'set null' }), //Movimiento bancario conciliado (si aplica) // Único porque un mov. bancario solo está en una conciliación
+      .references(() => bankTransactions.id, { onDelete: 'set null' }),
+    statementLineId: uuid('statement_line_id')
+      .references(() => bankStatementLines.id, { onDelete: 'set null' }),
     accountingEntryDetailId: uuid('accounting_entry_detail_id').references(
       () => accountingEntryDetails.id,
       { onDelete: 'set null' },
-    ), //Movimiento en libros conciliado (si aplica)
-    adjustmentType: varchar('adjustment_type', { length: 50 }), //Ej: DEPOSITO_TRANSITO, CHEQUE_TRANSITO, ERROR_BANCO, ERROR_LIBRO, NOTA_CREDITO, NOTA_DEBITO
+    ),
+    adjustmentType: varchar('adjustment_type', { length: 50 }),
     adjustmentAmount: numeric('adjustment_amount', {
       precision: 20,
       scale: 6,
     }),
     description: text('description'),
-    isBookAdjustment: boolean('is_book_adjustment').default(false), //Indica si este item requiere un asiento de ajuste en libros
+    isBookAdjustment: boolean('is_book_adjustment').default(false),
     adjustmentEntryId: uuid('adjustment_entry_id').references(
       () => accountingEntries.id,
       { onDelete: 'set null' },
-    ), //Asiento contable generado para el ajuste
+    ),
     ...timestamps,
   },
   (table) => ({
@@ -308,6 +348,9 @@ export const bankReconciliationDetails = treasurySchema.table(
     ),
     bankTransIdx: index('bank_recon_details_bank_trans_idx').on(
       table.bankTransactionId,
+    ),
+    stmtLineIdx: index('bank_recon_details_stmt_line_idx').on(
+      table.statementLineId,
     ),
     acctEntryDetailIdx: index('bank_recon_details_acct_entry_detail_idx').on(
       table.accountingEntryDetailId,

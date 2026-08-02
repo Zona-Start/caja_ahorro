@@ -1,25 +1,3 @@
-import { z } from 'zod';
-
-export const PAYMENT_METHOD = {
-  CASH: 'Efectivo',
-  BANK_TRANSFER: 'Transferencia Bancaria',
-  CHECK: 'Cheque',
-  DEPOSIT: 'Depósito',
-  MOBILE_PAYMENT: 'Pago Móvil',
-  OTHER: 'Otro',
-} as const;
-
-export type PaymentMethod = keyof typeof PAYMENT_METHOD;
-
-export const paymentMethodEnum = z.enum([
-  'CASH',
-  'BANK_TRANSFER',
-  'CHECK',
-  'DEPOSIT',
-  'OTHER',
-  'MOBILE_PAYMENT',
-]);
-
 export const ESTATUS_TYPES = {
   REQUESTED: 'Solicitado',
   PROCESSED: 'Aprobado',

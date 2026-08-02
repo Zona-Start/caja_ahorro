@@ -47,7 +47,7 @@ export default function UserAuthForm() {
           toast({
             title: 'Error de autenticación',
             description:
-              error?.response?.data?.message ?? 'Credenciales inválidas',
+              error?.response?.data?.message === 'Invalid credentials' ? 'Credenciales inválidas' : 'Contacte al Administrador',
             variant: 'destructive',
           });
         }
@@ -55,7 +55,7 @@ export default function UserAuthForm() {
     });
   }
 
-return (
+  return (
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 md:p-8">

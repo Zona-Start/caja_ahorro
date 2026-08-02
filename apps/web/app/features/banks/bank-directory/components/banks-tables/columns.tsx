@@ -14,15 +14,14 @@ export const banksColumns: ColumnDef<Bank>[] = [
     header: 'Código',
   },
   {
-    accessorKey: 'status',
+    accessorKey: 'isActive',
     header: 'Estado',
     cell: ({ getValue }) => {
-      const value = getValue<string>();
-      const isActive = value === 'ACTIVE';
+      const value = getValue<boolean>();
       return (
         <div className={cn('p-2 h-full w-full')}>
-          <Badge variant={isActive ? 'success' : 'destructive'}>
-            {isActive ? 'Activo' : 'Inactivo'}
+          <Badge variant={value ? 'success' : 'destructive'}>
+            {value ? 'Activo' : 'Inactivo'}
           </Badge>
         </div>
       );

@@ -1,20 +1,20 @@
 import { Badge } from '@repo/shadcn/badge';
 import type { ColumnDef } from '@tanstack/react-table';
-import { formatCurrency } from '@/lib/format-utils';
+import { formatCurrency, formatDbDate } from '@/lib/format-utils';
 import { RECONCILIATION_STATUS_OPTIONS } from '../../schemas/bank-reconciliation-options';
 import type { BankReconciliation } from '../../schemas/bank-reconciliation.schema';
 import { CellAction } from './cell-action';
 
 export const bankReconciliationColumns: ColumnDef<BankReconciliation>[] = [
   {
+    accessorKey: 'startDate',
+    header: 'Desde',
+    cell: ({ getValue }) => formatDbDate(getValue<string>()),
+  },
+  {
     accessorKey: 'statementDate',
-    header: 'Fecha Corte',
-    cell: ({ getValue }) => {
-      const value = getValue<string>();
-      return value
-        ? new Date(value as string).toLocaleDateString()
-        : '-';
-    },
+    header: 'Hasta',
+    cell: ({ getValue }) => formatDbDate(getValue<string>()),
   },
   {
     accessorKey: 'bankAccountId',

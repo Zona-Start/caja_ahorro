@@ -11,6 +11,7 @@ import { LoansReportService } from './services/loans-report.service';
 import { QuotasReportService } from './services/quotas-report.service';
 import { CreditsReportService } from './services/credits-report.service';
 import { CreditQuotasReportService } from './services/credit-quotas-report.service';
+import { PurchasingReportsService } from './services/purchasing-reports.service';
 
 @Module({
   imports: [DrizzleModule, TenantContextModule, PdfGeneratorModule],
@@ -24,6 +25,7 @@ import { CreditQuotasReportService } from './services/credit-quotas-report.servi
     QuotasReportService,
     CreditsReportService,
     CreditQuotasReportService,
+    PurchasingReportsService,
   ],
 })
 export class ReportsModule {}

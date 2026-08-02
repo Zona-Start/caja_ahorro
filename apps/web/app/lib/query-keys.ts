@@ -41,6 +41,7 @@ import { inquiryKeys } from '@/features/savings/partners/inquiry/keys/inquiry-ke
 import { settlementKeys } from '@/features/savings/settlement/keys/settlement-keys';
 import { WITHDRAWAL_TYPES_KEYS as withdrawalTypesKeys } from '@/features/savings/withdrawals/withdrawal-types/keys/withdrawal-types-keys';
 import { withdrawalKeys } from '@/features/savings/withdrawals/withdrawal/keys/withdrawal-keys';
+import { dashboardKeys } from '@/features/dashboard/keys/dashboard-keys';
 import { reportsKeys } from '@/features/reports/keys/reports-keys';
 
 export const QUERY_KEYS = {
@@ -87,4 +88,5 @@ export const QUERY_KEYS = {
   supplierPayments: supplierPaymentsKeys,
   states: statesKeys,
   reports: reportsKeys,
+  dashboard: dashboardKeys,
 } as const;

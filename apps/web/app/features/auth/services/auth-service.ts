@@ -16,7 +16,6 @@ export const authService = {
   async login(credentials: LoginInput) {
     const response = await apiClient.post('/auth/login', credentials);
     const parsed = loginResponseSchema.parse(response.data);
-
     useAuthStore.getState().setAuth({
       accessToken: parsed.accessToken,
       user: parsed.user,

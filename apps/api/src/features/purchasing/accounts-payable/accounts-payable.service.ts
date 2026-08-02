@@ -118,10 +118,18 @@ export class AccountsPayableService {
       );
     }
     if (status) {
+      let parsedStatus: string[] = [];
       if (Array.isArray(status)) {
-        searchConditions.push(inArray(accountsPayable.status, status));
+        parsedStatus = status;
+      } else if (typeof status === 'string' && status.includes(',')) {
+        parsedStatus = status.split(',');
       } else {
-        searchConditions.push(eq(accountsPayable.status, status));
+        parsedStatus = [status];
+      }
+      if (parsedStatus.length === 1) {
+        searchConditions.push(eq(accountsPayable.status, parsedStatus[0] as any));
+      } else {
+        searchConditions.push(inArray(accountsPayable.status, parsedStatus as any));
       }
     }
 

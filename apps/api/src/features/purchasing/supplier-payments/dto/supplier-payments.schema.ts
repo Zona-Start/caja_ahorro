@@ -75,3 +75,11 @@ export type FilterAccountPayableDto = z.infer<
   typeof FilterAccountPayableSchema
 >;
 export type ReversePaymentsDto = z.infer<typeof ReversePaymentsSchema>;
+
+export const AccountStatementFilterSchema = z.object({
+  supplierId: z.string().uuid().optional(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+});
+
+export type AccountStatementFilterDto = z.infer<typeof AccountStatementFilterSchema>;

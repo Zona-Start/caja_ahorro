@@ -1,4 +1,3 @@
-// src/savings/savings-liquidation.service.ts
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
@@ -38,7 +37,6 @@ export class SavingsLiquidationService {
       );
     }
 
-    // Validar y transformar con Zod
     try {
       return LiquidationResponseSchema.parse(rawResult);
     } catch (error) {
@@ -52,7 +50,6 @@ export class SavingsLiquidationService {
   }
 
   private async fetchRawLiquidationData(cedula: string): Promise<any | null> {
-    // 1. Obtener datos básicos del asociado y su cuenta en VES
     const [associateData] = await this.db
       .select({
         associate_id: associates.id,
@@ -83,7 +80,6 @@ export class SavingsLiquidationService {
 
     const { associate_account_id, associate_id } = associateData;
 
-    // 2. Haberes desde vista
     const [haberesRow] = await this.db
       .select({
         total_savings: associateHaberesBalance.haberesBalance,
@@ -99,19 +95,6 @@ export class SavingsLiquidationService {
         eq(associateHaberesBalance.associateAccountId, associate_account_id),
       );
 
-    const haberesDefaults = {
-      total_savings: 0,
-      haberes_contribution: 0,
-      haberes_voluntary: 0,
-      haberes_employer: 0,
-      surpluses: 0,
-      total_withdrawals: 0,
-      total_withdrawal_fees: 0,
-    };
-
-    const haberes = { ...haberesDefaults, ...haberesRow };
-
-    // 3. Préstamos pendientes
     const loans = await this.db
       .select({
         outstanding: loanOutstandingBalance.outstandingTotalBalance,
@@ -129,7 +112,6 @@ export class SavingsLiquidationService {
       0,
     );
 
-    // 4. Créditos comerciales pendientes
     const credits = await this.db
       .select({
         outstanding: creditOutstandingBalance.outstandingTotalBalance,
@@ -147,22 +129,38 @@ export class SavingsLiquidationService {
       0,
     );
 
-    // 5. Monto neto
-    const net =
-      Number(haberes.total_savings) -
-      total_outstanding_loans -
-      total_outstanding_credits;
+    const totalSavings = haberesRow
+      ? Number(haberesRow.total_savings)
+      : 0;
+    const haberesContribution = haberesRow
+      ? Number(haberesRow.haberes_contribution)
+      : 0;
+    const haberesVoluntary = haberesRow
+      ? Number(haberesRow.haberes_voluntary)
+      : 0;
+    const haberesEmployer = haberesRow
+      ? Number(haberesRow.haberes_employer)
+      : 0;
+    const surpluses = haberesRow ? Number(haberesRow.surpluses) : 0;
+    const totalWithdrawals = haberesRow
+      ? Number(haberesRow.total_withdrawals)
+      : 0;
+    const totalWithdrawalFees = haberesRow
+      ? Number(haberesRow.total_withdrawal_fees)
+      : 0;
 
-    // Construir objeto crudo
+    const net = totalSavings - total_outstanding_loans - total_outstanding_credits;
+
     return {
       ...associateData,
-      total_savings_balance: haberes.total_savings,
-      haberes_contribution: haberes.haberes_contribution,
-      haberes_voluntary: haberes.haberes_voluntary,
-      haberes_employer: haberes.haberes_employer,
-      surpluses: haberes.surpluses,
-      total_withdrawals: haberes.total_withdrawals,
-      total_withdrawal_fees: haberes.total_withdrawal_fees,
+      currency_code: 'VES',
+      total_savings_balance: totalSavings,
+      haberes_contribution: haberesContribution,
+      haberes_voluntary: haberesVoluntary,
+      haberes_employer: haberesEmployer,
+      surpluses: surpluses,
+      total_withdrawals: totalWithdrawals,
+      total_withdrawal_fees: totalWithdrawalFees,
       total_outstanding_loans,
       total_outstanding_credits,
       net_liquidation_amount: net,

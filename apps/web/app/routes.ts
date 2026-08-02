@@ -149,6 +149,8 @@ const routes: RouteConfig = [
       'routes/dashboard/purchasing/supplier-invoices.tsx',
     ),
     route('compras/pagos', 'routes/dashboard/purchasing/supplier-payments.tsx'),
+    route('compras/estado-cuenta', 'routes/dashboard/purchasing/supplier-statement.tsx'),
+    route('compras/reportes', 'routes/dashboard/purchasing/reports.tsx'),
 
     // ── Módulo de Configuración ──
     route(
@@ -186,6 +188,10 @@ const routes: RouteConfig = [
     route(
       'configuracion/conciliaciones/:id',
       'routes/dashboard/configuracion/bank-reconciliation-detail.tsx',
+    ),
+    route(
+      'configuracion/reportes-bancos',
+      'routes/dashboard/configuracion/banking-reports.tsx',
     ),
   ]),
 ];

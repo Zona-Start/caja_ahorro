@@ -13,11 +13,12 @@ import {
   SidebarMenuSubItem,
 } from '@repo/shadcn/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@repo/shadcn/collapsible';
-import { ChevronRight, Torus } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import { navGroups } from '@/constants/navegations';
 import { useAuthStore } from '@/stores/auth.store';
 import { NavUser } from './nav-user';
+import './sidebar-override.css';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const hasPermission = useAuthStore((s) => s.hasPermission);
@@ -36,7 +37,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="p-1.5!">
               <Link to="/dashboard">
-                <Torus className="size-5!" />
+                <img src="/img/logo_sidebar.png" alt="Logo" className="size-10" />
                 <span className="text-base font-semibold">Caja de Ahorro</span>
               </Link>
             </SidebarMenuButton>
@@ -54,8 +55,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 if (!item.items?.length) {
                   return (
                     <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton 
-                        asChild 
+                      <SidebarMenuButton
+                        asChild
                         isActive={location.pathname === item.href}
                         tooltip={item.label}
                       >
@@ -88,8 +89,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         <SidebarMenuSub>
                           {item.items.map((subItem) => (
                             <SidebarMenuSubItem key={subItem.href}>
-                              <SidebarMenuSubButton 
-                                asChild 
+                              <SidebarMenuSubButton
+                                asChild
                                 isActive={location.pathname === subItem.href}
                               >
                                 <Link to={subItem.href}>

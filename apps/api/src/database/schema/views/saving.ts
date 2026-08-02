@@ -4,6 +4,7 @@ import { savingsSchema } from '../_schemas';
 import {
   associateAccountMovements,
   associateAccounts,
+  associates,
   creditAmortizationSchedule,
   credits,
   loanAmortizationSchedule,
@@ -14,10 +15,12 @@ import {
 export const associateAccountBalances = savingsSchema.view(
   'associate_account_balances',
   {
+    tenantId: uuid('tenant_id').notNull(),
     associateAccountId: uuid('associate_account_id').notNull(),
     associateId: uuid('associate_id').notNull(),
     accountNumber: varchar('account_number', { length: 20 }).notNull(),
     currencyCode: text('currency_code').notNull(),
+    status: text('status').notNull(),
     calculatedBalance: numeric('calculated_balance', {
       precision: 20,
       scale: 6,
@@ -25,10 +28,12 @@ export const associateAccountBalances = savingsSchema.view(
   },
 ).as(sql`
     SELECT
+      a.tenant_id AS tenant_id,
       aa.id AS associate_account_id,
       aa.associate_id,
       aa.account_number,
       aa.currency_code,
+      aa.status,
       COALESCE(SUM(
         CASE
           WHEN aam.movement_type IN (
@@ -52,9 +57,10 @@ export const associateAccountBalances = savingsSchema.view(
         END
       ), 0) AS calculated_balance
     FROM ${associateAccounts} aa
+    INNER JOIN ${associates} a ON aa.associate_id = a.id
     LEFT JOIN ${associateAccountMovements} aam
       ON aa.id = aam.associate_account_id AND aam.status = 'COMPLETED'
-    GROUP BY aa.id, aa.associate_id, aa.account_number, aa.currency_code
+    GROUP BY a.tenant_id, aa.id, aa.associate_id, aa.account_number, aa.currency_code
   `);
 
 //Saldo pendiente de préstamos activos (capital + intereses no pagados).

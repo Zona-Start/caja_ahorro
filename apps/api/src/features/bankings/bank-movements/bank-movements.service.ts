@@ -261,6 +261,7 @@ export class BankMovementsService {
           : null,
         note: dto.note ?? null,
         createdById: userId,
+        reconciliationStatus: 'PENDING',
       })
       .returning();
 
@@ -424,7 +425,7 @@ export class BankMovementsService {
         await db
           .update(schema.bankTransactions)
           .set({
-            reconciliationStatus: 'RECONCILED',
+            reconciliationStatus: 'PENDING',
             internalLinkStatus: 'LINKED',
           })
           .where(eq(schema.bankTransactions.id, movement.id));

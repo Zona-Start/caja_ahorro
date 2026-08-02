@@ -39,8 +39,6 @@ export function BankReconciliationModal({
           <BankReconciliationForm
             onSuccess={handleSuccess}
             onCancel={handleCancel}
-            defaultValues={defaultValues}
-            disabled={false}
           />
         </div>
       </DialogContent>

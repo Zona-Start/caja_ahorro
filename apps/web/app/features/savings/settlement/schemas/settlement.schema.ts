@@ -1,42 +1,40 @@
 import { z } from 'zod';
-import { paymentMethodEnum } from './settlement-options';
 
 export const beneficiarySchema = z.object({
-  fullname: z.string().min(3, 'El nombre completo es requerido'),
-  cedula: z.string().min(6, 'La cédula es requerida'),
+  fullname: z.string().optional(),
+  cedula: z.string().optional(),
   phone: z.string().optional(),
-  accountNumber: z.string().min(20, 'El número de cuenta es requerido'),
-  bankDirectoryId: z
-    .number()
-    .int()
-    .positive('Debe seleccionar un banco válido'),
+  accountNumber: z.string().optional(),
+  bankName: z.string().optional(),
+  bankId: z.string().optional(),
 });
+
+export type BeneficiaryForm = z.infer<typeof beneficiarySchema>;
 
 export const settlementSchema = z
   .object({
-    id: z.number().optional(),
-    associateId: z.number(),
-    netLiquidationAmount: z.number(),
-    totalOutstandingCreditsAtLiquidation: z.number(),
-    totalOutstandingLoansAtLiquidation: z.number(),
-    totalSavingsBalanceAtLiquidation: z.number(),
-    liquidationDate: z.date(),
+    associateId: z.string().min(1, 'El asociado es requerido'),
+    date: z.coerce.date(),
     notes: z.string().optional(),
-    paymentMethod: paymentMethodEnum,
-    hasBeneficiary: z.boolean(),
-    beneficiary: z.array(beneficiarySchema).optional(),
+    hasBeneficiary: z.boolean().default(false),
+    beneficiary: beneficiarySchema.optional(),
   })
   .superRefine((data, ctx) => {
-    if (
-      data.hasBeneficiary &&
-      (!data.beneficiary || data.beneficiary.length === 0)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message:
-          'Debe especificar al menos un beneficiario si la opción está seleccionada.',
-        path: ['beneficiary'],
-      });
+    if (data.hasBeneficiary) {
+      if (!data.beneficiary || !data.beneficiary.fullname || data.beneficiary.fullname.trim().length < 3) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'El nombre completo del beneficiario es requerido (mín. 3 caracteres)',
+          path: ['beneficiary'],
+        });
+      }
+      if (!data.beneficiary || !data.beneficiary.cedula || data.beneficiary.cedula.trim().length < 6) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'La cédula del beneficiario es requerida (mín. 6 dígitos)',
+          path: ['beneficiary'],
+        });
+      }
     }
   });
 

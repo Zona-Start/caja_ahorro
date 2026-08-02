@@ -20,9 +20,7 @@ export function SiteHeader() {
           <h1 className="text-base font-medium">
             {tenantName ?? 'Caja de Ahorro'}
           </h1>
-          {roleName && (
-            <span className="text-xs text-muted-foreground">{roleName}</span>
-          )}
+
         </div>
         <div className="ml-auto flex items-center gap-2">
           <ModeToggle />

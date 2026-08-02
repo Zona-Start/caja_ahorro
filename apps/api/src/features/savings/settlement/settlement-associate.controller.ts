@@ -9,7 +9,6 @@ import {
   Post,
   Query,
   Req,
-  UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -27,27 +26,41 @@ export class SettlementAssociateController {
     private readonly tenantContextService: TenantContextService,
   ) {}
 
-  @Post('request')
-  @UsePipes(new ZodValidatorPipe(CreateSettlementAssociateSchema))
-  @ApiOperation({ summary: 'Request an associate settlement' })
+  @Get('request/:cedula')
+  @ApiOperation({ summary: 'Obtener datos de liquidacion de un asociado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Datos de liquidacion retornados exitosamente.',
+  })
+  @ApiResponse({ status: 404, description: 'Asociado no encontrado.' })
+  findOneRequest(@Req() req: Request, @Param('cedula') cedula: string) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
+    return this.service.findOneRequest(targetTenantId, cedula);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Crear solicitud de liquidacion' })
   @ApiResponse({
     status: 201,
-    description: 'The settlement request has been successfully created.',
+    description: 'La solicitud de liquidacion ha sido creada exitosamente.',
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  createRequest(@Req() req: Request, @Body() dto: any) {
+  createRequest(
+    @Req() req: Request,
+    @Body(new ZodValidatorPipe(CreateSettlementAssociateSchema)) dto: any,
+  ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     return this.service.create(targetTenantId, userId, dto);
   }
 
   @Post(':id/approve')
-  @ApiOperation({ summary: 'Approve and process an associate settlement' })
+  @ApiOperation({ summary: 'Aprobar y procesar liquidacion' })
   @ApiResponse({
     status: 200,
-    description: 'The settlement has been successfully processed.',
+    description: 'La liquidacion ha sido procesada exitosamente.',
   })
-  @ApiResponse({ status: 404, description: 'Settlement request not found.' })
+  @ApiResponse({ status: 404, description: 'Liquidacion no encontrada.' })
   approveRequest(@Req() req: Request, @Param('id') id: string) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req);
@@ -55,22 +68,19 @@ export class SettlementAssociateController {
   }
 
   @Post(':id/disburse')
-  @UsePipes(new ZodValidatorPipe(DisburseSettlementAssociateSchema))
-  @ApiOperation({
-    summary: 'Register the final disbursement for a processed settlement',
-  })
+  @ApiOperation({ summary: 'Registrar desembolso de liquidacion procesada' })
   @ApiResponse({
     status: 200,
-    description: 'The disbursement has been successfully recorded.',
+    description: 'El desembolso ha sido registrado exitosamente.',
   })
   @ApiResponse({
     status: 404,
-    description: 'Settlement request not found or not in PROCESSED status.',
+    description: 'Liquidacion no encontrada o no en estado PROCESADO.',
   })
   disburseRequest(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() dto: any,
+    @Body(new ZodValidatorPipe(DisburseSettlementAssociateSchema)) dto: any,
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
@@ -78,8 +88,11 @@ export class SettlementAssociateController {
   }
 
   @Get('approved')
-  @ApiOperation({ summary: 'Get all settlement approved' })
-  @ApiResponse({ status: 200, description: 'Return all settlement approved' })
+  @ApiOperation({ summary: 'Obtener liquidaciones aprobadas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna todas las liquidaciones aprobadas.',
+  })
   findSettlementAprovee(
     @Req() req: Request,
     @Query() paginationDto: PaginationDto,
@@ -90,20 +103,14 @@ export class SettlementAssociateController {
 
   @Get()
   @ApiOperation({
-    summary: 'Get all settlements or filter by settlement associate',
+    summary: 'Obtener todas las liquidaciones',
   })
-  @ApiResponse({ status: 200, description: 'Return all settlements.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Retorna todas las liquidaciones con paginacion.',
+  })
   findAll(@Req() req: Request, @Query() paginationDto: PaginationDto) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.service.findAll(targetTenantId, paginationDto);
-  }
-
-  @Get('request/:cedula')
-  @ApiOperation({ summary: 'Get one settlement associate' })
-  @ApiResponse({ status: 200, description: 'Return one settlement associate.' })
-  @ApiResponse({ status: 404, description: 'Settlement associate not found.' })
-  findOneRequest(@Req() req: Request, @Param('cedula') cedula: string) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findOneRequest(targetTenantId, cedula);
   }
 }

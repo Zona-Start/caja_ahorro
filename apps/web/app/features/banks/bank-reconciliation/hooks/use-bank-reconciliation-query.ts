@@ -8,53 +8,24 @@ import {
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { bankReconciliationKeys } from '../keys/bank-reconciliation-keys';
-import type {
-  BankReconciliation,
-  BankReconciliationForm,
-  BankMovementManualForm,
-  BankTransaction,
-} from '../schemas/bank-reconciliation.schema';
-import {
-  bankReconciliationService,
-  type BankReconciliationQueryParams,
-} from '../services/bank-reconciliation-service';
-
-interface PaginatedResponse<T> {
-  data: T[];
-  meta: {
-    totalItems: number;
-    itemCount: number;
-    itemsPerPage: number;
-    totalPages: number;
-    currentPage: number;
-  };
-}
+import { bankReconciliationService, type BankReconciliationQueryParams } from '../services/bank-reconciliation-service';
 
 const getErrorMessage = (error: unknown): string => {
-  if (isAxiosError<{ message?: string }>(error)) {
-    return (
-      error.response?.data?.message ||
-      error.message ||
-      'Se produjo un error al ejecutar la operación'
-    );
-  }
+  if (isAxiosError<{ message?: string }>(error)) return error.response?.data?.message || error.message || 'Error al ejecutar la operación';
   if (error instanceof Error) return error.message;
-  return 'Se produjo un error al ejecutar la operación';
+  return 'Error al ejecutar la operación';
 };
 
-export function useBankReconciliationsQuery(
-  params: BankReconciliationQueryParams,
-): UseQueryResult<PaginatedResponse<BankReconciliation>> {
+// ── Queries ──
+
+export function useBankReconciliationsQuery(params: BankReconciliationQueryParams): UseQueryResult<any> {
   return useQuery({
     queryKey: bankReconciliationKeys.list(params),
     queryFn: () => bankReconciliationService.getAllPaginated(params),
   });
 }
 
-export function useBankReconciliationQuery(
-  id: string,
-  enabled = true,
-): UseQueryResult<{ data: BankReconciliation & { details: unknown[]; transactions: BankTransaction[] } }> {
+export function useBankReconciliationQuery(id: string, enabled = true): UseQueryResult<any> {
   return useQuery({
     queryKey: bankReconciliationKeys.detail(id),
     queryFn: () => bankReconciliationService.getById(id),
@@ -62,156 +33,127 @@ export function useBankReconciliationQuery(
   });
 }
 
-export function useAvailableTransactionsQuery(
-  reconciliationId: string,
-  enabled = true,
-): UseQueryResult<{ data: BankTransaction[] }> {
+export function useStatementLinesQuery(reconciliationId: string, enabled = true): UseQueryResult<any> {
   return useQuery({
-    queryKey: bankReconciliationKeys.transactions(reconciliationId),
-    queryFn: () =>
-      bankReconciliationService.getAvailableTransactions(reconciliationId),
+    queryKey: [...bankReconciliationKeys.detail(reconciliationId), 'statement-lines'] as const,
+    queryFn: () => bankReconciliationService.getStatementLines(reconciliationId),
     enabled: enabled && !!reconciliationId,
   });
 }
 
-export function useCreateBankReconciliationMutation(): UseMutationResult<
-  unknown,
-  unknown,
-  BankReconciliationForm
-> {
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToastSystem();
-
-  return useMutation({
-    mutationFn: (payload) => bankReconciliationService.create(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.all,
-      });
-      toastSuccess('Conciliación creada correctamente');
-    },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
-    },
+export function useBookTransactionsQuery(reconciliationId: string, enabled = true): UseQueryResult<any> {
+  return useQuery({
+    queryKey: [...bankReconciliationKeys.detail(reconciliationId), 'book-transactions'] as const,
+    queryFn: () => bankReconciliationService.getBookTransactions(reconciliationId),
+    enabled: enabled && !!reconciliationId,
   });
 }
 
-export function useProcessReconciliationMutation(): UseMutationResult<
-  unknown,
-  unknown,
-  string
-> {
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToastSystem();
+// ── Mutations ──
 
+export function useCreateBankReconciliationMutation(): UseMutationResult<any, unknown, any> {
+  const qc = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+  return useMutation({
+    mutationFn: (p) => bankReconciliationService.create(p),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: bankReconciliationKeys.all }); toastSuccess('Conciliación creada'); },
+    onError: (e) => toastError(getErrorMessage(e)),
+  });
+}
+
+export function useProcessReconciliationMutation(): UseMutationResult<any, unknown, string> {
+  const qc = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
   return useMutation({
     mutationFn: (id) => bankReconciliationService.processAndComplete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.all,
-      });
-      toastSuccess('Conciliación procesada correctamente');
-    },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: bankReconciliationKeys.all }); toastSuccess('Conciliación procesada'); },
+    onError: (e) => toastError(getErrorMessage(e)),
   });
 }
 
-export function useCancelReconciliationMutation(): UseMutationResult<
-  unknown,
-  unknown,
-  string
-> {
-  const queryClient = useQueryClient();
+export function useCancelReconciliationMutation(): UseMutationResult<any, unknown, string> {
+  const qc = useQueryClient();
   const { success: toastSuccess, error: toastError } = useToastSystem();
-
   return useMutation({
     mutationFn: (id) => bankReconciliationService.cancel(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.all,
-      });
-      toastSuccess('Conciliación cancelada correctamente');
-    },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: bankReconciliationKeys.all }); toastSuccess('Conciliación cancelada'); },
+    onError: (e) => toastError(getErrorMessage(e)),
   });
 }
 
-export function useAddManualMovementMutation(): UseMutationResult<
-  unknown,
-  unknown,
-  { reconciliationId: string; payload: BankMovementManualForm }
-> {
-  const queryClient = useQueryClient();
+export function useAddStatementLineMutation(): UseMutationResult<any, unknown, { reconciliationId: string; payload: any }> {
+  const qc = useQueryClient();
   const { success: toastSuccess, error: toastError } = useToastSystem();
-
   return useMutation({
-    mutationFn: ({ reconciliationId, payload }) =>
-      bankReconciliationService.addManualMovement(reconciliationId, payload),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.detail(variables.reconciliationId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.all,
-      });
-      toastSuccess('Movimiento agregado correctamente');
+    mutationFn: ({ reconciliationId, payload }) => bankReconciliationService.addStatementLine(reconciliationId, payload),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: bankReconciliationKeys.detail(v.reconciliationId) });
+      toastSuccess('Línea de extracto agregada');
     },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
-    },
+    onError: (e) => toastError(getErrorMessage(e)),
   });
 }
 
-export function useAddBulkMovementsMutation(): UseMutationResult<
-  unknown,
-  unknown,
-  { reconciliationId: string; movementIds: string[] }
-> {
-  const queryClient = useQueryClient();
+export function useAutoMatchMutation(): UseMutationResult<any, unknown, string> {
+  const qc = useQueryClient();
   const { success: toastSuccess, error: toastError } = useToastSystem();
-
   return useMutation({
-    mutationFn: ({ reconciliationId, movementIds }) =>
-      bankReconciliationService.addBulkMovements(reconciliationId, movementIds),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.detail(variables.reconciliationId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.all,
-      });
-      toastSuccess('Movimientos agregados correctamente');
+    mutationFn: (id) => bankReconciliationService.autoMatch(id),
+    onSuccess: (_d, id) => {
+      qc.invalidateQueries({ queryKey: bankReconciliationKeys.detail(id) });
+      toastSuccess('Auto-conciliación ejecutada');
     },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
-    },
+    onError: (e) => toastError(getErrorMessage(e)),
   });
 }
 
-export function useUploadExcelMutation(): UseMutationResult<
-  unknown,
-  unknown,
-  FormData
-> {
-  const queryClient = useQueryClient();
+export function useManualMatchMutation(): UseMutationResult<any, unknown, { reconciliationId: string; payload: { statementLineIds: string[]; bankTransactionIds: string[] } }> {
+  const qc = useQueryClient();
   const { success: toastSuccess, error: toastError } = useToastSystem();
-
   return useMutation({
-    mutationFn: (formData) => bankReconciliationService.uploadExcel(formData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: bankReconciliationKeys.all,
-      });
-      toastSuccess(
-        'Conciliación creada desde Excel y movimientos importados correctamente',
-      );
+    mutationFn: ({ reconciliationId, payload }) => bankReconciliationService.manualMatch(reconciliationId, payload),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: bankReconciliationKeys.detail(v.reconciliationId) });
+      toastSuccess('Conciliación manual realizada');
     },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
-    },
+    onError: (e) => toastError(getErrorMessage(e)),
   });
 }
+
+export function useGenerateBookEntryMutation(): UseMutationResult<any, unknown, { reconciliationId: string; payload: { statementLineId: string; description?: string } }> {
+  const qc = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+  return useMutation({
+    mutationFn: ({ reconciliationId, payload }) => bankReconciliationService.generateBookEntry(reconciliationId, payload),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: bankReconciliationKeys.detail(v.reconciliationId) });
+      toastSuccess('Movimiento contable generado y conciliado');
+    },
+    onError: (e) => toastError(getErrorMessage(e)),
+  });
+}
+
+export function useUnmatchLineMutation(): UseMutationResult<any, unknown, { reconciliationId: string; lineId: string }> {
+  const qc = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+  return useMutation({
+    mutationFn: ({ reconciliationId, lineId }) => bankReconciliationService.unmatchLine(reconciliationId, lineId),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: bankReconciliationKeys.detail(v.reconciliationId) });
+      toastSuccess('Línea anulada y eliminada');
+    },
+    onError: (e) => toastError(getErrorMessage(e)),
+  });
+}
+
+export function useUploadExcelMutation(): UseMutationResult<any, unknown, FormData> {
+  const qc = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+  return useMutation({
+    mutationFn: (fd) => bankReconciliationService.uploadExcel(fd),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: bankReconciliationKeys.all }); toastSuccess('Conciliación importada desde Excel'); },
+    onError: (e) => toastError(getErrorMessage(e)),
+  });
+}
+
+export const useAddManualMovementMutation = useAddStatementLineMutation;

@@ -6,7 +6,7 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
-    "start": "react-router-serve ./build/server/index.js",
+    "start": "pnpm dlx serve -s ./build/client -p 3000",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
@@ -25,6 +25,7 @@
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.52.1",
     "react-router": "7.14.0",
+    "recharts": "^3.10.1",
     "xlsx": "^0.18.5",
     "zod": "^3.24.1",
     "zustand": "^4.5.4"

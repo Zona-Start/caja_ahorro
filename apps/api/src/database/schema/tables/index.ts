@@ -94,6 +94,7 @@ export {
   bankDirectory,
   bankReconciliationDetails,
   bankReconciliations,
+  bankStatementLines,
   bankTransactions,
   internalTransactionBankLinks,
 } from './treasury';

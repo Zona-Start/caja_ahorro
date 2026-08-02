@@ -190,6 +190,27 @@
       "when": 1784941674474,
       "tag": "0026_misty_maddog",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1785605989463,
+      "tag": "0027_lethal_romulus",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1785633024889,
+      "tag": "0028_huge_morbius",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1785633381094,
+      "tag": "0029_talented_microchip",
+      "breakpoints": true
     }
   ]
 }

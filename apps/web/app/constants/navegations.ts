@@ -22,6 +22,8 @@ import {
   Upload,
   UserCog,
   Users,
+  Scale,
+  BarChart3,
 } from 'lucide-react';
 
 export interface NavSubItem {
@@ -271,14 +273,24 @@ export const navGroups: NavGroup[] = [
         // },
       },
 
+      // {
+      //   label: 'Pagos Proveedores',
+      //   href: '/dashboard/compras/pagos',
+      //   icon: FileText,
+      //   // requiresPermission: {
+      //   //   resource: 'purchasing:supplier-payments',
+      //   //   action: 'read',
+      //   // },
+      // },
       {
-        label: 'Pagos Proveedores',
-        href: '/dashboard/compras/pagos',
-        icon: FileText,
-        // requiresPermission: {
-        //   resource: 'purchasing:supplier-payments',
-        //   action: 'read',
-        // },
+        label: 'Estado de Cuenta',
+        href: '/dashboard/compras/estado-cuenta',
+        icon: Scale,
+      },
+      {
+        label: 'Reportes de Compras',
+        href: '/dashboard/compras/reportes',
+        icon: BarChart3,
       },
     ],
   },
@@ -316,8 +328,17 @@ export const navGroups: NavGroup[] = [
         label: 'Conciliación',
         href: '/dashboard/configuracion/conciliaciones',
         icon: ArrowRightLeft,
+        requiresPermission: {
+          resource: 'banking:reconciliations',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Reportes',
+        href: '/dashboard/configuracion/reportes-bancos',
+        icon: FileText,
         // requiresPermission: {
-        //   resource: 'banking:reconciliations',
+        //   resource: 'banking:reports',
         //   action: 'read',
         // },
       },

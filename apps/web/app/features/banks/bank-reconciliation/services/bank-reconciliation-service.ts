@@ -1,9 +1,4 @@
 import { apiClient } from '@/lib/api-client';
-import type {
-  BankReconciliationForm,
-  BankMovementManualForm,
-  ExcelUploadForm,
-} from '../schemas/bank-reconciliation.schema';
 
 const BASE_URL = '/bakings/bank-reconciliations';
 
@@ -29,9 +24,7 @@ const buildQueryParams = (params: BankReconciliationQueryParams): string => {
 
 export const bankReconciliationService = {
   getAllPaginated: async (params: BankReconciliationQueryParams) => {
-    const response = await apiClient.get(
-      `${BASE_URL}/paginated?${buildQueryParams(params)}`,
-    );
+    const response = await apiClient.get(`${BASE_URL}/paginated?${buildQueryParams(params)}`);
     return response.data;
   },
 
@@ -40,7 +33,13 @@ export const bankReconciliationService = {
     return response.data;
   },
 
-  create: async (payload: BankReconciliationForm) => {
+  create: async (payload: {
+    bankAccountId: string;
+    startDate: Date;
+    statementDate: Date;
+    statementEndingBalance: number;
+    notes?: string | null;
+  }) => {
     const response = await apiClient.post(BASE_URL, payload);
     return response.data;
   },
@@ -55,43 +54,57 @@ export const bankReconciliationService = {
     return response.data;
   },
 
-  addManualMovement: async (
-    reconciliationId: string,
-    payload: BankMovementManualForm,
-  ) => {
-    const response = await apiClient.post(
-      `${BASE_URL}/${reconciliationId}/manual-movement`,
-      payload,
-    );
+  addStatementLine: async (reconciliationId: string, payload: {
+    transactionDate: Date;
+    bankReference?: string | null;
+    description: string;
+    isCredit: boolean;
+    amount: number;
+  }) => {
+    const response = await apiClient.post(`${BASE_URL}/${reconciliationId}/statement-line`, payload);
     return response.data;
   },
 
-  addBulkMovements: async (
-    reconciliationId: string,
-    movementIds: string[],
-  ) => {
-    const response = await apiClient.post(
-      `${BASE_URL}/${reconciliationId}/bulk-movements`,
-      { movementIds },
-    );
+  getStatementLines: async (reconciliationId: string) => {
+    const response = await apiClient.get(`${BASE_URL}/${reconciliationId}/statement-lines`);
     return response.data;
   },
 
-  getAvailableTransactions: async (reconciliationId: string) => {
-    const response = await apiClient.get(
-      `${BASE_URL}/${reconciliationId}/available-transactions`,
-    );
+  getBookTransactions: async (reconciliationId: string) => {
+    const response = await apiClient.get(`${BASE_URL}/${reconciliationId}/book-transactions`);
+    return response.data;
+  },
+
+  autoMatch: async (reconciliationId: string) => {
+    const response = await apiClient.post(`${BASE_URL}/${reconciliationId}/auto-match`);
+    return response.data;
+  },
+
+  manualMatch: async (reconciliationId: string, payload: {
+    statementLineIds: string[];
+    bankTransactionIds: string[];
+  }) => {
+    const response = await apiClient.post(`${BASE_URL}/${reconciliationId}/manual-match`, payload);
+    return response.data;
+  },
+
+  generateBookEntry: async (reconciliationId: string, payload: {
+    statementLineId: string;
+    description?: string;
+  }) => {
+    const response = await apiClient.post(`${BASE_URL}/${reconciliationId}/generate-book-entry`, payload);
+    return response.data;
+  },
+
+  unmatchLine: async (reconciliationId: string, lineId: string) => {
+    const response = await apiClient.post(`${BASE_URL}/${reconciliationId}/unmatch-line/${lineId}`);
     return response.data;
   },
 
   uploadExcel: async (formData: FormData) => {
-    const response = await apiClient.post(
-      `${BASE_URL}/upload-excel`,
-      formData,
-      {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      },
-    );
+    const response = await apiClient.post(`${BASE_URL}/upload-excel`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };

@@ -1,0 +1,26 @@
+[data-sidebar="menu-button"][data-active="true"],
+[data-sidebar="menu-sub-button"][data-active="true"] {
+  background-color: color-mix(in oklch, var(--primary) 32%, transparent) !important;
+  color: oklch(0.145 0 0) !important;
+}
+
+:root.dark [data-sidebar="menu-button"][data-active="true"],
+:root.dark [data-sidebar="menu-sub-button"][data-active="true"] {
+  background-color: color-mix(in oklch, var(--primary) 24%, transparent) !important;
+  color: oklch(0.985 0 0) !important;
+}
+
+[data-sidebar="menu-button"]:not([data-active="true"]):hover,
+[data-sidebar="menu-sub-button"]:not([data-active="true"]):hover {
+  background-color: color-mix(in oklch, var(--primary) 10%, transparent) !important;
+}
+
+[data-sidebar="menu-button"][data-active="true"]:hover,
+[data-sidebar="menu-sub-button"][data-active="true"]:hover {
+  background-color: color-mix(in oklch, var(--primary) 35%, transparent) !important;
+}
+
+:root.dark [data-sidebar="menu-button"][data-active="true"]:hover,
+:root.dark [data-sidebar="menu-sub-button"][data-active="true"]:hover {
+  background-color: color-mix(in oklch, var(--primary) 30%, transparent) !important;
+}
