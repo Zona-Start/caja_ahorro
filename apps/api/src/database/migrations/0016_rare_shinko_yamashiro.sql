@@ -1,1 +1,0 @@
-ALTER TABLE "savings"."credit_item_sales" ADD COLUMN "item_description" varchar(255);

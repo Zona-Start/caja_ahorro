@@ -1,1 +1,0 @@
-ALTER TABLE "inventory"."product_prices" DROP COLUMN "currency_code";

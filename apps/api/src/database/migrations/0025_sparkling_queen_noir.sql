@@ -1,1 +1,0 @@
-ALTER TABLE "purchasing"."supplier_payment_lines" DROP COLUMN "related_advance_id";

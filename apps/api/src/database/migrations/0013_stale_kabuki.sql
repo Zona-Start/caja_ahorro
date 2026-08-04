@@ -1,3 +1,0 @@
-ALTER TABLE "savings"."associate_account_movements" ADD COLUMN "internal_code" varchar(30);--> statement-breakpoint
-CREATE UNIQUE INDEX "assoc_acct_mov_internal_code_uidx" ON "savings"."associate_account_movements" USING btree ("internal_code");--> statement-breakpoint
-ALTER TABLE "savings"."associate_account_movements" ADD CONSTRAINT "associate_account_movements_internal_code_unique" UNIQUE("internal_code");

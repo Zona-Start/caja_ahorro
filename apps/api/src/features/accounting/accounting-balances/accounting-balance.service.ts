@@ -26,7 +26,9 @@ export class AccountingBalanceService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
+
+
 
   async bootstrapping(
     userId: string,
@@ -34,6 +36,7 @@ export class AccountingBalanceService {
     initialLoadDto: InitialLoadDto,
     file?: Express.Multer.File,
   ) {
+    // 1. Obtener los datos (desde archivo o desde DTO)
     let rawBalances: any[] = [];
     if (file) {
       rawBalances = (await parseExcelFile(file.buffer)) as any[];
@@ -41,6 +44,7 @@ export class AccountingBalanceService {
       rawBalances = initialLoadDto.balances ?? [];
     }
 
+    // 2. Agrupar por código de cuenta
     const groups = new Map<string, any[]>();
     for (const item of rawBalances) {
       const rawCode = item.accountCode ?? item.CUENTA ?? item.cuenta;
@@ -50,6 +54,7 @@ export class AccountingBalanceService {
       groups.get(code)!.push(item);
     }
 
+    // 3. Calcular saldo total por cuenta (suma de auxiliares)
     const uniqueBalances: { accountCode: string; balance: number }[] = [];
     groups.forEach((rows, code) => {
       const hasAuxiliaries = rows.some((r) => {
@@ -60,9 +65,7 @@ export class AccountingBalanceService {
       if (hasAuxiliaries) {
         finalRows = rows.filter((r) => {
           const aux = r.AUXILIAR ?? r.auxiliar ?? r.aux;
-          return (
-            aux && String(aux).trim() !== '' && String(aux).trim() !== '000'
-          );
+          return aux && String(aux).trim() !== '' && String(aux).trim() !== '000';
         });
       }
       const totalBalance = finalRows.reduce((sum, row) => {
@@ -79,6 +82,7 @@ export class AccountingBalanceService {
       uniqueBalances.push({ accountCode: code, balance: totalBalance });
     });
 
+    // 4. Validar ciclo contable activo
     const [activeCycle] = await this.drizzle
       .select()
       .from(schema.accountingCycles)
@@ -92,6 +96,7 @@ export class AccountingBalanceService {
     if (!activeCycle)
       throw new NotFoundException('No active accounting cycle found.');
 
+    // 5. Verificar que no haya saldos cargados
     const existing = await this.drizzle
       .select({ id: schema.accountBalances.id })
       .from(schema.accountBalances)
@@ -105,6 +110,7 @@ export class AccountingBalanceService {
     if (existing.length > 0)
       throw new BadRequestException('Balances already loaded.');
 
+    // 6. Verificar que no existan asientos en el ciclo
     const entries = await this.drizzle
       .select({ count: sql<number>`count(*)` })
       .from(schema.accountingEntries)
@@ -117,14 +123,15 @@ export class AccountingBalanceService {
     if (Number(entries[0].count) > 0)
       throw new BadRequestException('Cycle has existing entries.');
 
+    // 7. Obtener cuentas del plan
     const codes = uniqueBalances.map((b) => b.accountCode);
     const accountsFound = await this.drizzle
       .select({
         id: schema.accountPlan.id,
         code: schema.accountPlan.code,
         nature: schema.accountPlan.nature,
+        accountType: schema.accountPlan.accountType, // ← AGREGADO: para segregar por tipo
         allowsMovements: schema.accountPlan.allowsMovements,
-        name: schema.accountPlan.name,
       })
       .from(schema.accountPlan)
       .where(
@@ -136,45 +143,65 @@ export class AccountingBalanceService {
 
     const accountMap = new Map(accountsFound.map((acc) => [acc.code, acc]));
 
+    // Variables para acumular totales
     let totalDebits = 0;
     let totalCredits = 0;
+    let totalAssets = 0;      // Suma de saldos de cuentas ASSET (con signo)
+    let totalLiabilities = 0; // Suma de saldos de cuentas LIABILITY (con signo)
+    let totalEquity = 0;      // Suma de saldos de cuentas EQUITY (con signo)
+
     const payloadToInsert: NewAccountBalance[] = [];
+
+    // Arrays para auditar la data rechazada
+    const missingAccounts: string[] = [];
+    const parentAccountsWithBalance: string[] = [];
+
+    // LOG: Inicializar un array para guardar el detalle de cada cuenta procesada
+    const processingLog: string[] = [];
+
 
     for (const item of uniqueBalances) {
       const account = accountMap.get(item.accountCode);
-      if (!account || !account.allowsMovements) continue;
+
+      if (!account) {
+        missingAccounts.push(item.accountCode);
+        continue;
+      }
+      // if (!account.allowsMovements) {
+      //   parentAccountsWithBalance.push(`${item.accountCode} (Saldo: ${item.balance})`);
+      //   continue;
+      // }
 
       const amount = Number(item.balance);
 
-      // --- LOGICA CORREGIDA PARA DETERMINAR DEBITOS Y CREDITOS ---
-      // Evaluamos según la naturaleza de la cuenta en el sistema, no solo por el signo del Excel.
+      // LOG: Registrar el procesamiento de esta cuenta
+      const logEntry = `Cuenta: ${item.accountCode}, Monto: ${amount}, Naturaleza: ${account.nature}, Tipo: ${account.accountType}`;
+      processingLog.push(logEntry);
+
+
+      // ✅ ACUMULACIÓN POR NATURALEZA (para débitos/créditos)
       if (account.nature === 'DEBIT') {
-        if (amount >= 0) {
-          totalDebits += amount;
-        } else {
-          // Un saldo negativo en una cuenta deudora actúa como un crédito
-          totalCredits += Math.abs(amount);
-        }
-      } else if (account.nature === 'CREDIT') {
-        if (amount <= 0) {
-          // Si el sistema viejo exportó los créditos en negativo (ej: -43819560.38)
-          totalCredits += Math.abs(amount);
-        } else {
-          // Si el sistema viejo exportó los créditos en positivo (ej: 387419.35 de pasivo)
-          totalCredits += amount;
-        }
+        totalDebits += amount;
+        processingLog.push(`  -> Sumado a DÉBITOS (total parcial: ${totalDebits.toFixed(2)})`);
+      } else { // CREDIT
+        totalCredits += amount;
+        processingLog.push(`  -> Sumado a CRÉDITOS (total parcial: ${totalCredits.toFixed(2)})`);
       }
 
-      // Definir cómo se guardará en la base de datos de acuerdo a tu arquitectura.
-      // (Habitualmente los saldos en la tabla base se guardan respetando su signo natural o absolutos)
-      let balanceToStore = amount;
-      if (account.nature === 'CREDIT' && amount > 0) {
-        // Si tu backend espera los créditos firmados en negativo internamente:
-        balanceToStore = -amount;
-      } else if (account.nature === 'CREDIT' && amount < 0) {
-        // Si ya venía negativo del excel, lo dejamos igual
-        balanceToStore = amount;
+      // ✅ ACUMULACIÓN POR TIPO DE CUENTA (Activo, Pasivo, Patrimonio)
+      if (account.accountType === 'ASSET') {
+        totalAssets += amount;
+        processingLog.push(`  -> Sumado a ACTIVOS (total parcial: ${totalAssets.toFixed(2)})`);
+      } else if (account.accountType === 'LIABILITY') {
+        totalLiabilities += amount;
+        processingLog.push(`  -> Sumado a PASIVOS (total parcial: ${totalLiabilities.toFixed(2)})`);
+      } else if (account.accountType === 'EQUITY') {
+        totalEquity += amount;
+        processingLog.push(`  -> Sumado a PATRIMONIO (total parcial: ${totalEquity.toFixed(2)})`);
       }
+
+      // ✅ ALMACENAMIENTO: SIEMPRE VALOR ABSOLUTO
+      const balanceToStore = Math.abs(amount);
 
       payloadToInsert.push({
         tenantId,
@@ -189,24 +216,150 @@ export class AccountingBalanceService {
       });
     }
 
-    // Evitamos problemas de precisión decimal multiplicando por 100 antes de restar
-    const diff =
-      Math.abs(Math.round(totalDebits * 100) - Math.round(totalCredits * 100)) /
-      100;
 
-    // Si la diferencia es mayor a 1 unidad monetaria (o un centavo, según tu nivel de tolerancia)
-    if (diff > 1.0) {
-      throw new ConflictException(
-        `Initial Load Imbalance. Total Debits: ${totalDebits.toFixed(2)}, Total Credits: ${totalCredits.toFixed(2)}. Difference: ${diff.toFixed(2)}`,
-      );
+
+    // 7.5 Lanzar error temprano si hay cuentas inválidas en el Excel
+    if (missingAccounts.length > 0 || parentAccountsWithBalance.length > 0) {
+      const errorMsg = `Carga detenida. Cuentas no existen en BD: [${missingAccounts.join(', ')}]. Cuentas PADRE con saldo directo en Excel (no permitido): [${parentAccountsWithBalance.join(', ')}].`;
+      console.log(errorMsg);
+      console.log('Log de procesamiento:');
+      console.log(processingLog.join('\n'));
+      throw new BadRequestException(errorMsg);
     }
 
+    // 8. Validar balance: la suma de débitos y créditos (con signo) debe ser 0
+    const diff = Math.abs(totalDebits + totalCredits);
+
+    // =========================================
+    // REPORTE CONTABLE DE VALIDACIÓN
+    // =========================================
+
+    let totalRevenue = 0;
+    let totalExpense = 0;
+
+    const accountSummary: {
+      code: string;
+      type: string;
+      nature: string;
+      amount: number;
+    }[] = [];
+
+    for (const item of uniqueBalances) {
+      const account = accountMap.get(item.accountCode);
+      if (!account) continue;
+
+      const amount = Number(item.balance);
+
+      accountSummary.push({
+        code: item.accountCode,
+        type: account.accountType,
+        nature: account.nature,
+        amount,
+      });
+
+      switch (account.accountType) {
+        case 'REVENUE':
+          totalRevenue += amount;
+          break;
+
+        case 'EXPENSE':
+          totalExpense += amount;
+          break;
+      }
+    }
+
+    // Activos ya fueron calculados
+    // Pasivos ya fueron calculados
+    // Patrimonio ya fue calculado
+
+    const assets = totalAssets;
+    const liabilities = totalLiabilities;
+    const equity = totalEquity;
+    const revenues = totalRevenue;
+    const expenses = totalExpense;
+
+    const debitTotal = totalDebits;
+    const creditTotal = totalCredits;
+
+    const accountingEquation =
+      assets + liabilities + equity;
+
+    console.log(`
+  ==============================================================
+               REPORTE DE VALIDACIÓN CONTABLE
+  ==============================================================
+
+  ACTIVOS      : ${assets.toFixed(2)}
+
+  PASIVOS      : ${Math.abs(liabilities).toFixed(2)}
+
+  PATRIMONIO   : ${Math.abs(equity).toFixed(2)}
+
+  INGRESOS     : ${Math.abs(revenues).toFixed(2)}
+
+  GASTOS       : ${expenses.toFixed(2)}
+
+  --------------------------------------------------------------
+
+  TOTAL DEBE   : ${debitTotal.toFixed(2)}
+
+  TOTAL HABER  : ${Math.abs(creditTotal).toFixed(2)}
+
+  DIFERENCIA   : ${(debitTotal + creditTotal).toFixed(2)}
+
+  --------------------------------------------------------------
+
+  ACTIVO =
+  ${assets.toFixed(2)}
+
+  PASIVO + PATRIMONIO =
+  ${Math.abs(liabilities + equity).toFixed(2)}
+
+  DIFERENCIA ECUACIÓN =
+  ${(assets + liabilities + equity).toFixed(2)}
+
+  --------------------------------------------------------------
+
+  UTILIDAD DEL EJERCICIO
+
+  Ingresos : ${Math.abs(revenues).toFixed(2)}
+
+  Gastos   : ${expenses.toFixed(2)}
+
+  Resultado:
+  ${(revenues + expenses).toFixed(2)}
+
+  ==============================================================
+  `);
+
+    console.log("\n=========== TOP CUENTAS POR MONTO ==========");
+
+    accountSummary
+      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+      .forEach(a => {
+
+        console.log(
+          `${a.code.padEnd(20)} | ${a.type.padEnd(10)} | ${a.nature.padEnd(6)} | ${a.amount.toFixed(2)}`
+        );
+
+      });
+
+
+    if (diff > 1.0) {
+      const errorMsg = `Initial Load Imbalance. Total Debits (signed): ${totalDebits.toFixed(2)}, Total Credits (signed): ${totalCredits.toFixed(2)}. Difference: ${diff.toFixed(2)}. 
+      === Resumen por tipo de cuenta ===
+      Detalle de procesamiento: 
+      ${processingLog.join('\n')}`;
+      console.log(errorMsg);
+      throw new ConflictException(errorMsg);
+    }
+
+    // 9. Transacción
     return this.drizzle.transaction(async (tx) => {
       if (payloadToInsert.length > 0) {
         await tx.insert(schema.accountBalances).values(payloadToInsert);
       }
 
-      // Registra el log de auditoría
       await this.auditHelper.logCreate(
         tenantId,
         'accountBalances',
@@ -219,6 +372,9 @@ export class AccountingBalanceService {
       return { message: 'Success', processedAccounts: payloadToInsert.length };
     });
   }
+
+
+
 
   async closeCycle(
     userId: string,

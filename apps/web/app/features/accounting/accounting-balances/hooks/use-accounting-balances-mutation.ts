@@ -19,10 +19,10 @@ export function useBootstrappingMutation() {
         description: 'La carga inicial de balances se ha realizado exitosamente.',
       });
     },
-    onError: (error: unknown) => {
+    onError: () => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al cargar los balances.',
+        description: 'Contacte con el administrador.',
         variant: 'destructive',
       });
     },
@@ -40,14 +40,14 @@ export function useBootstrappingWithFileMutation() {
         queryKey: QUERY_KEYS.accountingBalances.all,
       });
       toast({
-        title: 'Archivo procesado',
-        description: 'El archivo de balances ha sido procesado exitosamente.',
+        title: 'Carga exitosa',
+        description: 'La carga inicial de balances se ha procesado exitosamente.',
       });
     },
-    onError: (error: unknown) => {
+    onError: () => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al procesar el archivo.',
+        description: 'Contacte con el administrador.',
         variant: 'destructive',
       });
     },
@@ -70,10 +70,10 @@ export function useCloseCycleMutation() {
         description: 'El ciclo contable ha sido cerrado exitosamente.',
       });
     },
-    onError: (error: unknown) => {
+    onError: () => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al cerrar el ciclo.',
+        description: 'Contacte con el administrador.',
         variant: 'destructive',
       });
     },
@@ -95,10 +95,10 @@ export function useOpenCycleMutation() {
         description: 'El nuevo ciclo contable ha sido abierto exitosamente.',
       });
     },
-    onError: (error: unknown) => {
+    onError: () => {
       toast({
         title: 'Error',
-        description: (error as Error)?.message || 'Ha ocurrido un error al abrir el ciclo.',
+        description: 'Contacte con el administrador.',
         variant: 'destructive',
       });
     },

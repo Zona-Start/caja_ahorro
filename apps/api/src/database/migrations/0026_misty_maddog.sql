@@ -1,1 +1,0 @@
-ALTER TABLE "purchasing"."supplier_payment_lines" ADD COLUMN "related_advance_id" uuid;

@@ -26,15 +26,24 @@ export const columns: ColumnDef<AccountPlanApiResponse>[] = [
     },
   },
   {
-    accessorKey: 'level',
-    header: 'Nivel',
+    accessorKey: 'nature',
+    header: 'Naturaleza',
     cell: ({ row }) => {
-      const level = row.original.level;
-      const levelText =
-        ACCOUNT_LEVELS[level as keyof typeof ACCOUNT_LEVELS] || level;
-      return <span>{levelText}</span>;
+      const natureType = row.original.nature;
+      const natureTypeText = natureType === 'DEBIT' ? 'Debito' : 'Credito';
+      return <span>{natureTypeText}</span>;
     },
   },
+  // {
+  //   accessorKey: 'level',
+  //   header: 'Nivel',
+  //   cell: ({ row }) => {
+  //     const level = row.original.level;
+  //     const levelText =
+  //       ACCOUNT_LEVELS[level as keyof typeof ACCOUNT_LEVELS] || level;
+  //     return <span>{levelText}</span>;
+  //   },
+  // },
   {
     accessorKey: 'allowsMovements',
     header: 'Acepta Movimientos',

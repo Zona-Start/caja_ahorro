@@ -55,6 +55,7 @@ export function BootstrappingModal({
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [balance, setBalance] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('file');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const bootstrappingMutation = useBootstrappingMutation();
   const bootstrappingFileMutation = useBootstrappingWithFileMutation();
@@ -73,14 +74,18 @@ export function BootstrappingModal({
 
   const handleSubmitFile = async () => {
     if (!file) return;
-
     try {
       await bootstrappingFileMutation.mutateAsync(file);
       onOpenChange(false);
       setFile(null);
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (_) {
+      // error handled by mutation onError toast
     }
+  };
+
+  const handleConfirmFile = () => {
+    setShowConfirm(false);
+    handleSubmitFile();
   };
 
   const handleAddBalance = () => {
@@ -108,14 +113,18 @@ export function BootstrappingModal({
 
   const handleSubmitManual = async () => {
     if (manualBalances.length === 0) return;
-
     try {
       await bootstrappingMutation.mutateAsync({ balances: manualBalances });
       onOpenChange(false);
       setManualBalances([]);
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (_) {
+      // error handled by mutation onError toast
     }
+  };
+
+  const handleConfirmManual = () => {
+    setShowConfirm(false);
+    handleSubmitManual();
   };
 
   const downloadTemplate = () => {
@@ -155,7 +164,8 @@ export function BootstrappingModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className={`${modalSize} overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle>Carga Inicial de Saldos</DialogTitle>
@@ -213,7 +223,7 @@ export function BootstrappingModal({
                 Cancelar
               </Button>
               <Button
-                onClick={handleSubmitFile}
+                onClick={() => setShowConfirm(true)}
                 disabled={!file || bootstrappingFileMutation.isPending}
               >
                 <Upload className="mr-2 h-4 w-4" />
@@ -347,7 +357,7 @@ export function BootstrappingModal({
                 Cancelar
               </Button>
               <Button
-                onClick={handleSubmitManual}
+                onClick={() => setShowConfirm(true)}
                 disabled={
                   manualBalances.length === 0 || bootstrappingMutation.isPending
                 }
@@ -361,5 +371,30 @@ export function BootstrappingModal({
         </Tabs>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Confirmar carga inicial</DialogTitle>
+          <DialogDescription>
+            ¿Está seguro de que desea realizar la carga inicial de saldos?
+            Esta acción registrará los saldos en el ciclo contable activo.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowConfirm(false)}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={
+              activeTab === 'file' ? handleConfirmFile : handleConfirmManual
+            }
+          >
+            Confirmar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

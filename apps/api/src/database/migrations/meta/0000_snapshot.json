@@ -1,5 +1,5 @@
 {
-  "id": "7d6398ed-7d44-4c95-b4fe-fdc0c590f392",
+  "id": "c95b30f4-ff49-476f-9f36-ce4ca262fe98",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1253,7 +1253,7 @@
               "nulls": "last"
             },
             {
-              "expression": "supplier_invoice_id",
+              "expression": "ap_number",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1269,6 +1269,51 @@
           "columns": [
             {
               "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ap_supplier_idx": {
+          "name": "ap_supplier_idx",
+          "columns": [
+            {
+              "expression": "supplier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ap_date_range_idx": {
+          "name": "ap_date_range_idx",
+          "columns": [
+            {
+              "expression": "due_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "ap_invoice_number_idx": {
+          "name": "ap_invoice_number_idx",
+          "columns": [
+            {
+              "expression": "ap_number",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1331,13 +1376,6 @@
           "nullsNotDistinct": false,
           "columns": [
             "supplier_invoice_id"
-          ]
-        },
-        "accounts_payable_ap_number_unique": {
-          "name": "accounts_payable_ap_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "ap_number"
           ]
         }
       },
@@ -1555,6 +1593,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "internal_code": {
+          "name": "internal_code",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "exchange_rate_id": {
           "name": "exchange_rate_id",
           "type": "uuid",
@@ -1667,6 +1711,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "assoc_acct_mov_internal_code_uidx": {
+          "name": "assoc_acct_mov_internal_code_uidx",
+          "columns": [
+            {
+              "expression": "internal_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1700,7 +1759,15 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "associate_account_movements_internal_code_unique": {
+          "name": "associate_account_movements_internal_code_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "internal_code"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -2631,7 +2698,7 @@
           "name": "linked_chart_account_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "is_active": {
           "name": "is_active",
@@ -3081,6 +3148,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "statement_line_id": {
+          "name": "statement_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "accounting_entry_detail_id": {
           "name": "accounting_entry_detail_id",
           "type": "uuid",
@@ -3175,6 +3248,21 @@
           "method": "btree",
           "with": {}
         },
+        "bank_recon_details_stmt_line_idx": {
+          "name": "bank_recon_details_stmt_line_idx",
+          "columns": [
+            {
+              "expression": "statement_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "bank_recon_details_acct_entry_detail_idx": {
           "name": "bank_recon_details_acct_entry_detail_idx",
           "columns": [
@@ -3220,6 +3308,20 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
+        "bank_reconciliation_details_statement_line_id_bank_statement_lines_id_fk": {
+          "name": "bank_reconciliation_details_statement_line_id_bank_statement_lines_id_fk",
+          "tableFrom": "bank_reconciliation_details",
+          "tableTo": "bank_statement_lines",
+          "schemaTo": "treasury",
+          "columnsFrom": [
+            "statement_line_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "bank_reconciliation_details_accounting_entry_detail_id_accounting_entry_details_id_fk": {
           "name": "bank_reconciliation_details_accounting_entry_detail_id_accounting_entry_details_id_fk",
           "tableFrom": "bank_reconciliation_details",
@@ -3250,15 +3352,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "bank_reconciliation_details_bank_transaction_id_unique": {
-          "name": "bank_reconciliation_details_bank_transaction_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "bank_transaction_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -3283,6 +3377,12 @@
         "bank_account_id": {
           "name": "bank_account_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
           "primaryKey": false,
           "notNull": true
         },
@@ -3411,6 +3511,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "bank_recon_start_date_idx": {
+          "name": "bank_recon_start_date_idx",
+          "columns": [
+            {
+              "expression": "start_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -3468,6 +3583,245 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "treasury.bank_statement_lines": {
+      "name": "bank_statement_lines",
+      "schema": "treasury",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_reconciliation_id": {
+          "name": "bank_reconciliation_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_account_id": {
+          "name": "bank_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transaction_date": {
+          "name": "transaction_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bank_reference": {
+          "name": "bank_reference",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "debit_amount": {
+          "name": "debit_amount",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "credit_amount": {
+          "name": "credit_amount",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.00'"
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "matched_transaction_id": {
+          "name": "matched_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_credit": {
+          "name": "is_credit",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "stmt_lines_recon_idx": {
+          "name": "stmt_lines_recon_idx",
+          "columns": [
+            {
+              "expression": "bank_reconciliation_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stmt_lines_date_idx": {
+          "name": "stmt_lines_date_idx",
+          "columns": [
+            {
+              "expression": "transaction_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stmt_lines_ref_idx": {
+          "name": "stmt_lines_ref_idx",
+          "columns": [
+            {
+              "expression": "bank_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "stmt_lines_status_idx": {
+          "name": "stmt_lines_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "bank_statement_lines_tenant_id_tenants_id_fk": {
+          "name": "bank_statement_lines_tenant_id_tenants_id_fk",
+          "tableFrom": "bank_statement_lines",
+          "tableTo": "tenants",
+          "schemaTo": "tenant",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "bank_statement_lines_bank_reconciliation_id_bank_reconciliations_id_fk": {
+          "name": "bank_statement_lines_bank_reconciliation_id_bank_reconciliations_id_fk",
+          "tableFrom": "bank_statement_lines",
+          "tableTo": "bank_reconciliations",
+          "schemaTo": "treasury",
+          "columnsFrom": [
+            "bank_reconciliation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "bank_statement_lines_bank_account_id_bank_accounts_id_fk": {
+          "name": "bank_statement_lines_bank_account_id_bank_accounts_id_fk",
+          "tableFrom": "bank_statement_lines",
+          "tableTo": "bank_accounts",
+          "schemaTo": "treasury",
+          "columnsFrom": [
+            "bank_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "bank_statement_lines_matched_transaction_id_bank_transactions_id_fk": {
+          "name": "bank_statement_lines_matched_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "bank_statement_lines",
+          "tableTo": "bank_transactions",
+          "schemaTo": "treasury",
+          "columnsFrom": [
+            "matched_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -3599,6 +3953,12 @@
           "notNull": true,
           "default": "'UNLINKED'"
         },
+        "internal_code": {
+          "name": "internal_code",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "note": {
           "name": "note",
           "type": "text",
@@ -3700,6 +4060,27 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "bank_trans_internal_code_uidx": {
+          "name": "bank_trans_internal_code_uidx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "internal_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3930,6 +4311,389 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "savings.contribution_batch_associates": {
+      "name": "contribution_batch_associates",
+      "schema": "savings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "contribution_batch_id": {
+          "name": "contribution_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "amount": {
+          "name": "amount",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "contrib_batch_assoc_batch_idx": {
+          "name": "contrib_batch_assoc_batch_idx",
+          "columns": [
+            {
+              "expression": "contribution_batch_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "contrib_batch_assoc_associate_idx": {
+          "name": "contrib_batch_assoc_associate_idx",
+          "columns": [
+            {
+              "expression": "associate_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "contribution_batch_associates_contribution_batch_id_contribution_batches_id_fk": {
+          "name": "contribution_batch_associates_contribution_batch_id_contribution_batches_id_fk",
+          "tableFrom": "contribution_batch_associates",
+          "tableTo": "contribution_batches",
+          "schemaTo": "savings",
+          "columnsFrom": [
+            "contribution_batch_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "contribution_batch_associates_associate_id_associates_id_fk": {
+          "name": "contribution_batch_associates_associate_id_associates_id_fk",
+          "tableFrom": "contribution_batch_associates",
+          "tableTo": "associates",
+          "schemaTo": "savings",
+          "columnsFrom": [
+            "associate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "savings.contribution_batches": {
+      "name": "contribution_batches",
+      "schema": "savings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "movement_type": {
+          "name": "movement_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_date": {
+          "name": "entry_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associate_id": {
+          "name": "associate_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_voluntario": {
+          "name": "amount_voluntario",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_patrono": {
+          "name": "amount_patrono",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "amount_asociado": {
+          "name": "amount_asociado",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_amount": {
+          "name": "total_amount",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "associate_count": {
+          "name": "associate_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'completed'"
+        },
+        "accounting_entry_id": {
+          "name": "accounting_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_transaction_id": {
+          "name": "bank_transaction_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reversal_entry_id": {
+          "name": "reversal_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_data": {
+          "name": "bank_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp (3)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_id": {
+          "name": "updated_by_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "contrib_batches_tenant_idx": {
+          "name": "contrib_batches_tenant_idx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "contrib_batches_entry_date_idx": {
+          "name": "contrib_batches_entry_date_idx",
+          "columns": [
+            {
+              "expression": "entry_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "contrib_batches_status_idx": {
+          "name": "contrib_batches_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "contribution_batches_tenant_id_tenants_id_fk": {
+          "name": "contribution_batches_tenant_id_tenants_id_fk",
+          "tableFrom": "contribution_batches",
+          "tableTo": "tenants",
+          "schemaTo": "tenant",
+          "columnsFrom": [
+            "tenant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "contribution_batches_associate_id_associates_id_fk": {
+          "name": "contribution_batches_associate_id_associates_id_fk",
+          "tableFrom": "contribution_batches",
+          "tableTo": "associates",
+          "schemaTo": "savings",
+          "columnsFrom": [
+            "associate_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "contribution_batches_accounting_entry_id_accounting_entries_id_fk": {
+          "name": "contribution_batches_accounting_entry_id_accounting_entries_id_fk",
+          "tableFrom": "contribution_batches",
+          "tableTo": "accounting_entries",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "accounting_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "contribution_batches_bank_transaction_id_bank_transactions_id_fk": {
+          "name": "contribution_batches_bank_transaction_id_bank_transactions_id_fk",
+          "tableFrom": "contribution_batches",
+          "tableTo": "bank_transactions",
+          "schemaTo": "treasury",
+          "columnsFrom": [
+            "bank_transaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "contribution_batches_reversal_entry_id_accounting_entries_id_fk": {
+          "name": "contribution_batches_reversal_entry_id_accounting_entries_id_fk",
+          "tableFrom": "contribution_batches",
+          "tableTo": "accounting_entries",
+          "schemaTo": "accounting",
+          "columnsFrom": [
+            "reversal_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "savings.credit_amortization_schedule": {
       "name": "credit_amortization_schedule",
       "schema": "savings",
@@ -4128,6 +4892,12 @@
         "item_id": {
           "name": "item_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "item_description": {
+          "name": "item_description",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
@@ -4477,10 +5247,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "credit_payments_bank_id_bank_directory_id_fk": {
-          "name": "credit_payments_bank_id_bank_directory_id_fk",
+        "credit_payments_bank_id_bank_accounts_id_fk": {
+          "name": "credit_payments_bank_id_bank_accounts_id_fk",
           "tableFrom": "credit_payments",
-          "tableTo": "bank_directory",
+          "tableTo": "bank_accounts",
           "schemaTo": "treasury",
           "columnsFrom": [
             "bank_id"
@@ -4884,6 +5654,43 @@
         "term_units": {
           "name": "term_units",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "allow_overdraft": {
+          "name": "allow_overdraft",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "haberes_payment": {
+          "name": "haberes_payment",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direct_payment": {
+          "name": "direct_payment",
+          "type": "numeric(20, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direct_payment_method": {
+          "name": "direct_payment_method",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direct_payment_reference": {
+          "name": "direct_payment_reference",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "direct_payment_bank_account_id": {
+          "name": "direct_payment_bank_account_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -5953,12 +6760,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "rate": {
           "name": "rate",
           "type": "varchar(20)",
@@ -6051,20 +6852,6 @@
           "schemaTo": "core",
           "columnsFrom": [
             "currency_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "exchange_rates_tenant_id_tenants_id_fk": {
-          "name": "exchange_rates_tenant_id_tenants_id_fk",
-          "tableFrom": "exchange_rates",
-          "tableTo": "tenants",
-          "schemaTo": "tenant",
-          "columnsFrom": [
-            "tenant_id"
           ],
           "columnsTo": [
             "id"
@@ -6891,7 +7678,7 @@
         },
         "quantity": {
           "name": "quantity",
-          "type": "integer",
+          "type": "numeric(12, 4)",
           "primaryKey": false,
           "notNull": true
         },
@@ -7864,10 +8651,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "loan_payments_bank_id_bank_directory_id_fk": {
-          "name": "loan_payments_bank_id_bank_directory_id_fk",
+        "loan_payments_bank_id_bank_accounts_id_fk": {
+          "name": "loan_payments_bank_id_bank_accounts_id_fk",
           "tableFrom": "loan_payments",
-          "tableTo": "bank_directory",
+          "tableTo": "bank_accounts",
           "schemaTo": "treasury",
           "columnsFrom": [
             "bank_id"
@@ -9291,6 +10078,13 @@
           "notNull": false,
           "default": false
         },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
         "created_by": {
           "name": "created_by",
           "type": "uuid",
@@ -9882,10 +10676,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payment_batches_bank_id_bank_directory_id_fk": {
-          "name": "payment_batches_bank_id_bank_directory_id_fk",
+        "payment_batches_bank_id_bank_accounts_id_fk": {
+          "name": "payment_batches_bank_id_bank_accounts_id_fk",
           "tableFrom": "payment_batches",
-          "tableTo": "bank_directory",
+          "tableTo": "bank_accounts",
           "schemaTo": "treasury",
           "columnsFrom": [
             "bank_id"
@@ -9893,7 +10687,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "no action",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -10214,12 +11008,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "price_type": {
           "name": "price_type",
           "type": "price_type",
@@ -10227,52 +11015,143 @@
           "primaryKey": false,
           "notNull": true
         },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'VES'"
+        },
+        "purchase_exchange_rate": {
+          "name": "purchase_exchange_rate",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1.000000'"
+        },
+        "sales_exchange_rate": {
+          "name": "sales_exchange_rate",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1.000000'"
+        },
         "base_cost": {
           "name": "base_cost",
           "type": "numeric(18, 6)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'0'"
         },
         "other_costs": {
           "name": "other_costs",
           "type": "numeric(18, 6)",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'0.00'"
+          "notNull": true,
+          "default": "'0'"
         },
-        "purchase_tax": {
-          "name": "purchase_tax",
-          "type": "numeric(18, 6)",
+        "purchase_tax_percent": {
+          "name": "purchase_tax_percent",
+          "type": "numeric(5, 2)",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'0.00'"
+          "notNull": true,
+          "default": "'16.00'"
         },
         "total_cost": {
           "name": "total_cost",
           "type": "numeric(18, 6)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'0'"
         },
-        "expense_percent": {
-          "name": "expense_percent",
-          "type": "numeric(5, 2)",
+        "base_cost_ves": {
+          "name": "base_cost_ves",
+          "type": "numeric(18, 6)",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'0.00'"
+          "notNull": true,
+          "default": "'0'"
+        },
+        "other_costs_ves": {
+          "name": "other_costs_ves",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "total_cost_ves": {
+          "name": "total_cost_ves",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
         },
         "profit_percent": {
           "name": "profit_percent",
           "type": "numeric(5, 2)",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'0.00'"
+          "notNull": true,
+          "default": "'0'"
+        },
+        "expense_percent": {
+          "name": "expense_percent",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
         },
         "sales_tax_percent": {
           "name": "sales_tax_percent",
           "type": "numeric(5, 2)",
           "primaryKey": false,
-          "notNull": false,
-          "default": "'0.00'"
+          "notNull": true,
+          "default": "'16.00'"
+        },
+        "sale_price": {
+          "name": "sale_price",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "offer_sale_price": {
+          "name": "offer_sale_price",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bs_price_amount": {
+          "name": "bs_price_amount",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "final_price_net": {
+          "name": "final_price_net",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "final_price_gross": {
+          "name": "final_price_gross",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "final_price_net_ves": {
+          "name": "final_price_net_ves",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
+        },
+        "final_price_gross_ves": {
+          "name": "final_price_gross_ves",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
         },
         "final_price": {
           "name": "final_price",
@@ -10346,20 +11225,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "product_prices_supplier_id_suppliers_id_fk": {
-          "name": "product_prices_supplier_id_suppliers_id_fk",
-          "tableFrom": "product_prices",
-          "tableTo": "suppliers",
-          "schemaTo": "purchasing",
-          "columnsFrom": [
-            "supplier_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
           "onUpdate": "no action"
         },
         "product_prices_supplier_invoice_id_supplier_invoices_id_fk": {
@@ -11190,6 +12055,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "itemId": {
           "name": "itemId",
           "type": "uuid",
@@ -11204,9 +12075,23 @@
         },
         "quantity": {
           "name": "quantity",
-          "type": "integer",
+          "type": "numeric(12, 4)",
           "primaryKey": false,
           "notNull": true
+        },
+        "quantity_received": {
+          "name": "quantity_received",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.0000'"
+        },
+        "quantity_invoiced": {
+          "name": "quantity_invoiced",
+          "type": "numeric(12, 4)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0.0000'"
         },
         "unit_cost": {
           "name": "unit_cost",
@@ -11261,6 +12146,20 @@
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "purchase_order_items_product_id_products_id_fk": {
+          "name": "purchase_order_items_product_id_products_id_fk",
+          "tableFrom": "purchase_order_items",
+          "tableTo": "products",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -11304,7 +12203,7 @@
           "typeSchema": "purchasing",
           "primaryKey": false,
           "notNull": true,
-          "default": "'PENDING'"
+          "default": "'DRAFT'"
         },
         "order_date": {
           "name": "order_date",
@@ -11381,6 +12280,12 @@
           "name": "po_order_number_idx",
           "columns": [
             {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
               "expression": "order_number",
               "isExpression": false,
               "asc": true,
@@ -11388,6 +12293,51 @@
             }
           ],
           "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "po_supplier_idx": {
+          "name": "po_supplier_idx",
+          "columns": [
+            {
+              "expression": "supplier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "po_status_idx": {
+          "name": "po_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "po_date_range_idx": {
+          "name": "po_date_range_idx",
+          "columns": [
+            {
+              "expression": "order_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -11424,15 +12374,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "purchase_orders_order_number_unique": {
-          "name": "purchase_orders_order_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "order_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -11732,6 +12674,21 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "currency_code": {
+          "name": "currency_code",
+          "type": "currency_code",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'VES'"
+        },
+        "purchase_exchange_rate": {
+          "name": "purchase_exchange_rate",
+          "type": "numeric(18, 6)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'1.000000'"
         },
         "base_cost": {
           "name": "base_cost",
@@ -12335,6 +13292,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "supplier_advance_number": {
+          "name": "supplier_advance_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
         "transaction_id": {
           "name": "transaction_id",
           "type": "uuid",
@@ -12401,7 +13364,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "advance_unique_uidx": {
+          "name": "advance_unique_uidx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "supplier_advance_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "supplier_advances_tenant_id_tenants_id_fk": {
           "name": "supplier_advances_tenant_id_tenants_id_fk",
@@ -12539,7 +13524,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "credit_note_unique_uidx": {
+          "name": "credit_note_unique_uidx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "credit_note_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "supplier_credit_notes_tenant_id_tenants_id_fk": {
           "name": "supplier_credit_notes_tenant_id_tenants_id_fk",
@@ -12599,15 +13606,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "supplier_credit_notes_credit_note_number_unique": {
-          "name": "supplier_credit_notes_credit_note_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "credit_note_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -12692,7 +13691,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "debit_note_unique_uidx": {
+          "name": "debit_note_unique_uidx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "debit_note_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "supplier_debit_notes_tenant_id_tenants_id_fk": {
           "name": "supplier_debit_notes_tenant_id_tenants_id_fk",
@@ -12752,15 +13773,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "supplier_debit_notes_debit_note_number_unique": {
-          "name": "supplier_debit_notes_debit_note_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "debit_note_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -12788,6 +13801,12 @@
           "typeSchema": "purchasing",
           "primaryKey": false,
           "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "item_id": {
           "name": "item_id",
@@ -12867,6 +13886,20 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+        "supplier_invoice_items_product_id_products_id_fk": {
+          "name": "supplier_invoice_items_product_id_products_id_fk",
+          "tableFrom": "supplier_invoice_items",
+          "tableTo": "products",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "supplier_invoice_items_expense_account_id_account_plan_id_fk": {
           "name": "supplier_invoice_items_expense_account_id_account_plan_id_fk",
           "tableFrom": "supplier_invoice_items",
@@ -12922,6 +13955,12 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
+        },
+        "inventory_movement_id": {
+          "name": "inventory_movement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "invoice_number": {
           "name": "invoice_number",
@@ -12981,6 +14020,25 @@
           "notNull": true,
           "default": "'CREDIT'"
         },
+        "payment_method": {
+          "name": "payment_method",
+          "type": "payment_method",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_account_id": {
+          "name": "bank_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bank_reference": {
+          "name": "bank_reference",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "status": {
           "name": "status",
           "type": "invoice_suppliers_status",
@@ -13026,11 +14084,71 @@
           "name": "si_invoice_unique_idx",
           "columns": [
             {
-              "expression": "supplier_id",
+              "expression": "tenant_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
+            {
+              "expression": "supplier_invoice_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "si_supplier_idx": {
+          "name": "si_supplier_idx",
+          "columns": [
+            {
+              "expression": "supplier_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "si_status_idx": {
+          "name": "si_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "si_date_range_idx": {
+          "name": "si_date_range_idx",
+          "columns": [
+            {
+              "expression": "invoice_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "si_invoice_number_idx": {
+          "name": "si_invoice_number_idx",
+          "columns": [
             {
               "expression": "invoice_number",
               "isExpression": false,
@@ -13038,7 +14156,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -13086,18 +14204,38 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "supplier_invoices_inventory_movement_id_inventory_movements_id_fk": {
+          "name": "supplier_invoices_inventory_movement_id_inventory_movements_id_fk",
+          "tableFrom": "supplier_invoices",
+          "tableTo": "inventory_movements",
+          "schemaTo": "inventory",
+          "columnsFrom": [
+            "inventory_movement_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "supplier_invoices_bank_account_id_bank_accounts_id_fk": {
+          "name": "supplier_invoices_bank_account_id_bank_accounts_id_fk",
+          "tableFrom": "supplier_invoices",
+          "tableTo": "bank_accounts",
+          "schemaTo": "treasury",
+          "columnsFrom": [
+            "bank_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "supplier_invoices_supplier_invoice_number_unique": {
-          "name": "supplier_invoices_supplier_invoice_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "supplier_invoice_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -13127,7 +14265,7 @@
         },
         "related_advance_id": {
           "name": "related_advance_id",
-          "type": "integer",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -13338,7 +14476,29 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "payment_unique_uidx": {
+          "name": "payment_unique_uidx",
+          "columns": [
+            {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "payment_number",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "supplier_payments_tenant_id_tenants_id_fk": {
           "name": "supplier_payments_tenant_id_tenants_id_fk",
@@ -13384,15 +14544,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "supplier_payments_payment_number_unique": {
-          "name": "supplier_payments_payment_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "payment_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -13703,15 +14855,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "supplier_transactions_transaction_number_unique": {
-          "name": "supplier_transactions_transaction_number_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "transaction_number"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -13733,8 +14877,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "code": {
-          "name": "code",
+        "internal_code": {
+          "name": "internal_code",
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
@@ -13750,6 +14894,18 @@
           "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
         },
         "contact_name": {
           "name": "contact_name",
@@ -13783,8 +14939,7 @@
         },
         "category": {
           "name": "category",
-          "type": "category_suppliers",
-          "typeSchema": "purchasing",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": true
         },
@@ -13823,26 +14978,53 @@
         }
       },
       "indexes": {
-        "supplier_name_idx": {
-          "name": "supplier_name_idx",
+        "supplier_tenant_internal_code_unique": {
+          "name": "supplier_tenant_internal_code_unique",
           "columns": [
             {
-              "expression": "name",
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "internal_code",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "supplier_tax_idx": {
-          "name": "supplier_tax_idx",
+        "supplier_tenant_tax_unique": {
+          "name": "supplier_tenant_tax_unique",
           "columns": [
             {
+              "expression": "tenant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
               "expression": "tax_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "supplier_name_idx": {
+          "name": "supplier_name_idx",
+          "columns": [
+            {
+              "expression": "name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -13885,22 +15067,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "suppliers_code_unique": {
-          "name": "suppliers_code_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "code"
-          ]
-        },
-        "suppliers_tax_id_unique": {
-          "name": "suppliers_tax_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "tax_id"
-          ]
-        }
-      },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -15821,11 +16988,10 @@
         "SAVINGS",
         "INVENTORY",
         "PURCHASING",
-        "BILLING",
+        "SALES",
         "BANKING",
         "TREASURY",
         "HR_PAYROLL",
-        "SETTLEMENT",
         "AUDIT"
       ]
     },
@@ -15932,8 +17098,8 @@
       "schema": "purchasing",
       "values": [
         "DRAFT",
-        "PENDING",
-        "ACCOUNTED_FOR",
+        "APPROVED",
+        "PARTIALLY_PAID",
         "PAID",
         "CANCELLED"
       ]
@@ -15943,10 +17109,10 @@
       "schema": "purchasing",
       "values": [
         "PENDING",
-        "IN_PROGRESS",
+        "APPROVED",
+        "PARTIALLY_PAID",
         "PAID",
-        "CANCELLED",
-        "EXPIRED"
+        "CANCELLED"
       ]
     },
     "purchasing.payment_supplier_status": {
@@ -15967,9 +17133,9 @@
       "schema": "purchasing",
       "values": [
         "DRAFT",
-        "PENDING",
+        "APPROVED",
         "RECEIVED",
-        "INVOICED",
+        "PARTIALLY_RECEIVED",
         "CLOSED",
         "CANCELLED"
       ]
@@ -16567,7 +17733,7 @@
         },
         "available_quantity": {
           "name": "available_quantity",
-          "type": "integer",
+          "type": "numeric(12, 4)",
           "primaryKey": false,
           "notNull": true
         },
@@ -16584,533 +17750,14 @@
       "isExisting": false,
       "materialized": false
     },
-    "purchasing.supplier_advances_360": {
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "advances_count": {
-          "name": "advances_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "advances_total": {
-          "name": "advances_total",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "advances_available": {
-          "name": "advances_available",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id                                          AS supplier_id,\n    COUNT(a.id)                                   AS advances_count,\n    COALESCE(SUM(a.amount), 0)                    AS advances_total,\n    COALESCE(SUM(a.available_amount), 0)          AS advances_available\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"supplier_advances\" a ON a.supplier_id = s.id\n  GROUP BY s.id\n",
-      "name": "supplier_advances_360",
-      "schema": "purchasing",
-      "isExisting": false,
-      "materialized": false
-    },
-    "purchasing.supplier_ap_360": {
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_count": {
-          "name": "ap_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_original": {
-          "name": "ap_original",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_paid": {
-          "name": "ap_paid",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_remaining": {
-          "name": "ap_remaining",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_overdue": {
-          "name": "ap_overdue",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id                                      AS supplier_id,\n    COUNT(ap.id)                              AS ap_count,\n    COALESCE(SUM(ap.original_amount), 0)      AS ap_original,\n    COALESCE(SUM(ap.paid_amount), 0)          AS ap_paid,\n    COALESCE(SUM(ap.remaining_amount), 0)     AS ap_remaining,\n    COALESCE(SUM(ap.remaining_amount) FILTER (WHERE ap.due_date < CURRENT_DATE), 0) AS ap_overdue\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"accounts_payable\" ap ON ap.supplier_id = s.id\n  GROUP BY s.id\n",
-      "name": "supplier_ap_360",
-      "schema": "purchasing",
-      "isExisting": false,
-      "materialized": false
-    },
-    "purchasing.supplier_master_360": {
-      "columns": {
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tax_id": {
-          "name": "tax_id",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contact_name": {
-          "name": "contact_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_email": {
-          "name": "contact_email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_phone": {
-          "name": "contact_phone",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state_name": {
-          "name": "state_name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "definition": "\n  SELECT\n    s.id            AS supplier_id,\n    s.tenant_id,\n    s.code,\n    s.name,\n    s.tax_id,\n    s.category::text,\n    s.status::text,\n    s.contact_name,\n    s.contact_email,\n    s.contact_phone,\n    s.address,\n    st.name         AS state_name\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"core\".\"states\" st ON st.id = s.state\n",
-      "name": "supplier_master_360",
-      "schema": "purchasing",
-      "isExisting": false,
-      "materialized": false
-    },
-    "purchasing.supplier_notes_360": {
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cn_count": {
-          "name": "cn_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cn_amount": {
-          "name": "cn_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cn_available": {
-          "name": "cn_available",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "dn_count": {
-          "name": "dn_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "dn_amount": {
-          "name": "dn_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id            AS supplier_id,\n    COUNT(DISTINCT cn.id)                          AS cn_count,\n    COALESCE(SUM(cn.amount), 0)                    AS cn_amount,\n    COALESCE(SUM(cn.available_amount), 0)          AS cn_available,\n    COUNT(DISTINCT dn.id)                          AS dn_count,\n    COALESCE(SUM(dn.amount), 0)                    AS dn_amount\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"supplier_credit_notes\" cn ON cn.supplier_id = s.id\n  LEFT JOIN \"purchasing\".\"supplier_debit_notes\" dn ON dn.supplier_id = s.id\n  GROUP BY s.id\n",
-      "name": "supplier_notes_360",
-      "schema": "purchasing",
-      "isExisting": false,
-      "materialized": false
-    },
-    "purchasing.supplier_payments_360": {
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payments_count": {
-          "name": "payments_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payments_total": {
-          "name": "payments_total",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_payment_date": {
-          "name": "last_payment_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id            AS supplier_id,\n    COUNT(p.id)                                AS payments_count,\n    COALESCE(SUM(p.total_amount), 0)           AS payments_total,\n    MAX(p.requested_at)                        AS last_payment_date\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"supplier_payments\" p ON p.supplier_id = s.id\n  GROUP BY s.id\n",
-      "name": "supplier_payments_360",
-      "schema": "purchasing",
-      "isExisting": false,
-      "materialized": false
-    },
-    "purchasing.supplier_purchases_360": {
-      "columns": {
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "po_count": {
-          "name": "po_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "po_pending": {
-          "name": "po_pending",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "invoices_count": {
-          "name": "invoices_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "invoices_total": {
-          "name": "invoices_total",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_invoice_date": {
-          "name": "last_invoice_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "definition": "\n  SELECT\n    s.tenant_id,\n    s.id                                     AS supplier_id,\n    COUNT(DISTINCT po.id)                    AS po_count,\n    COUNT(DISTINCT po.id) FILTER (WHERE po.status = 'PENDING') AS po_pending,\n    COUNT(DISTINCT inv.id)                   AS invoices_count,\n    COALESCE(SUM(inv.total_amount), 0)       AS invoices_total,\n    MAX(inv.invoice_date)                    AS last_invoice_date\n  FROM \"purchasing\".\"suppliers\" s\n  LEFT JOIN \"purchasing\".\"purchase_orders\" po ON po.supplier_id = s.id\n  LEFT JOIN \"purchasing\".\"supplier_invoices\" inv ON inv.supplier_id = s.id\n  GROUP BY s.id\n",
-      "name": "supplier_purchases_360",
-      "schema": "purchasing",
-      "isExisting": false,
-      "materialized": false
-    },
-    "purchasing.supplier_total_360": {
-      "columns": {
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tenant_id": {
-          "name": "tenant_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tax_id": {
-          "name": "tax_id",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contact_name": {
-          "name": "contact_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_email": {
-          "name": "contact_email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_phone": {
-          "name": "contact_phone",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state_name": {
-          "name": "state_name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "po_count": {
-          "name": "po_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "po_pending": {
-          "name": "po_pending",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "invoices_count": {
-          "name": "invoices_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "invoices_total": {
-          "name": "invoices_total",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_invoice_date": {
-          "name": "last_invoice_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ap_count": {
-          "name": "ap_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_original": {
-          "name": "ap_original",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_paid": {
-          "name": "ap_paid",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_remaining": {
-          "name": "ap_remaining",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ap_overdue": {
-          "name": "ap_overdue",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "advances_count": {
-          "name": "advances_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "advances_total": {
-          "name": "advances_total",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "advances_available": {
-          "name": "advances_available",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cn_count": {
-          "name": "cn_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cn_amount": {
-          "name": "cn_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cn_available": {
-          "name": "cn_available",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "dn_count": {
-          "name": "dn_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "dn_amount": {
-          "name": "dn_amount",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payments_count": {
-          "name": "payments_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payments_total": {
-          "name": "payments_total",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_payment_date": {
-          "name": "last_payment_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "net_balance": {
-          "name": "net_balance",
-          "type": "numeric(18, 2)",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "definition": "\n  SELECT\n    m.supplier_id,\n    m.tenant_id,\n    m.code,\n    m.name,\n    m.tax_id,\n    m.category,\n    m.status,\n    m.contact_name,\n    m.contact_email,\n    m.contact_phone,\n    m.address,\n    m.state_name,\n    COALESCE(p.po_count, 0)             AS po_count,\n    COALESCE(p.po_pending, 0)           AS po_pending,\n    COALESCE(p.invoices_count, 0)       AS invoices_count,\n    COALESCE(p.invoices_total, 0)       AS invoices_total,\n    p.last_invoice_date,\n    COALESCE(ap.ap_count, 0)            AS ap_count,\n    COALESCE(ap.ap_original, 0)         AS ap_original,\n    COALESCE(ap.ap_paid, 0)             AS ap_paid,\n    COALESCE(ap.ap_remaining, 0)        AS ap_remaining,\n    COALESCE(ap.ap_overdue, 0)          AS ap_overdue,\n    COALESCE(adv.advances_count, 0)     AS advances_count,\n    COALESCE(adv.advances_total, 0)     AS advances_total,\n    COALESCE(adv.advances_available, 0) AS advances_available,\n    COALESCE(n.cn_count, 0)             AS cn_count,\n    COALESCE(n.cn_amount, 0)            AS cn_amount,\n    COALESCE(n.cn_available, 0)         AS cn_available,\n    COALESCE(n.dn_count, 0)             AS dn_count,\n    COALESCE(n.dn_amount, 0)            AS dn_amount,\n    COALESCE(py.payments_count, 0)      AS payments_count,\n    COALESCE(py.payments_total, 0)      AS payments_total,\n    py.last_payment_date,\n    /* saldo neto = AP pendiente + ND - NC disponible - anticipos disponibles - pagos */\n    COALESCE(ap.ap_remaining, 0)\n      + COALESCE(n.dn_amount, 0)\n      - COALESCE(n.cn_available, 0)\n      - COALESCE(adv.advances_available, 0)\n      - COALESCE(py.payments_total, 0)    AS net_balance\n  FROM \"purchasing\".\"supplier_master_360\" m\n  LEFT JOIN \"purchasing\".\"supplier_purchases_360\" p ON p.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_ap_360\" ap ON ap.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_advances_360\" adv ON adv.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_notes_360\" n ON n.supplier_id = m.supplier_id\n  LEFT JOIN \"purchasing\".\"supplier_payments_360\" py ON py.supplier_id = m.supplier_id\n",
-      "name": "supplier_total_360",
-      "schema": "purchasing",
-      "isExisting": false,
-      "materialized": false
-    },
     "savings.associate_account_balances": {
       "columns": {
+        "tenant_id": {
+          "name": "tenant_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "associate_account_id": {
           "name": "associate_account_id",
           "type": "uuid",
@@ -17135,6 +17782,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "calculated_balance": {
           "name": "calculated_balance",
           "type": "numeric(20, 6)",
@@ -17142,7 +17795,7 @@
           "notNull": true
         }
       },
-      "definition": "\n    SELECT\n      aa.id AS associate_account_id,\n      aa.associate_id,\n      aa.account_number,\n      aa.currency_code,\n      COALESCE(SUM(\n        CASE\n          WHEN aam.movement_type IN (\n            'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',\n            'LOAN_DISBURSEMENT_CREDIT','SPECIAL_LOAN_DISBURSEMENT_CREDIT',\n            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT','SPECIAL_CREDIT_DISBURSEMENT_CREDIT',\n            'LOAN_REFINANCING_CREDIT','LOAN_REIMBURSEMENT_CREDIT',\n            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT','LOAN_OVERPAYMENT_CREDIT',\n            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT','LOAN_PARTIAL_DISBURSEMENT_CREDIT',\n            'DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT','ADJUSTMENT_CREDIT','OTHER_CREDIT'\n          ) THEN aam.amount\n          WHEN aam.movement_type IN (\n            'SAVING_WITHDRAWAL','LOAN_REFINANCING_DEBIT','LOAN_PAYMENT_DEBIT',\n            'COMMERCIAL_CREDIT_PAYMENT_DEBIT','WITHDRAWAL_FEE_DEBIT',\n            'LOAN_INTEREST_DEBIT','LOAN_FEE_DEBIT','LOAN_ADMIN_FEE_DEBIT',\n            'LATE_PAYMENT_FEE_DEBIT','PAYMENT_REVERSAL_DEBIT',\n            'CREDIT_ADMIN_FEE_DEBIT','ADJUSTMENT_DEBIT','FEE_CORRECTION_DEBIT',\n            'ADMIN_FEE_DEBIT','OTHER_DEBIT','FEE_DEBIT'\n          ) THEN -aam.amount\n          ELSE 0\n        END\n      ), 0) AS calculated_balance\n    FROM \"savings\".\"associate_accounts\" aa\n    LEFT JOIN \"savings\".\"associate_account_movements\" aam\n      ON aa.id = aam.associate_account_id AND aam.status = 'COMPLETED'\n    GROUP BY aa.id, aa.associate_id, aa.account_number, aa.currency_code\n  ",
+      "definition": "\n    SELECT\n      a.tenant_id AS tenant_id,\n      aa.id AS associate_account_id,\n      aa.associate_id,\n      aa.account_number,\n      aa.currency_code,\n      aa.status,\n      COALESCE(SUM(\n        CASE\n          WHEN aam.movement_type IN (\n            'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',\n            'LOAN_DISBURSEMENT_CREDIT','SPECIAL_LOAN_DISBURSEMENT_CREDIT',\n            'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT','SPECIAL_CREDIT_DISBURSEMENT_CREDIT',\n            'LOAN_REFINANCING_CREDIT','LOAN_REIMBURSEMENT_CREDIT',\n            'COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT','LOAN_OVERPAYMENT_CREDIT',\n            'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT','LOAN_PARTIAL_DISBURSEMENT_CREDIT',\n            'DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT','ADJUSTMENT_CREDIT','OTHER_CREDIT'\n          ) THEN aam.amount\n          WHEN aam.movement_type IN (\n            'SAVING_WITHDRAWAL','LOAN_REFINANCING_DEBIT','LOAN_PAYMENT_DEBIT',\n            'COMMERCIAL_CREDIT_PAYMENT_DEBIT','WITHDRAWAL_FEE_DEBIT',\n            'LOAN_INTEREST_DEBIT','LOAN_FEE_DEBIT','LOAN_ADMIN_FEE_DEBIT',\n            'LATE_PAYMENT_FEE_DEBIT','PAYMENT_REVERSAL_DEBIT',\n            'CREDIT_ADMIN_FEE_DEBIT','ADJUSTMENT_DEBIT','FEE_CORRECTION_DEBIT',\n            'ADMIN_FEE_DEBIT','OTHER_DEBIT','FEE_DEBIT'\n          ) THEN -aam.amount\n          ELSE 0\n        END\n      ), 0) AS calculated_balance\n    FROM \"savings\".\"associate_accounts\" aa\n    INNER JOIN \"savings\".\"associates\" a ON aa.associate_id = a.id\n    LEFT JOIN \"savings\".\"associate_account_movements\" aam\n      ON aa.id = aam.associate_account_id AND aam.status = 'COMPLETED'\n    GROUP BY a.tenant_id, aa.id, aa.associate_id, aa.account_number, aa.currency_code\n  ",
       "name": "associate_account_balances",
       "schema": "savings",
       "isExisting": false,

@@ -346,6 +346,20 @@ export const DEFAULT_PERMISSIONS = [
     description: 'Ejecutar pago de liquidación.',
     scope: 'tenant',
   },
+  {
+    resource: 'savings:configuration',
+    action: 'read',
+    name: 'Consultar Config. Ahorros',
+    description: 'Ver parámetros del módulo de ahorros.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'savings:configuration',
+    action: 'update',
+    name: 'Editar Config. Ahorros',
+    description: 'Modificar parámetros del módulo de ahorros.',
+    scope: 'tenant',
+  },
 
   // ==========================================
   // MODULO: PORTFOLIO (Préstamos y Créditos)

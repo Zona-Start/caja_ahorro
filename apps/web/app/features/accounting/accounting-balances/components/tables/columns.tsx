@@ -1,6 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table';
 import type { AccountingBalance } from '../../schemas/accounting-balance.schema';
 import { CellAction } from './cell-action';
+import { formatCurrency } from '@/lib/format-utils';
 
 export const columns: ColumnDef<AccountingBalance>[] = [
   {
@@ -24,10 +25,7 @@ export const columns: ColumnDef<AccountingBalance>[] = [
     header: 'Saldo Inicial',
     cell: ({ row }) => {
       const value = parseFloat(row.original.initialBalance);
-      return new Intl.NumberFormat('es-VE', {
-        style: 'currency',
-        currency: 'VES',
-      }).format(value);
+      return formatCurrency(value, 'VES');
     },
   },
   {
@@ -35,10 +33,7 @@ export const columns: ColumnDef<AccountingBalance>[] = [
     header: 'Débitos',
     cell: ({ row }) => {
       const value = parseFloat(row.original.debitBalance);
-      return new Intl.NumberFormat('es-VE', {
-        style: 'currency',
-        currency: 'VES',
-      }).format(value);
+      return formatCurrency(value, 'VES');
     },
   },
   {
@@ -46,10 +41,7 @@ export const columns: ColumnDef<AccountingBalance>[] = [
     header: 'Créditos',
     cell: ({ row }) => {
       const value = parseFloat(row.original.creditBalance);
-      return new Intl.NumberFormat('es-VE', {
-        style: 'currency',
-        currency: 'VES',
-      }).format(value);
+      return formatCurrency(value, 'VES');
     },
   },
   {
@@ -57,10 +49,7 @@ export const columns: ColumnDef<AccountingBalance>[] = [
     header: 'Saldo Final',
     cell: ({ row }) => {
       const value = parseFloat(row.original.finalBalance);
-      return new Intl.NumberFormat('es-VE', {
-        style: 'currency',
-        currency: 'VES',
-      }).format(value);
+      return formatCurrency(value, 'VES');
     },
   },
   {
