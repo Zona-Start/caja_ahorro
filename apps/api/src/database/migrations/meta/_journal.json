@@ -8,6 +8,27 @@
       "when": 1785717812001,
       "tag": "0000_sour_moondragon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786842487243,
+      "tag": "0001_crazy_colossus",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786934175650,
+      "tag": "0002_bright_mystique",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786934354672,
+      "tag": "0003_red_siren",
+      "breakpoints": true
     }
   ]
 }

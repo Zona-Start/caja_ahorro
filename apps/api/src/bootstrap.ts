@@ -17,17 +17,37 @@ export const bootstrap = async (app: NestExpressApplication) => {
   const port = configService.get('PORT', { infer: true });
   const host = configService.get('HOST', { infer: true });
   const allowCorsUrl = configService.get('ALLOW_CORS_URL', { infer: true });
+  const platformDomain = (
+    configService.get('PLATFORM_DOMAIN', { infer: true }) || 'zonastart.local'
+  ).toLowerCase();
 
   app.useStaticAssets('./uploads', {
     prefix: '/assets',
   });
 
-  // Usamos las variables reales del entorno para el CORS
   const corsOrigins = allowCorsUrl.split(',').map((url) => url.trim());
+
+  const isAllowedOrigin = (origin?: string): boolean => {
+    if (!origin) return true;
+    try {
+      const hostname = new URL(origin).hostname.toLowerCase();
+      if (corsOrigins.includes(origin)) return true;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+      if (
+        hostname === platformDomain ||
+        hostname.endsWith(`.${platformDomain}`)
+      ) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
 
   app.enableCors({
     credentials: true,
-    origin: corsOrigins,
+    origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: [
       'Content-Type',

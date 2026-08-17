@@ -24,3 +24,8 @@ export const moduleStatusEnum = pgEnum('module_status', [
   'DISABLED',
   'SETUP_REQUIRED',
 ]);
+
+export const loginModeEnum = pgEnum('login_mode', [
+  'CUSTOM_DOMAIN',
+  'SUBDOMAIN',
+]);

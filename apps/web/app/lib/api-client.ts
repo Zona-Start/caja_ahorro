@@ -1,5 +1,6 @@
 import { loginResponseSchema } from '@/lib/schemas';
 import { useAuthStore } from '@/stores/auth.store';
+import { useTenantStore } from '@/stores/tenant.store';
 import axios, {
   type AxiosInstance,
   type InternalAxiosRequestConfig,
@@ -161,9 +162,10 @@ apiClient.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Attach tenantId header if user has a tenant
+  // Attach tenantId header if user has a tenant or if a tenant was resolved
   const user = useAuthStore.getState().user;
-  const tenantId = user?.memberships?.[0]?.tenantId;
+  const tenantId =
+    user?.memberships?.[0]?.tenantId ?? useTenantStore.getState().tenant?.id;
   if (tenantId && !config.headers['x-tenant-id']) {
     config.headers['x-tenant-id'] = tenantId;
   }

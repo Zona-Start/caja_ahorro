@@ -7,3 +7,4 @@ export * from './purchasing.enum';
 export * from './savings-banks.enum';
 export * from './shared.enum';
 export * from './treasury.enum';
+export * from './sales.enum';

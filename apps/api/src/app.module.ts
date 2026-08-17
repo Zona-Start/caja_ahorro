@@ -31,6 +31,7 @@ import { InventoryFeatureModule } from './features/inventory/inventory-module';
 import { PurchasingFeaturesModule } from './features/purchasing/purchasing.module';
 import { SavingsFeaturesModule } from './features/savings/savings.module';
 import { StatsModule } from './features/stats/stats.module';
+import { StorageModule } from './features/storage/storage.module';
 import { EventBusModule } from './shared/event-bus';
 import { ProjectionModule } from './shared/projections';
 
@@ -98,6 +99,7 @@ import { ProjectionModule } from './shared/projections';
     InventoryFeatureModule,
     PurchasingFeaturesModule,
     StatsModule,
+    StorageModule,
   ],
 })
 export class AppModule implements NestModule {

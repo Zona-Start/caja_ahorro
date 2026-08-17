@@ -133,6 +133,33 @@ export class UsersService {
     });
   }
 
+  async findByIdentifier(identifier: string): Promise<any | null> {
+    return await this.db.query.users.findFirst({
+      where: and(
+        or(
+          eq(users.username, identifier),
+          eq(users.email, identifier.toLowerCase()),
+        ),
+        isNull(users.deletedAt),
+      ),
+      with: {
+        tenantMembers: {
+          with: {
+            tenant: true,
+            role: {
+              with: {
+                rolePermissions: { with: { permission: true } },
+              },
+            },
+          },
+        },
+        userPermissions: {
+          with: { permission: true },
+        },
+      },
+    });
+  }
+
   async create(
     dto: CreateUserDto,
     creatorTenantId?: string,

@@ -7,3 +7,4 @@ export * from './purchasing';
 export * from './savings';
 export * from './tenants';
 export * from './treasury';
+export * from './sales';

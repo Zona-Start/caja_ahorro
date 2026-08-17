@@ -115,8 +115,23 @@ export {
 export { timestamps, timestampsShort } from '../timestamps';
 
 export {
+  tenantDomains,
   tenantModuleIntegrations,
   tenantModules,
   tenantSettings,
   tenants,
 } from './tenants';
+
+export {
+  customers,
+  salesInvoices,
+  salesInvoiceItems,
+  salesOrders,
+  salesOrderItems,
+  customerPayments,
+  customerPaymentApplications,
+  salesDeliveryNoteItems,
+  salesDeliveryNotes,
+  salesQuoteItems,
+  salesQuotes
+} from './sales';
