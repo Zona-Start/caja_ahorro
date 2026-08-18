@@ -20,7 +20,6 @@ import { Switch } from '@repo/shadcn/switch';
 import { Separator } from '@repo/shadcn/separator';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { useForm } from 'react-hook-form';
-import { useState } from 'react';
 import { useBanksQuery } from '../../bank-directory/hooks/use-banks-querys';
 import { useAccountingAccounts } from '@/features/accounting/accounting-accounts/hooks/use-accounting-accounts-query';
 import {
@@ -65,17 +64,12 @@ export function BankAccountForm({
   defaultValues,
   disabled = false,
 }: BankAccountFormComponentProps) {
-  const [showAccounting, setShowAccounting] = useState(
-    !!defaultValues?.linkedChartAccountId || !!defaultValues?.currentBalance,
-  );
-
   const createMutation = useCreateBankAccountMutation();
   const updateMutation = useUpdateBankAccountMutation();
   const { data: banksData } = useBanksQuery();
   const { data: accountingAccounts } = useAccountingAccounts();
 
   const recordId = defaultValues?.id as string | undefined;
-  const isOpeningPosted = !!(defaultValues as any)?.openingEntryPosted;
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const form = useForm<BankAccountForm>({
@@ -114,12 +108,6 @@ export function BankAccountForm({
             Datos de la Cuenta Bancaria
           </h3>
 
-          {isOpeningPosted && (
-            <p className="text-xs text-amber-600 bg-amber-50 rounded-md p-2">
-              El banco, la moneda y la fecha de apertura no pueden modificarse porque ya se generó el asiento de apertura contable.
-            </p>
-          )}
-
           <FormField
             control={form.control}
             name="bankDirectoryId"
@@ -137,7 +125,7 @@ export function BankAccountForm({
                     onValueChange={field.onChange}
                     placeholder="Buscar banco..."
                     value={field.value || undefined}
-                    disabled={disabled || isOpeningPosted}
+                    disabled={disabled}
                   />
                 </FormControl>
                 <FormMessage />
@@ -228,7 +216,7 @@ export function BankAccountForm({
                   <Select
                     onValueChange={field.onChange}
                     value={field.value || ''}
-                    disabled={disabled || isOpeningPosted}
+                    disabled={disabled}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -269,7 +257,7 @@ export function BankAccountForm({
                           e.target.value ? new Date(e.target.value) : undefined,
                         )
                       }
-                      disabled={disabled || isOpeningPosted}
+                      disabled={disabled}
                     />
                   </FormControl>
                   <FormMessage />
@@ -277,6 +265,33 @@ export function BankAccountForm({
               )}
             />
           </div>
+
+          <FormField
+            control={form.control}
+            name="currentBalance"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Saldo Inicial</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    {...field}
+                    value={field.value ?? ''}
+                    onChange={(e) =>
+                      field.onChange(
+                        e.target.value ? parseFloat(e.target.value) : undefined,
+                      )
+                    }
+                    disabled={disabled}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
@@ -300,93 +315,43 @@ export function BankAccountForm({
 
         <Separator />
 
-        {/* Sección 2: Información Contable */}
+        {/* Sección 2: Información Contable (Referencia) */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              Información Contable
-            </h3>
-            {!disabled && !isOpeningPosted && (
-              <FormItem className="flex items-center gap-2 space-y-0">
-                <FormLabel className="text-xs">Habilitar</FormLabel>
-                <Switch
-                  checked={showAccounting}
-                  onCheckedChange={setShowAccounting}
-                />
+          <h3 className="text-sm font-semibold text-muted-foreground">
+            Cuenta Contable de Referencia
+          </h3>
+
+          <FormField
+            control={form.control}
+            name="linkedChartAccountId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cuenta Contable Vinculada</FormLabel>
+                <FormControl>
+                  <SelectSearchable
+                    options={
+                      (accountingAccounts || [])
+                        .filter((a) => a.allowsMovements)
+                        .map((acc) => ({
+                          value: acc.id!,
+                          label: `${acc.code} - ${acc.name}`,
+                        }))
+                    }
+                    onValueChange={field.onChange}
+                    placeholder="Buscar cuenta contable..."
+                    value={field.value ?? undefined}
+                    disabled={disabled}
+                    enableNoneOption
+                  />
+                </FormControl>
+                <FormMessage />
               </FormItem>
             )}
-          </div>
+          />
 
-          {(showAccounting || isOpeningPosted) && (
-            <div className="space-y-4">
-              {isOpeningPosted && (
-                <p className="text-xs text-amber-600 bg-amber-50 rounded-md p-2">
-                  La información contable no puede modificarse porque ya se generó el asiento de apertura.
-                </p>
-              )}
-              <FormField
-                control={form.control}
-                name="linkedChartAccountId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cuenta Contable Vinculada</FormLabel>
-                    <FormControl>
-                      <SelectSearchable
-                        options={
-                          (accountingAccounts || [])
-                            .filter((a) => a.allowsMovements)
-                            .map((acc) => ({
-                              value: acc.id!,
-                              label: `${acc.code} - ${acc.name}`,
-                            }))
-                        }
-                        onValueChange={field.onChange}
-                        placeholder="Buscar cuenta contable..."
-                        value={field.value ?? undefined}
-                        disabled={disabled || isOpeningPosted}
-                        enableNoneOption
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="currentBalance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Saldo Inicial Contable</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        {...field}
-                        value={field.value ?? ''}
-                        onChange={(e) =>
-                          field.onChange(
-                            e.target.value ? parseFloat(e.target.value) : undefined,
-                          )
-                        }
-                        disabled={disabled || isOpeningPosted}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {!recordId && (
-                <p className="text-xs text-muted-foreground">
-                  Al guardar la cuenta con saldo inicial y cuenta contable, se generará
-                  automáticamente el asiento de apertura contable.
-                </p>
-              )}
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground">
+            La cuenta contable se guarda solo como referencia. No se genera ningún asiento contable.
+          </p>
         </div>
 
         <Separator />

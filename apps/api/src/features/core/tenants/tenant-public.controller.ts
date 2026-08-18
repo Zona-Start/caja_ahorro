@@ -29,7 +29,6 @@ export class TenantPublicController {
   @Post('auth/workspace-lookup')
   async workspaceLookup(@Body() body: { email?: string }) {
     const { email } = WorkspaceLookupSchema.parse({ email: body.email });
-    const tenants = await this.resolutionService.lookupByEmail(email);
-    return { tenants };
+    return this.resolutionService.lookupByEmail(email);
   }
 }

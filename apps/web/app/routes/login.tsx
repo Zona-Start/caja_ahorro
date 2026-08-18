@@ -1,9 +1,12 @@
 import { LoginForm } from '@/features/auth/components/sigin-view';
 import { useAuthStore } from '@/stores/auth.store';
 import { redirect } from 'react-router';
+import { useTenantStore } from '@/stores/tenant.store';
 
 export function meta() {
-  return [{ title: 'Ingresar | Caja de Ahorro' }];
+  const tenant = useTenantStore((s) => s.tenant);
+  const name = tenant?.name || 'Zona Start';
+  return [{ title: 'Ingresar | ' + name }];
 }
 
 /**

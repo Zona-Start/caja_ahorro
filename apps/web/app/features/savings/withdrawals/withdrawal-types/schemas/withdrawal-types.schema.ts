@@ -8,13 +8,14 @@ const optionalStringField = (max: number, message: string) =>
 
 export const withdrawalTypeSchema = z.object({
   id: z.string().uuid(),
+  tenantId: z.string().uuid(),
   description: z.string().min(1),
-  withdrawalPercentage: z.number().min(0).max(100).optional().nullable(),
+  withdrawalPercentage: z.string().min(0).max(100).optional().nullable(),
   accountDebit: z.string().uuid().nullable().optional(),
   expenseAccount: z.string().uuid().nullable().optional(),
-  administrativeFeePercentage: z.number().min(0).max(100).optional().nullable(),
-  withdrawalLimitQuantity: z.number().int().min(0).optional().nullable(),
-  minimumAntiquityDays: z.number().int().min(0).optional().nullable(),
+  administrativeFeePercentage: z.string().min(0).max(100).optional().nullable(),
+  withdrawalLimitQuantity: z.string().optional().nullable(),
+  minimumAntiquityDays: z.string().optional().nullable(),
   withdrawalFrequencyRelation: z.string().uuid().nullable().optional(),
   isHouseComercial: z.boolean().default(false),
   isInternalInventory: z.boolean().default(false),

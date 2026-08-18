@@ -13,6 +13,7 @@ import {
 import type { Route } from './+types/root';
 import { AuthProvider } from './components/providers/auth-provider';
 import { TenantProvider } from './components/providers/tenant-provider';
+import { TenantThemeProvider } from './components/providers/tenant-theme-provider';
 import { ThemeProvider } from './components/providers/theme-provider';
 
 export const links: Route.LinksFunction = () => [
@@ -42,7 +43,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
           <QueryClientProvider client={queryClient}>
             <TenantProvider>
-              <AuthProvider>{children}</AuthProvider>
+              <TenantThemeProvider>
+                <AuthProvider>{children}</AuthProvider>
+              </TenantThemeProvider>
             </TenantProvider>
             <Toaster />
           </QueryClientProvider>

@@ -1,0 +1,1 @@
+ALTER TABLE "savings"."associate_accounts" ALTER COLUMN "account_number" DROP NOT NULL;

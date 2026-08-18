@@ -40,6 +40,13 @@ export class AccountingBalanceController {
     );
   }
 
+  @Get('has-initial-load')
+  @ApiOperation({ summary: 'Check if initial load has been performed' })
+  async hasInitialLoad(@Req() req: Request) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    return await this.accountingBalanceService.hasInitialLoad(targetTenantId);
+  }
+
   @Post('bootstrapping')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data', 'application/json')

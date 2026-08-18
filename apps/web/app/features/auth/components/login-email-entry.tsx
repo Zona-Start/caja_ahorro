@@ -17,11 +17,13 @@ import { useNavigate } from 'react-router';
 import { emailOnlySchema, type EmailOnlyValue } from '../schemas/login';
 import { authService } from '../services/auth-service';
 import { BrandHeader } from './brand-header';
+import { LoginWorkspace } from './login-workspace';
 
 export function LoginEmailEntry() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tenants, setTenants] = useState<TenantBrand[] | null>(null);
+  const [superadminEmail, setSuperadminEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const form = useForm<EmailOnlyValue>({
@@ -56,6 +58,11 @@ export function LoginEmailEntry() {
     try {
       const result = await authService.lookupWorkspace(data.email);
 
+      if (result.isSystemAdmin) {
+        setSuperadminEmail(data.email);
+        return;
+      }
+
       if (result.tenants.length === 0) {
         setError('No encontramos un espacio de trabajo para este correo.');
         return;
@@ -73,6 +80,10 @@ export function LoginEmailEntry() {
       setLoading(false);
     }
   };
+
+  if (superadminEmail) {
+    return <LoginWorkspace prefilledEmail={superadminEmail} />;
+  }
 
   return (
     <div className="p-6 md:p-8">

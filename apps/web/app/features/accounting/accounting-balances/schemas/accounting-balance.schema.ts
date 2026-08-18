@@ -17,6 +17,8 @@ export const accountingBalanceSchema = z.object({
 export const balanceItemSchema = z.object({
   accountCode: z.string().min(1, 'El código de cuenta es requerido'),
   descripcion: z.string().min(1, 'La descripción es requerida'),
+  auxiliarSocio: z.string().optional().nullable(),
+  auxiliarProveedor: z.string().optional().nullable(),
   balance: z.number(),
 });
 

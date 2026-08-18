@@ -3,6 +3,7 @@ import {
   accountingBalanceListApiResponseSchema,
   bootstrappingResponseSchema,
   closeCycleResponseSchema,
+  hasInitialLoadResponseSchema,
   openCycleResponseSchema,
 } from '../schemas/accounting-balance-api';
 import {
@@ -51,6 +52,11 @@ export class AccountingBalancesService {
   static async bootstrapping(payload: InitialLoad) {
     const response = await apiClient.post('/accounting-balance/bootstrapping', payload);
     return bootstrappingResponseSchema.parse(response.data);
+  }
+
+  static async hasInitialLoad() {
+    const response = await apiClient.get('/accounting-balance/has-initial-load');
+    return hasInitialLoadResponseSchema.parse(response.data);
   }
 
   static async bootstrappingWithFile(file: File) {

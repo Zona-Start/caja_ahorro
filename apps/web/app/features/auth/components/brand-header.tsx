@@ -13,7 +13,7 @@ export function BrandHeader({ title, subtitle }: BrandHeaderProps) {
 
   return (
     <div className="flex flex-col items-center text-center">
-      <img src={logoUrl} alt={name} className="mb-3 h-14 w-auto" />
+      <img src={logoUrl} alt={name} className=" w-auto" style={{ height: '225px' }} />
       <h1 className="text-2xl font-bold">{title ?? name}</h1>
       {subtitle && (
         <p className="text-balance text-muted-foreground">{subtitle}</p>

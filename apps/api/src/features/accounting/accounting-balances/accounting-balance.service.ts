@@ -1,7 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import {
   NewAccountBalance,
-  NewAccountingEntry,
   NewAccountingEntryDetail,
 } from '@/database/types/accounting';
 import { AuditHelper } from '@/features/audit/audit-event.service';
@@ -44,45 +43,13 @@ export class AccountingBalanceService {
       rawBalances = initialLoadDto.balances ?? [];
     }
 
-    // 2. Agrupar por código de cuenta
-    const groups = new Map<string, any[]>();
-    for (const item of rawBalances) {
-      const rawCode = item.accountCode ?? item.CUENTA ?? item.cuenta;
-      const code = String(rawCode || '').trim();
-      if (!code) continue;
-      if (!groups.has(code)) groups.set(code, []);
-      groups.get(code)!.push(item);
+    if (rawBalances.length === 0) {
+      throw new BadRequestException(
+        'No se proporcionaron saldos para la carga inicial.',
+      );
     }
 
-    // 3. Calcular saldo total por cuenta (suma de auxiliares)
-    const uniqueBalances: { accountCode: string; balance: number }[] = [];
-    groups.forEach((rows, code) => {
-      const hasAuxiliaries = rows.some((r) => {
-        const aux = r.AUXILIAR ?? r.auxiliar ?? r.aux;
-        return aux && String(aux).trim() !== '' && String(aux).trim() !== '000';
-      });
-      let finalRows = rows;
-      if (hasAuxiliaries) {
-        finalRows = rows.filter((r) => {
-          const aux = r.AUXILIAR ?? r.auxiliar ?? r.aux;
-          return aux && String(aux).trim() !== '' && String(aux).trim() !== '000';
-        });
-      }
-      const totalBalance = finalRows.reduce((sum, row) => {
-        const val =
-          row.balance ??
-          row.SALDO_ACTUAL ??
-          row.saldo_actual ??
-          row.SALDO ??
-          row.saldo ??
-          0;
-        return sum + Number(val);
-      }, 0);
-
-      uniqueBalances.push({ accountCode: code, balance: totalBalance });
-    });
-
-    // 4. Validar ciclo contable activo
+    // 2. Validar ciclo contable activo
     const [activeCycle] = await this.drizzle
       .select()
       .from(schema.accountingCycles)
@@ -96,282 +63,246 @@ export class AccountingBalanceService {
     if (!activeCycle)
       throw new NotFoundException('No active accounting cycle found.');
 
-    // 5. Verificar que no haya saldos cargados
-    const existing = await this.drizzle
-      .select({ id: schema.accountBalances.id })
-      .from(schema.accountBalances)
-      .where(
-        and(
-          eq(schema.accountBalances.accountingCyclesId, activeCycle.id),
-          eq(schema.accountBalances.tenantId, tenantId),
-        ),
-      )
-      .limit(1);
-    if (existing.length > 0)
-      throw new BadRequestException('Balances already loaded.');
-
-    // 6. Verificar que no existan asientos en el ciclo
-    const entries = await this.drizzle
-      .select({ count: sql<number>`count(*)` })
+    // 3. Validar que no exista una carga inicial previa (asiento voucherNo = 1)
+    const [existingInitialEntry] = await this.drizzle
+      .select({ id: schema.accountingEntries.id })
       .from(schema.accountingEntries)
       .where(
         and(
-          eq(schema.accountingEntries.accountingCycleId, activeCycle.id),
           eq(schema.accountingEntries.tenantId, tenantId),
+          eq(schema.accountingEntries.description, 'CARGA INICIAL DE SALDO'),
+          eq(schema.accountingEntries.voucherNo, 1),
         ),
+      )
+      .limit(1);
+    if (existingInitialEntry)
+      throw new BadRequestException(
+        'La carga inicial de saldos ya fue realizada.',
       );
-    if (Number(entries[0].count) > 0)
-      throw new BadRequestException('Cycle has existing entries.');
 
-    // 7. Obtener cuentas del plan
-    const codes = uniqueBalances.map((b) => b.accountCode);
-    const accountsFound = await this.drizzle
+    // 4. Cargar plan de cuentas
+    const accountPlans = await this.drizzle
       .select({
         id: schema.accountPlan.id,
         code: schema.accountPlan.code,
+        name: schema.accountPlan.name,
         nature: schema.accountPlan.nature,
-        accountType: schema.accountPlan.accountType, // ← AGREGADO: para segregar por tipo
+        accountType: schema.accountPlan.accountType,
         allowsMovements: schema.accountPlan.allowsMovements,
       })
       .from(schema.accountPlan)
-      .where(
-        and(
-          eq(schema.accountPlan.tenantId, tenantId),
-          inArray(schema.accountPlan.code, codes),
-        ),
-      );
+      .where(eq(schema.accountPlan.tenantId, tenantId));
 
-    const accountMap = new Map(accountsFound.map((acc) => [acc.code, acc]));
+    const accountMap = new Map(accountPlans.map((a) => [a.code, a]));
 
-    // Variables para acumular totales
-    let totalDebits = 0;
-    let totalCredits = 0;
-    let totalAssets = 0;      // Suma de saldos de cuentas ASSET (con signo)
-    let totalLiabilities = 0; // Suma de saldos de cuentas LIABILITY (con signo)
-    let totalEquity = 0;      // Suma de saldos de cuentas EQUITY (con signo)
+    // 5. Construir detalles del asiento y resolver auxiliares
+    const details: any[] = [];
+    let totalDebit = 0;
+    let totalCredit = 0;
+    let totalAssets = 0;
+    let totalLiabilities = 0;
+    let totalEquity = 0;
 
-    const payloadToInsert: NewAccountBalance[] = [];
-
-    // Arrays para auditar la data rechazada
-    const missingAccounts: string[] = [];
-    const parentAccountsWithBalance: string[] = [];
-
-    // LOG: Inicializar un array para guardar el detalle de cada cuenta procesada
-    const processingLog: string[] = [];
-
-
-    for (const item of uniqueBalances) {
-      const account = accountMap.get(item.accountCode);
+    for (const item of rawBalances) {
+      const rawCode = item.accountCode ?? item.CUENTA ?? item.cuenta;
+      const code = String(rawCode || '').trim();
+      const account = accountMap.get(code);
 
       if (!account) {
-        missingAccounts.push(item.accountCode);
-        continue;
-      }
-      // if (!account.allowsMovements) {
-      //   parentAccountsWithBalance.push(`${item.accountCode} (Saldo: ${item.balance})`);
-      //   continue;
-      // }
-
-      const amount = Number(item.balance);
-
-      // LOG: Registrar el procesamiento de esta cuenta
-      const logEntry = `Cuenta: ${item.accountCode}, Monto: ${amount}, Naturaleza: ${account.nature}, Tipo: ${account.accountType}`;
-      processingLog.push(logEntry);
-
-
-      // ✅ ACUMULACIÓN POR NATURALEZA (para débitos/créditos)
-      if (account.nature === 'DEBIT') {
-        totalDebits += amount;
-        processingLog.push(`  -> Sumado a DÉBITOS (total parcial: ${totalDebits.toFixed(2)})`);
-      } else { // CREDIT
-        totalCredits += amount;
-        processingLog.push(`  -> Sumado a CRÉDITOS (total parcial: ${totalCredits.toFixed(2)})`);
-      }
-
-      // ✅ ACUMULACIÓN POR TIPO DE CUENTA (Activo, Pasivo, Patrimonio)
-      if (account.accountType === 'ASSET') {
-        totalAssets += amount;
-        processingLog.push(`  -> Sumado a ACTIVOS (total parcial: ${totalAssets.toFixed(2)})`);
-      } else if (account.accountType === 'LIABILITY') {
-        totalLiabilities += amount;
-        processingLog.push(`  -> Sumado a PASIVOS (total parcial: ${totalLiabilities.toFixed(2)})`);
-      } else if (account.accountType === 'EQUITY') {
-        totalEquity += amount;
-        processingLog.push(`  -> Sumado a PATRIMONIO (total parcial: ${totalEquity.toFixed(2)})`);
-      }
-
-      // ✅ ALMACENAMIENTO: SIEMPRE VALOR ABSOLUTO
-      const balanceToStore = Math.abs(amount);
-
-      payloadToInsert.push({
-        tenantId,
-        accountPlanId: String(account.id),
-        accountingCyclesId: activeCycle.id,
-        initialBalance: String(balanceToStore),
-        debitBalance: '0.00',
-        creditBalance: '0.00',
-        finalBalance: String(balanceToStore),
-        createdById: userId,
-        updatedById: userId,
-      });
-    }
-
-
-
-    // 7.5 Lanzar error temprano si hay cuentas inválidas en el Excel
-    if (missingAccounts.length > 0 || parentAccountsWithBalance.length > 0) {
-      const errorMsg = `Carga detenida. Cuentas no existen en BD: [${missingAccounts.join(', ')}]. Cuentas PADRE con saldo directo en Excel (no permitido): [${parentAccountsWithBalance.join(', ')}].`;
-      console.log(errorMsg);
-      console.log('Log de procesamiento:');
-      console.log(processingLog.join('\n'));
-      throw new BadRequestException(errorMsg);
-    }
-
-    // 8. Validar balance: la suma de débitos y créditos (con signo) debe ser 0
-    const diff = Math.abs(totalDebits + totalCredits);
-
-    // =========================================
-    // REPORTE CONTABLE DE VALIDACIÓN
-    // =========================================
-
-    let totalRevenue = 0;
-    let totalExpense = 0;
-
-    const accountSummary: {
-      code: string;
-      type: string;
-      nature: string;
-      amount: number;
-    }[] = [];
-
-    for (const item of uniqueBalances) {
-      const account = accountMap.get(item.accountCode);
-      if (!account) continue;
-
-      const amount = Number(item.balance);
-
-      accountSummary.push({
-        code: item.accountCode,
-        type: account.accountType,
-        nature: account.nature,
-        amount,
-      });
-
-      switch (account.accountType) {
-        case 'REVENUE':
-          totalRevenue += amount;
-          break;
-
-        case 'EXPENSE':
-          totalExpense += amount;
-          break;
-      }
-    }
-
-    // Activos ya fueron calculados
-    // Pasivos ya fueron calculados
-    // Patrimonio ya fue calculado
-
-    const assets = totalAssets;
-    const liabilities = totalLiabilities;
-    const equity = totalEquity;
-    const revenues = totalRevenue;
-    const expenses = totalExpense;
-
-    const debitTotal = totalDebits;
-    const creditTotal = totalCredits;
-
-    const accountingEquation =
-      assets + liabilities + equity;
-
-    console.log(`
-  ==============================================================
-               REPORTE DE VALIDACIÓN CONTABLE
-  ==============================================================
-
-  ACTIVOS      : ${assets.toFixed(2)}
-
-  PASIVOS      : ${Math.abs(liabilities).toFixed(2)}
-
-  PATRIMONIO   : ${Math.abs(equity).toFixed(2)}
-
-  INGRESOS     : ${Math.abs(revenues).toFixed(2)}
-
-  GASTOS       : ${expenses.toFixed(2)}
-
-  --------------------------------------------------------------
-
-  TOTAL DEBE   : ${debitTotal.toFixed(2)}
-
-  TOTAL HABER  : ${Math.abs(creditTotal).toFixed(2)}
-
-  DIFERENCIA   : ${(debitTotal + creditTotal).toFixed(2)}
-
-  --------------------------------------------------------------
-
-  ACTIVO =
-  ${assets.toFixed(2)}
-
-  PASIVO + PATRIMONIO =
-  ${Math.abs(liabilities + equity).toFixed(2)}
-
-  DIFERENCIA ECUACIÓN =
-  ${(assets + liabilities + equity).toFixed(2)}
-
-  --------------------------------------------------------------
-
-  UTILIDAD DEL EJERCICIO
-
-  Ingresos : ${Math.abs(revenues).toFixed(2)}
-
-  Gastos   : ${expenses.toFixed(2)}
-
-  Resultado:
-  ${(revenues + expenses).toFixed(2)}
-
-  ==============================================================
-  `);
-
-    console.log("\n=========== TOP CUENTAS POR MONTO ==========");
-
-    accountSummary
-      .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
-      .forEach(a => {
-
-        console.log(
-          `${a.code.padEnd(20)} | ${a.type.padEnd(10)} | ${a.nature.padEnd(6)} | ${a.amount.toFixed(2)}`
+        throw new BadRequestException(
+          `Cuenta no encontrada en el plan contable: ${code}`,
         );
+      }
 
+      const amount = Number(item.balance);
+
+      // Resolver asociado por cédula
+      let associateId: string | null = null;
+      const auxiliarSocio = String(
+        item.auxiliarSocio ?? item.AUXILIAR_SOCIO ?? item.auxiliar_socio ?? '',
+      ).trim();
+      if (auxiliarSocio !== '') {
+        const [assoc] = await this.drizzle
+          .select({ id: schema.associates.id })
+          .from(schema.associates)
+          .where(
+            and(
+              eq(schema.associates.tenantId, tenantId),
+              eq(schema.associates.cedula, auxiliarSocio),
+            ),
+          )
+          .limit(1);
+        if (!assoc) {
+          throw new BadRequestException(
+            `Asociado no encontrado con cédula: ${auxiliarSocio}`,
+          );
+        }
+        associateId = assoc.id;
+      }
+
+      // Resolver proveedor
+      let supplierId: string | null = null;
+      const auxiliarProveedor = String(
+        item.auxiliarProveedor ??
+          item.AUXILIAR_PROVEEDOR ??
+          item.auxiliar_proveedor ??
+          '',
+      ).trim();
+      if (auxiliarProveedor !== '') {
+        const [sup] = await this.drizzle
+          .select({ id: schema.suppliers.id })
+          .from(schema.suppliers)
+          .where(
+            and(
+              eq(schema.suppliers.tenantId, tenantId),
+              or(
+                eq(schema.suppliers.taxId, auxiliarProveedor),
+                eq(schema.suppliers.internalCode, auxiliarProveedor),
+                eq(schema.suppliers.name, auxiliarProveedor),
+              ),
+            ),
+          )
+          .limit(1);
+        if (!sup) {
+          throw new BadRequestException(
+            `Proveedor no encontrado: ${auxiliarProveedor}`,
+          );
+        }
+        supplierId = sup.id;
+      }
+
+      // Determinar débito/crédito según la naturaleza de la cuenta
+      const absAmount = Math.abs(amount);
+      let debit = '0.000000';
+      let credit = '0.000000';
+
+      if (account.nature === 'DEBIT') {
+        if (amount >= 0) {
+          debit = absAmount.toFixed(6);
+          totalDebit += absAmount;
+        } else {
+          credit = absAmount.toFixed(6);
+          totalCredit += absAmount;
+        }
+      } else {
+        if (amount >= 0) {
+          credit = absAmount.toFixed(6);
+          totalCredit += absAmount;
+        } else {
+          debit = absAmount.toFixed(6);
+          totalDebit += absAmount;
+        }
+      }
+
+      // Acumular por tipo para validar la ecuación contable
+      if (account.accountType === 'ASSET') totalAssets += amount;
+      else if (account.accountType === 'LIABILITY') totalLiabilities += amount;
+      else if (account.accountType === 'EQUITY') totalEquity += amount;
+
+      details.push({
+        accountPlanId: account.id,
+        associateId,
+        supplierId,
+        debit,
+        credit,
+        description: item.descripcion ?? item.descripcion ?? null,
+        createdById: userId,
       });
-
-
-    if (diff > 1.0) {
-      const errorMsg = `Initial Load Imbalance. Total Debits (signed): ${totalDebits.toFixed(2)}, Total Credits (signed): ${totalCredits.toFixed(2)}. Difference: ${diff.toFixed(2)}. 
-      === Resumen por tipo de cuenta ===
-      Detalle de procesamiento: 
-      ${processingLog.join('\n')}`;
-      console.log(errorMsg);
-      throw new ConflictException(errorMsg);
     }
 
-    // 9. Transacción
+    // 6. Validar partida doble (débitos = créditos)
+    const debitCreditDiff = Math.abs(totalDebit - totalCredit);
+    if (debitCreditDiff > 1.0) {
+      throw new ConflictException(
+        `Carga inicial desbalanceada. Total Débitos: ${totalDebit.toFixed(2)}, Total Créditos: ${totalCredit.toFixed(2)}. Diferencia: ${debitCreditDiff.toFixed(2)}`,
+      );
+    }
+
+    // 7. Validar ecuación contable ACTIVO = PASIVO + PATRIMONIO
+    const liabilitiesEquity = Math.abs(totalLiabilities + totalEquity);
+    const equationDiff = Math.abs(Math.abs(totalAssets) - liabilitiesEquity);
+    if (equationDiff > 1.0) {
+      throw new ConflictException(
+        `La ecuación contable no se cumple. ACTIVO: ${Math.abs(totalAssets).toFixed(2)} vs PASIVO + PATRIMONIO: ${liabilitiesEquity.toFixed(2)}. Diferencia: ${equationDiff.toFixed(2)}`,
+      );
+    }
+
+    // 8. Crear asiento de apertura en transacción
     return this.drizzle.transaction(async (tx) => {
-      if (payloadToInsert.length > 0) {
-        await tx.insert(schema.accountBalances).values(payloadToInsert);
+      const [entry] = await tx
+        .insert(schema.accountingEntries)
+        .values({
+          tenantId,
+          accountingCycleId: activeCycle.id,
+          entryDate: activeCycle.startDate,
+          description: 'CARGA INICIAL DE SALDO',
+          voucherNo: 1,
+          originType: 'INITIAL_LOAD',
+          status: 'POSTED',
+          postedAt: new Date(),
+          currencyCode: 'VES',
+          createdById: userId,
+        })
+        .returning({ id: schema.accountingEntries.id });
+
+      const detailsToInsert = details.map((d) => ({
+        ...d,
+        accountingEntryId: entry.id,
+      }));
+
+      if (detailsToInsert.length > 0) {
+        await tx.insert(schema.accountingEntryDetails).values(detailsToInsert);
       }
+
+      // Actualizar contador de comprobantes a 1
+      await tx
+        .update(schema.moduleSettings)
+        .set({ value: '1', updatedBy: userId })
+        .where(
+          and(
+            eq(schema.moduleSettings.tenantId, tenantId),
+            eq(schema.moduleSettings.module, 'accounting'),
+            eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
+            eq(schema.moduleSettings.key, 'NRO-ASIENTO'),
+          ),
+        );
 
       await this.auditHelper.logCreate(
         tenantId,
-        'accountBalances',
-        payloadToInsert[0],
+        'accountingEntries',
+        { id: entry.id, voucherNo: 1, description: 'CARGA INICIAL DE SALDO' },
         {
-          targetId: payloadToInsert[0].id,
-          description: `Initial balances loaded successfully. Total registered: ${payloadToInsert.length} accounts.`,
+          targetId: entry.id,
+          description: `Carga inicial de saldos realizada. Cuentas registradas: ${detailsToInsert.length}.`,
         },
       );
-      return { message: 'Success', processedAccounts: payloadToInsert.length };
+
+      return {
+        message: 'Carga inicial de saldos realizada exitosamente',
+        entryId: entry.id,
+        voucherNo: 1,
+        processedAccounts: detailsToInsert.length,
+      };
     });
   }
+
+  async hasInitialLoad(tenantId: string) {
+    const [entry] = await this.drizzle
+      .select({ id: schema.accountingEntries.id })
+      .from(schema.accountingEntries)
+      .where(
+        and(
+          eq(schema.accountingEntries.tenantId, tenantId),
+          eq(schema.accountingEntries.description, 'CARGA INICIAL DE SALDO'),
+          eq(schema.accountingEntries.voucherNo, 1),
+        ),
+      )
+      .limit(1);
+
+    return { hasInitialLoad: !!entry };
+  }
+
+
 
 
 

@@ -129,26 +129,6 @@ export function useDeleteBankAccountMutation(): UseMutationResult<
   });
 }
 
-export function useReverseBankAccountMutation(): UseMutationResult<
-  unknown,
-  unknown,
-  string
-> {
-  const queryClient = useQueryClient();
-  const { success: toastSuccess, error: toastError } = useToastSystem();
-
-  return useMutation({
-    mutationFn: (id) => bankAccountService.reverse(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: bankAccountKeys.all });
-      toastSuccess('Cuenta bancaria reversada e inactivada correctamente');
-    },
-    onError: (error) => {
-      toastError(getErrorMessage(error));
-    },
-  });
-}
-
 export function useBankAccountAll(): UseQueryResult<{
   data: { id: string; accountName: string | null; accountNumber: string }[];
 }> {

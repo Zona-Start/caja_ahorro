@@ -34,7 +34,9 @@ export class StorageController {
     @Req() req: Request,
   ) {
     if (!this.r2Service.isConfigured()) {
-      throw new BadRequestException('R2 no está configurado');
+      throw new BadRequestException(
+        `R2 no está configurado. Faltan: ${this.r2Service.getMissingVariables().join(', ')}`,
+      );
     }
 
     if (!file) {
@@ -65,7 +67,9 @@ export class StorageController {
     });
 
     if (!this.r2Service.isConfigured()) {
-      throw new BadRequestException('R2 no está configurado');
+      throw new BadRequestException(
+        `R2 no está configurado. Faltan: ${this.r2Service.getMissingVariables().join(', ')}`,
+      );
     }
 
     const url = await this.r2Service.getSignedUrl(key, expiresIn);

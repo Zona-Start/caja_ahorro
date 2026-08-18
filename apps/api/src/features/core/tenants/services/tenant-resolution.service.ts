@@ -30,6 +30,9 @@ export interface ResolvedHost {
   tenant: TenantBrand | null;
 }
 
+const APP_SUBDOMAIN = 'app';
+const RESERVED_SLUGS = ['app', 'www', 'api', 'admin'];
+
 @Injectable()
 export class TenantResolutionService {
   constructor(
@@ -41,6 +44,10 @@ export class TenantResolutionService {
     return (
       this.configService.get<string>('PLATFORM_DOMAIN') || 'zonastart.local'
     );
+  }
+
+  getAppHost(): string {
+    return `${APP_SUBDOMAIN}.${this.getPlatformDomain().toLowerCase()}`;
   }
 
   normalizeHost(host: string): string {
@@ -55,13 +62,17 @@ export class TenantResolutionService {
       return { type: 'platform' };
     }
 
-    if (normalized === platform || normalized === `www.${platform}`) {
+    if (
+      normalized === platform ||
+      normalized === `www.${platform}` ||
+      normalized === `${APP_SUBDOMAIN}.${platform}`
+    ) {
       return { type: 'platform' };
     }
 
     if (normalized.endsWith(`.${platform}`)) {
       const slug = normalized.slice(0, -(platform.length + 1));
-      if (slug && !slug.includes('.')) {
+      if (slug && !slug.includes('.') && !RESERVED_SLUGS.includes(slug)) {
         return { type: 'subdomain', slug };
       }
     }
@@ -140,13 +151,19 @@ export class TenantResolutionService {
     };
   }
 
-  async lookupByEmail(email: string): Promise<TenantBrand[]> {
+  async lookupByEmail(
+    email: string,
+  ): Promise<{ tenants: TenantBrand[]; isSystemAdmin: boolean }> {
     const user = await this.db.query.users.findFirst({
       where: eq(users.email, email.toLowerCase()),
     });
 
     if (!user) {
-      return [];
+      return { tenants: [], isSystemAdmin: false };
+    }
+
+    if (user.isSystemAdmin) {
+      return { tenants: [], isSystemAdmin: true };
     }
 
     const memberships = await this.db.query.tenantMembers.findMany({
@@ -158,7 +175,7 @@ export class TenantResolutionService {
     });
 
     if (memberships.length === 0) {
-      return [];
+      return { tenants: [], isSystemAdmin: false };
     }
 
     const tenantIds = memberships.map((m) => m.tenantId);
@@ -166,6 +183,10 @@ export class TenantResolutionService {
       where: and(inArray(tenants.id, tenantIds), eq(tenants.isActive, true)),
     });
 
-    return Promise.all(tenantRows.map((tenant) => this.toBrand(tenant)));
+    const brands = await Promise.all(
+      tenantRows.map((tenant) => this.toBrand(tenant)),
+    );
+
+    return { tenants: brands, isSystemAdmin: false };
   }
 }

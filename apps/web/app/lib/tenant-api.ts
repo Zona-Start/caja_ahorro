@@ -19,11 +19,13 @@ export const tenantApi = {
     return data;
   },
 
-  async lookupWorkspace(email: string): Promise<{ tenants: TenantBrand[] }> {
-    const { data } = await publicApiClient.post<{ tenants: TenantBrand[] }>(
-      '/public/auth/workspace-lookup',
-      { email },
-    );
+  async lookupWorkspace(
+    email: string,
+  ): Promise<{ tenants: TenantBrand[]; isSystemAdmin: boolean }> {
+    const { data } = await publicApiClient.post<{
+      tenants: TenantBrand[];
+      isSystemAdmin: boolean;
+    }>('/public/auth/workspace-lookup', { email });
     return data;
   },
 };

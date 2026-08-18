@@ -11,22 +11,34 @@ import { ConfigService } from '@nestjs/config';
 export class R2Service {
   private readonly logger = new Logger(R2Service.name);
   private readonly client: S3Client | null;
+  private readonly missingVariables: string[] = [];
 
   constructor(private readonly configService: ConfigService) {
-    const accountId = this.configService.get<string>('R2_ACCOUNT_ID');
-    const accessKeyId = this.configService.get<string>('R2_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get<string>(
-      'R2_SECRET_ACCESS_KEY',
-    );
-    const bucketName = this.configService.get<string>('R2_BUCKET_NAME');
+    const required: Array<[string, string | undefined]> = [
+      ['R2_ACCOUNT_ID', this.configService.get<string>('R2_ACCOUNT_ID')],
+      ['R2_ACCESS_KEY_ID', this.configService.get<string>('R2_ACCESS_KEY_ID')],
+      [
+        'R2_SECRET_ACCESS_KEY',
+        this.configService.get<string>('R2_SECRET_ACCESS_KEY'),
+      ],
+      ['R2_BUCKET_NAME', this.configService.get<string>('R2_BUCKET_NAME')],
+    ];
 
-    if (!accountId || !accessKeyId || !secretAccessKey || !bucketName) {
+    this.missingVariables = required
+      .filter(([, value]) => !value)
+      .map(([name]) => name);
+
+    if (this.missingVariables.length > 0) {
       this.client = null;
       this.logger.warn(
-        'R2 no configurado: faltan variables R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY o R2_BUCKET_NAME',
+        `R2 no configurado. Faltan: ${this.missingVariables.join(', ')}`,
       );
       return;
     }
+
+    const accountId = required[0][1]!;
+    const accessKeyId = required[1][1]!;
+    const secretAccessKey = required[2][1]!;
 
     this.client = new S3Client({
       region: 'auto',
@@ -37,6 +49,10 @@ export class R2Service {
 
   isConfigured(): boolean {
     return this.client !== null;
+  }
+
+  getMissingVariables(): string[] {
+    return this.missingVariables;
   }
 
   getBucketName(): string {

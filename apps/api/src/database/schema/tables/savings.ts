@@ -56,7 +56,7 @@ export const associates = savingsSchema.table(
     nationality: nationalityEnum('nationality').notNull(), // nacionalidad
     gender: genderEnum('gender'), // genero
     birthdate: date('birthdate'), //fecha de nacimiento
-    dateAdmission: date('admission_date').notNull(), //fecha ingreso
+    dateAdmission: date('admission_date'), //fecha ingreso
     dateGraduation: date('graduation_date'), //fecha de egreso
     discountFrequencyId: uuid('discount_frequency_id').references(
       () => categories.id,
@@ -118,7 +118,7 @@ export const associateAccounts = savingsSchema.table(
     associateId: uuid('associate_id').references(() => associates.id, {
       onDelete: 'cascade',
     }), // id asosciado
-    accountNumber: varchar('account_number', { length: 20 }).notNull().unique(), // numero de cuenta
+    accountNumber: varchar('account_number', { length: 20 }).unique(), // numero de cuenta
     currencyCode: currencyCodeEnum('currency_code').notNull(), // Moneda de la cuenta (VES, USD)
     balance: numeric('balance', { precision: 20, scale: 6 })
       .default('0.00')

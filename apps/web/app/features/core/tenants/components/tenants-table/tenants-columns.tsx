@@ -20,11 +20,18 @@ export const tenantsColumns: ColumnDef<Tenant>[] = [
   {
     accessorKey: 'businessType',
     header: 'Tipo',
-    cell: ({ row }) => businessTypeLabels[row.original.businessType] ?? row.original.businessType,
+    cell: ({ row }) =>
+      businessTypeLabels[row.original.businessType] ??
+      row.original.businessType,
   },
   {
     accessorKey: 'email',
     header: 'Correo',
+  },
+  {
+    accessorKey: 'slug',
+    header: 'Espacio',
+    cell: ({ row }) => row.original.slug || '—',
   },
   {
     accessorKey: 'phone',

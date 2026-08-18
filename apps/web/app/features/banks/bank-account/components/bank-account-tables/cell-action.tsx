@@ -8,12 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
-import { Edit, Eye, MoreHorizontal, RotateCcw, Trash2 } from 'lucide-react';
+import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { BankAccount } from '../../schemas/bank-account.schema';
-import {
-  useDeleteBankAccountMutation,
-  useReverseBankAccountMutation,
-} from '../../hooks/use-bank-account-query';
+import { useDeleteBankAccountMutation } from '../../hooks/use-bank-account-query';
 import { BankAccountModal } from '../bank-account-modal';
 
 interface CellActionProps {
@@ -24,23 +21,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openView, setOpenView] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openReverse, setOpenReverse] = useState(false);
 
   const deleteMutation = useDeleteBankAccountMutation();
-  const reverseMutation = useReverseBankAccountMutation();
-
-  const canDelete = !data.openingEntryPosted;
-  const canReverse = !!data.linkedChartAccountId;
 
   const onDeleteConfirm = () => {
     deleteMutation.mutate(data.id, {
       onSuccess: () => setOpenDelete(false),
-    });
-  };
-
-  const onReverseConfirm = () => {
-    reverseMutation.mutate(data.id, {
-      onSuccess: () => setOpenReverse(false),
     });
   };
 
@@ -52,16 +38,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onConfirm={onDeleteConfirm}
         loading={deleteMutation.isPending}
         title="¿Estás seguro que deseas eliminar esta cuenta bancaria?"
-        description="Esta acción no se puede deshacer. La cuenta no debe tener asiento de apertura ni cuenta contable vinculada."
-      />
-
-      <AlertModal
-        isOpen={openReverse}
-        onClose={() => setOpenReverse(false)}
-        onConfirm={onReverseConfirm}
-        loading={reverseMutation.isPending}
-        title="¿Estás seguro que deseas reversar esta cuenta bancaria?"
-        description="Se generará un asiento de reverso y la cuenta será marcada como inactiva. Esta acción no se puede deshacer."
+        description="Esta acción no se puede deshacer. La cuenta no debe tener movimientos bancarios asociados."
       />
 
       <BankAccountModal
@@ -93,30 +70,14 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Edit className="mr-2 h-4 w-4" />
             Editar
           </DropdownMenuItem>
-          {canReverse && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setOpenReverse(true)}
-                className="text-amber-600 focus:text-amber-600 focus:bg-amber-50"
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Reversar
-              </DropdownMenuItem>
-            </>
-          )}
-          {canDelete && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setOpenDelete(true)}
-                className="text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
-            </>
-          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setOpenDelete(true)}
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Eliminar
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>

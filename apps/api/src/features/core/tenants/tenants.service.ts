@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomBytes } from 'crypto';
-import { and, eq, SQL } from 'drizzle-orm';
+import { and, eq, inArray, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import { AuditHelper } from '../../audit/audit-event.service';
@@ -24,6 +24,8 @@ import {
 } from './dto/tenants.dto';
 import { TenantIntegrationService } from './services/tenant-integrations.service';
 import { TenantProvisioningService } from './services/tenant-provisioning.service';
+
+const RESERVED_SLUGS = ['app', 'www', 'api', 'admin'];
 
 @Injectable()
 export class TenantsService {
@@ -40,7 +42,7 @@ export class TenantsService {
     const { page = 1, limit = 20, search, isActive, businessType } = dto;
     const offset = (page - 1) * limit;
 
-    return db.query.tenants.findMany({
+    const rows = await db.query.tenants.findMany({
       where: (tenants, { and, or, eq, like }) => {
         const conditions: SQL[] = [];
 
@@ -70,6 +72,8 @@ export class TenantsService {
       limit,
       offset,
     });
+
+    return this.attachCustomDomains(db, rows);
   }
 
   async findById(
@@ -90,7 +94,15 @@ export class TenantsService {
       where: (t, { eq }) => eq(t.id, id),
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    return tenant;
+
+    const primary = await db.query.tenantDomains.findFirst({
+      where: and(
+        eq(tenantDomains.tenantId, id),
+        eq(tenantDomains.isPrimary, true),
+      ),
+    });
+
+    return { ...tenant, customDomain: primary?.domain ?? null };
   }
 
   async findByRif(rif: string, tx?: NodePgDatabase<typeof schema>) {
@@ -107,10 +119,78 @@ export class TenantsService {
 
   private async ensureSlugAvailable(slug?: string) {
     if (!slug) return;
-    const existing = await this.findBySlug(slug);
+    const normalized = slug.toLowerCase();
+    if (RESERVED_SLUGS.includes(normalized)) {
+      throw new ConflictException(`El slug "${slug}" está reservado`);
+    }
+    const existing = await this.findBySlug(normalized);
     if (existing) {
       throw new ConflictException(`El slug "${slug}" ya está en uso`);
     }
+  }
+
+  private async attachCustomDomains(
+    db: NodePgDatabase<typeof schema>,
+    rows: (typeof tenants.$inferSelect)[],
+  ) {
+    if (rows.length === 0) return rows;
+
+    const tenantIds = rows.map((r) => r.id);
+    const domains = await db.query.tenantDomains.findMany({
+      where: and(
+        inArray(tenantDomains.tenantId, tenantIds),
+        eq(tenantDomains.isPrimary, true),
+      ),
+    });
+
+    const map = new Map(domains.map((d) => [d.tenantId, d.domain]));
+    return rows.map((r) => ({ ...r, customDomain: map.get(r.id) ?? null }));
+  }
+
+  private async syncPrimaryDomain(tenantId: string, customDomain?: string) {
+    if (!customDomain) return;
+
+    const domain = customDomain.trim().toLowerCase();
+
+    const domainOwner = await this.db.query.tenantDomains.findFirst({
+      where: eq(tenantDomains.domain, domain),
+    });
+    if (domainOwner && domainOwner.tenantId !== tenantId) {
+      throw new ConflictException(`El dominio "${domain}" ya está registrado`);
+    }
+
+    const existing = await this.db.query.tenantDomains.findFirst({
+      where: and(
+        eq(tenantDomains.tenantId, tenantId),
+        eq(tenantDomains.isPrimary, true),
+      ),
+    });
+
+    if (existing) {
+      if (existing.domain !== domain) {
+        await this.db
+          .update(tenantDomains)
+          .set({
+            domain,
+            isVerified: false,
+            verificationToken: randomBytes(24).toString('hex'),
+            verifiedAt: null,
+            updatedById: null,
+          })
+          .where(eq(tenantDomains.id, existing.id));
+      }
+      return;
+    }
+
+    await this.db.insert(tenantDomains).values({
+      tenantId,
+      domain,
+      isPrimary: true,
+      isVerified: false,
+      verificationToken: randomBytes(24).toString('hex'),
+      createdById: null,
+      updatedById: null,
+    });
   }
 
   async create(dto: CreateTenantDto, userId?: string) {
@@ -140,11 +220,20 @@ export class TenantsService {
         faviconUrl: dto.faviconUrl,
         primaryColor: dto.primaryColor,
         secondaryColor: dto.secondaryColor,
-        loginMode: dto.loginMode,
+        loginMode:
+          dto.loginMode ?? (dto.customDomain ? 'CUSTOM_DOMAIN' : 'SUBDOMAIN'),
         createdBy: userId || null,
         updatedBy: userId || null,
       } as unknown as typeof tenants.$inferInsert)
       .returning();
+
+    if (dto.customDomain) {
+      await this.addDomain(
+        tenant.id,
+        { domain: dto.customDomain, isPrimary: true },
+        userId,
+      );
+    }
 
     await this.auditHelper.logCreate(undefined, 'tenant', tenant, {
       targetId: tenant.id,
@@ -227,6 +316,10 @@ export class TenantsService {
       .set(updateData)
       .where(eq(tenants.id, id))
       .returning();
+
+    if (dto.customDomain !== undefined) {
+      await this.syncPrimaryDomain(id, dto.customDomain);
+    }
 
     const newModuleCodes = dto.moduleCodes;
     if (newModuleCodes) {
