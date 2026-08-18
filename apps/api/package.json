@@ -55,6 +55,7 @@
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.40.0",
     "exceljs": "^4.4.0",
+    "express": "^5.2.1",
     "ioredis": "^5.11.1",
     "moment": "^2.30.1",
     "nestjs-cls": "^6.2.0",
