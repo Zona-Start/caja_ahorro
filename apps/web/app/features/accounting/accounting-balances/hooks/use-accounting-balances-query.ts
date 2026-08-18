@@ -29,3 +29,10 @@ export function usePaginatedAccountingBalances(params: {
     enabled: !!params,
   });
 }
+
+export function useHasInitialLoad(): UseQueryResult<{ hasInitialLoad: boolean }> {
+  return useQuery({
+    queryKey: QUERY_KEYS.accountingBalances.hasInitialLoad(),
+    queryFn: () => AccountingBalancesService.hasInitialLoad(),
+  });
+}

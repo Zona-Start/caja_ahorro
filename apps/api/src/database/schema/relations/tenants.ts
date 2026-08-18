@@ -10,6 +10,7 @@ import {
   states,
 } from '../tables/core';
 import {
+  tenantDomains,
   tenantModuleIntegrations,
   tenantModules,
   tenants,
@@ -20,6 +21,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   tenantSettings: many(tenantSettings),
   tenantModules: many(tenantModules),
   tenantModuleIntegrations: many(tenantModuleIntegrations),
+  tenantDomains: many(tenantDomains),
   currencies: many(currencies),
   exchangeRates: many(exchangeRates),
   categories: many(categories),
@@ -28,6 +30,13 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   parishes: many(parishes),
   localities: many(localities),
   accountPlans: many(accountPlan),
+}));
+
+export const tenantDomainsRelations = relations(tenantDomains, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [tenantDomains.tenantId],
+    references: [tenants.id],
+  }),
 }));
 
 export const tenantSettingsRelations = relations(tenantSettings, ({ one }) => ({

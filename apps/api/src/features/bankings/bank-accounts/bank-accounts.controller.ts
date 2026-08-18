@@ -128,20 +128,4 @@ export class BankAccountsController {
       this.tenantContextService.getTenantContext(req, tenantId);
     return await this.service.remove(id, userId, targetTenantId);
   }
-
-  @Post(':id/reverse')
-  @ApiOperation({ summary: 'Reverse a bank account opening entry' })
-  @ApiResponse({
-    status: 200,
-    description: 'Bank account reversed and deactivated successfully.',
-  })
-  async reverse(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Query('tenantId') tenantId?: string,
-  ) {
-    const { targetTenantId, userId } =
-      this.tenantContextService.getTenantContext(req, tenantId);
-    return await this.service.reverse(id, userId, targetTenantId);
-  }
 }

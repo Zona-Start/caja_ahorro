@@ -3,6 +3,8 @@ import { z } from 'zod';
 export const BalanceSchema = z.object({
   accountCode: z.string().min(1),
   descripcion: z.string().min(1),
+  auxiliarSocio: z.string().optional().nullable(),
+  auxiliarProveedor: z.string().optional().nullable(),
   balance: z.coerce.number(),
 });
 

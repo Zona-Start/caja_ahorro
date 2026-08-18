@@ -9,3 +9,4 @@ export const purchasingSchema = pgSchema('purchasing');
 export const savingsSchema = pgSchema('savings');
 export const tenantSchema = pgSchema('tenant');
 export const treasurySchema = pgSchema('treasury');
+export const salesSchema = pgSchema('sales');

@@ -60,27 +60,48 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginInput, context: LoginContext = {}): Promise<any> {
-    const { username, password } = loginDto;
+    const { identifier, password, tenantId } = loginDto;
     const { ipAddress, userAgent, deviceFingerprint } = context;
 
-    const user = (await this.usersService.findByUsername(
-      username.trim(),
+    const user = (await this.usersService.findByIdentifier(
+      identifier.trim(),
     )) as UserWithRelations | null;
 
     if (!user) {
       await this.logLoginAttempt(
         null,
-        username,
+        identifier,
         false,
         FAILURE_REASONS.USER_NOT_FOUND,
         context,
       );
       await this.systemEventHelper.logAuthenticationFailed(
-        username,
+        identifier,
         FAILURE_REASONS.USER_NOT_FOUND,
         { ipAddress, userAgent },
       );
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (tenantId) {
+      const hasMembership = (user.tenantMembers || []).some(
+        (m) => m.tenantId === tenantId && m.isActive !== false,
+      );
+      if (!hasMembership) {
+        await this.logLoginAttempt(
+          user.id,
+          identifier,
+          false,
+          FAILURE_REASONS.INVALID_CREDENTIALS,
+          context,
+        );
+        await this.systemEventHelper.logAuthenticationFailed(
+          identifier,
+          FAILURE_REASONS.INVALID_CREDENTIALS,
+          { ipAddress, userAgent },
+        );
+        throw new UnauthorizedException('Invalid credentials');
+      }
     }
 
     const isValidPassword = await this.securityService.comparePassword(
@@ -91,13 +112,13 @@ export class AuthService {
     if (!isValidPassword) {
       await this.logLoginAttempt(
         user.id,
-        username,
+        identifier,
         false,
         FAILURE_REASONS.INVALID_CREDENTIALS,
         context,
       );
       await this.systemEventHelper.logAuthenticationFailed(
-        username,
+        identifier,
         FAILURE_REASONS.INVALID_CREDENTIALS,
         { ipAddress, userAgent },
       );
@@ -107,13 +128,13 @@ export class AuthService {
     if (user.status !== 'active') {
       await this.logLoginAttempt(
         user.id,
-        username,
+        identifier,
         false,
         FAILURE_REASONS.USER_INACTIVE,
         context,
       );
       await this.systemEventHelper.logAuthenticationFailed(
-        username,
+        identifier,
         FAILURE_REASONS.USER_INACTIVE,
         { ipAddress, userAgent },
       );
@@ -124,13 +145,13 @@ export class AuthService {
     if (rateLimitExceeded) {
       await this.logLoginAttempt(
         user.id,
-        username,
+        identifier,
         false,
         FAILURE_REASONS.RATE_LIMIT_EXCEEDED,
         context,
       );
       await this.systemEventHelper.logAuthenticationFailed(
-        username,
+        identifier,
         FAILURE_REASONS.RATE_LIMIT_EXCEEDED,
         { ipAddress, userAgent },
       );
@@ -139,7 +160,7 @@ export class AuthService {
       );
     }
 
-    await this.logLoginAttempt(user.id, username, true, undefined, context);
+    await this.logLoginAttempt(user.id, identifier, true, undefined, context);
 
     await this.revokeOldSessionsIfNeeded(user.id);
 
@@ -154,7 +175,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: this.formatAuthUser(user),
+      user: this.formatAuthUser(user, tenantId),
     };
   }
 
@@ -371,7 +392,7 @@ export class AuthService {
   ) {
     await this.db.insert(loginAttempts).values({
       userId,
-      username,
+      username: username.slice(0, 50),
       ipAddress: context.ipAddress || 'unknown',
       userAgent: context.userAgent,
       deviceFingerprint: context.deviceFingerprint,
@@ -390,11 +411,14 @@ export class AuthService {
       .where(eq(users.id, userId));
   }
 
-  private formatAuthUser(user: UserWithRelations) {
+  private formatAuthUser(user: UserWithRelations, requestedTenantId?: string) {
     const memberships = (user.tenantMembers || []).map((m) => ({
       tenantId: m.tenantId,
       tenantName: m.tenant?.name,
       bussinessType: m.tenant?.businessType,
+      slug: m.tenant?.slug ?? null,
+      logoUrl: m.tenant?.logoUrl ?? null,
+      primaryColor: m.tenant?.primaryColor ?? null,
       role: {
         id: m.role?.id,
         name: m.role?.name,
@@ -405,6 +429,16 @@ export class AuthService {
         scope: rp.permission?.scope,
       })),
     }));
+
+    if (requestedTenantId) {
+      const index = memberships.findIndex(
+        (m) => m.tenantId === requestedTenantId,
+      );
+      if (index > 0) {
+        const [target] = memberships.splice(index, 1);
+        memberships.unshift(target);
+      }
+    }
 
     const activeMembership = memberships[0];
 
@@ -422,6 +456,16 @@ export class AuthService {
       ? [...activeMembership.permissions, ...specialPermissions]
       : specialPermissions;
 
+    const activeTenant = activeMembership
+      ? {
+          id: activeMembership.tenantId,
+          name: activeMembership.tenantName,
+          slug: activeMembership.slug,
+          logoUrl: activeMembership.logoUrl,
+          primaryColor: activeMembership.primaryColor,
+        }
+      : null;
+
     return {
       id: user.id,
       username: user.username,
@@ -430,6 +474,7 @@ export class AuthService {
       status: user.status,
       isSystemAdmin: user.isSystemAdmin || false,
       activeTenantId: activeMembership?.tenantId || null,
+      activeTenant,
       memberships,
       permissions: consolidatedPermissions,
     };

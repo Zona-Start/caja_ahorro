@@ -21,7 +21,13 @@ export const accountingBalanceListApiResponseSchema = z.object({
 
 export const bootstrappingResponseSchema = z.object({
   message: z.string(),
+  entryId: z.string().optional(),
+  voucherNo: z.number().optional(),
   processedAccounts: z.number().optional(),
+});
+
+export const hasInitialLoadResponseSchema = z.object({
+  hasInitialLoad: z.boolean(),
 });
 
 export const closeCycleResponseSchema = z.object({

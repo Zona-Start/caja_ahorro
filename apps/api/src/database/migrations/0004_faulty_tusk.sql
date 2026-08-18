@@ -1,0 +1,1 @@
+ALTER TABLE "savings"."associates" ALTER COLUMN "admission_date" DROP NOT NULL;

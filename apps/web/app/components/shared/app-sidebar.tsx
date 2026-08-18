@@ -19,10 +19,15 @@ import { navGroups } from '@/constants/navegations';
 import { useAuthStore } from '@/stores/auth.store';
 import { NavUser } from './nav-user';
 import './sidebar-override.css';
+import { useTenantStore } from '@/stores/tenant.store';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const tenant = useTenantStore((s) => s.tenant);
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const location = useLocation();
+
+  const logoUrl = tenant?.logoUrl || '/img/logo.png';
+  const name = tenant?.name || 'Zona Start';
 
   // Función para filtrar por permisos (aplica a padres e hijos si es necesario)
   const canSee = (item: any) => {
@@ -37,8 +42,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="p-1.5!">
               <Link to="/dashboard">
-                <img src="/img/logo_sidebar.png" alt="Logo" className="size-10" />
-                <span className="text-base font-semibold">Caja de Ahorro</span>
+                <img src={logoUrl} alt={name} style={{ width: '48px', height: '48px' }} />
+                <span className="text-base font-semibold">{name}</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

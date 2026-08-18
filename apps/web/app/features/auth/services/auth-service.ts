@@ -1,20 +1,25 @@
-import { apiClient, setAuthHeader, setSessionHint, clearSessionHint } from '@/lib/api-client';
+import {
+  apiClient,
+  clearSessionHint,
+  setAuthHeader,
+  setSessionHint,
+} from '@/lib/api-client';
 import { loginResponseSchema, type LoginInput } from '@/lib/schemas';
+import { tenantApi } from '@/lib/tenant-api';
 import { useAuthStore } from '@/stores/auth.store';
+import { useTenantStore } from '@/stores/tenant.store';
 
-/**
- * Authentication service — single source of truth for login/logout API calls.
- * All token handling is in-memory; the refresh token lives as an httpOnly cookie.
- */
 export const authService = {
-  /**
-   * Authenticate with username + password.
-   * On success: stores accessToken + user in Zustand, sets Authorization header,
-   * and marks the session hint so that F5 triggers a refresh.
-   * The refresh token is automatically set as an httpOnly cookie by the backend.
-   */
   async login(credentials: LoginInput) {
-    const response = await apiClient.post('/auth/login', credentials);
+    const tenantId =
+      credentials.tenantId ?? useTenantStore.getState().tenant?.id;
+
+    const response = await apiClient.post('/auth/login', {
+      identifier: credentials.identifier,
+      password: credentials.password,
+      ...(tenantId ? { tenantId } : {}),
+    });
+
     const parsed = loginResponseSchema.parse(response.data);
     useAuthStore.getState().setAuth({
       accessToken: parsed.accessToken,
@@ -26,9 +31,10 @@ export const authService = {
     return parsed;
   },
 
-  /**
-   * Logout: revoke session server-side, clear in-memory state, remove cookie.
-   */
+  async lookupWorkspace(email: string) {
+    return tenantApi.lookupWorkspace(email);
+  },
+
   async logout() {
     try {
       await apiClient.post('/auth/logout');
@@ -41,9 +47,6 @@ export const authService = {
     }
   },
 
-  /**
-   * Revoke all sessions for the current user across all devices.
-   */
   async logoutAll() {
     try {
       await apiClient.post('/auth/logout-all');

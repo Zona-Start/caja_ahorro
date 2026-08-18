@@ -12,6 +12,8 @@ import {
 } from 'react-router';
 import type { Route } from './+types/root';
 import { AuthProvider } from './components/providers/auth-provider';
+import { TenantProvider } from './components/providers/tenant-provider';
+import { TenantThemeProvider } from './components/providers/tenant-theme-provider';
 import { ThemeProvider } from './components/providers/theme-provider';
 
 export const links: Route.LinksFunction = () => [
@@ -40,7 +42,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body className="h-full">
         <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
           <QueryClientProvider client={queryClient}>
-            <AuthProvider>{children}</AuthProvider>
+            <TenantProvider>
+              <TenantThemeProvider>
+                <AuthProvider>{children}</AuthProvider>
+              </TenantThemeProvider>
+            </TenantProvider>
             <Toaster />
           </QueryClientProvider>
         </ThemeProvider>

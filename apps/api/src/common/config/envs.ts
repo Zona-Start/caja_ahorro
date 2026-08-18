@@ -24,6 +24,12 @@ export const envVarsSchema = z.object({
     .positive()
     .default(15000),
   REDIS_URL: z.string().url().optional(),
+  PLATFORM_DOMAIN: z.string().min(1).default('zonastart.local'),
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET_NAME: z.string().optional(),
+  R2_PUBLIC_URL: z.string().optional(),
 });
 
 // Extraemos el tipo de Zod para tener autocompletado estricto en el ConfigService

@@ -117,6 +117,7 @@ export class AssociateInquiryService {
 
     return {
       ...a,
+      admissionDate: a.admissionDate ?? '',
       baseSalary: baseSalaryNum.toFixed(2),
       totalHaberes: totalHaberesNum.toFixed(2),
       paymentCapacity: (baseSalaryNum * 0.3).toFixed(2),

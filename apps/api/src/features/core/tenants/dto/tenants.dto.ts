@@ -29,6 +29,26 @@ export const CreateTenantSchema = z.object({
   contactPhone: z.string().max(50).optional(),
   contactEmail: z.string().email().max(100).optional(),
   contactCedula: z.string().max(20).optional(),
+  slug: z
+    .string()
+    .max(63)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug inválido')
+    .optional(),
+  customDomain: z
+    .string()
+    .max(255)
+    .regex(
+      /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i,
+      'Dominio inválido',
+    )
+    .optional(),
+  logoKey: z.string().optional(),
+  logoUrl: z.string().optional(),
+  faviconKey: z.string().optional(),
+  faviconUrl: z.string().optional(),
+  primaryColor: z.string().max(9).optional(),
+  secondaryColor: z.string().max(9).optional(),
+  loginMode: z.enum(['CUSTOM_DOMAIN', 'SUBDOMAIN']).optional(),
 });
 
 export const UpdateTenantSchema = z.object({
@@ -42,6 +62,26 @@ export const UpdateTenantSchema = z.object({
   contactPhone: z.string().max(50).optional(),
   contactEmail: z.string().email().max(100).optional(),
   contactCedula: z.string().max(20).optional(),
+  slug: z
+    .string()
+    .max(63)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Slug inválido')
+    .optional(),
+  customDomain: z
+    .string()
+    .max(255)
+    .regex(
+      /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i,
+      'Dominio inválido',
+    )
+    .optional(),
+  logoKey: z.string().optional(),
+  logoUrl: z.string().optional(),
+  faviconKey: z.string().optional(),
+  faviconUrl: z.string().optional(),
+  primaryColor: z.string().max(9).optional(),
+  secondaryColor: z.string().max(9).optional(),
+  loginMode: z.enum(['CUSTOM_DOMAIN', 'SUBDOMAIN']).optional(),
   isActive: z.boolean().optional(),
 });
 

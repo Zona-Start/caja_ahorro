@@ -3,8 +3,9 @@ import { z } from 'zod';
 // ── Auth Schemas ─────────────────────────────────────────────────────────────
 
 export const loginSchema = z.object({
-  username: z.string().min(1, 'Username is required'),
-  password: z.string().min(1, 'Password is required'),
+  identifier: z.string().min(1, 'El usuario o correo es requerido'),
+  password: z.string().min(1, 'La contraseña es requerida'),
+  tenantId: z.string().uuid().optional(),
 });
 
 export const permissionSchema = z.object({
@@ -17,6 +18,9 @@ export const membershipSchema = z.object({
   tenantId: z.string().optional(),
   tenantName: z.string().optional(),
   bussinessType: z.string().optional(),
+  slug: z.string().nullable().optional(),
+  logoUrl: z.string().nullable().optional(),
+  primaryColor: z.string().nullable().optional(),
   role: z
     .object({
       id: z.string().optional(),
@@ -24,6 +28,14 @@ export const membershipSchema = z.object({
     })
     .optional(),
   permissions: z.array(permissionSchema).default([]),
+});
+
+export const activeTenantSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  slug: z.string().nullable().optional(),
+  logoUrl: z.string().nullable().optional(),
+  primaryColor: z.string().nullable().optional(),
 });
 
 export const userSchema = z.object({
@@ -34,6 +46,7 @@ export const userSchema = z.object({
   status: z.string().optional(),
   isSystemAdmin: z.boolean().optional(),
   activeTenantId: z.string().nullable().optional(),
+  activeTenant: activeTenantSchema.nullable().optional(),
   memberships: z.array(membershipSchema).default([]),
   permissions: z.array(permissionSchema).default([]),
 });

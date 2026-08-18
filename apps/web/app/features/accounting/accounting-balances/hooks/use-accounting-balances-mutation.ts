@@ -15,8 +15,8 @@ export function useBootstrappingMutation() {
         queryKey: QUERY_KEYS.accountingBalances.all,
       });
       toast({
-        title: 'Balances cargados',
-        description: 'La carga inicial de balances se ha realizado exitosamente.',
+        title: 'Carga exitosa',
+        description: 'La carga inicial de balances se ha procesado exitosamente.',
       });
     },
     onError: () => {

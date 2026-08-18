@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/shadcn/dialog';
-import type { AccountingBalance } from '../../schemas/accounting-balance.schema';
+import type { AccountingBalance } from '../schemas/accounting-balance.schema';
 
 interface AccountBalanceDetailModalProps {
   open: boolean;

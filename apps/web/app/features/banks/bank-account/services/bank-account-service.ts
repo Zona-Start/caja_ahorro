@@ -62,9 +62,4 @@ export const bankAccountService = {
     const response = await apiClient.get(`${BASE_URL}/balances-by-currency`);
     return response.data;
   },
-
-  reverse: async (id: string) => {
-    const response = await apiClient.post(`${BASE_URL}/${id}/reverse`);
-    return response.data;
-  },
 };

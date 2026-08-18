@@ -1,5 +1,5 @@
 import * as schema from '@/database/schema';
-import { tenants } from '@/database/schema';
+import { tenantDomains, tenants } from '@/database/schema';
 import { TenantCreatedEvent } from '@/database/seeds/seed-tenants-default.service';
 import {
   ConflictException,
@@ -9,10 +9,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { eq, SQL } from 'drizzle-orm';
+import { randomBytes } from 'crypto';
+import { and, eq, inArray, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import { AuditHelper } from '../../audit/audit-event.service';
+import { CreateTenantDomainDto } from './dto/tenant-domains.dto';
 import { ConfigureIntegrationDto } from './dto/tenant-integrations.dto';
 import { ToggleModuleDto } from './dto/tenant-modules.dto';
 import {
@@ -22,6 +24,8 @@ import {
 } from './dto/tenants.dto';
 import { TenantIntegrationService } from './services/tenant-integrations.service';
 import { TenantProvisioningService } from './services/tenant-provisioning.service';
+
+const RESERVED_SLUGS = ['app', 'www', 'api', 'admin'];
 
 @Injectable()
 export class TenantsService {
@@ -38,7 +42,7 @@ export class TenantsService {
     const { page = 1, limit = 20, search, isActive, businessType } = dto;
     const offset = (page - 1) * limit;
 
-    return db.query.tenants.findMany({
+    const rows = await db.query.tenants.findMany({
       where: (tenants, { and, or, eq, like }) => {
         const conditions: SQL[] = [];
 
@@ -68,6 +72,8 @@ export class TenantsService {
       limit,
       offset,
     });
+
+    return this.attachCustomDomains(db, rows);
   }
 
   async findById(
@@ -88,7 +94,15 @@ export class TenantsService {
       where: (t, { eq }) => eq(t.id, id),
     });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    return tenant;
+
+    const primary = await db.query.tenantDomains.findFirst({
+      where: and(
+        eq(tenantDomains.tenantId, id),
+        eq(tenantDomains.isPrimary, true),
+      ),
+    });
+
+    return { ...tenant, customDomain: primary?.domain ?? null };
   }
 
   async findByRif(rif: string, tx?: NodePgDatabase<typeof schema>) {
@@ -96,10 +110,95 @@ export class TenantsService {
     return db.query.tenants.findFirst({ where: (t, { eq }) => eq(t.rif, rif) });
   }
 
+  async findBySlug(slug: string, tx?: NodePgDatabase<typeof schema>) {
+    const db = tx ?? this.db;
+    return db.query.tenants.findFirst({
+      where: (t, { eq }) => eq(t.slug, slug),
+    });
+  }
+
+  private async ensureSlugAvailable(slug?: string) {
+    if (!slug) return;
+    const normalized = slug.toLowerCase();
+    if (RESERVED_SLUGS.includes(normalized)) {
+      throw new ConflictException(`El slug "${slug}" está reservado`);
+    }
+    const existing = await this.findBySlug(normalized);
+    if (existing) {
+      throw new ConflictException(`El slug "${slug}" ya está en uso`);
+    }
+  }
+
+  private async attachCustomDomains(
+    db: NodePgDatabase<typeof schema>,
+    rows: (typeof tenants.$inferSelect)[],
+  ) {
+    if (rows.length === 0) return rows;
+
+    const tenantIds = rows.map((r) => r.id);
+    const domains = await db.query.tenantDomains.findMany({
+      where: and(
+        inArray(tenantDomains.tenantId, tenantIds),
+        eq(tenantDomains.isPrimary, true),
+      ),
+    });
+
+    const map = new Map(domains.map((d) => [d.tenantId, d.domain]));
+    return rows.map((r) => ({ ...r, customDomain: map.get(r.id) ?? null }));
+  }
+
+  private async syncPrimaryDomain(tenantId: string, customDomain?: string) {
+    if (!customDomain) return;
+
+    const domain = customDomain.trim().toLowerCase();
+
+    const domainOwner = await this.db.query.tenantDomains.findFirst({
+      where: eq(tenantDomains.domain, domain),
+    });
+    if (domainOwner && domainOwner.tenantId !== tenantId) {
+      throw new ConflictException(`El dominio "${domain}" ya está registrado`);
+    }
+
+    const existing = await this.db.query.tenantDomains.findFirst({
+      where: and(
+        eq(tenantDomains.tenantId, tenantId),
+        eq(tenantDomains.isPrimary, true),
+      ),
+    });
+
+    if (existing) {
+      if (existing.domain !== domain) {
+        await this.db
+          .update(tenantDomains)
+          .set({
+            domain,
+            isVerified: false,
+            verificationToken: randomBytes(24).toString('hex'),
+            verifiedAt: null,
+            updatedById: null,
+          })
+          .where(eq(tenantDomains.id, existing.id));
+      }
+      return;
+    }
+
+    await this.db.insert(tenantDomains).values({
+      tenantId,
+      domain,
+      isPrimary: true,
+      isVerified: false,
+      verificationToken: randomBytes(24).toString('hex'),
+      createdById: null,
+      updatedById: null,
+    });
+  }
+
   async create(dto: CreateTenantDto, userId?: string) {
     const existing = await this.findByRif(dto.rif);
     if (existing)
       throw new ConflictException('Tenant with this RIF already exists');
+
+    await this.ensureSlugAvailable(dto.slug);
 
     const [tenant] = await this.db
       .insert(tenants)
@@ -114,10 +213,27 @@ export class TenantsService {
         contactPhone: dto.contactPhone,
         contactEmail: dto.contactEmail,
         contactCedula: dto.contactCedula,
+        slug: dto.slug,
+        logoKey: dto.logoKey,
+        logoUrl: dto.logoUrl,
+        faviconKey: dto.faviconKey,
+        faviconUrl: dto.faviconUrl,
+        primaryColor: dto.primaryColor,
+        secondaryColor: dto.secondaryColor,
+        loginMode:
+          dto.loginMode ?? (dto.customDomain ? 'CUSTOM_DOMAIN' : 'SUBDOMAIN'),
         createdBy: userId || null,
         updatedBy: userId || null,
       } as unknown as typeof tenants.$inferInsert)
       .returning();
+
+    if (dto.customDomain) {
+      await this.addDomain(
+        tenant.id,
+        { domain: dto.customDomain, isPrimary: true },
+        userId,
+      );
+    }
 
     await this.auditHelper.logCreate(undefined, 'tenant', tenant, {
       targetId: tenant.id,
@@ -172,7 +288,23 @@ export class TenantsService {
       if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
       if (dto.address) updateData.address = dto.address;
       if (dto.phone) updateData.phone = dto.phone;
+      if (dto.slug !== undefined) {
+        if (dto.slug && dto.slug !== previous.slug) {
+          await this.ensureSlugAvailable(dto.slug);
+        }
+        updateData.slug = dto.slug || null;
+      }
+      if (dto.loginMode) updateData.loginMode = dto.loginMode;
     }
+
+    if (dto.logoKey !== undefined) updateData.logoKey = dto.logoKey;
+    if (dto.logoUrl !== undefined) updateData.logoUrl = dto.logoUrl;
+    if (dto.faviconKey !== undefined) updateData.faviconKey = dto.faviconKey;
+    if (dto.faviconUrl !== undefined) updateData.faviconUrl = dto.faviconUrl;
+    if (dto.primaryColor !== undefined)
+      updateData.primaryColor = dto.primaryColor;
+    if (dto.secondaryColor !== undefined)
+      updateData.secondaryColor = dto.secondaryColor;
 
     if (dto.contactName) updateData.contactName = dto.contactName;
     if (dto.contactPhone) updateData.contactPhone = dto.contactPhone;
@@ -184,6 +316,10 @@ export class TenantsService {
       .set(updateData)
       .where(eq(tenants.id, id))
       .returning();
+
+    if (dto.customDomain !== undefined) {
+      await this.syncPrimaryDomain(id, dto.customDomain);
+    }
 
     const newModuleCodes = dto.moduleCodes;
     if (newModuleCodes) {
@@ -300,5 +436,95 @@ export class TenantsService {
   async listIntegrations(tenantId: string, isEnabled?: boolean) {
     await this.findById(tenantId, tenantId, true);
     return this.integrationService.findAllByTenant(tenantId, isEnabled);
+  }
+
+  async listDomains(tenantId: string) {
+    await this.findById(tenantId, tenantId, true);
+    return this.db.query.tenantDomains.findMany({
+      where: eq(tenantDomains.tenantId, tenantId),
+      orderBy: (d, { desc }) => [desc(d.isPrimary)],
+    });
+  }
+
+  async addDomain(
+    tenantId: string,
+    dto: CreateTenantDomainDto,
+    userId?: string,
+  ) {
+    await this.findById(tenantId, tenantId, true);
+
+    const domain = dto.domain.trim().toLowerCase();
+    const existing = await this.db.query.tenantDomains.findFirst({
+      where: eq(tenantDomains.domain, domain),
+    });
+    if (existing) {
+      throw new ConflictException(`El dominio "${domain}" ya está registrado`);
+    }
+
+    const verificationToken = randomBytes(24).toString('hex');
+
+    const [created] = await this.db
+      .insert(tenantDomains)
+      .values({
+        tenantId,
+        domain,
+        isPrimary: dto.isPrimary ?? false,
+        isVerified: false,
+        verificationToken,
+        createdById: userId || null,
+        updatedById: userId || null,
+      })
+      .returning();
+
+    await this.auditHelper.logCreate(tenantId, 'tenant_domain', created, {
+      targetId: tenantId,
+      description: `Registered custom domain ${domain}`,
+    });
+
+    return { domain: created, verificationToken };
+  }
+
+  async verifyDomain(tenantId: string, verificationToken: string) {
+    const domain = await this.db.query.tenantDomains.findFirst({
+      where: and(
+        eq(tenantDomains.tenantId, tenantId),
+        eq(tenantDomains.verificationToken, verificationToken),
+      ),
+    });
+
+    if (!domain) {
+      throw new NotFoundException('Token de verificación inválido');
+    }
+
+    const [updated] = await this.db
+      .update(tenantDomains)
+      .set({
+        isVerified: true,
+        verifiedAt: new Date(),
+        verificationToken: null,
+        updatedById: null,
+      })
+      .where(eq(tenantDomains.id, domain.id))
+      .returning();
+
+    return updated;
+  }
+
+  async removeDomain(tenantId: string, domainId: string) {
+    await this.findById(tenantId, tenantId, true);
+
+    const existing = await this.db.query.tenantDomains.findFirst({
+      where: and(
+        eq(tenantDomains.id, domainId),
+        eq(tenantDomains.tenantId, tenantId),
+      ),
+    });
+    if (!existing) {
+      throw new NotFoundException('Dominio no encontrado');
+    }
+
+    await this.db.delete(tenantDomains).where(eq(tenantDomains.id, domainId));
+
+    return { message: 'Dominio eliminado correctamente' };
   }
 }

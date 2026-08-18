@@ -13,6 +13,10 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import {
+  CreateTenantDomainDto,
+  VerifyTenantDomainDto,
+} from './dto/tenant-domains.dto';
+import {
   ConfigureIntegrationDto,
   TenantIntegrationQueryDto,
 } from './dto/tenant-integrations.dto';
@@ -127,5 +131,40 @@ export class TenantsController {
     @Body() dto: ConfigureIntegrationDto,
   ) {
     return this.tenantsService.configureIntegration(id, dto);
+  }
+
+  @Get(':id/domains')
+  @Permissions({ resource: 'tenants', action: 'read', scope: 'tenant' })
+  async listDomains(@Param('id') id: string) {
+    return this.tenantsService.listDomains(id);
+  }
+
+  @Post(':id/domains')
+  @Permissions({ resource: 'tenants', action: 'update', scope: 'tenant' })
+  async addDomain(
+    @Param('id') id: string,
+    @Body() dto: CreateTenantDomainDto,
+    @Req() req: Request,
+  ) {
+    const { userId } = this.tenantService.getTenantContext(req, { id });
+    return this.tenantsService.addDomain(id, dto, userId);
+  }
+
+  @Post(':id/domains/verify')
+  @Permissions({ resource: 'tenants', action: 'update', scope: 'tenant' })
+  async verifyDomain(
+    @Param('id') id: string,
+    @Body() dto: VerifyTenantDomainDto,
+  ) {
+    return this.tenantsService.verifyDomain(id, dto.verificationToken);
+  }
+
+  @Delete(':id/domains/:domainId')
+  @Permissions({ resource: 'tenants', action: 'update', scope: 'tenant' })
+  async removeDomain(
+    @Param('id') id: string,
+    @Param('domainId') domainId: string,
+  ) {
+    return this.tenantsService.removeDomain(id, domainId);
   }
 }

@@ -4,12 +4,14 @@ import * as ExcelJS from 'exceljs';
 export interface ParsedBalance {
   accountCode: string;
   descripcion: string;
+  auxiliarSocio?: string | null;
+  auxiliarProveedor?: string | null;
   balance: number;
 }
 
 /**
  * Parsea un archivo Excel y extrae los datos de carga inicial
- * Espera las columnas: cuenta, descripcion, saldo
+ * Espera las columnas: cuenta, descripcion, auxiliar_socio, auxiliar_proveedor, saldo
  */
 export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
   try {
@@ -47,6 +49,12 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
     // Determinar los índices de las columnas (con o sin tilde)
     const cuentaCol = headers['cuenta'];
     const descripcionCol = headers['descripcion'] || headers['descripción'];
+    const auxiliarSocioCol =
+      headers['auxiliar_socio'] || headers['auxiliar socio'] || headers['socio'];
+    const auxiliarProveedorCol =
+      headers['auxiliar_proveedor'] ||
+      headers['auxiliar proveedor'] ||
+      headers['proveedor'];
     const saldoCol = headers['saldo'];
 
     // Leer las filas de datos (desde la fila 2)
@@ -79,9 +87,18 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
         );
       }
 
+      const auxiliarSocio = auxiliarSocioCol
+        ? String(row.getCell(auxiliarSocioCol).value ?? '').trim()
+        : null;
+      const auxiliarProveedor = auxiliarProveedorCol
+        ? String(row.getCell(auxiliarProveedorCol).value ?? '').trim()
+        : null;
+
       balances.push({
         accountCode: accountCodeStr,
         descripcion: descripcionStr,
+        auxiliarSocio: auxiliarSocio || null,
+        auxiliarProveedor: auxiliarProveedor || null,
         balance: balanceNum,
       });
     });
