@@ -6,11 +6,12 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 const main = async () => {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
+    logger: ['error', 'warn'], // 👈 Silencia el spam de inicialización de módulos
   });
   await bootstrap(app);
 };
 
 main().catch((error) => {
-  console.log(error);
+  console.error('💥 FATAL BOOTSTRAP ERROR:', error);
   process.exit(1);
 });
