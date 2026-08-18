@@ -39,10 +39,11 @@ export class SeedService implements OnModuleInit {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly securityService: SecurityService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
-    const shouldSeed = this.configService.get<boolean>('RUN_SEED');
+    const rawRunSeed = String(this.configService.get('RUN_SEED')).toLowerCase();
+    const shouldSeed = rawRunSeed === 'true' || rawRunSeed === '1';
 
     if (!shouldSeed) {
       this.logger.log('Seed disabled (RUN_SEED not set to "true")');
