@@ -35,9 +35,9 @@ export class AuthController {
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/',
-      partitioned: true,
+      //partitioned: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -68,9 +68,9 @@ export class AuthController {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
+        sameSite: 'lax',
         path: '/',
-        partitioned: true,
+        //partitioned: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
