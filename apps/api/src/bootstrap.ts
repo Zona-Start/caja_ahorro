@@ -20,7 +20,6 @@ export const bootstrap = async (app: NestExpressApplication) => {
   const logger = app.get(Logger);
 
   try {
-
     // Obtenemos el servicio de configuración fuertemente tipado
     const configService =
       app.get<ConfigService<EnvironmentVariables, true>>(ConfigService);
@@ -38,6 +37,31 @@ export const bootstrap = async (app: NestExpressApplication) => {
 
     const corsOrigins = allowCorsUrl.split(',').map((url) => url.trim());
 
+    // 1. CORS Diferenciado para endpoints públicos de resolución y auth inicial
+    app.use('/api/public', (req, res, next) => {
+      const origin = req.headers.origin;
+      if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+      } else {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+      }
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader(
+        'Access-Control-Allow-Methods',
+        'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      );
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        'Content-Type, Authorization, X-Requested-With, X-Device-Fingerprint, X-Tenant-Id, x-tenant-id',
+      );
+
+      if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+      }
+      next();
+    });
+
+    // 2. Validación estricta de CORS para las demás rutas autenticadas y privadas
     const isAllowedOrigin = (origin?: string): boolean => {
       if (!origin) return true;
       try {
