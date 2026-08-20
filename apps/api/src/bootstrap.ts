@@ -4,8 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { ZodValidationPipe } from 'nestjs-zod';
-import { EnvironmentVariables } from './common/config/envs'; // Tipado estricto
+import { EnvironmentVariables } from './common/config/envs';
 import cookieParser = require('cookie-parser');
+import { TenantsService } from './features/core/tenants/tenants.service';
 
 // Captura de errores no controlados a nivel de proceso
 process.on('uncaughtException', (err) => {
@@ -20,9 +21,11 @@ export const bootstrap = async (app: NestExpressApplication) => {
   const logger = app.get(Logger);
 
   try {
-    // Obtenemos el servicio de configuración fuertemente tipado
     const configService =
       app.get<ConfigService<EnvironmentVariables, true>>(ConfigService);
+
+    // Obtener servicio de tenants para validación dinámica de dominios
+    const tenantsService = app.get(TenantsService);
 
     const port = configService.get('PORT', { infer: true });
     const host = configService.get('HOST', { infer: true });
@@ -37,7 +40,7 @@ export const bootstrap = async (app: NestExpressApplication) => {
 
     const corsOrigins = allowCorsUrl.split(',').map((url) => url.trim());
 
-    // 1. CORS Diferenciado para endpoints públicos de resolución y auth inicial
+    // 1. CORS para endpoints públicos (/api/public/*)
     app.use('/api/public', (req, res, next) => {
       const origin = req.headers.origin;
       if (origin) {
@@ -61,20 +64,28 @@ export const bootstrap = async (app: NestExpressApplication) => {
       next();
     });
 
-    // 2. Validación estricta de CORS para las demás rutas autenticadas y privadas
-    const isAllowedOrigin = (origin?: string): boolean => {
+    // 2. Validación Dinámica de CORS para login y rutas protegidas
+    const isAllowedOrigin = async (origin?: string): Promise<boolean> => {
       if (!origin) return true;
       try {
         const hostname = new URL(origin).hostname.toLowerCase();
-        if (corsOrigins.includes(origin)) return true;
+
+        // A. Desarrollo local y lista blanca estática
         if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+        if (corsOrigins.includes(origin)) return true;
+
+        // B. Dominio principal y subdominios (*.zonastart.com / *.zonastart.local)
         if (
           hostname === platformDomain ||
           hostname.endsWith(`.${platformDomain}`)
         ) {
           return true;
         }
-        return false;
+
+        // C. Validación Dinámica: Consultar DB si el dominio personalizado existe
+        const isCustomDomainRegistered = await tenantsService.isCustomDomainValid(hostname);
+        return isCustomDomainRegistered;
+
       } catch {
         return false;
       }
@@ -82,7 +93,11 @@ export const bootstrap = async (app: NestExpressApplication) => {
 
     app.enableCors({
       credentials: true,
-      origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
+      origin: (origin, callback) => {
+        isAllowedOrigin(origin)
+          .then((allowed) => callback(null, allowed))
+          .catch(() => callback(null, false));
+      },
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
       allowedHeaders: [
         'Content-Type',

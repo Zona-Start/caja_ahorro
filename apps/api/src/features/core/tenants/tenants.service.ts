@@ -35,7 +35,7 @@ export class TenantsService {
     private eventEmitter: EventEmitter2,
     private readonly provisioningService: TenantProvisioningService,
     private readonly integrationService: TenantIntegrationService,
-  ) {}
+  ) { }
 
   async findAll(dto: TenantQueryDto, tx?: NodePgDatabase<typeof schema>) {
     const db = tx ?? this.db;
@@ -526,5 +526,15 @@ export class TenantsService {
     await this.db.delete(tenantDomains).where(eq(tenantDomains.id, domainId));
 
     return { message: 'Dominio eliminado correctamente' };
+  }
+
+
+
+
+  async isCustomDomainValid(domain: string): Promise<boolean> {
+    const tenant = await this.db.query.tenantDomains.findFirst({
+      where: eq(tenantDomains.domain, domain), // O la consulta según tu ORM (Drizzle/TypeORM)
+    });
+    return !!tenant;
   }
 }
