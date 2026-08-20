@@ -7,7 +7,7 @@ export interface HostClassification {
 }
 
 const PLATFORM_DOMAIN = (
-  import.meta.env.VITE_PLATFORM_DOMAIN ?? 'zonastart.local'
+  import.meta.env.VITE_PLATFORM_DOMAIN ?? 'zonastart.com'
 ).toLowerCase();
 
 const APP_SUBDOMAIN = 'app';
@@ -35,21 +35,35 @@ export function classifyHost(hostname?: string): HostClassification {
     return { type: 'localhost' };
   }
 
-  if (
+  // Soporte explícito para dominios de plataforma (Producción y Local)
+  const isPlatformHost =
     host === PLATFORM_DOMAIN ||
     host === `www.${PLATFORM_DOMAIN}` ||
-    host === `${APP_SUBDOMAIN}.${PLATFORM_DOMAIN}`
-  ) {
+    host === `${APP_SUBDOMAIN}.${PLATFORM_DOMAIN}` ||
+    host === 'zonastart.com' ||
+    host === 'app.zonastart.com' ||
+    host === 'zonastart.local' ||
+    host === 'app.zonastart.local';
+
+  if (isPlatformHost) {
     return { type: 'platform' };
   }
 
-  if (host.endsWith(`.${PLATFORM_DOMAIN}`)) {
-    const slug = host.slice(0, -(PLATFORM_DOMAIN.length + 1));
-    if (slug && !slug.includes('.') && !RESERVED_SLUGS.includes(slug)) {
+  // Verificación de subdominios (*.zonastart.com o *.zonastart.local)
+  const isSubdomainOfPlatform =
+    host.endsWith(`.${PLATFORM_DOMAIN}`) ||
+    host.endsWith('.zonastart.com') ||
+    host.endsWith('.zonastart.local');
+
+  if (isSubdomainOfPlatform) {
+    const parts = host.split('.');
+    const slug = parts[0];
+    if (slug && !RESERVED_SLUGS.includes(slug)) {
       return { type: 'subdomain', slug };
     }
   }
 
+  // Solo los dominios externos (ej. caja.caprebdt.com.ve) llegarán aquí
   return { type: 'custom', domain: host };
 }
 
