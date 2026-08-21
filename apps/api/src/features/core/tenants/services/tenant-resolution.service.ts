@@ -30,15 +30,20 @@ export interface ResolvedHost {
   tenant: TenantBrand | null;
 }
 
-const APP_SUBDOMAIN = 'app';
 const RESERVED_SLUGS = ['app', 'www', 'api', 'admin'];
 
 @Injectable()
 export class TenantResolutionService {
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
+
+  // 2. Convierte APP_SUBDOMAIN en un getter dinámico de la clase
+  private get appSubdomain(): string {
+    return this.configService.get<string>('APP_SUBDOMAIN') || 'app';
+  }
 
   getPlatformDomain(): string {
     return (
@@ -47,7 +52,7 @@ export class TenantResolutionService {
   }
 
   getAppHost(): string {
-    return `${APP_SUBDOMAIN}.${this.getPlatformDomain().toLowerCase()}`;
+    return `${this.appSubdomain}.${this.getPlatformDomain().toLowerCase()}`;
   }
 
   normalizeHost(host: string): string {
@@ -65,7 +70,7 @@ export class TenantResolutionService {
     if (
       normalized === platform ||
       normalized === `www.${platform}` ||
-      normalized === `${APP_SUBDOMAIN}.${platform}`
+      normalized === `${this.appSubdomain}.${platform}`
     ) {
       return { type: 'platform' };
     }
