@@ -113,49 +113,57 @@ export class TenantResolutionService {
     };
   }
 
+  // src/tenant-resolution.service.ts
+
   async resolveHost(host: string): Promise<ResolvedHost> {
+    const normalized = this.normalizeHost(host);
+
+    // 1. PRIMERO: Verificar si el host existe como dominio personalizado verificado en BD
+    const customDomain = await this.db.query.tenantDomains.findFirst({
+      where: and(
+        eq(tenantDomains.domain, normalized),
+        eq(tenantDomains.isVerified, true),
+      ),
+    });
+
+    if (customDomain) {
+      const tenant = await this.db.query.tenants.findFirst({
+        where: and(eq(tenants.id, customDomain.tenantId), eq(tenants.isActive, true)),
+      });
+      return {
+        type: 'custom',
+        domain: normalized,
+        tenant: tenant ? await this.toBrand(tenant) : null,
+      };
+    }
+
+    // 2. SEGUNDO: Verificar si el subdominio coincide con el SLUG directo de un tenant
+    const platform = this.getPlatformDomain().toLowerCase();
+    if (normalized.endsWith(`.${platform}`)) {
+      const slug = normalized.slice(0, -(platform.length + 1));
+
+      const tenantBySlug = await this.db.query.tenants.findFirst({
+        where: and(eq(tenants.slug, slug), eq(tenants.isActive, true)),
+      });
+
+      if (tenantBySlug) {
+        return {
+          type: 'subdomain',
+          slug,
+          tenant: await this.toBrand(tenantBySlug),
+        };
+      }
+    }
+
+    // 3. TERCERO: Si no pertenece a ningún tenant en BD, clasificar como plataforma o custom desconocido
     const classified = this.classifyHost(host);
 
     if (classified.type === 'platform') {
       return { type: 'platform', tenant: null };
     }
 
-    if (classified.type === 'subdomain') {
-      const tenant = await this.db.query.tenants.findFirst({
-        where: and(
-          eq(tenants.slug, classified.slug!),
-          eq(tenants.isActive, true),
-        ),
-      });
-      return {
-        type: 'subdomain',
-        slug: classified.slug,
-        tenant: tenant ? await this.toBrand(tenant) : null,
-      };
-    }
-
-    const domain = await this.db.query.tenantDomains.findFirst({
-      where: and(
-        eq(tenantDomains.domain, classified.domain!),
-        eq(tenantDomains.isVerified, true),
-      ),
-    });
-
-    if (!domain) {
-      return { type: 'custom', domain: classified.domain, tenant: null };
-    }
-
-    const tenant = await this.db.query.tenants.findFirst({
-      where: and(eq(tenants.id, domain.tenantId), eq(tenants.isActive, true)),
-    });
-
-    return {
-      type: 'custom',
-      domain: classified.domain,
-      tenant: tenant ? await this.toBrand(tenant) : null,
-    };
+    return { type: 'custom', domain: classified.domain, tenant: null };
   }
-
   async lookupByEmail(
     email: string,
   ): Promise<{ tenants: TenantBrand[]; isSystemAdmin: boolean }> {
