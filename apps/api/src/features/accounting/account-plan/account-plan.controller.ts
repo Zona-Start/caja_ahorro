@@ -16,6 +16,8 @@ import { AccountPlanService } from './account-plan.service';
 import { CreateAccountPlanDto } from './dto/create-account-plan.dto';
 import { FilterAccountPlanDto } from './dto/filter-account-plan.dto';
 import { UpdateAccountPlanDto } from './dto/update-account-plan.dto';
+import { Permissions } from '@/common/decorators/permissions.decorator';
+
 
 @ApiTags('account-plan')
 @Controller('account-plan')
@@ -23,9 +25,10 @@ export class AccountPlanController {
   constructor(
     private readonly accountPlanService: AccountPlanService,
     private readonly tenantService: TenantContextService,
-  ) {}
+  ) { }
 
   @Post()
+  @Permissions('accounting:chart_of_accounts:create')
   @ApiOperation({ summary: 'Create a new account plan' })
   @ApiResponse({
     status: 201,
@@ -45,6 +48,7 @@ export class AccountPlanController {
   }
 
   @Get('all')
+  @Permissions('accounting:chart_of_accounts:read')
   @ApiOperation({
     summary: 'Get all account plans',
   })
@@ -59,6 +63,7 @@ export class AccountPlanController {
   }
 
   @Get('pagination')
+  @Permissions('accounting:chart_of_accounts:read')
   @ApiOperation({
     summary: 'Get all account plans with pagination and filters',
   })
@@ -80,6 +85,7 @@ export class AccountPlanController {
   }
 
   @Get(':id')
+  @Permissions('accounting:chart_of_accounts:read')
   @ApiOperation({ summary: 'Get an account plan by ID' })
   @ApiResponse({ status: 200, description: 'Return the account plan.' })
   @ApiResponse({ status: 404, description: 'Account plan not found.' })
@@ -97,6 +103,7 @@ export class AccountPlanController {
   }
 
   @Patch(':id')
+  @Permissions('accounting:chart_of_accounts:update')
   @ApiOperation({ summary: 'Update an account plan' })
   @ApiResponse({
     status: 200,
@@ -122,6 +129,7 @@ export class AccountPlanController {
   }
 
   @Delete(':id')
+  @Permissions('accounting:chart_of_accounts:delete')
   @ApiOperation({ summary: 'Delete an account plan' })
   @ApiResponse({
     status: 200,

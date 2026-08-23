@@ -15,25 +15,60 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@repo/shadcn/collapsible';
 import { ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
-import { navGroups } from '@/constants/navegations';
+import { navGroups, type NavGroup, type NavItem } from '@/constants/navegations';
 import { useAuthStore } from '@/stores/auth.store';
 import { NavUser } from './nav-user';
 import './sidebar-override.css';
 import { useTenantStore } from '@/stores/tenant.store';
+import { useMemo } from 'react';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const tenant = useTenantStore((s) => s.tenant);
   const hasPermission = useAuthStore((s) => s.hasPermission);
+  const hasModule = useAuthStore((s) => s.hasModule);
   const location = useLocation();
 
   const logoUrl = tenant?.logoUrl || '/img/logo.png';
   const name = tenant?.name || 'Zona Start';
 
-  // Función para filtrar por permisos (aplica a padres e hijos si es necesario)
+  // 1. Mantenemos la evaluación atómica de permisos
   const canSee = (item: any) => {
     if (!item.requiresPermission) return true;
     return hasPermission(item.requiresPermission.resource, item.requiresPermission.action);
   };
+
+  const filterItem = (item: NavItem): NavItem | null => {
+    if (!canSee(item)) return null;
+
+    if (item.items?.length) {
+      const visibleChildren = item.items.filter(canSee);
+      if (visibleChildren.length === 0) return null;
+      return { ...item, items: visibleChildren };
+    }
+    return item;
+  };
+
+  // 2. Pre-calculamos el árbol de navegación completo
+  const visibleGroups = useMemo(() => {
+    return navGroups.reduce((acc: NavGroup[], group) => {
+      // A. Validar que el tenant tenga los módulos activos
+      if (group.modules?.length && !group.modules.some((m) => hasModule(m))) {
+        return acc;
+      }
+
+      // B. Filtrar los items en base a los permisos del rol actual
+      const validItems = group.items
+        .map(filterItem)
+        .filter((item): item is NavItem => item !== null);
+
+      // C. Solo incluir el grupo en la UI si le quedaron items visibles
+      if (validItems.length > 0) {
+        acc.push({ ...group, items: validItems });
+      }
+
+      return acc;
+    }, []);
+  }, [hasPermission, hasModule]); // Recalcular solo si cambian los permisos o módulos
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -51,12 +86,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
-        {navGroups.map((group) => (
+        {/* Iteramos directamente sobre el array ya depurado */}
+        {visibleGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarMenu>
-              {group.items.filter(canSee).map((item) => {
-                // Si el item NO tiene hijos, renderizamos un link simple
+              {group.items.map((item) => {
                 if (!item.items?.length) {
                   return (
                     <SidebarMenuItem key={item.href}>
@@ -74,7 +109,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   );
                 }
 
-                // Si TIENE hijos, renderizamos un Collapsible
                 return (
                   <Collapsible
                     key={item.label}

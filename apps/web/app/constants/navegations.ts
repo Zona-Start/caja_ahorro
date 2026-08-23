@@ -29,6 +29,10 @@ import {
 export interface NavSubItem {
   label: string;
   href: string;
+  requiresPermission?: {
+    resource: string;
+    action: string;
+  };
 }
 
 export interface NavItem {
@@ -44,6 +48,12 @@ export interface NavItem {
 
 export interface NavGroup {
   label: string;
+  /**
+   * Module codes (tenant modules) that must be active for this group to show.
+   * When empty/undefined, the group is always visible and only its items are
+   * gated by permissions. When present, the group shows if ANY code is active.
+   */
+  modules?: string[];
   items: NavItem[];
 }
 
@@ -60,23 +70,33 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Caja de Ahorro',
+    modules: ['SAVINGS', 'LOANS', 'CREDITS'],
     items: [
       {
         label: 'Socios',
         href: '#',
         icon: Users,
-        // requiresPermission: {
-        //   resource: 'portfolio:credits-types',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'savings:members',
+          action: 'read',
+        },
         items: [
           {
             label: 'Asociados',
             href: '/dashboard/caja-ahorro/asociados',
+            requiresPermission: {
+              resource: 'savings:members',
+              action: 'read',
+            }
           },
+
           {
             label: 'Estado de Cuentas',
             href: '/dashboard/caja-ahorro/estado-cuenta',
+            requiresPermission: {
+              resource: 'savings:members',
+              action: 'read',
+            }
           },
         ],
       },
@@ -92,18 +112,34 @@ export const navGroups: NavGroup[] = [
           {
             label: 'Carga',
             href: '/dashboard/caja-ahorro/carga-haberes',
+            requiresPermission: {
+              resource: 'savings:contributions',
+              action: 'read',
+            }
           },
           {
             label: 'Retiros',
             href: '/dashboard/caja-ahorro/retiros',
+            requiresPermission: {
+              resource: 'savings:withdrawals',
+              action: 'read',
+            }
           },
           {
             label: 'Liquidacion',
             href: '/dashboard/caja-ahorro/liquidacion',
+            requiresPermission: {
+              resource: 'savings:liquidations',
+              action: 'read',
+            }
           },
           {
             label: 'Tipos de Retiros',
             href: '/dashboard/caja-ahorro/tipo-retiros',
+            requiresPermission: {
+              resource: 'savings:withdrawal-types',
+              action: 'read',
+            }
           },
         ],
       },
@@ -111,22 +147,30 @@ export const navGroups: NavGroup[] = [
         label: 'Prestamos',
         href: '#',
         icon: HandCoins,
-        // requiresPermission: {
-        //   resource: 'portfolio:credits-types',
-        //   action: 'read',
-        // },
         items: [
           {
             label: 'Gestion',
             href: '/dashboard/caja-ahorro/prestamos',
+            requiresPermission: {
+              resource: 'portfolio:loans',
+              action: 'read',
+            }
           },
           {
             label: 'Pagos',
             href: '/dashboard/caja-ahorro/pagos-prestamos',
+            requiresPermission: {
+              resource: 'portfolio:payments-loans',
+              action: 'read',
+            }
           },
           {
             label: 'Tipos',
             href: '/dashboard/caja-ahorro/tipo-prestamos',
+            requiresPermission: {
+              resource: 'portfolio:loans-types',
+              action: 'read',
+            }
           },
         ],
       },
@@ -134,22 +178,30 @@ export const navGroups: NavGroup[] = [
         label: 'Creditos',
         href: '#',
         icon: CreditCard,
-        // requiresPermission: {
-        //   resource: 'portfolio:credits-types',
-        //   action: 'read',
-        // },
         items: [
           {
             label: 'Gestion',
             href: '/dashboard/caja-ahorro/creditos',
+            requiresPermission: {
+              resource: 'portfolio:credits',
+              action: 'read',
+            }
           },
           {
             label: 'Pagos',
             href: '/dashboard/caja-ahorro/pagos-creditos',
+            requiresPermission: {
+              resource: 'portfolio:payments-credits',
+              action: 'read',
+            }
           },
           {
             label: 'Tipos',
             href: '/dashboard/caja-ahorro/tipo-creditos',
+            requiresPermission: {
+              resource: 'portfolio:credits-types',
+              action: 'read',
+            }
           },
         ],
       },
@@ -157,27 +209,39 @@ export const navGroups: NavGroup[] = [
         label: 'Pagos por Lotes',
         href: '/dashboard/caja-ahorro/pagos-por-lotes',
         icon: Layers,
+        requiresPermission: {
+          resource: 'savings:contributions',
+          action: 'mass_upload',
+        }
       },
       {
         label: 'Reportes',
         href: '#',
         icon: FileText,
-        // requiresPermission: {
-        //   resource: 'portfolio:credits-types',
-        //   action: 'read',
-        // },
         items: [
           {
             label: 'Socios y Haberes',
             href: '/dashboard/reportes/socios-haberes',
+            requiresPermission: {
+              resource: 'savings:contributions',
+              action: 'read',
+            },
           },
           {
             label: 'Préstamos',
             href: '/dashboard/reportes/prestamos',
+            requiresPermission: {
+              resource: 'portfolio:loans',
+              action: 'read',
+            },
           },
           {
             label: 'Créditos',
             href: '/dashboard/reportes/creditos',
+            requiresPermission: {
+              resource: 'portfolio:credits',
+              action: 'read',
+            },
           },
         ],
       },
@@ -185,92 +249,94 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Inventario',
+    modules: ['INVENTORY'],
     items: [
       {
         label: 'Categorias',
         href: '/dashboard/inventario/categorias',
         icon: Tag,
-        // requiresPermission: {
-        //   resource: 'inventory:categories',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'inventory:categories',
+          action: 'read',
+        },
       },
       {
         label: 'Productos',
         href: '/dashboard/inventario/productos',
         icon: Package,
-        // requiresPermission: {
-        //   resource: 'inventory:products',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'inventory:products',
+          action: 'read',
+        },
       },
       {
         label: 'Servicios',
         href: '/dashboard/inventario/servicios',
         icon: Boxes,
-        // requiresPermission: {
-        //   resource: 'inventory:services',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'inventory:services',
+          action: 'read',
+        },
       },
       {
         label: 'Activos Fijos',
         href: '/dashboard/inventario/activos-fijos',
         icon: ClipboardList,
-        // requiresPermission: {
-        //   resource: 'inventory:fixed_assets',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'inventory:assets',
+          action: 'read',
+        },
       },
       {
         label: 'Movimientos',
         href: '/dashboard/inventario/movimientos',
         icon: ArrowRightLeft,
-        // requiresPermission: {
-        //   resource: 'inventory:movements',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'inventory:stock',
+          action: 'read',
+        },
       },
     ],
   },
   {
     label: 'Compras',
+    modules: ['PURCHASING'],
     items: [
       {
         label: 'Proveedores',
         href: '/dashboard/compras/proveedores',
         icon: Users,
-        // requiresPermission: {
-        //   resource: 'purchasing:suppliers',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'purchasing:suppliers',
+          action: 'read',
+        },
       },
       {
         label: 'Ordenes de Compra',
         href: '/dashboard/compras/ordenes-compra',
         icon: ShoppingCart,
-        // requiresPermission: {
-        //   resource: 'purchasing:purchase-orders',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'purchasing:orders',
+          action: 'read',
+        },
       },
       {
         label: 'Recepción Facturas',
         href: '/dashboard/compras/facturas',
         icon: Receipt,
-        // requiresPermission: {
-        //   resource: 'purchasing:supplier-invoices',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'purchasing:invoices',
+          action: 'read',
+        },
       },
       {
         label: 'Ctas. por Pagar',
         href: '/dashboard/compras/cuentas-por-pagar',
         icon: DollarSign,
-        // requiresPermission: {
-        //   resource: 'purchasing:accounts-payable',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'purchasing:accounts_payable',
+          action: 'read',
+        },
       },
 
       // {
@@ -286,16 +352,25 @@ export const navGroups: NavGroup[] = [
         label: 'Estado de Cuenta',
         href: '/dashboard/compras/estado-cuenta',
         icon: Scale,
+        requiresPermission: {
+          resource: 'purchasing:suppliers',
+          action: 'read',
+        },
       },
       {
         label: 'Reportes de Compras',
         href: '/dashboard/compras/reportes',
         icon: BarChart3,
+        requiresPermission: {
+          resource: 'purchasing:reports',
+          action: 'execute',
+        },
       },
     ],
   },
   {
     label: 'Bancos',
+    modules: ['BANKING'],
     items: [
       {
         label: 'Directorio',
@@ -337,16 +412,17 @@ export const navGroups: NavGroup[] = [
         label: 'Reportes',
         href: '/dashboard/configuracion/reportes-bancos',
         icon: FileText,
-        // requiresPermission: {
-        //   resource: 'banking:reports',
-        //   action: 'read',
-        // },
+        requiresPermission: {
+          resource: 'banking:accounts',
+          action: 'read',
+        },
       },
 
     ],
   },
   {
     label: 'Contabilidad',
+    modules: ['ACCOUNTING'],
     items: [
       {
         label: 'Catalogo Contable',
@@ -356,14 +432,26 @@ export const navGroups: NavGroup[] = [
           {
             label: 'Plan de Cuentas',
             href: '/dashboard/contabilidad/cuentas-contables',
+            requiresPermission: {
+              resource: 'accounting:chart_of_accounts',
+              action: 'read',
+            },
           },
           {
             label: 'Ciclos Contables',
             href: '/dashboard/contabilidad/ciclos-contables',
+            requiresPermission: {
+              resource: 'accounting:cycles',
+              action: 'read',
+            },
           },
           {
             label: 'Mapa de Integraciones',
             href: '/dashboard/contabilidad/reglas-contables',
+            requiresPermission: {
+              resource: 'accounting:journal_entries',
+              action: 'read',
+            },
           },
         ],
       },
@@ -375,10 +463,18 @@ export const navGroups: NavGroup[] = [
           {
             label: 'Asientos Contables',
             href: '/dashboard/contabilidad/asientos-contables',
+            requiresPermission: {
+              resource: 'accounting:journal_entries',
+              action: 'read',
+            },
           },
           {
             label: 'Saldos Contables',
             href: '/dashboard/contabilidad/saldos-contables',
+            requiresPermission: {
+              resource: 'accounting:balances',
+              action: 'read',
+            },
           },
         ],
       },
@@ -390,26 +486,50 @@ export const navGroups: NavGroup[] = [
           {
             label: 'Libro Diario',
             href: '/dashboard/contabilidad/reportes?tab=journal-book',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
           },
           {
             label: 'Libro Mayor',
             href: '/dashboard/contabilidad/reportes?tab=general-ledger',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
           },
           {
             label: 'Bal. Comprobación',
             href: '/dashboard/contabilidad/reportes?tab=trial-balance',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
           },
           {
             label: 'Balance General',
             href: '/dashboard/contabilidad/reportes?tab=balance-sheet',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
           },
           {
             label: 'Est. de Resultados',
             href: '/dashboard/contabilidad/reportes?tab=income-statement',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
           },
           {
             label: 'Bal. de Asociados',
             href: '/dashboard/contabilidad/reportes?tab=associates-balance',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
           },
         ],
       },
@@ -481,7 +601,7 @@ export const navGroups: NavGroup[] = [
         href: '/dashboard/configuracion/parametros-globales',
         icon: Settings,
         requiresPermission: {
-          resource: 'settings',
+          resource: 'system:global',
           action: 'read',
         },
       },
@@ -490,8 +610,8 @@ export const navGroups: NavGroup[] = [
         href: '/dashboard/administracion/clientes',
         icon: Building2,
         requiresPermission: {
-          resource: 'tenants',
-          action: 'read',
+          resource: 'system:tenants',
+          action: 'create',
         },
       },
       {

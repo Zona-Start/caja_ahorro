@@ -10,6 +10,8 @@ interface AuthActions {
     action: Permission['action'],
     scope?: string,
   ) => boolean;
+  /** Checks whether the active tenant has the given module enabled. */
+  hasModule: (moduleCode: string) => boolean;
   /** Marks session initialization as complete (regardless of outcome). */
   setInitialized: () => void;
 }
@@ -57,6 +59,14 @@ export const useAuthStore = create<AuthStoreState & AuthActions>()(
       if (!user) return false;
       if (user.isSystemAdmin) return true;
       return evaluatePermission(user.permissions ?? [], resource, action, scope);
+    },
+
+    hasModule: (moduleCode) => {
+      const user = get().user;
+      if (!user) return false;
+      if (user.isSystemAdmin) return true;
+      const modules = user.activeTenant?.modules ?? [];
+      return modules.includes(moduleCode);
     },
   }),
 );

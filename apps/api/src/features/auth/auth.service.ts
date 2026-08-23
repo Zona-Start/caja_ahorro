@@ -5,6 +5,7 @@ import {
   FAILURE_REASONS,
   loginAttempts,
   sessions,
+  tenantModules,
   users,
 } from '@/database/schema';
 import { SystemEventHelper } from '@/features/audit/audit-event.service';
@@ -21,7 +22,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 interface UserWithRelations {
@@ -175,7 +176,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: this.formatAuthUser(user, tenantId),
+      user: await this.formatAuthUser(user, tenantId),
     };
   }
 
@@ -227,7 +228,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken: newRefreshToken,
-      user: this.formatAuthUser(user),
+      user: await this.formatAuthUser(user),
     };
   }
 
@@ -411,7 +412,7 @@ export class AuthService {
       .where(eq(users.id, userId));
   }
 
-  private formatAuthUser(user: UserWithRelations, requestedTenantId?: string) {
+  private async formatAuthUser(user: UserWithRelations, requestedTenantId?: string) {
     const memberships = (user.tenantMembers || []).map((m) => ({
       tenantId: m.tenantId,
       tenantName: m.tenant?.name,
@@ -440,7 +441,16 @@ export class AuthService {
       }
     }
 
-    const activeMembership = memberships[0];
+    const modulesByTenant = await this.getActiveModulesByTenant(
+      memberships.map((m) => m.tenantId).filter(Boolean),
+    );
+
+    const membershipsWithModules = memberships.map((m) => ({
+      ...m,
+      modules: modulesByTenant.get(m.tenantId) ?? [],
+    }));
+
+    const activeMembership = membershipsWithModules[0];
 
     const specialPermissions = (user.userPermissions || [])
       .filter(
@@ -463,6 +473,7 @@ export class AuthService {
           slug: activeMembership.slug,
           logoUrl: activeMembership.logoUrl,
           primaryColor: activeMembership.primaryColor,
+          modules: activeMembership.modules,
         }
       : null;
 
@@ -475,8 +486,36 @@ export class AuthService {
       isSystemAdmin: user.isSystemAdmin || false,
       activeTenantId: activeMembership?.tenantId || null,
       activeTenant,
-      memberships,
+      memberships: membershipsWithModules,
       permissions: consolidatedPermissions,
     };
+  }
+
+  private async getActiveModulesByTenant(
+    tenantIds: string[],
+  ): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (tenantIds.length === 0) return map;
+
+    const rows = await this.db
+      .select({
+        tenantId: tenantModules.tenantId,
+        moduleCode: tenantModules.moduleCode,
+      })
+      .from(tenantModules)
+      .where(
+        and(
+          inArray(tenantModules.tenantId, tenantIds),
+          eq(tenantModules.status as any, 'ENABLED'),
+        ),
+      );
+
+    for (const row of rows) {
+      const list = map.get(row.tenantId) ?? [];
+      list.push(row.moduleCode);
+      map.set(row.tenantId, list);
+    }
+
+    return map;
   }
 }

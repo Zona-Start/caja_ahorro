@@ -21,6 +21,7 @@ export const membershipSchema = z.object({
   slug: z.string().nullable().optional(),
   logoUrl: z.string().nullable().optional(),
   primaryColor: z.string().nullable().optional(),
+  modules: z.array(z.string()).default([]),
   role: z
     .object({
       id: z.string().optional(),
@@ -36,6 +37,7 @@ export const activeTenantSchema = z.object({
   slug: z.string().nullable().optional(),
   logoUrl: z.string().nullable().optional(),
   primaryColor: z.string().nullable().optional(),
+  modules: z.array(z.string()).default([]),
 });
 
 export const userSchema = z.object({
