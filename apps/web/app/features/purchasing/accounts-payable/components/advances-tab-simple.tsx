@@ -8,6 +8,7 @@ import { Plus, Loader2 } from 'lucide-react';
 import { useAllCreditsQuery } from '@/features/purchasing/supplier-payments/hooks/use-supplier-payments-queries';
 import type { CreditItem } from '@/features/purchasing/supplier-payments/schemas/supplier-payment-api.schema';
 import { CreateAdvanceModal } from '@/features/purchasing/supplier-payments/components/create-advance-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pendiente',
@@ -42,6 +43,8 @@ const TYPE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline'> = {
 export function AdvancesTabSimple() {
   const { data, isLoading } = useAllCreditsQuery();
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+
 
   const credits = data?.data?.items ?? [];
 
@@ -56,10 +59,12 @@ export function AdvancesTabSimple() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => setShowAdvanceModal(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Registrar Anticipo
-        </Button>
+        {hasPermission('purchasing:accounts_payable', 'process') && (
+          <Button onClick={() => setShowAdvanceModal(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Registrar Anticipo
+          </Button>
+        )}
       </div>
 
       <div className="rounded-md border">

@@ -9,6 +9,7 @@ import {
 import { Edit, MoreHorizontal } from 'lucide-react';
 import { TenantSetting } from '../../schemas/tenant-settings.schema';
 import { TenantSettingsModal } from '../tenant-settings-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface TenantSettingsCellActionProps {
   data: TenantSetting;
@@ -16,6 +17,7 @@ interface TenantSettingsCellActionProps {
 
 export function TenantSettingsCellAction({ data }: TenantSettingsCellActionProps) {
   const [openEdit, setOpenEdit] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <>
@@ -33,10 +35,12 @@ export function TenantSettingsCellAction({ data }: TenantSettingsCellActionProps
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar Valor
-          </DropdownMenuItem>
+          {hasPermission('system:tenants-systems', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar Valor
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

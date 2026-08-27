@@ -11,6 +11,7 @@ import {
 } from '../../schemas/inventory-fixed-assets-options';
 import { useCategoriesByGroupQuery } from '../../hooks/use-inventory-fixed-assets-queries';
 import { useInventoryFixedAssetsModalStore } from '../../store/inventory-fixed-assets-modal.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_OPTIONS = Object.entries(FIXED_ASSET_STATUS_OPTIONS).map(
   ([value, label]) => ({
@@ -30,6 +31,7 @@ export default function InventoryFixedAssetsTableAction() {
   const { filters, setFilters } = useInventoryFixedAssetsFilters();
   const { data: categories } = useCategoriesByGroupQuery('FIXED_ASSETS');
   const { openModal } = useInventoryFixedAssetsModalStore();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const [searchValue, setSearchValue] = useState(filters.search ?? '');
 
@@ -89,9 +91,11 @@ export default function InventoryFixedAssetsTableAction() {
           filterValue={filters.depreciationMethod ?? ''}
         />
       </div>
-      <Button onClick={() => openModal('create')} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Activo
-      </Button>
+      {hasPermission('inventory:assets', 'create') && (
+        <Button onClick={() => openModal('create')} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Activo
+        </Button>
+      )}
 
       <InventoryFixedAssetModal />
     </div>

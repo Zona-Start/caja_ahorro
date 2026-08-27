@@ -19,6 +19,7 @@ export default function RolesList() {
   const { filters, setFilters } = useRolesFilters();
   const { data, isLoading } = useRolesQuery(filters);
   const [openModal, setOpenModal] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { data: tenantsData } = useTenantsQuery(
     { page: 1, limit: 100, isActive: 'true', search: '' },
@@ -39,16 +40,16 @@ export default function RolesList() {
       ...role,
       tenant: role.tenant
         ? {
-            ...role.tenant,
-            name:
-              role.tenant.name ||
-              tenantsMap.get(role.tenantId) ||
-              role.tenantId,
-          }
+          ...role.tenant,
+          name:
+            role.tenant.name ||
+            tenantsMap.get(role.tenantId) ||
+            role.tenantId,
+        }
         : {
-            id: role.tenantId,
-            name: tenantsMap.get(role.tenantId) || role.tenantId,
-          },
+          id: role.tenantId,
+          name: tenantsMap.get(role.tenantId) || role.tenantId,
+        },
     })) || [];
 
   const columns = isSystemAdmin
@@ -61,10 +62,12 @@ export default function RolesList() {
 
       <div className="flex items-center justify-between">
         <RolesFiltersAction filters={filters} setFilters={setFilters} />
-        <Button onClick={() => setOpenModal(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Rol
-        </Button>
+        {hasPermission('iam:roles', 'create') && (
+          <Button onClick={() => setOpenModal(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Rol
+          </Button>
+        )}
       </div>
 
       <DataTable

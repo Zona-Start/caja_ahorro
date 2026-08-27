@@ -12,6 +12,7 @@ import {
 } from '@repo/shadcn/dropdown-menu';
 import { useApproveSettlementMutation } from '../../hooks/use-settlement-query';
 import { type SettlementPaymentApi } from '../../schemas/settlement-api-response';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: SettlementPaymentApi;
@@ -21,6 +22,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openApprove, setOpenApprove] = useState(false);
   const { mutate: approveSettlement, isPending: isApproving } =
     useApproveSettlementMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const onApproveConfirm = () => {
     approveSettlement(data.id, {
@@ -65,7 +67,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               Ver Detalles
             </DropdownMenuItem>
 
-            {data.status === 'REQUESTED' && (
+            {data.status === 'REQUESTED' && hasPermission("savings:liquidations", "update") && (
               <DropdownMenuItem
                 onClick={() => setOpenApprove(true)}
                 disabled={isApproving}
@@ -75,7 +77,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </DropdownMenuItem>
             )}
 
-            {data.status === 'PROCESSED' && (
+            {data.status === 'PROCESSED' && hasPermission("savings:liquidations", "disburse") && (
               <DropdownMenuItem onClick={handleDisburse}>
                 <Banknote className="mr-2 h-4 w-4" />
                 Desembolsar

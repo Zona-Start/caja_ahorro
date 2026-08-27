@@ -15,6 +15,7 @@ import {
   useProcessReconciliationMutation,
   useCancelReconciliationMutation,
 } from '../../hooks/use-bank-reconciliation-query';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: BankReconciliation;
@@ -23,6 +24,7 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openCancel, setOpenCancel] = useState(false);
   const navigate = useNavigate();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const processMutation = useProcessReconciliationMutation();
   const cancelMutation = useCancelReconciliationMutation();
@@ -68,18 +70,22 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           {isInProgress && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleProcess}
-                className="text-green-600"
-              >
-                <Play className="mr-2 h-4 w-4" /> Procesar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setOpenCancel(true)}
-                className="text-red-600"
-              >
-                <Ban className="mr-2 h-4 w-4" /> Cancelar
-              </DropdownMenuItem>
+              {hasPermission('banking:reconciliation', 'update') && (
+                <DropdownMenuItem
+                  onClick={handleProcess}
+                  className="text-green-600"
+                >
+                  <Play className="mr-2 h-4 w-4" /> Procesar
+                </DropdownMenuItem>
+              )}
+              {hasPermission('banking:reconciliation', 'update') && (
+                <DropdownMenuItem
+                  onClick={() => setOpenCancel(true)}
+                  className="text-red-600"
+                >
+                  <Ban className="mr-2 h-4 w-4" /> Cancelar
+                </DropdownMenuItem>
+              )}
             </>
           )}
         </DropdownMenuContent>

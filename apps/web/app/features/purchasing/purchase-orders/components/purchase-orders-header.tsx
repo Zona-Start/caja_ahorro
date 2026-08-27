@@ -6,6 +6,7 @@ import { usePurchaseOrdersFilters } from '../hooks/use-purchase-orders-filters';
 import { useSuppliersForOrder } from '../hooks/use-purchase-orders-queries';
 import { usePurchaseOrdersModalStore } from '../store/purchase-orders-modal.store';
 import { ORDER_STATUS_OPTIONS } from '../schemas/purchase-orders-options';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function PurchaseOrdersHeader() {
   const {
@@ -14,6 +15,7 @@ export function PurchaseOrdersHeader() {
   } = usePurchaseOrdersFilters();
   const { data: suppliers } = useSuppliersForOrder();
   const { openModal } = usePurchaseOrdersModalStore();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -57,9 +59,11 @@ export function PurchaseOrdersHeader() {
         </div>
       </div>
 
-      <Button onClick={() => openModal('create')} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Nueva Orden
-      </Button>
+      {hasPermission("purchasing:orders", "create") && (
+        <Button onClick={() => openModal('create')} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Nueva Orden
+        </Button>
+      )}
     </div>
   );
 }

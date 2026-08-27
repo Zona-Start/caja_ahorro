@@ -9,6 +9,7 @@ import { ESTATUS_TYPES, PAYROLL_TYPE } from '../../schemas/associates-options';
 import { AssociatesModal } from '../associates-modal';
 import { AssociatesBulkUploadModal } from '../associates-bulk-upload-modal';
 import { ExportAssociatesButton } from '../export-bottom';
+import { useAuthStore } from '@/stores/auth.store';
 
 export const ESTATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(
   ([value, label]) => ({
@@ -28,6 +29,7 @@ export default function AssociatesTableAction() {
   const { filters, setFilters } = useAssociatesFilters();
   const [open, setOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { search, status, payroll } = filters;
 
@@ -57,13 +59,19 @@ export default function AssociatesTableAction() {
         />
       </div>
       <div className="flex gap-2">
-        <ExportAssociatesButton currentFilters={filters} />
-        <Button onClick={() => setBulkOpen(true)} size="sm" variant="outline">
-          <Upload className="mr-2 h-4 w-4" /> Carga masiva
-        </Button>
-        <Button onClick={() => setOpen(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Agregar socio
-        </Button>
+        {hasPermission("savings:members", "read") && (
+          <ExportAssociatesButton currentFilters={filters} />
+        )}
+        {hasPermission("savings:members", "create") && (
+          <Button onClick={() => setBulkOpen(true)} size="sm" variant="outline">
+            <Upload className="mr-2 h-4 w-4" /> Carga masiva
+          </Button>
+        )}
+        {hasPermission("savings:members", "create") && (
+          <Button onClick={() => setOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Agregar socio
+          </Button>
+        )}
       </div>
 
       <AssociatesModal open={open} onOpenChange={setOpen} />

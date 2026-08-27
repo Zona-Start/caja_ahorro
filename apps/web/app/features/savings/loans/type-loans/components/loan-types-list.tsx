@@ -9,12 +9,14 @@ import { useLoanTypesQuery } from '../hooks/use-type-loans-query';
 import { columns } from './tables/columns';
 import { LoanTypesHeader } from './loan-types-header';
 import { LoanTypesModal } from './loan-types-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function LoanTypesList() {
   const { filters, setFilters } = useLoanTypesFilters();
   const { data, isLoading } = useLoanTypesQuery(filters);
   const [openModal, setOpenModal] = useState(false);
   const [searchVal, setSearchVal] = useState(filters.search || '');
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   // Synchronize local search state with filters.search when filters.search changes externally
   useEffect(() => {
@@ -49,11 +51,12 @@ export default function LoanTypesList() {
             className="w-full sm:w-[300px]"
           />
         </div>
-
-        <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Tipo de Préstamo
-        </Button>
+        {hasPermission('portfolio:loans-types', 'create') && (
+          <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Tipo de Préstamo
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

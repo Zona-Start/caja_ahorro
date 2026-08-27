@@ -13,6 +13,7 @@ import type { Role } from '../../schemas/roles.schema';
 import { useDeleteRoleMutation } from '../../hooks/use-roles-mutations';
 import { RolesModal } from '../roles-modal';
 import { RolesViewModal } from '../roles-view-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface RolesCellActionProps {
   data: Role;
@@ -25,6 +26,7 @@ export function RolesCellAction({ data }: RolesCellActionProps) {
   const [openView, setOpenView] = useState(false);
 
   const deleteMutation = useDeleteRoleMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const onConfirmDelete = async () => {
     try {
@@ -73,19 +75,23 @@ export function RolesCellAction({ data }: RolesCellActionProps) {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission('iam:roles', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            disabled={data.isDefault}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('iam:roles', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              disabled={data.isDefault}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

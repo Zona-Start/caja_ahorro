@@ -4,11 +4,13 @@ import { Button } from '@repo/shadcn/button';
 import { useSettlementFilters } from '../../hooks/use-settlement-filters';
 import { SettlementModal } from '../settlement-modal';
 import { Input } from '@repo/shadcn/input';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function SettlementTableAction() {
   const { filters, setFilters } = useSettlementFilters();
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState(filters.search || '');
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -29,9 +31,11 @@ export function SettlementTableAction() {
         />
       </div>
       <div className="flex gap-2">
-        <Button onClick={() => setOpen(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Nueva Liquidación
-        </Button>
+        {hasPermission("savings:liquidations", "create") && (
+          <Button onClick={() => setOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Nueva Liquidación
+          </Button>
+        )}
       </div>
 
       <SettlementModal open={open} onOpenChange={setOpen} />

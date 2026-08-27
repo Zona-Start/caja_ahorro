@@ -4,10 +4,12 @@ import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useBankDirectoryFilters } from '../../hooks/use-bank-directory-filters';
 import { BanksModal } from '../banks-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function BanksTableAction() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = useBankDirectoryFilters();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <div className="flex items-center justify-between mt-4">
@@ -20,9 +22,12 @@ export default function BanksTableAction() {
           setPage={(p) => setFilters({ page: p })}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Banco
-      </Button>
+
+      {hasPermission('banking:directory', 'create') && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Banco
+        </Button>
+      )}
 
       <BanksModal open={open} onOpenChange={setOpen} />
     </div>

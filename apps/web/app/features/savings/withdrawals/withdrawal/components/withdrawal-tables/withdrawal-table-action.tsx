@@ -7,6 +7,7 @@ import { useWithdrawalFilters } from '../../hooks/use-withdrawal-filters';
 import { useWithdrawalTypesQuery } from '../../hooks/use-withdrawal-query';
 import { ESTATUS_TYPES } from '../../schemas/withdrawal-options';
 import { WithdrawalModal } from '../withdrawal-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(([value, label]) => ({
   value,
@@ -16,6 +17,7 @@ const STATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(([value, label]) => ({
 export function WithdrawalTableAction() {
   const { filters, setFilters } = useWithdrawalFilters();
   const [open, setOpen] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { data: typesResponse } = useWithdrawalTypesQuery();
 
@@ -51,9 +53,11 @@ export function WithdrawalTableAction() {
         />
       </div>
       <div className="flex gap-2">
-        <Button onClick={() => setOpen(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Nueva Solicitud
-        </Button>
+        {hasPermission("savings:withdrawals", "create") && (
+          <Button onClick={() => setOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Nueva Solicitud
+          </Button>
+        )}
       </div>
 
       <WithdrawalModal open={open} onOpenChange={setOpen} />

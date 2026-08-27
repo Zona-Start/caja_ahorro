@@ -25,6 +25,7 @@ const STATUS_OPTIONS = [
 export default function CategoriesTableAction() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = useCategoriesFilters();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const user = useAuthStore((s) => s.user);
   const isSuperAdmin = user?.isSystemAdmin ?? false;
@@ -94,9 +95,11 @@ export default function CategoriesTableAction() {
           />
         )}
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Nueva Categoría
-      </Button>
+      {hasPermission('catalog:categories', 'create') && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Nueva Categoría
+        </Button>
+      )}
 
       <CategoriesModal open={open} onOpenChange={setOpen} mode="create" />
     </div>

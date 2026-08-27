@@ -6,6 +6,7 @@ import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { LOAN_PAYMENT_TYPES, PAYMENT_METHOD } from '../../schemas/loans-paid-options';
 import { useLoansPaidFilters } from '../../hooks/use-loans-paid-filters';
+import { useAuthStore } from '@/stores/auth.store';
 
 const TYPE_OPTIONS = (Object.entries(LOAN_PAYMENT_TYPES) as [string, string][]).map(([value, label]) => ({
   value,
@@ -23,6 +24,7 @@ interface Props {
 
 export function LoansPaidTableAction({ onCreateClick }: Props) {
   const { filters, setFilters } = useLoansPaidFilters();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <div className="flex items-center justify-between mt-4">
@@ -50,9 +52,11 @@ export function LoansPaidTableAction({ onCreateClick }: Props) {
         />
       </div>
       <div className="flex gap-2">
-        <Button onClick={onCreateClick} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Nuevo Pago
-        </Button>
+        {hasPermission('portfolio:payments-loans', 'create') && (
+          <Button onClick={onCreateClick} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Pago
+          </Button>
+        )}
       </div>
     </div>
   );

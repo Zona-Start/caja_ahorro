@@ -17,6 +17,7 @@ import {
 } from '../../hooks/use-loans-management-mutation';
 import { DisburseLoanModal } from '../disburse-loan-modal';
 import type { LoanTableRow } from './columns';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: LoanTableRow;
@@ -27,6 +28,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data, onViewDetails }) =
   const [openDelete, setOpenDelete] = useState(false);
   const [openApprove, setOpenApprove] = useState(false);
   const [showDisburseModal, setShowDisburseModal] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: deleteLoan, isPending: isDeleting } =
     useDeleteLoansManagementMutation();
@@ -84,20 +86,24 @@ export const CellAction: React.FC<CellActionProps> = ({ data, onViewDetails }) =
           {data.status === 'REQUESTED' && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setOpenApprove(true)}
-                className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
-              >
-                <CheckSquare className="mr-2 h-4 w-4" />
-                Aprobar Préstamo
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setOpenDelete(true)}
-                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Anular Préstamo
-              </DropdownMenuItem>
+              {hasPermission('portfolio:loans', 'approve') && (
+                <DropdownMenuItem
+                  onClick={() => setOpenApprove(true)}
+                  className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
+                >
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  Aprobar Préstamo
+                </DropdownMenuItem>
+              )}
+              {hasPermission('portfolio:loans', 'reject') && (
+                <DropdownMenuItem
+                  onClick={() => setOpenDelete(true)}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Anular Préstamo
+                </DropdownMenuItem>
+              )}
             </>
           )}
 

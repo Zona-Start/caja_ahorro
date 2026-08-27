@@ -37,7 +37,7 @@ export function useSaveSupplierInvoiceMutation(): UseMutationResult<
     mutationFn: (payload) => supplierInvoicesService.save(payload),
     onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierInvoices.all });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierInvoices.detail(result.id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.supplierInvoices.detail(Number(result.id)) });
       toast({
         title: variables.id ? 'Factura actualizada' : 'Factura creada',
         description: variables.id

@@ -24,6 +24,7 @@ import {
   useDownloadTxtFileMutation,
 } from '../../hooks/use-payment-batch-mutation';
 import { usePaymentBatchModalStore } from '../../store/payment-batch-store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: PaymentBatch;
@@ -33,6 +34,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [alertType, setAlertType] = useState<'cancel' | 'upload' | null>(null);
   const { openConfirmModal, openDetailModal } = usePaymentBatchModalStore();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: cancelBatch, isPending: isCancelling } =
     useCancelPaymentBatchMutation();
@@ -87,7 +89,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             Ver Detalles
           </DropdownMenuItem>
 
-          {isDraft && (
+          {isDraft && hasPermission("savings:payments", "mass_disburse") && (
             <DropdownMenuItem
               onClick={() => { setAlertType('upload'); setOpen(true); }}
             >
@@ -96,7 +98,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </DropdownMenuItem>
           )}
 
-          {isUploaded && (
+          {isUploaded && hasPermission("savings:payments", "mass_disburse") && (
             <>
               <DropdownMenuItem onClick={() => downloadTxt({ id: data.id, filename: data.paymentBatchReference })}>
                 <Download className="mr-2 h-4 w-4" />
@@ -109,7 +111,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </>
           )}
 
-          {(isDraft || isUploaded) && (
+          {(isDraft || isUploaded) && hasPermission("savings:payments", "mass_disburse") && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

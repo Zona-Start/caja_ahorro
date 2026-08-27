@@ -8,11 +8,13 @@ import { useCurrenciesQuery } from '../hooks/use-currencies-queries';
 import { currenciesColumns } from './tables/currencies-columns';
 import { CurrenciesModal } from './currencies-modal';
 import { CurrenciesHeader } from './currencies-header';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function CurrenciesList() {
   const { data, isLoading } = useCurrenciesQuery();
   const [openModal, setOpenModal] = useState(false);
   const [search, setSearch] = useState('');
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={7} rowCount={10} />;
@@ -21,11 +23,11 @@ export default function CurrenciesList() {
   const currenciesData = data || [];
   const filteredData = search
     ? currenciesData.filter(
-        (c) =>
-          c.code.toLowerCase().includes(search.toLowerCase()) ||
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          c.symbol.toLowerCase().includes(search.toLowerCase())
-      )
+      (c) =>
+        c.code.toLowerCase().includes(search.toLowerCase()) ||
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.symbol.toLowerCase().includes(search.toLowerCase())
+    )
     : currenciesData;
 
   return (
@@ -40,10 +42,12 @@ export default function CurrenciesList() {
           className="w-full sm:w-[250px]"
         />
 
-        <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Moneda
-        </Button>
+        {hasPermission('system:currencies', 'create') && (
+          <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Moneda
+          </Button>
+        )}
       </div>
 
       <DataTable

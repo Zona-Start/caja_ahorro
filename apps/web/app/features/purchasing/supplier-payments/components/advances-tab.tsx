@@ -9,6 +9,7 @@ import { Plus, Loader2, Wallet, CreditCard, FileText } from 'lucide-react';
 import { useAllCreditsQuery } from '../hooks/use-supplier-payments-queries';
 import type { CreditItem } from '../schemas/supplier-payment-api.schema';
 import { CreateAdvanceModal } from './create-advance-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pendiente',
@@ -46,6 +47,7 @@ export function AdvancesTab() {
 
   const credits = data?.data?.items ?? [];
   const summary = data?.data?.summary;
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   if (isLoading) {
     return (
@@ -94,11 +96,12 @@ export function AdvancesTab() {
             </CardContent>
           </Card>
         </div>
-
-        <Button onClick={() => setShowAdvanceModal(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Registrar Anticipo
-        </Button>
+        {hasPermission("purchasing:payments", "create") && (
+          <Button onClick={() => setShowAdvanceModal(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Registrar Anticipo
+          </Button>
+        )}
       </div>
 
       {/* Tabla */}

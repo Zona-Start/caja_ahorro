@@ -8,14 +8,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@repo/shadcn/dropdown-menu';
-import { CheckCircle, Edit, Eye, MoreHorizontal, XCircle } from 'lucide-react';
+import { CheckCircle, Edit, Eye, FileText, FileWarning, MoreHorizontal, XCircle } from 'lucide-react';
 import type { SupplierInvoiceApi } from '../../schemas/supplier-invoice-api.schema';
 import { useDeleteSupplierInvoiceMutation, useApproveSupplierInvoiceMutation } from '../../hooks/use-supplier-invoices-mutations';
 import { useSupplierInvoicesModalStore } from '../../store/supplier-invoices-modal.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface SupplierInvoicesCellActionProps {
   data: SupplierInvoiceApi;
 }
+
 
 export function SupplierInvoicesCellAction({ data }: SupplierInvoicesCellActionProps) {
   const [loading, setLoading] = useState(false);
@@ -24,11 +26,13 @@ export function SupplierInvoicesCellAction({ data }: SupplierInvoicesCellActionP
   const { openModal } = useSupplierInvoicesModalStore();
   const deleteMutation = useDeleteSupplierInvoiceMutation();
   const approveMutation = useApproveSupplierInvoiceMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+
 
   const onConfirmDelete = async () => {
     try {
       setLoading(true);
-      await deleteMutation.mutateAsync(data.id);
+      await deleteMutation.mutateAsync(Number(data.id));
       setOpenDelete(false);
     } catch {
     } finally {
@@ -81,21 +85,21 @@ export function SupplierInvoicesCellAction({ data }: SupplierInvoicesCellActionP
             Ver Detalles
           </DropdownMenuItem>
 
-          {isDraft && (
+          {isDraft && hasPermission('purchasing:invoices', 'update') && (
             <DropdownMenuItem onClick={() => openModal('edit', data)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>
           )}
 
-          {isDraft && (
+          {isDraft && hasPermission('purchasing:invoices', 'update') && (
             <DropdownMenuItem onClick={() => setOpenApprove(true)}>
               <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
               Aprobar
             </DropdownMenuItem>
           )}
 
-          {isDraft && (
+          {isDraft && hasPermission('purchasing:invoices', 'delete') && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -109,6 +113,8 @@ export function SupplierInvoicesCellAction({ data }: SupplierInvoicesCellActionP
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+
     </>
   );
 }

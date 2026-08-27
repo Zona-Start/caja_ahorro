@@ -22,6 +22,7 @@ import { PAYMENT_METHOD_LABELS } from '../schemas/supplier-payment-options';
 import type { SupplierPaymentApi } from '../schemas/supplier-payment-api.schema';
 import { AlertModal } from '@/components/shared/alert-modal';
 import { PaymentViewModal } from './payment-view-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   PROCESSED: 'default',
@@ -47,6 +48,7 @@ export function PaymentHistoryList() {
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [viewPayment, setViewPayment] = useState<SupplierPaymentApi | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const payments = data?.data ?? [];
   const meta = data?.meta;
@@ -210,7 +212,7 @@ export function PaymentHistoryList() {
                           <Eye className="mr-2 h-4 w-4" />
                           Ver Detalles
                         </DropdownMenuItem>
-                        {payment.status === 'PROCESSED' && (
+                        {payment.status === 'PROCESSED' && hasPermission("purchasing:payments", "update") && (
                           <DropdownMenuItem
                             className="text-red-600 focus:text-red-600 focus:bg-red-50"
                             onClick={() => {

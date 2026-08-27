@@ -15,6 +15,7 @@ import { useDeleteCreditPaymentMutation } from '../../hooks/use-credits-paid-mut
 import { useCreditPaidById } from '../../hooks/use-credits-paid-query';
 import type { CreditPaymentApi } from '../../schemas/credits-paid-api-response';
 import { CreditPaidDetailModal } from './credit-paid-detail-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: CreditPaymentApi;
@@ -23,6 +24,7 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openDelete, setOpenDelete] = useState(false);
   const [openView, setOpenView] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: deletePayment, isPending: isDeleting } =
     useDeleteCreditPaymentMutation();
@@ -72,13 +74,15 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             Ver Detalles
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <XCircle className="mr-2 h-4 w-4" />
-            Anular
-          </DropdownMenuItem>
+          {hasPermission("portfolio:payments-credits", "reject") && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Anular
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

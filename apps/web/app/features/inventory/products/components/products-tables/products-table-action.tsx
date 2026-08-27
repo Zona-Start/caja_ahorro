@@ -6,11 +6,13 @@ import { useProductsFilters } from '../../hooks/use-products-filters';
 import { STATUS_TYPES } from '../../schemas/products-options';
 import { useProductsModalStore } from '../../store/products-modal.store';
 import { useCategoriesQuery } from '../../hooks/use-products-queries';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function ProductsTableAction() {
   const { search, setSearch, status, setStatus, categoryId, setCategoryId } =
     useProductsFilters();
   const { data: categories } = useCategoriesQuery();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
   const { openModal } = useProductsModalStore();
 
   return (
@@ -42,9 +44,11 @@ export function ProductsTableAction() {
         />
       </div>
 
-      <Button onClick={() => openModal('create')} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Producto
-      </Button>
+      {hasPermission('inventory:products', 'create') && (
+        <Button onClick={() => openModal('create')} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Producto
+        </Button>
+      )}
     </div>
   );
 }

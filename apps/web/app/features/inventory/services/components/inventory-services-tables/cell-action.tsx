@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { InventoryService } from '../../schemas/inventory-services.schema';
 import { useDeleteInventoryServiceMutation } from '../../hooks/use-inventory-services-mutations';
 import { InventoryServiceModal } from '../inventory-services-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface InventoryServicesCellActionProps {
   data: InventoryService;
@@ -24,6 +25,7 @@ export function InventoryServicesCellAction({
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const deleteMutation = useDeleteInventoryServiceMutation();
 
@@ -75,18 +77,25 @@ export function InventoryServicesCellAction({
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+
+          {hasPermission('inventory:services', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
+
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+
+          {hasPermission('inventory:services', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

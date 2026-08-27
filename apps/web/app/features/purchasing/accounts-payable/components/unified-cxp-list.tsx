@@ -19,6 +19,7 @@ import type { AccountsPayableApi } from '../schemas/accounts-payable-api.schema'
 import { STATUS_OPTIONS } from '../schemas/accounts-payable-options';
 import { AccountsPayableViewModal } from '@/features/purchasing/accounts-payable/components/accounts-payable-tables/accounts-payable-view-modal';
 import { BulkPaymentModal } from '@/features/purchasing/supplier-payments/components/bulk-payment-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   PENDING: 'secondary',
@@ -44,7 +45,7 @@ export function UnifiedCxpList() {
   const [viewAccountId, setViewAccountId] = useState<string | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [payingItems, setPayingItems] = useState<{ id: string; supplierId: string; supplierName: string; amount: number; reference: string }[]>([]);
-
+  const hasPermission = useAuthStore((state) => state.hasPermission);
   const allItems = (data?.data || []) as AccountsPayableApi[];
 
   const isPayable = (item: AccountsPayableApi) =>
@@ -183,7 +184,7 @@ export function UnifiedCxpList() {
                           <Eye className="mr-2 h-4 w-4" />
                           Ver Detalles
                         </DropdownMenuItem>
-                        {item.status === 'PENDING' && (
+                        {item.status === 'PENDING' && hasPermission("purchasing:accounts_payable", 'process') && (
                           <DropdownMenuItem
                             className="text-green-600"
                             onClick={() => authorizeCxp(item.id)}
@@ -192,7 +193,7 @@ export function UnifiedCxpList() {
                             Autorizar Pago
                           </DropdownMenuItem>
                         )}
-                        {isPayable(item) && (
+                        {isPayable(item) && hasPermission("purchasing:accounts_payable", "process") && (
                           <DropdownMenuItem onClick={() => handlePaySingle(item)}>
                             <Banknote className="mr-2 h-4 w-4" />
                             Pagar

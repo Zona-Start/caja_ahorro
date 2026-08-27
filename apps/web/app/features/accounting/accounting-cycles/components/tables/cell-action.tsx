@@ -23,6 +23,7 @@ import {
 } from '../../hooks/use-accounting-cycles-mutation';
 import { AccountingCycleModal } from '../accounting-cycle-modal';
 import { AccountingCycleDetailModal } from '../accounting-cycle-detail-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: AccountingCycle;
@@ -33,9 +34,9 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openView, setOpenView] = useState(false);
   const [openStatusConfirm, setOpenStatusConfirm] = useState(false);
   const [openDeleteConfirm, setOpenDeleteConfirm] = useState(false);
-
   const changeStatusMutation = useChangeCycleStatusMutation();
   const deleteMutation = useDeleteAccountingCycleMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const isOpen = data.status === 'OPEN';
   const isPending = data.status === 'PENDING';
@@ -115,10 +116,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission("accounting:cycles", "update") && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => setOpenStatusConfirm(true)}
@@ -127,7 +130,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             {statusActionIcon}
             {statusActionLabel}
           </DropdownMenuItem>
-          {!isOpen && (
+          {!isOpen && hasPermission("accounting:cycles", "delete") && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

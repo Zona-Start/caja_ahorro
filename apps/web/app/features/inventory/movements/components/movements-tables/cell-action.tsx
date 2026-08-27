@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, XCircle } from 'lucide-react';
 import type { InventoryMovement } from '../../schemas/movements.schema';
 import { useCancelMovementMutation } from '../../hooks/use-movements-queries';
 import { useMovementsModalStore } from '../../store/movements-modal.store';
+//import { useAuthStore } from '@/stores/auth.store';
 
 interface MovementsCellActionProps {
   data: InventoryMovement;
@@ -22,6 +23,7 @@ export function MovementsCellAction({ data }: MovementsCellActionProps) {
   const [openCancel, setOpenCancel] = useState(false);
   const cancelMutation = useCancelMovementMutation();
   const { openModal } = useMovementsModalStore();
+  //const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const onConfirmCancel = async () => {
     try {
@@ -60,13 +62,13 @@ export function MovementsCellAction({ data }: MovementsCellActionProps) {
             Ver Detalles
           </DropdownMenuItem>
           {/*
-          {!isCancelled && (
+          {!isCancelled && hasPermission('inventory:stock', 'update') && (
             <DropdownMenuItem onClick={() => openModal('edit', data)}>
               <Edit className="mr-2 h-4 w-4" />
               Editar
             </DropdownMenuItem>
           )}
-          {!isCancelled && (
+          {!isCancelled && hasPermission('inventory:stock', 'delete') && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

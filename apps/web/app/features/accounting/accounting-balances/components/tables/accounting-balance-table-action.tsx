@@ -8,6 +8,7 @@ import { BootstrappingModal } from '../bootstrapping-modal';
 import { CloseCycleModal } from '../close-cycle-modal';
 import { OpenCycleModal } from '../open-cycle-modal';
 import { useAccountingBalancesFilters } from '../../hooks/use-accounting-balances-filters';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function AccountingBalanceTableAction() {
   const { filters, setFilters } = useAccountingBalancesFilters();
@@ -16,6 +17,7 @@ export function AccountingBalanceTableAction() {
   const [isOpenCycleOpen, setIsOpenCycleOpen] = useState(false);
   const [localSearch, setLocalSearch] = useState(filters.search || '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { data: cyclesData } = useAccountingCycles();
   const { data: initialLoadData } = useHasInitialLoad();
@@ -49,7 +51,7 @@ export function AccountingBalanceTableAction() {
         </div>
       </div>
       <div className="flex gap-2">
-        {!hasInitialLoad && (
+        {!hasInitialLoad && hasPermission("accounting:balances", "read") && (
           <Button
             variant="outline"
             onClick={() => setIsBootstrappingOpen(true)}
@@ -58,23 +60,26 @@ export function AccountingBalanceTableAction() {
             Carga Inicial
           </Button>
         )}
+        {hasInitialLoad && hasPermission("accounting:journal_entries", "update") && (
+          <Button
+            variant="outline"
+            onClick={() => setIsCloseCycleOpen(true)}
+            disabled={!hasOpenCycle || !hasInitialLoad}
+          >
+            <FileLock className="mr-2 h-4 w-4" />
+            Cierre Contable
+          </Button>
+        )}
 
-        <Button
-          variant="outline"
-          onClick={() => setIsCloseCycleOpen(true)}
-          disabled={!hasOpenCycle || !hasInitialLoad}
-        >
-          <FileLock className="mr-2 h-4 w-4" />
-          Cierre Contable
-        </Button>
-
-        <Button
-          onClick={() => setIsOpenCycleOpen(true)}
-          disabled={hasOpenCycle}
-        >
-          <TableRowsSplit className="mr-2 h-4 w-4" />
-          Apertura Contable
-        </Button>
+        {hasInitialLoad && hasPermission("accounting:journal_entries", "update") && (
+          <Button
+            onClick={() => setIsOpenCycleOpen(true)}
+            disabled={hasOpenCycle}
+          >
+            <TableRowsSplit className="mr-2 h-4 w-4" />
+            Apertura Contable
+          </Button>
+        )}
       </div>
 
       <BootstrappingModal

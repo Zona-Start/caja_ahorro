@@ -15,6 +15,7 @@ import {
   useToggleSupplierStatusMutation,
 } from '../../hooks/use-suppliers-mutations';
 import { useSuppliersModalStore } from '../../store/suppliers-modal.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface SuppliersCellActionProps {
   data: Supplier;
@@ -28,6 +29,7 @@ export function SuppliersCellAction({ data }: SuppliersCellActionProps) {
 
   const deleteMutation = useDeleteSupplierMutation();
   const toggleMutation = useToggleSupplierStatusMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const onConfirmDelete = async () => {
     try {
@@ -88,23 +90,31 @@ export function SuppliersCellAction({ data }: SuppliersCellActionProps) {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openModal('edit', data)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+
+          {hasPermission('purchasing:suppliers', 'update') && (
+            <DropdownMenuItem onClick={() => openModal('edit', data)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setOpenToggle(true)}>
-            <Ban className="mr-2 h-4 w-4" />
-            {isActive ? 'Desactivar' : 'Activar'}
-          </DropdownMenuItem>
+
+          {hasPermission('purchasing:suppliers', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenToggle(true)}>
+              <Ban className="mr-2 h-4 w-4" />
+              {isActive ? 'Desactivar' : 'Activar'}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('purchasing:suppliers', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

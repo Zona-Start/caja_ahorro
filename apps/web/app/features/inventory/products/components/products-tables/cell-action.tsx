@@ -17,6 +17,7 @@ import { useToastSystem } from '@/hooks/use-toast-system';
 import { useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: Product;
@@ -26,6 +27,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: deleteProduct } = useDeleteProductMutation();
   const { openModal } = useProductsModalStore();
@@ -83,23 +85,29 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openModal('edit', data)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleToggleStatus} disabled={toggling}>
-            {isActive ? (
-              <PowerOff className="mr-2 h-4 w-4 text-amber-500" />
-            ) : (
-              <Power className="mr-2 h-4 w-4 text-green-500" />
-            )}
-            {isActive ? 'Deshabilitar' : 'Habilitar'}
-          </DropdownMenuItem>
+          {hasPermission('inventory:products', 'update') && (
+            <DropdownMenuItem onClick={() => openModal('edit', data)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
+          {hasPermission('inventory:products', 'update') && (
+            <DropdownMenuItem onClick={handleToggleStatus} disabled={toggling}>
+              {isActive ? (
+                <PowerOff className="mr-2 h-4 w-4 text-amber-500" />
+              ) : (
+                <Power className="mr-2 h-4 w-4 text-green-500" />
+              )}
+              {isActive ? 'Deshabilitar' : 'Habilitar'}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setOpen(true)} className="text-red-600">
-            <Trash className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('inventory:products', 'delete') && (
+            <DropdownMenuItem onClick={() => setOpen(true)} className="text-red-600">
+              <Trash className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

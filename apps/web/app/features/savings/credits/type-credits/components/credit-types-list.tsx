@@ -9,12 +9,14 @@ import { useCreditTypesQuery } from '../hooks/use-credit-types-query';
 import { columns } from './tables/columns';
 import { CreditTypesHeader } from './credit-types-header';
 import { CreditTypesModal } from './credit-types-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function CreditTypesList() {
   const { filters, setFilters } = useCreditTypesFilters();
   const { data, isLoading } = useCreditTypesQuery(filters);
   const [openModal, setOpenModal] = useState(false);
   const [searchVal, setSearchVal] = useState(filters.search || '');
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   // Synchronize local search state with filters.search when filters.search changes externally
   useEffect(() => {
@@ -49,11 +51,12 @@ export default function CreditTypesList() {
             className="w-full sm:w-[300px]"
           />
         </div>
-
-        <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Tipo de Crédito
-        </Button>
+        {hasPermission("portfolio:credits-types", "create") && (
+          <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Tipo de Crédito
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

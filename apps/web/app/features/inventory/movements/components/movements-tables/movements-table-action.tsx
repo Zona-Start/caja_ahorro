@@ -10,6 +10,7 @@ import {
   MOVEMENT_STATUS_OPTIONS,
 } from '../../schemas/movements-options';
 import { useMovementsModalStore } from '../../store/movements-modal.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 const TYPE_OPTIONS = Object.entries(MOVEMENT_TYPE_OPTIONS).map(([value, label]) => ({
   value,
@@ -25,6 +26,7 @@ export default function MovementsTableAction() {
   const { filters, setFilters } = useMovementsFilters();
   const { openModal } = useMovementsModalStore();
   const [searchValue, setSearchValue] = useState(filters.search ?? '');
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -66,9 +68,12 @@ export default function MovementsTableAction() {
           filterValue={filters.status ?? ''}
         />
       </div>
-      <Button onClick={() => openModal('create')} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Nuevo Movimiento
-      </Button>
+      {hasPermission('inventory:stock', 'create') && (
+        <Button onClick={() => openModal('create')} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Nuevo Movimiento
+        </Button>
+      )}
+
       <MovementsModal />
     </div>
   );

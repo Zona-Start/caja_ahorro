@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useDeleteLoanTypeMutation, useLoanTypeQuery } from '../../hooks/use-type-loans-query';
 import type { LoanType } from '../../schemas/loan-types.schema';
 import { LoanTypesModal } from '../loan-types-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: LoanType;
@@ -23,6 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: deleteLoanType } = useDeleteLoanTypeMutation();
   const { data: loanTypeData } = useLoanTypeQuery(selectedId!, selectedId !== null);
@@ -30,7 +32,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const onConfirm = async () => {
     try {
       setLoading(true);
-      deleteLoanType(data.id!);
+      deleteLoanType(Number(data.id!));
       setOpenDelete(false);
     } catch (error) {
       console.error('Error:', error);
@@ -40,12 +42,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   };
 
   const handleView = () => {
-    setSelectedId(data.id!);
+    setSelectedId(Number(data.id!));
     setOpenView(true);
   };
 
   const handleEdit = () => {
-    setSelectedId(data.id!);
+    setSelectedId(Number(data.id!));
     setOpenEdit(true);
   };
 
@@ -95,18 +97,22 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleEdit}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission('portfolio:loans-types', 'update') && (
+            <DropdownMenuItem onClick={handleEdit}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('portfolio:loans-types', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

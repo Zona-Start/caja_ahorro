@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { InventoryFixedAsset } from '../../schemas/inventory-fixed-assets.schema';
 import { useDeleteInventoryFixedAssetMutation } from '../../hooks/use-inventory-fixed-assets-mutations';
 import { useInventoryFixedAssetsModalStore } from '../../store/inventory-fixed-assets-modal.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface InventoryFixedAssetsCellActionProps {
   data: InventoryFixedAsset;
@@ -22,6 +23,7 @@ export function InventoryFixedAssetsCellAction({
 }: InventoryFixedAssetsCellActionProps) {
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const deleteMutation = useDeleteInventoryFixedAssetMutation();
   const { openModal } = useInventoryFixedAssetsModalStore();
@@ -60,18 +62,22 @@ export function InventoryFixedAssetsCellAction({
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openModal('edit', data)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission('inventory:assets', 'update') && (
+            <DropdownMenuItem onClick={() => openModal('edit', data)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('inventory:assets', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

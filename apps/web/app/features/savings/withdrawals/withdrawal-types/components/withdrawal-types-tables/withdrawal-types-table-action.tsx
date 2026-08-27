@@ -4,10 +4,12 @@ import { Button } from '@repo/shadcn/button';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
 import { useWithdrawalTypesFilters } from '../../hooks/use-withdrawal-types-filters';
 import { WithdrawalTypesModal } from '../withdrawal-types-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function WithdrawalTypesTableAction() {
   const { filters, setFilters } = useWithdrawalTypesFilters();
   const [open, setOpen] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <div className="flex items-center justify-between mt-4">
@@ -20,9 +22,11 @@ export function WithdrawalTypesTableAction() {
           setPage={(p) => setFilters({ page: p })}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Tipo
-      </Button>
+      {hasPermission("savings:withdrawal-types", "create") && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Tipo
+        </Button>
+      )}
 
       <WithdrawalTypesModal open={open} onOpenChange={setOpen} />
     </div>

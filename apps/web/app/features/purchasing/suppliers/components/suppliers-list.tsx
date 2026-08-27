@@ -18,6 +18,7 @@ import { SuppliersModal } from './suppliers-modal';
 export default function SuppliersList() {
   const { user } = useAuthStore();
   const isSuperAdmin = user?.isSystemAdmin ?? false;
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { filters } = useSuppliersFilters();
   const { data, isLoading } = useSuppliersQuery(filters);
@@ -55,9 +56,11 @@ export default function SuppliersList() {
 
       <div className="flex items-center justify-between">
         <SuppliersFiltersAction />
-        <Button onClick={() => openModal('create')} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Nuevo Proveedor
-        </Button>
+        {hasPermission('purchasing:suppliers', 'create') && (
+          <Button onClick={() => openModal('create')} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Proveedor
+          </Button>
+        )}
       </div>
 
       <DataTable

@@ -7,23 +7,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { X } from 'lucide-react';
+import { FileText, FileWarning, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { SupplierInvoicesFilters } from '../../hooks/use-supplier-invoices-filters';
 import { INVOICE_STATUS_LABELS } from '../../schemas/supplier-invoice-options';
+import { useSupplierInvoicesModalStore } from '../../store/supplier-invoices-modal.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface SupplierInvoicesTableActionProps {
   filters: SupplierInvoicesFilters;
   setFilters: (newFilters: Partial<SupplierInvoicesFilters>) => void;
   clearFilters: () => void;
 }
+interface Props {
+  onCreditDebitClick?: () => void;
+}
+
 
 export function SupplierInvoicesTableAction({
   filters,
   setFilters,
   clearFilters,
-}: SupplierInvoicesTableActionProps) {
+  onCreditDebitClick
+}: SupplierInvoicesTableActionProps & Props) {
   const [searchValue, setSearchValue] = useState(filters.search || '');
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+  const { openModal } = useSupplierInvoicesModalStore();
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -46,7 +55,7 @@ export function SupplierInvoicesTableAction({
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex items-center justify-between gap-2 flex-wrap">
       <Input
         placeholder="Buscar facturas..."
         value={searchValue}
@@ -77,6 +86,20 @@ export function SupplierInvoicesTableAction({
           Limpiar
         </Button>
       )}
+      <div className="flex items-center gap-2">
+        {hasPermission('purchasing:invoices', 'create') && (
+          <Button onClick={() => openModal('create')}>
+            <FileText className="mr-2 h-4 w-4" />
+            Nueva Factura
+          </Button>
+        )}
+        {hasPermission('purchasing:invoices', 'create') && (
+          <Button variant="outline" onClick={onCreditDebitClick}>
+            <FileWarning className="mr-2 h-4 w-4" />
+            Nueva N/C o N/D
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

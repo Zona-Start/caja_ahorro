@@ -92,17 +92,17 @@ export function DataTable<TData, TValue>({
     <div className="flex flex-col space-y-4 w-full">
       <div className="rounded-md border bg-card overflow-x-auto">
         <Table>
-          <TableHeader className="bg-muted">
+          <TableHeader className="bg-primary/80">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap">
+                  <TableHead key={header.id} className="whitespace-nowrap text-foreground">
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                   </TableHead>
                 ))}
               </TableRow>

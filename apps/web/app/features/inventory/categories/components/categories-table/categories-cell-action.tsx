@@ -13,6 +13,7 @@ import { type Category } from '../../schemas/categories.schema';
 import { useDeleteCategoryMutation } from '../../hooks/use-categories-mutations';
 import { useCategoriesModalStore } from '../../store/categories-modal.store';
 import { CategoriesViewModal } from '../categories-view-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CategoriesCellActionProps {
   data: Category;
@@ -23,6 +24,7 @@ export function CategoriesCellAction({ data }: CategoriesCellActionProps) {
   const [openDelete, setOpenDelete] = useState(false);
   const [openView, setOpenView] = useState(false);
   const { openModal } = useCategoriesModalStore();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const deleteMutation = useDeleteCategoryMutation();
 
@@ -66,18 +68,22 @@ export function CategoriesCellAction({ data }: CategoriesCellActionProps) {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openModal('edit', data)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission('inventory:categories', 'update') && (
+            <DropdownMenuItem onClick={() => openModal('edit', data)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('inventory:categories', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

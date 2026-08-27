@@ -12,6 +12,7 @@ import {
 import { Plus } from 'lucide-react';
 import { useCreditsFilters } from '../../hooks/use-credits-filters';
 import { ESTATUS_TYPES } from '../../schemas/credits-management-options';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface OrdinaryCreditsTableActionProps {
   onNewCredit: () => void;
@@ -28,6 +29,7 @@ export function OrdinaryCreditsTableAction({
       label,
     }),
   );
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -59,10 +61,11 @@ export function OrdinaryCreditsTableAction({
           </SelectContent>
         </Select>
       </div>
-
-      <Button size="sm" onClick={onNewCredit}>
-        <Plus className="mr-2 h-4 w-4" /> Nuevo Crédito
-      </Button>
+      {hasPermission("portfolio:credits", "create") && (
+        <Button size="sm" onClick={onNewCredit}>
+          <Plus className="mr-2 h-4 w-4" /> Nuevo Crédito
+        </Button>
+      )}
     </div>
   );
 }

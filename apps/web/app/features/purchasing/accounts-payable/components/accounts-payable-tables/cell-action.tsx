@@ -12,6 +12,7 @@ import { CheckCircle, Eye, MoreHorizontal } from 'lucide-react';
 import { useAuthorizeAccountsPayableMutation } from '../../hooks/use-accounts-payable-mutations';
 import type { AccountsPayableApi } from '../../schemas/accounts-payable-api.schema';
 import { AccountsPayableViewModal } from './accounts-payable-view-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: AccountsPayableApi;
@@ -21,6 +22,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [openAuthorize, setOpenAuthorize] = useState(false);
   const [openView, setOpenView] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutateAsync: authorize } = useAuthorizeAccountsPayableMutation();
 
@@ -66,7 +68,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          {isPending && (
+          {isPending && hasPermission('purchasing:accounts_payable', 'process') && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

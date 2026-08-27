@@ -98,15 +98,15 @@ function EntitySelector({
       );
     }
     if (operation === 'LOAN_TYPE' && loanData?.data) {
-      return loanData.data.map((l: { id: number; name: string }) => ({
-        value: String(l.id),
+      return loanData.data.map((l) => ({
+        value: l.id ?? '',
         label: l.name,
         configured: configuredRefs.has(l.name),
       }));
     }
     if (operation === 'CREDIT_TYPE' && creditData?.data) {
-      return creditData.data.map((c: { id: number; name: string }) => ({
-        value: String(c.id),
+      return creditData.data.map((c) => ({
+        value: c.id ?? '',
         label: c.name,
         configured: configuredRefs.has(c.name),
       }));

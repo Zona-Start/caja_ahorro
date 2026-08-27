@@ -11,6 +11,7 @@ import {
 } from '../../schemas/contribution-batches-options';
 import type { ContributionBatchesFilters } from '../../hooks/use-contribution-batches-filters';
 import type { Options } from 'nuqs';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface ContributionBatchesTableActionProps {
   filters: ContributionBatchesFilters;
@@ -41,6 +42,7 @@ export function ContributionBatchesTableAction({
   onCargaIndividual,
   onCargaMasiva,
 }: ContributionBatchesTableActionProps) {
+  const hasPermission = useAuthStore((state) => state.hasPermission);
   const setSearchQueryDummy = (
     value: string | null,
     _options?: Options,
@@ -114,12 +116,16 @@ export function ContributionBatchesTableAction({
         />
       </div>
       <div className="flex gap-2 shrink-0">
-        <Button onClick={onCargaIndividual} size="sm" className="gap-1.5">
-          <User className="h-4 w-4" /> Carga Individual
-        </Button>
-        <Button onClick={onCargaMasiva} size="sm" variant="outline" className="gap-1.5">
-          <FileSpreadsheet className="h-4 w-4" /> Carga Masiva
-        </Button>
+        {hasPermission("savings:contributions", "create") && (
+          <Button onClick={onCargaIndividual} size="sm" className="gap-1.5">
+            <User className="h-4 w-4" /> Carga Individual
+          </Button>
+        )}
+        {hasPermission("savings:contributions", "mass_upload") && (
+          <Button onClick={onCargaMasiva} size="sm" variant="outline" className="gap-1.5">
+            <FileSpreadsheet className="h-4 w-4" /> Carga Masiva
+          </Button>
+        )}
       </div>
     </div>
   );

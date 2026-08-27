@@ -27,6 +27,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutateAsync: deleteCategory } = useDeleteCategoryMutation();
 
@@ -77,11 +78,13 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
-          {isSuperAdmin && (
+          {hasPermission('catalog:categories', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
+          {isSuperAdmin && hasPermission('catalog:categories', 'delete') && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

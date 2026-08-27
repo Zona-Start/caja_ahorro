@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Currency } from '../../schemas/currencies.schema';
 import { useDeleteCurrencyMutation } from '../../hooks/use-currencies-mutations';
 import { CurrenciesModal } from '../currencies-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CurrenciesCellActionProps {
   data: Currency;
@@ -24,6 +25,7 @@ export function CurrenciesCellAction({ data }: CurrenciesCellActionProps) {
   const [openView, setOpenView] = useState(false);
 
   const deleteMutation = useDeleteCurrencyMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const onConfirmDelete = async () => {
     try {
@@ -69,22 +71,28 @@ export function CurrenciesCellAction({ data }: CurrenciesCellActionProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setOpenView(true)}>
-            <Eye className="mr-2 h-4 w-4" />
-            Ver Detalles
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission('system:currencies', 'read') && (
+            <DropdownMenuItem onClick={() => setOpenView(true)}>
+              <Eye className="mr-2 h-4 w-4" />
+              Ver Detalles
+            </DropdownMenuItem>
+          )}
+          {hasPermission('system:currencies', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('system:currencies', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

@@ -11,6 +11,7 @@ import {
   STATUS_OPTIONS,
 } from '../../schemas/bank-account-options';
 import { BankAccountModal } from '../bank-account-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 const ACCOUNT_TYPE_FILTER_OPTIONS = Object.entries(ACCOUNT_TYPE_OPTIONS).map(
   ([value, label]) => ({
@@ -36,6 +37,7 @@ const STATUS_FILTER_OPTIONS = Object.entries(STATUS_OPTIONS).map(
 export default function BankAccountTableAction() {
   const [open, setOpen] = useState(false);
   const { filters, setFilters } = useBankAccountFilters();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const [searchInput, setSearchInput] = useState(filters.search || '');
   const debouncedSearch = useDebounce(searchInput, 400);
@@ -84,9 +86,12 @@ export default function BankAccountTableAction() {
           filterValue={filters.isActive || ''}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Cuenta
-      </Button>
+
+      {hasPermission('banking:accounts', 'create') && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Cuenta
+        </Button>
+      )}
 
       <BankAccountModal open={open} onOpenChange={setOpen} />
     </div>

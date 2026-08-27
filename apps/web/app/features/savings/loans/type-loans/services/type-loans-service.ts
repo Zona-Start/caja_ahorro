@@ -13,7 +13,7 @@ export interface LoanTypesQueryParams {
   sortOrder?: 'asc' | 'desc';
 }
 
-interface LoanTypesPaginatedResponse {
+export interface LoanTypesPaginatedResponse {
   data: LoanType[];
   meta: {
     page: number;

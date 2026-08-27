@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { useReverseContributionBatch } from '../../hooks/use-contribution-batches-mutation';
 import type { ContributionBatch } from '../../schemas/contribution-batches.schema';
 import { ContributionBatchesDetailModal } from '../contribution-batches-detail-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: ContributionBatch;
@@ -23,6 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [showReversalModal, setShowReversalModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: reverseBatch } = useReverseContributionBatch();
 
@@ -66,7 +68,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver detalles
           </DropdownMenuItem>
-          {data.status !== 'reversed' && (
+          {data.status !== 'reversed' && hasPermission("savings:contributions", "mass_upload") && (
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => setShowReversalModal(true)}

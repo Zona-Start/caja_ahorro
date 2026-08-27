@@ -18,6 +18,7 @@ import {
 import type { AccountingEntry } from '../../schemas/accounting-entry.schema';
 import { AccountingEntryModal } from '../accounting-entry-modal';
 import { ViewAccountingEntryModal } from '../view-accounting-entry-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: AccountingEntry;
@@ -35,6 +36,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const submitEntryMutation = useSubmitAccountingEntryMutation();
   const postEntryMutation = usePostAccountingEntryMutation();
   const cancelEntryMutation = useCancelAccountingEntryMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const isPending =
     deleteEntryMutation.isPending ||
@@ -116,36 +118,42 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalle
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setEditOpen(true)}
-            disabled={data.status !== 'DRAFT'}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission("accounting:journal_entries", "update") && (
+            <DropdownMenuItem
+              onClick={() => setEditOpen(true)}
+              disabled={data.status !== 'DRAFT'}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => {
-              setAction('submit');
-              setAlertOpen(true);
-            }}
-            disabled={data.status !== 'DRAFT'}
-          >
-            <Send className="mr-2 h-4 w-4" />
-            Enviar
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => {
-              setAction('post');
-              setAlertOpen(true);
-            }}
-            disabled={data.status !== 'PENDING'}
-          >
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Contabilizar
-          </DropdownMenuItem>
+          {hasPermission("accounting:journal_entries", "update") && (
+            <DropdownMenuItem
+              onClick={() => {
+                setAction('submit');
+                setAlertOpen(true);
+              }}
+              disabled={data.status !== 'DRAFT'}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Enviar
+            </DropdownMenuItem>
+          )}
+          {hasPermission("accounting:journal_entries", "approve") && (
+            <DropdownMenuItem
+              onClick={() => {
+                setAction('post');
+                setAlertOpen(true);
+              }}
+              disabled={data.status !== 'PENDING'}
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Contabilizar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          {data.status !== 'POSTED' && (
+          {data.status !== 'POSTED' && hasPermission("accounting:journal_entries", "reject") && (
             <DropdownMenuItem
               onClick={() => {
                 setAction('delete');
@@ -158,7 +166,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               Eliminar
             </DropdownMenuItem>
           )}
-          {data.status === 'POSTED' && (
+          {data.status === 'POSTED' && hasPermission("accounting:journal_entries", "reject") && (
             <DropdownMenuItem
               onClick={() => {
                 setAction('cancel');

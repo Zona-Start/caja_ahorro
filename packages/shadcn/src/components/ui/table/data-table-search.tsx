@@ -10,13 +10,13 @@ interface DataTableSearchProps {
   searchKey: string;
   searchQuery: string;
   setSearchQuery: (
-    value: string | ((old: string) => string | null) | null,
-    options?: Options | undefined,
-  ) => Promise<URLSearchParams>;
-  setPage: <Shallow>(
-    value: number | ((old: number) => number | null) | null,
-    options?: Options | undefined,
-  ) => Promise<URLSearchParams>;
+    value: any,
+    options?: any,
+  ) => any;
+  setPage: (
+    value: any,
+    options?: any,
+  ) => any;
   w?: string;
 }
 

@@ -22,6 +22,7 @@ export default function CategoriesList() {
   const { filters } = useCategoriesFilters();
   const { data, isLoading } = useCategoriesQuery(filters);
   const { isOpen, mode, data: modalData, closeModal, openModal } = useCategoriesModalStore();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { data: tenantsData } = useQuery({
     queryKey: TENANTS_KEYS.list({}),
@@ -55,9 +56,11 @@ export default function CategoriesList() {
 
       <div className="flex items-center justify-between">
         <CategoriesFiltersAction />
-        <Button onClick={() => openModal('create')} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Agregar Categoría
-        </Button>
+        {hasPermission('inventory:categories', 'create') && (
+          <Button onClick={() => openModal('create')} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Agregar Categoría
+          </Button>
+        )}
       </div>
 
       <DataTable

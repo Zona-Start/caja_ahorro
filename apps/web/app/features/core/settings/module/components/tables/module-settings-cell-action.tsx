@@ -27,6 +27,7 @@ export function ModuleSettingsCellAction({ data }: ModuleSettingsCellActionProps
   const [openView, setOpenView] = useState(false);
 
   const deleteMutation = useDeleteModuleSettingMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const canDelete = isSuperAdmin;
 
@@ -78,10 +79,12 @@ export function ModuleSettingsCellAction({ data }: ModuleSettingsCellActionProps
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem> */}
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission('system:modules', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           {canDelete && (
             <>
               <DropdownMenuSeparator />

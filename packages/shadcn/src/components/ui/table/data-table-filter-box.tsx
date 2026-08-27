@@ -35,9 +35,9 @@ interface FilterBoxProps {
   title: string;
   options: FilterOption[];
   setFilterValue: (
-    value: string | ((old: string) => string | null) | null,
+    value: string | undefined,
     options?: Options | undefined,
-  ) => Promise<URLSearchParams>;
+  ) => Promise<URLSearchParams> | void | Promise<void>;
   filterValue: string;
 }
 
@@ -55,10 +55,10 @@ export function DataTableFilterBox({
 
   const handleSelect = (value: string) => {
     // If the value is already selected, clear it, otherwise set the new value
-    setFilterValue(value === selectedValue ? null : value);
+    setFilterValue(value === selectedValue ? undefined : value);
   };
 
-  const resetFilter = () => setFilterValue(null);
+  const resetFilter = () => setFilterValue(undefined);
 
   return (
     <TooltipProvider>

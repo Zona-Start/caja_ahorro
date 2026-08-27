@@ -13,6 +13,7 @@ import { User } from '../../schemas/users.schema';
 import { useDeleteUserMutation } from '../../hooks/use-users-mutations';
 import { UsersModal } from '../users-modal';
 import { UsersViewModal } from '../users-view-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface UsersCellActionProps {
   data: User;
@@ -23,6 +24,7 @@ export function UsersCellAction({ data }: UsersCellActionProps) {
   const [openDelete, setOpenDelete] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const getDefaultValuesForEdit = () => {
     const firstMember = data.tenantMembers?.[0];
@@ -82,18 +84,22 @@ export function UsersCellAction({ data }: UsersCellActionProps) {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setOpenEdit(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission('iam:users', 'update') && (
+            <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission('iam:users', 'delete') && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

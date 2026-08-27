@@ -18,6 +18,7 @@ export default function UsersList() {
   const { filters, setFilters } = useUsersFilters();
   const { data, isLoading } = useUsersQuery(filters);
   const [openModal, setOpenModal] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   if (isLoading) {
     return <DataTableSkeleton columnCount={6} rowCount={filters.limit} />;
@@ -28,10 +29,10 @@ export default function UsersList() {
   const columns = isSystemAdmin
     ? usersColumns
     : usersColumns.filter((col) => {
-        if (col.id === 'tenant') return false;
-        if ('accessorKey' in col && col.accessorKey === 'tenantMembers') return false;
-        return true;
-      });
+      if (col.id === 'tenant') return false;
+      if ('accessorKey' in col && col.accessorKey === 'tenantMembers') return false;
+      return true;
+    });
 
   return (
     <div className="space-y-4">
@@ -40,10 +41,12 @@ export default function UsersList() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <UsersFiltersAction filters={filters} setFilters={setFilters} />
 
-        <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo Usuario
-        </Button>
+        {hasPermission('iam:users', 'create') && (
+          <Button onClick={() => setOpenModal(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Usuario
+          </Button>
+        )}
       </div>
 
       <DataTable

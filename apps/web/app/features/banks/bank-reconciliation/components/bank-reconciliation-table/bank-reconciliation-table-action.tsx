@@ -6,6 +6,7 @@ import { useBankReconciliationFilters } from '../../hooks/use-bank-reconciliatio
 import { RECONCILIATION_STATUS_OPTIONS } from '../../schemas/bank-reconciliation-options';
 import { BankReconciliationModal } from '../bank-reconciliation-modal';
 import { BankReconciliationUploadModal } from '../bank-reconciliation-upload';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_FILTER_OPTIONS = Object.entries(RECONCILIATION_STATUS_OPTIONS).map(
   ([value, label]) => ({ value, label }),
@@ -15,6 +16,7 @@ export default function BankReconciliationTableAction() {
   const [openCreate, setOpenCreate] = useState(false);
   const [openUpload, setOpenUpload] = useState(false);
   const { filters, setFilters } = useBankReconciliationFilters();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <div className="flex items-center justify-between mt-4 flex-wrap gap-2">
@@ -28,12 +30,16 @@ export default function BankReconciliationTableAction() {
         />
       </div>
       <div className="flex gap-2">
-        <Button onClick={() => setOpenUpload(true)} size="sm" variant="outline">
-          <Upload className="mr-2 h-4 w-4" /> Subir Excel
-        </Button>
-        <Button onClick={() => setOpenCreate(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Nueva Conciliación
-        </Button>
+        {hasPermission('banking:reconciliation', 'create') && (
+          <Button onClick={() => setOpenUpload(true)} size="sm" variant="outline">
+            <Upload className="mr-2 h-4 w-4" /> Subir Excel
+          </Button>
+        )}
+        {hasPermission('banking:reconciliation', 'create') && (
+          <Button onClick={() => setOpenCreate(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Nueva Conciliación
+          </Button>
+        )}
       </div>
 
       <BankReconciliationModal open={openCreate} onOpenChange={setOpenCreate} />

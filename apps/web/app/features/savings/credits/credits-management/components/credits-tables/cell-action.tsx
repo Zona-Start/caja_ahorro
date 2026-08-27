@@ -16,6 +16,7 @@ import {
   useDeleteCreditManagementMutation,
 } from '../../hooks/use-credits-management-mutation';
 import type { CreditTableRow } from './columns';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: CreditTableRow;
@@ -25,6 +26,7 @@ interface CellActionProps {
 export const CellAction: React.FC<CellActionProps> = ({ data, onViewDetails }) => {
   const [openApprove, setOpenApprove] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: approveCredit, isPending: isApproving } =
     useApproveCreditManagementMutation();
@@ -77,20 +79,24 @@ export const CellAction: React.FC<CellActionProps> = ({ data, onViewDetails }) =
           {data.status === 'REQUESTED' && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => setOpenApprove(true)}
-                className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
-              >
-                <CheckSquare className="mr-2 h-4 w-4" />
-                Aprobar Crédito
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setOpenDelete(true)}
-                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Eliminar
-              </DropdownMenuItem>
+              {hasPermission("portfolio:credits", "approve") && (
+                <DropdownMenuItem
+                  onClick={() => setOpenApprove(true)}
+                  className="text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50"
+                >
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  Aprobar Crédito
+                </DropdownMenuItem>
+              )}
+              {hasPermission("portfolio:credits", "reject") && (
+                <DropdownMenuItem
+                  onClick={() => setOpenDelete(true)}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Eliminar
+                </DropdownMenuItem>
+              )}
             </>
           )}
         </DropdownMenuContent>

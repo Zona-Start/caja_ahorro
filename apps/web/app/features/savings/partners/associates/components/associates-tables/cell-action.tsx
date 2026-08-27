@@ -18,6 +18,7 @@ import {
 import { type AssociatesMutate } from '../../schemas/associates.schema';
 import { AssociatesModal } from '../associates-modal';
 import { AssociatesDetailsModal } from '../associates-details-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: AssociatesMutate;
@@ -29,6 +30,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
   const [associateId, setAssociateId] = useState<string | null>(null);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: deleteAssociate, isPending: loading } =
     useDeleteAssociateMutation();
@@ -114,6 +116,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               baseSalary: String(
                 Number(associateData.data.baseSalary).toFixed(2),
               ),
+              accountNumber: String(associateData.data.accountNumber || ''),
+              associatedTypeId: String(associateData.data.associatedTypeId || ''),
+              balance: String(associateData.data.balance || ''),
+              openingDate: associateData.data.openingDate || '',
             }}
           />
 
@@ -139,28 +145,34 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={handleEdit}
-            disabled={!allowedStatuses.includes(data.status)}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
+          {hasPermission("savings:members", "update") && (
+            <DropdownMenuItem
+              onClick={handleEdit}
+              disabled={!allowedStatuses.includes(data.status)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenInactive(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            Inactivar
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission("savings:members", "update") && (
+            <DropdownMenuItem
+              onClick={() => setOpenInactive(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Inactivar
+            </DropdownMenuItem>
+          )}
+          {hasPermission("savings:members", "delete") && (
+            <DropdownMenuItem
+              onClick={() => setOpenDelete(true)}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Eliminar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

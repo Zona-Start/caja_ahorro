@@ -11,6 +11,7 @@ import { usePendingPaymentsQuery } from '../hooks/use-supplier-payments-queries'
 import { usePendingPaymentsFilters } from '../hooks/use-pending-payments-filters';
 import type { PendingPaymentApi } from '../schemas/supplier-payment-api.schema';
 import { BulkPaymentModal } from './bulk-payment-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   APPROVED: 'default',
@@ -31,6 +32,7 @@ export function PendingPaymentsList() {
   const { data, isLoading } = usePendingPaymentsQuery(filters);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const items = useMemo(() => data?.data?.filter((i) => i.type === 'ACCOUNTS_PAYABLE') ?? [], [data]);
   const selectedItems = useMemo(
@@ -108,15 +110,17 @@ export function PendingPaymentsList() {
             </div>
           )}
 
-          <Button
-            variant="default"
-            size={selectedItems.length > 0 ? 'lg' : 'default'}
-            disabled={selectedItems.length === 0 || !allSameSupplier}
-            onClick={() => setShowPaymentModal(true)}
-          >
-            <Banknote className="mr-2 h-4 w-4" />
-            Pagar Seleccionadas ({selectedItems.length})
-          </Button>
+          {hasPermission("purchasing:payments", "process") && (
+            <Button
+              variant="default"
+              size={selectedItems.length > 0 ? 'lg' : 'default'}
+              disabled={selectedItems.length === 0 || !allSameSupplier}
+              onClick={() => setShowPaymentModal(true)}
+            >
+              <Banknote className="mr-2 h-4 w-4" />
+              Pagar Seleccionadas ({selectedItems.length})
+            </Button>
+          )}
         </div>
 
         {selectedItems.length > 0 && !allSameSupplier && (

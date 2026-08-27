@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AccountingCycleModal } from '../accounting-cycle-modal';
 import { useAccountingCyclesFilters } from '../../hooks/use-accounting-cycles-filters';
 import { CYCLE_STATUS_FILTER_OPTIONS } from '../../schemas/accounting-cycle-options';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function AccountingCycleTableAction() {
   const [open, setOpen] = useState(false);
@@ -14,6 +15,7 @@ export default function AccountingCycleTableAction() {
   const [startDate, setStartDate] = useState(filters.startDate || '');
   const [endDate, setEndDate] = useState(filters.endDate || '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   useEffect(() => {
     setSearchValue(filters.search || '');
@@ -91,9 +93,11 @@ export default function AccountingCycleTableAction() {
           />
         </div>
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Ciclo
-      </Button>
+      {hasPermission("accounting:cycles", "create") && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Ciclo
+        </Button>
+      )}
 
       <AccountingCycleModal open={open} onOpenChange={setOpen} />
     </div>

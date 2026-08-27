@@ -7,6 +7,7 @@ import { useAccountingCycles } from '../../../accounting-cycles/hooks/use-accoun
 import { AccountingEntryModal } from '../accounting-entry-modal';
 import { useAccountingEntriesFilters } from '../../hooks/use-accounting-entries-filters';
 import { ENTRY_STATUS } from '../../schemas/accounting-entry-options';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_OPTIONS = Object.entries(ENTRY_STATUS).map(([value, label]) => ({
   value,
@@ -20,6 +21,7 @@ export default function AccountingEntryTableAction() {
 
   const [searchValue, setSearchValue] = useState(filters.search || '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   useEffect(() => {
     setSearchValue(filters.search || '');
@@ -63,9 +65,11 @@ export default function AccountingEntryTableAction() {
           filterValue={filters.accountingCycleId || ''}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Crear Asiento
-      </Button>
+      {hasPermission("accounting:journal_entries", "create") && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Crear Asiento
+        </Button>
+      )}
 
       <AccountingEntryModal open={open} onOpenChange={setOpen} />
     </div>

@@ -23,6 +23,7 @@ import {
   useProcessWithdrawalMutation,
 } from '../../hooks/use-withdrawal-query';
 import { type WithdrawalPaymentApi } from '../../schemas/withdrawal-api-response';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: WithdrawalPaymentApi;
@@ -32,6 +33,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openDelete, setOpenDelete] = useState(false);
   const [openApprove, setOpenApprove] = useState(false);
   const [openProcess, setOpenProcess] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: deleteWithdrawal, isPending: deleting } =
     useDeleteWithdrawalMutation();
@@ -115,7 +117,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               Ver Detalles
             </DropdownMenuItem>
 
-            {data.status === 'REQUESTED' && (
+            {data.status === 'REQUESTED' && hasPermission("savings:withdrawals", "approve") && (
               <DropdownMenuItem
                 onClick={() => setOpenApprove(true)}
                 disabled={isUpdating}
@@ -125,7 +127,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </DropdownMenuItem>
             )}
 
-            {data.status === 'APPROVED' && isItemBased && (
+            {data.status === 'APPROVED' && isItemBased && hasPermission("savings:withdrawals", "approve") && (
               <DropdownMenuItem
                 onClick={() => setOpenProcess(true)}
                 disabled={isUpdating || isProcessing}
@@ -135,7 +137,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </DropdownMenuItem>
             )}
 
-            {data.status === 'APPROVED' && !isItemBased && (
+            {data.status === 'APPROVED' && !isItemBased && hasPermission("savings:withdrawals", "disburse") && (
               <DropdownMenuItem
                 onClick={handleDisburse}
                 disabled={isUpdating || isProcessing}
@@ -145,7 +147,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               </DropdownMenuItem>
             )}
 
-            {data.status === 'REQUESTED' && (
+            {data.status === 'REQUESTED' && hasPermission("savings:withdrawals", "reject") && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

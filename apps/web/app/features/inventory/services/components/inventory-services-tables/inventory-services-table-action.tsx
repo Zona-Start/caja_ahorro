@@ -7,6 +7,7 @@ import { InventoryServiceModal } from '../inventory-services-modal';
 import { useInventoryServicesFilters } from '../../hooks/use-inventory-services-filters';
 import { INVENTORY_SERVICE_STATUS_OPTIONS } from '../../schemas/inventory-services-options';
 import { useCategoriesQuery } from '../../hooks/use-inventory-services-queries';
+import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_OPTIONS = Object.entries(INVENTORY_SERVICE_STATUS_OPTIONS).map(([value, label]) => ({ value, label }));
 
@@ -14,6 +15,7 @@ export default function InventoryServicesTableAction() {
   const [open, setOpen] = useState(false);
   const { search, setSearch, filters, setFilters } = useInventoryServicesFilters();
   const { data: categories } = useCategoriesQuery();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   return (
     <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -39,9 +41,13 @@ export default function InventoryServicesTableAction() {
           filterValue={filters.categoryId || ''}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Servicio
-      </Button>
+
+      {hasPermission('inventory:services', 'create') && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Servicio
+        </Button>
+      )}
+
       <InventoryServiceModal open={open} onOpenChange={setOpen} />
     </div>
   );

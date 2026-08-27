@@ -8,7 +8,7 @@ import {
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { type LoanType, type LoanTypeMutation } from '../schemas/loan-types.schema';
-import { loanTypesService } from '../services/type-loans-service';
+import { loanTypesService, type LoanTypesPaginatedResponse } from '../services/type-loans-service';
 import { type LoanTypesFilters } from './use-loan-types-filters';
 
 const mapFiltersToApiParams = (filters: LoanTypesFilters) => ({
@@ -36,7 +36,7 @@ const getErrorMessage = (error: unknown) => {
 export function useLoanTypesQuery(
   filters: LoanTypesFilters,
   enabled: boolean = true,
-): UseQueryResult<{ data: LoanType[]; meta: Record<string, unknown> }> {
+): UseQueryResult<LoanTypesPaginatedResponse> {
   return useQuery({
     queryKey: ['loanTypes', 'list', filters],
     queryFn: () => loanTypesService.getAll(mapFiltersToApiParams(filters)),

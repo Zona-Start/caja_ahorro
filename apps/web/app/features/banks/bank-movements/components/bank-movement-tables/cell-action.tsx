@@ -16,6 +16,7 @@ import {
 } from '../../hooks/use-bank-movements-query';
 import type { BankMovement } from '../../schemas/bank-movement.schema';
 import { BankMovementModal } from '../bank-movement-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: BankMovement;
@@ -25,7 +26,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openView, setOpenView] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openLink, setOpenLink] = useState(false);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const deleteMutation = useDeleteBankMovementMutation();
   const unlinkMutation = useUnlinkMutation();
@@ -76,7 +77,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           <DropdownMenuItem onClick={() => setOpenView(true)}>
             <Eye className="mr-2 h-4 w-4" /> Ver Detalles
           </DropdownMenuItem>
-          {!isLinked && (
+          {!isLinked && hasPermission('banking:transactions', 'update') && (
             <DropdownMenuItem onClick={() => setOpenEdit(true)}>
               <Edit className="mr-2 h-4 w-4" /> Editar
             </DropdownMenuItem>
@@ -93,12 +94,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator /> */}
-          {isLinked && (
+          {isLinked && hasPermission('banking:transactions', 'update') && (
             <DropdownMenuItem onClick={handleReverse} className="text-amber-600">
               <RotateCcw className="mr-2 h-4 w-4" /> Reversar
             </DropdownMenuItem>
           )}
-          {!isLinked && (
+          {!isLinked && hasPermission('banking:transactions', 'delete') && (
             <DropdownMenuItem onClick={() => setOpenDelete(true)} className="text-red-600">
               <Trash2 className="mr-2 h-4 w-4" /> Eliminar
             </DropdownMenuItem>

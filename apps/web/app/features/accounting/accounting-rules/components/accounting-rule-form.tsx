@@ -116,13 +116,13 @@ export function AccountingRuleForm({
     }
     if (operationType === 'LOAN_TYPE') {
       const found = loanTypes?.data?.find(
-        (l: { id: number; name: string }) => String(l.id) === reference,
+        (l) => l.id === reference,
       );
       return found?.name ?? reference;
     }
     if (operationType === 'CREDIT_TYPE') {
       const found = creditTypes?.data?.find(
-        (c: { id: number; name: string }) => String(c.id) === reference,
+        (c) => c.id === reference,
       );
       return found?.name ?? reference;
     }

@@ -11,6 +11,7 @@ import {
 } from '../../schemas/loans-management-options';
 import { type LoansFilters } from '../../hooks/use-loans-filters';
 import type { Options } from 'nuqs';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface LoansTableActionProps {
   filters: LoansFilters;
@@ -39,6 +40,7 @@ export function LoansTableAction({
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
     false,
   );
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const LOAN_TYPE_OPTIONS =
     loanTypes?.data?.map((loanType) => ({
@@ -118,9 +120,11 @@ export function LoansTableAction({
           filterValue={filters.modality || ''}
         />
       </div>
-      <Button size="sm" onClick={onNewLoan}>
-        <Plus className="h-4 w-4" /> Nuevo Préstamo
-      </Button>
+      {hasPermission('portfolio:loans', 'create') && (
+        <Button size="sm" onClick={onNewLoan}>
+          <Plus className="h-4 w-4" /> Nuevo Préstamo
+        </Button>
+      )}
     </div>
   );
 }

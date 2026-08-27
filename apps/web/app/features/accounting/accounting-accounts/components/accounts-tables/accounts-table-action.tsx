@@ -9,6 +9,7 @@ import {
   ACCOUNT_LEVELS,
   ACCOUNT_TYPES,
 } from '../../schemas/account-plan-options';
+import { useAuthStore } from '@/stores/auth.store';
 
 export const TYPE_OPTIONS = Object.entries(ACCOUNT_TYPES).map(
   ([value, label]) => ({
@@ -30,6 +31,7 @@ export default function AccountsTableAction() {
 
   const [searchValue, setSearchValue] = useState(filters.search || '');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   useEffect(() => {
     setSearchValue(filters.search || '');
@@ -67,9 +69,11 @@ export default function AccountsTableAction() {
           filterValue={filters.level || ''}
         />
       </div>
-      <Button onClick={() => setOpen(true)} size="sm">
-        <Plus className="mr-2 h-4 w-4" /> Agregar Cuenta
-      </Button>
+      {hasPermission("accounting:chart_of_accounts", "create") && (
+        <Button onClick={() => setOpen(true)} size="sm">
+          <Plus className="mr-2 h-4 w-4" /> Agregar Cuenta
+        </Button>
+      )}
 
       <AccountPlanModal open={open} onOpenChange={setOpen} />
     </div>

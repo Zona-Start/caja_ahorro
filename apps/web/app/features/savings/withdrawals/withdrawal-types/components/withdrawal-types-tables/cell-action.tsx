@@ -12,6 +12,7 @@ import { Edit, Eye, MoreHorizontal, Trash2 } from 'lucide-react';
 import { useDeleteWithdrawalTypeMutation, useWithdrawalTypeQuery } from '../../hooks/use-withdrawal-types-query';
 import type { WithdrawalType } from '../../schemas/withdrawal-types.schema';
 import { WithdrawalTypesModal } from '../withdrawal-types-modal';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CellActionProps {
   data: WithdrawalType;
@@ -23,6 +24,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { mutate: deleteWithdrawalType } = useDeleteWithdrawalTypeMutation();
   const { data: withdrawalTypeData } = useWithdrawalTypeQuery(selectedId!, selectedId !== null);
@@ -95,18 +97,24 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             <Eye className="mr-2 h-4 w-4" />
             Ver Detalles
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleEdit}>
-            <Edit className="mr-2 h-4 w-4" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setOpenDelete(true)}
-            className="text-red-600 focus:text-red-600 focus:bg-red-50"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar
-          </DropdownMenuItem>
+          {hasPermission("savings:withdrawal-types", "update") && (
+            <DropdownMenuItem onClick={handleEdit}>
+              <Edit className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+          )}
+          {hasPermission("savings:withdrawal-types", "delete") && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setOpenDelete(true)}
+                className="text-red-600 focus:text-red-600 focus:bg-red-50"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Eliminar
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </>

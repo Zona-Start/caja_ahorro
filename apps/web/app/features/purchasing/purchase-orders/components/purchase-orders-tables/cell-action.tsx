@@ -6,6 +6,7 @@ import { useState } from 'react';
 import type { PurchaseOrderApi } from '../../schemas/purchase-orders-api.schema';
 import { useDeletePurchaseOrderMutation, useApprovePurchaseOrderMutation, useDownloadPurchaseOrderPdfMutation } from '../../hooks/use-purchase-orders-mutations';
 import { usePurchaseOrdersModalStore } from '../../store/purchase-orders-modal.store';
+import { useAuthStore } from '@/stores/auth.store';
 
 export function CellAction({ data }: { data: PurchaseOrderApi }) {
   const [openDelete, setOpenDelete] = useState(false);
@@ -14,6 +15,7 @@ export function CellAction({ data }: { data: PurchaseOrderApi }) {
   const { mutate: deleteOrder } = useDeletePurchaseOrderMutation();
   const { mutate: approveOrder, isPending: approving } = useApprovePurchaseOrderMutation();
   const { mutate: downloadPdf, isPending: downloading } = useDownloadPurchaseOrderPdfMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const canEdit = data.status === 'DRAFT';
   const canApprove = data.status === 'DRAFT';
@@ -53,17 +55,17 @@ export function CellAction({ data }: { data: PurchaseOrderApi }) {
           <DropdownMenuItem onClick={() => openModal('view', { id: data.id })}>
             <Eye className="h-4 w-4 mr-2" /> Ver Detalles
           </DropdownMenuItem>
-          {canApprove && (
+          {canApprove && hasPermission("purchasing:orders", "approve") && (
             <DropdownMenuItem onClick={() => setOpenApprove(true)}>
               <CheckCircle className="h-4 w-4 mr-2 text-emerald-600" /> Aprobar
             </DropdownMenuItem>
           )}
-          {canApprove && (
+          {canApprove && hasPermission("purchasing:orders", "update") && (
             <DropdownMenuItem onClick={() => openModal('edit', { id: data.id })}>
               <Pencil className="h-4 w-4 mr-2" /> Editar
             </DropdownMenuItem>
           )}
-          {canDownload && (
+          {canDownload && hasPermission("purchasing:orders", "read") && (
             <DropdownMenuItem onClick={() => downloadPdf(data.id)} disabled={downloading}>
               {downloading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -74,7 +76,7 @@ export function CellAction({ data }: { data: PurchaseOrderApi }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          {canEdit && (
+          {canEdit && hasPermission("purchasing:orders", "delete") && (
             <DropdownMenuItem className="text-destructive" onClick={() => setOpenDelete(true)}>
               <Trash2 className="h-4 w-4 mr-2" /> Anular
             </DropdownMenuItem>
