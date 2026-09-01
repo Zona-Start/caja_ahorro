@@ -25,7 +25,7 @@ export class AccountingEntriesService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly accountingCyclesService: AccountingCyclesService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
   async findAllPaginated(tenantId: string, dto: FilterAccountingEntryDto) {
@@ -304,17 +304,17 @@ export class AccountingEntriesService {
     const detailsForValidation = (
       dto.details
         ? dto.details.map((d) => ({
-            accountPlanId: d.accountPlanId!,
-            debit: Number(d.debit || 0),
-            credit: Number(d.credit || 0),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId!,
+          debit: Number(d.debit || 0),
+          credit: Number(d.credit || 0),
+          description: d.description ?? existing.description,
+        }))
         : existing.details.map((d) => ({
-            accountPlanId: d.accountPlanId,
-            debit: Number(d.debit),
-            credit: Number(d.credit),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId,
+          debit: Number(d.debit),
+          credit: Number(d.credit),
+          description: d.description ?? existing.description,
+        }))
     ) as any;
 
     await this.validateAccountingEntry(
@@ -1328,7 +1328,7 @@ export class AccountingEntriesService {
           eq(schema.moduleSettings.tenantId, tenantId),
           eq(schema.moduleSettings.module, 'accounting'),
           eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
-          eq(schema.moduleSettings.key, 'NRO_ASIENTO'),
+          eq(schema.moduleSettings.key, 'NRO-ASIENTO'),
         ),
       );
 

@@ -71,7 +71,7 @@ export class PaymentBatchesService {
       let totalAmount = 0;
       const lines: (typeof schema.paymentBatchItems.$inferInsert)[] = [];
 
-      const prefix = 'LOT-D';
+      const prefix = 'DES-LOT-SOC';
 
       for (const it of items) {
         let net: number;
@@ -262,7 +262,7 @@ export class PaymentBatchesService {
           prefix,
           tenantId,
           'savings',
-          'payment_batches',
+          'contributions',
           tx,
         );
 

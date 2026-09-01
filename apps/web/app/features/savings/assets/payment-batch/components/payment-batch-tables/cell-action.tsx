@@ -89,7 +89,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             Ver Detalles
           </DropdownMenuItem>
 
-          {isDraft && hasPermission("savings:payments", "mass_disburse") && (
+          {isDraft && hasPermission("savings:contributions", "mass_disburse") && (
             <DropdownMenuItem
               onClick={() => { setAlertType('upload'); setOpen(true); }}
             >
@@ -98,7 +98,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </DropdownMenuItem>
           )}
 
-          {isUploaded && hasPermission("savings:payments", "mass_disburse") && (
+          {isUploaded && hasPermission("savings:contributions", "mass_disburse") && (
             <>
               <DropdownMenuItem onClick={() => downloadTxt({ id: data.id, filename: data.paymentBatchReference })}>
                 <Download className="mr-2 h-4 w-4" />
@@ -111,7 +111,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
             </>
           )}
 
-          {(isDraft || isUploaded) && hasPermission("savings:payments", "mass_disburse") && (
+          {(isDraft || isUploaded) && hasPermission("savings:contributions", "mass_disburse") && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

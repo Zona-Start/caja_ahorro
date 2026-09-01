@@ -19,7 +19,9 @@ export const balanceItemSchema = z.object({
   descripcion: z.string().min(1, 'La descripción es requerida'),
   auxiliarSocio: z.string().optional().nullable(),
   auxiliarProveedor: z.string().optional().nullable(),
-  balance: z.number(),
+  debe: z.number().optional(),
+  haber: z.number().optional(),
+  balance: z.number().optional(),
 });
 
 export const initialLoadSchema = z.object({

@@ -5,7 +5,9 @@ export const BalanceSchema = z.object({
   descripcion: z.string().min(1),
   auxiliarSocio: z.string().optional().nullable(),
   auxiliarProveedor: z.string().optional().nullable(),
-  balance: z.coerce.number(),
+  debe: z.coerce.number().optional(),
+  haber: z.coerce.number().optional(),
+  balance: z.coerce.number().optional(),
 });
 
 export const InitialLoadSchema = z.object({

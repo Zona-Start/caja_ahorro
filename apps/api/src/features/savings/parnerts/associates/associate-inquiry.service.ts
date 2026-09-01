@@ -51,7 +51,7 @@ export class AssociateInquiryService {
   constructor(
     @Inject(DRIZZLE_PROVIDER)
     private readonly drizzle: NodePgDatabase<typeof schema>,
-  ) {}
+  ) { }
 
   async getStatement(
     tenantId: string,
@@ -470,7 +470,7 @@ export class AssociateInquiryService {
           monto: schema.associateAccountMovements.amount,
           fecha: schema.associateAccountMovements.transactionDate,
           descripcion: schema.associateAccountMovements.description,
-          numeroReferencia: schema.associateAccountMovements.referenceNumber,
+          numeroReferencia: schema.associateAccountMovements.internalCode,
           status: schema.associateAccountMovements.status,
         })
         .from(schema.associateAccountMovements)

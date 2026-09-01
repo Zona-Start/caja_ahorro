@@ -2,9 +2,9 @@ import { z } from 'zod';
 
 // Balance Sheet (Balance General)
 export const balanceSheetAccountSchema: z.ZodType<any> = z.object({
-  accountPlanId: z.string(),
-  accountCode: z.string(),
-  accountName: z.string(),
+  id: z.string(),
+  code: z.string(),
+  name: z.string(),
   level: z.number(),
   balance: z.string(),
   children: z

@@ -9,6 +9,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { and, asc, desc, eq, ilike, inArray, max, or, sql, SQL } from 'drizzle-orm';
@@ -22,12 +23,82 @@ import { parseExcelFile } from './utils/excel-parser.util';
 
 @Injectable()
 export class AccountingBalanceService {
+  private readonly logger = new Logger('BootstrappingDebug');
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
   ) { }
 
+  private async updateAccountBalancesFromInitialLoad(
+    tx: any,
+    tenantId: string,
+    accountingCycleId: string,
+    details: Array<{
+      accountPlanId: string;
+      debit: string;
+      credit: string;
+    }>,
+    accountMapById: Map<string, { nature: string }>,
+  ) {
+    // 1. Agrupar los saldos por accountPlanId
+    const balancesMap = new Map<string, { totalDebit: number; totalCredit: number }>();
 
+    for (const detail of details) {
+      const current = balancesMap.get(detail.accountPlanId) || {
+        totalDebit: 0,
+        totalCredit: 0,
+      };
+      current.totalDebit += Number(detail.debit || 0);
+      current.totalCredit += Number(detail.credit || 0);
+      balancesMap.set(detail.accountPlanId, current);
+    }
+
+    // 2. Mapear los registros agrupados calculando el initialBalance y finalBalance
+    const balanceRecords = Array.from(balancesMap.entries()).map(([accountPlanId, totals]) => {
+      const accountInfo = accountMapById.get(accountPlanId);
+      const isDebitNature = accountInfo?.nature === 'DEBIT';
+
+      // Para la carga inicial, el saldo inicial (initialBalance) se calcula con base en su naturaleza contable
+      const initialNetBalance = isDebitNature
+        ? totals.totalDebit - totals.totalCredit
+        : totals.totalCredit - totals.totalDebit;
+
+      const initialBalanceStr = initialNetBalance.toFixed(6);
+
+      return {
+        tenantId,
+        accountPlanId,
+        accountingCyclesId: accountingCycleId,
+        initialBalance: initialBalanceStr,
+        debitBalance: '0.000000',
+        creditBalance: '0.000000',
+        finalBalance: initialBalanceStr,
+      };
+    });
+
+    if (balanceRecords.length === 0) return;
+
+    // 3. Insertar/Actualizar en lotes para evitar desbordamiento de call stack en Drizzle AST
+    const BATCH_SIZE = 2000;
+    for (let i = 0; i < balanceRecords.length; i += BATCH_SIZE) {
+      const batch = balanceRecords.slice(i, i + BATCH_SIZE);
+      await tx
+        .insert(schema.accountBalances)
+        .values(batch)
+        .onConflictDoUpdate({
+          target: [
+            schema.accountBalances.tenantId,
+            schema.accountBalances.accountPlanId,
+            schema.accountBalances.accountingCyclesId,
+          ],
+          set: {
+            initialBalance: sql`EXCLUDED.initial_balance`,
+            finalBalance: sql`EXCLUDED.final_balance`,
+            updatedAt: new Date(),
+          },
+        });
+    }
+  }
 
   async bootstrapping(
     userId: string,
@@ -94,6 +165,7 @@ export class AccountingBalanceService {
       .where(eq(schema.accountPlan.tenantId, tenantId));
 
     const accountMap = new Map(accountPlans.map((a) => [a.code, a]));
+    const accountMapById = new Map(accountPlans.map((a) => [a.id, a]));
 
     // 5. Construir detalles del asiento y resolver auxiliares
     const details: any[] = [];
@@ -114,7 +186,32 @@ export class AccountingBalanceService {
         );
       }
 
-      const amount = Number(item.balance);
+      // 1. Obtener el número real directo del objeto/Excel
+      const rawDebeNum = Number(item.debe ?? item.DEBE ?? item.debit ?? 0) || 0;
+      const rawHaberNum = Number(item.haber ?? item.HABER ?? item.credit ?? 0) || 0;
+
+      // Omitir filas sin movimiento en ambas columnas
+      if (rawDebeNum === 0 && rawHaberNum === 0) {
+        continue;
+      }
+
+      // 2. Acumular totales
+      totalDebit += rawDebeNum;
+
+      const parsedCredit = Math.abs(rawHaberNum);
+      totalCredit += parsedCredit;
+
+      // 3. Ecuación contable (Netos)
+      const netValueDebitDriven = rawDebeNum - parsedCredit;
+      const netValueCreditDriven = parsedCredit - rawDebeNum;
+
+      if (account.accountType === 'ASSET') {
+        totalAssets += netValueDebitDriven;
+      } else if (account.accountType === 'LIABILITY') {
+        totalLiabilities += netValueCreditDriven;
+      } else if (account.accountType === 'EQUITY') {
+        totalEquity += netValueCreditDriven;
+      }
 
       // Resolver asociado por cédula
       let associateId: string | null = null;
@@ -144,9 +241,9 @@ export class AccountingBalanceService {
       let supplierId: string | null = null;
       const auxiliarProveedor = String(
         item.auxiliarProveedor ??
-          item.AUXILIAR_PROVEEDOR ??
-          item.auxiliar_proveedor ??
-          '',
+        item.AUXILIAR_PROVEEDOR ??
+        item.auxiliar_proveedor ??
+        '',
       ).trim();
       if (auxiliarProveedor !== '') {
         const [sup] = await this.drizzle
@@ -171,63 +268,39 @@ export class AccountingBalanceService {
         supplierId = sup.id;
       }
 
-      // Determinar débito/crédito según la naturaleza de la cuenta
-      const absAmount = Math.abs(amount);
-      let debit = '0.000000';
-      let credit = '0.000000';
-
-      if (account.nature === 'DEBIT') {
-        if (amount >= 0) {
-          debit = absAmount.toFixed(6);
-          totalDebit += absAmount;
-        } else {
-          credit = absAmount.toFixed(6);
-          totalCredit += absAmount;
-        }
-      } else {
-        if (amount >= 0) {
-          credit = absAmount.toFixed(6);
-          totalCredit += absAmount;
-        } else {
-          debit = absAmount.toFixed(6);
-          totalDebit += absAmount;
-        }
-      }
-
-      // Acumular por tipo para validar la ecuación contable
-      if (account.accountType === 'ASSET') totalAssets += amount;
-      else if (account.accountType === 'LIABILITY') totalLiabilities += amount;
-      else if (account.accountType === 'EQUITY') totalEquity += amount;
-
       details.push({
         accountPlanId: account.id,
         associateId,
         supplierId,
-        debit,
-        credit,
-        description: item.descripcion ?? item.descripcion ?? null,
+        debit: rawDebeNum.toFixed(6),
+        credit: rawHaberNum.toFixed(6),
+        description: item.descripcion ?? item.DESCRIPCION ?? null,
         createdById: userId,
       });
     }
 
+    // Normalizar a 2 decimales para comparación final de comprobante
+    const finalDebit = Number(totalDebit.toFixed(2));
+    const finalCredit = Number(totalCredit.toFixed(2));
+
     // 6. Validar partida doble (débitos = créditos)
-    const debitCreditDiff = Math.abs(totalDebit - totalCredit);
-    if (debitCreditDiff > 1.0) {
+    const debitCreditDiff = Math.abs(finalDebit - finalCredit);
+    if (debitCreditDiff > 0.01) {
       throw new ConflictException(
-        `Carga inicial desbalanceada. Total Débitos: ${totalDebit.toFixed(2)}, Total Créditos: ${totalCredit.toFixed(2)}. Diferencia: ${debitCreditDiff.toFixed(2)}`,
+        `Carga inicial desbalanceada. Total Débitos: ${finalDebit.toFixed(2)}, Total Créditos: ${finalCredit.toFixed(2)}. Diferencia: ${debitCreditDiff.toFixed(2)}`,
       );
     }
 
     // 7. Validar ecuación contable ACTIVO = PASIVO + PATRIMONIO
-    const liabilitiesEquity = Math.abs(totalLiabilities + totalEquity);
-    const equationDiff = Math.abs(Math.abs(totalAssets) - liabilitiesEquity);
-    if (equationDiff > 1.0) {
+    const liabilitiesEquity = totalLiabilities + totalEquity;
+    const equationDiff = Math.abs(totalAssets - liabilitiesEquity);
+    if (equationDiff > 0.01) {
       throw new ConflictException(
-        `La ecuación contable no se cumple. ACTIVO: ${Math.abs(totalAssets).toFixed(2)} vs PASIVO + PATRIMONIO: ${liabilitiesEquity.toFixed(2)}. Diferencia: ${equationDiff.toFixed(2)}`,
+        `La ecuación contable no se cumple. ACTIVO: ${totalAssets.toFixed(2)} vs PASIVO + PATRIMONIO: ${liabilitiesEquity.toFixed(2)}. Diferencia: ${equationDiff.toFixed(2)}`,
       );
     }
 
-    // 8. Crear asiento de apertura en transacción
+    // 8. Crear asiento de apertura y registrar saldos iniciales en transacción
     return this.drizzle.transaction(async (tx) => {
       const [entry] = await tx
         .insert(schema.accountingEntries)
@@ -245,13 +318,47 @@ export class AccountingBalanceService {
         })
         .returning({ id: schema.accountingEntries.id });
 
-      const detailsToInsert = details.map((d) => ({
-        ...d,
-        accountingEntryId: entry.id,
-      }));
+      // TRANSFORMACIÓN DE EQUIVALENCIA CONTABLE AL MOMENTO DE INSERTAR
+      const detailsToInsert = details.map((d) => {
+        let debitNum = Number(d.debit || 0);
+        let creditNum = Number(d.credit || 0);
+
+        // Si el DEBE viene negativo, contablemente su equivalente positivo es un HABER
+        if (debitNum < 0) {
+          creditNum += Math.abs(debitNum);
+          debitNum = 0;
+        }
+
+        // Si el HABER viene negativo, contablemente su equivalente positivo es un DEBE
+        if (creditNum < 0) {
+          debitNum += Math.abs(creditNum);
+          creditNum = 0;
+        }
+
+        return {
+          ...d,
+          accountingEntryId: entry.id,
+          debit: debitNum.toFixed(6),   // Guarda >= 0.000000 (satisface amount_positive_check)
+          credit: creditNum.toFixed(6), // Guarda >= 0.000000 (satisface amount_positive_check)
+        };
+      });
 
       if (detailsToInsert.length > 0) {
-        await tx.insert(schema.accountingEntryDetails).values(detailsToInsert);
+        const BATCH_SIZE = 2000;
+        for (let i = 0; i < detailsToInsert.length; i += BATCH_SIZE) {
+          const batch = detailsToInsert.slice(i, i + BATCH_SIZE);
+          await tx.insert(schema.accountingEntryDetails).values(batch);
+        }
+
+        // Mantiene la lista `details` original con los signos de origen 
+        // para que la función de cálculo de saldos conserve el neteo de la ecuación
+        await this.updateAccountBalancesFromInitialLoad(
+          tx,
+          tenantId,
+          activeCycle.id,
+          details,
+          accountMapById,
+        );
       }
 
       // Actualizar contador de comprobantes a 1
@@ -301,11 +408,6 @@ export class AccountingBalanceService {
 
     return { hasInitialLoad: !!entry };
   }
-
-
-
-
-
 
   async closeCycle(
     userId: string,
@@ -674,7 +776,12 @@ export class AccountingBalanceService {
     }
 
     if (details.length > 0) {
-      await tx.insert(schema.accountingEntryDetails).values(details);
+      // Inserción en lotes de los detalles de cierre
+      const BATCH_SIZE = 2000;
+      for (let i = 0; i < details.length; i += BATCH_SIZE) {
+        const batch = details.slice(i, i + BATCH_SIZE);
+        await tx.insert(schema.accountingEntryDetails).values(batch);
+      }
 
       // Recalcular finalBalance para las cuentas afectadas por el cierre
       const affectedAccountIds = details.map((d) => d.accountPlanId!);
@@ -844,7 +951,12 @@ export class AccountingBalanceService {
       }));
 
       if (nextBalances.length > 0) {
-        await tx.insert(schema.accountBalances).values(nextBalances);
+        // Inserción en lotes de los saldos para el nuevo ciclo
+        const BATCH_SIZE = 2000;
+        for (let i = 0; i < nextBalances.length; i += BATCH_SIZE) {
+          const batch = nextBalances.slice(i, i + BATCH_SIZE);
+          await tx.insert(schema.accountBalances).values(batch);
+        }
       }
 
       await tx
@@ -883,7 +995,6 @@ export class AccountingBalanceService {
     } = dto;
     const offset = (page - 1) * limit;
 
-    // 1. Usamos un array que acepte SQL o undefined para evitar errores de tipado inicial
     const searchConditions: (SQL | undefined)[] = [
       eq(schema.accountBalances.tenantId, tenantId),
     ];
@@ -895,7 +1006,6 @@ export class AccountingBalanceService {
     }
 
     if (search) {
-      // El or() se ejecuta solo si hay search, garantizando que no sea undefined
       searchConditions.push(
         or(
           ilike(schema.accountPlan.name, `%${search}%`),
@@ -904,15 +1014,12 @@ export class AccountingBalanceService {
       );
     }
 
-    // 2. Filtramos los undefined antes de pasarlos al and(...)
-    // Esto resuelve el error ts(2345) de forma definitiva
     const finalCondition = and(
       ...searchConditions.filter((c): c is SQL => !!c),
     );
 
-    // 3. Obtener el conteo total
     const totalCountResult = await this.drizzle
-      .select({ count: sql<number>`cast(count(*) as int)` }) // Cast explícito a int
+      .select({ count: sql<number>`cast(count(*) as int)` })
       .from(schema.accountBalances)
       .innerJoin(
         schema.accountPlan,
@@ -922,7 +1029,6 @@ export class AccountingBalanceService {
 
     const totalCount = totalCountResult[0]?.count ?? 0;
 
-    // 4. Obtener la data con ordenamiento dinámico
     const data = await this.drizzle
       .select({
         id: schema.accountBalances.id,

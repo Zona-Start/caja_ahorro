@@ -7,6 +7,7 @@ export const associateMovementTypeEnum = savingsSchema.enum(
     'SAVING_CONTRIBUTION',
     'EMPLOYER_CONTRIBUTION',
     'VOLUNTARY_SAVINGS',
+    'SURPLUS_SAVINGS_CONTRIBUTION',
 
     // 2. Retiros de Cuentas de Ahorro
     'SAVING_WITHDRAWAL',

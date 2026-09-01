@@ -37,7 +37,7 @@ export const associateAccountBalances = savingsSchema.view(
       COALESCE(SUM(
         CASE
           WHEN aam.movement_type IN (
-            'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',
+            'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION','SURPLUS_SAVINGS_CONTRIBUTION',
             'LOAN_DISBURSEMENT_CREDIT','SPECIAL_LOAN_DISBURSEMENT_CREDIT',
             'COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT','SPECIAL_CREDIT_DISBURSEMENT_CREDIT',
             'LOAN_REFINANCING_CREDIT','LOAN_REIMBURSEMENT_CREDIT',
@@ -157,6 +157,10 @@ export const associateHaberesBalance = savingsSchema.view(
       precision: 20,
       scale: 6,
     }).notNull(),
+    haberesSurplusContribution: numeric('haberes_surplus_contribution', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
     haberesEmployer: numeric('haberes_employer', {
       precision: 20,
       scale: 6,
@@ -178,6 +182,7 @@ export const associateHaberesBalance = savingsSchema.view(
     MAX(transaction_date) AS last_movement_date,
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SAVING_CONTRIBUTION'), 0) AS haberes_contribution,
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'VOLUNTARY_SAVINGS'), 0) AS haberes_voluntary,
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SURPLUS_SAVINGS_CONTRIBUTION'), 0) AS haberes_surplus_contribution,
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'EMPLOYER_CONTRIBUTION'), 0) AS haberes_employer,
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'DIVIDEND_CREDIT'), 0) AS surpluses,
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SAVING_WITHDRAWAL'), 0) AS total_withdrawals,
@@ -188,7 +193,7 @@ export const associateHaberesBalance = savingsSchema.view(
       movement_type,
       CASE
         WHEN movement_type IN (
-          'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION',
+          'SAVING_CONTRIBUTION','VOLUNTARY_SAVINGS','EMPLOYER_CONTRIBUTION','SURPLUS_SAVINGS_CONTRIBUTION',
           'ADJUSTMENT_CREDIT','DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT',
           'LOAN_OVERPAYMENT_CREDIT','COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT',
           'SAVING_WITHDRAWAL_REVERSAL_CREDIT','LIQUIDATION_BALANCE_REVERSAL_CREDIT',

@@ -49,7 +49,8 @@ interface BalanceItem {
   descripcion: string;
   auxiliarSocio?: string | null;
   auxiliarProveedor?: string | null;
-  balance: number;
+  debe: number;
+  haber: number;
 }
 
 export function BootstrappingModal({
@@ -64,6 +65,7 @@ export function BootstrappingModal({
   const [selectedAssociateId, setSelectedAssociateId] = useState<string>('');
   const [isProveedor, setIsProveedor] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
+  const [movementType, setMovementType] = useState<'DEBIT' | 'CREDIT'>('DEBIT');
   const [balance, setBalance] = useState<string>('');
   const [activeTab, setActiveTab] = useState<string>('file');
   const [showConfirm, setShowConfirm] = useState(false);
@@ -90,6 +92,7 @@ export function BootstrappingModal({
     setSelectedAssociateId('');
     setIsProveedor(false);
     setSelectedSupplierId('');
+    setMovementType('DEBIT');
     setBalance('');
   };
 
@@ -150,12 +153,14 @@ export function BootstrappingModal({
       if (sup) auxiliarProveedor = sup.taxId;
     }
 
+    const amount = parseFloat(balance);
     const newBalance: BalanceItem = {
       accountCode: account.code,
       descripcion: description || account.name,
       auxiliarSocio,
       auxiliarProveedor,
-      balance: parseFloat(balance),
+      debe: movementType === 'DEBIT' ? amount : 0,
+      haber: movementType === 'CREDIT' ? amount : 0,
     };
 
     setManualBalances([...manualBalances, newBalance]);
@@ -185,18 +190,22 @@ export function BootstrappingModal({
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
     const data = [
-      ['cuenta', 'descripcion', 'auxiliar_socio', 'auxiliar_proveedor', 'saldo'],
-      ['112.01.01.01.001', 'Bicentenario Cta.Cte.', '', '', 50000.0],
-      ['311.01.01.00.001', 'Aportes del Asociado', 'V-12345678', '', 50000.0],
-      ['211.01.01.00.001', 'Cuentas por Pagar Proveedores', '', 'J-12345678-9', 0],
+      ['cuenta', 'descripcion', 'auxiliar_socio', 'auxiliar_proveedor', 'debe', 'haber'],
+      ['112.01.01.01.001', 'Bicentenario Cta.Cte.', '', '', 50000.0, 0.0],
+      ['311.01.01.00.001', 'Aportes del Asociado', 'V-12345678', '', 0.0, 50000.0],
+      ['211.01.01.00.001', 'Cuentas por Pagar Proveedores', '', 'J-12345678-9', 0.0, 0.0],
     ];
     const ws = XLSX.utils.aoa_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, 'Carga Inicial');
     XLSX.writeFile(wb, 'template_carga_inicial.xlsx');
   };
 
-  const getTotalBalance = () => {
-    return manualBalances.reduce((sum, item) => sum + item.balance, 0);
+  const getTotalDebe = () => {
+    return manualBalances.reduce((sum, item) => sum + item.debe, 0);
+  };
+
+  const getTotalHaber = () => {
+    return manualBalances.reduce((sum, item) => sum + item.haber, 0);
   };
 
   const handleCancel = () => {
@@ -324,7 +333,25 @@ export function BootstrappingModal({
                     />
                   </div>
 
-                  <div className="col-span-3 mt-2">
+                  <div className="col-span-2 mt-2">
+                    <Label>Debe / Haber</Label>
+                    <Select
+                      value={movementType}
+                      onValueChange={(v) =>
+                        setMovementType(v as 'DEBIT' | 'CREDIT')
+                      }
+                    >
+                      <SelectTrigger className="w-full mt-2">
+                        <SelectValue placeholder="Debe / Haber" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DEBIT">Debe</SelectItem>
+                        <SelectItem value="CREDIT">Haber</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="col-span-2 mt-2">
                     <Label htmlFor="balance">Saldo</Label>
                     <Input
                       id="balance"
@@ -337,7 +364,7 @@ export function BootstrappingModal({
                     />
                   </div>
 
-                  <div className="col-span-3 flex items-end">
+                  <div className="col-span-2 flex items-end">
                     <Button
                       type="button"
                       onClick={handleAddBalance}
@@ -418,7 +445,8 @@ export function BootstrappingModal({
                           <TableHead>Código</TableHead>
                           <TableHead>Descripción</TableHead>
                           <TableHead>Auxiliar</TableHead>
-                          <TableHead className="text-right">Saldo</TableHead>
+                          <TableHead className="text-right">Debe</TableHead>
+                          <TableHead className="text-right">Haber</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -440,8 +468,15 @@ export function BootstrappingModal({
                                     ? `Prov: ${item.auxiliarProveedor}`
                                     : '—'}
                               </TableCell>
-                              <TableCell className="text-right">
-                                {formatCurrency(item.balance, 'VES')}
+                              <TableCell className="text-right font-mono">
+                                {item.debe > 0
+                                  ? formatCurrency(item.debe, 'VES')
+                                  : ''}
+                              </TableCell>
+                              <TableCell className="text-right font-mono">
+                                {item.haber > 0
+                                  ? formatCurrency(item.haber, 'VES')
+                                  : ''}
                               </TableCell>
                               <TableCell>
                                 <Button
@@ -462,8 +497,11 @@ export function BootstrappingModal({
                       <TableBody>
                         <TableRow className="font-bold bg-muted/50 border-t-2">
                           <TableCell colSpan={3}>Total</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(getTotalBalance(), 'VES')}
+                          <TableCell className="text-right font-mono">
+                            {formatCurrency(getTotalDebe(), 'VES')}
+                          </TableCell>
+                          <TableCell className="text-right font-mono">
+                            {formatCurrency(getTotalHaber(), 'VES')}
                           </TableCell>
                           <TableCell></TableCell>
                         </TableRow>

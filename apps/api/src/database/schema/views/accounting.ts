@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { numeric, text, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, integer, numeric, text, uuid, varchar } from 'drizzle-orm/pg-core';
 import { accountingSchema } from '../_schemas';
 import {
   accountBalances,
@@ -8,6 +8,7 @@ import {
   accountPlan,
   bankAccounts,
 } from '../tables';
+import { accountNatureEnum, accountTypeEnum } from '../enum';
 
 //Agregación de movimientos (débito/crédito) por cuenta y ciclo, solo asientos publicados.
 export const periodAccountMovementsView = accountingSchema.view(
@@ -150,4 +151,60 @@ export const accountingBalanceByBank = accountingSchema.view(
    AND ae.status = 'POSTED'
   GROUP BY ba.tenant_id, ba.id, ap.id, ap.code, ap.name, ap.nature,
            COALESCE(ae.currency_code, ba.currency_code)
+`);
+
+
+export const mvAccountBalances = accountingSchema.view(
+  'mv_account_balances',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    accountingCycleId: uuid('accounting_cycle_id').notNull(),
+    accountPlanId: uuid('account_plan_id').notNull(),
+    accountCode: varchar('account_code', { length: 50 }).notNull(),
+    accountName: text('account_name').notNull(),
+    accountType: accountTypeEnum('account_type').notNull(),
+    accountNature: accountNatureEnum('account_nature').notNull(),
+    level: integer('level').notNull(),
+    parentAccountId: uuid('parent_account_id'),
+    allowsMovements: boolean('allows_movements').notNull(),
+    totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
+    totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
+    finalBalance: numeric('final_balance', { precision: 20, scale: 6 }).notNull(),
+  },
+).as(sql`
+  SELECT
+    ap.tenant_id,
+    ae.accounting_cycle_id,
+    ap.id AS account_plan_id,
+    ap.code AS account_code,
+    ap.name AS account_name,
+    ap.account_type,
+    ap.nature AS account_nature,
+    ap.level,
+    ap.parent_account_id,
+    ap.allows_movements,
+    COALESCE(SUM(acd.debit), 0) AS total_debit,
+    COALESCE(SUM(acd.credit), 0) AS total_credit,
+    CASE 
+        WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(acd.debit - acd.credit), 0)
+        WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(acd.credit - acd.debit), 0)
+        ELSE COALESCE(SUM(acd.debit - acd.credit), 0)
+    END AS final_balance
+  FROM ${accountPlan} ap
+  INNER JOIN ${accountingEntryDetails} acd ON ap.id = acd.account_plan_id
+  INNER JOIN ${accountingEntries} ae 
+    ON acd.accounting_entry_id = ae.id 
+   AND ae.tenant_id = ap.tenant_id
+  WHERE ae.status = 'POSTED'
+  GROUP BY 
+    ap.tenant_id, 
+    ae.accounting_cycle_id, 
+    ap.id, 
+    ap.code, 
+    ap.name, 
+    ap.account_type, 
+    ap.nature, 
+    ap.level, 
+    ap.parent_account_id, 
+    ap.allows_movements
 `);

@@ -37,6 +37,7 @@ export const WITHDRAWAL_STATUS_TYPES = {
 export const MOVEMENT_TYPES = {
   SAVING_CONTRIBUTION: 'Aporte del Asociado',
   EMPLOYER_CONTRIBUTION: 'Aporte del Empleador',
+  SURPLUS_SAVINGS_CONTRIBUTION: 'Aporte por Excedentes',
   VOLUNTARY_SAVINGS: 'Aporte Voluntario',
   SAVING_WITHDRAWAL: 'Retiro de Ahorro',
   LOAN_DISBURSEMENT_CREDIT: 'Desembolso de Préstamo',

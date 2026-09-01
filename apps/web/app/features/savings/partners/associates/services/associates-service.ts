@@ -43,6 +43,8 @@ export const associatesService = {
     const response = await apiClient.get(
       `/savings-banks/associates?${searchParams}`,
     );
+
+
     return AssociatesResponseAllSchema.parse(response.data);
   },
 

@@ -43,6 +43,34 @@
       "when": 1787010001681,
       "tag": "0005_lovely_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788128930301,
+      "tag": "0006_clean_next_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788137157046,
+      "tag": "0007_rainy_norman_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788214878559,
+      "tag": "0008_crazy_taskmaster",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788214919031,
+      "tag": "0009_abnormal_power_pack",
+      "breakpoints": true
     }
   ]
 }

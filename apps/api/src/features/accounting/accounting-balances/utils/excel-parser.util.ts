@@ -4,14 +4,14 @@ import * as ExcelJS from 'exceljs';
 export interface ParsedBalance {
   accountCode: string;
   descripcion: string;
-  auxiliarSocio?: string | null;
-  auxiliarProveedor?: string | null;
-  balance: number;
+  auxiliarSocio: string | null;
+  auxiliarProveedor: string | null;
+  debe: number;
+  haber: number;
 }
-
 /**
  * Parsea un archivo Excel y extrae los datos de carga inicial
- * Espera las columnas: cuenta, descripcion, auxiliar_socio, auxiliar_proveedor, saldo
+ * Espera las columnas: cuenta, descripcion, auxiliar_socio, auxiliar_proveedor, debe, haber
  */
 export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
   try {
@@ -27,79 +27,104 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
     const balances: ParsedBalance[] = [];
     const headers: { [key: string]: number } = {};
 
+    // Helper para extraer el valor real soportando fórmulas, richText o valores primitivos
+    const getCellValue = (cellValue: any): any => {
+      if (typeof cellValue === 'object' && cellValue !== null) {
+        if ('result' in cellValue) return cellValue.result;
+        if ('richText' in cellValue) {
+          return cellValue.richText.map((t: any) => t.text).join('');
+        }
+      }
+      return cellValue;
+    };
+
     // Leer la primera fila para obtener los headers
     const headerRow = worksheet.getRow(1);
     headerRow.eachCell((cell, colNumber) => {
-      const headerName = String(cell.value).toLowerCase().trim();
+      const rawValue = getCellValue(cell.value);
+      const headerName = String(rawValue ?? '').toLowerCase().trim();
       headers[headerName] = colNumber;
     });
 
-    // Validar que existan las columnas requeridas
-    const requiredColumns = ['cuenta', 'descripcion', 'saldo'];
-    const missingColumns = requiredColumns.filter(
-      (col) => !headers[col] && !headers[col.replace('ó', 'o')],
-    );
+    // Validar que existan las columnas requeridas: cuenta, descripcion, debe, haber
+    const cuentaCol = headers['cuenta'] || headers['accountcode'] || headers['code'];
+    const descripcionCol = headers['descripcion'] || headers['descripción'] || headers['description'];
+    const debeCol = headers['debe'] || headers['debit'];
+    const haberCol = headers['haber'] || headers['credit'];
+
+    const missingColumns: string[] = [];
+    if (!cuentaCol) missingColumns.push('cuenta');
+    if (!descripcionCol) missingColumns.push('descripcion');
+    if (!debeCol) missingColumns.push('debe');
+    if (!haberCol) missingColumns.push('haber');
 
     if (missingColumns.length > 0) {
       throw new BadRequestException(
-        `Faltan las siguientes columnas en el Excel: ${missingColumns.join(', ')}`,
+        `Faltan las siguientes columnas requeridas en el Excel: ${missingColumns.join(', ')}`,
       );
     }
 
-    // Determinar los índices de las columnas (con o sin tilde)
-    const cuentaCol = headers['cuenta'];
-    const descripcionCol = headers['descripcion'] || headers['descripción'];
+    // Índices para columnas opcionales de auxiliares
     const auxiliarSocioCol =
       headers['auxiliar_socio'] || headers['auxiliar socio'] || headers['socio'];
     const auxiliarProveedorCol =
       headers['auxiliar_proveedor'] ||
       headers['auxiliar proveedor'] ||
       headers['proveedor'];
-    const saldoCol = headers['saldo'];
 
     // Leer las filas de datos (desde la fila 2)
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // Saltar header
 
-      const accountCode = row.getCell(cuentaCol).value;
-      const descripcion = row.getCell(descripcionCol).value;
-      const balance = row.getCell(saldoCol).value;
+      const accountCode = getCellValue(row.getCell(cuentaCol).value);
+      const descripcion = getCellValue(row.getCell(descripcionCol).value);
+      const rawDebe = getCellValue(row.getCell(debeCol).value);
+      const rawHaber = getCellValue(row.getCell(haberCol).value);
 
-      // Validar que la fila tenga datos
-      if (
-        !accountCode ||
-        !descripcion ||
-        balance === null ||
-        balance === undefined
-      ) {
-        // Fila vacía o incompleta, la saltamos
+      // Validar que la fila no esté completamente vacía
+      if (!accountCode && !descripcion && rawDebe === null && rawHaber === null) {
         return;
       }
 
-      // Convertir y validar los datos
+      if (!accountCode || !descripcion) {
+        throw new BadRequestException(
+          `La fila ${rowNumber} tiene campos obligatorios incompletos (cuenta o descripción).`,
+        );
+      }
+
       const accountCodeStr = String(accountCode).trim();
       const descripcionStr = String(descripcion).trim();
-      const balanceNum = Number(balance);
 
-      if (isNaN(balanceNum)) {
+      const debeNum = rawDebe !== null && rawDebe !== undefined && rawDebe !== '' ? Number(rawDebe) : 0;
+      const haberNum = rawHaber !== null && rawHaber !== undefined && rawHaber !== '' ? Number(rawHaber) : 0;
+
+      if (isNaN(debeNum)) {
         throw new BadRequestException(
-          `El saldo en la fila ${rowNumber} no es un número válido: ${balance}`,
+          `El valor del DEBE en la fila ${rowNumber} no es un número válido: ${rawDebe}`,
+        );
+      }
+
+      if (isNaN(haberNum)) {
+        throw new BadRequestException(
+          `El valor del HABER en la fila ${rowNumber} no es un número válido: ${rawHaber}`,
         );
       }
 
       const auxiliarSocio = auxiliarSocioCol
-        ? String(row.getCell(auxiliarSocioCol).value ?? '').trim()
+        ? String(getCellValue(row.getCell(auxiliarSocioCol).value) ?? '').trim()
         : null;
       const auxiliarProveedor = auxiliarProveedorCol
-        ? String(row.getCell(auxiliarProveedorCol).value ?? '').trim()
+        ? String(getCellValue(row.getCell(auxiliarProveedorCol).value) ?? '').trim()
         : null;
 
+      // Preservar el valor numérico con su signo original sin aplicar Math.abs()
       balances.push({
         accountCode: accountCodeStr,
         descripcion: descripcionStr,
         auxiliarSocio: auxiliarSocio || null,
         auxiliarProveedor: auxiliarProveedor || null,
-        balance: balanceNum,
+        debe: debeNum,
+        haber: haberNum,
       });
     });
 

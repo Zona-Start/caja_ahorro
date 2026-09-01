@@ -55,10 +55,10 @@ export function BalanceSheetReport() {
             })}
           >
             <span className="text-muted-foreground text-xs font-mono w-16 opacity-70">
-              {account.accountCode}
+              {account.code}
             </span>
             <span className="truncate max-w-[200px] md:max-w-[300px]">
-              {account.accountName}
+              {account.name}
             </span>
           </div>
           <div className={cn('font-mono', { 'font-bold': account.level <= 2 })}>
