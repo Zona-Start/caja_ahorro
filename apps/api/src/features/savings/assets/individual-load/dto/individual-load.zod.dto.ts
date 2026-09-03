@@ -1,10 +1,24 @@
 import { AssociateMovementTypeEnum, paymentMethodEnum } from '@/types/enum';
 import { z } from 'zod';
 
+/**
+ * Tipo de movimiento lógico aceptado por la carga individual.
+ * `SAVING_DIFFERENCE` (Diferencia Aporte) se traduce internamente a un
+ * movimiento `SAVING_CONTRIBUTION` con descripción específica y su asiento
+ * contable apunta a la cuenta ASSOCIATED_SAVINGS.
+ */
+export const IndividualLoadMovementTypeSchema = z.union([
+  z.nativeEnum(AssociateMovementTypeEnum),
+  z.literal('SAVING_DIFFERENCE'),
+]);
+export type IndividualLoadMovementType = z.infer<
+  typeof IndividualLoadMovementTypeSchema
+>;
+
 export const CreateIndividualLoadSchema = z.object({
   tenantId: z.string().uuid().optional(),
   associateAccountId: z.string().uuid(),
-  movementType: z.nativeEnum(AssociateMovementTypeEnum),
+  movementType: IndividualLoadMovementTypeSchema,
   amount: z.number().nonnegative().optional(),
   employerAmount: z.number().nonnegative().optional(),
   associateAmount: z.number().nonnegative().optional(),

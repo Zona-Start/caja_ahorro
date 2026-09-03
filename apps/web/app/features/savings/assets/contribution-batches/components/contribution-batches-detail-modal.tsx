@@ -16,6 +16,7 @@ import {
   TYPE_LABEL,
   MOVEMENT_TYPE_LABEL,
   STATUS_LABEL,
+  CONTRIBUTION_TYPE_LABEL,
 } from '../schemas/contribution-batches-options';
 
 interface Props {
@@ -160,10 +161,17 @@ export function ContributionBatchesDetailModal({
                       className={`flex justify-between items-center px-3 py-2 text-sm ${i < associates.length - 1 ? 'border-b' : ''
                         }`}
                     >
-                      <div>
-                        <span className="font-medium">{assoc.fullname}</span>
-                        <span className="text-muted-foreground ml-2 font-mono text-xs">
-                          {assoc.cedula}
+                      <div className="flex flex-col">
+                        <div>
+                          <span className="font-medium">{assoc.fullname}</span>
+                          <span className="text-muted-foreground ml-2 font-mono text-xs">
+                            {assoc.cedula}
+                          </span>
+                        </div>
+                        <span className="text-muted-foreground text-xs">
+                          {CONTRIBUTION_TYPE_LABEL[assoc.contributionType] ||
+                            assoc.contributionType ||
+                            '—'}
                         </span>
                       </div>
                       <span className="font-mono text-xs">

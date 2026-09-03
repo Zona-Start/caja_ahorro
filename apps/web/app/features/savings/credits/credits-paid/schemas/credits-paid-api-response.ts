@@ -68,8 +68,20 @@ export const creditPaymentDeleteResponseSchema = z.object({
   message: z.string(),
 });
 
+export const creditPaymentBulkResponseSchema = z.object({
+  success: z
+    .array(z.object({ cedula: z.string(), ref: z.string().nullable().optional() }))
+    .optional(),
+  errors: z
+    .array(z.object({ cedula: z.string(), error: z.string() }))
+    .optional(),
+  totalProcessed: z.coerce.number().optional(),
+  accountingWarning: z.string().optional(),
+});
+
 export type CreditPaymentApi = z.infer<typeof creditPaymentApiSchema>;
 export type CreditPaymentApiResponse = z.infer<typeof creditPaymentApiResponseSchema>;
 export type CreditPaymentMutationResponse = z.infer<typeof creditPaymentMutationSchema>;
 export type CreditPaymentByIdResponse = z.infer<typeof creditPaymentByIdResponseSchema>;
 export type CreditPaymentDeleteResponse = z.infer<typeof creditPaymentDeleteResponseSchema>;
+export type CreditPaymentBulkResponse = z.infer<typeof creditPaymentBulkResponseSchema>;

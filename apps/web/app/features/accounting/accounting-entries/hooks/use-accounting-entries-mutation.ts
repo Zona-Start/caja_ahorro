@@ -41,6 +41,31 @@ export function useAccountingEntryMutation() {
   });
 }
 
+export function useImportAccountingEntryMutation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (file: File) => AccountingEntriesService.importExcel(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.accountingEntries.all,
+      });
+      toast({
+        title: 'Asiento importado',
+        description: 'El asiento contable ha sido importado exitosamente.',
+      });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: 'Error',
+        description: extractErrorMessage(error),
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 export function useDeleteAccountingEntryMutation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

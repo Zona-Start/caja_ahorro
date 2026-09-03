@@ -267,7 +267,9 @@ export function LoadAssetsForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-primary font-bold">
-                          Monto del Depósito (VES)
+                          {movementType === 'SAVING_DIFFERENCE'
+                            ? 'Monto Diferencia Ahorro (VES)'
+                            : 'Monto del Depósito (VES)'}
                         </FormLabel>
                         <FormControl>
                           <div className="relative">

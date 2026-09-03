@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
@@ -20,9 +20,10 @@ const METHOD_OPTIONS = (Object.entries(PAYMENT_METHOD) as [string, string][]).ma
 
 interface Props {
   onCreateClick: () => void;
+  onBulkClick: () => void;
 }
 
-export function CreditsPaidTableAction({ onCreateClick }: Props) {
+export function CreditsPaidTableAction({ onCreateClick, onBulkClick }: Props) {
   const { filters, setFilters } = useCreditsPaidFilters();
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
@@ -53,9 +54,14 @@ export function CreditsPaidTableAction({ onCreateClick }: Props) {
       </div>
       <div className="flex gap-2">
         {hasPermission("portfolio:payments-credits", "create") && (
-          <Button onClick={onCreateClick} size="sm">
-            <Plus className="mr-2 h-4 w-4" /> Nuevo Pago
-          </Button>
+          <>
+            <Button onClick={onBulkClick} size="sm" variant="outline">
+              <Upload className="mr-2 h-4 w-4" /> Carga Masiva
+            </Button>
+            <Button onClick={onCreateClick} size="sm">
+              <Plus className="mr-2 h-4 w-4" /> Nuevo Pago
+            </Button>
+          </>
         )}
       </div>
     </div>

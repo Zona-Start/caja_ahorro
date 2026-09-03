@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { FileSpreadsheet, Plus } from 'lucide-react';
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
@@ -7,6 +7,7 @@ import { useWithdrawalFilters } from '../../hooks/use-withdrawal-filters';
 import { useWithdrawalTypesQuery } from '../../hooks/use-withdrawal-query';
 import { ESTATUS_TYPES } from '../../schemas/withdrawal-options';
 import { WithdrawalModal } from '../withdrawal-modal';
+import { WithdrawalBulkModal } from '../withdrawal-bulk-modal';
 import { useAuthStore } from '@/stores/auth.store';
 
 const STATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(([value, label]) => ({
@@ -17,6 +18,7 @@ const STATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(([value, label]) => ({
 export function WithdrawalTableAction() {
   const { filters, setFilters } = useWithdrawalFilters();
   const [open, setOpen] = useState(false);
+  const [openBulk, setOpenBulk] = useState(false);
   const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const { data: typesResponse } = useWithdrawalTypesQuery();
@@ -54,13 +56,19 @@ export function WithdrawalTableAction() {
       </div>
       <div className="flex gap-2">
         {hasPermission("savings:withdrawals", "create") && (
-          <Button onClick={() => setOpen(true)} size="sm">
-            <Plus className="mr-2 h-4 w-4" /> Nueva Solicitud
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setOpenBulk(true)} size="sm">
+              <FileSpreadsheet className="mr-2 h-4 w-4" /> Carga Masiva
+            </Button>
+            <Button onClick={() => setOpen(true)} size="sm">
+              <Plus className="mr-2 h-4 w-4" /> Nueva Solicitud
+            </Button>
+          </>
         )}
       </div>
 
       <WithdrawalModal open={open} onOpenChange={setOpen} />
+      <WithdrawalBulkModal open={openBulk} onOpenChange={setOpenBulk} />
     </div>
   );
 }

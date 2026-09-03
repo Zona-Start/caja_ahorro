@@ -38,35 +38,42 @@ export class BulkPaymentUseCase {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(file.buffer as any);
     const worksheet = workbook.getWorksheet(1);
-    const itemsFromExcel: { cedula: string; amount: number; fecha: Date }[] =
-      [];
-    let finalPaymentDate: Date = new Date();
+    const itemsFromExcel: { cedula: string; amount: number }[] = [];
 
     if (!worksheet)
       throw new BadRequestException(
         'No se encontró la hoja de trabajo en el Excel',
       );
 
+    // La fecha de pago se lee de la celda B1 (fila 1: "fecha" | yyyy-MM-dd)
+    const cellB1Value = worksheet.getCell('B1').value?.toString().trim();
+    const parsedDate = cellB1Value ? new Date(cellB1Value) : null;
+    const finalPaymentDate =
+      parsedDate && !isNaN(parsedDate.getTime())
+        ? parsedDate
+        : dto?.paymentDate
+          ? new Date(dto.paymentDate)
+          : new Date();
+
+    // Los datos inician en la fila 3 (fila 1: fecha, fila 2: encabezados)
     worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1) {
+      if (rowNumber > 2) {
         const cedula = row.getCell(1).value?.toString().trim();
         const amountValue = row.getCell(2).value;
         const amount =
           typeof amountValue === 'number'
             ? amountValue
             : parseFloat(amountValue?.toString() || '0');
-        const dateValue = row.getCell(3).value?.toString().trim();
-        finalPaymentDate = dateValue ? new Date(dateValue) : new Date();
 
         if (cedula && !isNaN(amount) && amount > 0) {
-          itemsFromExcel.push({ cedula, amount, fecha: finalPaymentDate });
+          itemsFromExcel.push({ cedula, amount });
         }
       }
     });
 
     if (itemsFromExcel.length === 0)
       throw new BadRequestException(
-        'El archivo Excel está vacío o no tiene el formato correcto (Col 1: Cedula, Col 2: Monto, Col 3: Fecha)',
+        'El archivo Excel está vacío o no tiene el formato correcto (Fila 1: fecha, Fila 2: cedula/monto, Fila 3+: datos)',
       );
 
     const results = {
@@ -167,8 +174,7 @@ export class BulkPaymentUseCase {
             {
               tenantId,
               loanId: loan.id,
-              paymentDate:
-                item.fecha instanceof Date ? item.fecha : new Date(item.fecha),
+              paymentDate: finalPaymentDate,
               paymentType: 'PAYING',
               amount: item.amount,
               balancePending: newBalancePending,
@@ -248,10 +254,7 @@ export class BulkPaymentUseCase {
                 movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
                 amount: item.amount,
                 currencyCode: (loan.currencyCode ?? 'VES') as CurrencyCodeEnum,
-                transactionDate:
-                  item.fecha instanceof Date
-                    ? item.fecha
-                    : new Date(item.fecha),
+                transactionDate: finalPaymentDate,
                 description: 'Pago Préstamo (Carga Masiva Excel)',
                 referenceId: insertedPayment.id,
                 referenceType: 'loansPayments',
@@ -270,12 +273,12 @@ export class BulkPaymentUseCase {
           accountingItemsForEntry.push({
             associateId: associate.id,
             amounts: {
-              LOAN_PRINCIPAL: roundedPrincipal,
+              LOAN_PAYMENT: roundedPrincipal,
               LOAN_INTEREST_INCOME: roundedInterest,
             },
             descriptions: {
-              LOAN_PRINCIPAL: `Amortización de Capital - Préstamo del Asociado ${associate.fullname}`,
-              LOAN_INTEREST_INCOME: `Intereses - Préstamo del Asociado ${associate.fullname}`,
+              LOAN_PAYMENT: `CUOTA PRESTAMO - Asociado ${associate.fullname}`,
+              LOAN_INTEREST_INCOME: `INTERES PRESTAMO - Asociado ${associate.fullname}`,
             },
           });
 

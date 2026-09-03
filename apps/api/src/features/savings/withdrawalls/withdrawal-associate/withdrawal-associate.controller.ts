@@ -1,6 +1,7 @@
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,10 +11,16 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+import { memoryStorage } from 'multer';
 import {
+  BulkWithdrawalAssociateSchema,
   CreateWithdrawalAssociateSchema,
   DisburseWithdrawalAssociateSchema,
   FilterWithdrawalAssociateSchema,
@@ -40,6 +47,35 @@ export class WithdrawalAssociateController {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     return this.service.execute(targetTenantId, userId, dto);
+  }
+
+  @Get('template')
+  @ApiOperation({ summary: 'Download template for bulk withdrawal load' })
+  async getTemplate(@Res() res: Response) {
+    const buffer = await this.service.generateTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':
+        'attachment; filename="plantilla_retiros_masivos.xlsx"',
+    });
+    res.end(buffer);
+  }
+
+  @Post('bulk')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @ApiOperation({ summary: 'Upload excel file for bulk withdrawal load' })
+  async importBulk(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+    @Body(new ZodValidatorPipe(BulkWithdrawalAssociateSchema)) dto: any,
+  ) {
+    if (!file) {
+      throw new BadRequestException('El archivo es requerido');
+    }
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
+    return this.service.importBulk(targetTenantId, userId, file.buffer, dto);
   }
 
   @Get('approved')

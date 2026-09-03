@@ -4,6 +4,7 @@ import {
   loanPaymentByIdResponseSchema,
   loanPaymentMutationSchema,
   loanPaymentDeleteResponseSchema,
+  loanPaymentBulkResponseSchema,
 } from '../schemas/loans-paid-api-response';
 import { associatesLoanSchema } from '../schemas/individual-load-api-schema';
 
@@ -47,5 +48,27 @@ export const loansPaidService = {
   getAssociatesByCedula: async (cedula: string) => {
     const response = await apiClient.get(`/loan-paid/request/${cedula}`);
     return associatesLoanSchema.parse(response.data);
+  },
+
+  downloadTemplate: async (): Promise<string> => {
+    const response = await apiClient.get('/loan-paid/download-template', {
+      responseType: 'arraybuffer',
+    });
+    const bytes = new Uint8Array(response.data as ArrayBuffer);
+    let binary = '';
+    const len = bytes.length;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]!);
+    }
+    return btoa(binary);
+  },
+
+  bulkUpload: async (formData: FormData) => {
+    const response = await apiClient.post('/loan-paid/bulk', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return loanPaymentBulkResponseSchema.parse(response.data);
   },
 };

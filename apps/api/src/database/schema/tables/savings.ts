@@ -15,6 +15,7 @@ import { timestamps } from '../../timestamps';
 import { savingsSchema } from '../_schemas';
 import {
   associateMovementTypeEnum,
+  contributionAssociateTypeEnum,
   creditModalityTypeEnum,
   creditPaymentTypeEnum,
   creditStatusEnum,
@@ -1101,6 +1102,9 @@ export const contributionBatchAssociates = savingsSchema.table(
     associateId: uuid('associate_id')
       .references(() => associates.id, { onDelete: 'cascade' })
       .notNull(),
+    contributionType: contributionAssociateTypeEnum('contribution_type')
+      .notNull()
+      .default('ASSOCIATED_SAVINGS'),
     amount: numeric('amount', { precision: 20, scale: 6 }),
     ...timestamps,
   },

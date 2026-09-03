@@ -13,6 +13,7 @@ import {
 import { associateHaberesBalance } from '@/database/schema/views';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AssociateAccountsMovementsService } from '@/features/savings/parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
   AssociateMovementTypeEnum,
@@ -30,6 +31,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { and, count, desc, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
@@ -43,13 +45,16 @@ import {
 
 @Injectable()
 export class LoanManagementService {
+  private readonly logger = new Logger(LoanManagementService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+    private readonly accountingEntriesService: AccountingEntriesService,
+  ) { }
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -552,15 +557,15 @@ export class LoanManagementService {
     const schedule =
       capital > 0
         ? this.generateAmortizationSchedule(
-            capital,
-            finalTermUnits,
-            finalRate,
-            startDate,
-            '',
-            userId,
-            finalTermType,
-            expensesAmount,
-          )
+          capital,
+          finalTermUnits,
+          finalRate,
+          startDate,
+          '',
+          userId,
+          finalTermType,
+          expensesAmount,
+        )
         : [];
 
     const newLoan = await this.db.transaction(async (tx) => {
@@ -871,7 +876,11 @@ export class LoanManagementService {
     dto: DisburseLoanDto,
     tx?: NodePgDatabase<typeof schema>,
     skipBankTransaction = false,
-  ): Promise<{ id: string; customReference: string | null }> {
+  ): Promise<{
+    id: string;
+    customReference: string | null;
+    accountingWarning?: string;
+  }> {
     const executeCore = async (trx: any) => {
       const [loan] = await trx
         .select()
@@ -900,6 +909,24 @@ export class LoanManagementService {
       const paymentMethod =
         methodMap[dto.paymentMethod as string] ??
         paymentMethodEnum.BANK_TRANSFER;
+
+      const [associate] = await trx
+        .select({
+          fullname: associates.fullname,
+          cedula: associates.cedula,
+        })
+        .from(associates)
+        .where(eq(associates.id, loan.associateId));
+
+      const [loanType] = await trx
+        .select({ name: loanTypes.name })
+        .from(loanTypes)
+        .where(eq(loanTypes.id, loan.loanTypeId));
+
+      const requestedAmount = Number(loan.requestedAmount ?? 0);
+      const expensesAmount = Number(loan.expensesAmount ?? 0);
+      const loanPrincipalAmount = requestedAmount + expensesAmount;
+      const bankAccountAmount = requestedAmount;
 
       const [updatedLoan] = await trx
         .update(loans)
@@ -961,10 +988,88 @@ export class LoanManagementService {
       return {
         id: updatedLoan.id,
         customReference: updatedLoan.customReference ?? null,
+        accountingParams: {
+          loanId: id,
+          associateId: loan.associateId,
+          associateFullname: associate?.fullname ?? '',
+          associateCedula: associate?.cedula ?? '',
+          loanTypeName: loanType?.name ?? 'PRÉSTAMO',
+          requestedAmount,
+          expensesAmount,
+          loanPrincipalAmount,
+          bankAccountAmount,
+          entryDate: disbursementDate,
+          currencyCode: (loan.currencyCode as CurrencyCodeEnum) ??
+            CurrencyCodeEnum.VES,
+        },
       };
     };
 
-    return tx ? executeCore(tx) : this.db.transaction(executeCore);
+    const coreResult = tx
+      ? await executeCore(tx)
+      : await this.db.transaction(executeCore);
+
+    // Generar asiento contable (no-fatal: no revierte el desembolso si falla)
+    let accountingWarning: string | undefined;
+    const accountingParams = coreResult.accountingParams;
+
+    try {
+      const typeDesc = accountingParams.loanTypeName;
+      const associateDesc = `${accountingParams.associateCedula} ${accountingParams.associateFullname}`.trim();
+
+      const result = await this.accountingEntriesService.createAutomaticEntry(
+        tenantId,
+        userId,
+        {
+          module: 'portfolio',
+          submodule: 'loans',
+          category: 'SAVINGS_BANK',
+          operationType: 'LOAN_TYPE',
+          description: `Desembolso de Préstamo - ${accountingParams.associateFullname}`,
+          entryDate: accountingParams.entryDate,
+          referenceValue: typeDesc,
+          currencyCode: accountingParams.currencyCode,
+          originReferenceId: accountingParams.loanId,
+          originType: 'LOAN_DISBURSEMENT',
+          items: [
+            {
+              associateId: accountingParams.associateId,
+              amounts: {
+                LOAN_PRINCIPAL: accountingParams.loanPrincipalAmount,
+                SERVICE_FEE_INCOME: accountingParams.expensesAmount,
+                BANK_ACCOUNT: accountingParams.bankAccountAmount,
+              },
+              descriptions: {
+                LOAN_PRINCIPAL: typeDesc,
+                SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
+                BANK_ACCOUNT: `TB ${associateDesc}`,
+              },
+            },
+          ],
+          globalDescriptions: {
+            LOAN_PRINCIPAL: typeDesc,
+            SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
+            BANK_ACCOUNT: `TB ${associateDesc}`,
+          },
+        },
+        undefined,
+      );
+
+    } catch (error) {
+      accountingWarning =
+        (error as any)?.message ??
+        'Error al generar el asiento contable del desembolso';
+      this.logger.error(
+        `[disburse] Error generando asiento contable para préstamo ${accountingParams.loanId}: ${accountingWarning}`,
+        (error as any)?.stack,
+      );
+    }
+
+    return {
+      id: coreResult.id,
+      customReference: coreResult.customReference,
+      accountingWarning,
+    };
   }
 
   // ─── LISTAR TODOS (PAGINADO) ────────────────────────────────────────────

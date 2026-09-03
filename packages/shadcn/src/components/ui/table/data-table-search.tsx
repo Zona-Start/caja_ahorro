@@ -2,23 +2,18 @@
 
 import { Input } from '@repo/shadcn/input';
 import { cn } from '@repo/shadcn/lib/utils';
-import { Options } from 'nuqs';
-import { useTransition } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface DataTableSearchProps {
   title?: string;
   searchKey: string;
   searchQuery: string;
-  setSearchQuery: (
-    value: any,
-    options?: any,
-  ) => any;
-  setPage: (
-    value: any,
-    options?: any,
-  ) => any;
+  setSearchQuery: (value: string) => void;
+  setPage?: (value: number) => void;
   w?: string;
 }
+
+const SEARCH_DEBOUNCE_MS = 400;
 
 /*************  ✨ Command ⭐  *************/
 /**
@@ -26,43 +21,56 @@ interface DataTableSearchProps {
  *
  * @remarks
  *
- * This component allows users to search the table by keyword. It uses the
- * `useTransition` hook from `react` to prevent the component from re-rendering
- * while the search is in progress.
+ * This component allows users to search the table by keyword. The input value
+ * is kept in local state so typing is never blocked by URL updates. The search
+ * is debounced (400ms) before dispatching to the URL/filters, allowing the user
+ * to type complete words without losing focus.
  *
- * The component expects the following props:
- *
- * - `searchKey`: A string that describes what the user is searching for.
- * - `searchQuery`: The current search query.
- * - `setSearchQuery`: A function that sets the search query.
- * - `setPage`: A function that sets the page number.
- *
- * The component returns an `Input` component with a placeholder that includes
- * the `searchKey`. The component is wrapped in a `div` with a class of
- * `"data-table-search"`.
- ***/
+ * The page reset is handled by each module's `setFilters` (which resets to page
+ * 1 when the search filter changes) — calling `setPage` separately would
+ * overwrite the freshly-set search param due to stale `searchParams` in
+ * `useSearchParams`-based filters.
+ **/
 
 export function DataTableSearch({
-  searchKey,
   searchQuery,
   setSearchQuery,
-  setPage,
   title = 'Buscar',
   w = 'w-72 md:max-w-sm',
 }: DataTableSearchProps) {
-  const [isLoading, startTransition] = useTransition();
+  const [localValue, setLocalValue] = useState(searchQuery ?? '');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleSearch = (value: string) => {
-    setSearchQuery(value, { startTransition });
-    setPage(1); // Reset page to 1 when search changes
+  useEffect(() => {
+    setLocalValue(searchQuery ?? '');
+  }, [searchQuery]);
+
+  const handleChange = (value: string) => {
+    setLocalValue(value);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      setSearchQuery(value);
+    }, SEARCH_DEBOUNCE_MS);
   };
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   return (
     <Input
       placeholder={`${title}...`}
-      value={searchQuery ?? ''}
-      onChange={(e) => handleSearch(e.target.value)}
-      className={cn(`${w}`, isLoading && 'animate-pulse')}
+      value={localValue}
+      onChange={(e) => handleChange(e.target.value)}
+      className={cn(w)}
     />
   );
 }

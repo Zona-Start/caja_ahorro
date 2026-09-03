@@ -15,6 +15,7 @@ import { and, eq, gte, ilike, lte, sql, type SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import { ContributionBatchesAccountingService } from './contribution-batches-accounting.service';
+import { ContributionAssociateType } from '../individual-load/schemas/individual-load.types';
 import {
   CreateContributionBatchDto,
   FilterContributionBatchDto,
@@ -23,6 +24,7 @@ import {
 interface AssociateEntryInput {
   associateId: string;
   amount?: number;
+  contributionType?: ContributionAssociateType;
 }
 
 @Injectable()
@@ -142,6 +144,7 @@ export class ContributionBatchesService {
         cedula: schema.associates.cedula,
         fullname: schema.associates.fullname,
         amount: schema.contributionBatchAssociates.amount,
+        contributionType: schema.contributionBatchAssociates.contributionType,
       })
       .from(schema.contributionBatchAssociates)
       .innerJoin(
@@ -202,6 +205,7 @@ export class ContributionBatchesService {
         associateEntries.map((entry) => ({
           contributionBatchId: batch.id,
           associateId: entry.associateId,
+          contributionType: entry.contributionType ?? 'ASSOCIATED_SAVINGS',
           amount: entry.amount?.toString(),
           createdById: userId,
         })),
@@ -210,6 +214,7 @@ export class ContributionBatchesService {
       await tx.insert(schema.contributionBatchAssociates).values({
         contributionBatchId: batch.id,
         associateId: dto.associateId,
+        contributionType: 'ASSOCIATED_SAVINGS',
         amount: dto.totalAmount.toString(),
         createdById: userId,
       });

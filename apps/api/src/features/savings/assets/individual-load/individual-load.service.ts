@@ -40,9 +40,11 @@ import {
 import type {
   AccountingItem,
   AccountingOutcome,
+  AporteRow,
   AssociateMovementResult,
   BankMovementResult,
   BulkRow,
+  ContributionMovementType,
   LoadResult,
 } from './schemas/individual-load.types';
 
@@ -126,6 +128,12 @@ export class IndividualLoadService {
           buildIndividualAssociateEntries({
             associateId: account.associates.id,
             totalAmount,
+            contributionType:
+              dto.movementType === 'EMPLOYER_CONTRIBUTION'
+                ? 'EMPLOYER_CONTRIBUTION'
+                : dto.movementType === 'SAVING_DIFFERENCE'
+                  ? 'SAVING_DIFFERENCE'
+                  : 'VOLUNTARY_SAVINGS',
           }),
         );
 
@@ -220,30 +228,46 @@ export class IndividualLoadService {
     );
 
     // === Asiento contable de seguimiento (Opción B: tx propia post-commit) ===
+    const isEmployerContribution =
+      dto.movementType === 'EMPLOYER_CONTRIBUTION';
+    const isSavingsDifference = dto.movementType === 'SAVING_DIFFERENCE';
+    const differenceDateStr = (
+      dto.transactionDate ?? new Date()
+    )
+      .toISOString()
+      .split('T')[0];
+
     const accountingParams = buildContributionAccountingParams({
       movementType: resolveContributionMovementType(dto.movementType),
       entryDate: dto.transactionDate ?? new Date(),
       description:
         dto.description ||
-        defaultLoadDescription(
-          dto.movementType === 'EMPLOYER_CONTRIBUTION',
-          '',
-        ),
+        defaultLoadDescription(isEmployerContribution, ''),
       associateIds: [batch.associateId].filter((v): v is string => !!v),
-      totalAmount:
-        dto.movementType === 'EMPLOYER_CONTRIBUTION'
-          ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
-          : (dto.amount ?? 0),
-      amountVoluntario:
-        dto.movementType === 'EMPLOYER_CONTRIBUTION' ? undefined : dto.amount,
-      amountPatrono:
-        dto.movementType === 'EMPLOYER_CONTRIBUTION'
-          ? dto.employerAmount
-          : undefined,
-      amountAsociado:
-        dto.movementType === 'EMPLOYER_CONTRIBUTION'
-          ? dto.associateAmount
-          : undefined,
+      totalAmount: isEmployerContribution
+        ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
+        : (dto.amount ?? 0),
+      amountVoluntario: isEmployerContribution ? undefined : dto.amount,
+      amountPatrono: isEmployerContribution
+        ? dto.employerAmount
+        : undefined,
+      amountAsociado: isEmployerContribution
+        ? dto.associateAmount
+        : undefined,
+      // Para la diferencia de ahorro, apuntamos explícitamente a
+      // ASSOCIATED_SAVINGS (misma cuenta que el ahorro socio).
+      items: isSavingsDifference
+        ? [
+            {
+              associateId:
+                (batch.associateId as string | null) ?? undefined,
+              amounts: { ASSOCIATED_SAVINGS: dto.amount ?? 0 },
+              descriptions: {
+                ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${differenceDateStr}`,
+              },
+            } as AccountingItem,
+          ]
+        : undefined,
     });
 
     const accounting = await this.attemptAccountingEntry(
@@ -269,30 +293,61 @@ export class IndividualLoadService {
 
   async generateTemplate(): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Carga Masiva');
 
-    sheet.getCell('A1').value = 'tipo';
-    sheet.getCell('B1').value = 'APORTE EMPLEADOS';
-    sheet.getCell('A1').font = { bold: true };
-    sheet.getCell('B1').font = { bold: true, color: { argb: 'FFFF0000' } };
-    sheet.getCell('C1').value = 'fecha';
-    sheet.getCell('D1').value = '1989-01-01';
-    sheet.getCell('D1').font = { bold: true };
+    // ── Hoja 1: aportes ────────────────────────────────────────────────
+    const aportes = workbook.addWorksheet('aportes');
 
-    sheet.getCell('A2').value = 'cedula';
-    sheet.getCell('B2').value = 'monto';
-    sheet.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    sheet.getRow(2).fill = {
+    aportes.getCell('A1').value = 'tipo';
+    aportes.getCell('B1').value = 'APORTE EMPLEADOS';
+    aportes.getCell('A1').font = { bold: true };
+    aportes.getCell('B1').font = { bold: true, color: { argb: 'FFFF0000' } };
+    aportes.getCell('C1').value = 'fecha';
+    aportes.getCell('D1').value = '2026-01-28';
+    aportes.getCell('D1').font = { bold: true };
+
+    aportes.getCell('A2').value = 'cedula';
+    aportes.getCell('B2').value = 'aporte empleado';
+    aportes.getCell('C2').value = 'aporte patrono';
+    aportes.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    aportes.getRow(2).fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FF1F497D' },
     };
 
-    sheet.getColumn('A').width = 20;
-    sheet.getColumn('B').width = 20;
+    aportes.getColumn('A').width = 20;
+    aportes.getColumn('B').width = 20;
+    aportes.getColumn('C').width = 20;
 
-    sheet.getCell('A3').value = '12345678';
-    sheet.getCell('B3').value = 5000;
+    aportes.getCell('A3').value = '12345678';
+    aportes.getCell('B3').value = 3000;
+    aportes.getCell('C3').value = 2000;
+
+    // ── Hoja 2: diferencias ────────────────────────────────────────────
+    const diferencias = workbook.addWorksheet('diferencias');
+
+    diferencias.getCell('A1').value = 'tipo';
+    diferencias.getCell('B1').value = 'DIFERENCIA APORTE';
+    diferencias.getCell('A1').font = { bold: true };
+    diferencias.getCell('B1').font = { bold: true, color: { argb: 'FFFF0000' } };
+    diferencias.getCell('C1').value = 'fecha';
+    diferencias.getCell('D1').value = '2026-01-28';
+    diferencias.getCell('D1').font = { bold: true };
+
+    diferencias.getCell('A2').value = 'cedula';
+    diferencias.getCell('B2').value = 'monto';
+    diferencias.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    diferencias.getRow(2).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F497D' },
+    };
+
+    diferencias.getColumn('A').width = 20;
+    diferencias.getColumn('B').width = 20;
+
+    diferencias.getCell('A3').value = '12345678';
+    diferencias.getCell('B3').value = 500;
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer as ArrayBuffer);
@@ -304,38 +359,31 @@ export class IndividualLoadService {
     fileBuffer: Buffer,
     dto: BulkIndividualLoadDto,
   ): Promise<LoadResult> {
-    const { typeCell, validDate, rows } =
+    const { aportesRows, diferenciasRows, validDate } =
       await this.parseBulkWorkbook(fileBuffer);
-    if (typeCell !== 'APORTE EMPLEADOS' && typeCell !== 'DESCUENTOS CAJA') {
-      throw new BadRequestException(
-        'El tipo de carga en la celda B1 debe ser APORTE EMPLEADOS o DESCUENTOS CAJA',
-      );
-    }
 
-    if (rows.length === 0) {
+    if (aportesRows.length === 0 && diferenciasRows.length === 0) {
       throw new BadRequestException(
         'No se encontraron registros válidos en el archivo',
       );
     }
 
-    const isPatronal = typeCell === 'APORTE EMPLEADOS';
-    const mouvementType = isPatronal
-      ? 'contribution_patronal'
-      : 'contribution_voluntary';
+    const mouvementType: ContributionMovementType = 'contribution_patronal';
+    const monthStr = this.formatBulkMonth(validDate);
+    const yearStr = String(validDate.getFullYear());
+    const dateStr = this.formatBulkDate(validDate);
 
     // === Transacción financiera atómica ===
     const { batch, processedCount, totalAmountProcessed, accountingItems } =
       await this.drizzle.transaction(async (tx) => {
         const movementDate = validDate;
-        const dateStr = this.formatBulkDate(movementDate);
         let processedCount = 0;
         let totalAmountProcessed = 0;
         const movementResults: AssociateMovementResult[] = [];
         const accountingItems: AccountingItem[] = [];
-        const processedAssociateIds: string[] = [];
 
-        // 2) Generar movimientos por cada row válida
-        for (const row of rows) {
+        // 2) Generar movimientos por cada fila válida de la hoja "aportes"
+        for (const row of aportesRows) {
           const [associate] = await tx
             .select({
               id: schema.associates.id,
@@ -357,83 +405,115 @@ export class IndividualLoadService {
             continue;
           }
 
-          if (isPatronal) {
+          if (row.aporteEmpleado > 0) {
             const resEmp = (await this.associateMovementsService.create(
               userId,
               {
                 associateAccountId: associate.associateAccountId,
                 movementType:
                   'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
-                amount: row.monto,
+                amount: row.aporteEmpleado,
                 currencyCode: 'VES' as CurrencyCodeEnum,
                 transactionDate: movementDate,
-                description: 'Aporte Patronales',
+                description: `Ahorro Socio ${monthStr} ${yearStr}`,
                 status: 'COMPLETED' as movementStatusEnum,
               },
               tenantId,
               tx,
             )) as AssociateMovementResult;
+            movementResults.push(resEmp);
+            totalAmountProcessed += row.aporteEmpleado;
+            accountingItems.push({
+              associateId: associate.id,
+              contributionType: 'ASSOCIATED_SAVINGS',
+              amounts: { ASSOCIATED_SAVINGS: row.aporteEmpleado },
+              descriptions: {
+                ASSOCIATED_SAVINGS: `AHORRO DEL ${dateStr}`,
+              },
+            });
+          }
 
+          if (row.aportePatrono > 0) {
             const resPat = (await this.associateMovementsService.create(
               userId,
               {
                 associateAccountId: associate.associateAccountId,
                 movementType:
                   'EMPLOYER_CONTRIBUTION' as AssociateMovementTypeEnum,
-                amount: row.monto,
+                amount: row.aportePatrono,
                 currencyCode: 'VES' as CurrencyCodeEnum,
                 transactionDate: movementDate,
-                description: 'Aporte Patronales',
+                description: `Aporte Patrono ${monthStr} ${yearStr}`,
                 status: 'COMPLETED' as movementStatusEnum,
               },
               tenantId,
               tx,
             )) as AssociateMovementResult;
-
-            movementResults.push(resEmp, resPat);
-            totalAmountProcessed += row.monto * 2;
+            movementResults.push(resPat);
+            totalAmountProcessed += row.aportePatrono;
             accountingItems.push({
               associateId: associate.id,
-              amounts: {
-                ASSOCIATED_SAVINGS: row.monto,
-                EMPLOYER_CONTRIBUTION: row.monto,
-              },
+              contributionType: 'EMPLOYER_CONTRIBUTION',
+              amounts: { EMPLOYER_CONTRIBUTION: row.aportePatrono },
               descriptions: {
-                ASSOCIATED_SAVINGS: `AHORRO DEL ${dateStr}`,
                 EMPLOYER_CONTRIBUTION: `APORTE DEL ${dateStr}`,
-              },
-            });
-          } else {
-            const resDes = (await this.associateMovementsService.create(
-              userId,
-              {
-                associateAccountId: associate.associateAccountId,
-                movementType:
-                  'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
-                amount: row.monto,
-                currencyCode: 'VES' as CurrencyCodeEnum,
-                transactionDate: movementDate,
-                description: 'Aportes Patronales - Diferencia Ahorro',
-                status: 'COMPLETED' as movementStatusEnum,
-              },
-              tenantId,
-              tx,
-            )) as AssociateMovementResult;
-
-            movementResults.push(resDes);
-            totalAmountProcessed += row.monto;
-            accountingItems.push({
-              associateId: associate.id,
-              amounts: {
-                ASSOCIATED_SAVINGS: row.monto,
-              },
-              descriptions: {
-                ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateStr}`,
               },
             });
           }
 
-          processedAssociateIds.push(associate.id);
+          processedCount++;
+        }
+
+        // 3) Generar movimientos de la hoja "diferencias"
+        for (const row of diferenciasRows) {
+          const [associate] = await tx
+            .select({
+              id: schema.associates.id,
+              associateAccountId: schema.associateAccounts.id,
+            })
+            .from(schema.associates)
+            .where(
+              and(
+                eq(schema.associates.cedula, row.cedula),
+                eq(schema.associates.tenantId, tenantId),
+              ),
+            )
+            .leftJoin(
+              schema.associateAccounts,
+              eq(schema.associateAccounts.associateId, schema.associates.id),
+            );
+
+          if (!associate || !associate.associateAccountId) {
+            continue;
+          }
+
+          const resDes = (await this.associateMovementsService.create(
+            userId,
+            {
+              associateAccountId: associate.associateAccountId,
+              movementType:
+                'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+              amount: row.monto,
+              currencyCode: 'VES' as CurrencyCodeEnum,
+              transactionDate: movementDate,
+              description: `DIFERENCIA AHORRO DEL SOCIO ${monthStr} ${yearStr}`,
+              status: 'COMPLETED' as movementStatusEnum,
+            },
+            tenantId,
+            tx,
+          )) as AssociateMovementResult;
+
+          movementResults.push(resDes);
+          totalAmountProcessed += row.monto;
+          accountingItems.push({
+            associateId: associate.id,
+            contributionType: 'SAVING_DIFFERENCE',
+            amounts: { ASSOCIATED_SAVINGS: row.monto },
+            descriptions: {
+              ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${dateStr}`,
+            },
+          });
+
           processedCount++;
         }
 
@@ -445,7 +525,7 @@ export class IndividualLoadService {
 
         const bulkDescription =
           dto.description ||
-          `Carga masiva ${typeCell} - ${processedCount} asociados`;
+          `Carga masiva APORTE EMPLEADOS - ${processedCount} asociados`;
 
         // 1) Registrar el lote + detalle (sin asiento contable ni banco aún)
         const batch = await this.contributionBatchesService.createBatchRecord(
@@ -463,13 +543,15 @@ export class IndividualLoadService {
           }),
           accountingItems.map((item) => ({
             associateId: item.associateId,
+            contributionType: item.contributionType ?? 'ASSOCIATED_SAVINGS',
             amount:
               (item.amounts.ASSOCIATED_SAVINGS ?? 0) +
-              (item.amounts.EMPLOYER_CONTRIBUTION ?? 0),
+              (item.amounts.EMPLOYER_CONTRIBUTION ?? 0) +
+              (item.amounts.VOLUNTARY_SAVINGS ?? 0),
           })),
         );
 
-        // 3) Si hay datos bancarios -> transacción bancaria + referencias
+        // 4) Si hay datos bancarios -> transacción bancaria + referencias
         const hasBankingDetails =
           !!dto.bankAccountId && !!dto.paymentMethod && !!dto.referenceNumber;
 
@@ -481,7 +563,7 @@ export class IndividualLoadService {
               paymentMethod: dto.paymentMethod as paymentMethodEnum,
               referenceNumber: dto.referenceNumber ?? undefined,
               description: dto.description,
-              fallbackDescription: `Carga masiva: ${typeCell} - ${processedCount} registros`,
+              fallbackDescription: `Carga masiva: APORTE EMPLEADOS - ${processedCount} registros`,
               creditAmount: totalAmountProcessed,
             },
             movementResults,
@@ -535,12 +617,11 @@ export class IndividualLoadService {
       entryDate: validDate,
       description:
         dto.description ||
-        `Carga masiva ${typeCell} - ${processedCount} asociados`,
+        `Carga masiva APORTE EMPLEADOS - ${processedCount} asociados`,
       associateIds: accountingItems.map((item) => item.associateId),
       totalAmount: totalAmountProcessed,
-      amountVoluntario: isPatronal ? undefined : totalAmountProcessed,
-      amountPatrono: isPatronal ? totalAmountProcessed / 2 : undefined,
-      amountAsociado: isPatronal ? totalAmountProcessed / 2 : undefined,
+      amountPatrono: undefined,
+      amountAsociado: undefined,
       items: accountingItems,
     });
 
@@ -618,7 +699,11 @@ export class IndividualLoadService {
 
   private async parseBulkWorkbook(
     fileBuffer: Buffer,
-  ): Promise<{ typeCell: string; validDate: Date; rows: BulkRow[] }> {
+  ): Promise<{
+    aportesRows: AporteRow[];
+    diferenciasRows: BulkRow[];
+    validDate: Date;
+  }> {
     if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
       throw new BadRequestException(
         'El archivo Excel está vacío o no se pudo leer correctamente.',
@@ -627,40 +712,80 @@ export class IndividualLoadService {
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(fileBuffer as any);
-    const worksheet = workbook.worksheets[0];
 
-    if (!worksheet) {
+    const aportesSheet = workbook.getWorksheet('aportes');
+    const diferenciasSheet = workbook.getWorksheet('diferencias');
+
+    if (!aportesSheet || !diferenciasSheet) {
       throw new BadRequestException(
-        'El archivo Excel está vacío o es inválido',
+        'El archivo Excel debe contener las hojas "aportes" y "diferencias".',
       );
     }
 
-    const typeCell = String(worksheet.getCell('B1').value || '').trim();
+    const readDate = (sheet: ExcelJS.Worksheet): Date => {
+      const rawDateCell = sheet.getCell('D1').value;
+      let validDate: Date;
+      if (rawDateCell instanceof Date) {
+        validDate = rawDateCell;
+      } else {
+        validDate = new Date(String(rawDateCell || ''));
+      }
+      if (isNaN(validDate.getTime()) || validDate.getFullYear() < 2000) {
+        throw new BadRequestException(
+          `La fecha en la celda D1 de la hoja "${sheet.name}" es inválida o muy antigua`,
+        );
+      }
+      return validDate;
+    };
 
-    const rawDateCell = worksheet.getCell('D1').value;
-    let validDate: Date;
-    if (rawDateCell instanceof Date) {
-      validDate = rawDateCell;
-    } else {
-      validDate = new Date(String(rawDateCell || ''));
-    }
-    if (isNaN(validDate.getTime()) || validDate.getFullYear() < 2000) {
+    // Hoja 1: aportes
+    const aportesType = String(
+      aportesSheet.getCell('B1').value || '',
+    ).trim();
+    if (aportesType !== 'APORTE EMPLEADOS') {
       throw new BadRequestException(
-        'La fecha en la celda D1 es inválida o muy antigua',
+        'El tipo de carga en la celda B1 de la hoja "aportes" debe ser APORTE EMPLEADOS',
       );
     }
 
-    const rows: BulkRow[] = [];
-    worksheet.eachRow((row, rowNumber) => {
+    const validDate = readDate(aportesSheet);
+
+    const aportesRows: AporteRow[] = [];
+    aportesSheet.eachRow((row, rowNumber) => {
+      if (rowNumber <= 2) return;
+      const cedula = String(row.getCell(1).value || '').trim();
+      const aporteEmpleado = parseFloat(
+        String(row.getCell(2).value || '0'),
+      );
+      const aportePatrono = parseFloat(
+        String(row.getCell(3).value || '0'),
+      );
+      if (cedula && (aporteEmpleado > 0 || aportePatrono > 0)) {
+        aportesRows.push({ cedula, aporteEmpleado, aportePatrono });
+      }
+    });
+
+    // Hoja 2: diferencias
+    const diferenciasType = String(
+      diferenciasSheet.getCell('B1').value || '',
+    ).trim();
+    if (diferenciasType !== 'DIFERENCIA APORTE') {
+      throw new BadRequestException(
+        'El tipo en la celda B1 de la hoja "diferencias" debe ser DIFERENCIA APORTE',
+      );
+    }
+
+    const diferenciasRows: BulkRow[] = [];
+    diferenciasSheet.eachRow((row, rowNumber) => {
       if (rowNumber <= 2) return;
       const cedula = String(row.getCell(1).value || '').trim();
       const monto = parseFloat(String(row.getCell(2).value || '0'));
       if (cedula && monto > 0) {
-        rows.push({ cedula, monto });
+        diferenciasRows.push({ cedula, monto });
       }
     });
 
-    return { typeCell, validDate, rows };
+    return { aportesRows, diferenciasRows, validDate };
   }
 
   private formatBulkDate(date: Date): string {
@@ -668,5 +793,9 @@ export class IndividualLoadService {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
+  }
+
+  private formatBulkMonth(date: Date): string {
+    return date.toLocaleString('es-ES', { month: 'long' });
   }
 }

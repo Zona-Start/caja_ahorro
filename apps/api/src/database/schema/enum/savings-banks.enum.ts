@@ -91,6 +91,16 @@ export const associateMovementTypeEnum = savingsSchema.enum(
     'LIQUIDATION_SPECIAL_CREDIT_PAYMENT_DEBIT', // Pago de crédito especial durante liquidación
   ],
 );
+export const contributionAssociateTypeEnum = savingsSchema.enum(
+  'contribution_associate_type',
+  [
+    'ASSOCIATED_SAVINGS', // Ahorro Socio
+    'EMPLOYER_CONTRIBUTION', // Aporte Patronal
+    'VOLUNTARY_SAVINGS', // Aporte Voluntario
+    'SAVING_DIFFERENCE', // Diferencia Ahorro
+  ],
+);
+
 export const movementStatusEnum = savingsSchema.enum('movement_status', [
   'PENDING',
   'COMPLETED',

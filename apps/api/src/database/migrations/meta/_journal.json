@@ -71,6 +71,13 @@
       "when": 1788214919031,
       "tag": "0009_abnormal_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788386900227,
+      "tag": "0010_flawless_venom",
+      "breakpoints": true
     }
   ]
 }

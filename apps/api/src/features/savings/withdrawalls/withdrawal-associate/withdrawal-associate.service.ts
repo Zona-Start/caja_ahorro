@@ -32,13 +32,15 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, desc, eq, ilike, inArray, or, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
+import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 import {
+  BulkWithdrawalAssociateDto,
   CreateWithdrawalAssociateDto,
   DisburseWithdrawalAssociateDto,
   FilterWithdrawalAssociateDto,
 } from './dto/withdrawal.schema';
-import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 
 @Injectable()
 export class WithdrawalAssociateService {
@@ -50,7 +52,7 @@ export class WithdrawalAssociateService {
     private readonly withdrawalAccountingService: WithdrawalAssociateAccountingService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   private _hasElapsedMonths(
     currentDate: Date,
@@ -593,26 +595,26 @@ export class WithdrawalAssociateService {
       }),
       accountId
         ? this.db
-            .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
-            .from(withdrawalsAssociates)
-            .where(
-              and(
-                eq(withdrawalsAssociates.associateAccountId, accountId),
-                eq(withdrawalsAssociates.tenantId, tenantId),
-                or(
-                  eq(
-                    withdrawalsAssociates.status,
-                    withdrawalStatusEnum.DISBURSED,
-                  ),
-                  eq(
-                    withdrawalsAssociates.status,
-                    withdrawalStatusEnum.PROCESSED,
-                  ),
+          .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
+          .from(withdrawalsAssociates)
+          .where(
+            and(
+              eq(withdrawalsAssociates.associateAccountId, accountId),
+              eq(withdrawalsAssociates.tenantId, tenantId),
+              or(
+                eq(
+                  withdrawalsAssociates.status,
+                  withdrawalStatusEnum.DISBURSED,
+                ),
+                eq(
+                  withdrawalsAssociates.status,
+                  withdrawalStatusEnum.PROCESSED,
                 ),
               ),
-            )
-            .orderBy(desc(withdrawalsAssociates.withdrawalDate))
-            .limit(1)
+            ),
+          )
+          .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+          .limit(1)
         : Promise.resolve([]),
     ]);
 
@@ -1382,5 +1384,465 @@ export class WithdrawalAssociateService {
       withdrawal: coreResult.withdrawal,
       accountingWarning,
     };
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Carga masiva de retiros por Excel
+  // ──────────────────────────────────────────────────────────────────────
+
+  async generateTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('retiros');
+
+    sheet.getCell('A1').value = 'tipo';
+    sheet.getCell('B1').value = 'Retiros Parciales';
+    sheet.getCell('A1').font = { bold: true };
+    sheet.getCell('B1').font = { bold: true, color: { argb: 'FFFF0000' } };
+    sheet.getCell('C1').value = 'fecha';
+    sheet.getCell('D1').value = '2026-01-28';
+    sheet.getCell('D1').font = { bold: true };
+
+    sheet.getCell('A2').value = 'cedula';
+    sheet.getCell('B2').value = 'monto';
+    sheet.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet.getRow(2).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F497D' },
+    };
+
+    sheet.getColumn('A').width = 20;
+    sheet.getColumn('B').width = 20;
+    sheet.getColumn('C').width = 20;
+
+    sheet.getCell('A3').value = '12345678';
+    sheet.getCell('B3').value = 1000;
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer as ArrayBuffer);
+  }
+
+  async importBulk(
+    tenantId: string,
+    userId: string,
+    fileBuffer: Buffer,
+    dto: BulkWithdrawalAssociateDto,
+  ) {
+    const { typeName, validDate, rows } =
+      await this.parseBulkWorkbook(fileBuffer);
+
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        'No se encontraron registros válidos en el archivo.',
+      );
+    }
+
+    const withdrawalType = await this.db.query.withdrawalTypes.findFirst({
+      where: and(
+        eq(withdrawalTypes.description, typeName),
+        eq(withdrawalTypes.tenantId, tenantId),
+      ),
+    });
+
+    if (!withdrawalType) {
+      throw new BadRequestException(
+        `El tipo de retiro "${typeName}" no existe. Verifique la celda B1 de la plantilla.`,
+      );
+    }
+
+    const isGoodsWithdrawal =
+      withdrawalType.isHouseComercial || withdrawalType.isInternalInventory;
+    const targetStatus = isGoodsWithdrawal
+      ? withdrawalStatusEnum.APPROVED
+      : withdrawalStatusEnum.DISBURSED;
+    const feePercentage = Number(
+      withdrawalType.administrativeFeePercentage ?? 0,
+    );
+
+    const processed: any[] = [];
+    const errors: { cedula: string; monto: number; error: string }[] = [];
+
+    for (const row of rows) {
+      try {
+        const result = await this.processBulkRow(
+          tenantId,
+          userId,
+          withdrawalType,
+          targetStatus,
+          feePercentage,
+          validDate,
+          row,
+        );
+        processed.push(result);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Error desconocido';
+        errors.push({ cedula: row.cedula, monto: row.monto, error: message });
+      }
+    }
+
+    return {
+      message: `Carga masiva de retiros completada: ${processed.length} procesados, ${errors.length} con error.`,
+      processedCount: processed.length,
+      errorCount: errors.length,
+      errors,
+      accountingWarnings: processed
+        .filter((p) => p.accountingWarning)
+        .map((p) => ({ cedula: p.cedula, warning: p.accountingWarning })),
+    };
+  }
+
+  private async processBulkRow(
+    tenantId: string,
+    userId: string,
+    withdrawalType: typeof withdrawalTypes.$inferSelect,
+    targetStatus: withdrawalStatusEnum,
+    feePercentage: number,
+    validDate: Date,
+    row: { cedula: string; monto: number },
+  ) {
+    // 1) Localizar cuenta del asociado por cédula
+    const [account] = await this.db
+      .select({
+        associateAccountId: associateAccounts.id,
+        associateId: associates.id,
+        fullname: associates.fullname,
+        cedula: associates.cedula,
+        isPayrollCredit: associates.isPayrollCredit,
+      })
+      .from(associates)
+      .innerJoin(
+        associateAccounts,
+        eq(associateAccounts.associateId, associates.id),
+      )
+      .where(
+        and(
+          eq(associates.cedula, row.cedula),
+          eq(associates.tenantId, tenantId),
+        ),
+      );
+
+    if (!account || !account.associateAccountId) {
+      throw new NotFoundException(`Asociado con cédula ${row.cedula} no encontrado.`);
+    }
+
+    // 2) Validar bloqueos: credinomina, préstamos, créditos
+    // if (account.isPayrollCredit) {
+    //   throw new BadRequestException(
+    //     'El asociado posee credinomina activo. No puede solicitar retiros.',
+    //   );
+    // }
+
+    // const [activeLoans] = await this.db
+    //   .select({ count: sql<number>`count(*)` })
+    //   .from(loans)
+    //   .where(
+    //     and(
+    //       eq(loans.associateId, account.associateId),
+    //       eq(loans.tenantId, tenantId),
+    //       or(
+    //         eq(loans.status, LoanStatusEnum.APPROVED),
+    //         eq(loans.status, LoanStatusEnum.DISBURSED),
+    //         eq(loans.status, LoanStatusEnum.IN_PAYMENT),
+    //       ),
+    //     ),
+    //   );
+
+    // if (Number(activeLoans.count) > 0) {
+    //   throw new BadRequestException(
+    //     'El asociado tiene un préstamo activo. No puede solicitar retiros.',
+    //   );
+    // }
+
+    // const [activeCredits] = await this.db
+    //   .select({ count: sql<number>`count(*)` })
+    //   .from(credits)
+    //   .where(
+    //     and(
+    //       eq(credits.associateId, account.associateId),
+    //       eq(credits.tenantId, tenantId),
+    //       or(
+    //         eq(credits.status, CreditStatusEnum.APPROVED),
+    //         eq(credits.status, CreditStatusEnum.IN_PAYMENT),
+    //       ),
+    //     ),
+    //   );
+
+    // if (Number(activeCredits.count) > 0) {
+    //   throw new BadRequestException(
+    //     'El asociado tiene un crédito activo. No puede solicitar retiros.',
+    //   );
+    // }
+
+    // 3) Validar saldo haberes y montos máximos
+    // const [balanceRow] = await this.db
+    //   .select()
+    //   .from(associateHaberesBalance)
+    //   .where(eq(associateHaberesBalance.associateAccountId, account.associateAccountId));
+
+    // const haberesBalance = Number(balanceRow?.haberesBalance ?? 0);
+
+    // const maxAllowedAmount =
+    //   (haberesBalance * Number(withdrawalType.withdrawalPercentage)) / 100;
+
+    // if (row.monto > maxAllowedAmount) {
+    //   throw new BadRequestException(
+    //     'El monto solicitado excede el porcentaje máximo permitido de sus haberes.',
+    //   );
+    // }
+
+    // const available80 = haberesBalance * 0.8;
+    // if (row.monto > available80) {
+    //   throw new BadRequestException(
+    //     `El monto (${row.monto.toFixed(2)}) supera el 80% disponible (${available80.toFixed(2)}) de sus haberes.`,
+    //   );
+    // }
+
+    // 4) Validar tiempo entre retiros
+    const setting = await this.db.query.moduleSettings.findFirst({
+      where: and(
+        eq(schema.moduleSettings.tenantId, tenantId),
+        eq(schema.moduleSettings.module, 'savings'),
+        eq(schema.moduleSettings.submodule, 'withdrawals'),
+        eq(schema.moduleSettings.key, 'WITHDRAWAL_TIME_MONTHS'),
+      ),
+    });
+
+    const [lastWithdrawal] = await this.db
+      .select()
+      .from(withdrawalsAssociates)
+      .where(
+        and(
+          eq(withdrawalsAssociates.associateAccountId, account.associateAccountId),
+          eq(withdrawalsAssociates.tenantId, tenantId),
+        ),
+      )
+      .orderBy(desc(withdrawalsAssociates.createdAt))
+      .limit(1);
+
+    if (lastWithdrawal) {
+      if (
+        lastWithdrawal.status === withdrawalStatusEnum.APPROVED ||
+        lastWithdrawal.status === withdrawalStatusEnum.REQUESTED
+      ) {
+        throw new BadRequestException(
+          'No se puede procesar el retiro. Debe desembolsarse o anularse el último retiro.',
+        );
+      }
+      if (
+        lastWithdrawal.status === withdrawalStatusEnum.DISBURSED ||
+        lastWithdrawal.status === withdrawalStatusEnum.ADJUSTED
+      ) {
+        const monthsAllowed = this._hasElapsedMonths(
+          validDate,
+          Number(setting?.value),
+          lastWithdrawal?.createdAt ?? null,
+        );
+        if (!monthsAllowed) {
+          throw new BadRequestException(
+            'No ha transcurrido el tiempo permitido para un nuevo retiro.',
+          );
+        }
+      }
+    }
+
+    // 5) Calcular montos
+    const administrativeFee = (row.monto * feePercentage) / 100;
+    const disbursedAmount = row.monto - administrativeFee;
+    const movementStatus: movementStatusEnum =
+      targetStatus === withdrawalStatusEnum.DISBURSED
+        ? movementStatusEnum.COMPLETED
+        : movementStatusEnum.PENDING;
+
+    // 6) Transacción financiera (retiro + movimientos)
+    const coreResult = await this.db.transaction(async (tx) => {
+      const referenceCode = await this.generateCodeService.generateNextReference(
+        'RET-SOC',
+        tenantId,
+        'savings',
+        'withdrawals',
+      );
+
+      const [inserted] = await tx
+        .insert(withdrawalsAssociates)
+        .values({
+          tenantId,
+          associateAccountId: account.associateAccountId,
+          requestedAmount: row.monto.toString(),
+          withdrawalDate: validDate,
+          withdrawalTypeId: withdrawalType.id,
+          referenceCode,
+          paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+          createdById: userId,
+          status: targetStatus,
+          administrativeFee: administrativeFee.toString(),
+          disbursedAmount: disbursedAmount.toString(),
+          commercialHouseId: null,
+          withdrawalItems: null,
+        })
+        .returning();
+
+      const typeDesc = withdrawalType.description || 'RETIRO DE HABERES';
+
+      await this.associateAccountsMovementsService.create(
+        userId,
+        {
+          associateAccountId: account.associateAccountId,
+          movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
+          amount: row.monto,
+          currencyCode: CurrencyCodeEnum.VES,
+          transactionDate: validDate,
+          description: `Retiro ${typeDesc} - Ref: ${referenceCode}`,
+          referenceId: inserted.id,
+          referenceType: 'withdrawalsAssociates',
+          status: movementStatus,
+        },
+        tenantId,
+        tx,
+      );
+
+      if (administrativeFee > 0) {
+        await this.associateAccountsMovementsService.create(
+          userId,
+          {
+            associateAccountId: account.associateAccountId,
+            movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
+            amount: administrativeFee,
+            currencyCode: CurrencyCodeEnum.VES,
+            transactionDate: validDate,
+            description: `Gasto Administrativo por ${typeDesc} - Ref: ${referenceCode}`,
+            referenceId: inserted.id,
+            referenceType: 'withdrawalsAssociates',
+            status: movementStatus,
+          },
+          tenantId,
+          tx,
+        );
+      }
+
+      this.eventEmitter.emit(
+        'audit.log',
+        new AuditLogEvent({
+          tableName: 'withdrawalsAssociates',
+          recordId: inserted.id,
+          action: 'INSERT',
+          userId,
+          area: 'savings_banks',
+          description: `Retiro masivo (${targetStatus}) por ${row.monto} - ${account.fullname}`,
+          newData: [inserted],
+          tenantId,
+        }),
+      );
+
+      return {
+        withdrawal: inserted,
+        accountingParams: {
+          withdrawalId: inserted.id,
+          associateId: account.associateId,
+          associateFullname: account.fullname,
+          associateCedula: account.cedula ?? '',
+          withdrawalTypeDescription: typeDesc,
+          requestedAmount: row.monto,
+          administrativeFee,
+          disbursedAmount,
+          entryDate: validDate,
+        },
+      };
+    });
+
+    // 7) Asiento contable individual (solo desembolsados; no-fatal)
+    let accountingWarning: string | undefined;
+    if (targetStatus === withdrawalStatusEnum.DISBURSED) {
+      try {
+        await this.withdrawalAccountingService.generateDisbursementEntry(
+          tenantId,
+          userId,
+          coreResult.accountingParams,
+          undefined,
+        );
+      } catch (error) {
+        accountingWarning =
+          (error as any)?.message ?? 'Error al generar el asiento contable';
+      }
+    }
+
+    return {
+      cedula: row.cedula,
+      monto: row.monto,
+      status: targetStatus,
+      referenceCode: coreResult.withdrawal.referenceCode,
+      accountingWarning,
+    };
+  }
+
+  private async parseBulkWorkbook(
+    fileBuffer: Buffer,
+  ): Promise<{
+    typeName: string;
+    validDate: Date;
+    rows: { cedula: string; monto: number }[];
+  }> {
+    if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
+      throw new BadRequestException(
+        'El archivo Excel está vacío o no se pudo leer correctamente.',
+      );
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(fileBuffer as any);
+
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new BadRequestException('El archivo Excel está vacío.');
+    }
+
+    const getCellValue = (cellValue: any): any => {
+      if (typeof cellValue === 'object' && cellValue !== null) {
+        if ('result' in cellValue) return cellValue.result;
+        if ('richText' in cellValue) {
+          return cellValue.richText.map((t: any) => t.text).join('');
+        }
+        if (cellValue instanceof Date) return cellValue;
+      }
+      return cellValue;
+    };
+
+    // B1: nombre del tipo de retiro
+    const typeName = String(getCellValue(worksheet.getCell('B1').value) ?? '')
+      .trim();
+    if (!typeName) {
+      throw new BadRequestException(
+        'La celda B1 debe contener el nombre del tipo de retiro.',
+      );
+    }
+
+    // D1: fecha
+    const rawDate = getCellValue(worksheet.getCell('D1').value);
+    let validDate: Date;
+    if (rawDate instanceof Date) {
+      validDate = rawDate;
+    } else {
+      validDate = new Date(String(rawDate || ''));
+    }
+    if (isNaN(validDate.getTime()) || validDate.getFullYear() < 2000) {
+      throw new BadRequestException(
+        'La fecha en la celda D1 es inválida o muy antigua.',
+      );
+    }
+
+    // Filas de datos desde la fila 3
+    const rows: { cedula: string; monto: number }[] = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber <= 2) return;
+      const cedula = String(getCellValue(row.getCell(1).value) ?? '').trim();
+      const monto = parseFloat(
+        String(getCellValue(row.getCell(2).value) ?? '0'),
+      );
+      if (cedula && monto > 0) {
+        rows.push({ cedula, monto });
+      }
+    });
+
+    return { typeName, validDate, rows };
   }
 }

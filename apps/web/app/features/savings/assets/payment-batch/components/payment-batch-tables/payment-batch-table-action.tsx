@@ -17,10 +17,9 @@ export function PaymentBatchTableAction() {
           title="Buscar por referencia"
           searchKey="search"
           searchQuery={filters.search || ''}
-          setSearchQuery={(v) => {
-            const value = typeof v === 'function' ? v(filters.search || '') : v;
-            return setFilters({ search: value || undefined, page: 1 });
-          }}
+          setSearchQuery={(v: string) =>
+            setFilters({ search: v || undefined, page: 1 })
+          }
           setPage={(p) => setFilters({ page: p as number })}
         />
         <DataTableFilterBox

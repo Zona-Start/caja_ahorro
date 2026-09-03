@@ -21,11 +21,6 @@ export const FilterLoanPaidSchema = PaginationSchema.extend({
 });
 
 export const CreateBulkLoanPaidSchema = z.object({
-  bankId: z.string().optional(),
-  paymentMethod: z.nativeEnum(paymentMethodEnum),
-  paymentType: z.nativeEnum(loanPaymetTypeEnum),
-  comment: z.string().optional(),
-  transactionReference: z.string().optional(),
   paymentDate: z.string().optional(),
   tenantId: z.string().uuid().optional(),
 });

@@ -12,6 +12,7 @@ import {
 } from '@/database/schema/tables/savings';
 import { bankAccounts } from '@/database/schema/tables/treasury';
 import { AuditHelper } from '@/features/audit/audit-event.service';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   AssociateMovementTypeEnum,
@@ -26,12 +27,15 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { format } from 'date-fns';
+import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
   CreateCreditPaidDto,
@@ -44,14 +48,16 @@ const EPSILON_COMPARISON = 0.05;
 @Injectable()
 export class CreditPaidService implements OnModuleInit {
   private bankMovementsService: BankMovementsService;
+  private readonly logger = new Logger(CreditPaidService.name);
 
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
     private readonly generateCodeService: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
+    private readonly accountingEntriesService: AccountingEntriesService,
     private moduleRef: ModuleRef,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.bankMovementsService = this.moduleRef.get(BankMovementsService, {
@@ -91,11 +97,18 @@ export class CreditPaidService implements OnModuleInit {
     creditId: string,
     amount: number,
   ): Promise<{
-    paidInstallmentDetails: { id: string; amount: number }[];
+    paidInstallmentDetails: {
+      id: string;
+      amount: number;
+      principal: number;
+      interest: number;
+    }[];
     partialInstallment?: {
       id: string;
       paidAmount: number;
       originalPaidAmount: number;
+      principal: number;
+      interest: number;
     };
     remainingAmount: number;
   }> {
@@ -111,9 +124,20 @@ export class CreditPaidService implements OnModuleInit {
         orderBy: creditAmortizationSchedule.installmentNumber,
       });
 
-    const paidInstallmentDetails: { id: string; amount: number }[] = [];
+    const paidInstallmentDetails: {
+      id: string;
+      amount: number;
+      principal: number;
+      interest: number;
+    }[] = [];
     let partialInstallment:
-      | { id: string; paidAmount: number; originalPaidAmount: number }
+      | {
+        id: string;
+        paidAmount: number;
+        originalPaidAmount: number;
+        principal: number;
+        interest: number;
+      }
       | undefined;
     let remainingPaymentAmount = amount;
 
@@ -134,9 +158,20 @@ export class CreditPaidService implements OnModuleInit {
         remainingPaymentAmount >= dueAmountExact - EPSILON_COMPARISON ||
         diffBetweenPaymentAndDue <= ROUNDING_ACCEPTANCE_TOLERANCE
       ) {
+        const princInst = Number(installment.principalAmount);
+        const intInst = Number(installment.interestAmount);
+        const alreadyPaid = Number(installment.paidAmount || 0);
+
+        const interestPaidBefore = Math.min(alreadyPaid, intInst);
+        const interestStillDue = Math.max(0, intInst - interestPaidBefore);
+        const principalPaidBefore = Math.max(0, alreadyPaid - intInst);
+        const principalStillDue = Math.max(0, princInst - principalPaidBefore);
+
         paidInstallmentDetails.push({
           id: installment.id,
           amount: parseFloat(dueAmountExact.toFixed(6)),
+          principal: parseFloat(principalStillDue.toFixed(6)),
+          interest: parseFloat(interestStillDue.toFixed(6)),
         });
 
         remainingPaymentAmount = Math.max(
@@ -152,12 +187,32 @@ export class CreditPaidService implements OnModuleInit {
           break;
         }
       } else {
+        const princInst = Number(installment.principalAmount);
+        const intInst = Number(installment.interestAmount);
+        const alreadyPaid = Number(installment.paidAmount || 0);
+
+        const interestPaidBefore = Math.min(alreadyPaid, intInst);
+        const interestStillDue = Math.max(0, intInst - interestPaidBefore);
+
+        let newInterestPaid = 0;
+        let newPrincipalPaid = 0;
+
+        if (remainingPaymentAmount <= interestStillDue) {
+          newInterestPaid = remainingPaymentAmount;
+          newPrincipalPaid = 0;
+        } else {
+          newInterestPaid = interestStillDue;
+          newPrincipalPaid = remainingPaymentAmount - interestStillDue;
+        }
+
         partialInstallment = {
           id: installment.id,
           paidAmount: parseFloat(
             (installmentPaid + remainingPaymentAmount).toFixed(6),
           ),
           originalPaidAmount: installmentPaid,
+          principal: parseFloat(newPrincipalPaid.toFixed(6)),
+          interest: parseFloat(newInterestPaid.toFixed(6)),
         };
         remainingPaymentAmount = 0;
         break;
@@ -206,6 +261,19 @@ export class CreditPaidService implements OnModuleInit {
     const result = await db.transaction(async (tx) => {
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
         await this._calculateCoveredInstallments(creditId, amount);
+
+      let totalPrincipalPaid = 0;
+      let totalInterestPaid = 0;
+
+      for (const installment of paidInstallmentDetails) {
+        totalPrincipalPaid += installment.principal;
+        totalInterestPaid += installment.interest;
+      }
+
+      if (partialInstallment) {
+        totalPrincipalPaid += partialInstallment.principal;
+        totalInterestPaid += partialInstallment.interest;
+      }
 
       const currentBalanceCalculatedFromInstallments =
         await this._calculateBalancePending(creditId);
@@ -323,6 +391,9 @@ export class CreditPaidService implements OnModuleInit {
         insertedPaymentId: insertedPayment.id,
         customReference: insertedPayment.customReference,
         balanceInFavorValue: balanceInFavorValue,
+        appliedAmountExact,
+        totalPrincipalPaid,
+        totalInterestPaid,
       };
     });
 
@@ -331,11 +402,18 @@ export class CreditPaidService implements OnModuleInit {
         .select({
           id: schema.associateAccounts.id,
           referenceLoans: credits.customReference,
+          associateId: schema.credits.associateId,
+          associateFullname: schema.associates.fullname,
+          currencyCode: schema.credits.currencyCode,
         })
         .from(schema.credits)
         .leftJoin(
           schema.associateAccounts,
           eq(schema.associateAccounts.associateId, schema.credits.associateId),
+        )
+        .leftJoin(
+          schema.associates,
+          eq(schema.associates.id, schema.credits.associateId),
         )
         .where(
           and(
@@ -418,11 +496,494 @@ export class CreditPaidService implements OnModuleInit {
           );
         }
       }
+
+      if (!liquidationActive) {
+        let accountingWarning: string | undefined;
+        let roundedPayment = 0;
+        let roundedInterest = 0;
+        let roundedPrincipal = 0;
+        try {
+          const dateStr = paymentDate
+            ? format(new Date(paymentDate), 'dd/MM/yyyy')
+            : format(new Date(), 'dd/MM/yyyy');
+          const fullname = resutAccount[0]?.associateFullname ?? 'ASOCIADO';
+
+          roundedPayment = Number(
+            result.appliedAmountExact.toFixed(2),
+          );
+          roundedInterest = Number(
+            result.totalInterestPaid.toFixed(2),
+          );
+          roundedPrincipal = Number(
+            (roundedPayment - roundedInterest).toFixed(2),
+          );
+          const accountingPayload = {
+            module: 'portfolio',
+            submodule: 'credits',
+            category: 'SAVINGS_BANK',
+            operationType: 'CREDIT_PAYMENT',
+            description: `Pago de Crédito - ${fullname}`,
+            entryDate: paymentDate ? new Date(paymentDate) : new Date(),
+            referenceValue: 'Pago Creditos',
+            currencyCode:
+              (resutAccount[0]?.currencyCode as CurrencyCodeEnum) ??
+              CurrencyCodeEnum.VES,
+            originReferenceId: String(result.insertedPaymentId),
+            originType: 'CREDIT_PAYMENT',
+            items: [
+              {
+                associateId: resutAccount[0]?.associateId,
+                amounts: {
+                  CREDIT_PAYMENT: roundedPrincipal,
+                  LOAN_INTEREST_INCOME: roundedInterest,
+                  LOAN_WITHHOLDING: roundedPayment,
+                },
+                descriptions: {
+                  CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+                  LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
+                  LOAN_WITHHOLDING: `RETENCIONES DE CREDITOS de ${dateStr}`,
+                },
+              },
+            ],
+            globalDescriptions: {
+              CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+              LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
+              LOAN_WITHHOLDING: `RETENCIONES DE CREDITOS de ${dateStr}`,
+            },
+          };
+
+          this.logger.debug(
+            `[create] Enviando asiento contable: paymentId=${result?.insertedPaymentId} amount=${amount} applied=${result?.appliedAmountExact} principal=${roundedPrincipal} interest=${roundedInterest} payment=${roundedPayment}`,
+          );
+
+          await this.accountingEntriesService.createAutomaticEntry(
+            tenantId,
+            userId,
+            accountingPayload,
+            tx,
+          );
+        } catch (error) {
+          const errInfo = error as {
+            message?: string;
+            stack?: string;
+            name?: string;
+            response?: { data?: unknown; status?: number };
+          };
+          const message =
+            errInfo?.message ??
+            'Error al generar el asiento contable del pago de crédito';
+          accountingWarning = message;
+          this.logger.error(
+            `[create] ERROR generando asiento contable del pago de crédito. ` +
+            `creditId=${creditId} paymentId=${result?.insertedPaymentId} ` +
+            `amount=${amount} applied=${result?.appliedAmountExact} ` +
+            `principal=${roundedPrincipal} interest=${roundedInterest} ` +
+            `payment=${roundedPayment}`,
+          );
+          this.logger.error(
+            `[create] Detalle del error: name=${errInfo?.name} message=${message}\n` +
+            `status=${errInfo?.response?.status} ` +
+            `response=${JSON.stringify(errInfo?.response?.data ?? null)}\n` +
+            `stack=${errInfo?.stack ?? '(sin stack)'}`,
+          );
+        }
+      }
     }
 
     return {
       message: 'Credit paid create success',
     };
+  }
+
+  async downloadTemplate(): Promise<ArrayBuffer> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Plantilla de Pagos de Créditos');
+
+    worksheet.columns = [
+      { key: 'a', width: 20 },
+      { key: 'b', width: 18 },
+    ];
+
+    // Fila 1: fecha de pago (aplica a todos los pagos)
+    worksheet.getCell('A1').value = 'fecha';
+    worksheet.getCell('B1').value = format(new Date(), 'yyyy-MM-dd');
+    worksheet.getCell('A1').font = { bold: true };
+    worksheet.getCell('B1').font = { bold: true };
+
+    // Fila 2: encabezados
+    worksheet.getCell('A2').value = 'cedula';
+    worksheet.getCell('B2').value = 'monto';
+    worksheet.getRow(2).font = { bold: true };
+
+    // Filas de ejemplo
+    worksheet.getCell('A3').value = 'V-12345678';
+    worksheet.getCell('B3').value = 1500.5;
+    worksheet.getCell('A4').value = 'V-87654321';
+    worksheet.getCell('B4').value = 2500;
+
+    return workbook.xlsx.writeBuffer();
+  }
+
+  async bulkUpload(
+    tenantId: string,
+    userId: string,
+    file: Express.Multer.File,
+    dto?: { paymentDate?: string },
+  ) {
+    if (!file) {
+      throw new NotFoundException('Archivo Excel no proporcionado');
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file.buffer as any);
+    const worksheet = workbook.getWorksheet(1);
+
+    if (!worksheet) {
+      throw new NotFoundException(
+        'No se encontró la hoja de trabajo en el Excel',
+      );
+    }
+
+    // La fecha de pago se lee de la celda B1 (fila 1: "fecha" | yyyy-MM-dd)
+    const cellB1Value = worksheet.getCell('B1').value?.toString().trim();
+    const parsedDate = cellB1Value ? new Date(cellB1Value) : null;
+    const finalPaymentDate =
+      parsedDate && !isNaN(parsedDate.getTime())
+        ? parsedDate
+        : dto?.paymentDate
+          ? new Date(dto.paymentDate)
+          : new Date();
+
+    // Los datos inician en la fila 3 (fila 1: fecha, fila 2: encabezados)
+    const itemsFromExcel: { cedula: string; amount: number }[] = [];
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 2) {
+        const cedula = row.getCell(1).value?.toString().trim();
+        const amountValue = row.getCell(2).value;
+        const amount =
+          typeof amountValue === 'number'
+            ? amountValue
+            : parseFloat(amountValue?.toString() || '0');
+
+        if (cedula && !isNaN(amount) && amount > 0) {
+          itemsFromExcel.push({ cedula, amount });
+        }
+      }
+    });
+
+    if (itemsFromExcel.length === 0) {
+      throw new NotFoundException(
+        'El archivo Excel está vacío o no tiene el formato correcto (Fila 1: fecha, Fila 2: cedula/monto, Fila 3+: datos)',
+      );
+    }
+
+    const results = {
+      success: [] as { cedula: string; ref: string | null }[],
+      errors: [] as { cedula: string; error: string }[],
+      totalProcessed: 0,
+      accountingWarning: undefined as string | undefined,
+    };
+
+    const result = await this.db.transaction(async (tx) => {
+      let bulkTotalPrincipal = 0;
+      let bulkTotalInterest = 0;
+      let totalAmountApplied = 0;
+      const accountingItemsForEntry: {
+        associateId?: string;
+        amounts: Record<string, number>;
+        descriptions: Record<string, string>;
+      }[] = [];
+
+      for (const item of itemsFromExcel) {
+        try {
+          const [associate] = await tx
+            .select({
+              id: associates.id,
+              cedula: associates.cedula,
+              fullname: associates.fullname,
+            })
+            .from(associates)
+            .where(
+              and(
+                eq(associates.cedula, item.cedula),
+                eq(associates.tenantId, tenantId),
+              ),
+            );
+
+          if (!associate) {
+            results.errors.push({
+              cedula: item.cedula,
+              error: 'Asociado no encontrado',
+            });
+            continue;
+          }
+
+          const [credit] = await tx
+            .select({
+              id: credits.id,
+              associateId: credits.associateId,
+              currencyCode: credits.currencyCode,
+            })
+            .from(credits)
+            .where(
+              and(
+                eq(credits.tenantId, tenantId),
+                eq(credits.associateId, associate.id),
+                ne(credits.status, CreditStatusEnum.PAID),
+              ),
+            );
+
+          if (!credit) {
+            results.errors.push({
+              cedula: item.cedula,
+              error: 'No se encontró crédito activo',
+            });
+            continue;
+          }
+
+          const installmentResult = await this._calculateCoveredInstallments(
+            credit.id,
+            item.amount,
+          );
+
+          const appliedAmountExact = item.amount - installmentResult.remainingAmount;
+
+          if (appliedAmountExact <= 0) {
+            results.errors.push({
+              cedula: item.cedula,
+              error: 'Monto insuficiente para abonar',
+            });
+            continue;
+          }
+
+          const currentBalance =
+            await this._calculateBalancePending(credit.id);
+          let newBalancePending = Math.max(
+            0,
+            currentBalance - appliedAmountExact,
+          );
+          if (newBalancePending < EPSILON_COMPARISON) newBalancePending = 0;
+
+          const customReference =
+            await this.generateCodeService.generateNextReference(
+              'CRE-PAG',
+              tenantId,
+              'portfolio',
+              'credit-payments',
+            );
+
+          const [insertedPayment] = await tx
+            .insert(creditPayments)
+            .values({
+              tenantId,
+              creditId: credit.id,
+              paymentDate: finalPaymentDate,
+              paymentType: 'PAYING',
+              amount: String(item.amount),
+              balancePending: String(newBalancePending.toFixed(6)),
+              bankId: null,
+              paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+              transactionReference: customReference,
+              comment: 'Carga Masiva Excel Pagos de Créditos',
+              createdById: userId,
+              customReference,
+            })
+            .returning({
+              id: creditPayments.id,
+              customReference: creditPayments.customReference,
+            });
+
+          let localPrincipal = 0;
+          let localInterest = 0;
+
+          for (const inst of installmentResult.paidInstallmentDetails) {
+            localPrincipal += inst.principal;
+            localInterest += inst.interest;
+            await tx.insert(creditPaymentsDetails).values({
+              creditPaymentId: insertedPayment.id,
+              installmentId: inst.id,
+              amount: String(inst.amount),
+              createdById: userId,
+            });
+            await tx
+              .update(creditAmortizationSchedule)
+              .set({
+                paymentStatus: 'PAID',
+                updatedById: userId,
+                paidAmount: sql`total_installment_amount`,
+              })
+              .where(eq(creditAmortizationSchedule.id, inst.id));
+          }
+
+          if (installmentResult.partialInstallment) {
+            localPrincipal += installmentResult.partialInstallment.principal;
+            localInterest += installmentResult.partialInstallment.interest;
+
+            await tx
+              .update(creditAmortizationSchedule)
+              .set({
+                paymentStatus: 'PARTIAL',
+                paidAmount: String(
+                  installmentResult.partialInstallment.paidAmount,
+                ),
+                updatedById: userId,
+              })
+              .where(
+                eq(
+                  creditAmortizationSchedule.id,
+                  installmentResult.partialInstallment.id,
+                ),
+              );
+
+            const amountAppliedToPartial =
+              installmentResult.partialInstallment.paidAmount -
+              installmentResult.partialInstallment.originalPaidAmount;
+
+            await tx.insert(creditPaymentsDetails).values({
+              creditPaymentId: insertedPayment.id,
+              installmentId: installmentResult.partialInstallment.id,
+              amount: String(amountAppliedToPartial.toFixed(6)),
+              createdById: userId,
+            });
+          }
+
+          const newCreditStatus =
+            newBalancePending <= 0 ? 'PAID' : 'IN_PAYMENT';
+
+          await tx
+            .update(credits)
+            .set({
+              status: newCreditStatus as CreditStatusEnum,
+              balanceInFavor: String(
+                installmentResult.remainingAmount.toFixed(6),
+              ),
+              updatedById: userId,
+            })
+            .where(eq(credits.id, credit.id));
+
+          const [associateAccount] = await tx
+            .select({ id: associateAccounts.id })
+            .from(associateAccounts)
+            .leftJoin(
+              associates,
+              eq(associates.id, associateAccounts.associateId),
+            )
+            .where(
+              and(
+                eq(associateAccounts.associateId, associate.id),
+                eq(associateAccounts.status, 'ACTIVE'),
+              ),
+            );
+
+          if (associateAccount?.id) {
+            await this.associateAccountsMovementsService.create(
+              userId,
+              {
+                associateAccountId: associateAccount.id,
+                movementType:
+                  'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
+                amount: item.amount,
+                currencyCode:
+                  (credit.currencyCode as CurrencyCodeEnum) ??
+                  CurrencyCodeEnum.VES,
+                transactionDate: finalPaymentDate,
+                description: 'Pago Crédito (Carga Masiva Excel)',
+                referenceId: String(insertedPayment.id),
+                referenceType: 'creditPayments',
+                referenceNumber: insertedPayment.customReference ?? undefined,
+                area: 'CREDITOS',
+              },
+              tenantId,
+            );
+          }
+
+          const roundedPayment = Number(appliedAmountExact.toFixed(2));
+          const roundedInterest = Number(localInterest.toFixed(2));
+          const roundedPrincipal = Number(
+            (roundedPayment - roundedInterest).toFixed(2),
+          );
+
+          accountingItemsForEntry.push({
+            associateId: associate.id,
+            amounts: {
+              CREDIT_PAYMENT: roundedPrincipal,
+              LOAN_INTEREST_INCOME: roundedInterest,
+            },
+            descriptions: {
+              CREDIT_PAYMENT: `CUOTA CREDITO DEL ${associate.fullname}`,
+              LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${associate.fullname}`,
+            },
+          });
+
+          bulkTotalPrincipal += roundedPrincipal;
+          bulkTotalInterest += roundedInterest;
+          totalAmountApplied += roundedPayment;
+
+          results.success.push({
+            cedula: item.cedula,
+            ref: insertedPayment.customReference,
+          });
+          results.totalProcessed++;
+        } catch (err) {
+          results.errors.push({
+            cedula: item.cedula,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      // Asiento contable único para toda la carga masiva (no-fatal)
+      if (results.totalProcessed > 0) {
+        try {
+          const dateStr = format(finalPaymentDate, 'dd/MM/yyyy');
+
+          await this.accountingEntriesService.createAutomaticEntry(
+            tenantId,
+            userId,
+            {
+              module: 'portfolio',
+              submodule: 'credits',
+              category: 'SAVINGS_BANK',
+              operationType: 'CREDIT_PAYMENT',
+              description:
+                `Carga Masiva Pagos de Créditos - ${results.totalProcessed} registros`,
+              entryDate: finalPaymentDate,
+              referenceValue: 'Pago Creditos',
+              currencyCode: CurrencyCodeEnum.VES,
+              originType: 'CREDIT_PAYMENT',
+              items: [
+                ...accountingItemsForEntry,
+                {
+                  associateId: undefined,
+                  amounts: {
+                    LOAN_WITHHOLDING: Number(totalAmountApplied.toFixed(2)),
+                  },
+                  descriptions: {
+                    LOAN_WITHHOLDING: `RETENCIONES DE CREDITOS (${results.totalProcessed} registros)`,
+                  },
+                },
+              ],
+            },
+            tx,
+          );
+        } catch (error) {
+          const errInfo = error as { message?: string; stack?: string };
+          this.logger.error(
+            `[bulkUpload] Error generando asiento contable masivo: ${errInfo?.message ?? String(error)
+            } ` +
+            `processed=${results.totalProcessed} principal=${bulkTotalPrincipal} interest=${bulkTotalInterest} applied=${totalAmountApplied}`,
+          );
+          this.logger.error(
+            `[bulkUpload] Detalle: stack=${errInfo?.stack ?? '(sin stack)'}`,
+          );
+          results.accountingWarning = errInfo?.message;
+        }
+      }
+
+      return results;
+    });
+
+    return result;
   }
 
   async findAll(tenantId: string | null, paginationDto: FilterCreditPaidDto) {
@@ -597,20 +1158,20 @@ export class CreditPaidService implements OnModuleInit {
 
     const creditAmortization = result[0]?.creditId
       ? await this.db
-          .select({
-            id: creditAmortizationSchedule.id,
-            quotaNumber: creditAmortizationSchedule.installmentNumber,
-            quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
-            quotaDate: creditAmortizationSchedule.dueDate,
-            quotaStatus: creditAmortizationSchedule.paymentStatus,
-            quotaPartial: creditAmortizationSchedule.paidAmount,
-            principalBalancePending:
-              creditAmortizationSchedule.principalBalancePending,
-            paidAmount: creditAmortizationSchedule.paidAmount,
-          })
-          .from(creditAmortizationSchedule)
-          .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
-          .orderBy(sql<string>`
+        .select({
+          id: creditAmortizationSchedule.id,
+          quotaNumber: creditAmortizationSchedule.installmentNumber,
+          quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+          quotaDate: creditAmortizationSchedule.dueDate,
+          quotaStatus: creditAmortizationSchedule.paymentStatus,
+          quotaPartial: creditAmortizationSchedule.paidAmount,
+          principalBalancePending:
+            creditAmortizationSchedule.principalBalancePending,
+          paidAmount: creditAmortizationSchedule.paidAmount,
+        })
+        .from(creditAmortizationSchedule)
+        .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
+        .orderBy(sql<string>`
     CASE payment_status
       WHEN 'PARTIAL' THEN 1
       WHEN 'PENDING' THEN 2

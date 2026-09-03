@@ -12,3 +12,10 @@ export const STATUS_LABEL: Record<string, string> = {
   completed: 'Completada',
   reversed: 'Anulada',
 };
+
+export const CONTRIBUTION_TYPE_LABEL: Record<string, string> = {
+  ASSOCIATED_SAVINGS: 'Ahorro Socio',
+  EMPLOYER_CONTRIBUTION: 'Aporte Patronal',
+  VOLUNTARY_SAVINGS: 'Aporte Voluntario',
+  SAVING_DIFFERENCE: 'Diferencia Ahorro',
+};

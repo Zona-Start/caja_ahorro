@@ -22,6 +22,7 @@ import {
   DisburseLoanDto,
   DisburseLoanSchema,
   FilterLoanDto,
+  FilterLoanSchema,
   UpdateLoanDto,
   UpdateLoanSchema,
 } from './dto/loan-management.schema';
@@ -73,7 +74,10 @@ export class LoanManagementController {
   @Permissions('portfolio:loans:read')
   @ApiOperation({ summary: 'Get all Loan ordinary or filter by Loan' })
   @ApiResponse({ status: 200, description: 'Return all Loan.' })
-  findAll(@Req() req: Request, @Query() dto: FilterLoanDto) {
+  findAll(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(FilterLoanSchema)) dto: FilterLoanDto,
+  ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.loanManagementService.findAll(targetTenantId, dto);
   }

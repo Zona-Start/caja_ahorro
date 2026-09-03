@@ -1,6 +1,7 @@
 import { TenantContextModule } from '@/common/services/tenant-context.module';
 import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.module';
 import { DrizzleModule } from '@/database/drizzle.module';
+import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
 import { AuditModule } from '@/features/audit/audit.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
@@ -14,6 +15,7 @@ import { CreditPaidService } from './credit-paid.service';
     GenerateCodeModule,
     TenantContextModule,
     AuditModule,
+    AccountingEntriesModule,
   ],
   controllers: [CrediPaidController],
   providers: [CreditPaidService],

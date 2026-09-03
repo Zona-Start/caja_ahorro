@@ -18,6 +18,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
+import { memoryStorage } from 'multer';
 import {
   CreateBulkLoanPaidDto,
   CreateBulkLoanPaidSchema,
@@ -59,12 +60,12 @@ export class LoanPaidController {
   @Post('bulk')
   @Permissions('portfolio:payments-loans:read')
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file'))
-  @UsePipes(new ZodValidatorPipe(CreateBulkLoanPaidSchema))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   bulkUpload(
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request,
-    @Body() dto: CreateBulkLoanPaidDto,
+    @Body(new ZodValidatorPipe(CreateBulkLoanPaidSchema))
+    dto: CreateBulkLoanPaidDto,
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);

@@ -54,7 +54,6 @@ export const operationsByGroup: Record<
     SAVINGS_BANK: [
       { value: 'CREDIT_PAYMENT', label: 'Pago de Crédito', group: 'SYSTEM_EVENTS', referenceValue: 'Pago Creditos' },
       { value: 'LOAN_PAYMENT', label: 'Pago de Préstamo', group: 'SYSTEM_EVENTS', referenceValue: 'Pago Prestamo' },
-      { value: 'LOAN_DISBURSEMENT', label: 'Desembolso Préstamo', group: 'SYSTEM_EVENTS', referenceValue: 'Desembolso Prestamo' },
       { value: 'SAVINGS_UPLOAD', label: 'Carga de Haberes voluntario', group: 'SYSTEM_EVENTS', referenceValue: 'Aporte Voluntario' },
       { value: 'SAVINGS_LIQUIDATION', label: 'Liquidación de Haberes', group: 'SYSTEM_EVENTS', referenceValue: 'Liquidacion Haberes' },
     ],
@@ -133,6 +132,9 @@ export const roleOptionsByCategory: Record<Category, RoleDef[]> = {
     { value: 'CASH_ACCOUNT', label: 'Caja Principal' },
     { value: 'SERVICE_FEE_INCOME', label: 'Ingresos por Comisiones' },
     { value: 'LOAN_INTEREST_INCOME', label: 'Ingresos por Intereses' },
+    { value: 'LOAN_PAYMENT', label: 'Pago / Abono a Préstamo' },
+    { value: 'CREDIT_PAYMENT', label: 'Pago / Abono a Crédito' },
+    { value: 'LOAN_WITHHOLDING', label: 'Retención de Préstamo' },
   ],
   PURCHASING: [
     { value: 'PURCHASE_VAT', label: 'Iva Compra' },

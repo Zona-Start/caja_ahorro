@@ -127,4 +127,33 @@ export const withdrawalService = {
   saveWithdrawal: async (withdrawal: Withdrawal) => {
     return await withdrawalService.createWithdrawal(withdrawal);
   },
+
+  downloadTemplate: async (): Promise<string> => {
+    const response = await apiClient.get(
+      '/savings-banks/withdrawal-associate/template',
+      {
+        responseType: 'arraybuffer',
+      },
+    );
+    const bytes = new Uint8Array(response.data as ArrayBuffer);
+    let binary = '';
+    const len = bytes.length;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]!);
+    }
+    return btoa(binary);
+  },
+
+  bulkImport: async (formData: FormData) => {
+    const response = await apiClient.post(
+      '/savings-banks/withdrawal-associate/bulk',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    );
+    return response.data;
+  },
 };

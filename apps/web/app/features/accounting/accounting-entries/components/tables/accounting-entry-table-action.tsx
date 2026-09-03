@@ -1,9 +1,10 @@
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { Input } from '@repo/shadcn/input';
-import { Plus } from 'lucide-react';
+import { FileUp, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useAccountingCycles } from '../../../accounting-cycles/hooks/use-accounting-cycles-query';
+import { AccountingEntryImportModal } from '../accounting-entry-import-modal';
 import { AccountingEntryModal } from '../accounting-entry-modal';
 import { useAccountingEntriesFilters } from '../../hooks/use-accounting-entries-filters';
 import { ENTRY_STATUS } from '../../schemas/accounting-entry-options';
@@ -16,6 +17,7 @@ const STATUS_OPTIONS = Object.entries(ENTRY_STATUS).map(([value, label]) => ({
 
 export default function AccountingEntryTableAction() {
   const [open, setOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const { filters, setFilters } = useAccountingEntriesFilters();
   const { data: cycles } = useAccountingCycles();
 
@@ -66,12 +68,25 @@ export default function AccountingEntryTableAction() {
         />
       </div>
       {hasPermission("accounting:journal_entries", "create") && (
-        <Button onClick={() => setOpen(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Crear Asiento
-        </Button>
+        <>
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+            size="sm"
+          >
+            <FileUp className="mr-2 h-4 w-4" /> Importar Excel
+          </Button>
+          <Button onClick={() => setOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Crear Asiento
+          </Button>
+        </>
       )}
 
       <AccountingEntryModal open={open} onOpenChange={setOpen} />
+      <AccountingEntryImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+      />
     </div>
   );
 }

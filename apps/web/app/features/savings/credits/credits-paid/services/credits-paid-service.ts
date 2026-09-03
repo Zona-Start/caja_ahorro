@@ -4,6 +4,7 @@ import {
   creditPaymentByIdResponseSchema,
   creditPaymentMutationSchema,
   creditPaymentDeleteResponseSchema,
+  creditPaymentBulkResponseSchema,
 } from '../schemas/credits-paid-api-response';
 import { associatesCreditSchema } from '../schemas/individual-credits-api-schema';
 
@@ -47,5 +48,23 @@ export const creditsPaidService = {
   getAssociatesByCedula: async (cedula: string) => {
     const response = await apiClient.get(`/credit-paid/request/${cedula}`);
     return associatesCreditSchema.parse(response.data);
+  },
+
+  downloadTemplate: async (): Promise<string> => {
+    const response = await apiClient.get('/credit-paid/download-template', {
+      responseType: 'arraybuffer',
+    });
+    const bytes = new Uint8Array(response.data as ArrayBuffer);
+    let binary = '';
+    const len = bytes.length;
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]!);
+    return btoa(binary);
+  },
+
+  bulkUpload: async (formData: FormData) => {
+    const response = await apiClient.post('/credit-paid/bulk', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return creditPaymentBulkResponseSchema.parse(response.data);
   },
 };

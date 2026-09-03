@@ -1,0 +1,2 @@
+CREATE TYPE "savings"."contribution_associate_type" AS ENUM('ASSOCIATED_SAVINGS', 'EMPLOYER_CONTRIBUTION', 'VOLUNTARY_SAVINGS', 'SAVING_DIFFERENCE');--> statement-breakpoint
+ALTER TABLE "savings"."contribution_batch_associates" ADD COLUMN "contribution_type" "savings"."contribution_associate_type" DEFAULT 'ASSOCIATED_SAVINGS' NOT NULL;

@@ -38,7 +38,7 @@ export function OrdinaryCreditsTableAction({
           title="Buscar por cédula o nombre"
           searchKey="search"
           searchQuery={filters.search || ''}
-          setSearchQuery={(v: string) => setFilters({ search: v || '' })}
+          setSearchQuery={(v: string) => setFilters({ search: v || '', page: 1 })}
           setPage={(p: number) => setFilters({ page: p })}
         />
 

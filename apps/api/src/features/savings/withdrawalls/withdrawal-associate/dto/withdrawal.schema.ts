@@ -40,6 +40,10 @@ export const FilterWithdrawalAssociateSchema = z.object({
   tenantId: z.string().uuid().optional(),
 });
 
+export const BulkWithdrawalAssociateSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+});
+
 export type CreateWithdrawalAssociateDto = z.infer<
   typeof CreateWithdrawalAssociateSchema
 >;
@@ -48,4 +52,7 @@ export type DisburseWithdrawalAssociateDto = z.infer<
 >;
 export type FilterWithdrawalAssociateDto = z.infer<
   typeof FilterWithdrawalAssociateSchema
+>;
+export type BulkWithdrawalAssociateDto = z.infer<
+  typeof BulkWithdrawalAssociateSchema
 >;

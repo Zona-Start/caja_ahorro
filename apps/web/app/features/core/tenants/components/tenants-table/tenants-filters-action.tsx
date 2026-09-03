@@ -27,7 +27,7 @@ export function TenantsFiltersAction({
         title="Buscar clientes"
         searchKey="q"
         searchQuery={filters.search || ''}
-        setSearchQuery={(q) => setFilters({ search: q })}
+        setSearchQuery={(q) => setFilters({ search: q, page: 1 })}
         setPage={(p) => setFilters({ page: p })}
       />
 

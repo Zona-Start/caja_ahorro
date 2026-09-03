@@ -13,6 +13,7 @@ import type {
   BankMovementPayload,
   BankMovementResult,
   BatchAssociateEntry,
+  ContributionAssociateType,
   ContributionMovementType,
 } from '../schemas/individual-load.types';
 
@@ -23,7 +24,8 @@ import type {
 export function resolveContributionMovementType(
   movementType: string,
 ): ContributionMovementType {
-  return movementType === 'EMPLOYER_CONTRIBUTION'
+  return movementType === 'EMPLOYER_CONTRIBUTION' ||
+    movementType === 'SAVING_DIFFERENCE'
     ? 'contribution_patronal'
     : 'contribution_voluntary';
 }
@@ -58,6 +60,7 @@ export function buildAssociateMovementPayloads(
   fallbackDescription: string,
 ): AssociateMovementPayload[] {
   const isEmployerContribution = dto.movementType === 'EMPLOYER_CONTRIBUTION';
+  const isSavingsDifference = dto.movementType === 'SAVING_DIFFERENCE';
   const currencyCode = 'VES' as CurrencyCodeEnum;
   const status = 'COMPLETED' as movementStatusEnum;
   const transactionDate = dto.transactionDate ?? new Date();
@@ -81,6 +84,20 @@ export function buildAssociateMovementPayloads(
         currencyCode,
         transactionDate,
         description: description || 'Aporte Asociado (Vía Patronal)',
+        status,
+      },
+    ];
+  }
+
+  if (isSavingsDifference) {
+    return [
+      {
+        associateAccountId: dto.associateAccountId,
+        movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+        amount: dto.amount ?? 0,
+        currencyCode,
+        transactionDate,
+        description: description || 'Diferencia Ahorro del Socio',
         status,
       },
     ];
@@ -189,14 +206,21 @@ export function buildCreateBatchDto(
 interface BatchAssociateEntriesInput {
   associateId: string;
   totalAmount: number;
+  contributionType?: ContributionAssociateType;
 }
 
 /**
  * Construye las entradas de `contribution_batch_associates` para una carga
- * individual (una sola entrada con el monto total).
+ * individual (una sola entrada con el monto total y su tipo de aporte).
  */
 export function buildIndividualAssociateEntries(
   input: BatchAssociateEntriesInput,
 ): BatchAssociateEntry[] {
-  return [{ associateId: input.associateId, amount: input.totalAmount }];
+  return [
+    {
+      associateId: input.associateId,
+      amount: input.totalAmount,
+      contributionType: input.contributionType ?? 'ASSOCIATED_SAVINGS',
+    },
+  ];
 }

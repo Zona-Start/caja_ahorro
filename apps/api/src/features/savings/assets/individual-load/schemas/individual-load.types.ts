@@ -66,6 +66,7 @@ export interface BatchAssociateEntry {
   associateId: string;
   amount?: number;
   movementId?: string;
+  contributionType?: ContributionAssociateType;
 }
 
 export interface IndividualBatchContext {
@@ -79,6 +80,19 @@ export interface AccountingItem {
   associateId: string;
   amounts: Record<string, number>;
   descriptions: Record<string, string>;
+  contributionType?: ContributionAssociateType;
+}
+
+export type ContributionAssociateType =
+  | 'ASSOCIATED_SAVINGS'
+  | 'EMPLOYER_CONTRIBUTION'
+  | 'VOLUNTARY_SAVINGS'
+  | 'SAVING_DIFFERENCE';
+
+export interface AporteRow {
+  cedula: string;
+  aporteEmpleado: number;
+  aportePatrono: number;
 }
 
 export interface BulkRow {

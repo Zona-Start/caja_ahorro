@@ -25,5 +25,11 @@ export const FilterCreditPaidSchema = z.object({
   tenantId: z.string().uuid().optional(),
 });
 
+export const CreateBulkCreditPaidSchema = z.object({
+  paymentDate: z.string().optional(),
+  tenantId: z.string().uuid().optional(),
+});
+
 export type CreateCreditPaidDto = z.infer<typeof CreateCreditPaidSchema>;
 export type FilterCreditPaidDto = z.infer<typeof FilterCreditPaidSchema>;
+export type CreateBulkCreditPaidDto = z.infer<typeof CreateBulkCreditPaidSchema>;

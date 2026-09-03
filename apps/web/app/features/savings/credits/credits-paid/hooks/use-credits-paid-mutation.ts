@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { creditsPaidService } from '../services/credits-paid-service';
+import type { CreditPaymentBulkResponse } from '../schemas/credits-paid-api-response';
 
 export function useCreateCreditPaymentMutation(): UseMutationResult<
   { message: string },
@@ -51,5 +52,34 @@ export function useDeleteCreditPaymentMutation(): UseMutationResult<
     onError: (error: Error) => {
       toast.error(error.message || 'Error al cancelar el pago');
     },
+  });
+}
+
+export function useBulkUploadCreditPayment(): UseMutationResult<
+  CreditPaymentBulkResponse,
+  Error,
+  FormData,
+  unknown
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (formData: FormData) => creditsPaidService.bulkUpload(formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.creditsPaid.lists(),
+      });
+    },
+  });
+}
+
+export function useDownloadCreditPaymentTemplate(): UseMutationResult<
+  string,
+  Error,
+  void,
+  unknown
+> {
+  return useMutation({
+    mutationFn: () => creditsPaidService.downloadTemplate(),
   });
 }

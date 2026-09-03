@@ -1,13 +1,15 @@
 import * as schema from '@/database/schema';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { CurrencyCodeEnum } from '@/types/enum';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { format } from 'date-fns';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AccountingEntryItem, LoanInfo } from './loan-payment.types';
 
 @Injectable()
 export class LoanPaymentAccounting {
+  private readonly logger = new Logger(LoanPaymentAccounting.name);
+
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
   ) {}
@@ -32,17 +34,18 @@ export class LoanPaymentAccounting {
     );
 
     try {
-      await this.accountingEntriesService.createAutomaticEntry(
+      const entry = await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
         userId,
         {
-          module: 'savings',
+          module: 'portfolio',
           submodule: 'loans',
           category: 'SAVINGS_BANK',
           operationType: 'LOAN_PAYMENT',
           description: `Pago de Préstamo - ${fullname}`,
           entryDate: paymentDate,
-          referenceValue: undefined,
+          referenceValue: 'Pago Prestamo',
+          autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
           currencyCode: (loanData.currencyCode ?? 'VES') as CurrencyCodeEnum,
           originReferenceId: String(loanData.id),
           originType: 'LOAN_PAYMENT',
@@ -50,26 +53,36 @@ export class LoanPaymentAccounting {
             {
               associateId: loanData.associateId,
               amounts: {
-                LOAN_PRINCIPAL: roundedPrincipal,
+                LOAN_PAYMENT: roundedPrincipal,
                 LOAN_INTEREST_INCOME: roundedInterest,
-                BANK_ACCOUNT: roundedPayment,
+                LOAN_WITHHOLDING: roundedPayment,
               },
               descriptions: {
-                LOAN_PRINCIPAL: `Amortización de Capital - Prestamo del ${dateStr}`,
-                LOAN_INTEREST_INCOME: `Intereses de Prestamo del ${dateStr}`,
-                BANK_ACCOUNT: `Ingreso por Pago de Prestamo del ${dateStr}`,
+                LOAN_PAYMENT: `CUOTA PRESTAMO DEL ${dateStr}`,
+                LOAN_INTEREST_INCOME: `INTERES PRESTAMO DEL ${dateStr}`,
+                LOAN_WITHHOLDING: `RETENCIONES DE PRESTAMOS de ${dateStr}`,
               },
             },
           ],
           globalDescriptions: {
-            LOAN_PRINCIPAL: `Amortización de Capital - Prestamo del ${dateStr}`,
-            LOAN_INTEREST_INCOME: `Intereses de Prestamo del ${dateStr}`,
-            BANK_ACCOUNT: `Ingreso por Pago de Prestamo del ${dateStr}`,
+            LOAN_PAYMENT: `CUOTA PRESTAMO DEL ${dateStr}`,
+            LOAN_INTEREST_INCOME: `INTERES PRESTAMO DEL ${dateStr}`,
+            LOAN_WITHHOLDING: `RETENCIONES DE PRESTAMOS de ${dateStr}`,
           },
         },
         tx,
       );
+
+      if (!entry) {
+        this.logger.warn(
+          `[generatePaymentEntry] El asiento automático fue omitido (auto-posting desactivado o regla no aplicable) para el préstamo ${loanData.id}`,
+        );
+      }
     } catch (error) {
+      this.logger.error(
+        `[generatePaymentEntry] Error generando asiento automático: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
       if (
         error instanceof BadRequestException &&
         error.message.includes('No existe una regla contable')
@@ -111,6 +124,8 @@ export class LoanPaymentAccounting {
           operationType: 'LOAN_PAYMENT',
           description: `ANULACIÓN: Pago de Préstamo - ${fullname} (Ref: ${paymentRef})`,
           entryDate: new Date(),
+          referenceValue: 'Pago Prestamo',
+          autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
           currencyCode: (loanData.currencyCode ?? 'VES') as CurrencyCodeEnum,
           originReferenceId: String(loanData.id),
           originType: 'LOAN_PAYMENT_REVERSAL',
@@ -118,21 +133,21 @@ export class LoanPaymentAccounting {
             {
               associateId: loanData.associateId,
               amounts: {
-                LOAN_PRINCIPAL: -roundedPrincipal,
+                LOAN_PAYMENT: -roundedPrincipal,
                 LOAN_INTEREST_INCOME: -roundedInterest,
-                BANK_ACCOUNT: -roundedPayment,
+                LOAN_WITHHOLDING: -roundedPayment,
               },
               descriptions: {
-                LOAN_PRINCIPAL: `REVERSA: Amortización de Capital - Ref: ${paymentRef}`,
-                LOAN_INTEREST_INCOME: `REVERSA: Intereses de Prestamo - Ref: ${paymentRef}`,
-                BANK_ACCOUNT: `REVERSA: Ingreso por Pago de Prestamo - Ref: ${paymentRef}`,
+                LOAN_PAYMENT: `REVERSA: CUOTA PRESTAMO - Ref: ${paymentRef}`,
+                LOAN_INTEREST_INCOME: `REVERSA: INTERES PRESTAMO - Ref: ${paymentRef}`,
+                LOAN_WITHHOLDING: `REVERSA: RETENCIONES DE PRESTAMOS - Ref: ${paymentRef}`,
               },
             },
           ],
           globalDescriptions: {
-            LOAN_PRINCIPAL: `REVERSA: Amortización de Capital - Ref: ${paymentRef}`,
-            LOAN_INTEREST_INCOME: `REVERSA: Intereses de Prestamo - Ref: ${paymentRef}`,
-            BANK_ACCOUNT: `REVERSA: Ingreso por Pago de Prestamo - Ref: ${paymentRef}`,
+            LOAN_PAYMENT: `REVERSA: CUOTA PRESTAMO - Ref: ${paymentRef}`,
+            LOAN_INTEREST_INCOME: `REVERSA: INTERES PRESTAMO - Ref: ${paymentRef}`,
+            LOAN_WITHHOLDING: `REVERSA: RETENCIONES DE PRESTAMOS - Ref: ${paymentRef}`,
           },
         },
         tx,
@@ -164,10 +179,10 @@ export class LoanPaymentAccounting {
     items.push({
       associateId: 0,
       amounts: {
-        BANK_ACCOUNT: roundedTotalPayment,
+        LOAN_WITHHOLDING: roundedTotalPayment,
       },
       descriptions: {
-        BANK_ACCOUNT: `Ingreso por Pagos de Préstamos (${totalProcessed} registros)`,
+        LOAN_WITHHOLDING: `RETENCIONES DE PRESTAMOS (${totalProcessed} registros)`,
       },
     });
 
@@ -176,12 +191,14 @@ export class LoanPaymentAccounting {
         tenantId,
         userId,
         {
-          module: 'savings',
+          module: 'portfolio',
           submodule: 'loans',
           category: 'SAVINGS_BANK',
           operationType: 'LOAN_PAYMENT',
           description: `Carga Pagos de Préstamos - ${totalProcessed} registros`,
           entryDate: paymentDate,
+          referenceValue: 'Pago Prestamo',
+          autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
           currencyCode: CurrencyCodeEnum.VES,
           originType: 'LOAN_PAYMENT',
           items: items as any,
@@ -189,7 +206,10 @@ export class LoanPaymentAccounting {
         tx,
       );
     } catch (error) {
-      // accounting rule may not be configured
+      this.logger.error(
+        `[generateBulkEntry] No se pudo generar el asiento contable masivo: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
     }
   }
 }

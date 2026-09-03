@@ -51,6 +51,15 @@ export const contributionBatchDetailResponseSchema = z.object({
           cedula: z.string(),
           fullname: z.string(),
           amount: z.string().nullable().optional(),
+          contributionType: z
+            .enum([
+              'ASSOCIATED_SAVINGS',
+              'EMPLOYER_CONTRIBUTION',
+              'VOLUNTARY_SAVINGS',
+              'SAVING_DIFFERENCE',
+            ])
+            .nullable()
+            .optional(),
         }),
       )
       .optional(),

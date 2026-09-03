@@ -6,6 +6,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { and, eq, gte, ilike, inArray, lte, SQL, sql } from 'drizzle-orm';
@@ -16,11 +17,17 @@ import { CreateAccountingEntryDetailDto } from './dto/create-accounting-entry-de
 import { CreateAccountingEntryDto } from './dto/create-accounting-entry.dto';
 import { FilterAccountingEntryDto } from './dto/filter-accounting-entry.dto';
 import { UpdateAccountingEntryDto } from './dto/update-accounting-entry.dto';
+import {
+  generateAccountingEntriesTemplate,
+  parseAccountingEntriesExcel,
+} from './utils/excel-parser.util';
 
 const SORTABLE_FIELDS = ['entryDate', 'id', 'description'] as const;
 
 @Injectable()
 export class AccountingEntriesService {
+  private readonly logger = new Logger(AccountingEntriesService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly accountingCyclesService: AccountingCyclesService,
@@ -422,6 +429,9 @@ export class AccountingEntriesService {
     entryDate: Date,
     details: CreateAccountingEntryDetailDto[],
   ) {
+
+    console.log('details', details);
+
     const cycle = await this.accountingCyclesService.findOne(
       tenantId,
       accountingCycleId,
@@ -440,7 +450,7 @@ export class AccountingEntriesService {
         'El asiento debe tener al menos dos líneas.',
       );
 
-    const ids = details.map((d) => d.accountPlanId);
+    const ids = [...new Set(details.map((d) => d.accountPlanId))];
     const accounts = await this.drizzle
       .select()
       .from(schema.accountPlan)
@@ -551,6 +561,115 @@ export class AccountingEntriesService {
     });
   }
 
+  /* ---------- Generar plantilla Excel ---------- */
+  async generateTemplate(): Promise<Buffer> {
+    return generateAccountingEntriesTemplate();
+  }
+
+  /* ---------- Importar asiento desde Excel ---------- */
+  async importFromExcel(
+    userId: string,
+    tenantId: string,
+    file: Express.Multer.File,
+  ) {
+    const parsed = await parseAccountingEntriesExcel(file.buffer);
+
+    if (!parsed.description) {
+      throw new BadRequestException(
+        'La descripción general del asiento es requerida (línea 1).',
+      );
+    }
+    if (!parsed.entryDate) {
+      throw new BadRequestException(
+        'La fecha del asiento es requerida (línea 1).',
+      );
+    }
+    if (parsed.rows.length === 0) {
+      throw new BadRequestException(
+        'No se encontraron líneas de detalle en el Excel.',
+      );
+    }
+
+    // Resolver cuentas por código (con puntos)
+    const codes = [...new Set(parsed.rows.map((r) => r.accountCode))];
+    const accounts = await this.drizzle
+      .select({
+        id: schema.accountPlan.id,
+        code: schema.accountPlan.code,
+        name: schema.accountPlan.name,
+      })
+      .from(schema.accountPlan)
+      .where(
+        and(
+          eq(schema.accountPlan.tenantId, tenantId),
+          inArray(schema.accountPlan.code, codes),
+        ),
+      );
+    const accountMap = new Map(accounts.map((a) => [a.code, a]));
+
+    // Resolver asociados por cédula
+    const cedulas = [
+      ...new Set(
+        parsed.rows
+          .map((r) => r.auxiliarSocio)
+          .filter((c): c is string => !!c),
+      ),
+    ];
+    let associateMap = new Map<string, { id: string }>();
+    if (cedulas.length > 0) {
+      const associates = await this.drizzle
+        .select({ id: schema.associates.id, cedula: schema.associates.cedula })
+        .from(schema.associates)
+        .where(
+          and(
+            eq(schema.associates.tenantId, tenantId),
+            inArray(schema.associates.cedula, cedulas),
+          ),
+        );
+      associateMap = new Map(associates.map((a) => [a.cedula, a]));
+    }
+
+    // Construir detalles del asiento
+    const details: CreateAccountingEntryDetailDto[] = parsed.rows.map((row) => {
+      const account = accountMap.get(row.accountCode);
+      if (!account) {
+        throw new BadRequestException(
+          `Cuenta no encontrada en el plan contable: ${row.accountCode}`,
+        );
+      }
+
+      let associateId: string | null = null;
+      if (row.auxiliarSocio) {
+        const assoc = associateMap.get(row.auxiliarSocio);
+        if (!assoc) {
+          throw new BadRequestException(
+            `Asociado no encontrado con cédula: ${row.auxiliarSocio}`,
+          );
+        }
+        associateId = assoc.id;
+      }
+
+      return {
+        accountPlanId: account.id,
+        associateId,
+        supplierId: null,
+        debit: row.debit.toFixed(6),
+        credit: row.credit.toFixed(6),
+        description: row.descripcion || null,
+      } as CreateAccountingEntryDetailDto;
+    });
+
+    const dto: CreateAccountingEntryDto = {
+      entryDate: new Date(parsed.entryDate),
+      description: parsed.description,
+      currencyCode: CurrencyCodeEnum.VES,
+      originType: 'EXCEL_IMPORT',
+      details,
+    };
+
+    return this.create(userId, tenantId, dto);
+  }
+
   /* ---------- Crear Asiento Automático ---------- */
   async createAutomaticEntry(
     tenantId: string,
@@ -561,6 +680,7 @@ export class AccountingEntriesService {
       category: string;
       operationType: string;
       referenceValue?: string;
+      autoPostKey?: string;
       description: string;
       entryDate: Date;
       currencyCode: CurrencyCodeEnum;
@@ -590,9 +710,15 @@ export class AccountingEntriesService {
         ),
       );
 
-    if (!masterSetting || masterSetting.value !== 'true') return null;
+    if (!masterSetting || masterSetting.value !== 'true') {
+      this.logger.warn(
+        `[createAutomaticEntry] Omitido: ACCOUNTING_AUTO_POSTING_MASTER no está activo para el tenant ${tenantId}`,
+      );
+      return null;
+    }
 
-    const autoPostKey = `AUTO_POST_ENTRY_${params.submodule.toUpperCase()}`;
+    const autoPostKey =
+      params.autoPostKey ?? `AUTO_POST_ENTRY_${params.submodule.toUpperCase()}`;
     const [moduleSetting] = await db
       .select()
       .from(schema.moduleSettings)
@@ -605,7 +731,12 @@ export class AccountingEntriesService {
         ),
       );
 
-    if (!moduleSetting || moduleSetting.value !== 'true') return null;
+    if (!moduleSetting || moduleSetting.value !== 'true') {
+      this.logger.warn(
+        `[createAutomaticEntry] Omitido: ${autoPostKey} no está activo para module=${params.module} submodule=${params.submodule} tenant=${tenantId}`,
+      );
+      return null;
+    }
 
     const rows = await db
       .select()
@@ -710,12 +841,50 @@ export class AccountingEntriesService {
       aggregatedDetails.values(),
     );
 
+    // ---- DEBUG: volcar reglas y montos resueltos ----
+    this.logger.debug(
+      `[createAutomaticEntry] category=${params.category} operationType=${params.operationType} ref=${params.referenceValue ?? ''} submodule=${params.submodule}`,
+    );
+    this.logger.debug(
+      `[createAutomaticEntry] ruleDetails=${JSON.stringify(
+        ruleDetails.map((d) => ({
+          accountRole: d.accountRole,
+          movementType: d.movementType,
+          formula: d.formula,
+          accountPlanId: d.accountPlanId,
+          isAuxiliary: d.isAuxiliary,
+        })),
+      )}`,
+    );
+    this.logger.debug(
+      `[createAutomaticEntry] items.amounts=${JSON.stringify(
+        params.items.map((i) => i.amounts),
+      )}`,
+    );
+    this.logger.debug(
+      `[createAutomaticEntry] aggregatedDetails=${JSON.stringify(
+        detailsDraft,
+      )}`,
+    );
+    this.logger.debug(
+      `[createAutomaticEntry] totalDebit=${detailsDraft.reduce(
+        (a, d) => a + Number(d.debit),
+        0,
+      )} totalCredit=${detailsDraft.reduce(
+        (a, d) => a + Number(d.credit),
+        0,
+      )}`,
+    );
+    // ---- FIN DEBUG ----
+
     const rr = await this.validateAccountingEntry(
       tenantId,
       cycle.id,
       params.entryDate,
       detailsDraft,
     );
+
+
 
     const voucherNo = await this.getNextVoucherNo(tenantId, userId, db);
     const [entry] = await db
@@ -747,13 +916,25 @@ export class AccountingEntriesService {
       createdById: userId,
     }));
 
-    // CRITICO: Capturar los detalles reales retornados por la DB
-    const insertedDetails = await db
-      .insert(schema.accountingEntryDetails)
-      .values(detailsToInsert)
-      .returning();
+    // CRITICO: Capturar los detalles reales retornados por la DB.
+    // Insertamos en lotes para no exceder el límite de parámetros de
+    // PostgreSQL (65535) cuando la carga masiva genera miles de líneas.
+    const insertedDetails: any[] = [];
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < detailsToInsert.length; i += CHUNK_SIZE) {
+      const chunk = detailsToInsert.slice(i, i + CHUNK_SIZE);
+      const inserted = await db
+        .insert(schema.accountingEntryDetails)
+        .values(chunk)
+        .returning();
+      insertedDetails.push(...inserted);
+    }
 
     // Formatear salida final
+    this.logger.log(
+      `[createAutomaticEntry] Asiento creado: entryId=${entry.id} voucherNo=${voucherNo} category=${params.category} operationType=${params.operationType} ref=${params.referenceValue ?? ''}`,
+    );
+
     return {
       ...entry,
       // Convertir strings de fecha de DB a objetos Date de JS

@@ -11,10 +11,13 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Request, Response } from 'express';
 import { AccountingEntriesService } from './accounting-entries.service';
 import { CreateAccountingEntryDto } from './dto/create-accounting-entry.dto';
 import { FilterAccountingEntryDto } from './dto/filter-accounting-entry.dto';
@@ -51,6 +54,51 @@ export class AccountingEntriesController {
       dto,
     );
     return { message: 'Asiento contable creado exitosamente', data };
+  }
+
+  @Get('template')
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'read',
+    scope: 'tenant',
+  })
+  @ApiOperation({ summary: 'Descargar plantilla Excel para importar asientos' })
+  async downloadTemplate(@Res() res: Response) {
+    const buffer = await this.accountingEntriesService.generateTemplate();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=plantilla_asiento_contable.xlsx`,
+    );
+    res.send(buffer);
+  }
+
+  @Post('import')
+  @UseInterceptors(FileInterceptor('file'))
+  @Permissions({
+    resource: 'accounting:journal_entries',
+    action: 'create',
+    scope: 'tenant',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Importar asiento contable desde Excel' })
+  async importFromExcel(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const { targetTenantId, userId } = this.tenantContext.getTenantContext(req);
+    if (!file) {
+      throw new Error('No se recibió ningún archivo.');
+    }
+    const data = await this.accountingEntriesService.importFromExcel(
+      userId,
+      targetTenantId,
+      file,
+    );
+    return { message: 'Asiento contable importado exitosamente', data };
   }
 
   @Get()

@@ -20,6 +20,7 @@ import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
 import { WithdrawalAssociateService } from '@/features/savings/withdrawalls/withdrawal-associate/withdrawal-associate.service';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
@@ -37,6 +38,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { and, count, desc, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
@@ -50,6 +52,8 @@ import {
 
 @Injectable()
 export class CreditManagementService {
+  private readonly logger = new Logger(CreditManagementService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
@@ -57,8 +61,9 @@ export class CreditManagementService {
     private readonly inventoryMovementsService: InventoryMovementsService,
     private readonly withdrawalAssociateService: WithdrawalAssociateService,
     private readonly bankMovementsService: BankMovementsService,
+    private readonly accountingEntriesService: AccountingEntriesService,
     private readonly auditHelper: AuditHelper,
-  ) {}
+  ) { }
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -634,15 +639,15 @@ export class CreditManagementService {
     const schedule =
       capital > 0
         ? this.generateAmortizationSchedule(
-            capital,
-            finalTermUnits,
-            finalRate,
-            startDate,
-            '',
-            userId,
-            finalTermType,
-            expensesAmount,
-          )
+          capital,
+          finalTermUnits,
+          finalRate,
+          startDate,
+          '',
+          userId,
+          finalTermType,
+          expensesAmount,
+        )
         : [];
 
     const newCredit = await this.db.transaction(async (tx) => {
@@ -785,6 +790,8 @@ export class CreditManagementService {
         isPayrollCredit: associates.isPayrollCredit,
         balance: associateHaberesBalance.haberesBalance,
         associateAccountId: associateAccounts.id,
+        fullname: associates.fullname,
+        cedula: associates.cedula,
       })
       .from(associates)
       .where(
@@ -812,6 +819,11 @@ export class CreditManagementService {
       .select()
       .from(creditItemSales)
       .where(eq(creditItemSales.creditId, id));
+
+    const [creditType] = await this.db
+      .select({ name: creditsTypes.name })
+      .from(creditsTypes)
+      .where(eq(creditsTypes.id, credit.creditTypeId));
 
     const customReference =
       await this.generateCodeService.generateNextReference(
@@ -860,15 +872,15 @@ export class CreditManagementService {
         const schedule =
           amortizableAmount > 0
             ? this.generateAmortizationSchedule(
-                amortizableAmount,
-                finalTermUnits,
-                finalRate,
-                startDate ? new Date(startDate) : new Date(),
-                id,
-                userId,
-                finalTermType,
-                expensesAmount,
-              )
+              amortizableAmount,
+              finalTermUnits,
+              finalRate,
+              startDate ? new Date(startDate) : new Date(),
+              id,
+              userId,
+              finalTermType,
+              expensesAmount,
+            )
             : [];
 
         if (schedule.length > 0) {
@@ -1085,6 +1097,73 @@ export class CreditManagementService {
 
       return updatedCredit;
     });
+
+    // ─── Asiento contable (no-fatal) ───
+    let accountingWarning: string | undefined;
+    try {
+      const typeDesc = creditType?.name ?? 'CRÉDITO';
+      const associateDesc =
+        `${assoc?.cedula ?? ''} ${assoc?.fullname ?? ''}`.trim();
+      const requestedAmountNum = Number(requestedAmount);
+      const expensesAmountNum = Number(credit.expensesAmount ?? 0);
+      const totalInterestNum = Number(credit.totalInterest ?? 0);
+
+      this.logger.log(
+        `[approve] Generando asiento contable crédito ${id} - principal=${requestedAmountNum} gastos=${expensesAmountNum} interes=${totalInterestNum}`,
+      );
+
+      const accountingEntry = await this.accountingEntriesService.createAutomaticEntry(
+        tenantId,
+        userId,
+        {
+          module: 'portfolio',
+          submodule: 'credits',
+          category: 'SAVINGS_BANK',
+          operationType: 'CREDIT_TYPE',
+          description: `Desembolso de Crédito - ${assoc?.fullname ?? ''}`,
+          entryDate: new Date(),
+          referenceValue: typeDesc,
+          currencyCode: (currencyCode as CurrencyCodeEnum) ?? CurrencyCodeEnum.VES,
+          originReferenceId: id,
+          originType: 'CREDIT_DISBURSEMENT',
+          items: [
+            {
+              associateId: associateId,
+              amounts: {
+                CREDIT_PRINCIPAL: requestedAmountNum,
+                SERVICE_FEE_INCOME: expensesAmountNum,
+                LOAN_INTEREST_INCOME: totalInterestNum,
+              },
+              descriptions: {
+                CREDIT_PRINCIPAL: typeDesc,
+                SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
+                LOAN_INTEREST_INCOME: associateDesc,
+              },
+            },
+          ],
+          globalDescriptions: {
+            CREDIT_PRINCIPAL: typeDesc,
+            SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
+            LOAN_INTEREST_INCOME: associateDesc,
+          },
+        },
+        undefined,
+      );
+
+      if (!accountingEntry) {
+        this.logger.warn(
+          `[approve] createAutomaticEntry devolvió null para crédito ${id}. Posibles causas: ACCOUNTING_AUTO_POSTING_MASTER no activo, autoPostKey (AUTO_POST_ENTRY_CREDITS) no activo, o no existe regla contable para SAVINGS_BANK / CREDIT_TYPE (ref: ${typeDesc}).`,
+        );
+      }
+    } catch (error) {
+      accountingWarning =
+        (error as any)?.message ??
+        'Error al generar el asiento contable del crédito';
+      this.logger.error(
+        `[approve] Error generando asiento contable para crédito ${id}: ${accountingWarning}`,
+        (error as any)?.stack,
+      );
+    }
 
     return { id: result.id, customReference: result.customReference ?? null };
   }

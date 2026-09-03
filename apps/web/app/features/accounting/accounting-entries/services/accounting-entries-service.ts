@@ -82,4 +82,20 @@ export class AccountingEntriesService {
     const response = await apiClient.post(`/accounting/entries/${id}/cancel`);
     return accountingEntryResponseSchema.parse(response.data).data;
   }
+
+  static async importExcel(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post('/accounting/entries/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return accountingEntryResponseSchema.parse(response.data).data;
+  }
+
+  static async downloadTemplate() {
+    const response = await apiClient.get('/accounting/entries/template', {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  }
 }

@@ -61,18 +61,26 @@ export class LoanPaidService {
     const worksheet = workbook.addWorksheet('Plantilla de Pagos');
 
     worksheet.columns = [
-      { header: 'cedula', key: 'cedula', width: 20 },
-      { header: 'monto', key: 'monto', width: 15 },
-      { header: 'fecha', key: 'fecha', width: 18 },
+      { key: 'a', width: 20 },
+      { key: 'b', width: 18 },
     ];
 
-    worksheet.getRow(1).font = { bold: true };
+    // Fila 1: fecha de pago (aplica a todos los pagos)
+    worksheet.getCell('A1').value = 'fecha';
+    worksheet.getCell('B1').value = format(new Date(), 'yyyy-MM-dd');
+    worksheet.getCell('A1').font = { bold: true };
+    worksheet.getCell('B1').font = { bold: true };
 
-    worksheet.addRow({
-      cedula: 'V-12345678',
-      monto: 1500.5,
-      fecha: format(new Date(), 'yyyy-MM-dd'),
-    });
+    // Fila 2: encabezados
+    worksheet.getCell('A2').value = 'cedula';
+    worksheet.getCell('B2').value = 'monto';
+    worksheet.getRow(2).font = { bold: true };
+
+    // Filas de ejemplo
+    worksheet.getCell('A3').value = 'V-12345678';
+    worksheet.getCell('B3').value = 1500.5;
+    worksheet.getCell('A4').value = 'V-87654321';
+    worksheet.getCell('B4').value = 2500;
 
     return await workbook.xlsx.writeBuffer();
   }
@@ -98,7 +106,9 @@ export class LoanPaidService {
       method = '',
     } = dto || {};
 
-    const offset = (page - 1) * limit;
+    const pageNumber = Number(page) || 1;
+    const limitNumber = Number(limit) || 10;
+    const offset = (pageNumber - 1) * limitNumber;
 
     const conditions: SQL<unknown>[] = [eq(loanPayments.tenantId, tenantId)];
 
@@ -130,7 +140,7 @@ export class LoanPaidService {
       .where(where);
 
     const totalCount = Number(totalCountResult[0].count);
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalPages = Math.ceil(totalCount / limitNumber);
 
     const data = await this.db
       .select({
@@ -161,7 +171,7 @@ export class LoanPaidService {
       )
       .leftJoin(associates, eq(associates.id, loans.associateId))
       .orderBy(orderBy)
-      .limit(limit)
+      .limit(limitNumber)
       .offset(offset);
 
     const trnasformData = data.map((item) => ({
@@ -173,9 +183,9 @@ export class LoanPaidService {
     const meta = {
       totalItems: totalCount,
       itemCount: data.length,
-      itemsPerPage: Number(limit),
+      itemsPerPage: limitNumber,
       totalPages,
-      currentPage: Number(page),
+      currentPage: pageNumber,
     };
 
     return { data: trnasformData, meta };

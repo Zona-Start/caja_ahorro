@@ -310,26 +310,29 @@ export class AssociateInquiryService {
           loanType: schema.loanTypes.name,
           interestRate: schema.loans.interestRate,
           loanAmount: schema.loans.requestedAmount,
-          outstandingBalance:
-            schema.loanOutstandingBalance.outstandingTotalBalance,
+          // <<< NUEVO: Calcular outstandingBalance directamente desde la tabla de amortización >>>
+          outstandingBalance: sql<number>`COALESCE((
+            SELECT SUM(las.total_installment_amount - COALESCE(las.paid_amount, 0))
+            FROM ${schema.loanAmortizationSchedule} las
+            WHERE las.loan_id = ${schema.loans.id}
+              AND las.payment_status != 'PAID'
+          ), 0)`,
           installmentAmount: schema.loans.installmentAmount,
           requestDate: schema.loans.requestDate,
           terms: schema.loans.termUnits,
           status: schema.loans.status,
           customReference: schema.loans.customReference,
+          // <<< NUEVO: Calcular progreso como porcentaje pagado (considera pagos parciales) >>>
           progress: sql<string>`COALESCE(
-            (SELECT COUNT(*) FILTER (WHERE las.payment_status = 'PAID') * 1.0 / NULLIF(COUNT(*), 0)
-             FROM ${schema.loanAmortizationSchedule} las WHERE las.loan_id = ${schema.loans.id}
-            ), '0')`,
+            (SELECT SUM(las.paid_amount) / NULLIF(SUM(las.total_installment_amount), 0)
+             FROM ${schema.loanAmortizationSchedule} las
+             WHERE las.loan_id = ${schema.loans.id}
+            ), 0)`,
         })
         .from(schema.loans)
         .leftJoin(
           schema.loanTypes,
           eq(schema.loans.loanTypeId, schema.loanTypes.id),
-        )
-        .leftJoin(
-          schema.loanOutstandingBalance,
-          eq(schema.loanOutstandingBalance.loanId, schema.loans.id),
         )
         .where(whereClause)
         .orderBy(desc(schema.loans.requestDate))
@@ -344,6 +347,8 @@ export class AssociateInquiryService {
       data: data.map((d) => ({
         ...d,
         requestDate: d.requestDate || null,
+        // Asegurar que outstandingBalance sea número y no null
+        outstandingBalance: String(d.outstandingBalance) || 0,
       })),
       meta: {
         page,
@@ -384,17 +389,22 @@ export class AssociateInquiryService {
           creditType: schema.creditsTypes.name,
           interestRate: schema.credits.interestRate,
           creditAmount: schema.credits.requestedAmount,
-          outstandingBalance:
-            schema.creditOutstandingBalance.outstandingTotalBalance,
+          outstandingBalance: sql<number>`COALESCE((
+            SELECT SUM(cas.total_installment_amount - COALESCE(cas.paid_amount, 0))
+            FROM ${schema.creditAmortizationSchedule} cas
+            WHERE cas.credit_id = ${schema.credits.id}
+              AND cas.payment_status != 'PAID'
+          ), 0)`,
           installmentAmount: schema.credits.installmentAmount,
           requestDate: schema.credits.requestDate,
           terms: schema.credits.termUnits,
           status: schema.credits.status,
           customReference: schema.credits.customReference,
           progress: sql<string>`COALESCE(
-            (SELECT COUNT(*) FILTER (WHERE cas.payment_status = 'PAID') * 1.0 / NULLIF(COUNT(*), 0)
-             FROM ${schema.creditAmortizationSchedule} cas WHERE cas.credit_id = ${schema.credits.id}
-            ), '0')`,
+            (SELECT SUM(cas.paid_amount) / NULLIF(SUM(cas.total_installment_amount), 0)
+             FROM ${schema.creditAmortizationSchedule} cas
+             WHERE cas.credit_id = ${schema.credits.id}
+            ), 0)`,
         })
         .from(schema.credits)
         .leftJoin(
@@ -593,7 +603,12 @@ export class AssociateInquiryService {
     );
     const totalPending = schedule
       .filter((s) => s.paymentStatus !== 'PAID')
-      .reduce((sum, s) => sum + parseFloat(s.totalInstallmentAmount || '0'), 0);
+      .reduce((sum, s) => {
+        const paid = parseFloat(s.paidAmount || '0');
+        const total = parseFloat(s.totalInstallmentAmount || '0');
+        const pending = total - paid; // saldo pendiente de esa cuota
+        return sum + pending;
+      }, 0);
 
     return {
       loan: loanResult,
@@ -693,8 +708,12 @@ export class AssociateInquiryService {
     );
     const totalPending = schedule
       .filter((s) => s.paymentStatus !== 'PAID')
-      .reduce((sum, s) => sum + parseFloat(s.totalInstallmentAmount || '0'), 0);
-
+      .reduce((sum, s) => {
+        const paid = parseFloat(s.paidAmount || '0');
+        const total = parseFloat(s.totalInstallmentAmount || '0');
+        const pending = total - paid; // saldo pendiente de esa cuota
+        return sum + pending;
+      }, 0);
     const items = await this.drizzle
       .select({
         id: schema.creditItemSales.id,
