@@ -5,11 +5,12 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { BcvScraperService } from './bcv-scraper.service';
 import { BcvService } from './bcv.service';
 import { ExchangeRatesController } from './exchange-rate.controller';
+import { ExchangeRateService } from './exchange-rate.service';
 
 @Module({
   imports: [DrizzleModule, ScheduleModule.forRoot(), SettingsModule],
   controllers: [ExchangeRatesController],
-  providers: [BcvService, BcvScraperService],
-  exports: [BcvService, BcvScraperService],
+  providers: [BcvService, BcvScraperService, ExchangeRateService],
+  exports: [BcvService, BcvScraperService, ExchangeRateService],
 })
 export class ExchangeRateModule {}

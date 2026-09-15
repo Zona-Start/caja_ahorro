@@ -14,8 +14,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { and, eq, gte, ilike, lte, sql, type SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
-import { ContributionBatchesAccountingService } from './contribution-batches-accounting.service';
 import { ContributionAssociateType } from '../individual-load/schemas/individual-load.types';
+import { ContributionBatchesAccountingService } from './contribution-batches-accounting.service';
 import {
   CreateContributionBatchDto,
   FilterContributionBatchDto,

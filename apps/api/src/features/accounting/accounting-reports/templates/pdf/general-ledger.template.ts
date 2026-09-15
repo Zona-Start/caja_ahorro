@@ -85,9 +85,21 @@ export function buildGeneralLedgerTableContent(
               [
                 { text: 'TOTALES', bold: true, colSpan: 2 },
                 {},
-                { text: fmt(account.totalDebit), bold: true, alignment: 'right' },
-                { text: fmt(account.totalCredit), bold: true, alignment: 'right' },
-                { text: fmt(account.finalBalance), bold: true, alignment: 'right' },
+                {
+                  text: fmt(account.totalDebit),
+                  bold: true,
+                  alignment: 'right',
+                },
+                {
+                  text: fmt(account.totalCredit),
+                  bold: true,
+                  alignment: 'right',
+                },
+                {
+                  text: fmt(account.finalBalance),
+                  bold: true,
+                  alignment: 'right',
+                },
               ],
             ],
           },

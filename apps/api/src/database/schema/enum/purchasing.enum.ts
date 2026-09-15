@@ -31,7 +31,7 @@ export const purchaseOrderStatusEnum = purchasingSchema.enum(
   [
     'DRAFT', // 	Se crea la OC, se puede editar.
     'APPROVED', // Aprobada, lista para recibir mercancia
-    'RECEIVED', //Todas las líneas de la OC ya tienen factura. 
+    'RECEIVED', //Todas las líneas de la OC ya tienen factura.
     'PARTIALLY_RECEIVED', // Llega una factura que cubre solo parte de la OC.
     'CLOSED', // OC finalizada sin pendientes.
     'CANCELLED', //Se cancela antes de recibir factura.

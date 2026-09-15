@@ -1,7 +1,7 @@
 [data-sidebar="menu-button"][data-active="true"],
 [data-sidebar="menu-sub-button"][data-active="true"] {
-  background-color: color-mix(in oklch, var(--primary) 32%, transparent) !important;
-  color: oklch(0.145 0 0) !important;
+  background-color: color-mix(in oklch, var(--primary) 100%, transparent) !important;
+  color: oklch(100% 0.00011 271.152) !important;
 }
 
 :root.dark [data-sidebar="menu-button"][data-active="true"],

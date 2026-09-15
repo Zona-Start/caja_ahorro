@@ -17,7 +17,6 @@ import {
   CreateCreditNoteSchema,
   CreateDebitNoteSchema,
   CreateSupplierInvoiceSchema,
-  FilterSupplierInvoiceSchema,
   StatusTransitionSchema,
   UpdateSupplierInvoiceSchema,
   VoidInvoiceSchema,
@@ -30,7 +29,7 @@ export class SupplierInvoicesController {
   constructor(
     private readonly service: SupplierInvoicesService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @UsePipes(new ZodValidatorPipe(CreateSupplierInvoiceSchema))

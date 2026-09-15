@@ -1,4 +1,3 @@
-import { Permissions } from '@/common/decorators/permissions.decorator';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import { Controller, Get, Req } from '@nestjs/common';
 import { Request } from 'express';
@@ -9,7 +8,7 @@ export class StatsController {
   constructor(
     private readonly statsService: StatsService,
     private readonly tenantContext: TenantContextService,
-  ) { }
+  ) {}
 
   @Get('dashboard')
   // @Permissions({

@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte } from 'drizzle-orm';
 import { QuotasReportDto } from '../dto/quotas-report.dto';
 import { buildQuotasTableContent } from '../templates/pdf/quotas.template';
 
@@ -18,9 +18,7 @@ export class QuotasReportService {
     const conditions: any[] = [eq(schema.loans.tenantId, tenantId)];
 
     if (filters.reference) {
-      conditions.push(
-        eq(schema.loans.customReference, filters.reference),
-      );
+      conditions.push(eq(schema.loans.customReference, filters.reference));
     }
     if (filters.cedula) {
       const [associate] = await this.drizzle
@@ -54,8 +52,7 @@ export class QuotasReportService {
         cedula: schema.associates.cedula,
         fullname: schema.associates.fullname,
         reference: schema.loans.customReference,
-        installmentNumber:
-          schema.loanAmortizationSchedule.installmentNumber,
+        installmentNumber: schema.loanAmortizationSchedule.installmentNumber,
         dueDate: schema.loanAmortizationSchedule.dueDate,
         principalBalancePending:
           schema.loanAmortizationSchedule.principalBalancePending,

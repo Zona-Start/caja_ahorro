@@ -15,7 +15,7 @@ import { RequestWithUser } from './strategies/jwt.strategy';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   private getLoginContext(req: any) {
     return {

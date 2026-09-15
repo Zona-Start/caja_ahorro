@@ -129,9 +129,7 @@ export class SavingsLiquidationService {
       0,
     );
 
-    const totalSavings = haberesRow
-      ? Number(haberesRow.total_savings)
-      : 0;
+    const totalSavings = haberesRow ? Number(haberesRow.total_savings) : 0;
     const haberesContribution = haberesRow
       ? Number(haberesRow.haberes_contribution)
       : 0;
@@ -149,7 +147,8 @@ export class SavingsLiquidationService {
       ? Number(haberesRow.total_withdrawal_fees)
       : 0;
 
-    const net = totalSavings - total_outstanding_loans - total_outstanding_credits;
+    const net =
+      totalSavings - total_outstanding_loans - total_outstanding_credits;
 
     return {
       ...associateData,

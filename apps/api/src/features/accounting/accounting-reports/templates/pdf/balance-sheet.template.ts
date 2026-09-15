@@ -58,9 +58,7 @@ function flattenAccounts(
   return result;
 }
 
-export function buildBalanceSheetTableContent(
-  data: BalanceSheetData,
-): Content {
+export function buildBalanceSheetTableContent(data: BalanceSheetData): Content {
   const leftRows: any[] = [];
   const rightTopRows: any[] = [];
   const rightBottomRows: any[] = [];

@@ -17,6 +17,8 @@ export const moduleCodeEnum = pgEnum('module_code', [
   'TREASURY',
   'HR_PAYROLL',
   'AUDIT',
+  'IAM',
+  'SYSTEM',
 ]);
 
 export const moduleStatusEnum = pgEnum('module_status', [

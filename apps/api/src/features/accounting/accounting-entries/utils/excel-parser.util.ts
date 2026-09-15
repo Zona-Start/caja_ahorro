@@ -65,10 +65,13 @@ export async function parseAccountingEntriesExcel(
     let entryDate = '';
 
     headerRow.eachCell((cell, colNumber) => {
-      const label = String(cell.value ?? '').trim().toLowerCase();
+      const label = String(cell.value ?? '')
+        .trim()
+        .toLowerCase();
       if (label === 'descripción' || label === 'descripcion') {
-        description = String(headerRow.getCell(colNumber + 1).value ?? '')
-          .trim();
+        description = String(
+          headerRow.getCell(colNumber + 1).value ?? '',
+        ).trim();
       } else if (label === 'fecha') {
         entryDate = parseDate(headerRow.getCell(colNumber + 1).value);
       }
@@ -78,13 +81,17 @@ export async function parseAccountingEntriesExcel(
     const columnsRow = worksheet.getRow(2);
     const headers: { [key: string]: number } = {};
     columnsRow.eachCell((cell, colNumber) => {
-      const headerName = String(cell.value ?? '').toLowerCase().trim();
+      const headerName = String(cell.value ?? '')
+        .toLowerCase()
+        .trim();
       headers[headerName] = colNumber;
     });
 
     const cuentaCol = headers['cuenta'];
     const auxiliarSocioCol =
-      headers['auxiliar_socio'] || headers['auxiliar socio'] || headers['socio'];
+      headers['auxiliar_socio'] ||
+      headers['auxiliar socio'] ||
+      headers['socio'];
     const descripcionCol = headers['descripcion'];
     const debitCol = headers['debitos'] || headers['debito'] || headers['debe'];
     const creditCol =
@@ -109,7 +116,9 @@ export async function parseAccountingEntriesExcel(
         : '';
       const debit = Number(row.getCell(debitCol).value ?? 0) || 0;
       const credit = Number(row.getCell(creditCol).value ?? 0) || 0;
-      const descripcion = String(row.getCell(descripcionCol).value ?? '').trim();
+      const descripcion = String(
+        row.getCell(descripcionCol).value ?? '',
+      ).trim();
 
       rows.push({
         accountCode,

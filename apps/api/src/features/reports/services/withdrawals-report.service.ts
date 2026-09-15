@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
 import { WithdrawalsReportDto } from '../dto/withdrawals-report.dto';
 import { buildWithdrawalsTableContent } from '../templates/pdf/withdrawals.template';
 
@@ -45,27 +45,19 @@ export class WithdrawalsReportService {
         .limit(1);
 
       if (associate) {
-        conditions.push(
-          eq(schema.associateAccounts.associateId, associate.id),
-        );
+        conditions.push(eq(schema.associateAccounts.associateId, associate.id));
       }
     }
     if (filters.dateFrom) {
       const startDate = new Date(filters.dateFrom + 'T00:00:00');
       conditions.push(
-        gte(
-          schema.withdrawalsAssociates.withdrawalDate,
-          startDate,
-        ),
+        gte(schema.withdrawalsAssociates.withdrawalDate, startDate),
       );
     }
     if (filters.dateTo) {
       const endDate = new Date(filters.dateTo + 'T23:59:59');
       conditions.push(
-        lte(
-          schema.withdrawalsAssociates.withdrawalDate,
-          endDate,
-        ),
+        lte(schema.withdrawalsAssociates.withdrawalDate, endDate),
       );
     }
 

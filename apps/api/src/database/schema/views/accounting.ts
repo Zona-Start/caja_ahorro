@@ -1,6 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { boolean, integer, numeric, text, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  integer,
+  numeric,
+  text,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { accountingSchema } from '../_schemas';
+import { accountNatureEnum, accountTypeEnum } from '../enum';
 import {
   accountBalances,
   accountingEntries,
@@ -8,7 +16,6 @@ import {
   accountPlan,
   bankAccounts,
 } from '../tables';
-import { accountNatureEnum, accountTypeEnum } from '../enum';
 
 //Agregación de movimientos (débito/crédito) por cuenta y ciclo, solo asientos publicados.
 export const periodAccountMovementsView = accountingSchema.view(
@@ -16,10 +23,26 @@ export const periodAccountMovementsView = accountingSchema.view(
   {
     accountPlanId: uuid('account_plan_id').notNull(),
     accountingCycleId: uuid('accounting_cycle_id').notNull(),
-    periodDebit: numeric('period_debit', { precision: 20, scale: 6 }).notNull(),
+    periodDebit: numeric('period_debit', { precision: 18, scale: 4 }).notNull(),
     periodCredit: numeric('period_credit', {
-      precision: 20,
-      scale: 6,
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodDebitBase: numeric('period_debit_base', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodCreditBase: numeric('period_credit_base', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodDebitForeign: numeric('period_debit_foreign', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodCreditForeign: numeric('period_credit_foreign', {
+      precision: 18,
+      scale: 4,
     }).notNull(),
   },
 ).as(sql`
@@ -27,7 +50,11 @@ export const periodAccountMovementsView = accountingSchema.view(
     aed.account_plan_id,
     ae.accounting_cycle_id,
     COALESCE(SUM(aed.debit), 0) AS period_debit,
-    COALESCE(SUM(aed.credit), 0) AS period_credit
+    COALESCE(SUM(aed.credit), 0) AS period_credit,
+    COALESCE(SUM(aed.debit_base), 0) AS period_debit_base,
+    COALESCE(SUM(aed.credit_base), 0) AS period_credit_base,
+    COALESCE(SUM(aed.debit_foreign), 0) AS period_debit_foreign,
+    COALESCE(SUM(aed.credit_foreign), 0) AS period_credit_foreign
   FROM ${accountingEntryDetails} aed
   INNER JOIN ${accountingEntries} ae ON aed.accounting_entry_id = ae.id
   WHERE ae.status = 'POSTED'
@@ -45,17 +72,41 @@ export const activeAccountBalancesView = accountingSchema.view(
     accountName: text('account_name').notNull(),
     nature: varchar('nature', { length: 50 }).notNull(),
     initialBalance: numeric('initial_balance', {
-      precision: 20,
-      scale: 6,
+      precision: 18,
+      scale: 4,
     }).notNull(),
-    periodDebit: numeric('period_debit', { precision: 20, scale: 6 }).notNull(),
+    periodDebit: numeric('period_debit', { precision: 18, scale: 4 }).notNull(),
     periodCredit: numeric('period_credit', {
-      precision: 20,
-      scale: 6,
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodDebitBase: numeric('period_debit_base', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodCreditBase: numeric('period_credit_base', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodDebitForeign: numeric('period_debit_foreign', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    periodCreditForeign: numeric('period_credit_foreign', {
+      precision: 18,
+      scale: 4,
     }).notNull(),
     currentBalance: numeric('current_balance', {
-      precision: 20,
-      scale: 6,
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    currentBalanceBase: numeric('current_balance_base', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    currentBalanceForeign: numeric('current_balance_foreign', {
+      precision: 18,
+      scale: 4,
     }).notNull(),
   },
 ).as(sql`
@@ -69,11 +120,25 @@ export const activeAccountBalancesView = accountingSchema.view(
     ab.initial_balance,
     COALESCE(pam.period_debit, 0) AS period_debit,
     COALESCE(pam.period_credit, 0) AS period_credit,
+    COALESCE(pam.period_debit_base, 0) AS period_debit_base,
+    COALESCE(pam.period_credit_base, 0) AS period_credit_base,
+    COALESCE(pam.period_debit_foreign, 0) AS period_debit_foreign,
+    COALESCE(pam.period_credit_foreign, 0) AS period_credit_foreign,
     CASE
       WHEN ap.nature = 'DEBIT' THEN (ab.initial_balance + COALESCE(pam.period_debit, 0) - COALESCE(pam.period_credit, 0))
       WHEN ap.nature = 'CREDIT' THEN (ab.initial_balance + COALESCE(pam.period_credit, 0) - COALESCE(pam.period_debit, 0))
       ELSE 0
-    END AS current_balance
+    END AS current_balance,
+    CASE
+      WHEN ap.nature = 'DEBIT' THEN (ab.initial_balance_base + COALESCE(pam.period_debit_base, 0) - COALESCE(pam.period_credit_base, 0))
+      WHEN ap.nature = 'CREDIT' THEN (ab.initial_balance_base + COALESCE(pam.period_credit_base, 0) - COALESCE(pam.period_debit_base, 0))
+      ELSE 0
+    END AS current_balance_base,
+    CASE
+      WHEN ap.nature = 'DEBIT' THEN (ab.initial_balance_foreign + COALESCE(pam.period_debit_foreign, 0) - COALESCE(pam.period_credit_foreign, 0))
+      WHEN ap.nature = 'CREDIT' THEN (ab.initial_balance_foreign + COALESCE(pam.period_credit_foreign, 0) - COALESCE(pam.period_debit_foreign, 0))
+      ELSE 0
+    END AS current_balance_foreign
   FROM ${accountBalances} ab
   INNER JOIN ${accountPlan} ap ON ab.account_plan_id = ap.id
   LEFT JOIN ${periodAccountMovementsView} pam
@@ -87,9 +152,30 @@ export const accountingBalance = accountingSchema.view('accounting_balance', {
   accountCode: varchar('account_code', { length: 50 }).notNull(),
   accountName: text('account_name').notNull(),
   currencyCode: text('currency_code').notNull(),
-  totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
-  totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
-  balance: numeric('balance', { precision: 20, scale: 6 }).notNull(),
+  totalDebit: numeric('total_debit', { precision: 18, scale: 4 }).notNull(),
+  totalCredit: numeric('total_credit', { precision: 18, scale: 4 }).notNull(),
+  totalDebitBase: numeric('total_debit_base', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  totalCreditBase: numeric('total_credit_base', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  totalDebitForeign: numeric('total_debit_foreign', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  totalCreditForeign: numeric('total_credit_foreign', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  balance: numeric('balance', { precision: 18, scale: 4 }).notNull(),
+  balanceBase: numeric('balance_base', { precision: 18, scale: 4 }).notNull(),
+  balanceForeign: numeric('balance_foreign', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
 }).as(sql`
   SELECT
     ap.tenant_id,
@@ -99,11 +185,25 @@ export const accountingBalance = accountingSchema.view('accounting_balance', {
     COALESCE(ae.currency_code, 'VES') AS currency_code,
     COALESCE(SUM(aed.debit), 0) AS total_debit,
     COALESCE(SUM(aed.credit), 0) AS total_credit,
+    COALESCE(SUM(aed.debit_base), 0) AS total_debit_base,
+    COALESCE(SUM(aed.credit_base), 0) AS total_credit_base,
+    COALESCE(SUM(aed.debit_foreign), 0) AS total_debit_foreign,
+    COALESCE(SUM(aed.credit_foreign), 0) AS total_credit_foreign,
     CASE 
       WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)
       WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)
       ELSE 0
-    END AS balance
+    END AS balance,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit_base - aed.credit_base), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit_base - aed.debit_base), 0)
+      ELSE 0
+    END AS balance_base,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit_foreign - aed.credit_foreign), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit_foreign - aed.debit_foreign), 0)
+      ELSE 0
+    END AS balance_foreign
   FROM ${accountPlan} ap
   LEFT JOIN ${accountingEntryDetails} aed ON aed.account_plan_id = ap.id
   LEFT JOIN ${accountingEntries} ae
@@ -123,9 +223,30 @@ export const accountingBalanceByBank = accountingSchema.view(
     accountCode: varchar('account_code', { length: 50 }).notNull(),
     accountName: text('account_name').notNull(),
     currencyCode: text('currency_code').notNull(),
-    totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
-    totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
-    balance: numeric('balance', { precision: 20, scale: 6 }).notNull(),
+    totalDebit: numeric('total_debit', { precision: 18, scale: 4 }).notNull(),
+    totalCredit: numeric('total_credit', { precision: 18, scale: 4 }).notNull(),
+    totalDebitBase: numeric('total_debit_base', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    totalCreditBase: numeric('total_credit_base', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    totalDebitForeign: numeric('total_debit_foreign', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    totalCreditForeign: numeric('total_credit_foreign', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
+    balance: numeric('balance', { precision: 18, scale: 4 }).notNull(),
+    balanceBase: numeric('balance_base', { precision: 18, scale: 4 }).notNull(),
+    balanceForeign: numeric('balance_foreign', {
+      precision: 18,
+      scale: 4,
+    }).notNull(),
   },
 ).as(sql`
   SELECT
@@ -137,11 +258,25 @@ export const accountingBalanceByBank = accountingSchema.view(
     COALESCE(ae.currency_code, ba.currency_code) AS currency_code,
     COALESCE(SUM(aed.debit), 0) AS total_debit,
     COALESCE(SUM(aed.credit), 0) AS total_credit,
+    COALESCE(SUM(aed.debit_base), 0) AS total_debit_base,
+    COALESCE(SUM(aed.credit_base), 0) AS total_credit_base,
+    COALESCE(SUM(aed.debit_foreign), 0) AS total_debit_foreign,
+    COALESCE(SUM(aed.credit_foreign), 0) AS total_credit_foreign,
     CASE 
       WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit - aed.credit), 0)
       WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit - aed.debit), 0)
       ELSE 0
-    END AS balance
+    END AS balance,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit_base - aed.credit_base), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit_base - aed.debit_base), 0)
+      ELSE 0
+    END AS balance_base,
+    CASE 
+      WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(aed.debit_foreign - aed.credit_foreign), 0)
+      WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(aed.credit_foreign - aed.debit_foreign), 0)
+      ELSE 0
+    END AS balance_foreign
   FROM ${bankAccounts} ba
   INNER JOIN ${accountPlan} ap ON ap.id = ba.linked_chart_account_id
   LEFT JOIN ${accountingEntryDetails} aed ON aed.account_plan_id = ap.id
@@ -153,25 +288,45 @@ export const accountingBalanceByBank = accountingSchema.view(
            COALESCE(ae.currency_code, ba.currency_code)
 `);
 
-
-export const mvAccountBalances = accountingSchema.view(
-  'mv_account_balances',
-  {
-    tenantId: uuid('tenant_id').notNull(),
-    accountingCycleId: uuid('accounting_cycle_id').notNull(),
-    accountPlanId: uuid('account_plan_id').notNull(),
-    accountCode: varchar('account_code', { length: 50 }).notNull(),
-    accountName: text('account_name').notNull(),
-    accountType: accountTypeEnum('account_type').notNull(),
-    accountNature: accountNatureEnum('account_nature').notNull(),
-    level: integer('level').notNull(),
-    parentAccountId: uuid('parent_account_id'),
-    allowsMovements: boolean('allows_movements').notNull(),
-    totalDebit: numeric('total_debit', { precision: 20, scale: 6 }).notNull(),
-    totalCredit: numeric('total_credit', { precision: 20, scale: 6 }).notNull(),
-    finalBalance: numeric('final_balance', { precision: 20, scale: 6 }).notNull(),
-  },
-).as(sql`
+export const mvAccountBalances = accountingSchema.view('mv_account_balances', {
+  tenantId: uuid('tenant_id').notNull(),
+  accountingCycleId: uuid('accounting_cycle_id').notNull(),
+  accountPlanId: uuid('account_plan_id').notNull(),
+  accountCode: varchar('account_code', { length: 50 }).notNull(),
+  accountName: text('account_name').notNull(),
+  accountType: accountTypeEnum('account_type').notNull(),
+  accountNature: accountNatureEnum('account_nature').notNull(),
+  level: integer('level').notNull(),
+  parentAccountId: uuid('parent_account_id'),
+  allowsMovements: boolean('allows_movements').notNull(),
+  totalDebit: numeric('total_debit', { precision: 18, scale: 4 }).notNull(),
+  totalCredit: numeric('total_credit', { precision: 18, scale: 4 }).notNull(),
+  totalDebitBase: numeric('total_debit_base', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  totalCreditBase: numeric('total_credit_base', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  totalDebitForeign: numeric('total_debit_foreign', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  totalCreditForeign: numeric('total_credit_foreign', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  finalBalance: numeric('final_balance', { precision: 18, scale: 4 }).notNull(),
+  finalBalanceBase: numeric('final_balance_base', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+  finalBalanceForeign: numeric('final_balance_foreign', {
+    precision: 18,
+    scale: 4,
+  }).notNull(),
+}).as(sql`
   SELECT
     ap.tenant_id,
     ae.accounting_cycle_id,
@@ -185,11 +340,25 @@ export const mvAccountBalances = accountingSchema.view(
     ap.allows_movements,
     COALESCE(SUM(acd.debit), 0) AS total_debit,
     COALESCE(SUM(acd.credit), 0) AS total_credit,
+    COALESCE(SUM(acd.debit_base), 0) AS total_debit_base,
+    COALESCE(SUM(acd.credit_base), 0) AS total_credit_base,
+    COALESCE(SUM(acd.debit_foreign), 0) AS total_debit_foreign,
+    COALESCE(SUM(acd.credit_foreign), 0) AS total_credit_foreign,
     CASE 
         WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(acd.debit - acd.credit), 0)
         WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(acd.credit - acd.debit), 0)
         ELSE COALESCE(SUM(acd.debit - acd.credit), 0)
-    END AS final_balance
+    END AS final_balance,
+    CASE 
+        WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(acd.debit_base - acd.credit_base), 0)
+        WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(acd.credit_base - acd.debit_base), 0)
+        ELSE COALESCE(SUM(acd.debit_base - acd.credit_base), 0)
+    END AS final_balance_base,
+    CASE 
+        WHEN ap.nature = 'DEBIT' THEN COALESCE(SUM(acd.debit_foreign - acd.credit_foreign), 0)
+        WHEN ap.nature = 'CREDIT' THEN COALESCE(SUM(acd.credit_foreign - acd.debit_foreign), 0)
+        ELSE COALESCE(SUM(acd.debit_foreign - acd.credit_foreign), 0)
+    END AS final_balance_foreign
   FROM ${accountPlan} ap
   INNER JOIN ${accountingEntryDetails} acd ON ap.id = acd.account_plan_id
   INNER JOIN ${accountingEntries} ae 

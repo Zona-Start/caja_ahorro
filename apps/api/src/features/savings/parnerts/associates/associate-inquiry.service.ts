@@ -51,7 +51,7 @@ export class AssociateInquiryService {
   constructor(
     @Inject(DRIZZLE_PROVIDER)
     private readonly drizzle: NodePgDatabase<typeof schema>,
-  ) { }
+  ) {}
 
   async getStatement(
     tenantId: string,

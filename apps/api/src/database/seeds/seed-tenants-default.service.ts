@@ -2,6 +2,7 @@ import * as schema from '@/database/schema';
 import {
   accountPlan,
   categories,
+  expenseCategories,
   moduleSettings,
   rolePermissions,
   roles,
@@ -10,6 +11,7 @@ import {
 } from '@/database/schema'; // Ajusta la ruta a tu schema
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from '../drizzle-provider';
 
@@ -60,6 +62,11 @@ export class AccountPlanSeederService {
       );
       await this.seedRoles(payload.tenantId, template, payload.systemUserId);
       await this.seedDefaultCategories(
+        payload.tenantId,
+        payload.systemUserId,
+        template,
+      );
+      await this.seedExpenseCategories(
         payload.tenantId,
         payload.systemUserId,
         template,
@@ -291,6 +298,45 @@ export class AccountPlanSeederService {
           name: cat.name,
           tenantId: tenantId,
           options: cat.metadata ? JSON.stringify(cat.metadata) : null,
+          isActive: true,
+          createdById: systemUserId || null,
+          updatedById: systemUserId || null,
+        });
+      }
+    }
+  }
+
+  private async seedExpenseCategories(
+    tenantId: string,
+    systemUserId?: string,
+    template?: any,
+  ) {
+    const expenseCategoryNames = template?.expenseCategories ?? [
+      'Compras de mercancía',
+      'Transporte y logística',
+      'Servicios básicos',
+      'Papelería y suministros',
+      'Mantenimiento',
+      'Gastos administrativos',
+      'Servicios profesionales',
+      'Atención al cliente',
+    ];
+
+    for (const name of expenseCategoryNames) {
+      const [existing] = await this.db
+        .select({ id: expenseCategories.id })
+        .from(expenseCategories)
+        .where(
+          and(
+            eq(expenseCategories.tenantId, tenantId),
+            eq(expenseCategories.name, name),
+          ),
+        );
+
+      if (!existing) {
+        await this.db.insert(expenseCategories).values({
+          tenantId,
+          name,
           isActive: true,
           createdById: systemUserId || null,
           updatedById: systemUserId || null,

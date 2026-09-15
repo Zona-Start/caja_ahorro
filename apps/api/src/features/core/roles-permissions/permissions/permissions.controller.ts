@@ -63,7 +63,8 @@ export class PermissionsController {
     action: 'delete',
     scope: 'global',
   })
-  async remove(@Param('id') id: string) {
-    return this.permissionsService.remove(id);
+  async remove(@Param('id') id: string, @Req() req: Request) {
+    const userId = this.tenantService.getUserId(req);
+    return this.permissionsService.remove(id, userId);
   }
 }

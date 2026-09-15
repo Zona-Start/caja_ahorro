@@ -166,7 +166,10 @@ export class UsersService {
     userId?: string,
   ): Promise<any> {
     const existingUser = await this.db.query.users.findFirst({
-      where: or(eq(users.username, dto.username), eq(users.email, dto.email)),
+      where: and(
+        or(eq(users.username, dto.username), eq(users.email, dto.email)),
+        isNull(users.deletedAt),
+      ),
     });
 
     if (existingUser) {

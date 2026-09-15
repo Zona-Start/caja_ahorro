@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { and, asc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { JournalBookDto } from '../dto/journal-book.dto';
 import { buildJournalBookTableContent } from '../templates/pdf/journal-book.template';
 
@@ -15,11 +15,16 @@ export class JournalBookService {
   ) {}
 
   async getData(tenantId: string, filters: JournalBookDto) {
-    const { accountingCycleId, startDate, endDate, search, page = 1, limit = 50 } = filters;
+    const {
+      accountingCycleId,
+      startDate,
+      endDate,
+      search,
+      page = 1,
+      limit = 50,
+    } = filters;
 
-    const conditions: any[] = [
-      eq(schema.accountingEntries.tenantId, tenantId),
-    ];
+    const conditions: any[] = [eq(schema.accountingEntries.tenantId, tenantId)];
 
     if (accountingCycleId) {
       conditions.push(
@@ -63,7 +68,10 @@ export class JournalBookService {
       })
       .from(schema.accountingEntries)
       .where(whereClause)
-      .orderBy(asc(schema.accountingEntries.entryDate), asc(schema.accountingEntries.voucherNo))
+      .orderBy(
+        asc(schema.accountingEntries.entryDate),
+        asc(schema.accountingEntries.voucherNo),
+      )
       .limit(limit)
       .offset(offset);
 
@@ -84,7 +92,10 @@ export class JournalBookService {
         .from(schema.accountingEntryDetails)
         .innerJoin(
           schema.accountPlan,
-          eq(schema.accountingEntryDetails.accountPlanId, schema.accountPlan.id),
+          eq(
+            schema.accountingEntryDetails.accountPlanId,
+            schema.accountPlan.id,
+          ),
         )
         .where(
           inArray(schema.accountingEntryDetails.accountingEntryId, entryIds),

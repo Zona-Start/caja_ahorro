@@ -1,0 +1,5 @@
+ALTER TABLE "treasury"."recurring_expense_templates" ADD COLUMN "payment_source" "treasury"."expense_payment_source" DEFAULT 'BANK_ACCOUNT' NOT NULL;--> statement-breakpoint
+ALTER TABLE "treasury"."recurring_expense_templates" ADD COLUMN "bank_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "treasury"."recurring_expense_templates" ADD COLUMN "petty_cash_fund_id" uuid;--> statement-breakpoint
+ALTER TABLE "treasury"."recurring_expense_templates" ADD CONSTRAINT "recurring_expense_templates_bank_account_id_bank_accounts_id_fk" FOREIGN KEY ("bank_account_id") REFERENCES "treasury"."bank_accounts"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "treasury"."recurring_expense_templates" ADD CONSTRAINT "recurring_expense_templates_petty_cash_fund_id_petty_cash_funds_id_fk" FOREIGN KEY ("petty_cash_fund_id") REFERENCES "treasury"."petty_cash_funds"("id") ON DELETE set null ON UPDATE no action;

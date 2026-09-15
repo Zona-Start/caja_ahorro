@@ -32,4 +32,6 @@ export const CreateBulkCreditPaidSchema = z.object({
 
 export type CreateCreditPaidDto = z.infer<typeof CreateCreditPaidSchema>;
 export type FilterCreditPaidDto = z.infer<typeof FilterCreditPaidSchema>;
-export type CreateBulkCreditPaidDto = z.infer<typeof CreateBulkCreditPaidSchema>;
+export type CreateBulkCreditPaidDto = z.infer<
+  typeof CreateBulkCreditPaidSchema
+>;

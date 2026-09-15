@@ -28,7 +28,7 @@ export class ServicesService {
     private readonly servicePricesService: ServicePricesService,
     private readonly generateCode: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async create(
     dto: CreateServiceDto,
@@ -244,7 +244,9 @@ export class ServicesService {
 
   async findAll(
     tenantId: string | null,
-  ): Promise<{ id: string; name: string; internalCode: string | null; status: string }[]> {
+  ): Promise<
+    { id: string; name: string; internalCode: string | null; status: string }[]
+  > {
     const conditions: SQL<unknown>[] = [];
     if (tenantId) {
       conditions.push(eq(services.tenantId, tenantId));
@@ -259,7 +261,7 @@ export class ServicesService {
         status: services.status,
       })
       .from(services)
-      .where(searchCondition)
+      .where(searchCondition);
   }
 
   async findOne(

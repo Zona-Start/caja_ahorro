@@ -110,6 +110,9 @@ export const accountingEntries = accountingSchema.table(
     status: entryStatusEnum('status').notNull().default('DRAFT'), // Estado del asiento ej. PENDING, POSTED, CANCELLED
     postedAt: timestamp('posted_at'),
     currencyCode: currencyCodeEnum('currency_code').notNull(), //Moneda del asiento (generalmente la base)
+    baseCurrencyCode: currencyCodeEnum('base_currency_code')
+      .notNull()
+      .default('VES'), //Moneda base del tenant al momento del asiento
     // total_debit: numeric('total_debit', { precision: 18, scale: 2 }), // Opcional, calculado o almacenado
     // total_credit: numeric('total_credit', { precision: 18, scale: 2 }), // Opcional, calculado o almacenado
     ...timestamps,
@@ -145,12 +148,33 @@ export const accountingEntryDetails = accountingSchema.table(
     supplierId: uuid('supplier_id').references(() => suppliers.id, {
       onDelete: 'restrict', // No puedes borrar un proveedor si tiene asientos
     }),
-    debit: numeric('debit', { precision: 20, scale: 6 })
+
+    // ── Bimonetario: la línea guarda SIEMPRE el desglose base + extranjera ──
+    // Alias de base: se mantienen para compatibilidad con reportes/código existente
+    debit: numeric('debit', { precision: 18, scale: 4 })
       .notNull()
       .default('0.00'),
-    credit: numeric('credit', { precision: 20, scale: 6 })
+    credit: numeric('credit', { precision: 18, scale: 4 })
       .notNull()
       .default('0.00'),
+    // Importe en Moneda Base (ej. Bs.)
+    debitBase: numeric('debit_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    creditBase: numeric('credit_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    // Importe en Moneda Extranjera (ej. USD)
+    debitForeign: numeric('debit_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    creditForeign: numeric('credit_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    // Tasa de cambio exacta aplicada al momento de la transacción
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    // Moneda original en la que se pactó la operación ('USD', 'VES', etc.)
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
     description: text('description'),
     ...timestamps, // No usual tener timestamps aquí, pero Drizzle lo permite
   },
@@ -161,8 +185,17 @@ export const accountingEntryDetails = accountingSchema.table(
     ), // Permitir 0 en ambos para ajustes? Revisar. Idealmente no.
     checkAmountPositive: check(
       'amount_positive_check',
-      sql`${table.debit} >= 0 AND ${table.credit} >= 0`,
+      sql`${table.debit} >= 0 AND ${table.credit} >= 0 AND ${table.debitBase} >= 0 AND ${table.creditBase} >= 0 AND ${table.debitForeign} >= 0 AND ${table.creditForeign} >= 0`,
     ), // Asegurar no negativos
+    // La dirección (débito/crédito) debe ser la misma en moneda base y extranjera.
+    checkBaseForeignDirection: check(
+      'base_foreign_direction_check',
+      sql`(
+        (${table.debitBase} > 0 AND ${table.creditBase} = 0 AND ${table.debitForeign} > 0 AND ${table.creditForeign} = 0)
+        OR (${table.creditBase} > 0 AND ${table.debitBase} = 0 AND ${table.creditForeign} > 0 AND ${table.debitForeign} = 0)
+        OR (${table.debitBase} = 0 AND ${table.creditBase} = 0 AND ${table.debitForeign} = 0 AND ${table.creditForeign} = 0)
+      )`,
+    ),
     checkOnlyOneAuxiliary: check(
       'only_one_auxiliary_check', //Un detalle del asiento no puede ser de un socio Y de un proveedor al mismo tiempo.
       sql`(${table.associateId} IS NULL OR ${table.supplierId} IS NULL)`,
@@ -188,26 +221,82 @@ export const accountBalances = accountingSchema.table(
 
     // Este es el campo para tu "CARGA INICIAL"
     // Es el saldo con el que la cuenta *inicia* el período.
-    initialBalance: numeric('initial_balance', { precision: 20, scale: 6 })
+    initialBalance: numeric('initial_balance', { precision: 18, scale: 4 })
       .notNull()
       .default('0.00'),
 
     // Suma de todos los `debit` de `accountingEntryDetails`
     // para esta cuenta *durante* este ciclo.
-    debitBalance: numeric('debit_balance', { precision: 20, scale: 6 }).default(
+    debitBalance: numeric('debit_balance', { precision: 18, scale: 4 }).default(
       '0',
     ),
     // Suma de todos los `credit` de `accountingEntryDetails`
     // para esta cuenta *durante* este ciclo.
     creditBalance: numeric('credit_balance', {
-      precision: 20,
-      scale: 6,
+      precision: 18,
+      scale: 4,
     }).default('0'),
     // Saldo final calculado al momento del cierre.
     // (Ej: initialBalance + totalDebit - totalCredit)
-    finalBalance: numeric('final_balance', { precision: 20, scale: 6 })
+    finalBalance: numeric('final_balance', { precision: 18, scale: 4 })
       .notNull()
       .default('0.00'),
+
+    // ── Desglose bimonetario (moneda base) ──
+    initialBalanceBase: numeric('initial_balance_base', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+    debitBalanceBase: numeric('debit_balance_base', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+    creditBalanceBase: numeric('credit_balance_base', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+    finalBalanceBase: numeric('final_balance_base', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+
+    // ── Desglose bimonetario (moneda extranjera) ──
+    initialBalanceForeign: numeric('initial_balance_foreign', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+    debitBalanceForeign: numeric('debit_balance_foreign', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+    creditBalanceForeign: numeric('credit_balance_foreign', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+    finalBalanceForeign: numeric('final_balance_foreign', {
+      precision: 18,
+      scale: 4,
+    })
+      .notNull()
+      .default('0.00'),
+
+    // Tasa de cambio aplicada en el ciclo y moneda extranjera del saldo
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
     ...timestamps,
   },
   (table) => ({

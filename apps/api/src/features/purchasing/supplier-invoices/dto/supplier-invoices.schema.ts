@@ -1,3 +1,4 @@
+import { CurrencyCodeEnum } from '@/types/enum';
 import { z } from 'zod';
 
 const ItemSchema = z.object({
@@ -26,7 +27,8 @@ export const CreateSupplierInvoiceSchema = z.object({
   paymentType: z.string().optional(),
   observations: z.string().optional(),
   items: z.array(ItemSchema).optional(),
-  currencyCode: z.string().optional(),
+  currencyCode: z.nativeEnum(CurrencyCodeEnum).default(CurrencyCodeEnum.VES),
+  exchangeRate: z.coerce.number().positive().optional(),
   paymentMethod: z.string().optional(),
   bankAccountId: z.string().uuid().optional().nullable(),
   bankReference: z.string().optional(),
@@ -63,6 +65,8 @@ export const UpdateSupplierInvoiceSchema = z.object({
   status: z.string().optional(),
   observations: z.string().optional(),
   items: z.array(ItemSchema).optional(),
+  currencyCode: z.nativeEnum(CurrencyCodeEnum).optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
 });
 
 export type CreateSupplierInvoiceDto = z.infer<

@@ -98,6 +98,21 @@ export {
   bankTransactions,
   internalTransactionBankLinks,
 } from './treasury';
+export {
+  cashMovements,
+  cashRegisterSessions,
+  cashRegisters,
+  costCenters,
+  expenseCategories,
+  expenseDetails,
+  expenseReports,
+  expenseReportItems,
+  expenses,
+  pettyCashFunds,
+  pettyCashSettlements,
+  pettyCashVouchers,
+  recurringExpenseTemplates,
+} from './treasury-expenses';
 
 export {
   fixedAssets,
@@ -123,15 +138,15 @@ export {
 } from './tenants';
 
 export {
-  customers,
-  salesInvoices,
-  salesInvoiceItems,
-  salesOrders,
-  salesOrderItems,
-  customerPayments,
   customerPaymentApplications,
+  customerPayments,
+  customers,
   salesDeliveryNoteItems,
   salesDeliveryNotes,
+  salesInvoiceItems,
+  salesInvoices,
+  salesOrderItems,
+  salesOrders,
   salesQuoteItems,
-  salesQuotes
+  salesQuotes,
 } from './sales';

@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -92,7 +93,8 @@ export const exchangeRates = coreSchema.table(
     currencyId: uuid('currency_id')
       .notNull()
       .references(() => currencies.id, { onDelete: 'cascade' }),
-    rate: varchar('rate', { length: 20 }).notNull(),
+    rate: numeric('rate', { precision: 14, scale: 6 }).notNull(),
+    rateDate: date('rate_date').notNull(), // Día hábil / Fecha Valor al que aplica la tasa
     source: varchar('source', { length: 50 }).default('MANUAL'),
     isAutomatic: boolean('is_automatic').default(false),
     fetchedAt: timestamp('fetched_at'),
@@ -100,7 +102,12 @@ export const exchangeRates = coreSchema.table(
   },
   (table) => [
     index('exchange_rates_currency_idx').on(table.currencyId),
-    index('exchange_rates_date_idx').on(table.fetchedAt),
+    index('exchange_rates_date_idx').on(table.rateDate),
+    // Una sola tasa por moneda y día hábil (la tasa se mantiene durante todo el día)
+    uniqueIndex('exchange_rates_currency_rate_date_uidx').on(
+      table.currencyId,
+      table.rateDate,
+    ),
   ],
 );
 

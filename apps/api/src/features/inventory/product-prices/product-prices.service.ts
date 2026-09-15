@@ -9,6 +9,7 @@ import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ProductPricePaginationDto } from './dto/pagination-product-price.dto';
 import { CreateProductPriceDto } from './dto/product-prices.schema';
+import { computePriceBreakdown } from './pricing.util';
 
 type ProductPriceSelect = typeof productPrices.$inferSelect;
 
@@ -170,8 +171,11 @@ export class ProductPricesService {
     return date;
   }
 
-  /* ───────── Cálculo de precios multi-modo ───────── */
-  private async calculatePrices(tenantId: string, dto: CreateProductPriceDto) {
+  /* ───────── Resolución de entradas nativas multi-modo ───────── */
+  private async resolvePriceInputs(
+    tenantId: string,
+    dto: CreateProductPriceDto,
+  ) {
     const config = await this.resolvePricingConfig(tenantId);
 
     // Resolver moneda y tasas
@@ -194,64 +198,22 @@ export class ProductPricesService {
     const profitPct = dto.profitPercent ?? config.defaultProfit;
     const expensePct = dto.expensePercent ?? config.defaultExpense;
 
-    // ── Bloque de Costos ──
-    const baseCost = dto.baseCost;
-    const otherCosts = dto.otherCosts ?? 0;
-    const purchaseTaxAmount = (baseCost + otherCosts) * (purchaseTaxPct / 100);
-    const totalCost = baseCost + otherCosts + purchaseTaxAmount;
-
-    // Espejo VES (usando purchaseExchangeRate)
-    const baseCostVes = +(baseCost * purchaseRate).toFixed(6);
-    const otherCostsVes = +(otherCosts * purchaseRate).toFixed(6);
-    const totalCostVes = +(totalCost * purchaseRate).toFixed(6);
-
-    // ── Bloque de Venta ──
-    let finalPriceNet: number;
-    let finalPriceGross: number;
-
-    if (
-      currencyCode !== 'VES' &&
-      dto.priceType === 'OFFER' &&
-      (dto.offerSalePrice ?? 0) > 0
-    ) {
-      // Precio oferta directo en divisa
-      finalPriceGross = dto.offerSalePrice!;
-      finalPriceNet = +(finalPriceGross / (1 + salesTaxPct / 100)).toFixed(6);
-    } else if (currencyCode !== 'VES' && (dto.salePrice ?? 0) > 0) {
-      // Precio directo en divisa (sin cálculo por margen de ganancia)
-      finalPriceGross = dto.salePrice!;
-      finalPriceNet = +(finalPriceGross / (1 + salesTaxPct / 100)).toFixed(6);
-    } else {
-      const costPlusExpense = totalCost * (1 + expensePct / 100);
-      finalPriceNet = +(costPlusExpense * (1 + profitPct / 100)).toFixed(6);
-      const salesTaxAmount = finalPriceNet * (salesTaxPct / 100);
-      finalPriceGross = +(finalPriceNet + salesTaxAmount).toFixed(6);
-    }
-
-    // Espejo VES (usando salesExchangeRate)
-    const hasBsAmount = currencyCode !== 'VES' && (dto.bsPriceAmount ?? 0) > 0;
-    const vesMultiplier = hasBsAmount ? dto.bsPriceAmount! : finalPriceGross;
-    const finalPriceNetVes = +(finalPriceNet * salesRate).toFixed(6);
-    const finalPriceGrossVes = +(vesMultiplier * salesRate).toFixed(6);
-
+    // Solo persistimos la información nativa de origen y los parámetros de
+    // negocio. Los importes derivados (totalCost, espejos VES, precios finales)
+    // se calculan al vuelo mediante computePriceBreakdown al leer.
     return {
       currencyCode,
       purchaseExchangeRate: purchaseRate,
       salesExchangeRate: salesRate,
-      baseCost,
-      otherCosts,
+      baseCost: dto.baseCost,
+      otherCosts: dto.otherCosts ?? 0,
       purchaseTaxPercent: purchaseTaxPct,
-      totalCost: +totalCost.toFixed(6),
-      baseCostVes,
-      otherCostsVes,
-      totalCostVes,
       profitPercent: profitPct,
       expensePercent: expensePct,
       salesTaxPercent: salesTaxPct,
-      finalPriceNet: +finalPriceNet.toFixed(6),
-      finalPriceGross: +finalPriceGross.toFixed(6),
-      finalPriceNetVes,
-      finalPriceGrossVes,
+      salePrice: dto.salePrice,
+      offerSalePrice: dto.offerSalePrice,
+      bsPriceAmount: dto.bsPriceAmount,
     };
   }
 
@@ -259,34 +221,26 @@ export class ProductPricesService {
     db: NodePgDatabase<typeof schema>,
     data: CreateProductPriceDto,
     userId: string,
-    calculated: Awaited<ReturnType<typeof this.calculatePrices>>,
+    resolved: Awaited<ReturnType<typeof this.resolvePriceInputs>>,
   ) {
     const valuesToInsert = {
       productId: data.productId,
       suppliersId: data.suppliersId ?? null,
       priceType: data.priceType,
-      currencyCode: calculated.currencyCode as any,
-      purchaseExchangeRate: String(calculated.purchaseExchangeRate),
-      salesExchangeRate: String(calculated.salesExchangeRate),
-      baseCost: String(calculated.baseCost),
-      otherCosts: String(calculated.otherCosts),
-      purchaseTaxPercent: String(calculated.purchaseTaxPercent),
-      totalCost: String(calculated.totalCost),
-      baseCostVes: String(calculated.baseCostVes),
-      otherCostsVes: String(calculated.otherCostsVes),
-      totalCostVes: String(calculated.totalCostVes),
-      profitPercent: String(calculated.profitPercent),
-      expensePercent: String(calculated.expensePercent),
-      salesTaxPercent: String(calculated.salesTaxPercent),
+      currencyCode: resolved.currencyCode as any,
+      purchaseExchangeRate: String(resolved.purchaseExchangeRate),
+      salesExchangeRate: String(resolved.salesExchangeRate),
+      baseCost: String(resolved.baseCost),
+      otherCosts: String(resolved.otherCosts),
+      purchaseTaxPercent: String(resolved.purchaseTaxPercent),
+      profitPercent: String(resolved.profitPercent),
+      expensePercent: String(resolved.expensePercent),
+      salesTaxPercent: String(resolved.salesTaxPercent),
       salePrice: data.salePrice != null ? String(data.salePrice) : null,
       offerSalePrice:
         data.offerSalePrice != null ? String(data.offerSalePrice) : null,
       bsPriceAmount:
         data.bsPriceAmount != null ? String(data.bsPriceAmount) : null,
-      finalPriceNet: String(calculated.finalPriceNet),
-      finalPriceGross: String(calculated.finalPriceGross),
-      finalPriceNetVes: String(calculated.finalPriceNetVes),
-      finalPriceGrossVes: String(calculated.finalPriceGrossVes),
       createdById: userId,
       isActive: true,
       startDate:
@@ -329,8 +283,8 @@ export class ProductPricesService {
       await this.deactivatePrice(db, activePrice.id, userId);
     }
 
-    const calculated = await this.calculatePrices(tenantId, data);
-    const result = await this.insertNewPrice(db, data, userId, calculated);
+    const resolved = await this.resolvePriceInputs(tenantId, data);
+    const result = await this.insertNewPrice(db, data, userId, resolved);
 
     return {
       message: 'Product price created/updated successfully',
@@ -352,7 +306,6 @@ export class ProductPricesService {
       sortBy = 'id',
       sortOrder = 'asc',
       productId,
-      suppliersId,
       priceType,
     } = paginationDto || {};
 
@@ -385,21 +338,25 @@ export class ProductPricesService {
         ? sql`${orderByColumn} asc`
         : sql`${orderByColumn} desc`;
 
-    const data = await this.db
+    const rows = await this.db
       .select({
         id: schema.productPrices.id,
         productId: schema.productPrices.productId,
         productName: schema.products.name,
         supplierName: schema.suppliers.name,
         priceType: schema.productPrices.priceType,
-        baseCost: schema.productPrices.baseCost,
         currencyCode: schema.productPrices.currencyCode,
         purchaseExchangeRate: schema.productPrices.purchaseExchangeRate,
         salesExchangeRate: schema.productPrices.salesExchangeRate,
-        totalCost: schema.productPrices.totalCost,
-        totalCostVes: schema.productPrices.totalCostVes,
-        finalPriceNet: schema.productPrices.finalPriceNet,
-        finalPriceGross: schema.productPrices.finalPriceGross,
+        baseCost: schema.productPrices.baseCost,
+        otherCosts: schema.productPrices.otherCosts,
+        purchaseTaxPercent: schema.productPrices.purchaseTaxPercent,
+        profitPercent: schema.productPrices.profitPercent,
+        expensePercent: schema.productPrices.expensePercent,
+        salesTaxPercent: schema.productPrices.salesTaxPercent,
+        salePrice: schema.productPrices.salePrice,
+        offerSalePrice: schema.productPrices.offerSalePrice,
+        bsPriceAmount: schema.productPrices.bsPriceAmount,
         startDate: schema.productPrices.startDate,
         endDate: schema.productPrices.endDate,
         isActive: schema.productPrices.isActive,
@@ -413,6 +370,27 @@ export class ProductPricesService {
       .limit(limit)
       .offset(offset)
       .orderBy(orderByClause);
+
+    const data = rows.map((row) => ({
+      ...row,
+      ...computePriceBreakdown({
+        currencyCode: row.currencyCode,
+        priceType: row.priceType,
+        purchaseExchangeRate: Number(row.purchaseExchangeRate),
+        salesExchangeRate: Number(row.salesExchangeRate),
+        baseCost: Number(row.baseCost),
+        otherCosts: Number(row.otherCosts),
+        purchaseTaxPercent: Number(row.purchaseTaxPercent),
+        profitPercent: Number(row.profitPercent),
+        expensePercent: Number(row.expensePercent),
+        salesTaxPercent: Number(row.salesTaxPercent),
+        salePrice: row.salePrice != null ? Number(row.salePrice) : undefined,
+        offerSalePrice:
+          row.offerSalePrice != null ? Number(row.offerSalePrice) : undefined,
+        bsPriceAmount:
+          row.bsPriceAmount != null ? Number(row.bsPriceAmount) : undefined,
+      }),
+    }));
 
     const totalCountResult = await this.db
       .select({ count: sql<number>`count(*)` })

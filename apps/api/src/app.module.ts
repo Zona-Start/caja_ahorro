@@ -27,6 +27,7 @@ import { AuditModule } from './features/audit/audit.module';
 import { AuthModule } from './features/auth/auth.module';
 import { BankingsModule } from './features/bankings/bankings.module';
 import { CoreModule } from './features/core/core.module';
+import { ExpensesFeatureModule } from './features/expenses/expenses.module';
 import { InventoryFeatureModule } from './features/inventory/inventory-module';
 import { PurchasingFeaturesModule } from './features/purchasing/purchasing.module';
 import { SavingsFeaturesModule } from './features/savings/savings.module';
@@ -94,6 +95,7 @@ import { ProjectionModule } from './shared/projections';
     CoreModule,
     AccountingFeaturesModule,
     BankingsModule,
+    ExpensesFeatureModule,
     SeedModule,
     SavingsFeaturesModule,
     InventoryFeatureModule,

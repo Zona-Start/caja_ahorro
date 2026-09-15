@@ -42,13 +42,19 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
     const headerRow = worksheet.getRow(1);
     headerRow.eachCell((cell, colNumber) => {
       const rawValue = getCellValue(cell.value);
-      const headerName = String(rawValue ?? '').toLowerCase().trim();
+      const headerName = String(rawValue ?? '')
+        .toLowerCase()
+        .trim();
       headers[headerName] = colNumber;
     });
 
     // Validar que existan las columnas requeridas: cuenta, descripcion, debe, haber
-    const cuentaCol = headers['cuenta'] || headers['accountcode'] || headers['code'];
-    const descripcionCol = headers['descripcion'] || headers['descripción'] || headers['description'];
+    const cuentaCol =
+      headers['cuenta'] || headers['accountcode'] || headers['code'];
+    const descripcionCol =
+      headers['descripcion'] ||
+      headers['descripción'] ||
+      headers['description'];
     const debeCol = headers['debe'] || headers['debit'];
     const haberCol = headers['haber'] || headers['credit'];
 
@@ -66,7 +72,9 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
 
     // Índices para columnas opcionales de auxiliares
     const auxiliarSocioCol =
-      headers['auxiliar_socio'] || headers['auxiliar socio'] || headers['socio'];
+      headers['auxiliar_socio'] ||
+      headers['auxiliar socio'] ||
+      headers['socio'];
     const auxiliarProveedorCol =
       headers['auxiliar_proveedor'] ||
       headers['auxiliar proveedor'] ||
@@ -82,7 +90,12 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
       const rawHaber = getCellValue(row.getCell(haberCol).value);
 
       // Validar que la fila no esté completamente vacía
-      if (!accountCode && !descripcion && rawDebe === null && rawHaber === null) {
+      if (
+        !accountCode &&
+        !descripcion &&
+        rawDebe === null &&
+        rawHaber === null
+      ) {
         return;
       }
 
@@ -95,8 +108,14 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
       const accountCodeStr = String(accountCode).trim();
       const descripcionStr = String(descripcion).trim();
 
-      const debeNum = rawDebe !== null && rawDebe !== undefined && rawDebe !== '' ? Number(rawDebe) : 0;
-      const haberNum = rawHaber !== null && rawHaber !== undefined && rawHaber !== '' ? Number(rawHaber) : 0;
+      const debeNum =
+        rawDebe !== null && rawDebe !== undefined && rawDebe !== ''
+          ? Number(rawDebe)
+          : 0;
+      const haberNum =
+        rawHaber !== null && rawHaber !== undefined && rawHaber !== ''
+          ? Number(rawHaber)
+          : 0;
 
       if (isNaN(debeNum)) {
         throw new BadRequestException(
@@ -114,7 +133,9 @@ export async function parseExcelFile(buffer: Buffer): Promise<ParsedBalance[]> {
         ? String(getCellValue(row.getCell(auxiliarSocioCol).value) ?? '').trim()
         : null;
       const auxiliarProveedor = auxiliarProveedorCol
-        ? String(getCellValue(row.getCell(auxiliarProveedorCol).value) ?? '').trim()
+        ? String(
+            getCellValue(row.getCell(auxiliarProveedorCol).value) ?? '',
+          ).trim()
         : null;
 
       // Preservar el valor numérico con su signo original sin aplicar Math.abs()

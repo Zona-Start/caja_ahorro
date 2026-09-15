@@ -1,4 +1,5 @@
 import { timestamps } from '@/database/timestamps';
+import { sql } from 'drizzle-orm';
 import * as t from 'drizzle-orm/pg-core';
 import { authSchema } from '../_schemas';
 import { tenants } from './tenants';
@@ -21,8 +22,14 @@ export const users = authSchema.table(
     lastLoginAt: t.timestamp('last_login_at'),
   },
   (table) => [
-    t.uniqueIndex('users_username_idx').on(table.username),
-    t.uniqueIndex('users_email_idx').on(table.email),
+    t
+      .uniqueIndex('users_username_active_idx')
+      .on(table.username)
+      .where(sql`deleted_at IS NULL`),
+    t
+      .uniqueIndex('users_email_active_idx')
+      .on(table.email)
+      .where(sql`deleted_at IS NULL`),
     t.index('users_status_idx').on(table.status),
     t.index('users_is_system_admin_idx').on(table.isSystemAdmin),
   ],
@@ -47,7 +54,10 @@ export const roles = authSchema.table(
     ...timestamps,
   },
   (table) => [
-    t.uniqueIndex('roles_tenant_name_idx').on(table.tenantId, table.name),
+    t
+      .uniqueIndex('roles_tenant_name_active_idx')
+      .on(table.tenantId, table.name)
+      .where(sql`deleted_at IS NULL`),
     t.index('roles_tenant_id_idx').on(table.tenantId),
     t.index('roles_is_default_idx').on(table.isDefault),
   ],
@@ -72,8 +82,9 @@ export const permissions = authSchema.table(
   },
   (table) => [
     t
-      .uniqueIndex('permissions_resource_action_scope_idx')
-      .on(table.resource, table.action, table.scope),
+      .uniqueIndex('permissions_resource_action_scope_active_idx')
+      .on(table.resource, table.action, table.scope)
+      .where(sql`deleted_at IS NULL`),
     t.index('permissions_resource_idx').on(table.resource),
     t.index('permissions_action_idx').on(table.action),
     t.index('permissions_scope_idx').on(table.scope),

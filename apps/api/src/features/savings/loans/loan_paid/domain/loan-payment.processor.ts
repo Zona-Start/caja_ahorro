@@ -182,17 +182,19 @@ export class LoanPaymentProcessor {
     userId: string,
     tx: NodePgDatabase<typeof schema>,
   ): Promise<{ principalReverted: number; interestReverted: number }> {
-    const currentInstallment =
-      await tx.query.loanAmortizationSchedule.findFirst({
-        where: eq(loanAmortizationSchedule.id, installmentId),
-      });
+    // Bloquea la cuota para serializar reversos concurrentes
+    const [installmentRow] = await tx
+      .select()
+      .from(loanAmortizationSchedule)
+      .where(eq(loanAmortizationSchedule.id, installmentId))
+      .for('update');
 
-    if (!currentInstallment) {
+    if (!installmentRow) {
       return { principalReverted: 0, interestReverted: 0 };
     }
 
-    const installmentPaid = Number(currentInstallment.paidAmount);
-    const installmentInterest = Number(currentInstallment.interestAmount);
+    const installmentPaid = Number(installmentRow.paidAmount);
+    const installmentInterest = Number(installmentRow.interestAmount);
 
     const principalInInstallmentBefore = Math.max(
       0,
@@ -207,7 +209,7 @@ export class LoanPaymentProcessor {
 
     const newPaidAmount = Math.max(
       0,
-      Number(currentInstallment.paidAmount) - amountToRevert,
+      Number(installmentRow.paidAmount) - amountToRevert,
     );
 
     const newStatus: 'PENDING' | 'PARTIAL' =

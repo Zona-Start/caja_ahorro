@@ -7,6 +7,7 @@ import {
   productServiceSuppliers,
 } from '@/database/schema/tables/inventory';
 import { AuditHelper } from '@/features/audit/audit-event.service';
+import { computePriceBreakdown } from '@/features/inventory/product-prices/pricing.util';
 import { ProductPricesService } from '@/features/inventory/product-prices/product-prices.service';
 import { CurrencyCodeEnum } from '@/types/enum';
 import {
@@ -273,16 +274,22 @@ export class ProductsService {
     let availability: Record<string, unknown>[] = [];
 
     if (productIds.length > 0) {
-      prices = await this.db
+      const priceRows = await this.db
         .select({
           productId: schema.productPrices.productId,
-          totalCost: schema.productPrices.totalCost,
-          totalCostVes: schema.productPrices.totalCostVes,
-          finalPriceNet: schema.productPrices.finalPriceNet,
-          finalPriceGross: schema.productPrices.finalPriceGross,
-          finalPriceNetVes: schema.productPrices.finalPriceNetVes,
-          finalPriceGrossVes: schema.productPrices.finalPriceGrossVes,
-          finalPrice: schema.productPrices.finalPrice,
+          priceType: schema.productPrices.priceType,
+          currencyCode: schema.productPrices.currencyCode,
+          purchaseExchangeRate: schema.productPrices.purchaseExchangeRate,
+          salesExchangeRate: schema.productPrices.salesExchangeRate,
+          baseCost: schema.productPrices.baseCost,
+          otherCosts: schema.productPrices.otherCosts,
+          purchaseTaxPercent: schema.productPrices.purchaseTaxPercent,
+          profitPercent: schema.productPrices.profitPercent,
+          expensePercent: schema.productPrices.expensePercent,
+          salesTaxPercent: schema.productPrices.salesTaxPercent,
+          salePrice: schema.productPrices.salePrice,
+          offerSalePrice: schema.productPrices.offerSalePrice,
+          bsPriceAmount: schema.productPrices.bsPriceAmount,
         })
         .from(schema.productPrices)
         .where(
@@ -291,6 +298,27 @@ export class ProductsService {
             eq(schema.productPrices.isActive, true),
           ),
         );
+
+      prices = priceRows.map((row) => ({
+        ...row,
+        ...computePriceBreakdown({
+          currencyCode: row.currencyCode,
+          priceType: row.priceType,
+          purchaseExchangeRate: Number(row.purchaseExchangeRate),
+          salesExchangeRate: Number(row.salesExchangeRate),
+          baseCost: Number(row.baseCost),
+          otherCosts: Number(row.otherCosts),
+          purchaseTaxPercent: Number(row.purchaseTaxPercent),
+          profitPercent: Number(row.profitPercent),
+          expensePercent: Number(row.expensePercent),
+          salesTaxPercent: Number(row.salesTaxPercent),
+          salePrice: row.salePrice != null ? Number(row.salePrice) : undefined,
+          offerSalePrice:
+            row.offerSalePrice != null ? Number(row.offerSalePrice) : undefined,
+          bsPriceAmount:
+            row.bsPriceAmount != null ? Number(row.bsPriceAmount) : undefined,
+        }),
+      }));
 
       availability = await this.db
         .select({
@@ -320,7 +348,6 @@ export class ProductsService {
         finalPriceGross: priceInfo?.finalPriceGross ?? null,
         finalPriceNetVes: priceInfo?.finalPriceNetVes ?? null,
         finalPriceGrossVes: priceInfo?.finalPriceGrossVes ?? null,
-        finalPrice: priceInfo?.finalPrice ?? null,
         available: availabilityInfo?.availableQuantity ?? 0,
       };
     });
@@ -402,7 +429,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    const dataProductPrices = await this.db
+    const dataProductPricesRows = await this.db
       .select({
         productPriceId: schema.productPrices.id,
         priceType: schema.productPrices.priceType,
@@ -412,20 +439,12 @@ export class ProductsService {
         baseCost: schema.productPrices.baseCost,
         otherCosts: schema.productPrices.otherCosts,
         purchaseTaxPercent: schema.productPrices.purchaseTaxPercent,
-        totalCost: schema.productPrices.totalCost,
-        baseCostVes: schema.productPrices.baseCostVes,
-        otherCostsVes: schema.productPrices.otherCostsVes,
-        totalCostVes: schema.productPrices.totalCostVes,
         expensePercent: schema.productPrices.expensePercent,
         profitPercent: schema.productPrices.profitPercent,
         salesTaxPercent: schema.productPrices.salesTaxPercent,
         salePrice: schema.productPrices.salePrice,
         offerSalePrice: schema.productPrices.offerSalePrice,
         bsPriceAmount: schema.productPrices.bsPriceAmount,
-        finalPriceNet: schema.productPrices.finalPriceNet,
-        finalPriceGross: schema.productPrices.finalPriceGross,
-        finalPriceNetVes: schema.productPrices.finalPriceNetVes,
-        finalPriceGrossVes: schema.productPrices.finalPriceGrossVes,
         startDate: schema.productPrices.startDate,
         endDate: schema.productPrices.endDate,
       })
@@ -436,6 +455,27 @@ export class ProductsService {
           eq(schema.productPrices.isActive, true),
         ),
       );
+
+    const dataProductPrices = dataProductPricesRows.map((row) => ({
+      ...row,
+      ...computePriceBreakdown({
+        currencyCode: row.currencyCode,
+        priceType: row.priceType,
+        purchaseExchangeRate: Number(row.purchaseExchangeRate),
+        salesExchangeRate: Number(row.salesExchangeRate),
+        baseCost: Number(row.baseCost),
+        otherCosts: Number(row.otherCosts),
+        purchaseTaxPercent: Number(row.purchaseTaxPercent),
+        profitPercent: Number(row.profitPercent),
+        expensePercent: Number(row.expensePercent),
+        salesTaxPercent: Number(row.salesTaxPercent),
+        salePrice: row.salePrice != null ? Number(row.salePrice) : undefined,
+        offerSalePrice:
+          row.offerSalePrice != null ? Number(row.offerSalePrice) : undefined,
+        bsPriceAmount:
+          row.bsPriceAmount != null ? Number(row.bsPriceAmount) : undefined,
+      }),
+    }));
 
     const dataAvailable = await this.db
       .select()

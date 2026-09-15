@@ -4,7 +4,7 @@ import { projectionLedgerBalances } from '@/database/schema';
 import { type EventEnvelope, EventStoreService } from '@/shared/event-bus';
 import { ACCOUNTING_EVENTS } from '@/shared/event-types';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { type ProjectionHandler } from './projection-handler';
 
@@ -77,16 +77,15 @@ export class LedgerBalanceProjection implements ProjectionHandler {
       });
     } else {
       const current = existing[0];
-      const newDebit = Number(current.totalDebit) + Number(totalDebit);
-      const newCredit = Number(current.totalCredit) + Number(totalCredit);
-      const newBalance = newDebit - newCredit;
+      const debitNum = Number(totalDebit);
+      const creditNum = Number(totalCredit);
 
       await this.db
         .update(projectionLedgerBalances)
         .set({
-          totalDebit: String(newDebit),
-          totalCredit: String(newCredit),
-          balance: String(newBalance),
+          totalDebit: sql`${projectionLedgerBalances.totalDebit} + ${debitNum}`,
+          totalCredit: sql`${projectionLedgerBalances.totalCredit} + ${creditNum}`,
+          balance: sql`${projectionLedgerBalances.balance} + (${debitNum} - ${creditNum})`,
           lastEventId: envelope.eventId,
           updatedAt: new Date(),
         })
@@ -111,16 +110,15 @@ export class LedgerBalanceProjection implements ProjectionHandler {
     if (existing.length === 0) return;
 
     const current = existing[0];
-    const newDebit = Number(current.totalDebit) - Number(totalDebit);
-    const newCredit = Number(current.totalCredit) - Number(totalCredit);
-    const newBalance = newDebit - newCredit;
+    const debitNum = Number(totalDebit);
+    const creditNum = Number(totalCredit);
 
     await this.db
       .update(projectionLedgerBalances)
       .set({
-        totalDebit: String(newDebit >= 0 ? newDebit : 0),
-        totalCredit: String(newCredit >= 0 ? newCredit : 0),
-        balance: String(newBalance),
+        totalDebit: sql`GREATEST(${projectionLedgerBalances.totalDebit} - ${debitNum}, 0)`,
+        totalCredit: sql`GREATEST(${projectionLedgerBalances.totalCredit} - ${creditNum}, 0)`,
+        balance: sql`${projectionLedgerBalances.balance} - (${debitNum} - ${creditNum})`,
         lastEventId: envelope.eventId,
         updatedAt: new Date(),
       })

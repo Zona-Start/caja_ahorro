@@ -1,6 +1,7 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import { AccountingEntryWithDetails } from '@/database/types/accounting';
 import { AuditHelper } from '@/features/audit/audit-event.service';
+import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import { CurrencyCodeEnum, entryStatusEnum } from '@/types/enum';
 import {
   BadRequestException,
@@ -32,7 +33,8 @@ export class AccountingEntriesService {
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly accountingCyclesService: AccountingCyclesService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+    private readonly exchangeRateService: ExchangeRateService,
+  ) {}
 
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
   async findAllPaginated(tenantId: string, dto: FilterAccountingEntryDto) {
@@ -133,10 +135,6 @@ export class AccountingEntriesService {
 
     // 3. Extraer IDs de los asientos
     const entryIds = entryRows.map((entry) => entry.id);
-
-    // Formatear voucherNo con ceros a la izquierda (8 dígitos)
-    const formatVoucherNo = (no: number | null) =>
-      no ? no.toString().padStart(8, '0') : null;
 
     // 4. Consulta de detalles (Consulta separada usando inArray)
     const detailRowsRaw = await this.drizzle
@@ -308,41 +306,58 @@ export class AccountingEntriesService {
 
     // 2. Preparar el merge para la validación de integridad (partida doble)
     // Mapeamos asegurando que los tipos coincidan con lo que espera validateAccountingEntry
+    const entryCurrency = (dto.currencyCode ??
+      existing.currencyCode) as CurrencyCodeEnum;
+    const entryDate = dto.entryDate || existing.entryDate;
+
+    const dtoDetailsEnriched = dto.details
+      ? await this.enrichDetailsWithBimoney(
+          tenantId,
+          entryDate,
+          entryCurrency,
+          dto.exchangeRate,
+          dto.details,
+        )
+      : null;
+
     const detailsForValidation = (
-      dto.details
-        ? dto.details.map((d) => ({
-          accountPlanId: d.accountPlanId!,
-          debit: Number(d.debit || 0),
-          credit: Number(d.credit || 0),
-          description: d.description ?? existing.description,
-        }))
+      dtoDetailsEnriched
+        ? dtoDetailsEnriched.map((d) => ({
+            accountPlanId: d.accountPlanId!,
+            debit: Number(d.debit || 0),
+            credit: Number(d.credit || 0),
+            debitForeign: Number(d.debitForeign || 0),
+            creditForeign: Number(d.creditForeign || 0),
+            description: d.description ?? existing.description,
+          }))
         : existing.details.map((d) => ({
-          accountPlanId: d.accountPlanId,
-          debit: Number(d.debit),
-          credit: Number(d.credit),
-          description: d.description ?? existing.description,
-        }))
+            accountPlanId: d.accountPlanId,
+            debit: Number(d.debit),
+            credit: Number(d.credit),
+            debitForeign: Number((d as any).debitForeign || 0),
+            creditForeign: Number((d as any).creditForeign || 0),
+            description: d.description ?? existing.description,
+          }))
     ) as any;
 
     await this.validateAccountingEntry(
       tenantId,
       existing.accountingCycleId,
-      dto.entryDate || existing.entryDate,
+      entryDate,
       detailsForValidation,
     );
 
     return this.drizzle.transaction(async (tx) => {
       // 3. Actualizar Cabecera
       // Extraemos details para no intentar insertarlos en la tabla padre
-      const { details: dtoDetails, ...entryData } = dto;
+      const entryData = { ...dto };
+      delete (entryData as any).details;
 
       await tx
         .update(schema.accountingEntries)
         .set({
           ...entryData,
-          entryDate: (dto.entryDate || existing.entryDate)
-            .toISOString()
-            .split('T')[0],
+          entryDate: entryDate.toISOString().split('T')[0],
           updatedById: userId,
           updatedAt: new Date(),
         })
@@ -354,18 +369,24 @@ export class AccountingEntriesService {
         );
 
       // 4. Si se enviaron nuevos detalles, reemplazamos
-      if (dtoDetails) {
+      if (dtoDetailsEnriched) {
         // Borrar antiguos
         await tx
           .delete(schema.accountingEntryDetails)
           .where(eq(schema.accountingEntryDetails.accountingEntryId, id));
 
         // Insertar nuevos (Aquí es donde faltaba createdById)
-        const cleanDetails = dtoDetails.map((d) => ({
+        const cleanDetails = dtoDetailsEnriched.map((d) => ({
           accountingEntryId: id,
           accountPlanId: d.accountPlanId!,
           debit: d.debit?.toString() || '0',
           credit: d.credit?.toString() || '0',
+          debitBase: d.debitBase?.toString() || '0',
+          creditBase: d.creditBase?.toString() || '0',
+          debitForeign: d.debitForeign?.toString() || '0',
+          creditForeign: d.creditForeign?.toString() || '0',
+          exchangeRate: d.exchangeRate != null ? String(d.exchangeRate) : null,
+          currencyCode: d.currencyCode ?? entryCurrency,
           description: d.description ?? dto.description ?? existing.description,
           associateId: d.associateId ?? null,
           supplierId: d.supplierId ?? null,
@@ -429,7 +450,6 @@ export class AccountingEntriesService {
     entryDate: Date,
     details: CreateAccountingEntryDetailDto[],
   ) {
-
     console.log('details', details);
 
     const cycle = await this.accountingCyclesService.findOne(
@@ -459,6 +479,9 @@ export class AccountingEntriesService {
     const map = new Map(accounts.map((a) => [a.id, a]));
     let totalDebit = 0;
     let totalCredit = 0;
+    let totalForeignDebit = 0;
+    let totalForeignCredit = 0;
+    let hasForeign = false;
 
     for (const d of details) {
       const acc = map.get(d.accountPlanId);
@@ -476,19 +499,82 @@ export class AccountingEntriesService {
           'Cada línea debe tener débito O crédito.',
         );
 
+      const debForeign = Number((d as any).debitForeign || 0);
+      const crForeign = Number((d as any).creditForeign || 0);
+      if (debForeign > 0 || crForeign > 0) hasForeign = true;
+
       totalDebit += deb;
       totalCredit += cr;
+      totalForeignDebit += debForeign;
+      totalForeignCredit += crForeign;
     }
 
     // Usar una epsilon para comparaciones de punto flotante si es necesario,
     // pero aquí estamos con Numbers. Lo ideal es usar un redondeo a 2 o 6 decimales.
     if (Math.abs(totalDebit - totalCredit) > 0.000001)
       throw new BadRequestException('El asiento no está cuadrado.');
+    if (
+      hasForeign &&
+      Math.abs(totalForeignDebit - totalForeignCredit) > 0.000001
+    )
+      throw new BadRequestException(
+        'El asiento no está cuadrado en moneda extranjera.',
+      );
     if (totalDebit === 0)
       throw new BadRequestException('El asiento no puede ser cero.');
   }
 
   /* ---------- Crear ---------- */
+  /**
+   * Enriquece las líneas de detalle con el desglose bimonetario (base/foreign)
+   * usando la tasa congelada de la fecha del evento. `debit`/`credit` se mantienen
+   * como alias de la moneda base.
+   */
+  private async enrichDetailsWithBimoney(
+    tenantId: string,
+    entryDate: Date,
+    currencyCode: CurrencyCodeEnum,
+    exchangeRate: number | undefined,
+    details: any[],
+  ): Promise<CreateAccountingEntryDetailDto[]> {
+    const baseCurrency =
+      await this.exchangeRateService.getBaseCurrency(tenantId);
+
+    let rate = exchangeRate;
+    if (currencyCode !== baseCurrency && rate === undefined) {
+      rate = await this.exchangeRateService.getRate(
+        tenantId,
+        entryDate,
+        currencyCode,
+      );
+    }
+    if (currencyCode === baseCurrency) rate = 1;
+
+    return details.map((d) => {
+      const rawDebit = Number(d.debit);
+      const rawCredit = Number(d.credit);
+      const isDebit = rawDebit !== 0;
+      const amount = Math.abs(rawDebit || rawCredit);
+      const amountBase = this.exchangeRateService.round(amount * (rate ?? 1));
+      const amountForeign =
+        currencyCode === baseCurrency
+          ? 0
+          : this.exchangeRateService.round(amount);
+
+      return {
+        ...d,
+        debit: String(isDebit ? amountBase : 0),
+        credit: String(isDebit ? 0 : amountBase),
+        debitBase: String(isDebit ? amountBase : 0),
+        creditBase: String(isDebit ? 0 : amountBase),
+        debitForeign: String(isDebit ? amountForeign : 0),
+        creditForeign: String(isDebit ? 0 : amountForeign),
+        exchangeRate: rate,
+        currencyCode,
+      };
+    });
+  }
+
   async create(
     userId: string,
     tenantId: string,
@@ -498,17 +584,28 @@ export class AccountingEntriesService {
   ) {
     const cycle = await this.findActiveCycle(tenantId, dto.entryDate);
 
+    const enrichedDetails = await this.enrichDetailsWithBimoney(
+      tenantId,
+      dto.entryDate,
+      dto.currencyCode,
+      dto.exchangeRate,
+      dto.details,
+    );
+
     await this.validateAccountingEntry(
       tenantId,
       cycle.id,
       dto.entryDate,
-      dto.details,
+      enrichedDetails,
     );
 
     const db = tx ?? this.drizzle;
 
     return db.transaction(async (tx) => {
       const voucherNo = await this.getNextVoucherNo(tenantId, userId, tx);
+
+      const baseCurrency =
+        await this.exchangeRateService.getBaseCurrency(tenantId);
 
       const [entry] = await tx
         .insert(schema.accountingEntries)
@@ -518,6 +615,7 @@ export class AccountingEntriesService {
           entryDate: new Date(dto.entryDate).toISOString().split('T')[0],
           description: dto.description,
           currencyCode: dto.currencyCode,
+          baseCurrencyCode: baseCurrency,
           originReferenceId: dto.originReferenceId ?? null,
           originType: dto.originType ?? null,
           voucherNo,
@@ -529,12 +627,18 @@ export class AccountingEntriesService {
         .returning();
 
       // 2. Preparar objetos de detalle
-      const detailsToInsert = dto.details.map((d) => ({
+      const detailsToInsert = enrichedDetails.map((d) => ({
         ...d,
         description: d.description || dto.description || null,
         accountingEntryId: entry.id,
         debit: d.debit.toString(),
         credit: d.credit.toString(),
+        debitBase: d.debitBase.toString(),
+        creditBase: d.creditBase.toString(),
+        debitForeign: d.debitForeign.toString(),
+        creditForeign: d.creditForeign.toString(),
+        exchangeRate: d.exchangeRate != null ? String(d.exchangeRate) : null,
+        currencyCode: d.currencyCode ?? dto.currencyCode,
         createdById: userId,
         // Manejo explícito de nulos para evitar errores de compatibilidad
         associateId: d.associateId ?? null,
@@ -610,9 +714,7 @@ export class AccountingEntriesService {
     // Resolver asociados por cédula
     const cedulas = [
       ...new Set(
-        parsed.rows
-          .map((r) => r.auxiliarSocio)
-          .filter((c): c is string => !!c),
+        parsed.rows.map((r) => r.auxiliarSocio).filter((c): c is string => !!c),
       ),
     ];
     let associateMap = new Map<string, { id: string }>();
@@ -684,6 +786,7 @@ export class AccountingEntriesService {
       description: string;
       entryDate: Date;
       currencyCode: CurrencyCodeEnum;
+      exchangeRate?: number;
       originReferenceId?: string;
       originType?: string;
       globalDescriptions?: Record<string, string>;
@@ -870,23 +973,28 @@ export class AccountingEntriesService {
       `[createAutomaticEntry] totalDebit=${detailsDraft.reduce(
         (a, d) => a + Number(d.debit),
         0,
-      )} totalCredit=${detailsDraft.reduce(
-        (a, d) => a + Number(d.credit),
-        0,
-      )}`,
+      )} totalCredit=${detailsDraft.reduce((a, d) => a + Number(d.credit), 0)}`,
     );
     // ---- FIN DEBUG ----
 
-    const rr = await this.validateAccountingEntry(
+    const enrichedDetails = await this.enrichDetailsWithBimoney(
       tenantId,
-      cycle.id,
       params.entryDate,
+      params.currencyCode,
+      params.exchangeRate,
       detailsDraft,
     );
 
-
+    await this.validateAccountingEntry(
+      tenantId,
+      cycle.id,
+      params.entryDate,
+      enrichedDetails,
+    );
 
     const voucherNo = await this.getNextVoucherNo(tenantId, userId, db);
+    const baseCurrency =
+      await this.exchangeRateService.getBaseCurrency(tenantId);
     const [entry] = await db
       .insert(schema.accountingEntries)
       .values({
@@ -898,6 +1006,7 @@ export class AccountingEntriesService {
         originReferenceId: params.originReferenceId,
         originType: params.originType || params.operationType,
         currencyCode: params.currencyCode,
+        baseCurrencyCode: baseCurrency,
         status: 'POSTED',
         postedAt: new Date(),
         createdById: userId,
@@ -905,11 +1014,17 @@ export class AccountingEntriesService {
       .returning();
 
     // Mapeo para la inserción
-    const detailsToInsert = detailsDraft.map((d) => ({
+    const detailsToInsert = enrichedDetails.map((d) => ({
       accountPlanId: d.accountPlanId,
       accountingEntryId: entry.id,
       debit: d.debit.toString(),
       credit: d.credit.toString(),
+      debitBase: d.debitBase.toString(),
+      creditBase: d.creditBase.toString(),
+      debitForeign: d.debitForeign.toString(),
+      creditForeign: d.creditForeign.toString(),
+      exchangeRate: d.exchangeRate != null ? String(d.exchangeRate) : null,
+      currencyCode: d.currencyCode ?? params.currencyCode,
       description: d.description,
       associateId: d.associateId ? String(d.associateId) : null,
       supplierId: d.supplierId ? String(d.supplierId) : null,
@@ -968,6 +1083,8 @@ export class AccountingEntriesService {
         accountPlanId: d.accountPlanId,
         debit: Number(d.debit),
         credit: Number(d.credit),
+        debitForeign: Number((d as any).debitForeign || 0),
+        creditForeign: Number((d as any).creditForeign || 0),
         description: d.description,
       })) as any,
     );
@@ -1497,21 +1614,19 @@ export class AccountingEntriesService {
           eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
           eq(schema.moduleSettings.key, 'NRO-ASIENTO'),
         ),
-      );
+      )
+      .for('update');
+
+    if (!setting) {
+      throw new NotFoundException('Contador NRO-ASIENTO no configurado');
+    }
 
     const nextValue = parseInt(setting.value ?? '0', 10) + 1;
 
     await tx
       .update(schema.moduleSettings)
       .set({ value: nextValue.toString(), updatedBy: createdBy })
-      .where(
-        and(
-          eq(schema.moduleSettings.tenantId, tenantId),
-          eq(schema.moduleSettings.module, 'accounting'),
-          eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
-          eq(schema.moduleSettings.key, 'NRO-ASIENTO'),
-        ),
-      );
+      .where(eq(schema.moduleSettings.id, setting.id));
 
     return nextValue;
   }

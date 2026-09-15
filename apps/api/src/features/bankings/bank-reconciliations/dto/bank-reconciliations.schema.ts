@@ -38,8 +38,12 @@ export const GenerateBookEntrySchema = z.object({
   description: z.string().min(1).optional(),
 });
 
-export type CreateBankReconciliationDto = z.infer<typeof CreateBankReconciliationSchema>;
-export type FilterBankReconciliationDto = z.infer<typeof FilterBankReconciliationSchema>;
+export type CreateBankReconciliationDto = z.infer<
+  typeof CreateBankReconciliationSchema
+>;
+export type FilterBankReconciliationDto = z.infer<
+  typeof FilterBankReconciliationSchema
+>;
 export type AddStatementLineDto = z.infer<typeof AddStatementLineSchema>;
 export type ManualMatchDto = z.infer<typeof ManualMatchSchema>;
 export type GenerateBookEntryDto = z.infer<typeof GenerateBookEntrySchema>;

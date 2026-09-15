@@ -57,9 +57,7 @@ function typeLabel(type: string): string {
   return map[type] || type;
 }
 
-export function buildTrialBalanceTableContent(
-  data: TrialBalanceData,
-): Content {
+export function buildTrialBalanceTableContent(data: TrialBalanceData): Content {
   const rows = data.accounts.map((a) => [
     a.accountCode,
     indent(a.level) + a.accountName,
@@ -97,12 +95,7 @@ export function buildTrialBalanceTableContent(
       table: {
         widths: ['*', 80, 80, 80],
         body: [
-          [
-            { text: 'RESUMEN', style: 'tableHeader', colSpan: 4 },
-            {},
-            {},
-            {},
-          ],
+          [{ text: 'RESUMEN', style: 'tableHeader', colSpan: 4 }, {}, {}, {}],
           [
             '',
             { text: 'Débitos', style: 'tableHeader', alignment: 'right' },
@@ -139,8 +132,16 @@ export function buildTrialBalanceTableContent(
           ],
           [
             { text: 'Saldos Actuales', bold: true },
-            { text: fmt(data.summary.totalCurrentDebit), alignment: 'right', bold: true },
-            { text: fmt(data.summary.totalCurrentCredit), alignment: 'right', bold: true },
+            {
+              text: fmt(data.summary.totalCurrentDebit),
+              alignment: 'right',
+              bold: true,
+            },
+            {
+              text: fmt(data.summary.totalCurrentCredit),
+              alignment: 'right',
+              bold: true,
+            },
             {
               text: fmt(
                 (

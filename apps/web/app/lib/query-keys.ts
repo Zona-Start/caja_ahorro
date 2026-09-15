@@ -19,6 +19,13 @@ import { bankMovementsKeys } from '@/features/banks/bank-movements/keys/bank-mov
 import { bankReconciliationKeys } from '@/features/banks/bank-reconciliation/keys/bank-reconciliation-keys';
 import { CATEGORIES_KEYS as coreCategoriesKeys } from '@/features/core/categories/keys/categories-keys';
 import { statesKeys } from '@/features/core/states/keys/states.keys';
+import { dashboardKeys } from '@/features/dashboard/keys/dashboard-keys';
+import {
+  cashRegistersKeys,
+  costCentersKeys,
+  expensesKeys,
+  pettyCashKeys,
+} from '@/features/expenses/keys/expenses-keys';
 import { CATEGORIES_KEYS as inventoryCategoriesKeys } from '@/features/inventory/categories/keys/categories-keys';
 import { inventoryFixedAssetsKeys } from '@/features/inventory/fixed-assets/keys/inventory-fixed-assets-keys';
 import { inventoryMovementsKeys } from '@/features/inventory/movements/keys/movements-keys';
@@ -29,8 +36,9 @@ import { purchaseOrdersKeys } from '@/features/purchasing/purchase-orders/keys';
 import { SUPPLIER_INVOICES_KEYS as supplierInvoicesKeys } from '@/features/purchasing/supplier-invoices/keys/supplier-invoices-keys';
 import { SUPPLIER_PAYMENTS_KEYS as supplierPaymentsKeys } from '@/features/purchasing/supplier-payments/keys/supplier-payments-keys';
 import { SUPPLIERS_KEYS as suppliersKeys } from '@/features/purchasing/suppliers/keys/suppliers-keys';
-import { individualLoadKeys } from '@/features/savings/assets/individual-load/keys/individual-load-keys';
+import { reportsKeys } from '@/features/reports/keys/reports-keys';
 import { contributionBatchesKeys } from '@/features/savings/assets/contribution-batches/keys/contribution-batches-keys';
+import { individualLoadKeys } from '@/features/savings/assets/individual-load/keys/individual-load-keys';
 import { paymentBatchKeys } from '@/features/savings/assets/payment-batch/keys/payment-batch-keys';
 import { creditManagementKeys } from '@/features/savings/credits/credits-management/keys/credits-management-keys';
 import { creditsPaidKeys } from '@/features/savings/credits/credits-paid/keys/credits-paid-keys';
@@ -41,8 +49,6 @@ import { inquiryKeys } from '@/features/savings/partners/inquiry/keys/inquiry-ke
 import { settlementKeys } from '@/features/savings/settlement/keys/settlement-keys';
 import { WITHDRAWAL_TYPES_KEYS as withdrawalTypesKeys } from '@/features/savings/withdrawals/withdrawal-types/keys/withdrawal-types-keys';
 import { withdrawalKeys } from '@/features/savings/withdrawals/withdrawal/keys/withdrawal-keys';
-import { dashboardKeys } from '@/features/dashboard/keys/dashboard-keys';
-import { reportsKeys } from '@/features/reports/keys/reports-keys';
 
 export const QUERY_KEYS = {
   tenants: tenantsKeys,
@@ -89,4 +95,8 @@ export const QUERY_KEYS = {
   states: statesKeys,
   reports: reportsKeys,
   dashboard: dashboardKeys,
+  expenses: expensesKeys,
+  cashRegisters: cashRegistersKeys,
+  costCenters: costCentersKeys,
+  pettyCash: pettyCashKeys,
 } as const;

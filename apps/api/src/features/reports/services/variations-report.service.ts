@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq, gte, lte, ne, or } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { VariationsReportDto } from '../dto/variations-report.dto';
 import { buildVariationsTableContent } from '../templates/pdf/variations.template';
@@ -24,7 +24,7 @@ export class VariationsReportService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly pdfService: PdfGeneratorService,
-  ) { }
+  ) {}
 
   async generatePdf(tenantId: string, filters: VariationsReportDto) {
     const [creditRows, loanRows] = await Promise.all([
@@ -87,8 +87,7 @@ export class VariationsReportService {
         payrollCode: payrollTypeCat.code,
         totalPayable: schema.credits.totalPayable,
         termUnits: schema.credits.termUnits,
-        installmentNumber:
-          schema.creditAmortizationSchedule.installmentNumber,
+        installmentNumber: schema.creditAmortizationSchedule.installmentNumber,
         principalBalancePending:
           schema.creditAmortizationSchedule.principalBalancePending,
       })
@@ -156,8 +155,7 @@ export class VariationsReportService {
         payrollCode: payrollTypeCat.code,
         totalPayable: schema.loans.totalPayable,
         termUnits: schema.loans.termUnits,
-        installmentNumber:
-          schema.loanAmortizationSchedule.installmentNumber,
+        installmentNumber: schema.loanAmortizationSchedule.installmentNumber,
         principalBalancePending:
           schema.loanAmortizationSchedule.principalBalancePending,
       })

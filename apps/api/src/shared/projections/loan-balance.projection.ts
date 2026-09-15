@@ -4,7 +4,7 @@ import { projectionLoanBalances } from '@/database/schema';
 import { type EventEnvelope, EventStoreService } from '@/shared/event-bus';
 import { LOAN_EVENTS } from '@/shared/event-types';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { type ProjectionHandler } from './projection-handler';
 
@@ -106,18 +106,14 @@ export class LoanBalanceProjection implements ProjectionHandler {
     if (existing.length === 0) return;
 
     const current = existing[0];
-    const currentPaid = Number(current.paidAmount);
-    const currentTotal = Number(current.totalAmount);
-    const newPaid = currentPaid + Number(amount);
-    const newPending = currentTotal - newPaid;
-    const newStatus = newPending <= 0 ? 'PAID' : 'IN_PAYMENT';
+    const amountNum = Number(amount);
 
     await this.db
       .update(projectionLoanBalances)
       .set({
-        paidAmount: String(newPaid),
-        pendingBalance: String(newPending >= 0 ? newPending : 0),
-        status: newStatus,
+        paidAmount: sql`${projectionLoanBalances.paidAmount} + ${amountNum}`,
+        pendingBalance: sql`GREATEST(${projectionLoanBalances.totalAmount} - ${projectionLoanBalances.paidAmount} - ${amountNum}, 0)`,
+        status: sql`CASE WHEN ${projectionLoanBalances.totalAmount} - ${projectionLoanBalances.paidAmount} - ${amountNum} <= 0 THEN 'PAID' ELSE 'IN_PAYMENT' END`,
         lastEventId: envelope.eventId,
         updatedAt: new Date(),
       })
@@ -141,16 +137,13 @@ export class LoanBalanceProjection implements ProjectionHandler {
     if (existing.length === 0) return;
 
     const current = existing[0];
-    const currentPaid = Number(current.paidAmount);
-    const currentTotal = Number(current.totalAmount);
-    const newPaid = currentPaid - Number(amount);
-    const newPending = currentTotal - newPaid;
+    const amountNum = Number(amount);
 
     await this.db
       .update(projectionLoanBalances)
       .set({
-        paidAmount: String(newPaid >= 0 ? newPaid : 0),
-        pendingBalance: String(newPending),
+        paidAmount: sql`GREATEST(${projectionLoanBalances.paidAmount} - ${amountNum}, 0)`,
+        pendingBalance: sql`GREATEST(${projectionLoanBalances.totalAmount} - ${projectionLoanBalances.paidAmount} + ${amountNum}, 0)`,
         status: 'IN_PAYMENT',
         lastEventId: envelope.eventId,
         updatedAt: new Date(),

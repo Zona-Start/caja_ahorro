@@ -1,6 +1,7 @@
 // src/constants/navegations.ts
 import {
   ArrowRightLeft,
+  BarChart3,
   Boxes,
   Building2,
   ClipboardList,
@@ -14,7 +15,10 @@ import {
   Lock,
   LucideIcon,
   Package,
+  PiggyBank,
   Receipt,
+  RefreshCw,
+  Scale,
   Settings,
   Shield,
   ShoppingCart,
@@ -22,8 +26,6 @@ import {
   Upload,
   UserCog,
   Users,
-  Scale,
-  BarChart3,
 } from 'lucide-react';
 
 export interface NavSubItem {
@@ -87,7 +89,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'savings:members',
               action: 'read',
-            }
+            },
           },
 
           {
@@ -96,7 +98,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'savings:members',
               action: 'read',
-            }
+            },
           },
         ],
       },
@@ -115,7 +117,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'savings:contributions',
               action: 'read',
-            }
+            },
           },
           {
             label: 'Retiros',
@@ -123,7 +125,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'savings:withdrawals',
               action: 'read',
-            }
+            },
           },
           {
             label: 'Liquidacion',
@@ -131,7 +133,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'savings:liquidations',
               action: 'read',
-            }
+            },
           },
           {
             label: 'Tipos de Retiros',
@@ -139,7 +141,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'savings:withdrawal-types',
               action: 'read',
-            }
+            },
           },
         ],
       },
@@ -154,7 +156,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'portfolio:loans',
               action: 'read',
-            }
+            },
           },
           {
             label: 'Pagos',
@@ -162,7 +164,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'portfolio:payments-loans',
               action: 'read',
-            }
+            },
           },
           {
             label: 'Tipos',
@@ -170,7 +172,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'portfolio:loans-types',
               action: 'read',
-            }
+            },
           },
         ],
       },
@@ -185,7 +187,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'portfolio:credits',
               action: 'read',
-            }
+            },
           },
           {
             label: 'Pagos',
@@ -193,7 +195,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'portfolio:payments-credits',
               action: 'read',
-            }
+            },
           },
           {
             label: 'Tipos',
@@ -201,7 +203,7 @@ export const navGroups: NavGroup[] = [
             requiresPermission: {
               resource: 'portfolio:credits-types',
               action: 'read',
-            }
+            },
           },
         ],
       },
@@ -212,7 +214,7 @@ export const navGroups: NavGroup[] = [
         requiresPermission: {
           resource: 'savings:contributions',
           action: 'mass_upload',
-        }
+        },
       },
       {
         label: 'Reportes',
@@ -417,7 +419,6 @@ export const navGroups: NavGroup[] = [
           action: 'read',
         },
       },
-
     ],
   },
   {
@@ -536,9 +537,78 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-
+  {
+    label: 'Gastos y Cajas',
+    modules: ['TREASURY'],
+    items: [
+      {
+        label: 'Gastos',
+        href: '/dashboard/gastos/registrar',
+        icon: Receipt,
+        requiresPermission: {
+          resource: 'treasury:expenses',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Cajas POS',
+        href: '/dashboard/gastos/cajas',
+        icon: DollarSign,
+        requiresPermission: {
+          resource: 'treasury:cash-registers',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Centros de Costo',
+        href: '/dashboard/gastos/centros-costo',
+        icon: Layers,
+        requiresPermission: {
+          resource: 'treasury:cost-centers',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Categorías de Gasto',
+        href: '/dashboard/gastos/categorias',
+        icon: Tag,
+        requiresPermission: {
+          resource: 'treasury:expense-categories',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Gastos Recurrentes',
+        href: '/dashboard/gastos/recurrentes',
+        icon: RefreshCw,
+        requiresPermission: {
+          resource: 'treasury:recurring-expenses',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Reembolsos / Viáticos',
+        href: '/dashboard/gastos/reembolsos',
+        icon: HandCoins,
+        requiresPermission: {
+          resource: 'treasury:expense-reports',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Fondos Fijos',
+        href: '/dashboard/gastos/fondos-fijos',
+        icon: PiggyBank,
+        requiresPermission: {
+          resource: 'treasury:petty-cash',
+          action: 'read',
+        },
+      },
+    ],
+  },
   {
     label: 'Administracion',
+    modules: ['IAM'],
     items: [
       {
         label: 'Usuarios',
@@ -571,6 +641,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Configuración',
+    modules: ['SYSTEM'],
     items: [
       {
         label: 'Parámetros Generales',
@@ -595,6 +666,7 @@ export const navGroups: NavGroup[] = [
 
   {
     label: 'Sistema',
+    modules: ['SYSTEM'],
     items: [
       {
         label: 'Parámetros Plataforma',
@@ -629,6 +701,15 @@ export const navGroups: NavGroup[] = [
         icon: Settings,
         requiresPermission: {
           resource: 'system:currencies',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Tasas de Cambio',
+        href: '/dashboard/configuracion/tasas-de-cambio',
+        icon: RefreshCw,
+        requiresPermission: {
+          resource: 'system:global',
           action: 'read',
         },
       },

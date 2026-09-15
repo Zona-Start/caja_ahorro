@@ -293,8 +293,12 @@ export const bankStatementLines = treasurySchema.table(
     transactionDate: date('transaction_date').notNull(),
     description: text('description').notNull(),
     bankReference: varchar('bank_reference', { length: 100 }),
-    debitAmount: numeric('debit_amount', { precision: 20, scale: 6 }).default('0.00'),
-    creditAmount: numeric('credit_amount', { precision: 20, scale: 6 }).default('0.00'),
+    debitAmount: numeric('debit_amount', { precision: 20, scale: 6 }).default(
+      '0.00',
+    ),
+    creditAmount: numeric('credit_amount', { precision: 20, scale: 6 }).default(
+      '0.00',
+    ),
     status: varchar('status', { length: 20 }).notNull().default('PENDING'),
     // PENDING | RECONCILED | GENERATED (cuando se contabiliza)
     matchedTransactionId: uuid('matched_transaction_id').references(
@@ -321,10 +325,14 @@ export const bankReconciliationDetails = treasurySchema.table(
     bankReconciliationId: uuid('bank_reconciliation_id')
       .notNull()
       .references(() => bankReconciliations.id, { onDelete: 'cascade' }),
-    bankTransactionId: uuid('bank_transaction_id')
-      .references(() => bankTransactions.id, { onDelete: 'set null' }),
-    statementLineId: uuid('statement_line_id')
-      .references(() => bankStatementLines.id, { onDelete: 'set null' }),
+    bankTransactionId: uuid('bank_transaction_id').references(
+      () => bankTransactions.id,
+      { onDelete: 'set null' },
+    ),
+    statementLineId: uuid('statement_line_id').references(
+      () => bankStatementLines.id,
+      { onDelete: 'set null' },
+    ),
     accountingEntryDetailId: uuid('accounting_entry_detail_id').references(
       () => accountingEntryDetails.id,
       { onDelete: 'set null' },

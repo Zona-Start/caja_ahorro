@@ -1,3 +1,4 @@
+import { CurrencyCodeEnum } from '@/types/enum';
 import { z } from 'zod';
 
 export const CreateAccountPayableSchema = z.object({
@@ -7,7 +8,8 @@ export const CreateAccountPayableSchema = z.object({
   originalAmount: z.coerce.number(),
   paidAmount: z.coerce.number().optional(),
   remainingAmount: z.coerce.number(),
-  currencyCode: z.string().optional(),
+  currencyCode: z.nativeEnum(CurrencyCodeEnum).default(CurrencyCodeEnum.VES),
+  exchangeRate: z.coerce.number().positive().optional(),
   status: z.string().optional(),
   dueDate: z.coerce.date().optional(),
   priority: z.string().optional(),
@@ -34,7 +36,8 @@ export const UpdateAccountPayableSchema = z.object({
   originalAmount: z.coerce.number().optional(),
   paidAmount: z.coerce.number().optional(),
   remainingAmount: z.coerce.number().optional(),
-  currencyCode: z.string().optional(),
+  currencyCode: z.nativeEnum(CurrencyCodeEnum).optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
   status: z.string().optional(),
   dueDate: z.coerce.date().optional(),
   priority: z.string().optional(),

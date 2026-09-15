@@ -1,10 +1,24 @@
 import { Content } from 'pdfmake/interfaces';
 
 function fmt(n: number): string {
-  return (n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n || 0).toLocaleString('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
-export function buildTaxBookTableContent(data: { date: string; supplierTaxId: string; supplierName: string; invoiceNumber: string; controlNumber: string; subtotal: string; taxAmount: string; totalAmount: string }[]): Content {
+export function buildTaxBookTableContent(
+  data: {
+    date: string;
+    supplierTaxId: string;
+    supplierName: string;
+    invoiceNumber: string;
+    controlNumber: string;
+    subtotal: string;
+    taxAmount: string;
+    totalAmount: string;
+  }[],
+): Content {
   const body = [
     [
       { text: 'Fecha', style: 'tableHeader' },
@@ -28,5 +42,8 @@ export function buildTaxBookTableContent(data: { date: string; supplierTaxId: st
     ]),
   ];
 
-  return { table: { headerRows: 1, widths: [50, 50, '*', 60, 55, 60, 55, 60], body }, layout: 'lightHorizontalLines' } as unknown as Content;
+  return {
+    table: { headerRows: 1, widths: [50, 50, '*', 60, 55, 60, 55, 60], body },
+    layout: 'lightHorizontalLines',
+  } as unknown as Content;
 }

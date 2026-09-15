@@ -23,7 +23,7 @@ export class ServicesController {
   constructor(
     private readonly service: ServicesService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @Permissions({

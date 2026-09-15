@@ -5,8 +5,8 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { EnvironmentVariables } from './common/config/envs';
-import cookieParser = require('cookie-parser');
 import { TenantsService } from './features/core/tenants/tenants.service';
+import cookieParser = require('cookie-parser');
 
 // Captura de errores no controlados a nivel de proceso
 process.on('uncaughtException', (err) => {
@@ -83,9 +83,9 @@ export const bootstrap = async (app: NestExpressApplication) => {
         }
 
         // C. Validación Dinámica: Consultar DB si el dominio personalizado existe
-        const isCustomDomainRegistered = await tenantsService.isCustomDomainValid(hostname);
+        const isCustomDomainRegistered =
+          await tenantsService.isCustomDomainValid(hostname);
         return isCustomDomainRegistered;
-
       } catch {
         return false;
       }
@@ -133,7 +133,6 @@ export const bootstrap = async (app: NestExpressApplication) => {
     await app.listen(port, () => {
       logger.log(`🚀 Sistema iniciado en ${host}:${port}`);
     });
-
   } catch (error) {
     logger.error('❌ Error fatal durante el arranque de la aplicación:', error);
     process.exit(1);

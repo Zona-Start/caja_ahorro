@@ -4,7 +4,7 @@ import { projectionInventoryStock } from '@/database/schema';
 import { type EventEnvelope, EventStoreService } from '@/shared/event-bus';
 import { INVENTORY_EVENTS } from '@/shared/event-types';
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { type ProjectionHandler } from './projection-handler';
 
@@ -78,7 +78,7 @@ export class InventoryStockProjection implements ProjectionHandler {
     const { tenantId, itemId, movementType, quantity } = envelope.payload;
 
     const existing = await this.db
-      .select()
+      .select({ id: projectionInventoryStock.id })
       .from(projectionInventoryStock)
       .where(
         and(
@@ -92,33 +92,41 @@ export class InventoryStockProjection implements ProjectionHandler {
 
     const current = existing[0];
     const qty = Number(quantity);
-    const currentQty = Number(current.currentQuantity);
-    let newQty = currentQty;
+
+    let currentQtyExpr: ReturnType<typeof sql> | undefined;
+    let committedQtyExpr: ReturnType<typeof sql> | undefined;
+    let availableQtyExpr: ReturnType<typeof sql> | undefined;
 
     switch (movementType) {
       case 'IN':
       case 'RECEIVED':
       case 'ADJUST_IN':
-        newQty += qty;
+        currentQtyExpr = sql`${projectionInventoryStock.currentQuantity} + ${qty}`;
+        availableQtyExpr = sql`${projectionInventoryStock.availableQuantity} + ${qty}`;
         break;
       case 'OUT':
       case 'ADJUST_OUT':
-        newQty -= qty;
+        currentQtyExpr = sql`${projectionInventoryStock.currentQuantity} - ${qty}`;
+        availableQtyExpr = sql`GREATEST(${projectionInventoryStock.availableQuantity} - ${qty}, 0)`;
         break;
       case 'COMMIT':
+        committedQtyExpr = sql`${projectionInventoryStock.committedQuantity} + ${qty}`;
+        availableQtyExpr = sql`GREATEST(${projectionInventoryStock.availableQuantity} - ${qty}, 0)`;
         break;
       case 'UN_COMMIT':
+        committedQtyExpr = sql`${projectionInventoryStock.committedQuantity} - ${qty}`;
+        availableQtyExpr = sql`${projectionInventoryStock.availableQuantity} + ${qty}`;
         break;
+      default:
+        return;
     }
-
-    const committed = Number(current.committedQuantity);
-    const available = newQty - committed;
 
     await this.db
       .update(projectionInventoryStock)
       .set({
-        currentQuantity: String(newQty),
-        availableQuantity: String(available >= 0 ? available : 0),
+        ...(currentQtyExpr ? { currentQuantity: currentQtyExpr } : {}),
+        ...(committedQtyExpr ? { committedQuantity: committedQtyExpr } : {}),
+        ...(availableQtyExpr ? { availableQuantity: availableQtyExpr } : {}),
         lastEventId: envelope.eventId,
         updatedAt: new Date(),
       })
@@ -129,7 +137,7 @@ export class InventoryStockProjection implements ProjectionHandler {
     const { tenantId, itemId } = envelope.payload;
 
     const existing = await this.db
-      .select()
+      .select({ id: projectionInventoryStock.id })
       .from(projectionInventoryStock)
       .where(
         and(
@@ -142,15 +150,12 @@ export class InventoryStockProjection implements ProjectionHandler {
     if (existing.length === 0) return;
 
     const current = existing[0];
-    const committed = Number(current.committedQuantity);
-    const currentQty = Number(current.currentQuantity);
-    const available = currentQty - committed;
 
     await this.db
       .update(projectionInventoryStock)
       .set({
+        availableQuantity: sql`GREATEST(${projectionInventoryStock.currentQuantity} - ${projectionInventoryStock.committedQuantity}, 0)`,
         lastEventId: envelope.eventId,
-        availableQuantity: String(available >= 0 ? available : 0),
         updatedAt: new Date(),
       })
       .where(eq(projectionInventoryStock.id, current.id));

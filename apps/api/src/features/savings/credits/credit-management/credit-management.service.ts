@@ -16,11 +16,12 @@ import {
   loans,
 } from '@/database/schema/tables/savings';
 import { associateHaberesBalance } from '@/database/schema/views';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
+import { computePriceBreakdown } from '@/features/inventory/product-prices/pricing.util';
 import { WithdrawalAssociateService } from '@/features/savings/withdrawalls/withdrawal-associate/withdrawal-associate.service';
-import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
@@ -481,11 +482,11 @@ export class CreditManagementService {
       );
     }
 
-    const activeCreditStatuses: CreditStatusEnum[] = [
-      CreditStatusEnum.REQUESTED,
-      CreditStatusEnum.APPROVED,
-      CreditStatusEnum.IN_PAYMENT,
-    ];
+    // const activeCreditStatuses: CreditStatusEnum[] = [
+    //   CreditStatusEnum.REQUESTED,
+    //   CreditStatusEnum.APPROVED,
+    //   CreditStatusEnum.IN_PAYMENT,
+    // ];
 
     const existingCredits = await this.db
       .select({ id: credits.id })
@@ -760,7 +761,7 @@ export class CreditManagementService {
     const {
       associateId,
       requestedAmount,
-      creditTypeId,
+      //creditTypeId,
       startDate,
       currencyCode,
       allowOverdraft,
@@ -904,7 +905,21 @@ export class CreditManagementService {
       for (const item of creditSale) {
         if (item.itemType === 'PRODUCT' && item.itemId) {
           const [productPrice] = await this.db
-            .select({ totalCost: productPrices.totalCost })
+            .select({
+              currencyCode: productPrices.currencyCode,
+              priceType: productPrices.priceType,
+              purchaseExchangeRate: productPrices.purchaseExchangeRate,
+              salesExchangeRate: productPrices.salesExchangeRate,
+              baseCost: productPrices.baseCost,
+              otherCosts: productPrices.otherCosts,
+              purchaseTaxPercent: productPrices.purchaseTaxPercent,
+              profitPercent: productPrices.profitPercent,
+              expensePercent: productPrices.expensePercent,
+              salesTaxPercent: productPrices.salesTaxPercent,
+              salePrice: productPrices.salePrice,
+              offerSalePrice: productPrices.offerSalePrice,
+              bsPriceAmount: productPrices.bsPriceAmount,
+            })
             .from(productPrices)
             .where(
               and(
@@ -915,9 +930,32 @@ export class CreditManagementService {
             )
             .limit(1);
 
-          const unitCost = Number(
-            productPrice?.totalCost ?? item.agreedSellingPrice ?? 0,
-          );
+          const unitCost = productPrice
+            ? computePriceBreakdown({
+              currencyCode: productPrice.currencyCode,
+              priceType: productPrice.priceType,
+              purchaseExchangeRate: Number(productPrice.purchaseExchangeRate),
+              salesExchangeRate: Number(productPrice.salesExchangeRate),
+              baseCost: Number(productPrice.baseCost),
+              otherCosts: Number(productPrice.otherCosts),
+              purchaseTaxPercent: Number(productPrice.purchaseTaxPercent),
+              profitPercent: Number(productPrice.profitPercent),
+              expensePercent: Number(productPrice.expensePercent),
+              salesTaxPercent: Number(productPrice.salesTaxPercent),
+              salePrice:
+                productPrice.salePrice != null
+                  ? Number(productPrice.salePrice)
+                  : undefined,
+              offerSalePrice:
+                productPrice.offerSalePrice != null
+                  ? Number(productPrice.offerSalePrice)
+                  : undefined,
+              bsPriceAmount:
+                productPrice.bsPriceAmount != null
+                  ? Number(productPrice.bsPriceAmount)
+                  : undefined,
+            }).totalCost
+            : Number(item.agreedSellingPrice ?? 0);
 
           await this.inventoryMovementsService.create(
             {
@@ -1112,43 +1150,45 @@ export class CreditManagementService {
         `[approve] Generando asiento contable crédito ${id} - principal=${requestedAmountNum} gastos=${expensesAmountNum} interes=${totalInterestNum}`,
       );
 
-      const accountingEntry = await this.accountingEntriesService.createAutomaticEntry(
-        tenantId,
-        userId,
-        {
-          module: 'portfolio',
-          submodule: 'credits',
-          category: 'SAVINGS_BANK',
-          operationType: 'CREDIT_TYPE',
-          description: `Desembolso de Crédito - ${assoc?.fullname ?? ''}`,
-          entryDate: new Date(),
-          referenceValue: typeDesc,
-          currencyCode: (currencyCode as CurrencyCodeEnum) ?? CurrencyCodeEnum.VES,
-          originReferenceId: id,
-          originType: 'CREDIT_DISBURSEMENT',
-          items: [
-            {
-              associateId: associateId,
-              amounts: {
-                CREDIT_PRINCIPAL: requestedAmountNum,
-                SERVICE_FEE_INCOME: expensesAmountNum,
-                LOAN_INTEREST_INCOME: totalInterestNum,
+      const accountingEntry =
+        await this.accountingEntriesService.createAutomaticEntry(
+          tenantId,
+          userId,
+          {
+            module: 'portfolio',
+            submodule: 'credits',
+            category: 'SAVINGS_BANK',
+            operationType: 'CREDIT_TYPE',
+            description: `Desembolso de Crédito - ${assoc?.fullname ?? ''}`,
+            entryDate: new Date(),
+            referenceValue: typeDesc,
+            currencyCode:
+              (currencyCode as CurrencyCodeEnum) ?? CurrencyCodeEnum.VES,
+            originReferenceId: id,
+            originType: 'CREDIT_DISBURSEMENT',
+            items: [
+              {
+                associateId: associateId,
+                amounts: {
+                  CREDIT_PRINCIPAL: requestedAmountNum,
+                  SERVICE_FEE_INCOME: expensesAmountNum,
+                  LOAN_INTEREST_INCOME: totalInterestNum,
+                },
+                descriptions: {
+                  CREDIT_PRINCIPAL: typeDesc,
+                  SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
+                  LOAN_INTEREST_INCOME: associateDesc,
+                },
               },
-              descriptions: {
-                CREDIT_PRINCIPAL: typeDesc,
-                SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
-                LOAN_INTEREST_INCOME: associateDesc,
-              },
+            ],
+            globalDescriptions: {
+              CREDIT_PRINCIPAL: typeDesc,
+              SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
+              LOAN_INTEREST_INCOME: associateDesc,
             },
-          ],
-          globalDescriptions: {
-            CREDIT_PRINCIPAL: typeDesc,
-            SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
-            LOAN_INTEREST_INCOME: associateDesc,
           },
-        },
-        undefined,
-      );
+          undefined,
+        );
 
       if (!accountingEntry) {
         this.logger.warn(

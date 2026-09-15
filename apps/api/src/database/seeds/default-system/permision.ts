@@ -1231,4 +1231,272 @@ export const DEFAULT_PERMISSIONS = [
     description: 'Ver catálogo de estados/municipios/parroquias.',
     scope: 'global',
   },
+
+  // ==========================================
+  // MODULO: EXPENSES (Gastos y Control de Cajas)
+  // ==========================================
+  {
+    resource: 'treasury:expenses',
+    action: 'create',
+    name: 'Registrar Gasto',
+    description: 'Registrar gastos en caja, banco o fondo fijo.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expenses',
+    action: 'read',
+    name: 'Consultar Gastos',
+    description: 'Ver el registro de gastos.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expenses',
+    action: 'update',
+    name: 'Editar Gasto',
+    description: 'Modificar datos de un gasto.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expenses',
+    action: 'delete',
+    name: 'Eliminar Gasto',
+    description: 'Eliminar lógicamente un gasto.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expenses',
+    action: 'approve',
+    name: 'Aprobar Gasto / Exceder Presupuesto',
+    description: 'Permite exceder el presupuesto mensual del centro de costo.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-registers',
+    action: 'create',
+    name: 'Crear Caja Registradora',
+    description: 'Registrar nuevas cajas POS.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-registers',
+    action: 'read',
+    name: 'Consultar Cajas Registradoras',
+    description: 'Ver cajas POS configuradas.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-registers',
+    action: 'update',
+    name: 'Editar Caja Registradora',
+    description: 'Modificar cajas POS.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-registers',
+    action: 'delete',
+    name: 'Desactivar Caja Registradora',
+    description: 'Desactivar cajas POS.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-sessions',
+    action: 'create',
+    name: 'Abrir Sesión de Caja',
+    description: 'Abrir una sesión de caja (Corte Z).',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-sessions',
+    action: 'read',
+    name: 'Consultar Sesiones de Caja',
+    description: 'Ver sesiones de caja.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-sessions',
+    action: 'update',
+    name: 'Cerrar Sesión de Caja',
+    description: 'Cerrar una sesión de caja y calcular diferencia.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-movements',
+    action: 'create',
+    name: 'Registrar Movimiento de Caja',
+    description: 'Registrar movimientos manuales de caja.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cash-movements',
+    action: 'read',
+    name: 'Consultar Movimientos de Caja',
+    description: 'Ver movimientos de efectivo.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cost-centers',
+    action: 'create',
+    name: 'Crear Centro de Costo',
+    description: 'Configurar centros de costo.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cost-centers',
+    action: 'read',
+    name: 'Consultar Centros de Costo',
+    description: 'Ver centros de costo y presupuestos.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cost-centers',
+    action: 'update',
+    name: 'Editar Centro de Costo',
+    description: 'Modificar centros de costo.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:cost-centers',
+    action: 'delete',
+    name: 'Desactivar Centro de Costo',
+    description: 'Desactivar centros de costo.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-categories',
+    action: 'create',
+    name: 'Crear Categoría de Gasto',
+    description: 'Configurar categorías de gasto.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-categories',
+    action: 'read',
+    name: 'Consultar Categorías de Gasto',
+    description: 'Ver categorías de gasto.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-categories',
+    action: 'update',
+    name: 'Editar Categoría de Gasto',
+    description: 'Modificar categorías de gasto.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-categories',
+    action: 'delete',
+    name: 'Desactivar Categoría de Gasto',
+    description: 'Desactivar categorías de gasto.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:petty-cash',
+    action: 'create',
+    name: 'Crear Fondo Fijo',
+    description: 'Configurar fondos fijos / caja chica.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:petty-cash',
+    action: 'read',
+    name: 'Consultar Fondos Fijos',
+    description: 'Ver fondos fijos y saldos.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:petty-cash',
+    action: 'update',
+    name: 'Editar Fondo Fijo',
+    description: 'Modificar fondos fijos y realizar reposiciones.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:petty-cash',
+    action: 'delete',
+    name: 'Desactivar Fondo Fijo',
+    description: 'Desactivar fondos fijos.',
+    scope: 'tenant',
+  },
+  // ==========================================
+  // MODULO: EXPENSES - Aprobación de gastos
+  // ==========================================
+  {
+    resource: 'treasury:expenses',
+    action: 'approve',
+    name: 'Aprobar / Rechazar Gasto',
+    description:
+      'Aprueba o rechaza gastos pendientes y puede exceder el presupuesto mensual del centro de costo.',
+    scope: 'tenant',
+  },
+
+  // ==========================================
+  // MODULO: EXPENSES - Gastos Recurrentes
+  // ==========================================
+  {
+    resource: 'treasury:recurring-expenses',
+    action: 'create',
+    name: 'Crear Gasto Recurrente',
+    description: 'Configura plantillas de gastos recurrentes.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:recurring-expenses',
+    action: 'read',
+    name: 'Consultar Gastos Recurrentes',
+    description: 'Ver plantillas de gastos recurrentes.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:recurring-expenses',
+    action: 'update',
+    name: 'Editar Gasto Recurrente',
+    description: 'Modificar plantillas de gastos recurrentes.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:recurring-expenses',
+    action: 'delete',
+    name: 'Desactivar Gasto Recurrente',
+    description: 'Desactivar plantillas de gastos recurrentes.',
+    scope: 'tenant',
+  },
+
+  // ==========================================
+  // MODULO: EXPENSES - Reembolsos / Viáticos
+  // ==========================================
+  {
+    resource: 'treasury:expense-reports',
+    action: 'create',
+    name: 'Crear Reporte de Reembolso',
+    description: 'Crear reportes de gastos para reembolso (viáticos).',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-reports',
+    action: 'read',
+    name: 'Consultar Reembolsos',
+    description: 'Ver reportes de reembolso y cola de pagos.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-reports',
+    action: 'update',
+    name: 'Editar Reporte de Reembolso',
+    description: 'Modificar reportes pendientes.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-reports',
+    action: 'approve',
+    name: 'Aprobar / Rechazar / Pagar Reembolso',
+    description: 'Aprobar, rechazar y pagar reportes de reembolso a empleados.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'treasury:expense-reports',
+    action: 'delete',
+    name: 'Eliminar Reporte de Reembolso',
+    description: 'Eliminar reportes de reembolso pendientes.',
+    scope: 'tenant',
+  },
 ] as const;

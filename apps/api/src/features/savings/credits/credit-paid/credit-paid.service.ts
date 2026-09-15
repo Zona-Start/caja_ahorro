@@ -11,8 +11,8 @@ import {
   creditsTypes,
 } from '@/database/schema/tables/savings';
 import { bankAccounts } from '@/database/schema/tables/treasury';
-import { AuditHelper } from '@/features/audit/audit-event.service';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
+import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
   AssociateMovementTypeEnum,
@@ -32,9 +32,9 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { format } from 'date-fns';
 import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { format } from 'date-fns';
 import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
@@ -57,7 +57,7 @@ export class CreditPaidService implements OnModuleInit {
     private readonly auditHelper: AuditHelper,
     private readonly accountingEntriesService: AccountingEntriesService,
     private moduleRef: ModuleRef,
-  ) { }
+  ) {}
 
   onModuleInit() {
     this.bankMovementsService = this.moduleRef.get(BankMovementsService, {
@@ -65,8 +65,11 @@ export class CreditPaidService implements OnModuleInit {
     });
   }
 
-  private async _calculateBalancePending(creditId: string): Promise<number> {
-    const creditAmortization = await this.db
+  private async _calculateBalancePending(
+    creditId: string,
+    db: NodePgDatabase<typeof schema> = this.db,
+  ): Promise<number> {
+    const creditAmortization = await db
       .select({
         quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
         paidAmount: creditAmortizationSchedule.paidAmount,
@@ -96,6 +99,7 @@ export class CreditPaidService implements OnModuleInit {
   private async _calculateCoveredInstallments(
     creditId: string,
     amount: number,
+    db: NodePgDatabase<typeof schema> = this.db,
   ): Promise<{
     paidInstallmentDetails: {
       id: string;
@@ -113,7 +117,7 @@ export class CreditPaidService implements OnModuleInit {
     remainingAmount: number;
   }> {
     const pendingInstallments =
-      await this.db.query.creditAmortizationSchedule.findMany({
+      await db.query.creditAmortizationSchedule.findMany({
         where: and(
           eq(creditAmortizationSchedule.creditId, creditId),
           inArray(creditAmortizationSchedule.paymentStatus, [
@@ -132,12 +136,12 @@ export class CreditPaidService implements OnModuleInit {
     }[] = [];
     let partialInstallment:
       | {
-        id: string;
-        paidAmount: number;
-        originalPaidAmount: number;
-        principal: number;
-        interest: number;
-      }
+          id: string;
+          paidAmount: number;
+          originalPaidAmount: number;
+          principal: number;
+          interest: number;
+        }
       | undefined;
     let remainingPaymentAmount = amount;
 
@@ -259,8 +263,18 @@ export class CreditPaidService implements OnModuleInit {
     const db = tx || this.db;
 
     const result = await db.transaction(async (tx) => {
+      const [lockedCredit] = await tx
+        .select()
+        .from(credits)
+        .where(eq(credits.id, creditId))
+        .for('update');
+
+      if (!lockedCredit) {
+        throw new NotFoundException('Credit not found');
+      }
+
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
-        await this._calculateCoveredInstallments(creditId, amount);
+        await this._calculateCoveredInstallments(creditId, amount, tx);
 
       let totalPrincipalPaid = 0;
       let totalInterestPaid = 0;
@@ -276,7 +290,7 @@ export class CreditPaidService implements OnModuleInit {
       }
 
       const currentBalanceCalculatedFromInstallments =
-        await this._calculateBalancePending(creditId);
+        await this._calculateBalancePending(creditId, tx);
 
       const appliedAmountExact = amount - remainingAmount;
 
@@ -333,21 +347,26 @@ export class CreditPaidService implements OnModuleInit {
             updatedById: userId,
             paidAmount: sql`total_installment_amount`,
           })
-          .where(eq(creditAmortizationSchedule.id, installment.id));
+          .where(
+            and(
+              eq(creditAmortizationSchedule.id, installment.id),
+              ne(creditAmortizationSchedule.paymentStatus, 'PAID'),
+            ),
+          );
       }
 
       if (partialInstallment) {
+        const amountAppliedToPartial =
+          partialInstallment.paidAmount - partialInstallment.originalPaidAmount;
+
         await tx
           .update(creditAmortizationSchedule)
           .set({
             paymentStatus: 'PARTIAL',
-            paidAmount: String(partialInstallment.paidAmount),
+            paidAmount: sql`${creditAmortizationSchedule.paidAmount} + ${amountAppliedToPartial.toFixed(6)}`,
             updatedById: userId,
           })
           .where(eq(creditAmortizationSchedule.id, partialInstallment.id));
-
-        const amountAppliedToPartial =
-          partialInstallment.paidAmount - partialInstallment.originalPaidAmount;
 
         await tx.insert(creditPaymentsDetails).values({
           creditPaymentId: insertedPayment.id,
@@ -405,11 +424,16 @@ export class CreditPaidService implements OnModuleInit {
           associateId: schema.credits.associateId,
           associateFullname: schema.associates.fullname,
           currencyCode: schema.credits.currencyCode,
+          creditType: schema.creditsTypes.name,
         })
         .from(schema.credits)
         .leftJoin(
           schema.associateAccounts,
           eq(schema.associateAccounts.associateId, schema.credits.associateId),
+        )
+        .leftJoin(
+          schema.creditsTypes,
+          eq(schema.creditsTypes.id, schema.credits.creditTypeId),
         )
         .leftJoin(
           schema.associates,
@@ -508,12 +532,8 @@ export class CreditPaidService implements OnModuleInit {
             : format(new Date(), 'dd/MM/yyyy');
           const fullname = resutAccount[0]?.associateFullname ?? 'ASOCIADO';
 
-          roundedPayment = Number(
-            result.appliedAmountExact.toFixed(2),
-          );
-          roundedInterest = Number(
-            result.totalInterestPaid.toFixed(2),
-          );
+          roundedPayment = Number(result.appliedAmountExact.toFixed(2));
+          roundedInterest = Number(result.totalInterestPaid.toFixed(2));
           roundedPrincipal = Number(
             (roundedPayment - roundedInterest).toFixed(2),
           );
@@ -524,7 +544,7 @@ export class CreditPaidService implements OnModuleInit {
             operationType: 'CREDIT_PAYMENT',
             description: `Pago de Crédito - ${fullname}`,
             entryDate: paymentDate ? new Date(paymentDate) : new Date(),
-            referenceValue: 'Pago Creditos',
+            referenceValue: resutAccount[0]?.creditType ?? 'Pago Creditos',
             currencyCode:
               (resutAccount[0]?.currencyCode as CurrencyCodeEnum) ??
               CurrencyCodeEnum.VES,
@@ -575,16 +595,16 @@ export class CreditPaidService implements OnModuleInit {
           accountingWarning = message;
           this.logger.error(
             `[create] ERROR generando asiento contable del pago de crédito. ` +
-            `creditId=${creditId} paymentId=${result?.insertedPaymentId} ` +
-            `amount=${amount} applied=${result?.appliedAmountExact} ` +
-            `principal=${roundedPrincipal} interest=${roundedInterest} ` +
-            `payment=${roundedPayment}`,
+              `creditId=${creditId} paymentId=${result?.insertedPaymentId} ` +
+              `amount=${amount} applied=${result?.appliedAmountExact} ` +
+              `principal=${roundedPrincipal} interest=${roundedInterest} ` +
+              `payment=${roundedPayment}`,
           );
           this.logger.error(
             `[create] Detalle del error: name=${errInfo?.name} message=${message}\n` +
-            `status=${errInfo?.response?.status} ` +
-            `response=${JSON.stringify(errInfo?.response?.data ?? null)}\n` +
-            `stack=${errInfo?.stack ?? '(sin stack)'}`,
+              `status=${errInfo?.response?.status} ` +
+              `response=${JSON.stringify(errInfo?.response?.data ?? null)}\n` +
+              `stack=${errInfo?.stack ?? '(sin stack)'}`,
           );
         }
       }
@@ -731,7 +751,8 @@ export class CreditPaidService implements OnModuleInit {
                 eq(credits.associateId, associate.id),
                 ne(credits.status, CreditStatusEnum.PAID),
               ),
-            );
+            )
+            .for('update');
 
           if (!credit) {
             results.errors.push({
@@ -744,9 +765,11 @@ export class CreditPaidService implements OnModuleInit {
           const installmentResult = await this._calculateCoveredInstallments(
             credit.id,
             item.amount,
+            tx,
           );
 
-          const appliedAmountExact = item.amount - installmentResult.remainingAmount;
+          const appliedAmountExact =
+            item.amount - installmentResult.remainingAmount;
 
           if (appliedAmountExact <= 0) {
             results.errors.push({
@@ -756,8 +779,10 @@ export class CreditPaidService implements OnModuleInit {
             continue;
           }
 
-          const currentBalance =
-            await this._calculateBalancePending(credit.id);
+          const currentBalance = await this._calculateBalancePending(
+            credit.id,
+            tx,
+          );
           let newBalancePending = Math.max(
             0,
             currentBalance - appliedAmountExact,
@@ -812,20 +837,27 @@ export class CreditPaidService implements OnModuleInit {
                 updatedById: userId,
                 paidAmount: sql`total_installment_amount`,
               })
-              .where(eq(creditAmortizationSchedule.id, inst.id));
+              .where(
+                and(
+                  eq(creditAmortizationSchedule.id, inst.id),
+                  ne(creditAmortizationSchedule.paymentStatus, 'PAID'),
+                ),
+              );
           }
 
           if (installmentResult.partialInstallment) {
             localPrincipal += installmentResult.partialInstallment.principal;
             localInterest += installmentResult.partialInstallment.interest;
 
+            const amountAppliedToPartial =
+              installmentResult.partialInstallment.paidAmount -
+              installmentResult.partialInstallment.originalPaidAmount;
+
             await tx
               .update(creditAmortizationSchedule)
               .set({
                 paymentStatus: 'PARTIAL',
-                paidAmount: String(
-                  installmentResult.partialInstallment.paidAmount,
-                ),
+                paidAmount: sql`${creditAmortizationSchedule.paidAmount} + ${amountAppliedToPartial.toFixed(6)}`,
                 updatedById: userId,
               })
               .where(
@@ -834,10 +866,6 @@ export class CreditPaidService implements OnModuleInit {
                   installmentResult.partialInstallment.id,
                 ),
               );
-
-            const amountAppliedToPartial =
-              installmentResult.partialInstallment.paidAmount -
-              installmentResult.partialInstallment.originalPaidAmount;
 
             await tx.insert(creditPaymentsDetails).values({
               creditPaymentId: insertedPayment.id,
@@ -945,8 +973,7 @@ export class CreditPaidService implements OnModuleInit {
               submodule: 'credits',
               category: 'SAVINGS_BANK',
               operationType: 'CREDIT_PAYMENT',
-              description:
-                `Carga Masiva Pagos de Créditos - ${results.totalProcessed} registros`,
+              description: `Carga Masiva Pagos de Créditos - ${results.totalProcessed} registros`,
               entryDate: finalPaymentDate,
               referenceValue: 'Pago Creditos',
               currencyCode: CurrencyCodeEnum.VES,
@@ -969,9 +996,10 @@ export class CreditPaidService implements OnModuleInit {
         } catch (error) {
           const errInfo = error as { message?: string; stack?: string };
           this.logger.error(
-            `[bulkUpload] Error generando asiento contable masivo: ${errInfo?.message ?? String(error)
+            `[bulkUpload] Error generando asiento contable masivo: ${
+              errInfo?.message ?? String(error)
             } ` +
-            `processed=${results.totalProcessed} principal=${bulkTotalPrincipal} interest=${bulkTotalInterest} applied=${totalAmountApplied}`,
+              `processed=${results.totalProcessed} principal=${bulkTotalPrincipal} interest=${bulkTotalInterest} applied=${totalAmountApplied}`,
           );
           this.logger.error(
             `[bulkUpload] Detalle: stack=${errInfo?.stack ?? '(sin stack)'}`,
@@ -1158,20 +1186,20 @@ export class CreditPaidService implements OnModuleInit {
 
     const creditAmortization = result[0]?.creditId
       ? await this.db
-        .select({
-          id: creditAmortizationSchedule.id,
-          quotaNumber: creditAmortizationSchedule.installmentNumber,
-          quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
-          quotaDate: creditAmortizationSchedule.dueDate,
-          quotaStatus: creditAmortizationSchedule.paymentStatus,
-          quotaPartial: creditAmortizationSchedule.paidAmount,
-          principalBalancePending:
-            creditAmortizationSchedule.principalBalancePending,
-          paidAmount: creditAmortizationSchedule.paidAmount,
-        })
-        .from(creditAmortizationSchedule)
-        .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
-        .orderBy(sql<string>`
+          .select({
+            id: creditAmortizationSchedule.id,
+            quotaNumber: creditAmortizationSchedule.installmentNumber,
+            quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+            quotaDate: creditAmortizationSchedule.dueDate,
+            quotaStatus: creditAmortizationSchedule.paymentStatus,
+            quotaPartial: creditAmortizationSchedule.paidAmount,
+            principalBalancePending:
+              creditAmortizationSchedule.principalBalancePending,
+            paidAmount: creditAmortizationSchedule.paidAmount,
+          })
+          .from(creditAmortizationSchedule)
+          .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
+          .orderBy(sql<string>`
     CASE payment_status
       WHEN 'PARTIAL' THEN 1
       WHEN 'PENDING' THEN 2
@@ -1336,6 +1364,29 @@ export class CreditPaidService implements OnModuleInit {
     }
 
     await this.db.transaction(async (tx) => {
+      const [lockedPayment] = await tx
+        .select()
+        .from(creditPayments)
+        .where(eq(creditPayments.id, paymentId))
+        .for('update');
+
+      if (!lockedPayment) {
+        throw new NotFoundException('Credit payment not found');
+      }
+      if (lockedPayment.status === 'CANCELED') {
+        throw new ConflictException('Credit payment is already canceled');
+      }
+
+      const [lockedCredit] = await tx
+        .select()
+        .from(credits)
+        .where(eq(credits.id, lockedPayment.creditId))
+        .for('update');
+
+      if (!lockedCredit) {
+        throw new NotFoundException('Credit not found');
+      }
+
       const details = await tx
         .select({
           id: creditPaymentsDetails.id,
@@ -1352,7 +1403,8 @@ export class CreditPaidService implements OnModuleInit {
             paidAmount: creditAmortizationSchedule.paidAmount,
           })
           .from(creditAmortizationSchedule)
-          .where(eq(creditAmortizationSchedule.id, detail.installmentId!));
+          .where(eq(creditAmortizationSchedule.id, detail.installmentId!))
+          .for('update');
 
         if (installment) {
           const currentPaid = Number(installment.paidAmount || 0);
@@ -1389,7 +1441,8 @@ export class CreditPaidService implements OnModuleInit {
         .where(eq(creditPayments.id, paymentId));
 
       const newBalancePending = await this._calculateBalancePending(
-        payment.creditId,
+        lockedPayment.creditId,
+        tx,
       );
       const newCreditStatus = newBalancePending <= 0 ? 'PAID' : 'IN_PAYMENT';
 
@@ -1400,7 +1453,7 @@ export class CreditPaidService implements OnModuleInit {
           balanceInFavor: '0',
           updatedById: userId,
         })
-        .where(eq(credits.id, payment.creditId));
+        .where(eq(credits.id, lockedPayment.creditId));
 
       await this.auditHelper.logCreate(
         userId,

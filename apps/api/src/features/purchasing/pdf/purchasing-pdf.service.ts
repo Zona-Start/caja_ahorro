@@ -5,13 +5,13 @@ import { Content, TDocumentDefinitions } from 'pdfmake/interfaces';
 import { PurchasingPdfConfig } from './purchasing-pdf.types';
 import {
   buildHeader,
-  buildSeparator,
-  buildSupplierSection,
-  buildItemsTable,
   buildInfoTable,
+  buildItemsTable,
   buildObservations,
   buildPaymentAppliedTable,
+  buildSeparator,
   buildSignatures,
+  buildSupplierSection,
   buildTotalsSummary,
 } from './templates/base.template';
 
@@ -24,15 +24,45 @@ interface ReportOptions {
 export class PurchasingPdfService {
   private fonts = {
     Roboto: {
-      normal: join(__dirname, '..', '..', '..', 'common', 'assets', 'fonts', 'Roboto-Regular.ttf'),
-      bold: join(__dirname, '..', '..', '..', 'common', 'assets', 'fonts', 'Roboto-Medium.ttf'),
-      italics: join(__dirname, '..', '..', '..', 'common', 'assets', 'fonts', 'Roboto-Italic.ttf'),
+      normal: join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'common',
+        'assets',
+        'fonts',
+        'Roboto-Regular.ttf',
+      ),
+      bold: join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'common',
+        'assets',
+        'fonts',
+        'Roboto-Medium.ttf',
+      ),
+      italics: join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'common',
+        'assets',
+        'fonts',
+        'Roboto-Italic.ttf',
+      ),
     },
   };
 
   private printer = new PdfPrinter(this.fonts);
 
-  generate(config: PurchasingPdfConfig, options: ReportOptions = {}): PDFKit.PDFDocument {
+  generate(
+    config: PurchasingPdfConfig,
+    options: ReportOptions = {},
+  ): PDFKit.PDFDocument {
     const { orientation = 'portrait', pageSize = 'LETTER' } = options;
 
     const content: Content[] = [];
@@ -45,7 +75,10 @@ export class PurchasingPdfService {
     content.push(buildSupplierSection(config));
 
     // 3. Info adicional (solo si hay dueDate, moneda extranjera, etc.)
-    if (config.dueDate || (config.exchangeRate && config.currencyCode !== 'VES')) {
+    if (
+      config.dueDate ||
+      (config.exchangeRate && config.currencyCode !== 'VES')
+    ) {
       content.push(buildInfoTable(config));
     }
 
@@ -56,12 +89,26 @@ export class PurchasingPdfService {
 
     // 5. Detalles de pago (solo para pagos)
     if (config.paymentInfo) {
-      content.push(buildPaymentAppliedTable(config.paymentInfo.appliedAccountsPayable, config.currencyCode));
+      content.push(
+        buildPaymentAppliedTable(
+          config.paymentInfo.appliedAccountsPayable,
+          config.currencyCode,
+        ),
+      );
     }
 
     // 6. Totales
-    const isForeignCurrency = !!config.exchangeRate && config.currencyCode !== 'VES';
-    content.push(buildTotalsSummary(config.totals, config.subtotals, config.currencyCode, config.exchangeRate, isForeignCurrency));
+    const isForeignCurrency =
+      !!config.exchangeRate && config.currencyCode !== 'VES';
+    content.push(
+      buildTotalsSummary(
+        config.totals,
+        config.subtotals,
+        config.currencyCode,
+        config.exchangeRate,
+        isForeignCurrency,
+      ),
+    );
 
     // 7. Observaciones
     if (config.observations) {
@@ -78,8 +125,19 @@ export class PurchasingPdfService {
       header: () => ({
         margin: [40, 8, 40, 0],
         columns: [
-          { width: '*', text: config.tenant.name, fontSize: 7, color: '#94a3b8' },
-          { width: 'auto', text: new Date().toLocaleDateString('es-VE'), fontSize: 7, color: '#94a3b8', alignment: 'right' },
+          {
+            width: '*',
+            text: config.tenant.name,
+            fontSize: 7,
+            color: '#94a3b8',
+          },
+          {
+            width: 'auto',
+            text: new Date().toLocaleDateString('es-VE'),
+            fontSize: 7,
+            color: '#94a3b8',
+            alignment: 'right',
+          },
         ],
       }),
       footer: (_currentPage: number, pageCount: number) => ({
@@ -91,7 +149,12 @@ export class PurchasingPdfService {
       }),
       content,
       styles: {
-        tableHeader: { bold: true, fontSize: 8, fillColor: '#f1f5f9', margin: [0, 3, 0, 3] },
+        tableHeader: {
+          bold: true,
+          fontSize: 8,
+          fillColor: '#f1f5f9',
+          margin: [0, 3, 0, 3],
+        },
       },
       defaultStyle: { font: 'Roboto', fontSize: 8 },
     };

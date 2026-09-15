@@ -7,7 +7,12 @@ import { PurchaseOrdersController } from './purchase-orders.controller';
 import { PurchaseOrdersService } from './purchase-orders.service';
 
 @Module({
-  imports: [DrizzleModule, GenerateCodeModule, TenantContextModule, PurchasingPdfModule],
+  imports: [
+    DrizzleModule,
+    GenerateCodeModule,
+    TenantContextModule,
+    PurchasingPdfModule,
+  ],
   controllers: [PurchaseOrdersController],
   providers: [PurchaseOrdersService],
   exports: [PurchaseOrdersService],

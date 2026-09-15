@@ -19,7 +19,6 @@ import {
   ApplyAdvanceSchema,
   ApplyCreditNoteSchema,
   ApplyDebitNoteSchema,
-  UnapplyTransactionSchema,
   UpdateAccountPayableSchema,
 } from './dto/accounts-payable.schema';
 
@@ -29,7 +28,7 @@ export class AccountsPayableController {
   constructor(
     private readonly service: AccountsPayableService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Get('/paginated')
   @ApiOperation({ summary: 'Get all accounts payable' })
@@ -108,11 +107,7 @@ export class AccountsPayableController {
   @UsePipes(new ZodValidatorPipe(UpdateAccountPayableSchema))
   @ApiOperation({ summary: 'Update an account payable' })
   @ApiResponse({ status: 200, description: 'Account payable updated.' })
-  async update(
-    @Req() req: any,
-    @Param('id') id: string,
-    @Body() dto: any,
-  ) {
+  async update(@Req() req: any, @Param('id') id: string, @Body() dto: any) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     const data = await this.service.update(userId, id, dto, targetTenantId);
@@ -144,12 +139,7 @@ export class AccountsPayableController {
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return await this.service.applyCreditNote(
-      userId,
-      id,
-      dto,
-      targetTenantId,
-    );
+    return await this.service.applyCreditNote(userId, id, dto, targetTenantId);
   }
 
   @Post('/:id/apply-debit-note')
@@ -163,12 +153,7 @@ export class AccountsPayableController {
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return await this.service.applyDebitNote(
-      userId,
-      id,
-      dto,
-      targetTenantId,
-    );
+    return await this.service.applyDebitNote(userId, id, dto, targetTenantId);
   }
 
   @Post('/:id/apply-advance')
@@ -182,12 +167,7 @@ export class AccountsPayableController {
   ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return await this.service.applyAdvance(
-      userId,
-      id,
-      dto,
-      targetTenantId,
-    );
+    return await this.service.applyAdvance(userId, id, dto, targetTenantId);
   }
 
   @Post('/:id/unapply/:applicationId')

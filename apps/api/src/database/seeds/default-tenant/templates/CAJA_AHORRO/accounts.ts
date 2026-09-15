@@ -3222,7 +3222,7 @@ const _ACCOUNTS_CHUNK_0: AccountEntry[] = [
     allowsMovements: false,
     isActive: true,
     parentCode: '141.03.00.00',
-  }
+  },
 ];
 
 const _ACCOUNTS_CHUNK_1: AccountEntry[] = [
@@ -6445,7 +6445,7 @@ const _ACCOUNTS_CHUNK_1: AccountEntry[] = [
     allowsMovements: false,
     isActive: true,
     parentCode: '351.00.00.00',
-  }
+  },
 ];
 
 const _ACCOUNTS_CHUNK_2: AccountEntry[] = [
@@ -9648,7 +9648,7 @@ const _ACCOUNTS_CHUNK_2: AccountEntry[] = [
     allowsMovements: true,
     isActive: true,
     parentCode: '524.08.03.00',
-  }
+  },
 ];
 
 const _ACCOUNTS_CHUNK_3: AccountEntry[] = [
@@ -12821,7 +12821,7 @@ const _ACCOUNTS_CHUNK_3: AccountEntry[] = [
     allowsMovements: false,
     isActive: true,
     parentCode: '714.00.00.00',
-  }
+  },
 ];
 
 export const ACCOUNTS: AccountEntry[] = [

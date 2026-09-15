@@ -98,6 +98,18 @@ const routes: RouteConfig = [
       'routes/dashboard/savings/savings-credit-types.tsx',
     ),
 
+    // ── Módulo de Gastos y Cajas ──
+    route('gastos/registrar', 'routes/dashboard/expenses/expenses.tsx'),
+    route('gastos/cajas', 'routes/dashboard/expenses/cash-registers.tsx'),
+    route('gastos/centros-costo', 'routes/dashboard/expenses/cost-centers.tsx'),
+    route(
+      'gastos/categorias',
+      'routes/dashboard/expenses/expense-categories.tsx',
+    ),
+    route('gastos/recurrentes', 'routes/dashboard/expenses/recurring.tsx'),
+    route('gastos/reembolsos', 'routes/dashboard/expenses/expense-reports.tsx'),
+    route('gastos/fondos-fijos', 'routes/dashboard/expenses/petty-cash.tsx'),
+
     // ── Módulo de Reportes ──
     route(
       'reportes/socios-haberes',
@@ -107,10 +119,7 @@ const routes: RouteConfig = [
       'reportes/prestamos',
       'routes/dashboard/reports/reports-prestamos.tsx',
     ),
-    route(
-      'reportes/creditos',
-      'routes/dashboard/reports/reports-creditos.tsx',
-    ),
+    route('reportes/creditos', 'routes/dashboard/reports/reports-creditos.tsx'),
 
     // ── Módulo de Inventario ──
     route(
@@ -149,7 +158,10 @@ const routes: RouteConfig = [
       'routes/dashboard/purchasing/supplier-invoices.tsx',
     ),
     route('compras/pagos', 'routes/dashboard/purchasing/supplier-payments.tsx'),
-    route('compras/estado-cuenta', 'routes/dashboard/purchasing/supplier-statement.tsx'),
+    route(
+      'compras/estado-cuenta',
+      'routes/dashboard/purchasing/supplier-statement.tsx',
+    ),
     route('compras/reportes', 'routes/dashboard/purchasing/reports.tsx'),
 
     // ── Módulo de Configuración ──
@@ -168,6 +180,10 @@ const routes: RouteConfig = [
     route(
       'configuracion/monedas',
       'routes/dashboard/configuracion/monedas.tsx',
+    ),
+    route(
+      'configuracion/tasas-de-cambio',
+      'routes/dashboard/configuracion/tasas-de-cambio.tsx',
     ),
     route(
       'configuracion/bancos',

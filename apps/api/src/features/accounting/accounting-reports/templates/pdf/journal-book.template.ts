@@ -74,7 +74,11 @@ export function buildJournalBookTableContent(
                 { text: 'TOTALES', bold: true, colSpan: 2 },
                 {},
                 { text: fmt(entry.totalDebit), bold: true, alignment: 'right' },
-                { text: fmt(entry.totalCredit), bold: true, alignment: 'right' },
+                {
+                  text: fmt(entry.totalCredit),
+                  bold: true,
+                  alignment: 'right',
+                },
               ],
             ],
           },

@@ -160,6 +160,14 @@ export const associateAccountMovements = savingsSchema.table(
     movementType: associateMovementTypeEnum('movement_type').notNull(),
     amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto siempre positivo
     currencyCode: currencyCodeEnum('currency_code').notNull(), // Moneda de la transacción
+    // ── Bimonetario ──
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     transactionDate: timestamp('transaction_date').notNull().defaultNow(), // Fecha y hora de la transacción
     description: text('description'),
     referenceId: text('reference_id'), // ID de la operación origen
@@ -299,6 +307,14 @@ export const withdrawalsAssociates = savingsSchema.table(
       scale: 6,
     }).default('0.00'),
     disbursedAmount: numeric('disbursed_amount', { precision: 20, scale: 6 }), // Monto neto desembolsado (requestedAmount - administrativeFee)
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     paymentMethod: paymentMethodEnum('payment_method'), // Ej: 'Transferencia', 'Cheque', 'Efectivo'
     referenceCode: varchar('reference_code', { length: 100 }).unique(), // Código de referencia único generado por el backend
     status: withdrawalStatusEnum('status').default('REQUESTED').notNull(),
@@ -463,6 +479,14 @@ export const loans = savingsSchema.table(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
     ),
+    // ── Bimonetario ──
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     balanceInFavor: numeric('balance_in_favor', { precision: 20, scale: 6 }), // balance a favor si aplica
     interestRate: numeric('interest_rate', {
       precision: 5,
@@ -507,6 +531,14 @@ export const loanAmortizationSchedule = savingsSchema.table(
       precision: 20,
       scale: 6,
     }).notNull(), // Total a pagar en esta cuota
+    // ── Bimonetario ──
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     principalBalancePending: numeric('principal_balance_pending', {
       precision: 20,
       scale: 6,
@@ -566,6 +598,14 @@ export const loanPayments = savingsSchema.table(
     paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
     paymentType: loanPaymentTypeEnum('payment-type').notNull(),
     amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto pagado
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     balancePending: numeric('balance_pending', {
       precision: 18,
       scale: 2,
@@ -743,6 +783,14 @@ export const credits = savingsSchema.table(
       () => exchangeRates.id,
       { onDelete: 'set null' }, // O 'restrict' según tus necesidades
     ),
+    // ── Bimonetario ──
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     balanceInFavor: numeric('balance_in_favor', { precision: 20, scale: 6 }), // balance a favor si aplica
     commercialHouseId: uuid('commercial_house_id'),
     invoiceNumber: varchar('invoice_number', { length: 50 }),
@@ -793,6 +841,14 @@ export const creditAmortizationSchedule = savingsSchema.table(
       precision: 20,
       scale: 6,
     }).notNull(), // Total a pagar en esta cuota
+    // ── Bimonetario ──
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     principalBalancePending: numeric('principal_balance_pending', {
       precision: 20,
       scale: 6,
@@ -851,6 +907,14 @@ export const creditPayments = savingsSchema.table(
     paymentDate: timestamp('payment_date').notNull().defaultNow(), // fecha del pago
     paymentType: creditPaymentTypeEnum('payment-type').notNull(),
     amount: numeric('amount', { precision: 20, scale: 6 }).notNull(), // Monto pagado
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     balancePending: numeric('balance_pending', {
       precision: 20,
       scale: 6,
@@ -915,6 +979,13 @@ export const liquidationsAssociates = savingsSchema.table(
     liquidationDate: date('liquidation_date').notNull().defaultNow(), // Fecha en que se procesó la liquidación
     effectiveDate: date('effective_date'), // Opcional: Si la liquidación tiene una fecha efectiva diferente
     currencyCode: currencyCodeEnum('currency_code').notNull(), // Moneda de la liquidación
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     totalSavingsBalanceAtLiquidation: numeric(
       'total_savings_balance_at_liquidation',
       { precision: 18, scale: 4 },
@@ -1005,6 +1076,13 @@ export const paymentBatches = savingsSchema.table('payment_batches', {
     .notNull()
     .default('0'),
   currencyCode: currencyCodeEnum('currency_code').notNull(),
+  exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+  amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+    .notNull()
+    .default('0.00'),
+  amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+    .notNull()
+    .default('0.00'),
   bankId: uuid('bank_id').references(() => bankAccounts.id, {
     onDelete: 'set null',
   }),
@@ -1066,6 +1144,14 @@ export const contributionBatches = savingsSchema.table(
       precision: 20,
       scale: 6,
     }).notNull(),
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+    exchangeRate: numeric('exchange_rate', { precision: 14, scale: 6 }),
+    amountBase: numeric('amount_base', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
+    amountForeign: numeric('amount_foreign', { precision: 18, scale: 4 })
+      .notNull()
+      .default('0.00'),
     associateCount: integer('associate_count').notNull().default(1),
     status: varchar('status', { enum: ['completed', 'reversed'] })
       .notNull()

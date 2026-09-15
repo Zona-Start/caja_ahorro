@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { GeneralLedgerDto } from '../dto/general-ledger.dto';
 import { buildGeneralLedgerTableContent } from '../templates/pdf/general-ledger.template';
 
@@ -76,9 +76,7 @@ export class GeneralLedgerService {
         );
     }
 
-    const balanceMap = new Map(
-      balances.map((b) => [b.accountPlanId, b]),
-    );
+    const balanceMap = new Map(balances.map((b) => [b.accountPlanId, b]));
 
     // Get movements for these accounts
     const entryConditions: any[] = [

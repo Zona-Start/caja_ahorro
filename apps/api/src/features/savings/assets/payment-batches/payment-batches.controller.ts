@@ -27,10 +27,13 @@ export class PaymentBatchesController {
   constructor(
     private readonly paymentBatchesService: PaymentBatchesService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
-  async create(@Req() req: Request, @Body(new ZodValidatorPipe(CreatePaymentBatchSchema)) dto: any) {
+  async create(
+    @Req() req: Request,
+    @Body(new ZodValidatorPipe(CreatePaymentBatchSchema)) dto: any,
+  ) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     return this.paymentBatchesService.create(targetTenantId, userId, dto);
@@ -47,8 +50,6 @@ export class PaymentBatchesController {
     );
     return this.paymentBatchesService.findAll(dto, targetTenantId);
   }
-
-
 
   @Patch(':id/uploaded')
   @ApiOperation({
@@ -107,12 +108,9 @@ export class PaymentBatchesController {
     });
   }
 
-
   @Get(':id')
   async findOne(@Param('id') id: string, @Req() req: Request) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     return this.paymentBatchesService.findOne(id, targetTenantId);
   }
-
-
 }

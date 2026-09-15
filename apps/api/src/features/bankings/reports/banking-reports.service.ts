@@ -1,15 +1,15 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq, gte, lte, ne, sql, isNull, or } from 'drizzle-orm';
+import { and, eq, gte, lte, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import {
-  buildReconciliationActTable,
-  buildPendingItemsTable,
-  buildConsolidatedPositionTable,
   buildAuxiliaryBookTable,
+  buildConsolidatedPositionTable,
+  buildPendingItemsTable,
+  buildReconciliationActTable,
 } from './templates/pdf/banking-report.template';
 
 @Injectable()
@@ -24,29 +24,54 @@ export class BankingReportsService {
     const [recon] = await this.drizzle
       .select()
       .from(schema.bankReconciliations)
-      .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankReconciliations.id, reconciliationId),
+          eq(schema.bankReconciliations.tenantId, tenantId),
+        ),
+      );
 
     if (!recon) throw new NotFoundException('Conciliación no encontrada');
 
     const [bankAccount] = await this.drizzle
       .select()
       .from(schema.bankAccounts)
-      .where(and(eq(schema.bankAccounts.id, recon.bankAccountId), eq(schema.bankAccounts.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankAccounts.id, recon.bankAccountId),
+          eq(schema.bankAccounts.tenantId, tenantId),
+        ),
+      );
 
     const statementLines = await this.drizzle
       .select()
       .from(schema.bankStatementLines)
-      .where(and(eq(schema.bankStatementLines.bankReconciliationId, reconciliationId), eq(schema.bankStatementLines.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankStatementLines.bankReconciliationId, reconciliationId),
+          eq(schema.bankStatementLines.tenantId, tenantId),
+        ),
+      );
 
     const details = await this.drizzle
       .select()
       .from(schema.bankReconciliationDetails)
-      .where(eq(schema.bankReconciliationDetails.bankReconciliationId, reconciliationId));
+      .where(
+        eq(
+          schema.bankReconciliationDetails.bankReconciliationId,
+          reconciliationId,
+        ),
+      );
 
     const matchedTxns = await this.drizzle
       .select()
       .from(schema.bankTransactions)
-      .where(and(eq(schema.bankTransactions.bankReconciliationId, reconciliationId), eq(schema.bankTransactions.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankTransactions.bankReconciliationId, reconciliationId),
+          eq(schema.bankTransactions.tenantId, tenantId),
+        ),
+      );
 
     return {
       reconciliation: recon,
@@ -70,17 +95,34 @@ export class BankingReportsService {
       { header: 'Valor', key: 'value', width: 20 },
     ];
 
-    ws.addRow({ concept: 'ACTA DE CONCILIACIÓN BANCARIA', value: '' }).font = { bold: true, size: 14 };
-    ws.addRow({ concept: `Cuenta: ${data.bankAccount?.accountName || ''} - ${data.bankAccount?.accountNumber || ''}`, value: '' });
+    ws.addRow({ concept: 'ACTA DE CONCILIACIÓN BANCARIA', value: '' }).font = {
+      bold: true,
+      size: 14,
+    };
+    ws.addRow({
+      concept: `Cuenta: ${data.bankAccount?.accountName || ''} - ${data.bankAccount?.accountNumber || ''}`,
+      value: '',
+    });
     ws.addRow({ concept: `Fecha Corte: ${recon.statementDate}`, value: '' });
     ws.addRow({ concept: `Estado: ${recon.status}`, value: '' });
     ws.addRow({ concept: '', value: '' });
-    ws.addRow({ concept: 'Saldo según Extracto Bancario', value: Number(recon.statementEndingBalance) || 0 });
-    ws.addRow({ concept: 'Saldo según Libros (Antes)', value: Number(recon.bookBalanceBefore) || 0 });
-    ws.addRow({ concept: 'Saldo según Libros (Después)', value: Number(recon.bookBalanceAfter) || 0 });
+    ws.addRow({
+      concept: 'Saldo según Extracto Bancario',
+      value: Number(recon.statementEndingBalance) || 0,
+    });
+    ws.addRow({
+      concept: 'Saldo según Libros (Antes)',
+      value: Number(recon.bookBalanceBefore) || 0,
+    });
+    ws.addRow({
+      concept: 'Saldo según Libros (Después)',
+      value: Number(recon.bookBalanceAfter) || 0,
+    });
     ws.addRow({ concept: 'Diferencia', value: Number(recon.difference) || 0 });
     ws.addRow({ concept: '', value: '' });
-    ws.addRow({ concept: 'LÍNEAS DEL EXTRACTO', value: '' }).font = { bold: true };
+    ws.addRow({ concept: 'LÍNEAS DEL EXTRACTO', value: '' }).font = {
+      bold: true,
+    };
 
     const linesWs = workbook.addWorksheet('Líneas Extracto');
     linesWs.columns = [
@@ -111,7 +153,8 @@ export class BankingReportsService {
       eq(schema.bankTransactions.tenantId, tenantId),
       eq(schema.bankTransactions.reconciliationStatus, 'PENDING'),
     ];
-    if (bankAccountId) conditions.push(eq(schema.bankTransactions.bankAccountId, bankAccountId));
+    if (bankAccountId)
+      conditions.push(eq(schema.bankTransactions.bankAccountId, bankAccountId));
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - daysOld);
@@ -119,13 +162,29 @@ export class BankingReportsService {
     const oldTransactions = await this.drizzle
       .select()
       .from(schema.bankTransactions)
-      .where(and(...conditions, lte(schema.bankTransactions.transactionDate, cutoff.toISOString().split('T')[0])))
+      .where(
+        and(
+          ...conditions,
+          lte(
+            schema.bankTransactions.transactionDate,
+            cutoff.toISOString().split('T')[0],
+          ),
+        ),
+      )
       .orderBy(sql`${schema.bankTransactions.transactionDate} asc`);
 
-    return { items: oldTransactions, count: oldTransactions.length, daysThreshold: daysOld };
+    return {
+      items: oldTransactions,
+      count: oldTransactions.length,
+      daysThreshold: daysOld,
+    };
   }
 
-  async pendingItemsExcel(tenantId: string, bankAccountId?: string, daysOld = 30) {
+  async pendingItemsExcel(
+    tenantId: string,
+    bankAccountId?: string,
+    daysOld = 30,
+  ) {
     const data = await this.pendingItems(tenantId, bankAccountId, daysOld);
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet('Partidas Pendientes');
@@ -141,7 +200,9 @@ export class BankingReportsService {
     ];
 
     for (const t of data.items as any[]) {
-      const age = Math.floor((Date.now() - new Date(t.transactionDate).getTime()) / 86400000);
+      const age = Math.floor(
+        (Date.now() - new Date(t.transactionDate).getTime()) / 86400000,
+      );
       ws.addRow({
         code: t.internalCode,
         date: t.transactionDate,
@@ -161,23 +222,35 @@ export class BankingReportsService {
     const accounts = await this.drizzle
       .select()
       .from(schema.bankAccounts)
-      .where(and(eq(schema.bankAccounts.tenantId, tenantId), eq(schema.bankAccounts.isActive, true)));
+      .where(
+        and(
+          eq(schema.bankAccounts.tenantId, tenantId),
+          eq(schema.bankAccounts.isActive, true),
+        ),
+      );
 
     const result: any[] = [];
     for (const acc of accounts) {
       const [txnCount] = await this.drizzle
         .select({ count: sql<number>`count(*)` })
         .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.bankAccountId, acc.id), eq(schema.bankTransactions.tenantId, tenantId)));
+        .where(
+          and(
+            eq(schema.bankTransactions.bankAccountId, acc.id),
+            eq(schema.bankTransactions.tenantId, tenantId),
+          ),
+        );
 
       const [recCount] = await this.drizzle
         .select({ count: sql<number>`count(*)` })
         .from(schema.bankTransactions)
-        .where(and(
-          eq(schema.bankTransactions.bankAccountId, acc.id),
-          eq(schema.bankTransactions.tenantId, tenantId),
-          eq(schema.bankTransactions.reconciliationStatus, 'PENDING'),
-        ));
+        .where(
+          and(
+            eq(schema.bankTransactions.bankAccountId, acc.id),
+            eq(schema.bankTransactions.tenantId, tenantId),
+            eq(schema.bankTransactions.reconciliationStatus, 'PENDING'),
+          ),
+        );
 
       result.push({
         id: acc.id,
@@ -228,13 +301,19 @@ export class BankingReportsService {
   }
 
   // ── 4. Libro Auxiliar de Bancos ──
-  async auxiliaryBook(tenantId: string, bankAccountId: string, dateFrom?: string, dateTo?: string) {
-    const conditions: any[] = [
-      eq(schema.bankTransactions.tenantId, tenantId),
-    ];
-    if (bankAccountId) conditions.push(eq(schema.bankTransactions.bankAccountId, bankAccountId));
-    if (dateFrom) conditions.push(gte(schema.bankTransactions.transactionDate, dateFrom));
-    if (dateTo) conditions.push(lte(schema.bankTransactions.transactionDate, dateTo));
+  async auxiliaryBook(
+    tenantId: string,
+    bankAccountId: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ) {
+    const conditions: any[] = [eq(schema.bankTransactions.tenantId, tenantId)];
+    if (bankAccountId)
+      conditions.push(eq(schema.bankTransactions.bankAccountId, bankAccountId));
+    if (dateFrom)
+      conditions.push(gte(schema.bankTransactions.transactionDate, dateFrom));
+    if (dateTo)
+      conditions.push(lte(schema.bankTransactions.transactionDate, dateTo));
 
     const transactions = await this.drizzle
       .select()
@@ -245,7 +324,12 @@ export class BankingReportsService {
     const [bankAccount] = await this.drizzle
       .select()
       .from(schema.bankAccounts)
-      .where(and(eq(schema.bankAccounts.id, bankAccountId), eq(schema.bankAccounts.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankAccounts.id, bankAccountId),
+          eq(schema.bankAccounts.tenantId, tenantId),
+        ),
+      );
 
     return {
       bankAccount: bankAccount || null,
@@ -254,8 +338,18 @@ export class BankingReportsService {
     };
   }
 
-  async auxiliaryBookExcel(tenantId: string, bankAccountId: string, dateFrom?: string, dateTo?: string) {
-    const data = await this.auxiliaryBook(tenantId, bankAccountId, dateFrom, dateTo);
+  async auxiliaryBookExcel(
+    tenantId: string,
+    bankAccountId: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ) {
+    const data = await this.auxiliaryBook(
+      tenantId,
+      bankAccountId,
+      dateFrom,
+      dateTo,
+    );
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet('Auxiliar Bancos');
 
@@ -289,24 +383,53 @@ export class BankingReportsService {
   async reconciliationActPdf(id: string, tenantId: string) {
     const data = await this.reconciliationAct(id, tenantId);
     const content = buildReconciliationActTable(data);
-    return this.pdfService.generateReport('ACTA DE CONCILIACIÓN BANCARIA', content, { orientation: 'landscape', pageSize: 'LETTER' });
+    return this.pdfService.generateReport(
+      'ACTA DE CONCILIACIÓN BANCARIA',
+      content,
+      { orientation: 'landscape', pageSize: 'LETTER' },
+    );
   }
 
-  async pendingItemsPdf(tenantId: string, bankAccountId?: string, daysOld = 30) {
+  async pendingItemsPdf(
+    tenantId: string,
+    bankAccountId?: string,
+    daysOld = 30,
+  ) {
     const data = await this.pendingItems(tenantId, bankAccountId, daysOld);
     const content = buildPendingItemsTable(data);
-    return this.pdfService.generateReport('PARTIDAS PENDIENTES DE CONCILIAR', content, { orientation: 'landscape', pageSize: 'LETTER' });
+    return this.pdfService.generateReport(
+      'PARTIDAS PENDIENTES DE CONCILIAR',
+      content,
+      { orientation: 'landscape', pageSize: 'LETTER' },
+    );
   }
 
   async consolidatedPositionPdf(tenantId: string) {
     const data = await this.consolidatedPosition(tenantId);
     const content = buildConsolidatedPositionTable(data);
-    return this.pdfService.generateReport('POSICIÓN CONSOLIDADA DE BANCOS', content, { orientation: 'landscape', pageSize: 'LETTER' });
+    return this.pdfService.generateReport(
+      'POSICIÓN CONSOLIDADA DE BANCOS',
+      content,
+      { orientation: 'landscape', pageSize: 'LETTER' },
+    );
   }
 
-  async auxiliaryBookPdf(tenantId: string, bankAccountId: string, dateFrom?: string, dateTo?: string) {
-    const data = await this.auxiliaryBook(tenantId, bankAccountId, dateFrom, dateTo);
+  async auxiliaryBookPdf(
+    tenantId: string,
+    bankAccountId: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ) {
+    const data = await this.auxiliaryBook(
+      tenantId,
+      bankAccountId,
+      dateFrom,
+      dateTo,
+    );
     const content = buildAuxiliaryBookTable(data);
-    return this.pdfService.generateReport('LIBRO AUXILIAR DE BANCOS', content, { orientation: 'landscape', pageSize: 'LETTER' });
+    return this.pdfService.generateReport('LIBRO AUXILIAR DE BANCOS', content, {
+      orientation: 'landscape',
+      pageSize: 'LETTER',
+    });
   }
 }

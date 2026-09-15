@@ -12,6 +12,8 @@ export const EMPRESA_COMERCIAL_TEMPLATE: BusinessTypeTemplate = {
     'TREASURY',
     'HR_PAYROLL',
     'AUDIT',
+    'IAM',
+    'SYSTEM',
   ],
 
   roles: [
@@ -44,6 +46,18 @@ export const EMPRESA_COMERCIAL_TEMPLATE: BusinessTypeTemplate = {
       value: '16',
       description: 'Porcentaje de IVA para Compras',
       category: 'inventory',
+    },
+    {
+      key: 'VAT_RATE',
+      value: '16',
+      description: 'Porcentaje de retención de IVA para Gastos',
+      category: 'expenses',
+    },
+    {
+      key: 'ISLR_RATE',
+      value: '3',
+      description: 'Porcentaje de retención de ISLR para Gastos',
+      category: 'expenses',
     },
     {
       key: 'DEFAULT_CURRENCY',
@@ -311,3 +325,51 @@ export const EMPRESA_COMERCIAL_TEMPLATE: BusinessTypeTemplate = {
     { type: 'account_type', code: 'ahorro', name: 'Ahorro' },
   ],
 };
+
+
+export const expenseCategories = [
+  // --- SERVICIOS PÚBLICOS Y OFICINA ---
+  { name: 'Electricidad y Energía', isActive: true },
+  { name: 'Agua Potable', isActive: true },
+  { name: 'Internet y Telecomunicaciones', isActive: true },
+  { name: 'Alquiler de Oficinas / Locales', isActive: true },
+  { name: 'Papelería y Útiles de Oficina', isActive: true },
+  { name: 'Limpieza y Mantenimiento', isActive: true },
+
+  // --- TECNOLOGÍA Y SOFTWARE ---
+  { name: 'Suscripciones Software / SaaS', isActive: true },
+  { name: 'Hosting y Servicios Cloud', isActive: true },
+  { name: 'Soporte y Equipos Tecnológicos', isActive: true },
+
+  // --- LOGÍSTICA Y TRANSPORTE ---
+  { name: 'Combustible y Lubricantes', isActive: true },
+  { name: 'Peajes y Estacionamientos', isActive: true },
+  { name: 'Mantenimiento de Vehículos', isActive: true },
+  { name: 'Servicios de Delivery / Envíos', isActive: true },
+
+  // --- VIÁTICOS Y GASTOS DE REPRESENTACIÓN ---
+  { name: 'Transporte y Taxis (Uber/Didi)', isActive: true },
+  { name: 'Alimentación y Cenas de Negocios', isActive: true },
+  { name: 'Hospedaje y Hoteles', isActive: true },
+  { name: 'Pasajes Aéreos / Terrestres', isActive: true },
+
+  // --- MARKETING Y VENTAS ---
+  { name: 'Publicidad Digital (Meta/Google Ads)', isActive: true },
+  { name: 'Eventos y Material POP', isActive: true },
+  { name: 'Comisiones por Ventas', isActive: true },
+
+  // --- RECURSOS HUMANOS / BIENESTAR ---
+  { name: 'Seguros y Gastos Médicos', isActive: true },
+  { name: 'Capacitaciones y Cursos', isActive: true },
+  { name: 'Cafetería y Snacks para Empleados', isActive: true },
+  { name: 'Uniformes y Ropa de Trabajo', isActive: true },
+
+  // --- FINANCIEROS Y LEGALES ---
+  { name: 'Comisiones Bancarias', isActive: true },
+  { name: 'Honorarios Profesionales (Abogados/Contadores)', isActive: true },
+  { name: 'Patentes, Tasas e Impuestos Municipales', isActive: true },
+  { name: 'Multas y Sanciones', isActive: true },
+
+  // --- OTROS ---
+  { name: 'Gastos Menores / Varios', isActive: true }
+];

@@ -3,7 +3,11 @@ import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class PurchasingXlsxService {
-  generateReport(columns: string[], rows: any[][], sheetName = 'Reporte'): Promise<Buffer> {
+  generateReport(
+    columns: string[],
+    rows: any[][],
+    sheetName = 'Reporte',
+  ): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet(sheetName);
 
@@ -15,12 +19,18 @@ export class PurchasingXlsxService {
 
     const headerRow = sheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F497D' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F497D' },
+    };
     headerRow.alignment = { horizontal: 'center' };
 
     for (const row of rows) {
       const dataRow: Record<string, any> = {};
-      row.forEach((val, i) => { dataRow[`col${i}`] = val; });
+      row.forEach((val, i) => {
+        dataRow[`col${i}`] = val;
+      });
       sheet.addRow(dataRow);
     }
 

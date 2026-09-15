@@ -10,6 +10,7 @@ export interface LoanInfo {
   status: string;
   currencyCode: string | null;
   associateFullname: string | null;
+  loanTypeName?: string | null;
 }
 
 export interface PaidInstallmentDetail {

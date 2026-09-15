@@ -1,3 +1,4 @@
+import { CurrencyCodeEnum } from '@/types/enum';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
@@ -17,6 +18,15 @@ export const CreateAccountingEntryDetailSchema = z
       .string()
       .min(0, 'El crédito no puede ser negativo')
       .default('0.00'),
+
+    // ── Bimonetario ──
+    debitBase: z.coerce.string().default('0.00'),
+    creditBase: z.coerce.string().default('0.00'),
+    debitForeign: z.coerce.string().default('0.00'),
+    creditForeign: z.coerce.string().default('0.00'),
+    exchangeRate: z.coerce.number().positive().optional(),
+    currencyCode: z.nativeEnum(CurrencyCodeEnum).optional(),
+
     associateId: z.string().uuid().optional().nullable(),
     supplierId: z.string().uuid().optional().nullable(),
     description: z

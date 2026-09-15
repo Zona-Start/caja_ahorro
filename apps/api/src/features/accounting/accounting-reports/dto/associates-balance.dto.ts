@@ -10,4 +10,6 @@ export const AssociatesBalanceSchema = z.object({
   format: z.enum(['json', 'pdf']).optional().default('json'),
 });
 
-export class AssociatesBalanceDto extends createZodDto(AssociatesBalanceSchema) {}
+export class AssociatesBalanceDto extends createZodDto(
+  AssociatesBalanceSchema,
+) {}

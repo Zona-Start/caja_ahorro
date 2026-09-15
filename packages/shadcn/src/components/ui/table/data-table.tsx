@@ -92,11 +92,11 @@ export function DataTable<TData, TValue>({
     <div className="flex flex-col space-y-4 w-full">
       <div className="rounded-md border bg-card overflow-x-auto">
         <Table>
-          <TableHeader className="bg-primary/80">
+          <TableHeader className="bg-primary ">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap text-foreground">
+                  <TableHead key={header.id} className="whitespace-nowrap text-white">
                     {header.isPlaceholder
                       ? null
                       : flexRender(

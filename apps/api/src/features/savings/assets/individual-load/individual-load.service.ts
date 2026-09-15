@@ -228,12 +228,9 @@ export class IndividualLoadService {
     );
 
     // === Asiento contable de seguimiento (Opción B: tx propia post-commit) ===
-    const isEmployerContribution =
-      dto.movementType === 'EMPLOYER_CONTRIBUTION';
+    const isEmployerContribution = dto.movementType === 'EMPLOYER_CONTRIBUTION';
     const isSavingsDifference = dto.movementType === 'SAVING_DIFFERENCE';
-    const differenceDateStr = (
-      dto.transactionDate ?? new Date()
-    )
+    const differenceDateStr = (dto.transactionDate ?? new Date())
       .toISOString()
       .split('T')[0];
 
@@ -241,26 +238,20 @@ export class IndividualLoadService {
       movementType: resolveContributionMovementType(dto.movementType),
       entryDate: dto.transactionDate ?? new Date(),
       description:
-        dto.description ||
-        defaultLoadDescription(isEmployerContribution, ''),
+        dto.description || defaultLoadDescription(isEmployerContribution, ''),
       associateIds: [batch.associateId].filter((v): v is string => !!v),
       totalAmount: isEmployerContribution
         ? (dto.employerAmount ?? 0) + (dto.associateAmount ?? 0)
         : (dto.amount ?? 0),
       amountVoluntario: isEmployerContribution ? undefined : dto.amount,
-      amountPatrono: isEmployerContribution
-        ? dto.employerAmount
-        : undefined,
-      amountAsociado: isEmployerContribution
-        ? dto.associateAmount
-        : undefined,
+      amountPatrono: isEmployerContribution ? dto.employerAmount : undefined,
+      amountAsociado: isEmployerContribution ? dto.associateAmount : undefined,
       // Para la diferencia de ahorro, apuntamos explícitamente a
       // ASSOCIATED_SAVINGS (misma cuenta que el ahorro socio).
       items: isSavingsDifference
         ? [
             {
-              associateId:
-                (batch.associateId as string | null) ?? undefined,
+              associateId: (batch.associateId as string | null) ?? undefined,
               amounts: { ASSOCIATED_SAVINGS: dto.amount ?? 0 },
               descriptions: {
                 ASSOCIATED_SAVINGS: `DIFERENCIA AHORRO DEL ${differenceDateStr}`,
@@ -329,7 +320,10 @@ export class IndividualLoadService {
     diferencias.getCell('A1').value = 'tipo';
     diferencias.getCell('B1').value = 'DIFERENCIA APORTE';
     diferencias.getCell('A1').font = { bold: true };
-    diferencias.getCell('B1').font = { bold: true, color: { argb: 'FFFF0000' } };
+    diferencias.getCell('B1').font = {
+      bold: true,
+      color: { argb: 'FFFF0000' },
+    };
     diferencias.getCell('C1').value = 'fecha';
     diferencias.getCell('D1').value = '2026-01-28';
     diferencias.getCell('D1').font = { bold: true };
@@ -491,8 +485,7 @@ export class IndividualLoadService {
             userId,
             {
               associateAccountId: associate.associateAccountId,
-              movementType:
-                'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
+              movementType: 'SAVING_CONTRIBUTION' as AssociateMovementTypeEnum,
               amount: row.monto,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: movementDate,
@@ -697,9 +690,7 @@ export class IndividualLoadService {
     }
   }
 
-  private async parseBulkWorkbook(
-    fileBuffer: Buffer,
-  ): Promise<{
+  private async parseBulkWorkbook(fileBuffer: Buffer): Promise<{
     aportesRows: AporteRow[];
     diferenciasRows: BulkRow[];
     validDate: Date;
@@ -739,9 +730,7 @@ export class IndividualLoadService {
     };
 
     // Hoja 1: aportes
-    const aportesType = String(
-      aportesSheet.getCell('B1').value || '',
-    ).trim();
+    const aportesType = String(aportesSheet.getCell('B1').value || '').trim();
     if (aportesType !== 'APORTE EMPLEADOS') {
       throw new BadRequestException(
         'El tipo de carga en la celda B1 de la hoja "aportes" debe ser APORTE EMPLEADOS',
@@ -754,12 +743,8 @@ export class IndividualLoadService {
     aportesSheet.eachRow((row, rowNumber) => {
       if (rowNumber <= 2) return;
       const cedula = String(row.getCell(1).value || '').trim();
-      const aporteEmpleado = parseFloat(
-        String(row.getCell(2).value || '0'),
-      );
-      const aportePatrono = parseFloat(
-        String(row.getCell(3).value || '0'),
-      );
+      const aporteEmpleado = parseFloat(String(row.getCell(2).value || '0'));
+      const aportePatrono = parseFloat(String(row.getCell(3).value || '0'));
       if (cedula && (aporteEmpleado > 0 || aportePatrono > 0)) {
         aportesRows.push({ cedula, aporteEmpleado, aportePatrono });
       }

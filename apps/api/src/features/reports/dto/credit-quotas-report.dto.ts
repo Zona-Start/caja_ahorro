@@ -9,4 +9,6 @@ export const CreditQuotasReportSchema = z.object({
   format: z.enum(['pdf', 'excel']).optional().default('pdf'),
 });
 
-export class CreditQuotasReportDto extends createZodDto(CreditQuotasReportSchema) {}
+export class CreditQuotasReportDto extends createZodDto(
+  CreditQuotasReportSchema,
+) {}

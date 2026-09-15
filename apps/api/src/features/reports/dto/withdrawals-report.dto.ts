@@ -10,4 +10,6 @@ export const WithdrawalsReportSchema = z.object({
   format: z.enum(['pdf', 'excel']).optional().default('pdf'),
 });
 
-export class WithdrawalsReportDto extends createZodDto(WithdrawalsReportSchema) {}
+export class WithdrawalsReportDto extends createZodDto(
+  WithdrawalsReportSchema,
+) {}

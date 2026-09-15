@@ -412,7 +412,10 @@ export class AuthService {
       .where(eq(users.id, userId));
   }
 
-  private async formatAuthUser(user: UserWithRelations, requestedTenantId?: string) {
+  private async formatAuthUser(
+    user: UserWithRelations,
+    requestedTenantId?: string,
+  ) {
     const memberships = (user.tenantMembers || []).map((m) => ({
       tenantId: m.tenantId,
       tenantName: m.tenant?.name,

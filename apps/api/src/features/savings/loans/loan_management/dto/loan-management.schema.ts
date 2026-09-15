@@ -1,5 +1,6 @@
 import { PaginationSchema } from '@/common/dto/pagination.dto';
 import {
+  CurrencyCodeEnum,
   loanModalityTypeEnum,
   LoanStatusEnum,
   paymentMethodEnum,
@@ -67,7 +68,8 @@ export const CalculateAmortizationSchema = z.object({
 export const DisburseLoanSchema = z.object({
   loanId: z.string().uuid().optional(),
   bankAccountId: z.string().uuid(),
-  currencyCode: z.string().min(1),
+  currencyCode: z.nativeEnum(CurrencyCodeEnum),
+  exchangeRate: z.coerce.number().positive().optional(),
   paymentMethod: z.string().min(1),
   disbursementDate: z.coerce.date(),
   bankReference: z.string().optional(),

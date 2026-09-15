@@ -23,6 +23,10 @@ export const envVarsSchema = z.object({
     .int()
     .positive()
     .default(15000),
+  BCV_ALLOW_INSECURE_TLS: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
   REDIS_URL: z.string().url().optional(),
   PLATFORM_DOMAIN: z.string().min(1).default('zonastart.local'),
   R2_ACCOUNT_ID: z.string().optional(),

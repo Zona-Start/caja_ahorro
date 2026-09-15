@@ -26,7 +26,7 @@ export class LoanPaymentAccounting {
   ): Promise<void> {
     const dateStr = format(paymentDate, 'dd/MM/yyyy');
     const fullname = loanData.associateFullname ?? 'ASOCIADO';
-
+    const referenceValue = loanData.loanTypeName ?? 'Pago Prestamo';
     const roundedPayment = Number(paymentAmount.toFixed(2));
     const roundedInterest = Number(interestAmount.toFixed(2));
     const roundedPrincipal = Number(
@@ -44,7 +44,7 @@ export class LoanPaymentAccounting {
           operationType: 'LOAN_PAYMENT',
           description: `Pago de Préstamo - ${fullname}`,
           entryDate: paymentDate,
-          referenceValue: 'Pago Prestamo',
+          referenceValue,
           autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
           currencyCode: (loanData.currencyCode ?? 'VES') as CurrencyCodeEnum,
           originReferenceId: String(loanData.id),
@@ -106,6 +106,7 @@ export class LoanPaymentAccounting {
     paymentRef: string,
   ): Promise<void> {
     const fullname = loanData.associateFullname ?? 'ASOCIADO';
+    const referenceValue = loanData.loanTypeName ?? 'Pago Prestamo';
 
     const roundedPayment = Number(paymentAmount.toFixed(2));
     const roundedInterest = Number(interestAmount.toFixed(2));
@@ -124,7 +125,7 @@ export class LoanPaymentAccounting {
           operationType: 'LOAN_PAYMENT',
           description: `ANULACIÓN: Pago de Préstamo - ${fullname} (Ref: ${paymentRef})`,
           entryDate: new Date(),
-          referenceValue: 'Pago Prestamo',
+          referenceValue,
           autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
           currencyCode: (loanData.currencyCode ?? 'VES') as CurrencyCodeEnum,
           originReferenceId: String(loanData.id),

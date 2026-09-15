@@ -255,7 +255,7 @@ export class AssociatesService {
         baseSalary: associates.baseSalary,
         accountNumber: associateAccounts.accountNumber,
         currencyCode: associateAccounts.currencyCode,
-        balance: associateAccounts.balance,
+        balance: associateHaberesBalance.haberesBalance,
         openingDate: associateAccounts.openingDate,
         bankDirectoryId: associateAccounts.bankDirectoryId,
       })
@@ -264,6 +264,10 @@ export class AssociatesService {
       .leftJoin(
         associateAccounts,
         eq(associateAccounts.associateId, associates.id),
+      )
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       )
       .orderBy(orderBy)
       .limit(limit)
@@ -318,7 +322,7 @@ export class AssociatesService {
         baseSalary: associates.baseSalary,
         accountNumber: associateAccounts.accountNumber,
         currencyCode: associateAccounts.currencyCode,
-        balance: associateAccounts.balance,
+        balance: associateHaberesBalance.haberesBalance,
         openingDate: associateAccounts.openingDate,
         bankDirectoryId: associateAccounts.bankDirectoryId,
       })
@@ -327,6 +331,10 @@ export class AssociatesService {
       .leftJoin(
         associateAccounts,
         eq(associateAccounts.associateId, associates.id),
+      )
+      .leftJoin(
+        associateHaberesBalance,
+        eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       );
 
     if (!result.length) {

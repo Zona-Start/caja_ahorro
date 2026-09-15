@@ -12,35 +12,26 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import {
-  JournalBookDto,
-  JournalBookSchema,
-} from './dto/journal-book.dto';
+  AssociatesBalanceDto,
+  AssociatesBalanceSchema,
+} from './dto/associates-balance.dto';
+import { BalanceSheetDto, BalanceSheetSchema } from './dto/balance-sheet.dto';
 import {
   GeneralLedgerDto,
   GeneralLedgerSchema,
 } from './dto/general-ledger.dto';
 import {
-  TrialBalanceDto,
-  TrialBalanceSchema,
-} from './dto/trial-balance.dto';
-import {
-  BalanceSheetDto,
-  BalanceSheetSchema,
-} from './dto/balance-sheet.dto';
-import {
   IncomeStatementDto,
   IncomeStatementSchema,
 } from './dto/income-statement.dto';
-import {
-  AssociatesBalanceDto,
-  AssociatesBalanceSchema,
-} from './dto/associates-balance.dto';
-import { JournalBookService } from './services/journal-book.service';
-import { GeneralLedgerService } from './services/general-ledger.service';
-import { TrialBalanceService } from './services/trial-balance.service';
-import { BalanceSheetService } from './services/balance-sheet.service';
-import { IncomeStatementService } from './services/income-statement.service';
+import { JournalBookDto, JournalBookSchema } from './dto/journal-book.dto';
+import { TrialBalanceDto, TrialBalanceSchema } from './dto/trial-balance.dto';
 import { AssociatesBalanceService } from './services/associates-balance.service';
+import { BalanceSheetService } from './services/balance-sheet.service';
+import { GeneralLedgerService } from './services/general-ledger.service';
+import { IncomeStatementService } from './services/income-statement.service';
+import { JournalBookService } from './services/journal-book.service';
+import { TrialBalanceService } from './services/trial-balance.service';
 
 @ApiTags('accounting-reports')
 @UseInterceptors(ReqLogInterceptor)

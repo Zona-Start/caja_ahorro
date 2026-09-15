@@ -41,7 +41,9 @@ function translateStatus(value: string | null): string {
   return STATUS_MAP[value] ?? normalize(value);
 }
 
-export function buildAssociatesTableContent(data: AssociateReportRow[]): Content {
+export function buildAssociatesTableContent(
+  data: AssociateReportRow[],
+): Content {
   const tableBody = [
     [
       { text: 'Cédula', style: 'tableHeader' },

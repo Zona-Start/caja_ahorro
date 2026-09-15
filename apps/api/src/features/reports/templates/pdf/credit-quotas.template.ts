@@ -38,7 +38,9 @@ function formatAmount(value: string): string {
   });
 }
 
-export function buildCreditQuotasTableContent(data: CreditQuotaReportRow[]): Content {
+export function buildCreditQuotasTableContent(
+  data: CreditQuotaReportRow[],
+): Content {
   const tableBody = [
     [
       { text: 'Cédula', style: 'tableHeader' },

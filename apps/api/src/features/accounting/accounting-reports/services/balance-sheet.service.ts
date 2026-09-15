@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { and, asc, eq, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { BalanceSheetDto } from '../dto/balance-sheet.dto';
 import { buildBalanceSheetTableContent } from '../templates/pdf/balance-sheet.template';
 
@@ -11,7 +11,14 @@ export interface AccountNode {
   accountPlanId: string;
   accountCode: string;
   accountName: string;
-  accountType: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'EXPENSE' | 'REVENUE' | 'INCOME' | 'MEMORANDUM';
+  accountType:
+    | 'ASSET'
+    | 'LIABILITY'
+    | 'EQUITY'
+    | 'EXPENSE'
+    | 'REVENUE'
+    | 'INCOME'
+    | 'MEMORANDUM';
   accountNature: 'DEBIT' | 'CREDIT';
   level: number;
   parentAccountId?: string | null;
@@ -26,7 +33,7 @@ export class BalanceSheetService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly pdfService: PdfGeneratorService,
-  ) { }
+  ) {}
 
   /**
    * Determina el nivel jerárquico contable basándose en la máscara del código.
@@ -90,9 +97,13 @@ export class BalanceSheetService {
       rootCode: string,
       rootName: string,
     ): AccountNode[] => {
-      const groupAccounts = normalizedAccounts.filter((a) => a.accountType === type);
+      const groupAccounts = normalizedAccounts.filter(
+        (a) => a.accountType === type,
+      );
 
-      let root = groupAccounts.find((a) => a.level === 1 || a.accountCode === rootCode);
+      let root = groupAccounts.find(
+        (a) => a.level === 1 || a.accountCode === rootCode,
+      );
 
       if (!root) {
         root = {
@@ -153,7 +164,7 @@ export class BalanceSheetService {
       // Si tiene hijos, su saldo total ES ÚNICAMENTE la suma recursiva de sus hijos
       const childrenSum = node.children.reduce(
         (acc, child) => acc + aggregateBalances(child),
-        0
+        0,
       );
 
       // Si el nodo padre también permite movimientos (no recomendado pero posible), suma su propio saldo
@@ -188,7 +199,11 @@ export class BalanceSheetService {
     };
 
     const finalAssets = pruneTreeByDetailLevel(assetsTree, 1, detailLevel);
-    const finalLiabilities = pruneTreeByDetailLevel(liabilitiesTree, 1, detailLevel);
+    const finalLiabilities = pruneTreeByDetailLevel(
+      liabilitiesTree,
+      1,
+      detailLevel,
+    );
     const finalEquity = pruneTreeByDetailLevel(equityTree, 1, detailLevel);
 
     // 6. Obtención opcional de detalles del ciclo contable
@@ -233,7 +248,9 @@ export class BalanceSheetService {
         totalAssets: totalAssetsNum.toFixed(2),
         totalLiabilities: totalLiabilitiesNum.toFixed(2),
         totalEquity: totalEquityNum.toFixed(2),
-        totalLiabilitiesAndEquity: (totalLiabilitiesNum + totalEquityNum).toFixed(2),
+        totalLiabilitiesAndEquity: (
+          totalLiabilitiesNum + totalEquityNum
+        ).toFixed(2),
       },
       cycleInfo,
     };
@@ -249,7 +266,8 @@ export class BalanceSheetService {
       name: n.accountName,
       level: n.level,
       balance: (n.finalBalance ?? 0).toFixed(2),
-      children: n.children && n.children.length > 0 ? this.toResponse(n.children) : [],
+      children:
+        n.children && n.children.length > 0 ? this.toResponse(n.children) : [],
     }));
   }
 

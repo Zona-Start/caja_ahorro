@@ -1,10 +1,10 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { GenderEnum, StatusEnum } from '@/types/enum';
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { AssociatesReportDto } from '../dto/associates-report.dto';
 import { buildAssociatesTableContent } from '../templates/pdf/associates.template';
@@ -23,21 +23,32 @@ export class AssociatesReportService {
     const conditions: any[] = [eq(schema.associates.tenantId, tenantId)];
 
     if (filters.status) {
-      conditions.push(eq(schema.associates.status, filters.status as StatusEnum));
+      conditions.push(
+        eq(schema.associates.status, filters.status as StatusEnum),
+      );
     }
     if (filters.isPayrollCredit) {
       conditions.push(
-        eq(schema.associates.isPayrollCredit, filters.isPayrollCredit === 'true'),
+        eq(
+          schema.associates.isPayrollCredit,
+          filters.isPayrollCredit === 'true',
+        ),
       );
     }
     if (filters.gender) {
-      conditions.push(eq(schema.associates.gender, filters.gender as GenderEnum));
+      conditions.push(
+        eq(schema.associates.gender, filters.gender as GenderEnum),
+      );
     }
     if (filters.associatedTypeId) {
-      conditions.push(eq(schema.associates.associatedTypeId, filters.associatedTypeId));
+      conditions.push(
+        eq(schema.associates.associatedTypeId, filters.associatedTypeId),
+      );
     }
     if (filters.payrollTypeId) {
-      conditions.push(eq(schema.associates.payrollTypeId, filters.payrollTypeId));
+      conditions.push(
+        eq(schema.associates.payrollTypeId, filters.payrollTypeId),
+      );
     }
     if (filters.dateFrom) {
       conditions.push(gte(schema.associates.dateAdmission, filters.dateFrom));

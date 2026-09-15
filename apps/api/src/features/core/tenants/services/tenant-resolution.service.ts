@@ -34,11 +34,10 @@ const RESERVED_SLUGS = ['app', 'www', 'api', 'admin'];
 
 @Injectable()
 export class TenantResolutionService {
-
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   // 2. Convierte APP_SUBDOMAIN en un getter dinámico de la clase
   private get appSubdomain(): string {
@@ -128,7 +127,10 @@ export class TenantResolutionService {
 
     if (customDomain) {
       const tenant = await this.db.query.tenants.findFirst({
-        where: and(eq(tenants.id, customDomain.tenantId), eq(tenants.isActive, true)),
+        where: and(
+          eq(tenants.id, customDomain.tenantId),
+          eq(tenants.isActive, true),
+        ),
       });
       return {
         type: 'custom',

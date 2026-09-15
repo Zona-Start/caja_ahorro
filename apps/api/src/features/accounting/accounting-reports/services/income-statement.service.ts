@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { and, asc, eq } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { IncomeStatementDto } from '../dto/income-statement.dto';
 import { buildIncomeStatementTableContent } from '../templates/pdf/income-statement.template';
 
@@ -50,18 +50,12 @@ export class IncomeStatementService {
         finalBalance: schema.accountBalances.finalBalance,
       })
       .from(schema.accountPlan)
-      .leftJoin(
-        schema.accountBalances,
-        and(...joinConditions),
-      )
-      .where(
-        eq(schema.accountPlan.tenantId, tenantId),
-      )
+      .leftJoin(schema.accountBalances, and(...joinConditions))
+      .where(eq(schema.accountPlan.tenantId, tenantId))
       .orderBy(asc(schema.accountPlan.code));
 
     const incomeAccounts = rawData.filter(
-      (r) =>
-        r.accountType === 'REVENUE' || r.accountType === 'EXPENSE',
+      (r) => r.accountType === 'REVENUE' || r.accountType === 'EXPENSE',
     );
 
     const tree = this.buildTree(incomeAccounts, detailLevel);
@@ -136,15 +130,14 @@ export class IncomeStatementService {
     const children = rawData
       .filter(
         (r) =>
-          r.parentAccountId === parentId ||
-          (!parentId && !r.parentAccountId),
+          r.parentAccountId === parentId || (!parentId && !r.parentAccountId),
       )
       .map((r) => ({
         accountPlanId: r.accountPlanId,
         accountCode: r.accountCode,
         accountName: r.accountName,
         level: r.level,
-        balance: (parseFloat(r.finalBalance ?? '0')).toFixed(2),
+        balance: parseFloat(r.finalBalance ?? '0').toFixed(2),
         balanceNum: parseFloat(r.finalBalance ?? '0'),
         children:
           r.level < maxLevel

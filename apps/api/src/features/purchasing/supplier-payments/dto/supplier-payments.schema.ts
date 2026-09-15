@@ -9,7 +9,9 @@ const CreditAppliedSchema = z.object({
 export const CreateSupplierPaymentSchema = z.object({
   tenantId: z.string().uuid().optional(),
   supplierId: z.string().uuid(),
-  accountPayableIds: z.array(z.string().uuid()).min(1, 'Debe seleccionar al menos una CxP'),
+  accountPayableIds: z
+    .array(z.string().uuid())
+    .min(1, 'Debe seleccionar al menos una CxP'),
   bankAccountId: z.string().uuid(),
   paymentDescription: z.string(),
   paymentMethod: z.string(),
@@ -82,4 +84,6 @@ export const AccountStatementFilterSchema = z.object({
   endDate: z.coerce.date(),
 });
 
-export type AccountStatementFilterDto = z.infer<typeof AccountStatementFilterSchema>;
+export type AccountStatementFilterDto = z.infer<
+  typeof AccountStatementFilterSchema
+>;

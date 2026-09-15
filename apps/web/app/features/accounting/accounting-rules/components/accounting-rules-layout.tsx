@@ -53,11 +53,11 @@ function EntitySelector({
   );
   const { data: loanData, isLoading: lLoading } = useLoanTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    operation === 'LOAN_TYPE',
+    operation === 'LOAN_TYPE' || operation === 'LOAN_PAYMENT',
   );
   const { data: creditData, isLoading: cLoading } = useCreditTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    operation === 'CREDIT_TYPE',
+    operation === 'CREDIT_TYPE' || operation === 'CREDIT_PAYMENT',
   );
   const { data: payrollData, isLoading: pLoading } = useCategoriesByTypeQuery(
     'payroll_type',
@@ -67,9 +67,9 @@ function EntitySelector({
   const isLoading =
     operation === 'WITHDRAWAL_TYPE'
       ? wLoading
-      : operation === 'LOAN_TYPE'
+      : operation === 'LOAN_TYPE' || operation === 'LOAN_PAYMENT'
         ? lLoading
-        : operation === 'CREDIT_TYPE'
+        : operation === 'CREDIT_TYPE' || operation === 'CREDIT_PAYMENT'
           ? cLoading
           : operation === 'PAYROLL_CONCEPT'
             ? pLoading
@@ -107,6 +107,20 @@ function EntitySelector({
     if (operation === 'CREDIT_TYPE' && creditData?.data) {
       return creditData.data.map((c) => ({
         value: c.id ?? '',
+        label: c.name,
+        configured: configuredRefs.has(c.name),
+      }));
+    }
+    if (operation === 'LOAN_PAYMENT' && loanData?.data) {
+      return loanData.data.map((l) => ({
+        value: l.name,
+        label: l.name,
+        configured: configuredRefs.has(l.name),
+      }));
+    }
+    if (operation === 'CREDIT_PAYMENT' && creditData?.data) {
+      return creditData.data.map((c) => ({
+        value: c.name,
         label: c.name,
         configured: configuredRefs.has(c.name),
       }));

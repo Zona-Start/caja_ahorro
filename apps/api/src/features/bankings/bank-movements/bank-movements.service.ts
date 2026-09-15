@@ -25,7 +25,7 @@ export class BankMovementsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private readonly db: DrizzleDatabase,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   async findAll(tenantId: string, dto: FilterBankMovementDto) {
     const {
@@ -265,6 +265,14 @@ export class BankMovementsService {
       })
       .returning();
 
+    // Mantener el saldo en libros derivado de los movimientos (atómico)
+    await db
+      .update(schema.bankAccounts)
+      .set({
+        currentBalance: sql`${schema.bankAccounts.currentBalance} + ${Number(dto.creditAmount)} - ${Number(dto.debitAmount)}`,
+        updatedById: userId,
+      })
+      .where(eq(schema.bankAccounts.id, dto.bankAccountId));
 
     if (!tx) {
       this.eventEmitter.emit(
@@ -431,7 +439,10 @@ export class BankMovementsService {
           .where(eq(schema.bankTransactions.id, movement.id));
       }
 
-      return { message: 'Movement created and reconciled successfully', movement };
+      return {
+        message: 'Movement created and reconciled successfully',
+        movement,
+      };
     };
 
     if (tx) {
@@ -983,20 +994,53 @@ export class BankMovementsService {
           eq(schema.moduleSettings.key, 'MB'),
           eq(schema.moduleSettings.tenantId, tenantId),
         ),
-      );
+      )
+      .for('update');
 
     if (!setting) {
-      const code = 'MB-000001';
-      await tx.insert(schema.moduleSettings).values({
-        module: 'banking',
-        submodule: 'bank_transactions',
-        key: 'MB',
-        value: '1',
-        description: 'Último consecutivo Movimientos Bancarios',
-        createdBy,
-        tenantId,
-      });
-      return code;
+      await tx
+        .insert(schema.moduleSettings)
+        .values({
+          module: 'banking',
+          submodule: 'bank_transactions',
+          key: 'MB',
+          value: '0',
+          description: 'Último consecutivo Movimientos Bancarios',
+          createdBy,
+          tenantId,
+        })
+        .onConflictDoNothing({
+          target: [
+            schema.moduleSettings.tenantId,
+            schema.moduleSettings.module,
+            schema.moduleSettings.submodule,
+            schema.moduleSettings.key,
+          ],
+        });
+
+      const [freshSetting] = await tx
+        .select()
+        .from(schema.moduleSettings)
+        .where(
+          and(
+            eq(schema.moduleSettings.module, 'banking'),
+            eq(schema.moduleSettings.submodule, 'bank_transactions'),
+            eq(schema.moduleSettings.key, 'MB'),
+            eq(schema.moduleSettings.tenantId, tenantId),
+          ),
+        )
+        .for('update');
+
+      const firstValue = parseInt(freshSetting?.value ?? '0', 10) + 1;
+      const firstCode = `MB-${String(firstValue).padStart(6, '0')}`;
+
+      if (freshSetting) {
+        await tx
+          .update(schema.moduleSettings)
+          .set({ value: String(firstValue), updatedBy: createdBy })
+          .where(eq(schema.moduleSettings.id, freshSetting.id));
+      }
+      return firstCode;
     }
 
     const nextValue = parseInt(setting.value ?? '0', 10) + 1;
@@ -1005,14 +1049,7 @@ export class BankMovementsService {
     await tx
       .update(schema.moduleSettings)
       .set({ value: String(nextValue), updatedBy: createdBy })
-      .where(
-        and(
-          eq(schema.moduleSettings.module, 'banking'),
-          eq(schema.moduleSettings.submodule, 'bank_transactions'),
-          eq(schema.moduleSettings.key, 'MB'),
-          eq(schema.moduleSettings.tenantId, tenantId),
-        ),
-      );
+      .where(eq(schema.moduleSettings.id, setting.id));
 
     return code;
   }

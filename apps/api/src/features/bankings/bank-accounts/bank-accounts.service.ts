@@ -323,8 +323,6 @@ export class BankAccountsService {
       if (data.linkedChartAccountId !== undefined)
         formatData.linkedChartAccountId = data.linkedChartAccountId;
       if (data.isActive !== undefined) formatData.isActive = data.isActive;
-      if (data.currentBalance !== undefined)
-        formatData.currentBalance = String(data.currentBalance);
 
       if (data.currencyCode) {
         const [currencyRecord] = await tx
@@ -452,5 +450,4 @@ export class BankAccountsService {
       difference: Number(row.bookBalance) - Number(row.statementBalance),
     }));
   }
-
 }

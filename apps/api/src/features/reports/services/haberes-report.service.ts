@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, gte, lte } from 'drizzle-orm';
 import { HaberesReportDto } from '../dto/haberes-report.dto';
 import { buildHaberesTableContent } from '../templates/pdf/haberes.template';
 
@@ -20,9 +20,7 @@ export class HaberesReportService {
     ];
 
     if (filters.type) {
-      conditions.push(
-        eq(schema.contributionBatches.type, filters.type as any),
-      );
+      conditions.push(eq(schema.contributionBatches.type, filters.type as any));
     }
     if (filters.cedula) {
       const [associate] = await this.drizzle

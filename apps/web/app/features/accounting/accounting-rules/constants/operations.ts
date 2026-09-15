@@ -52,8 +52,8 @@ export const operationsByGroup: Record<
   },
   SYSTEM_EVENTS: {
     SAVINGS_BANK: [
-      { value: 'CREDIT_PAYMENT', label: 'Pago de Crédito', group: 'SYSTEM_EVENTS', referenceValue: 'Pago Creditos' },
-      { value: 'LOAN_PAYMENT', label: 'Pago de Préstamo', group: 'SYSTEM_EVENTS', referenceValue: 'Pago Prestamo' },
+      { value: 'CREDIT_PAYMENT', label: 'Pago de Crédito', isDynamic: true, group: 'SYSTEM_EVENTS' },
+      { value: 'LOAN_PAYMENT', label: 'Pago de Préstamo', isDynamic: true, group: 'SYSTEM_EVENTS' },
       { value: 'SAVINGS_UPLOAD', label: 'Carga de Haberes voluntario', group: 'SYSTEM_EVENTS', referenceValue: 'Aporte Voluntario' },
       { value: 'SAVINGS_LIQUIDATION', label: 'Liquidación de Haberes', group: 'SYSTEM_EVENTS', referenceValue: 'Liquidacion Haberes' },
     ],

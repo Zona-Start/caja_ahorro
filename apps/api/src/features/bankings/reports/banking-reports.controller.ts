@@ -14,21 +14,44 @@ export class BankingReportsController {
 
   // ── 1. Acta de Conciliación ──
   @Get('reconciliation-act/:id/download-excel')
-  async downloadReconciliationActExcel(@Req() req: any, @Param('id') id: string, @Res() res: Response) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
+  async downloadReconciliationActExcel(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
     const wb = await this.service.reconciliationActExcel(id, targetTenantId);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=acta_${id.slice(0, 8)}.xlsx`);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=acta_${id.slice(0, 8)}.xlsx`,
+    );
     await wb.xlsx.write(res);
     res.end();
   }
 
   @Get('reconciliation-act/:id/download-pdf')
-  async downloadReconciliationActPdf(@Req() req: any, @Param('id') id: string, @Res() res: Response) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
+  async downloadReconciliationActPdf(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
     const pdf = await this.service.reconciliationActPdf(id, targetTenantId);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=acta_${id.slice(0, 8)}.pdf`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=acta_${id.slice(0, 8)}.pdf`,
+    );
     pdf.pipe(res);
     pdf.end();
   }
@@ -36,7 +59,10 @@ export class BankingReportsController {
   @Get('reconciliation-act/:id')
   @ApiOperation({ summary: 'Get reconciliation act data' })
   async reconciliationAct(@Req() req: any, @Param('id') id: string) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
     const data = await this.service.reconciliationAct(id, targetTenantId);
     return { message: 'Acta de conciliación', data };
   }
@@ -44,28 +70,53 @@ export class BankingReportsController {
   // ── 2. Partidas Pendientes ──
   @Get('pending-items/download-excel')
   async downloadPendingItemsExcel(
-    @Req() req: any, @Res() res: Response,
+    @Req() req: any,
+    @Res() res: Response,
     @Query('bankAccountId') bankAccountId: string = '',
     @Query('daysOld') daysOld: string = '',
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
-    const wb = await this.service.pendingItemsExcel(targetTenantId, bankAccountId || undefined, parseInt(daysOld) || 30);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=partidas_pendientes.xlsx');
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
+    const wb = await this.service.pendingItemsExcel(
+      targetTenantId,
+      bankAccountId || undefined,
+      parseInt(daysOld) || 30,
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=partidas_pendientes.xlsx',
+    );
     await wb.xlsx.write(res);
     res.end();
   }
 
   @Get('pending-items/download-pdf')
   async downloadPendingItemsPdf(
-    @Req() req: any, @Res() res: Response,
+    @Req() req: any,
+    @Res() res: Response,
     @Query('bankAccountId') bankAccountId: string = '',
     @Query('daysOld') daysOld: string = '',
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
-    const pdf = await this.service.pendingItemsPdf(targetTenantId, bankAccountId || undefined, parseInt(daysOld) || 30);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
+    const pdf = await this.service.pendingItemsPdf(
+      targetTenantId,
+      bankAccountId || undefined,
+      parseInt(daysOld) || 30,
+    );
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=partidas_pendientes.pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=partidas_pendientes.pdf',
+    );
     pdf.pipe(res);
     pdf.end();
   }
@@ -77,29 +128,54 @@ export class BankingReportsController {
     @Query('bankAccountId') bankAccountId?: string,
     @Query('daysOld') daysOld?: string,
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
     const days = daysOld ? parseInt(daysOld) : 30;
-    const data = await this.service.pendingItems(targetTenantId, bankAccountId, days);
+    const data = await this.service.pendingItems(
+      targetTenantId,
+      bankAccountId,
+      days,
+    );
     return { message: 'Partidas pendientes', data };
   }
 
   // ── 3. Posición Consolidada ──
   @Get('consolidated-position/download-excel')
-  async downloadConsolidatedPositionExcel(@Req() req: any, @Res() res: Response) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
+  async downloadConsolidatedPositionExcel(
+    @Req() req: any,
+    @Res() res: Response,
+  ) {
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
     const wb = await this.service.consolidatedPositionExcel(targetTenantId);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=posicion_consolidada.xlsx');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=posicion_consolidada.xlsx',
+    );
     await wb.xlsx.write(res);
     res.end();
   }
 
   @Get('consolidated-position/download-pdf')
   async downloadConsolidatedPositionPdf(@Req() req: any, @Res() res: Response) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
     const pdf = await this.service.consolidatedPositionPdf(targetTenantId);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=posicion_consolidada.pdf');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=posicion_consolidada.pdf',
+    );
     pdf.pipe(res);
     pdf.end();
   }
@@ -107,7 +183,10 @@ export class BankingReportsController {
   @Get('consolidated-position')
   @ApiOperation({ summary: 'Get consolidated bank position' })
   async consolidatedPosition(@Req() req: any) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
     const data = await this.service.consolidatedPosition(targetTenantId);
     return { message: 'Posición consolidada', data };
   }
@@ -115,30 +194,57 @@ export class BankingReportsController {
   // ── 4. Auxiliar de Bancos ──
   @Get('auxiliary-book/download-excel')
   async downloadAuxiliaryBookExcel(
-    @Req() req: any, @Res() res: Response,
+    @Req() req: any,
+    @Res() res: Response,
     @Query('bankAccountId') bankAccountId: string = '',
     @Query('dateFrom') dateFrom: string = '',
     @Query('dateTo') dateTo: string = '',
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
-    const wb = await this.service.auxiliaryBookExcel(targetTenantId, bankAccountId, dateFrom || undefined, dateTo || undefined);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=auxiliar_bancos.xlsx`);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
+    const wb = await this.service.auxiliaryBookExcel(
+      targetTenantId,
+      bankAccountId,
+      dateFrom || undefined,
+      dateTo || undefined,
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=auxiliar_bancos.xlsx`,
+    );
     await wb.xlsx.write(res);
     res.end();
   }
 
   @Get('auxiliary-book/download-pdf')
   async downloadAuxiliaryBookPdf(
-    @Req() req: any, @Res() res: Response,
+    @Req() req: any,
+    @Res() res: Response,
     @Query('bankAccountId') bankAccountId: string = '',
     @Query('dateFrom') dateFrom: string = '',
     @Query('dateTo') dateTo: string = '',
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
-    const pdf = await this.service.auxiliaryBookPdf(targetTenantId, bankAccountId, dateFrom || undefined, dateTo || undefined);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
+    const pdf = await this.service.auxiliaryBookPdf(
+      targetTenantId,
+      bankAccountId,
+      dateFrom || undefined,
+      dateTo || undefined,
+    );
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=auxiliar_bancos.pdf`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=auxiliar_bancos.pdf`,
+    );
     pdf.pipe(res);
     pdf.end();
   }
@@ -151,8 +257,16 @@ export class BankingReportsController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
   ) {
-    const { targetTenantId } = this.tenantContextService.getTenantContext(req, {});
-    const data = await this.service.auxiliaryBook(targetTenantId, bankAccountId, dateFrom, dateTo);
+    const { targetTenantId } = this.tenantContextService.getTenantContext(
+      req,
+      {},
+    );
+    const data = await this.service.auxiliaryBook(
+      targetTenantId,
+      bankAccountId,
+      dateFrom,
+      dateTo,
+    );
     return { message: 'Auxiliar de bancos', data };
   }
 }

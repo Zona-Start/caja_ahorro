@@ -125,7 +125,11 @@ export function buildIncomeStatementTableContent(
           ],
           [
             'Resultado Neto',
-            { text: fmt(data.result.netIncome), alignment: 'right', bold: true },
+            {
+              text: fmt(data.result.netIncome),
+              alignment: 'right',
+              bold: true,
+            },
           ],
         ],
       },

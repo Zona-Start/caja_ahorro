@@ -11,9 +11,9 @@ import {
   loanTypes,
 } from '@/database/schema/tables/savings';
 import { associateHaberesBalance } from '@/database/schema/views';
+import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
-import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AssociateAccountsMovementsService } from '@/features/savings/parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
   AssociateMovementTypeEnum,
@@ -54,7 +54,7 @@ export class LoanManagementService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) { }
+  ) {}
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -557,15 +557,15 @@ export class LoanManagementService {
     const schedule =
       capital > 0
         ? this.generateAmortizationSchedule(
-          capital,
-          finalTermUnits,
-          finalRate,
-          startDate,
-          '',
-          userId,
-          finalTermType,
-          expensesAmount,
-        )
+            capital,
+            finalTermUnits,
+            finalRate,
+            startDate,
+            '',
+            userId,
+            finalTermType,
+            expensesAmount,
+          )
         : [];
 
     const newLoan = await this.db.transaction(async (tx) => {
@@ -999,8 +999,8 @@ export class LoanManagementService {
           loanPrincipalAmount,
           bankAccountAmount,
           entryDate: disbursementDate,
-          currencyCode: (loan.currencyCode as CurrencyCodeEnum) ??
-            CurrencyCodeEnum.VES,
+          currencyCode:
+            (loan.currencyCode as CurrencyCodeEnum) ?? CurrencyCodeEnum.VES,
         },
       };
     };
@@ -1015,7 +1015,8 @@ export class LoanManagementService {
 
     try {
       const typeDesc = accountingParams.loanTypeName;
-      const associateDesc = `${accountingParams.associateCedula} ${accountingParams.associateFullname}`.trim();
+      const associateDesc =
+        `${accountingParams.associateCedula} ${accountingParams.associateFullname}`.trim();
 
       const result = await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
@@ -1054,7 +1055,6 @@ export class LoanManagementService {
         },
         undefined,
       );
-
     } catch (error) {
       accountingWarning =
         (error as any)?.message ??

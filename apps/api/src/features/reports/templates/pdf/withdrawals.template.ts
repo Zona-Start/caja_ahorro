@@ -63,7 +63,9 @@ function formatAmount(value: string | null): string {
   });
 }
 
-export function buildWithdrawalsTableContent(data: WithdrawalReportRow[]): Content {
+export function buildWithdrawalsTableContent(
+  data: WithdrawalReportRow[],
+): Content {
   const tableBody = [
     [
       { text: 'Fecha', style: 'tableHeader' },

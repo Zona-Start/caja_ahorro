@@ -1,9 +1,9 @@
+import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
 import { Inject, Injectable } from '@nestjs/common';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { and, asc, eq, sql } from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { AssociatesBalanceDto } from '../dto/associates-balance.dto';
 import { buildAssociatesBalanceTableContent } from '../templates/pdf/associates-balance.template';
 
@@ -123,9 +123,8 @@ export class AssociatesBalanceService {
         0,
       );
       assoc.totalBalance = Math.abs(totalBal).toFixed(2);
-      assoc.accounts.sort(
-        (a: any, b: any) =>
-          a.accountCode.localeCompare(b.accountCode),
+      assoc.accounts.sort((a: any, b: any) =>
+        a.accountCode.localeCompare(b.accountCode),
       );
     }
 

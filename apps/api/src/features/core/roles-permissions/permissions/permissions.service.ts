@@ -12,7 +12,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
+import { and, eq, ilike, isNull, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { CreatePermissionDto } from './dtos/create-permission.dto';
 import { PermissionPaginationDto } from './dtos/permission-pagination.dto';
@@ -29,6 +29,7 @@ export class PermissionsService {
 
   async findAll(): Promise<any[]> {
     return await this.db.query.permissions.findMany({
+      where: isNull(permissions.deletedAt),
       orderBy: (permissions, { desc }) => [desc(permissions.createdAt)],
     });
   }
@@ -78,7 +79,10 @@ export class PermissionsService {
       searchConditions.push(eq(permissions.scope, scope as ScopeType));
     }
 
-    const searchCondition = and(...searchConditions);
+    const searchCondition = and(
+      ...searchConditions,
+      isNull(permissions.deletedAt),
+    );
 
     const orderByColumn = permissions[sortBy as keyof typeof permissions];
     const orderByClause =
@@ -121,7 +125,7 @@ export class PermissionsService {
 
   async findById(id: string): Promise<any | null> {
     return await this.db.query.permissions.findFirst({
-      where: eq(permissions.id, id),
+      where: and(eq(permissions.id, id), isNull(permissions.deletedAt)),
     });
   }
 
@@ -135,6 +139,7 @@ export class PermissionsService {
         eq(permissions.resource, resource),
         eq(permissions.action, action as ActionType),
         scope ? eq(permissions.scope, scope as ScopeType) : undefined,
+        isNull(permissions.deletedAt),
       ),
     });
   }
@@ -176,7 +181,7 @@ export class PermissionsService {
     return newPermission;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, userId?: string): Promise<void> {
     const permission = await this.findById(id);
     if (!permission) {
       throw new NotFoundException('Permission not found');
@@ -184,7 +189,10 @@ export class PermissionsService {
 
     const previousValues = { ...permission };
 
-    await this.db.delete(permissions).where(eq(permissions.id, id));
+    await this.db
+      .update(permissions)
+      .set({ deletedAt: new Date(), deletedBy: userId })
+      .where(eq(permissions.id, id));
 
     await this.auditHelper.logDelete(undefined, 'permission', previousValues, {
       targetId: id,

@@ -39,7 +39,7 @@ export class SeedService implements OnModuleInit {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly securityService: SecurityService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     const rawRunSeed = String(this.configService.get('RUN_SEED')).toLowerCase();
@@ -258,7 +258,7 @@ export class SeedService implements OnModuleInit {
         code: 'VES',
         name: 'Bolivar',
         symbol: 'Bs',
-        isBase: false,
+        isBase: true,
         isActive: true,
         decimalPlaces: 2,
       },

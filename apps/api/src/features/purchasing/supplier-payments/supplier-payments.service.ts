@@ -35,7 +35,7 @@ export class SupplierPaymentsService {
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly bankMovementsService: BankMovementsService,
     private readonly generateCodeService: GenerateCodeService,
-  ) { }
+  ) {}
 
   async findAll(paginationDto: any, tenantId: string) {
     const { page = 1, limit = 10, search = '', status } = paginationDto;
@@ -289,7 +289,10 @@ export class SupplierPaymentsService {
     const searchCondition = and(
       ...searchConditions,
       eq(accountsPayable.isAuthorizePayment, true),
-      inArray(accountsPayable.status, ['APPROVED', 'PARTIALLY_PAID'] as paymentAccountsPayableEnum[]),
+      inArray(accountsPayable.status, [
+        'APPROVED',
+        'PARTIALLY_PAID',
+      ] as paymentAccountsPayableEnum[]),
     );
 
     const searchConditionAdvanceFinal = and(
@@ -746,7 +749,9 @@ export class SupplierPaymentsService {
       );
 
     if (validatePayment.length !== 0) {
-      throw new BadRequestException(`Payment with the same data already exists`);
+      throw new BadRequestException(
+        `Payment with the same data already exists`,
+      );
     }
 
     const cxps = await db
@@ -770,7 +775,9 @@ export class SupplierPaymentsService {
           'All accounts payable must belong to the same supplier',
         );
       }
-      if (!['APPROVED', 'PARTIALLY_PAID'].includes(cxp.accounts_payable.status)) {
+      if (
+        !['APPROVED', 'PARTIALLY_PAID'].includes(cxp.accounts_payable.status)
+      ) {
         throw new BadRequestException(
           `Account payable ${cxp.accounts_payable.accountsPayableNumber} is not in an authorized state`,
         );
@@ -787,7 +794,9 @@ export class SupplierPaymentsService {
           tx,
         );
 
-      const cxpNumbers = cxps.map((c) => c.accounts_payable.accountsPayableNumber).join(', ');
+      const cxpNumbers = cxps
+        .map((c) => c.accounts_payable.accountsPayableNumber)
+        .join(', ');
       const totalAmount = dto.totalAmount || dto.amount || 0;
 
       const [newPayment] = await tx
@@ -863,7 +872,21 @@ export class SupplierPaymentsService {
       let remainingToApply = totalAmount + creditTotal;
 
       for (const cxp of cxps) {
-        const cxpData = cxp.accounts_payable;
+        const cxpId = cxp.accounts_payable.id;
+
+        const [lockedCxp] = await tx
+          .select()
+          .from(accountsPayable)
+          .where(
+            and(
+              eq(accountsPayable.id, cxpId),
+              eq(accountsPayable.tenantId, tenantId),
+            ),
+          )
+          .for('update');
+
+        if (!lockedCxp) continue;
+        const cxpData = lockedCxp;
         const remAmount = Number(cxpData.remainingAmount);
         if (remAmount <= 0) continue;
 
@@ -884,7 +907,7 @@ export class SupplierPaymentsService {
             status: newStatus as paymentAccountsPayableEnum,
             updatedById: userId,
           })
-          .where(eq(accountsPayable.id, cxpData.id));
+          .where(eq(accountsPayable.id, cxpId));
 
         await tx.insert(supplierPaymentLines).values({
           supplierPaymentId: newPayment.id,
@@ -937,15 +960,30 @@ export class SupplierPaymentsService {
                   line.transactionType as supplierTransactionsTypeEnum,
                 ),
               ),
-            );
+            )
+            .for('update');
 
-          const available = Number(credit.amount) - Number(line.appliedAmount);
+          if (!credit) {
+            throw new NotFoundException(`Transacción ${line.id} no encontrada`);
+          }
+
+          const applied = Number(line.appliedAmount);
 
           if (line.transactionType === 'CREDIT_NOTE') {
+            const [creditNote] = await tx
+              .select()
+              .from(supplierCreditNotes)
+              .where(eq(supplierCreditNotes.transactionId, line.id))
+              .for('update');
+
+            const available =
+              Number(creditNote?.availableAmount ?? 0) - applied;
+            const newAvailable = Math.max(0, available);
+
             await tx
               .update(supplierTransactions)
               .set({
-                status: available <= 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
+                status: newAvailable <= 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
                 updatedById: userId,
               })
               .where(eq(supplierTransactions.id, line.id));
@@ -953,7 +991,7 @@ export class SupplierPaymentsService {
             await tx
               .update(supplierCreditNotes)
               .set({
-                availableAmount: String(Math.max(0, available)),
+                availableAmount: String(newAvailable),
                 updatedById: userId,
               })
               .where(eq(supplierCreditNotes.transactionId, line.id));
@@ -967,10 +1005,19 @@ export class SupplierPaymentsService {
               createdById: userId,
             });
           } else {
+            const [advance] = await tx
+              .select()
+              .from(supplierAdvances)
+              .where(eq(supplierAdvances.transactionId, line.id))
+              .for('update');
+
+            const available = Number(advance?.availableAmount ?? 0) - applied;
+            const newAvailable = Math.max(0, available);
+
             await tx
               .update(supplierTransactions)
               .set({
-                status: available <= 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
+                status: newAvailable <= 0 ? 'APPLIED' : 'PARTIALLY_APPLIED',
                 updatedById: userId,
               })
               .where(eq(supplierTransactions.id, line.id));
@@ -978,7 +1025,7 @@ export class SupplierPaymentsService {
             await tx
               .update(supplierAdvances)
               .set({
-                availableAmount: String(Math.max(0, available)),
+                availableAmount: String(newAvailable),
                 updatedById: userId,
               })
               .where(eq(supplierAdvances.transactionId, line.id));
@@ -1201,7 +1248,7 @@ export class SupplierPaymentsService {
         await tx.insert(supplierPaymentLines).values(reversedLines);
 
         for (const line of paymentLines) {
-          const accountPayableData = await tx
+          const [accountPayableData] = await tx
             .select()
             .from(accountsPayable)
             .leftJoin(
@@ -1210,19 +1257,19 @@ export class SupplierPaymentsService {
             )
             .where(
               and(eq(accountsPayable.id, line.accountsPayableId as string)),
-            );
+            )
+            .for('update');
 
-          if (accountPayableData.length > 0) {
+          if (accountPayableData) {
             const originalPaidAmount = parseFloat(
-              accountPayableData[0].accounts_payable.paidAmount,
+              accountPayableData.accounts_payable.paidAmount,
             );
             const lineAmount = parseFloat(line.amount);
 
-            const newPaidAmount = originalPaidAmount - lineAmount;
+            const newPaidAmount = Math.max(0, originalPaidAmount - lineAmount);
             const newRemainingAmount =
-              parseFloat(
-                accountPayableData[0].accounts_payable.remainingAmount,
-              ) + lineAmount;
+              parseFloat(accountPayableData.accounts_payable.remainingAmount) +
+              lineAmount;
 
             await tx
               .update(accountsPayable)
@@ -1233,31 +1280,28 @@ export class SupplierPaymentsService {
                 updatedById: userId,
               })
               .where(
-                eq(
-                  accountsPayable.id,
-                  accountPayableData[0].accounts_payable.id,
-                ),
+                eq(accountsPayable.id, accountPayableData.accounts_payable.id),
               );
 
-            if (accountPayableData[0].accounts_payable.supplierInvoiceId) {
+            if (accountPayableData.accounts_payable.supplierInvoiceId) {
               await tx
                 .update(supplierInvoices)
                 .set({ status: 'APPROVED', updatedById: userId })
                 .where(
                   eq(
                     supplierInvoices.id,
-                    accountPayableData[0].accounts_payable.supplierInvoiceId,
+                    accountPayableData.accounts_payable.supplierInvoiceId,
                   ),
                 );
 
-              if (accountPayableData[0]?.supplier_invoices?.purchaseOrderId) {
+              if (accountPayableData?.supplier_invoices?.purchaseOrderId) {
                 await tx
                   .update(purchaseOrders)
                   .set({ status: 'RECEIVED', updatedById: userId })
                   .where(
                     eq(
                       purchaseOrders.id,
-                      accountPayableData[0]?.supplier_invoices?.purchaseOrderId,
+                      accountPayableData?.supplier_invoices?.purchaseOrderId,
                     ),
                   );
               }

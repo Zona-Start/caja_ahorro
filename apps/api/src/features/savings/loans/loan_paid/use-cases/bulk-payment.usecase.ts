@@ -127,7 +127,8 @@ export class BulkPaymentUseCase {
                   LoanStatusEnum.IN_PAYMENT,
                 ]),
               ),
-            );
+            )
+            .for('update');
 
           const loan = activeLoans[0];
           if (!loan) {

@@ -5,7 +5,6 @@ import {
   accountingCycles,
   accountingEntries,
   accountsPayable,
-  associateAccounts,
   associates,
   auditEvents,
   bankAccounts,
@@ -16,8 +15,8 @@ import {
   inventoryMovementItems,
   inventoryMovements,
   liquidationsAssociates,
-  loginAttempts,
   loans,
+  loginAttempts,
   products,
   services,
   supplierInvoices,
@@ -27,13 +26,28 @@ import {
   withdrawalsAssociates,
 } from '@/database/schema/tables';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, count, desc, eq, gte, inArray, lte, sql, sum } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  lte,
+  sql,
+  sum,
+} from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import type { DashboardStats } from './dto/stats-response.dto';
 
 const SAVINGS_BUSINESS_TYPE = 'CAJA_AHORRO';
 
-const ACTIVE_LOAN_STATUSES: (typeof loans.$inferSelect)['status'][] = ['APPROVED', 'DISBURSED', 'IN_PAYMENT'];
+const ACTIVE_LOAN_STATUSES: (typeof loans.$inferSelect)['status'][] = [
+  'APPROVED',
+  'DISBURSED',
+  'IN_PAYMENT',
+];
 const PENDING_LOAN_STATUSES: (typeof loans.$inferSelect)['status'][] = [
   'REQUESTED',
   'APPROVED',
@@ -41,16 +55,23 @@ const PENDING_LOAN_STATUSES: (typeof loans.$inferSelect)['status'][] = [
 ];
 const PAID_LOAN_STATUSES: (typeof loans.$inferSelect)['status'][] = ['PAID'];
 
-const ACTIVE_CREDIT_STATUSES: (typeof credits.$inferSelect)['status'][] = ['APPROVED', 'IN_PAYMENT'];
-const PENDING_CREDIT_STATUSES: (typeof credits.$inferSelect)['status'][] = ['REQUESTED'];
-const PAID_CREDIT_STATUSES: (typeof credits.$inferSelect)['status'][] = ['PAID'];
+const ACTIVE_CREDIT_STATUSES: (typeof credits.$inferSelect)['status'][] = [
+  'APPROVED',
+  'IN_PAYMENT',
+];
+const PENDING_CREDIT_STATUSES: (typeof credits.$inferSelect)['status'][] = [
+  'REQUESTED',
+];
+const PAID_CREDIT_STATUSES: (typeof credits.$inferSelect)['status'][] = [
+  'PAID',
+];
 
 @Injectable()
 export class StatsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER)
     private db: NodePgDatabase<typeof schema>,
-  ) { }
+  ) {}
 
   async getDashboardStats(tenantId: string): Promise<DashboardStats> {
     const [tenant] = await this.db
@@ -105,20 +126,27 @@ export class StatsService {
       await Promise.all([
         isSavings
           ? this.db
-            .select({ count: count() })
-            .from(associates)
-            .where(
-              and(
-                eq(associates.tenantId, tenantId),
-                eq(associates.status, 'ACTIVE'),
-              ),
-            )
+              .select({ count: count() })
+              .from(associates)
+              .where(
+                and(
+                  eq(associates.tenantId, tenantId),
+                  eq(associates.status, 'ACTIVE'),
+                ),
+              )
           : Promise.resolve([{ count: 0 }]),
         isSavings
           ? this.db
-            .select({ total: sum(schema.associateAccountBalances.calculatedBalance) })
-            .from(schema.associateAccountBalances)
-            .where(and(eq(schema.associateAccountBalances.tenantId, tenantId), eq(schema.associateAccountBalances.status, 'ACTIVE')))
+              .select({
+                total: sum(schema.associateAccountBalances.calculatedBalance),
+              })
+              .from(schema.associateAccountBalances)
+              .where(
+                and(
+                  eq(schema.associateAccountBalances.tenantId, tenantId),
+                  eq(schema.associateAccountBalances.status, 'ACTIVE'),
+                ),
+              )
           : Promise.resolve([{ total: 0 }]),
         isSavings
           ? this.getActivePortfolioAmount(tenantId)
@@ -167,16 +195,21 @@ export class StatsService {
     ]);
 
     return (
-      Number(loansActive[0]?.total ?? 0) +
-      Number(creditsActive[0]?.total ?? 0)
+      Number(loansActive[0]?.total ?? 0) + Number(creditsActive[0]?.total ?? 0)
     );
   }
 
   private async getPendingRequests(tenantId: string, isSavings: boolean) {
-    const [withdrawals, loansRequested, loansApproved, loansDisbursement, drafts, pendingInvoices] =
-      await Promise.all([
-        isSavings
-          ? this.db
+    const [
+      withdrawals,
+      loansRequested,
+      loansApproved,
+      loansDisbursement,
+      drafts,
+      pendingInvoices,
+    ] = await Promise.all([
+      isSavings
+        ? this.db
             .select({
               count: count(),
               totalAmount: sum(withdrawalsAssociates.disbursedAmount),
@@ -188,31 +221,25 @@ export class StatsService {
                 eq(withdrawalsAssociates.status, 'REQUESTED'),
               ),
             )
-          : Promise.resolve([{ count: 0, totalAmount: 0 }]),
-        isSavings
-          ? this.db
+        : Promise.resolve([{ count: 0, totalAmount: 0 }]),
+      isSavings
+        ? this.db
             .select({ count: count() })
             .from(loans)
             .where(
-              and(
-                eq(loans.tenantId, tenantId),
-                eq(loans.status, 'REQUESTED'),
-              ),
+              and(eq(loans.tenantId, tenantId), eq(loans.status, 'REQUESTED')),
             )
-          : Promise.resolve([{ count: 0 }]),
-        isSavings
-          ? this.db
+        : Promise.resolve([{ count: 0 }]),
+      isSavings
+        ? this.db
             .select({ count: count() })
             .from(loans)
             .where(
-              and(
-                eq(loans.tenantId, tenantId),
-                eq(loans.status, 'APPROVED'),
-              ),
+              and(eq(loans.tenantId, tenantId), eq(loans.status, 'APPROVED')),
             )
-          : Promise.resolve([{ count: 0 }]),
-        isSavings
-          ? this.db
+        : Promise.resolve([{ count: 0 }]),
+      isSavings
+        ? this.db
             .select({ count: count() })
             .from(loans)
             .where(
@@ -221,26 +248,26 @@ export class StatsService {
                 eq(loans.status, 'PENDING_DISBURSEMENT_BANK_BATCH'),
               ),
             )
-          : Promise.resolve([{ count: 0 }]),
-        this.db
-          .select({ count: count() })
-          .from(accountingEntries)
-          .where(
-            and(
-              eq(accountingEntries.tenantId, tenantId),
-              eq(accountingEntries.status, 'DRAFT'),
-            ),
+        : Promise.resolve([{ count: 0 }]),
+      this.db
+        .select({ count: count() })
+        .from(accountingEntries)
+        .where(
+          and(
+            eq(accountingEntries.tenantId, tenantId),
+            eq(accountingEntries.status, 'DRAFT'),
           ),
-        this.db
-          .select({ count: count() })
-          .from(supplierInvoices)
-          .where(
-            and(
-              eq(supplierInvoices.tenantId, tenantId),
-              sql`${supplierInvoices.status} IN ('DRAFT', 'APPROVED')`,
-            ),
+        ),
+      this.db
+        .select({ count: count() })
+        .from(supplierInvoices)
+        .where(
+          and(
+            eq(supplierInvoices.tenantId, tenantId),
+            sql`${supplierInvoices.status} IN ('DRAFT', 'APPROVED')`,
           ),
-      ]);
+        ),
+    ]);
 
     return {
       withdrawals: {
@@ -284,12 +311,12 @@ export class StatsService {
     return {
       activeCycle: activeCycle[0]
         ? {
-          id: activeCycle[0].id,
-          startDate: activeCycle[0].startDate,
-          endDate: activeCycle[0].endDate,
-          description: activeCycle[0].description,
-          status: activeCycle[0].status,
-        }
+            id: activeCycle[0].id,
+            startDate: activeCycle[0].startDate,
+            endDate: activeCycle[0].endDate,
+            description: activeCycle[0].description,
+            status: activeCycle[0].status,
+          }
         : null,
       bankBalancesTotal: Number(bankBalances[0]?.total ?? 0),
       cycleBalances,
@@ -356,7 +383,10 @@ export class StatsService {
           and(
             eq(accountsPayable.tenantId, tenantId),
             eq(accountsPayable.status, 'PENDING'),
-            gte(accountsPayable.dueDate, new Date().toISOString().split('T')[0]),
+            gte(
+              accountsPayable.dueDate,
+              new Date().toISOString().split('T')[0],
+            ),
           ),
         )
         .orderBy(asc(accountsPayable.dueDate))
@@ -534,9 +564,7 @@ export class StatsService {
       this.db
         .select({ count: count() })
         .from(credits)
-        .where(
-          and(baseWhere, inArray(credits.status, ACTIVE_CREDIT_STATUSES)),
-        ),
+        .where(and(baseWhere, inArray(credits.status, ACTIVE_CREDIT_STATUSES))),
       this.db
         .select({ count: count() })
         .from(credits)

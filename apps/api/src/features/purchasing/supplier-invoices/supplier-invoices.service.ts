@@ -14,9 +14,9 @@ import {
   supplierTransactionApplications,
   supplierTransactions,
 } from '@/database/schema';
-import { CurrencyCodeEnum, paymentAccountsPayableEnum, priceTypeEnum } from '@/types/enum';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { updatePurchaseOrderStatus } from '@/features/purchasing/shared/update-purchase-order-status';
+import { paymentAccountsPayableEnum } from '@/types/enum';
 import {
   BadRequestException,
   ConflictException,
@@ -25,7 +25,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { differenceInDays } from 'date-fns';
-import { and, eq, ilike, inArray, ne, sql, SQL } from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, ne, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { FixedAssetPricesService } from '../../inventory/fixed-asset-prices/fixed-asset-prices.service';
 import { InventoryMovementsService } from '../../inventory/inventory-movements/inventory-movements.service';
@@ -44,7 +44,7 @@ export class SupplierInvoicesService {
     private readonly fixedAssetPricesService: FixedAssetPricesService,
     private readonly servicePricesService: ServicePricesService,
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) { }
+  ) {}
 
   async create(userId: string, dto: any, tenantId: string) {
     const supplier = await this.drizzle
@@ -57,12 +57,13 @@ export class SupplierInvoicesService {
     }
 
     return this.drizzle.transaction(async (tx) => {
-      const invoiceNumber = await this.generateCodeService.generateNextReference(
-        'FAC-P',
-        tenantId,
-        'purchasing',
-        'invoices',
-      );
+      const invoiceNumber =
+        await this.generateCodeService.generateNextReference(
+          'FAC-P',
+          tenantId,
+          'purchasing',
+          'invoices',
+        );
 
       const newInvoice = await tx
         .insert(supplierInvoices)
@@ -95,7 +96,10 @@ export class SupplierInvoicesService {
           createdById: userId,
           supplierInvoiceNumber: invoiceNumber,
         })
-        .returning({ id: supplierInvoices.id, status: supplierInvoices.status });
+        .returning({
+          id: supplierInvoices.id,
+          status: supplierInvoices.status,
+        });
 
       const invoiceId = newInvoice[0].id;
 
@@ -172,11 +176,16 @@ export class SupplierInvoicesService {
         .select()
         .from(suppliers)
         .where(
-          and(eq(suppliers.id, invoice.supplierId), eq(suppliers.status, 'ACTIVE')),
+          and(
+            eq(suppliers.id, invoice.supplierId),
+            eq(suppliers.status, 'ACTIVE'),
+          ),
         );
 
       if (supplier.length === 0) {
-        throw new BadRequestException('Supplier is not active or does not exist.');
+        throw new BadRequestException(
+          'Supplier is not active or does not exist.',
+        );
       }
 
       const existing = await tx
@@ -317,7 +326,6 @@ export class SupplierInvoicesService {
         tx,
       );
 
-
       // ── Flujo CONTADO: crear transacción bancaria ──
       if (isCash) {
         if (!invoice.paymentMethod || !invoice.bankAccountId) {
@@ -412,7 +420,10 @@ export class SupplierInvoicesService {
       // ── Marcar como APROBADA ──
       await tx
         .update(supplierInvoices)
-        .set({ status: cxpStatus === 'PAID' ? 'PAID' : 'APPROVED', updatedById: userId })
+        .set({
+          status: cxpStatus === 'PAID' ? 'PAID' : 'APPROVED',
+          updatedById: userId,
+        })
         .where(eq(supplierInvoices.id, invoiceId));
 
       return { message: 'Supplier invoice approved successfully' };
@@ -519,8 +530,6 @@ export class SupplierInvoicesService {
       };
     });
   }
-
-
 
   private isOverdue(dueDate: string | null): boolean {
     if (!dueDate) return false;
@@ -717,9 +726,7 @@ export class SupplierInvoicesService {
         throw new NotFoundException('Supplier invoice not found');
       }
       if (invoice.status !== 'DRAFT') {
-        throw new BadRequestException(
-          'Only DRAFT invoices can be cancelled.',
-        );
+        throw new BadRequestException('Only DRAFT invoices can be cancelled.');
       }
 
       const accountsPayableRecord = await tx
@@ -805,11 +812,7 @@ export class SupplierInvoicesService {
     });
   }
 
-  async createCreditNote(
-    userId: string,
-    dto: any,
-    tenantId: string,
-  ) {
+  async createCreditNote(userId: string, dto: any, tenantId: string) {
     const supplier = await this.drizzle
       .select()
       .from(suppliers)
@@ -847,7 +850,8 @@ export class SupplierInvoicesService {
           amount: dto.amount.toString(),
           currencyCode: 'VES',
           status: 'ACTIVE',
-          observations: dto.observations ??
+          observations:
+            dto.observations ??
             `Nota de crédito ${creditNoteNumber}: ${dto.reason}`,
           createdById: userId,
         })
@@ -892,7 +896,8 @@ export class SupplierInvoicesService {
         const [cxp] = await tx
           .select()
           .from(accountsPayable)
-          .where(eq(accountsPayable.id, dto.accountsPayableId));
+          .where(eq(accountsPayable.id, dto.accountsPayableId))
+          .for('update');
 
         if (cxp && cxp.status !== 'PAID' && cxp.status !== 'CANCELLED') {
           const ncAmount = Number(dto.amount);
@@ -900,7 +905,7 @@ export class SupplierInvoicesService {
           const newPaid = Number(cxp.paidAmount) + ncAmount;
           const newStatus = newRemaining <= 0 ? 'PAID' : 'PARTIALLY_PAID';
 
-          await tx
+          const [updatedCxp] = await tx
             .update(accountsPayable)
             .set({
               remainingAmount: String(Math.max(0, newRemaining)),
@@ -908,7 +913,19 @@ export class SupplierInvoicesService {
               status: newStatus as paymentAccountsPayableEnum,
               updatedById: userId,
             })
-            .where(eq(accountsPayable.id, dto.accountsPayableId));
+            .where(
+              and(
+                eq(accountsPayable.id, dto.accountsPayableId),
+                gte(accountsPayable.remainingAmount, String(ncAmount)),
+              ),
+            )
+            .returning({ id: accountsPayable.id });
+
+          if (!updatedCxp) {
+            throw new BadRequestException(
+              'The credit note amount exceeds the outstanding balance of the account payable',
+            );
+          }
 
           await tx.insert(supplierTransactionApplications).values({
             tenantId,
@@ -945,11 +962,7 @@ export class SupplierInvoicesService {
     });
   }
 
-  async createDebitNote(
-    userId: string,
-    dto: any,
-    tenantId: string,
-  ) {
+  async createDebitNote(userId: string, dto: any, tenantId: string) {
     const supplier = await this.drizzle
       .select()
       .from(suppliers)
@@ -987,7 +1000,8 @@ export class SupplierInvoicesService {
           amount: dto.amount.toString(),
           currencyCode: 'VES',
           status: 'APPLIED',
-          observations: dto.observations ??
+          observations:
+            dto.observations ??
             `Nota de débito ${debitNoteNumber}: ${dto.reason}`,
           createdById: userId,
         })
@@ -1008,16 +1022,18 @@ export class SupplierInvoicesService {
         const [cxp] = await tx
           .select()
           .from(accountsPayable)
-          .where(eq(accountsPayable.id, dto.accountsPayableId));
+          .where(eq(accountsPayable.id, dto.accountsPayableId))
+          .for('update');
 
         if (cxp && cxp.status === 'PAID') {
-          const cxpNumber = await this.generateCodeService.generateNextReference(
-            'CXP',
-            tenantId,
-            'purchasing',
-            'payables',
-            tx,
-          );
+          const cxpNumber =
+            await this.generateCodeService.generateNextReference(
+              'CXP',
+              tenantId,
+              'purchasing',
+              'payables',
+              tx,
+            );
 
           await tx.insert(accountsPayable).values({
             tenantId,
@@ -1043,8 +1059,7 @@ export class SupplierInvoicesService {
             createdById: userId,
           });
 
-          const newRemaining =
-            Number(cxp.remainingAmount) + Number(dto.amount);
+          const newRemaining = Number(cxp.remainingAmount) + Number(dto.amount);
           const newPaid = Number(cxp.paidAmount) - Number(dto.amount);
 
           await tx
@@ -1055,7 +1070,12 @@ export class SupplierInvoicesService {
               status: 'APPROVED' as paymentAccountsPayableEnum,
               updatedById: userId,
             })
-            .where(eq(accountsPayable.id, dto.accountsPayableId));
+            .where(
+              and(
+                eq(accountsPayable.id, dto.accountsPayableId),
+                gte(accountsPayable.paidAmount, String(dto.amount)),
+              ),
+            );
         }
       }
 
@@ -1109,9 +1129,7 @@ export class SupplierInvoicesService {
         const appliedTransactions = await tx
           .select()
           .from(supplierTransactionApplications)
-          .where(
-            eq(supplierTransactionApplications.accountsPayableId, cxp.id),
-          );
+          .where(eq(supplierTransactionApplications.accountsPayableId, cxp.id));
 
         if (appliedTransactions.length > 0) {
           throw new BadRequestException(
@@ -1121,7 +1139,11 @@ export class SupplierInvoicesService {
 
         await tx
           .update(accountsPayable)
-          .set({ status: 'CANCELLED', remainingAmount: '0.00', updatedById: userId })
+          .set({
+            status: 'CANCELLED',
+            remainingAmount: '0.00',
+            updatedById: userId,
+          })
           .where(eq(accountsPayable.id, cxp.id));
       }
 
@@ -1232,7 +1254,11 @@ export class SupplierInvoicesService {
       .where(
         and(
           eq(supplierInvoices.tenantId, tenantId),
-          inArray(supplierInvoices.status, ['APPROVED', 'PARTIALLY_PAID', 'PAID'])
+          inArray(supplierInvoices.status, [
+            'APPROVED',
+            'PARTIALLY_PAID',
+            'PAID',
+          ]),
         ),
       );
     const groupedData = new Map<string, any>();
@@ -1279,5 +1305,4 @@ export class SupplierInvoicesService {
 
     return data;
   }
-
 }

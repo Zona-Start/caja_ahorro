@@ -85,11 +85,11 @@ export function AccountingRuleForm({
   );
   const { data: loanTypes, isLoading: isLoadingLoans } = useLoanTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    operationType === 'LOAN_TYPE' && !!reference,
+    (operationType === 'LOAN_TYPE' || operationType === 'LOAN_PAYMENT') && !!reference,
   );
   const { data: creditTypes, isLoading: isLoadingCredits } = useCreditTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    operationType === 'CREDIT_TYPE' && !!reference,
+    (operationType === 'CREDIT_TYPE' || operationType === 'CREDIT_PAYMENT') && !!reference,
   );
   const { data: payrollTypes, isLoading: isLoadingPayroll } = useCategoriesByTypeQuery(
     'payroll_type',
@@ -98,8 +98,8 @@ export function AccountingRuleForm({
 
   const isLoadingData = isLoadingRules || isLoadingAccounts ||
     (operationType === 'WITHDRAWAL_TYPE' && !!reference && isLoadingWithdrawals) ||
-    (operationType === 'LOAN_TYPE' && !!reference && isLoadingLoans) ||
-    (operationType === 'CREDIT_TYPE' && !!reference && isLoadingCredits) ||
+    ((operationType === 'LOAN_TYPE' || operationType === 'LOAN_PAYMENT') && !!reference && isLoadingLoans) ||
+    ((operationType === 'CREDIT_TYPE' || operationType === 'CREDIT_PAYMENT') && !!reference && isLoadingCredits) ||
     (operationType === 'PAYROLL_CONCEPT' && !!reference && isLoadingPayroll);
 
   const referenceLabel = useMemo(() => {
@@ -125,6 +125,9 @@ export function AccountingRuleForm({
         (c) => c.id === reference,
       );
       return found?.name ?? reference;
+    }
+    if (operationType === 'LOAN_PAYMENT' || operationType === 'CREDIT_PAYMENT') {
+      return reference;
     }
     if (operationType === 'PAYROLL_CONCEPT') {
       const found = payrollTypes?.find(

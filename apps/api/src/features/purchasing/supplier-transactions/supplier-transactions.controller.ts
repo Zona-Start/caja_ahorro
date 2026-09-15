@@ -1,10 +1,9 @@
 import { TenantContextService } from '@/common/services/tenant-context.service';
+import { PurchasingXlsxService } from '@/features/purchasing/xlsx/purchasing-xlsx.service';
 import { Controller, Get, Param, Patch, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { SupplierTransactionsService } from './supplier-transactions.service';
-import { PurchasingXlsxService } from '@/features/purchasing/xlsx/purchasing-xlsx.service';
-import { format } from 'date-fns';
 
 @ApiTags('administration/supplier-transactions')
 @Controller('administration/supplier-transactions')
@@ -48,7 +47,11 @@ export class SupplierTransactionsController {
   }
 
   @Get('/reports/download/xlsx')
-  async downloadXlsx(@Req() req: Request, @Query() dto: any, @Res() res: Response) {
+  async downloadXlsx(
+    @Req() req: Request,
+    @Query() dto: any,
+    @Res() res: Response,
+  ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
     const { type, startDate, endDate, groupBy } = dto;
 
@@ -57,24 +60,71 @@ export class SupplierTransactionsController {
     let filename: string;
 
     if (type === 'aging') {
-      columns = ['Proveedor', 'Total Deuda', 'Por Vencer', '1-30 Días', '31-60 Días', '61-90 Días', '+90 Días'];
+      columns = [
+        'Proveedor',
+        'Total Deuda',
+        'Por Vencer',
+        '1-30 Días',
+        '31-60 Días',
+        '61-90 Días',
+        '+90 Días',
+      ];
       const data = await this.services.getAgingReport(targetTenantId);
-      rows = data.map((r: any) => [r.supplierName, r.totalDue, r.bucket0, r.bucket1to30, r.bucket31to60, r.bucket61to90, r.bucket90plus]);
+      rows = data.map((r: any) => [
+        r.supplierName,
+        r.totalDue,
+        r.bucket0,
+        r.bucket1to30,
+        r.bucket31to60,
+        r.bucket61to90,
+        r.bucket90plus,
+      ]);
       filename = 'antiguedad-deuda.xlsx';
     } else if (type === 'tax-book') {
-      columns = ['Fecha', 'RIF', 'Proveedor', 'N° Factura', 'N° Control', 'Base Imponible', 'IVA', 'Total'];
-      const data = await this.services.getTaxBookReport({ startDate, endDate }, targetTenantId);
-      rows = data.map((r: any) => [r.date, r.supplierTaxId, r.supplierName, r.invoiceNumber, r.controlNumber, Number(r.subtotal), Number(r.taxAmount), Number(r.totalAmount)]);
+      columns = [
+        'Fecha',
+        'RIF',
+        'Proveedor',
+        'N° Factura',
+        'N° Control',
+        'Base Imponible',
+        'IVA',
+        'Total',
+      ];
+      const data = await this.services.getTaxBookReport(
+        { startDate, endDate },
+        targetTenantId,
+      );
+      rows = data.map((r: any) => [
+        r.date,
+        r.supplierTaxId,
+        r.supplierName,
+        r.invoiceNumber,
+        r.controlNumber,
+        Number(r.subtotal),
+        Number(r.taxAmount),
+        Number(r.totalAmount),
+      ]);
       filename = 'libro-compras.xlsx';
     } else {
       columns = ['Período', 'Cantidad CxP', 'Total a Pagar'];
-      const data = await this.services.getCashFlowReport({ groupBy: groupBy || 'month' }, targetTenantId);
+      const data = await this.services.getCashFlowReport(
+        { groupBy: groupBy || 'month' },
+        targetTenantId,
+      );
       rows = data.map((r: any) => [r.period, r.count, Number(r.totalAmount)]);
       filename = 'flujo-caja.xlsx';
     }
 
-    const buffer = await this.xlsxService.generateReport(columns, rows, 'Reporte');
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const buffer = await this.xlsxService.generateReport(
+      columns,
+      rows,
+      'Reporte',
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   }

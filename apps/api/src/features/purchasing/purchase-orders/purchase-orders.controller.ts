@@ -29,7 +29,7 @@ export class PurchaseOrdersController {
   constructor(
     private readonly services: PurchaseOrdersService,
     private readonly tenantContextService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @UsePipes(new ZodValidatorPipe(CreatePurchaseOrderSchema))

@@ -78,6 +78,55 @@
       "when": 1788386900227,
       "tag": "0010_flawless_venom",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788890749370,
+      "tag": "0011_far_prima",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788892663638,
+      "tag": "0012_exotic_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1788912408045,
+      "tag": "0013_optimal_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788918401729,
+      "tag": "0014_big_screwball",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1789404969313,
+      "tag": "0015_skinny_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789418818491,
+      "tag": "0016_hard_alice",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789419318003,
+      "tag": "0017_old_starjammers",
+      "breakpoints": true
     }
   ]
 }

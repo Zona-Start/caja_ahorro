@@ -129,20 +129,6 @@ export const productPrices = inventorySchema.table('product_prices', {
   })
     .notNull()
     .default('16.00'), // % IVA compra
-  totalCost: numeric('total_cost', { precision: 18, scale: 6 })
-    .notNull()
-    .default('0'), // Costo total en moneda origen
-
-  // 3. Bloque de Costos en Bolívares (Calculados/Espejo)
-  baseCostVes: numeric('base_cost_ves', { precision: 18, scale: 6 })
-    .notNull()
-    .default('0'),
-  otherCostsVes: numeric('other_costs_ves', { precision: 18, scale: 6 })
-    .notNull()
-    .default('0'),
-  totalCostVes: numeric('total_cost_ves', { precision: 18, scale: 6 })
-    .notNull()
-    .default('0'),
 
   // 4. Bloque de Venta y Utilidad (Moneda Origen)
   profitPercent: numeric('profit_percent', { precision: 5, scale: 2 })
@@ -158,27 +144,6 @@ export const productPrices = inventorySchema.table('product_prices', {
   salePrice: numeric('sale_price', { precision: 18, scale: 6 }), // Precio directo en divisa (sin margen)
   offerSalePrice: numeric('offer_sale_price', { precision: 18, scale: 6 }), // Precio oferta directo en divisa
   bsPriceAmount: numeric('bs_price_amount', { precision: 18, scale: 6 }), // Monto en divisa para pago en Bs
-
-  finalPriceNet: numeric('final_price_net', { precision: 18, scale: 6 })
-    .notNull()
-    .default('0'), // Precio de venta sin IVA
-  finalPriceGross: numeric('final_price_gross', { precision: 18, scale: 6 })
-    .notNull()
-    .default('0'), // Precio de venta con IVA
-
-  // 5. Bloque de Venta en Bolívares (Espejo calculado)
-  finalPriceNetVes: numeric('final_price_net_ves', { precision: 18, scale: 6 })
-    .notNull()
-    .default('0'),
-  finalPriceGrossVes: numeric('final_price_gross_ves', {
-    precision: 18,
-    scale: 6,
-  })
-    .notNull()
-    .default('0'),
-
-  // Backward compatibility alias
-  finalPrice: numeric('final_price', { precision: 18, scale: 6 }),
 
   supplierInvoiceId: uuid('supplier_invoice_id').references(
     () => supplierInvoices.id,

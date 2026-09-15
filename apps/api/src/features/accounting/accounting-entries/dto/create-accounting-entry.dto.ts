@@ -7,6 +7,7 @@ export const CreateAccountingEntryBaseSchema = z.object({
   originReferenceId: z.string().optional(),
   originType: z.string().optional(),
   currencyCode: z.nativeEnum(CurrencyCodeEnum),
+  exchangeRate: z.coerce.number().positive().optional(),
   details: z
     .array(
       z.object({
@@ -15,6 +16,12 @@ export const CreateAccountingEntryBaseSchema = z.object({
         supplierId: z.string().uuid().optional().nullable(),
         debit: z.coerce.string().default('0.00'),
         credit: z.coerce.string().default('0.00'),
+        debitBase: z.coerce.string().default('0.00'),
+        creditBase: z.coerce.string().default('0.00'),
+        debitForeign: z.coerce.string().default('0.00'),
+        creditForeign: z.coerce.string().default('0.00'),
+        exchangeRate: z.coerce.number().positive().optional(),
+        currencyCode: z.nativeEnum(CurrencyCodeEnum).optional(),
         description: z.string().optional().nullable(),
       }),
     )
@@ -40,7 +47,33 @@ export const CreateAccountingEntrySchema =
         return sum + value;
       }, 0);
 
-      return Math.abs(totalDebit - totalCredit) < 0.00001;
+      if (Math.abs(totalDebit - totalCredit) >= 0.00001) {
+        return false;
+      }
+
+      // Validar balance en moneda extranjera si se suministran importes foreign.
+      const totalForeignDebit = data.details.reduce(
+        (sum, detail) => sum + Number(detail.debitForeign || 0),
+        0,
+      );
+      const totalForeignCredit = data.details.reduce(
+        (sum, detail) => sum + Number(detail.creditForeign || 0),
+        0,
+      );
+      const hasForeign = data.details.some(
+        (detail) =>
+          Number(detail.debitForeign || 0) > 0 ||
+          Number(detail.creditForeign || 0) > 0,
+      );
+
+      if (
+        hasForeign &&
+        Math.abs(totalForeignDebit - totalForeignCredit) >= 0.00001
+      ) {
+        return false;
+      }
+
+      return true;
     },
     {
       message:

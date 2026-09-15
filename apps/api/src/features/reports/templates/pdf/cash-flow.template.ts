@@ -1,10 +1,16 @@
 import { Content } from 'pdfmake/interfaces';
 
 function fmt(n: number): string {
-  return (n || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (n || 0).toLocaleString('es-VE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
-export function buildCashFlowTableContent(data: { period: string; totalAmount: number; count: number }[], groupBy: 'week' | 'month'): Content {
+export function buildCashFlowTableContent(
+  data: { period: string; totalAmount: number; count: number }[],
+  groupBy: 'week' | 'month',
+): Content {
   const formatPeriod = (d: string) => {
     if (!d) return '—';
     const date = new Date(d);
@@ -29,10 +35,25 @@ export function buildCashFlowTableContent(data: { period: string; totalAmount: n
     ]),
     [
       { text: 'TOTAL', bold: true },
-      { text: String(data.reduce((s: number, r) => s + Number(r.count || 0), 0)), alignment: 'right', bold: true },
-      { text: fmt(data.reduce((s: number, r) => s + Number(r.totalAmount || 0), 0)), alignment: 'right', bold: true },
+      {
+        text: String(
+          data.reduce((s: number, r) => s + Number(r.count || 0), 0),
+        ),
+        alignment: 'right',
+        bold: true,
+      },
+      {
+        text: fmt(
+          data.reduce((s: number, r) => s + Number(r.totalAmount || 0), 0),
+        ),
+        alignment: 'right',
+        bold: true,
+      },
     ],
   ];
 
-  return { table: { headerRows: 1, widths: ['*', 70, 100], body }, layout: 'lightHorizontalLines' } as unknown as Content;
+  return {
+    table: { headerRows: 1, widths: ['*', 70, 100], body },
+    layout: 'lightHorizontalLines',
+  } as unknown as Content;
 }

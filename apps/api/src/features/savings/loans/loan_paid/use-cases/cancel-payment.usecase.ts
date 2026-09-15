@@ -48,6 +48,16 @@ export class CancelPaymentUseCase {
       this.validator.validatePaymentHasLoan(payment);
       this.validator.validatePaymentNotCancelled(payment);
 
+      const [lockedLoan] = await tx
+        .select()
+        .from(loans)
+        .where(eq(loans.id, payment.loanId!))
+        .for('update');
+
+      if (!lockedLoan) {
+        throw new NotFoundException('Loan not found');
+      }
+
       const paymentDetails = await tx.query.loanPaymentsDetails.findMany({
         where: eq(loanPaymentsDetails.loanPaymentId, paymentId),
       });

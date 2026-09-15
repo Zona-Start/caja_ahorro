@@ -14,7 +14,7 @@ import { moduleSettings } from 'src/database/schema/tables/core';
 export class GenerateCodeService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-  ) { }
+  ) {}
 
   private findSetting(
     tx: NodePgDatabase<typeof schema>,

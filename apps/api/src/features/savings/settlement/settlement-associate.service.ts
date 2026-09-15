@@ -4,7 +4,6 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
   associateAccounts,
-  associateAccountMovements,
   associates,
   bankTransactions,
   creditAmortizationSchedule,
@@ -45,7 +44,7 @@ export class SettlementAssociateService {
     private readonly generateCodeService: GenerateCodeService,
     private readonly eventEmitter: EventEmitter2,
     private readonly savingsLiquidationService: SavingsLiquidationService,
-  ) { }
+  ) {}
 
   async findOneRequest(tenantId: string, cedula: string) {
     const result = await this.db
@@ -65,11 +64,15 @@ export class SettlementAssociateService {
     }
 
     if (result[0].status === 'RETIRED') {
-      throw new BadRequestException(`Associate with cedula ${cedula} is retired`);
+      throw new BadRequestException(
+        `Associate with cedula ${cedula} is retired`,
+      );
     }
 
     const resultLiquidations =
-      await this.savingsLiquidationService.calculateAssociateLiquidation(cedula);
+      await this.savingsLiquidationService.calculateAssociateLiquidation(
+        cedula,
+      );
 
     return {
       message: 'Datos de liquidacion calculados',
@@ -146,9 +149,7 @@ export class SettlementAssociateService {
           associateId: associateId,
           liquidationDate: new Date(date).toISOString().split('T')[0],
           currencyCode: 'VES' as CurrencyCodeEnum,
-          totalSavingsBalanceAtLiquidation: String(
-            liq.total_savings_balance,
-          ),
+          totalSavingsBalanceAtLiquidation: String(liq.total_savings_balance),
           totalOutstandingLoansAtLiquidation: String(
             liq.total_outstanding_loans,
           ),
@@ -176,7 +177,9 @@ export class SettlementAssociateService {
           recordId: newLiquidationRequest.id,
           description: `Solicitud de Liquidación de Asociado`,
           area: 'Liquidacion',
-          newData: [{ ...dto, status: 'REQUESTED', customReference: reference }],
+          newData: [
+            { ...dto, status: 'REQUESTED', customReference: reference },
+          ],
           tenantId,
         }),
       );
@@ -243,7 +246,9 @@ export class SettlementAssociateService {
 
       const totalSavings = Number(liquidation.totalSavingsBalanceAtLiquidation);
       const totalLoans = Number(liquidation.totalOutstandingLoansAtLiquidation);
-      const totalCredits = Number(liquidation.totalOutstandingCreditsAtLiquidation);
+      const totalCredits = Number(
+        liquidation.totalOutstandingCreditsAtLiquidation,
+      );
       const netAmount = Number(liquidation.netLiquidationAmount);
 
       // 1. Pay off outstanding loans from savings
@@ -251,11 +256,15 @@ export class SettlementAssociateService {
         const outstandingLoans = await tx
           .select({
             loanId: schema.loanOutstandingBalance.loanId,
-            outstandingTotal: schema.loanOutstandingBalance.outstandingTotalBalance,
+            outstandingTotal:
+              schema.loanOutstandingBalance.outstandingTotalBalance,
           })
           .from(schema.loanOutstandingBalance)
           .where(
-            eq(schema.loanOutstandingBalance.associateId, liquidation.associateId),
+            eq(
+              schema.loanOutstandingBalance.associateId,
+              liquidation.associateId,
+            ),
           );
 
         for (const loan of outstandingLoans) {
@@ -308,7 +317,8 @@ export class SettlementAssociateService {
             .returning({ id: loanPayments.id });
 
           for (const inst of pendingInstallments) {
-            const installmentOwed = Number(inst.totalAmount) - Number(inst.paidAmount || 0);
+            const installmentOwed =
+              Number(inst.totalAmount) - Number(inst.paidAmount || 0);
 
             await tx.insert(loanPaymentsDetails).values({
               loanPaymentId: loanPayment.id,
@@ -404,8 +414,6 @@ export class SettlementAssociateService {
               tx,
             );
 
-
-
           const [creditPayment] = await tx
             .insert(creditPayments)
             .values({
@@ -424,9 +432,9 @@ export class SettlementAssociateService {
             })
             .returning({ id: creditPayments.id });
 
-
           for (const inst of pendingInstallments) {
-            const installmentOwed = Number(inst.totalAmount) - Number(inst.paidAmount || 0);
+            const installmentOwed =
+              Number(inst.totalAmount) - Number(inst.paidAmount || 0);
 
             await tx.insert(creditPaymentsDetails).values({
               creditPaymentId: creditPayment.id,
@@ -586,7 +594,7 @@ export class SettlementAssociateService {
       if (
         liquidation.liquidations_associates.status !== 'PROCESSED' &&
         liquidation.liquidations_associates.status !==
-        'PENDING_DISBURSEMENT_BANK_BATCH'
+          'PENDING_DISBURSEMENT_BANK_BATCH'
       ) {
         throw new BadRequestException(
           `Solo se pueden desembolsar liquidaciones en estado 'PROCESADO' o en lote de pago.`,
@@ -710,9 +718,12 @@ export class SettlementAssociateService {
         id: liquidationsAssociates.id,
         customReference: liquidationsAssociates.customReference,
         liquidationDate: liquidationsAssociates.liquidationDate,
-        totalSavingsBalanceAtLiquidation: liquidationsAssociates.totalSavingsBalanceAtLiquidation,
-        totalOutstandingLoansAtLiquidation: liquidationsAssociates.totalOutstandingLoansAtLiquidation,
-        totalOutstandingCreditsAtLiquidation: liquidationsAssociates.totalOutstandingCreditsAtLiquidation,
+        totalSavingsBalanceAtLiquidation:
+          liquidationsAssociates.totalSavingsBalanceAtLiquidation,
+        totalOutstandingLoansAtLiquidation:
+          liquidationsAssociates.totalOutstandingLoansAtLiquidation,
+        totalOutstandingCreditsAtLiquidation:
+          liquidationsAssociates.totalOutstandingCreditsAtLiquidation,
         netLiquidationAmount: liquidationsAssociates.netLiquidationAmount,
         associateCedula: associates.cedula,
         associateFullname: associates.fullname,

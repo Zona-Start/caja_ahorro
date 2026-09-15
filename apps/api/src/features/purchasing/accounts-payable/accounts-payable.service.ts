@@ -18,7 +18,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 @Injectable()
@@ -127,9 +127,13 @@ export class AccountsPayableService {
         parsedStatus = [status];
       }
       if (parsedStatus.length === 1) {
-        searchConditions.push(eq(accountsPayable.status, parsedStatus[0] as any));
+        searchConditions.push(
+          eq(accountsPayable.status, parsedStatus[0] as any),
+        );
       } else {
-        searchConditions.push(inArray(accountsPayable.status, parsedStatus as any));
+        searchConditions.push(
+          inArray(accountsPayable.status, parsedStatus as any),
+        );
       }
     }
 
@@ -250,7 +254,11 @@ export class AccountsPayableService {
 
     const [updated] = await this.drizzle
       .update(accountsPayable)
-      .set({ status: 'APPROVED', isAuthorizePayment: true, updatedById: userId })
+      .set({
+        status: 'APPROVED',
+        isAuthorizePayment: true,
+        updatedById: userId,
+      })
       .where(
         and(eq(accountsPayable.id, id), eq(accountsPayable.tenantId, tenantId)),
       )
@@ -275,11 +283,11 @@ export class AccountsPayableService {
 
     const updateData: Record<string, any> = { updatedById: userId };
     if (dto.priority !== undefined) updateData.priority = dto.priority;
-    if (dto.observations !== undefined) updateData.observations = dto.observations;
+    if (dto.observations !== undefined)
+      updateData.observations = dto.observations;
     if (dto.dueDate !== undefined) {
-      updateData.dueDate = dto.dueDate instanceof Date
-        ? dto.dueDate.toISOString()
-        : dto.dueDate;
+      updateData.dueDate =
+        dto.dueDate instanceof Date ? dto.dueDate.toISOString() : dto.dueDate;
     }
     if (dto.isAuthorizePayment !== undefined) {
       updateData.isAuthorizePayment = dto.isAuthorizePayment;
@@ -432,10 +440,15 @@ export class AccountsPayableService {
         dto.transactionType === 'DEBIT_NOTE' &&
         dto.accountsPayableId
       ) {
-        const accountPayable = await db
+        const [accountPayable] = await tx
           .select()
           .from(accountsPayable)
-          .where(eq(accountsPayable.id, dto.accountsPayableId));
+          .where(eq(accountsPayable.id, dto.accountsPayableId))
+          .for('update');
+
+        if (!accountPayable) {
+          throw new NotFoundException('Account payable not found');
+        }
 
         await tx.insert(supplierDebitNotes).values({
           tenantId,
@@ -457,13 +470,15 @@ export class AccountsPayableService {
           createdById: userId,
         });
 
-        const sum =
-          Number(accountPayable[0].remainingAmount) + Number(dto.amount);
+        const sum = Number(accountPayable.remainingAmount) + Number(dto.amount);
 
-        await tx.update(accountsPayable).set({
-          remainingAmount: sum.toString(),
-          updatedById: userId,
-        });
+        await tx
+          .update(accountsPayable)
+          .set({
+            remainingAmount: sum.toString(),
+            updatedById: userId,
+          })
+          .where(eq(accountsPayable.id, dto.accountsPayableId));
       }
       return newSupplierTransaction;
     });
@@ -648,7 +663,8 @@ export class AccountsPayableService {
             eq(accountsPayable.id, accountsPayableId),
             eq(accountsPayable.tenantId, tenantId),
           ),
-        );
+        )
+        .for('update');
 
       if (!cxp) {
         throw new NotFoundException('Account payable not found');
@@ -668,7 +684,8 @@ export class AccountsPayableService {
             eq(supplierCreditNotes.transactionId, dto.creditNoteTransactionId),
             eq(supplierCreditNotes.tenantId, tenantId),
           ),
-        );
+        )
+        .for('update');
 
       if (!creditNote) {
         throw new NotFoundException('Credit note not found');
@@ -714,7 +731,9 @@ export class AccountsPayableService {
           availableAmount: newAvailable.toString(),
           updatedById: userId,
         })
-        .where(eq(supplierCreditNotes.transactionId, dto.creditNoteTransactionId));
+        .where(
+          eq(supplierCreditNotes.transactionId, dto.creditNoteTransactionId),
+        );
 
       await tx
         .update(supplierTransactions)
@@ -725,19 +744,31 @@ export class AccountsPayableService {
       const newPaid = Number(cxp.paidAmount) + dto.amount;
       const newCxpStatus = newRemaining <= 0.01 ? 'PAID' : 'PENDING';
 
-      await tx
+      const [updatedCxp] = await tx
         .update(accountsPayable)
         .set({
-          remainingAmount: newRemaining.toString(),
-          paidAmount: newPaid.toString(),
+          remainingAmount: String(Math.max(0, newRemaining)),
+          paidAmount: String(newPaid),
           status: newCxpStatus,
           updatedById: userId,
         })
-        .where(eq(accountsPayable.id, accountsPayableId));
+        .where(
+          and(
+            eq(accountsPayable.id, accountsPayableId),
+            gte(accountsPayable.remainingAmount, String(dto.amount)),
+          ),
+        )
+        .returning({ id: accountsPayable.id });
+
+      if (!updatedCxp) {
+        throw new BadRequestException(
+          'Amount exceeds the outstanding balance of the account payable',
+        );
+      }
 
       return {
         message: 'Credit note applied successfully',
-        remainingAmount: newRemaining,
+        remainingAmount: Math.max(0, newRemaining),
         appliedAmount: dto.amount,
       };
     });
@@ -758,7 +789,8 @@ export class AccountsPayableService {
             eq(accountsPayable.id, accountsPayableId),
             eq(accountsPayable.tenantId, tenantId),
           ),
-        );
+        )
+        .for('update');
 
       if (!cxp) {
         throw new NotFoundException('Account payable not found');
@@ -779,7 +811,8 @@ export class AccountsPayableService {
             eq(supplierTransactions.tenantId, tenantId),
             eq(supplierTransactions.transactionType, 'DEBIT_NOTE'),
           ),
-        );
+        )
+        .for('update');
 
       if (!transaction) {
         throw new NotFoundException('Debit note transaction not found');
@@ -790,8 +823,14 @@ export class AccountsPayableService {
         .from(supplierTransactionApplications)
         .where(
           and(
-            eq(supplierTransactionApplications.transactionId, dto.debitNoteTransactionId),
-            eq(supplierTransactionApplications.accountsPayableId, accountsPayableId),
+            eq(
+              supplierTransactionApplications.transactionId,
+              dto.debitNoteTransactionId,
+            ),
+            eq(
+              supplierTransactionApplications.accountsPayableId,
+              accountsPayableId,
+            ),
           ),
         );
 
@@ -818,7 +857,12 @@ export class AccountsPayableService {
           remainingAmount: newRemaining.toString(),
           updatedById: userId,
         })
-        .where(eq(accountsPayable.id, accountsPayableId));
+        .where(
+          and(
+            eq(accountsPayable.id, accountsPayableId),
+            eq(accountsPayable.tenantId, tenantId),
+          ),
+        );
 
       return {
         message: 'Debit note applied successfully',
@@ -843,7 +887,8 @@ export class AccountsPayableService {
             eq(accountsPayable.id, accountsPayableId),
             eq(accountsPayable.tenantId, tenantId),
           ),
-        );
+        )
+        .for('update');
 
       if (!cxp) {
         throw new NotFoundException('Account payable not found');
@@ -863,7 +908,8 @@ export class AccountsPayableService {
             eq(supplierAdvances.transactionId, dto.advanceTransactionId),
             eq(supplierAdvances.tenantId, tenantId),
           ),
-        );
+        )
+        .for('update');
 
       if (!advance) {
         throw new NotFoundException('Advance not found');
@@ -901,16 +947,29 @@ export class AccountsPayableService {
       });
 
       const newAvailable = available - dto.amount;
-      const newAdvanceStatus = newAvailable <= 0.01 ? 'APPLIED' : 'PARTIALLY_APPLIED';
+      const newAdvanceStatus =
+        newAvailable <= 0.01 ? 'APPLIED' : 'PARTIALLY_APPLIED';
 
-      await tx
+      const [updatedAdvance] = await tx
         .update(supplierAdvances)
         .set({
-          availableAmount: newAvailable.toString(),
+          availableAmount: String(Math.max(0, newAvailable)),
           statusPayment: newAvailable <= 0.01 ? 'PAID' : 'PENDING',
           updatedById: userId,
         })
-        .where(eq(supplierAdvances.transactionId, dto.advanceTransactionId));
+        .where(
+          and(
+            eq(supplierAdvances.transactionId, dto.advanceTransactionId),
+            gte(supplierAdvances.availableAmount, String(dto.amount)),
+          ),
+        )
+        .returning({ id: supplierAdvances.id });
+
+      if (!updatedAdvance) {
+        throw new BadRequestException(
+          'Amount exceeds the available advance balance',
+        );
+      }
 
       await tx
         .update(supplierTransactions)
@@ -924,12 +983,17 @@ export class AccountsPayableService {
       await tx
         .update(accountsPayable)
         .set({
-          remainingAmount: newRemaining.toString(),
-          paidAmount: newPaid.toString(),
+          remainingAmount: String(Math.max(0, newRemaining)),
+          paidAmount: String(newPaid),
           status: newCxpStatus,
           updatedById: userId,
         })
-        .where(eq(accountsPayable.id, accountsPayableId));
+        .where(
+          and(
+            eq(accountsPayable.id, accountsPayableId),
+            gte(accountsPayable.remainingAmount, String(dto.amount)),
+          ),
+        );
 
       return {
         message: 'Advance applied successfully',
@@ -953,7 +1017,10 @@ export class AccountsPayableService {
           and(
             eq(supplierTransactionApplications.id, applicationId),
             eq(supplierTransactionApplications.tenantId, tenantId),
-            eq(supplierTransactionApplications.accountsPayableId, accountsPayableId),
+            eq(
+              supplierTransactionApplications.accountsPayableId,
+              accountsPayableId,
+            ),
           ),
         );
 
@@ -972,35 +1039,48 @@ export class AccountsPayableService {
 
       const appliedAmount = Number(application.appliedAmount);
 
+      const [cxp] = await tx
+        .select()
+        .from(accountsPayable)
+        .where(
+          and(
+            eq(accountsPayable.id, accountsPayableId),
+            eq(accountsPayable.tenantId, tenantId),
+          ),
+        )
+        .for('update');
+
+      if (!cxp) {
+        throw new NotFoundException('Account payable not found');
+      }
+
+      const currentRemaining = Number(cxp.remainingAmount);
+      const currentPaid = Number(cxp.paidAmount);
+
       if (transaction.transactionType === 'CREDIT_NOTE') {
         const [creditNote] = await tx
           .select()
           .from(supplierCreditNotes)
-          .where(eq(supplierCreditNotes.transactionId, transaction.id));
+          .where(eq(supplierCreditNotes.transactionId, transaction.id))
+          .for('update');
 
         if (creditNote) {
-          const newAvailable = Number(creditNote.availableAmount) + appliedAmount;
+          const newAvailable =
+            Number(creditNote.availableAmount) + appliedAmount;
           await tx
             .update(supplierCreditNotes)
-            .set({ availableAmount: newAvailable.toString(), updatedById: userId })
+            .set({
+              availableAmount: newAvailable.toString(),
+              updatedById: userId,
+            })
             .where(eq(supplierCreditNotes.transactionId, transaction.id));
         }
 
         await tx
           .update(accountsPayable)
           .set({
-            remainingAmount: (
-              Number(
-                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
-                  .remainingAmount,
-              ) + appliedAmount
-            ).toString(),
-            paidAmount: (
-              Number(
-                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
-                  .paidAmount,
-              ) - appliedAmount
-            ).toString(),
+            remainingAmount: String(currentRemaining + appliedAmount),
+            paidAmount: String(Math.max(0, currentPaid - appliedAmount)),
             updatedById: userId,
           })
           .where(eq(accountsPayable.id, accountsPayableId));
@@ -1013,31 +1093,25 @@ export class AccountsPayableService {
         const [advance] = await tx
           .select()
           .from(supplierAdvances)
-          .where(eq(supplierAdvances.transactionId, transaction.id));
+          .where(eq(supplierAdvances.transactionId, transaction.id))
+          .for('update');
 
         if (advance) {
           const newAvailable = Number(advance.availableAmount) + appliedAmount;
           await tx
             .update(supplierAdvances)
-            .set({ availableAmount: newAvailable.toString(), updatedById: userId })
+            .set({
+              availableAmount: newAvailable.toString(),
+              updatedById: userId,
+            })
             .where(eq(supplierAdvances.transactionId, transaction.id));
         }
 
         await tx
           .update(accountsPayable)
           .set({
-            remainingAmount: (
-              Number(
-                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
-                  .remainingAmount,
-              ) + appliedAmount
-            ).toString(),
-            paidAmount: (
-              Number(
-                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
-                  .paidAmount,
-              ) - appliedAmount
-            ).toString(),
+            remainingAmount: String(currentRemaining + appliedAmount),
+            paidAmount: String(Math.max(0, currentPaid - appliedAmount)),
             updatedById: userId,
           })
           .where(eq(accountsPayable.id, accountsPayableId));
@@ -1050,12 +1124,9 @@ export class AccountsPayableService {
         await tx
           .update(accountsPayable)
           .set({
-            remainingAmount: (
-              Number(
-                (await tx.select().from(accountsPayable).where(eq(accountsPayable.id, accountsPayableId)))[0]
-                  .remainingAmount,
-              ) - appliedAmount
-            ).toString(),
+            remainingAmount: String(
+              Math.max(0, currentRemaining - appliedAmount),
+            ),
             updatedById: userId,
           })
           .where(eq(accountsPayable.id, accountsPayableId));

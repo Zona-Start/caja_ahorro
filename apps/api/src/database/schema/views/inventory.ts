@@ -5,13 +5,16 @@ import { inventoryMovementItems, inventoryMovements } from '../tables';
 
 //Cantidad disponible por ítem según movimientos de inventario.
 export const inventoryAvailability = inventorySchema.view(
-    'inventory_availability',
-    {
-        itemId: uuid('item_id').notNull(),
-        itemType: varchar('item_type', { length: 50 }).notNull(),
-        availableQuantity: numeric('available_quantity', { precision: 12, scale: 4 }).notNull(),
-        tenantId: uuid('tenant_id').notNull(),
-    },
+  'inventory_availability',
+  {
+    itemId: uuid('item_id').notNull(),
+    itemType: varchar('item_type', { length: 50 }).notNull(),
+    availableQuantity: numeric('available_quantity', {
+      precision: 12,
+      scale: 4,
+    }).notNull(),
+    tenantId: uuid('tenant_id').notNull(),
+  },
 ).as(sql`
   SELECT
     imi.product_id AS item_id,

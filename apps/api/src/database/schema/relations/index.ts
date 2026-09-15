@@ -4,7 +4,7 @@ export * from './auth';
 export * from './core';
 export * from './inventory';
 export * from './purchasing';
+export * from './sales';
 export * from './savings';
 export * from './tenants';
 export * from './treasury';
-export * from './sales';

@@ -223,114 +223,214 @@ export class SupplierTransactionsService {
     const invoices = this.drizzle
       .select({
         date: sql<string>`${schema.supplierInvoices.invoiceDate}`.as('date'),
-        reference: sql<string>`${schema.supplierInvoices.supplierInvoiceNumber}`.as('reference'),
-        description: sql<string>`'Factura ' || ${schema.supplierInvoices.invoiceNumber}`.as('description'),
+        reference:
+          sql<string>`${schema.supplierInvoices.supplierInvoiceNumber}`.as(
+            'reference',
+          ),
+        description:
+          sql<string>`'Factura ' || ${schema.supplierInvoices.invoiceNumber}`.as(
+            'description',
+          ),
         documentType: sql<string>`'INVOICE'`.as('document_type'),
         debit: sql<string>`${schema.supplierInvoices.totalAmount}`.as('debit'),
         credit: sql<string>`'0.00'`.as('credit'),
-        supplierId: sql<string>`${schema.supplierInvoices.supplierId}`.as('supplier_id'),
-        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as('supplier_name'),
+        supplierId: sql<string>`${schema.supplierInvoices.supplierId}`.as(
+          'supplier_id',
+        ),
+        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as(
+          'supplier_name',
+        ),
       })
       .from(schema.supplierInvoices)
-      .leftJoin(schema.suppliers, eq(schema.supplierInvoices.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.supplierInvoices.tenantId, tenantId),
-        ...mkSupplierFilter(schema.supplierInvoices.supplierId),
-        gte(schema.supplierInvoices.invoiceDate, startDate),
-        lte(schema.supplierInvoices.invoiceDate, endDate),
-      ));
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierInvoices.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.supplierInvoices.tenantId, tenantId),
+          ...mkSupplierFilter(schema.supplierInvoices.supplierId),
+          gte(schema.supplierInvoices.invoiceDate, startDate),
+          lte(schema.supplierInvoices.invoiceDate, endDate),
+        ),
+      );
 
     // ── 2. Pagos ──
     const payments = this.drizzle
       .select({
-        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as('date'),
-        reference: sql<string>`${schema.supplierTransactions.transactionNumber}`.as('reference'),
-        description: sql<string>`'Pago ' || COALESCE(${schema.supplierTransactions.observations}, '')`.as('description'),
+        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as(
+          'date',
+        ),
+        reference:
+          sql<string>`${schema.supplierTransactions.transactionNumber}`.as(
+            'reference',
+          ),
+        description:
+          sql<string>`'Pago ' || COALESCE(${schema.supplierTransactions.observations}, '')`.as(
+            'description',
+          ),
         documentType: sql<string>`'PAYMENT'`.as('document_type'),
         debit: sql<string>`'0.00'`.as('debit'),
         credit: sql<string>`${schema.supplierTransactions.amount}`.as('credit'),
-        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as('supplier_id'),
-        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as('supplier_name'),
+        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as(
+          'supplier_id',
+        ),
+        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as(
+          'supplier_name',
+        ),
       })
       .from(schema.supplierTransactions)
-      .leftJoin(schema.suppliers, eq(schema.supplierTransactions.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.supplierTransactions.tenantId, tenantId),
-        eq(schema.supplierTransactions.transactionType, 'PAYMENT'),
-        eq(schema.supplierTransactions.status, 'APPLIED'),
-        ...mkSupplierFilter(schema.supplierTransactions.supplierId),
-        gte(schema.supplierTransactions.transactionDate, startDate),
-        lte(schema.supplierTransactions.transactionDate, endDate),
-      ));
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierTransactions.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.supplierTransactions.tenantId, tenantId),
+          eq(schema.supplierTransactions.transactionType, 'PAYMENT'),
+          eq(schema.supplierTransactions.status, 'APPLIED'),
+          ...mkSupplierFilter(schema.supplierTransactions.supplierId),
+          gte(schema.supplierTransactions.transactionDate, startDate),
+          lte(schema.supplierTransactions.transactionDate, endDate),
+        ),
+      );
 
     // ── 3. Notas de Crédito ──
     const creditNotes = this.drizzle
       .select({
-        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as('date'),
-        reference: sql<string>`${schema.supplierCreditNotes.creditNoteNumber}`.as('reference'),
-        description: sql<string>`'N.Crédito ' || COALESCE(${schema.supplierCreditNotes.reason}, '')`.as('description'),
+        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as(
+          'date',
+        ),
+        reference:
+          sql<string>`${schema.supplierCreditNotes.creditNoteNumber}`.as(
+            'reference',
+          ),
+        description:
+          sql<string>`'N.Crédito ' || COALESCE(${schema.supplierCreditNotes.reason}, '')`.as(
+            'description',
+          ),
         documentType: sql<string>`'CREDIT_NOTE'`.as('document_type'),
         debit: sql<string>`'0.00'`.as('debit'),
         credit: sql<string>`${schema.supplierCreditNotes.amount}`.as('credit'),
-        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as('supplier_id'),
-        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as('supplier_name'),
+        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as(
+          'supplier_id',
+        ),
+        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as(
+          'supplier_name',
+        ),
       })
       .from(schema.supplierTransactions)
-      .leftJoin(schema.supplierCreditNotes, eq(schema.supplierCreditNotes.transactionId, schema.supplierTransactions.id))
-      .leftJoin(schema.suppliers, eq(schema.supplierTransactions.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.supplierTransactions.tenantId, tenantId),
-        eq(schema.supplierTransactions.transactionType, 'CREDIT_NOTE'),
-        ...mkSupplierFilter(schema.supplierTransactions.supplierId),
-        gte(schema.supplierTransactions.transactionDate, startDate),
-        lte(schema.supplierTransactions.transactionDate, endDate),
-      ));
+      .leftJoin(
+        schema.supplierCreditNotes,
+        eq(
+          schema.supplierCreditNotes.transactionId,
+          schema.supplierTransactions.id,
+        ),
+      )
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierTransactions.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.supplierTransactions.tenantId, tenantId),
+          eq(schema.supplierTransactions.transactionType, 'CREDIT_NOTE'),
+          ...mkSupplierFilter(schema.supplierTransactions.supplierId),
+          gte(schema.supplierTransactions.transactionDate, startDate),
+          lte(schema.supplierTransactions.transactionDate, endDate),
+        ),
+      );
 
     // ── 4. Notas de Débito ──
     const debitNotes = this.drizzle
       .select({
-        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as('date'),
-        reference: sql<string>`${schema.supplierDebitNotes.debitNoteNumber}`.as('reference'),
-        description: sql<string>`'N.Débito ' || COALESCE(${schema.supplierDebitNotes.reason}, '')`.as('description'),
+        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as(
+          'date',
+        ),
+        reference: sql<string>`${schema.supplierDebitNotes.debitNoteNumber}`.as(
+          'reference',
+        ),
+        description:
+          sql<string>`'N.Débito ' || COALESCE(${schema.supplierDebitNotes.reason}, '')`.as(
+            'description',
+          ),
         documentType: sql<string>`'DEBIT_NOTE'`.as('document_type'),
         debit: sql<string>`${schema.supplierDebitNotes.amount}`.as('debit'),
         credit: sql<string>`'0.00'`.as('credit'),
-        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as('supplier_id'),
-        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as('supplier_name'),
+        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as(
+          'supplier_id',
+        ),
+        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as(
+          'supplier_name',
+        ),
       })
       .from(schema.supplierTransactions)
-      .leftJoin(schema.supplierDebitNotes, eq(schema.supplierDebitNotes.transactionId, schema.supplierTransactions.id))
-      .leftJoin(schema.suppliers, eq(schema.supplierTransactions.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.supplierTransactions.tenantId, tenantId),
-        eq(schema.supplierTransactions.transactionType, 'DEBIT_NOTE'),
-        ...mkSupplierFilter(schema.supplierTransactions.supplierId),
-        gte(schema.supplierTransactions.transactionDate, startDate),
-        lte(schema.supplierTransactions.transactionDate, endDate),
-      ));
+      .leftJoin(
+        schema.supplierDebitNotes,
+        eq(
+          schema.supplierDebitNotes.transactionId,
+          schema.supplierTransactions.id,
+        ),
+      )
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierTransactions.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.supplierTransactions.tenantId, tenantId),
+          eq(schema.supplierTransactions.transactionType, 'DEBIT_NOTE'),
+          ...mkSupplierFilter(schema.supplierTransactions.supplierId),
+          gte(schema.supplierTransactions.transactionDate, startDate),
+          lte(schema.supplierTransactions.transactionDate, endDate),
+        ),
+      );
 
     // ── 5. Anticipos ──
     const advances = this.drizzle
       .select({
-        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as('date'),
-        reference: sql<string>`${schema.supplierAdvances.supplierAdvanceNumber}`.as('reference'),
-        description: sql<string>`'Anticipo ' || COALESCE(${schema.supplierAdvances.supplierAdvanceNumber}, '')`.as('description'),
+        date: sql<string>`${schema.supplierTransactions.transactionDate}`.as(
+          'date',
+        ),
+        reference:
+          sql<string>`${schema.supplierAdvances.supplierAdvanceNumber}`.as(
+            'reference',
+          ),
+        description:
+          sql<string>`'Anticipo ' || COALESCE(${schema.supplierAdvances.supplierAdvanceNumber}, '')`.as(
+            'description',
+          ),
         documentType: sql<string>`'ADVANCE'`.as('document_type'),
         debit: sql<string>`'0.00'`.as('debit'),
         credit: sql<string>`${schema.supplierTransactions.amount}`.as('credit'),
-        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as('supplier_id'),
-        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as('supplier_name'),
+        supplierId: sql<string>`${schema.supplierTransactions.supplierId}`.as(
+          'supplier_id',
+        ),
+        supplierName: sql<string>`COALESCE(${schema.suppliers.name}, '')`.as(
+          'supplier_name',
+        ),
       })
       .from(schema.supplierTransactions)
-      .leftJoin(schema.supplierAdvances, eq(schema.supplierAdvances.transactionId, schema.supplierTransactions.id))
-      .leftJoin(schema.suppliers, eq(schema.supplierTransactions.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.supplierTransactions.tenantId, tenantId),
-        eq(schema.supplierTransactions.transactionType, 'ADVANCE'),
-        ...mkSupplierFilter(schema.supplierTransactions.supplierId),
-        gte(schema.supplierTransactions.transactionDate, startDate),
-        lte(schema.supplierTransactions.transactionDate, endDate),
-      ));
+      .leftJoin(
+        schema.supplierAdvances,
+        eq(
+          schema.supplierAdvances.transactionId,
+          schema.supplierTransactions.id,
+        ),
+      )
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierTransactions.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.supplierTransactions.tenantId, tenantId),
+          eq(schema.supplierTransactions.transactionType, 'ADVANCE'),
+          ...mkSupplierFilter(schema.supplierTransactions.supplierId),
+          gte(schema.supplierTransactions.transactionDate, startDate),
+          lte(schema.supplierTransactions.transactionDate, endDate),
+        ),
+      );
 
     const combined = invoices
       .unionAll(payments)
@@ -359,7 +459,9 @@ export class SupplierTransactionsService {
 
     let openingBalance = 0;
     if (beforeRows.length > 0) {
-      openingBalance = Number(beforeRows[0].totalDebit || 0) - Number(beforeRows[0].totalCredit || 0);
+      openingBalance =
+        Number(beforeRows[0].totalDebit || 0) -
+        Number(beforeRows[0].totalCredit || 0);
     }
     balance = openingBalance;
 
@@ -383,25 +485,47 @@ export class SupplierTransactionsService {
     // ── KPIs ──
     const kpiBase = [
       eq(schema.accountsPayable.tenantId, tenantId),
-      ...(supplierId ? [eq(schema.accountsPayable.supplierId, supplierId)] : []),
+      ...(supplierId
+        ? [eq(schema.accountsPayable.supplierId, supplierId)]
+        : []),
     ];
 
     const [overdue] = await this.drizzle
-      .select({ total: sql<number>`COALESCE(SUM(${schema.accountsPayable.remainingAmount}), 0)` })
+      .select({
+        total: sql<number>`COALESCE(SUM(${schema.accountsPayable.remainingAmount}), 0)`,
+      })
       .from(schema.accountsPayable)
-      .where(and(...kpiBase, sql`${schema.accountsPayable.dueDate} < CURRENT_DATE`, sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`));
+      .where(
+        and(
+          ...kpiBase,
+          sql`${schema.accountsPayable.dueDate} < CURRENT_DATE`,
+          sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
+        ),
+      );
 
     const [upcoming] = await this.drizzle
-      .select({ total: sql<number>`COALESCE(SUM(${schema.accountsPayable.remainingAmount}), 0)` })
+      .select({
+        total: sql<number>`COALESCE(SUM(${schema.accountsPayable.remainingAmount}), 0)`,
+      })
       .from(schema.accountsPayable)
-      .where(and(...kpiBase, sql`${schema.accountsPayable.dueDate} >= CURRENT_DATE`, sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`));
+      .where(
+        and(
+          ...kpiBase,
+          sql`${schema.accountsPayable.dueDate} >= CURRENT_DATE`,
+          sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
+        ),
+      );
 
     const advanceBase = [
       eq(schema.supplierAdvances.tenantId, tenantId),
-      ...(supplierId ? [eq(schema.supplierAdvances.supplierId, supplierId)] : []),
+      ...(supplierId
+        ? [eq(schema.supplierAdvances.supplierId, supplierId)]
+        : []),
     ];
     const [credits] = await this.drizzle
-      .select({ total: sql<number>`COALESCE(SUM(${schema.supplierAdvances.availableAmount}), 0)` })
+      .select({
+        total: sql<number>`COALESCE(SUM(${schema.supplierAdvances.availableAmount}), 0)`,
+      })
       .from(schema.supplierAdvances)
       .where(and(...advanceBase));
 
@@ -434,11 +558,16 @@ export class SupplierTransactionsService {
         totalDue: sql<number>`COALESCE(SUM(${schema.accountsPayable.remainingAmount}), 0)`,
       })
       .from(schema.accountsPayable)
-      .leftJoin(schema.suppliers, eq(schema.accountsPayable.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.accountsPayable.tenantId, tenantId),
-        sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
-      ))
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.accountsPayable.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.accountsPayable.tenantId, tenantId),
+          sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
+        ),
+      )
       .groupBy(schema.suppliers.id, schema.suppliers.name);
 
     const agingRows = await this.drizzle
@@ -451,11 +580,16 @@ export class SupplierTransactionsService {
         bucket90plus: sql<number>`COALESCE(SUM(CASE WHEN ${schema.accountsPayable.dueDate} < CURRENT_DATE - INTERVAL '90 days' THEN ${schema.accountsPayable.remainingAmount} ELSE 0 END), 0)`,
       })
       .from(schema.accountsPayable)
-      .leftJoin(schema.suppliers, eq(schema.accountsPayable.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.accountsPayable.tenantId, tenantId),
-        sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
-      ))
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.accountsPayable.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.accountsPayable.tenantId, tenantId),
+          sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
+        ),
+      )
       .groupBy(schema.suppliers.id);
 
     const agingMap = new Map<string, any>();
@@ -473,11 +607,20 @@ export class SupplierTransactionsService {
       supplierId: r.supplierId,
       supplierName: r.supplierName,
       totalDue: Number(r.totalDue),
-      ...(agingMap.get(r.supplierId as string) || { bucket0: 0, bucket1to30: 0, bucket31to60: 0, bucket61to90: 0, bucket90plus: 0 }),
+      ...(agingMap.get(r.supplierId as string) || {
+        bucket0: 0,
+        bucket1to30: 0,
+        bucket31to60: 0,
+        bucket61to90: 0,
+        bucket90plus: 0,
+      }),
     }));
   }
 
-  async getTaxBookReport(dto: { startDate: string; endDate: string }, tenantId: string) {
+  async getTaxBookReport(
+    dto: { startDate: string; endDate: string },
+    tenantId: string,
+  ) {
     const { startDate, endDate } = dto;
     return this.drizzle
       .select({
@@ -493,19 +636,28 @@ export class SupplierTransactionsService {
         status: schema.supplierInvoices.status,
       })
       .from(schema.supplierInvoices)
-      .leftJoin(schema.suppliers, eq(schema.supplierInvoices.supplierId, schema.suppliers.id))
-      .where(and(
-        eq(schema.supplierInvoices.tenantId, tenantId),
-        gte(schema.supplierInvoices.invoiceDate, startDate),
-        lte(schema.supplierInvoices.invoiceDate, endDate),
-      ))
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.supplierInvoices.supplierId, schema.suppliers.id),
+      )
+      .where(
+        and(
+          eq(schema.supplierInvoices.tenantId, tenantId),
+          gte(schema.supplierInvoices.invoiceDate, startDate),
+          lte(schema.supplierInvoices.invoiceDate, endDate),
+        ),
+      )
       .orderBy(asc(schema.supplierInvoices.invoiceDate));
   }
 
-  async getCashFlowReport(dto: { groupBy: 'week' | 'month' }, tenantId: string) {
-    const trunc = dto.groupBy === 'week'
-      ? sql<string>`DATE_TRUNC('week', ${schema.accountsPayable.dueDate})`
-      : sql<string>`DATE_TRUNC('month', ${schema.accountsPayable.dueDate})`;
+  async getCashFlowReport(
+    dto: { groupBy: 'week' | 'month' },
+    tenantId: string,
+  ) {
+    const trunc =
+      dto.groupBy === 'week'
+        ? sql<string>`DATE_TRUNC('week', ${schema.accountsPayable.dueDate})`
+        : sql<string>`DATE_TRUNC('month', ${schema.accountsPayable.dueDate})`;
 
     return this.drizzle
       .select({
@@ -514,10 +666,12 @@ export class SupplierTransactionsService {
         count: sql<number>`COUNT(*)`,
       })
       .from(schema.accountsPayable)
-      .where(and(
-        eq(schema.accountsPayable.tenantId, tenantId),
-        sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
-      ))
+      .where(
+        and(
+          eq(schema.accountsPayable.tenantId, tenantId),
+          sql`${schema.accountsPayable.status}::text = ANY(ARRAY['APPROVED','PARTIALLY_PAID']::text[])`,
+        ),
+      )
       .groupBy(trunc)
       .orderBy(asc(trunc));
   }

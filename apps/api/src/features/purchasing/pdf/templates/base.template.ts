@@ -1,5 +1,8 @@
 import { Content, TableCell } from 'pdfmake/interfaces';
-import { PurchasingPdfConfig, PurchasingPdfItem } from '../purchasing-pdf.types';
+import {
+  PurchasingPdfConfig,
+  PurchasingPdfItem,
+} from '../purchasing-pdf.types';
 
 // ── LOGO PLACEHOLDER ──
 function buildLogoPlaceholder(): Content {
@@ -43,20 +46,56 @@ function buildHeader(config: PurchasingPdfConfig): Content {
 
   // Líneas con los datos fiscales de la empresa
   const companyLines: Content[] = [
-    { text: t.name, bold: true, fontSize: 12, margin: [0, 0, 0, 2], color: '#1e293b' },
-    { text: `RIF: ${t.rif}`, fontSize: 9, margin: [0, 0, 0, 1], color: '#475569' },
-    ...(t.address ? [{ text: `Dirección: ${t.address}`, fontSize: 8, color: '#64748b' }] : []),
-    ...(t.phone ? [{ text: `Teléfono: ${t.phone}`, fontSize: 8, color: '#64748b' }] : []),
-    ...(t.email ? [{ text: `Correo: ${t.email}`, fontSize: 8, color: '#64748b' }] : []),
+    {
+      text: t.name,
+      bold: true,
+      fontSize: 12,
+      margin: [0, 0, 0, 2],
+      color: '#1e293b',
+    },
+    {
+      text: `RIF: ${t.rif}`,
+      fontSize: 9,
+      margin: [0, 0, 0, 1],
+      color: '#475569',
+    },
+    ...(t.address
+      ? [{ text: `Dirección: ${t.address}`, fontSize: 8, color: '#64748b' }]
+      : []),
+    ...(t.phone
+      ? [{ text: `Teléfono: ${t.phone}`, fontSize: 8, color: '#64748b' }]
+      : []),
+    ...(t.email
+      ? [{ text: `Correo: ${t.email}`, fontSize: 8, color: '#64748b' }]
+      : []),
   ];
 
   const refDisplay = config.numericReference ?? config.reference;
 
   // Líneas con los datos de la Orden/Documento (ahora alineados a la derecha de forma nativa)
   const titleLines: Content[] = [
-    { text: config.title.toUpperCase(), bold: true, fontSize: 12, alignment: 'right' as const, color: '#1e3a5f', margin: [0, 0, 0, 4] },
-    { text: `Fecha: ${formatDateStr(config.date)}`, fontSize: 9, alignment: 'right' as const, color: '#334155', margin: [0, 0, 0, 2] },
-    { text: `N° ${refDisplay}`, fontSize: 9, alignment: 'right' as const, color: '#334155', bold: true },
+    {
+      text: config.title.toUpperCase(),
+      bold: true,
+      fontSize: 12,
+      alignment: 'right' as const,
+      color: '#1e3a5f',
+      margin: [0, 0, 0, 4],
+    },
+    {
+      text: `Fecha: ${formatDateStr(config.date)}`,
+      fontSize: 9,
+      alignment: 'right' as const,
+      color: '#334155',
+      margin: [0, 0, 0, 2],
+    },
+    {
+      text: `N° ${refDisplay}`,
+      fontSize: 9,
+      alignment: 'right' as const,
+      color: '#334155',
+      bold: true,
+    },
   ];
 
   return {
@@ -66,7 +105,7 @@ function buildHeader(config: PurchasingPdfConfig): Content {
       {
         image: null, // Si usas el placeholder:
         stack: [buildLogoPlaceholder()],
-        margin: [0, 0, 0, 10]
+        margin: [0, 0, 0, 10],
       },
       // 2. Creamos la estructura de 2 columnas justo debajo del logo
       {
@@ -81,15 +120,25 @@ function buildHeader(config: PurchasingPdfConfig): Content {
           },
         ],
         columnGap: 10,
-      }
-    ]
+      },
+    ],
   } as any;
 }
 
 // ── SEPARADOR ──
 function buildSeparator(): Content {
   return {
-    canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: '#2563eb' }],
+    canvas: [
+      {
+        type: 'line',
+        x1: 0,
+        y1: 0,
+        x2: 515,
+        y2: 0,
+        lineWidth: 1.5,
+        lineColor: '#2563eb',
+      },
+    ],
     margin: [0, 4, 0, 4],
   };
 }
@@ -100,20 +149,55 @@ function buildSupplierSection(config: PurchasingPdfConfig): Content {
 
   const tableBody: TableCell[][] = [
     [
-      { text: 'Proveedor', bold: true, fontSize: 8, fillColor: '#f8fafc', border: [true, true, true, true] },
+      {
+        text: 'Proveedor',
+        bold: true,
+        fontSize: 8,
+        fillColor: '#f8fafc',
+        border: [true, true, true, true],
+      },
       { text: s.name, fontSize: 8, border: [true, true, true, true] },
-      { text: 'RIF', bold: true, fontSize: 8, fillColor: '#f8fafc', border: [true, true, true, true] },
+      {
+        text: 'RIF',
+        bold: true,
+        fontSize: 8,
+        fillColor: '#f8fafc',
+        border: [true, true, true, true],
+      },
       { text: s.taxId, fontSize: 8, border: [true, true, true, true] },
     ],
     [
-      { text: 'Dirección', bold: true, fontSize: 8, fillColor: '#f8fafc', border: [true, true, true, true] },
+      {
+        text: 'Dirección',
+        bold: true,
+        fontSize: 8,
+        fillColor: '#f8fafc',
+        border: [true, true, true, true],
+      },
       { text: s.address || '—', fontSize: 8, border: [true, true, true, true] },
-      { text: 'Teléfono', bold: true, fontSize: 8, fillColor: '#f8fafc', border: [true, true, true, true] },
+      {
+        text: 'Teléfono',
+        bold: true,
+        fontSize: 8,
+        fillColor: '#f8fafc',
+        border: [true, true, true, true],
+      },
       { text: s.phone || '—', fontSize: 8, border: [true, true, true, true] },
     ],
     [
-      { text: 'Correo', bold: true, fontSize: 8, fillColor: '#f8fafc', border: [true, true, true, true] },
-      { text: s.email || '—', fontSize: 8, colSpan: 3, border: [true, true, true, true] },
+      {
+        text: 'Correo',
+        bold: true,
+        fontSize: 8,
+        fillColor: '#f8fafc',
+        border: [true, true, true, true],
+      },
+      {
+        text: s.email || '—',
+        fontSize: 8,
+        colSpan: 3,
+        border: [true, true, true, true],
+      },
       { text: '', border: [true, true, true, true] },
       { text: '', border: [true, true, true, true] },
     ],
@@ -149,7 +233,12 @@ function buildItemsTable(
     { text: '#', bold: true, style: 'tableHeader', alignment: 'center' },
     { text: 'Descripción', bold: true, style: 'tableHeader' },
     { text: 'Cant.', bold: true, style: 'tableHeader', alignment: 'center' },
-    { text: 'Costo Unit.', bold: true, style: 'tableHeader', alignment: 'right' },
+    {
+      text: 'Costo Unit.',
+      bold: true,
+      style: 'tableHeader',
+      alignment: 'right',
+    },
     { text: 'IVA %', bold: true, style: 'tableHeader', alignment: 'center' },
     { text: 'Total', bold: true, style: 'tableHeader', alignment: 'right' },
   ];
@@ -164,7 +253,11 @@ function buildItemsTable(
       { text: (i + 1).toString(), fontSize: 8, alignment: 'center' },
       { text: item.description, fontSize: 8 },
       { text: item.quantity.toString(), fontSize: 8, alignment: 'center' },
-      { text: `${sym} ${item.unitCost.toFixed(2)}`, fontSize: 8, alignment: 'right' },
+      {
+        text: `${sym} ${item.unitCost.toFixed(2)}`,
+        fontSize: 8,
+        alignment: 'right',
+      },
       { text: `${taxRate}%`, fontSize: 8, alignment: 'center' },
       { text: `${sym} ${total.toFixed(2)}`, fontSize: 8, alignment: 'right' },
     ];
@@ -203,20 +296,50 @@ function buildTotalsSummary(
   const lines: TableCell[][] = [];
 
   lines.push([
-    { text: 'Subtotal', bold: true, fontSize: 9, border: [false, false, false, false] },
-    { text: `${sym} ${totals.subtotal.toFixed(2)}`, fontSize: 9, alignment: 'right', border: [false, false, false, false] },
+    {
+      text: 'Subtotal',
+      bold: true,
+      fontSize: 9,
+      border: [false, false, false, false],
+    },
+    {
+      text: `${sym} ${totals.subtotal.toFixed(2)}`,
+      fontSize: 9,
+      alignment: 'right',
+      border: [false, false, false, false],
+    },
   ]);
 
   lines.push([
-    { text: 'IVA', bold: true, fontSize: 9, border: [false, false, false, false] },
-    { text: `${sym} ${totals.taxAmount.toFixed(2)}`, fontSize: 9, alignment: 'right', border: [false, false, false, false] },
+    {
+      text: 'IVA',
+      bold: true,
+      fontSize: 9,
+      border: [false, false, false, false],
+    },
+    {
+      text: `${sym} ${totals.taxAmount.toFixed(2)}`,
+      fontSize: 9,
+      alignment: 'right',
+      border: [false, false, false, false],
+    },
   ]);
 
   if (subtotalsExtra) {
     for (const extra of subtotalsExtra) {
       lines.push([
-        { text: extra.label, bold: true, fontSize: 9, border: [false, false, false, false] },
-        { text: `${sym} ${extra.amount.toFixed(2)}`, fontSize: 9, alignment: 'right', border: [false, false, false, false] },
+        {
+          text: extra.label,
+          bold: true,
+          fontSize: 9,
+          border: [false, false, false, false],
+        },
+        {
+          text: `${sym} ${extra.amount.toFixed(2)}`,
+          fontSize: 9,
+          alignment: 'right',
+          border: [false, false, false, false],
+        },
       ]);
     }
   }
@@ -227,15 +350,42 @@ function buildTotalsSummary(
   ]);
 
   lines.push([
-    { text: 'TOTAL', bold: true, fontSize: 11, border: [true, true, true, true], fillColor: '#e2e8f0' },
-    { text: `${sym} ${totals.totalAmount.toFixed(2)}`, bold: true, fontSize: 11, alignment: 'right', border: [true, true, true, true], fillColor: '#e2e8f0' },
+    {
+      text: 'TOTAL',
+      bold: true,
+      fontSize: 11,
+      border: [true, true, true, true],
+      fillColor: '#e2e8f0',
+    },
+    {
+      text: `${sym} ${totals.totalAmount.toFixed(2)}`,
+      bold: true,
+      fontSize: 11,
+      alignment: 'right',
+      border: [true, true, true, true],
+      fillColor: '#e2e8f0',
+    },
   ]);
 
   if (isForeignCurrency && exchangeRate && currencyCode !== 'VES') {
     const vesEquivalent = totals.totalAmount * exchangeRate;
     lines.push([
-      { text: `Equivalente en VES (tasa ${exchangeRate})`, fontSize: 8, italics: true, color: '#666', border: [false, false, false, false], margin: [0, 2, 0, 0] },
-      { text: `Bs. ${vesEquivalent.toFixed(2)}`, fontSize: 8, italics: true, color: '#666', alignment: 'right', border: [false, false, false, false] },
+      {
+        text: `Equivalente en VES (tasa ${exchangeRate})`,
+        fontSize: 8,
+        italics: true,
+        color: '#666',
+        border: [false, false, false, false],
+        margin: [0, 2, 0, 0],
+      },
+      {
+        text: `Bs. ${vesEquivalent.toFixed(2)}`,
+        fontSize: 8,
+        italics: true,
+        color: '#666',
+        alignment: 'right',
+        border: [false, false, false, false],
+      },
     ]);
   }
 
@@ -255,7 +405,13 @@ function buildObservations(text: string): Content {
   return {
     margin: [0, 8, 0, 10],
     stack: [
-      { text: 'Observaciones', bold: true, fontSize: 9, margin: [0, 0, 0, 3], color: '#334155' },
+      {
+        text: 'Observaciones',
+        bold: true,
+        fontSize: 9,
+        margin: [0, 0, 0, 3],
+        color: '#334155',
+      },
       { text: text, fontSize: 8, color: '#475569', margin: [4, 0, 4, 0] },
     ],
   } as any;
@@ -269,15 +425,35 @@ function buildSignatures(): Content {
       {
         width: '*',
         stack: [
-          { canvas: [{ type: 'line', x1: 30, y1: 0, x2: 190, y2: 0, lineWidth: 1 }] },
-          { text: 'Recibido por', fontSize: 8, alignment: 'center', color: '#64748b', margin: [0, 6, 0, 0] },
+          {
+            canvas: [
+              { type: 'line', x1: 30, y1: 0, x2: 190, y2: 0, lineWidth: 1 },
+            ],
+          },
+          {
+            text: 'Recibido por',
+            fontSize: 8,
+            alignment: 'center',
+            color: '#64748b',
+            margin: [0, 6, 0, 0],
+          },
         ],
       },
       {
         width: '*',
         stack: [
-          { canvas: [{ type: 'line', x1: 30, y1: 0, x2: 190, y2: 0, lineWidth: 1 }] },
-          { text: 'Entregado por', fontSize: 8, alignment: 'center', color: '#64748b', margin: [0, 6, 0, 0] },
+          {
+            canvas: [
+              { type: 'line', x1: 30, y1: 0, x2: 190, y2: 0, lineWidth: 1 },
+            ],
+          },
+          {
+            text: 'Entregado por',
+            fontSize: 8,
+            alignment: 'center',
+            color: '#64748b',
+            margin: [0, 6, 0, 0],
+          },
         ],
       },
     ],
@@ -297,12 +473,27 @@ function buildPaymentAppliedTable(
       widths: ['*', 'auto'],
       body: [
         [
-          { text: 'CxP / Referencia', bold: true, fontSize: 8, fillColor: '#f1f5f9' },
-          { text: 'Monto', bold: true, fontSize: 8, fillColor: '#f1f5f9', alignment: 'right' },
+          {
+            text: 'CxP / Referencia',
+            bold: true,
+            fontSize: 8,
+            fillColor: '#f1f5f9',
+          },
+          {
+            text: 'Monto',
+            bold: true,
+            fontSize: 8,
+            fillColor: '#f1f5f9',
+            alignment: 'right',
+          },
         ],
         ...applied.map((a) => [
           { text: a.reference, fontSize: 8 },
-          { text: `${sym} ${a.amount.toFixed(2)}`, fontSize: 8, alignment: 'right' },
+          {
+            text: `${sym} ${a.amount.toFixed(2)}`,
+            fontSize: 8,
+            alignment: 'right',
+          },
         ]),
       ],
     },
@@ -313,12 +504,19 @@ function buildPaymentAppliedTable(
 
 // ── TABLA INFO GENERAL ──
 function buildInfoTable(config: PurchasingPdfConfig): Content {
-  const CURRENCY_MAP: Record<string, string> = { VES: 'Bolívares', USD: 'USD', EUR: 'EUR' };
+  const CURRENCY_MAP: Record<string, string> = {
+    VES: 'Bolívares',
+    USD: 'USD',
+    EUR: 'EUR',
+  };
   const leftRows: [string, string][] = [];
   if (config.dueDate) {
     leftRows.push(['Fecha Vencimiento', formatDateStr(config.dueDate)]);
   }
-  leftRows.push(['Moneda', CURRENCY_MAP[config.currencyCode] ?? config.currencyCode]);
+  leftRows.push([
+    'Moneda',
+    CURRENCY_MAP[config.currencyCode] ?? config.currencyCode,
+  ]);
   if (config.exchangeRate && config.currencyCode !== 'VES') {
     leftRows.push(['Tasa de Cambio', config.exchangeRate.toFixed(4)]);
   }
@@ -347,21 +545,24 @@ function buildInfoTable(config: PurchasingPdfConfig): Content {
 
 function getCurrencySymbol(code: string): string {
   switch (code) {
-    case 'USD': return '$';
-    case 'EUR': return '€';
-    default: return 'Bs.';
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '€';
+    default:
+      return 'Bs.';
   }
 }
 
 // ── EXPORTACIONES ──
 export {
   buildHeader,
-  buildSeparator,
-  buildSupplierSection,
-  buildItemsTable,
-  buildTotalsSummary,
-  buildObservations,
-  buildSignatures,
-  buildPaymentAppliedTable,
   buildInfoTable,
+  buildItemsTable,
+  buildObservations,
+  buildPaymentAppliedTable,
+  buildSeparator,
+  buildSignatures,
+  buildSupplierSection,
+  buildTotalsSummary,
 };

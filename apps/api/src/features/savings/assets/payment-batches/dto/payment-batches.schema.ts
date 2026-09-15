@@ -57,5 +57,7 @@ export type CreateSinglePaymentBatchItemDto = z.infer<
   typeof CreateSinglePaymentBatchItemSchema
 >;
 export type ConfirmPaymentBatchDto = z.infer<typeof ConfirmPaymentBatchSchema>;
-export type ConfirmPaymentBatchItemDto = z.infer<typeof ConfirmPaymentBatchItemSchema>;
+export type ConfirmPaymentBatchItemDto = z.infer<
+  typeof ConfirmPaymentBatchItemSchema
+>;
 export type FilterPaymentBatchDto = z.infer<typeof FilterPaymentBatchSchema>;

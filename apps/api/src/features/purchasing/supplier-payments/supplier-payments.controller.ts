@@ -1,6 +1,15 @@
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
-import { Body, Controller, Get, Param, Post, Query, Req, UsePipes } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UsePipes,
+} from '@nestjs/common';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   CreateSupplierPaymentAdvanceSchema,
@@ -79,11 +88,14 @@ export class SupplierPaymentsController {
   }
 
   @Get('/all-credits')
-  @ApiOperation({ summary: 'Get all available credits (advances + credit notes) globally' })
+  @ApiOperation({
+    summary: 'Get all available credits (advances + credit notes) globally',
+  })
   @ApiResponse({ status: 200, description: 'Return all available credits.' })
   async findAllCredits(@Req() req: any) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    const data = await this.supplierPaymentsService.findAllCredits(targetTenantId);
+    const data =
+      await this.supplierPaymentsService.findAllCredits(targetTenantId);
     return { message: 'Credits fetched successfully', data };
   }
 

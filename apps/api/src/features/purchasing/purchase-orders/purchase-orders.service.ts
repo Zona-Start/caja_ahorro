@@ -427,7 +427,9 @@ export class PurchaseOrdersService {
     }
 
     const productIds = (data.items ?? [])
-      .filter((item: any) => item.productId && item.lineType === 'SALES_INVENTORY')
+      .filter(
+        (item: any) => item.productId && item.lineType === 'SALES_INVENTORY',
+      )
       .map((item: any) => item.productId);
 
     const itemIds = (data.items ?? [])
@@ -463,9 +465,15 @@ export class PurchaseOrdersService {
       let itemName: string | null = null;
       const lookupId = String(item.productId || item.itemId || '');
       if (lookupId) {
-        if (item.lineType === 'SALES_INVENTORY' || item.lineType === 'FIXED_ASSET') {
+        if (
+          item.lineType === 'SALES_INVENTORY' ||
+          item.lineType === 'FIXED_ASSET'
+        ) {
           itemName = productMap.get(lookupId) || null;
-        } else if (item.lineType === 'SERVICE' || item.lineType === 'SERVICE_EXPENSE') {
+        } else if (
+          item.lineType === 'SERVICE' ||
+          item.lineType === 'SERVICE_EXPENSE'
+        ) {
           itemName = serviceMap.get(lookupId) || null;
         }
       }
@@ -636,10 +644,7 @@ export class PurchaseOrdersService {
     return this.drizzle.transaction(async (tx) => {
       if (order.status === 'APPROVED') {
         for (const item of order.items ?? []) {
-          if (
-            item.lineType === 'SALES_INVENTORY' &&
-            item.productId
-          ) {
+          if (item.lineType === 'SALES_INVENTORY' && item.productId) {
             await tx
               .update(products)
               .set({
@@ -673,7 +678,11 @@ export class PurchaseOrdersService {
       throw new NotFoundException(`Purchase Order with ID ${id} not found`);
     }
 
-    if (order[0].status === 'CLOSED' || order[0].status === 'CANCELLED' || order[0].status === 'DRAFT') {
+    if (
+      order[0].status === 'CLOSED' ||
+      order[0].status === 'CANCELLED' ||
+      order[0].status === 'DRAFT'
+    ) {
       throw new BadRequestException(
         `Purchase Order ${id} cannot be closed from its current status: ${order[0].status}`,
       );
@@ -712,10 +721,7 @@ export class PurchaseOrdersService {
     return this.drizzle.transaction(async (tx) => {
       // Incrementar stockOnOrder para productos
       for (const item of order.items ?? []) {
-        if (
-          item.lineType === 'SALES_INVENTORY' &&
-          item.productId
-        ) {
+        if (item.lineType === 'SALES_INVENTORY' && item.productId) {
           await tx
             .update(products)
             .set({
@@ -737,10 +743,7 @@ export class PurchaseOrdersService {
     });
   }
 
-  async generatePdf(
-    id: string,
-    tenantId: string,
-  ): Promise<PDFKit.PDFDocument> {
+  async generatePdf(id: string, tenantId: string): Promise<PDFKit.PDFDocument> {
     const order = await this.drizzle.query.purchaseOrders.findFirst({
       where: and(
         eq(purchaseOrders.id, id),
@@ -772,7 +775,9 @@ export class PurchaseOrdersService {
     }
 
     const productIds = (order.items ?? [])
-      .filter((item: any) => item.productId && item.lineType === 'SALES_INVENTORY')
+      .filter(
+        (item: any) => item.productId && item.lineType === 'SALES_INVENTORY',
+      )
       .map((item: any) => item.productId);
     const legacyItemIds = (order.items ?? [])
       .filter((item: any) => item.itemId && !item.productId)
@@ -812,14 +817,27 @@ export class PurchaseOrdersService {
         let description = item.description ?? '';
         const lookupId = String(item.productId || item.itemId || '');
         if (lookupId) {
-          if (item.lineType === 'SALES_INVENTORY' || item.lineType === 'FIXED_ASSET') {
-            description = productMap.get(lookupId) || item.description || 'Producto sin nombre';
-          } else if (item.lineType === 'SERVICE' || item.lineType === 'SERVICE_EXPENSE') {
-            description = serviceMap.get(lookupId) || item.description || 'Servicio sin nombre';
+          if (
+            item.lineType === 'SALES_INVENTORY' ||
+            item.lineType === 'FIXED_ASSET'
+          ) {
+            description =
+              productMap.get(lookupId) ||
+              item.description ||
+              'Producto sin nombre';
+          } else if (
+            item.lineType === 'SERVICE' ||
+            item.lineType === 'SERVICE_EXPENSE'
+          ) {
+            description =
+              serviceMap.get(lookupId) ||
+              item.description ||
+              'Servicio sin nombre';
           }
         }
         if (!description) {
-          description = item.lineType === 'EXPENSE' ? 'Gasto' : `Ítem ${item.lineType}`;
+          description =
+            item.lineType === 'EXPENSE' ? 'Gasto' : `Ítem ${item.lineType}`;
         }
 
         return {

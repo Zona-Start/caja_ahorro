@@ -19,6 +19,17 @@ export async function updatePurchaseOrderStatus(
   purchaseOrderId: string,
   tx: NodePgDatabase<typeof schema>,
 ) {
+  // 0. Bloquear la Orden de Compra para serializar recomputes concurrentes
+  const [lockedPo] = await tx
+    .select({ id: purchaseOrders.id })
+    .from(purchaseOrders)
+    .where(eq(purchaseOrders.id, purchaseOrderId))
+    .for('update');
+
+  if (!lockedPo) {
+    throw new NotFoundException('Orden de compra no encontrada.');
+  }
+
   // 1. Obtener las líneas originales de la Orden de Compra
   const poItems = await tx
     .select({
@@ -97,7 +108,9 @@ export async function updatePurchaseOrderStatus(
   }): string => {
     if (item.lineType === 'EXPENSE') {
       if (!item.description) {
-        throw new BadRequestException('El gasto debe contener una descripción.');
+        throw new BadRequestException(
+          'El gasto debe contener una descripción.',
+        );
       }
       return `${item.lineType}-${item.description.trim()}`;
     }

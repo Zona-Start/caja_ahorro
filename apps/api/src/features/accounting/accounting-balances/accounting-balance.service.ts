@@ -12,7 +12,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, desc, eq, ilike, inArray, max, or, sql, SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/schema';
 import { CloseCycleDto } from './dto/close-cycle.dto';
@@ -27,7 +27,7 @@ export class AccountingBalanceService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   private async updateAccountBalancesFromInitialLoad(
     tx: any,
@@ -41,7 +41,10 @@ export class AccountingBalanceService {
     accountMapById: Map<string, { nature: string }>,
   ) {
     // 1. Agrupar los saldos por accountPlanId
-    const balancesMap = new Map<string, { totalDebit: number; totalCredit: number }>();
+    const balancesMap = new Map<
+      string,
+      { totalDebit: number; totalCredit: number }
+    >();
 
     for (const detail of details) {
       const current = balancesMap.get(detail.accountPlanId) || {
@@ -54,27 +57,38 @@ export class AccountingBalanceService {
     }
 
     // 2. Mapear los registros agrupados calculando el initialBalance y finalBalance
-    const balanceRecords = Array.from(balancesMap.entries()).map(([accountPlanId, totals]) => {
-      const accountInfo = accountMapById.get(accountPlanId);
-      const isDebitNature = accountInfo?.nature === 'DEBIT';
+    const balanceRecords = Array.from(balancesMap.entries()).map(
+      ([accountPlanId, totals]) => {
+        const accountInfo = accountMapById.get(accountPlanId);
+        const isDebitNature = accountInfo?.nature === 'DEBIT';
 
-      // Para la carga inicial, el saldo inicial (initialBalance) se calcula con base en su naturaleza contable
-      const initialNetBalance = isDebitNature
-        ? totals.totalDebit - totals.totalCredit
-        : totals.totalCredit - totals.totalDebit;
+        // Para la carga inicial, el saldo inicial (initialBalance) se calcula con base en su naturaleza contable
+        const initialNetBalance = isDebitNature
+          ? totals.totalDebit - totals.totalCredit
+          : totals.totalCredit - totals.totalDebit;
 
-      const initialBalanceStr = initialNetBalance.toFixed(6);
+        const initialBalanceStr = initialNetBalance.toFixed(4);
 
-      return {
-        tenantId,
-        accountPlanId,
-        accountingCyclesId: accountingCycleId,
-        initialBalance: initialBalanceStr,
-        debitBalance: '0.000000',
-        creditBalance: '0.000000',
-        finalBalance: initialBalanceStr,
-      };
-    });
+        return {
+          tenantId,
+          accountPlanId,
+          accountingCyclesId: accountingCycleId,
+          initialBalance: initialBalanceStr,
+          debitBalance: '0.0000',
+          creditBalance: '0.0000',
+          finalBalance: initialBalanceStr,
+          initialBalanceBase: initialBalanceStr,
+          debitBalanceBase: '0.0000',
+          creditBalanceBase: '0.0000',
+          finalBalanceBase: initialBalanceStr,
+          initialBalanceForeign: '0.0000',
+          debitBalanceForeign: '0.0000',
+          creditBalanceForeign: '0.0000',
+          finalBalanceForeign: '0.0000',
+          currencyCode: 'VES',
+        };
+      },
+    );
 
     if (balanceRecords.length === 0) return;
 
@@ -188,7 +202,8 @@ export class AccountingBalanceService {
 
       // 1. Obtener el número real directo del objeto/Excel
       const rawDebeNum = Number(item.debe ?? item.DEBE ?? item.debit ?? 0) || 0;
-      const rawHaberNum = Number(item.haber ?? item.HABER ?? item.credit ?? 0) || 0;
+      const rawHaberNum =
+        Number(item.haber ?? item.HABER ?? item.credit ?? 0) || 0;
 
       // Omitir filas sin movimiento en ambas columnas
       if (rawDebeNum === 0 && rawHaberNum === 0) {
@@ -241,9 +256,9 @@ export class AccountingBalanceService {
       let supplierId: string | null = null;
       const auxiliarProveedor = String(
         item.auxiliarProveedor ??
-        item.AUXILIAR_PROVEEDOR ??
-        item.auxiliar_proveedor ??
-        '',
+          item.AUXILIAR_PROVEEDOR ??
+          item.auxiliar_proveedor ??
+          '',
       ).trim();
       if (auxiliarProveedor !== '') {
         const [sup] = await this.drizzle
@@ -314,6 +329,7 @@ export class AccountingBalanceService {
           status: 'POSTED',
           postedAt: new Date(),
           currencyCode: 'VES',
+          baseCurrencyCode: 'VES',
           createdById: userId,
         })
         .returning({ id: schema.accountingEntries.id });
@@ -335,11 +351,19 @@ export class AccountingBalanceService {
           creditNum = 0;
         }
 
+        const debitStr = debitNum.toFixed(4); // Guarda >= 0.0000 (satisface amount_positive_check)
+        const creditStr = creditNum.toFixed(4);
+
         return {
           ...d,
           accountingEntryId: entry.id,
-          debit: debitNum.toFixed(6),   // Guarda >= 0.000000 (satisface amount_positive_check)
-          credit: creditNum.toFixed(6), // Guarda >= 0.000000 (satisface amount_positive_check)
+          debit: debitStr,
+          credit: creditStr,
+          debitBase: debitStr,
+          creditBase: creditStr,
+          debitForeign: '0.0000',
+          creditForeign: '0.0000',
+          currencyCode: 'VES',
         };
       });
 
@@ -350,7 +374,7 @@ export class AccountingBalanceService {
           await tx.insert(schema.accountingEntryDetails).values(batch);
         }
 
-        // Mantiene la lista `details` original con los signos de origen 
+        // Mantiene la lista `details` original con los signos de origen
         // para que la función de cálculo de saldos conserve el neteo de la ecuación
         await this.updateAccountBalancesFromInitialLoad(
           tx,
@@ -464,12 +488,32 @@ export class AccountingBalanceService {
       );
 
     return this.drizzle.transaction(async (tx) => {
+      // 0. Bloquear el ciclo para serializar cierres concurrentes
+      const [lockedCycle] = await tx
+        .select()
+        .from(schema.accountingCycles)
+        .where(
+          and(
+            eq(schema.accountingCycles.id, cycleId),
+            eq(schema.accountingCycles.tenantId, tenantId),
+          ),
+        )
+        .for('update');
+
+      if (!lockedCycle || lockedCycle.status !== 'OPEN') {
+        throw new BadRequestException('Cycle is not OPEN');
+      }
+
       // 1. Agregar débitos y créditos desde accountingEntryDetails (solo POSTED)
       const movementAgg = await tx
         .select({
           accountPlanId: schema.accountingEntryDetails.accountPlanId,
           totalDebit: sql<string>`COALESCE(SUM(${schema.accountingEntryDetails.debit}), 0)::text`,
           totalCredit: sql<string>`COALESCE(SUM(${schema.accountingEntryDetails.credit}), 0)::text`,
+          totalDebitBase: sql<string>`COALESCE(SUM(${schema.accountingEntryDetails.debitBase}), 0)::text`,
+          totalCreditBase: sql<string>`COALESCE(SUM(${schema.accountingEntryDetails.creditBase}), 0)::text`,
+          totalDebitForeign: sql<string>`COALESCE(SUM(${schema.accountingEntryDetails.debitForeign}), 0)::text`,
+          totalCreditForeign: sql<string>`COALESCE(SUM(${schema.accountingEntryDetails.creditForeign}), 0)::text`,
         })
         .from(schema.accountingEntryDetails)
         .innerJoin(
@@ -486,9 +530,7 @@ export class AccountingBalanceService {
         )
         .groupBy(schema.accountingEntryDetails.accountPlanId);
 
-      const movementMap = new Map(
-        movementAgg.map((m) => [m.accountPlanId, m]),
-      );
+      const movementMap = new Map(movementAgg.map((m) => [m.accountPlanId, m]));
 
       // 2. Obtener todas las cuentas del plan (para actualizar incluso cuentas sin movimientos)
       const allAccounts = await tx.query.accountPlan.findMany({
@@ -525,6 +567,14 @@ export class AccountingBalanceService {
           debitBalance: string;
           creditBalance: string;
           finalBalance: string;
+          initialBalanceBase: string;
+          debitBalanceBase: string;
+          creditBalanceBase: string;
+          finalBalanceBase: string;
+          initialBalanceForeign: string;
+          debitBalanceForeign: string;
+          creditBalanceForeign: string;
+          finalBalanceForeign: string;
         }
       >();
 
@@ -537,27 +587,73 @@ export class AccountingBalanceService {
         const initialBalance = existingBalance?.initialBalance ?? '0.00';
         const debitBalance = movements?.totalDebit ?? '0.00';
         const creditBalance = movements?.totalCredit ?? '0.00';
+        const debitBalanceBase = movements?.totalDebitBase ?? debitBalance;
+        const creditBalanceBase = movements?.totalCreditBase ?? creditBalance;
+        const debitBalanceForeign = movements?.totalDebitForeign ?? '0.00';
+        const creditBalanceForeign = movements?.totalCreditForeign ?? '0.00';
+        const initialBalanceBase =
+          existingBalance?.initialBalanceBase ?? initialBalance;
+        const initialBalanceForeign =
+          existingBalance?.initialBalanceForeign ?? '0.00';
 
         const initNum = parseFloat(initialBalance);
         const debitNum = parseFloat(debitBalance);
         const creditNum = parseFloat(creditBalance);
+        const initBaseNum = parseFloat(initialBalanceBase);
+        const debitBaseNum = parseFloat(debitBalanceBase);
+        const creditBaseNum = parseFloat(creditBalanceBase);
+        const initForeignNum = parseFloat(initialBalanceForeign);
+        const debitForeignNum = parseFloat(debitBalanceForeign);
+        const creditForeignNum = parseFloat(creditBalanceForeign);
 
-        const finalBalance = (initNum + debitNum - creditNum).toFixed(6);
+        const finalBalance = (initNum + debitNum - creditNum).toFixed(4);
+        const finalBalanceBase = (
+          initBaseNum +
+          debitBaseNum -
+          creditBaseNum
+        ).toFixed(4);
+        const finalBalanceForeign = (
+          initForeignNum +
+          debitForeignNum -
+          creditForeignNum
+        ).toFixed(4);
 
         finalBalancesMap.set(account.id, {
           initialBalance,
           debitBalance,
           creditBalance,
           finalBalance,
+          initialBalanceBase,
+          debitBalanceBase,
+          creditBalanceBase,
+          finalBalanceBase,
+          initialBalanceForeign,
+          debitBalanceForeign,
+          creditBalanceForeign,
+          finalBalanceForeign,
         });
+
+        const balanceValues = {
+          initialBalance,
+          debitBalance,
+          creditBalance,
+          finalBalance,
+          initialBalanceBase,
+          debitBalanceBase,
+          creditBalanceBase,
+          finalBalanceBase,
+          initialBalanceForeign,
+          debitBalanceForeign,
+          creditBalanceForeign,
+          finalBalanceForeign,
+          currencyCode: existingBalance?.currencyCode ?? 'VES',
+        };
 
         if (existingBalance) {
           await tx
             .update(schema.accountBalances)
             .set({
-              debitBalance,
-              creditBalance,
-              finalBalance,
+              ...balanceValues,
               updatedById: userId,
             })
             .where(
@@ -571,10 +667,7 @@ export class AccountingBalanceService {
             tenantId,
             accountPlanId: account.id,
             accountingCyclesId: cycleId,
-            initialBalance,
-            debitBalance,
-            creditBalance,
-            finalBalance,
+            ...balanceValues,
             createdById: userId,
             updatedById: userId,
           });
@@ -626,7 +719,17 @@ export class AccountingBalanceService {
     userId: string,
     tenantId: string,
     cycleId: string,
-    accountMap: Map<string, { id: string; code: string; name: string; accountType: string; nature: string; allowsMovements: boolean }>,
+    accountMap: Map<
+      string,
+      {
+        id: string;
+        code: string;
+        name: string;
+        accountType: string;
+        nature: string;
+        allowsMovements: boolean;
+      }
+    >,
     finalBalancesMap: Map<
       string,
       {
@@ -638,8 +741,18 @@ export class AccountingBalanceService {
     >,
   ): Promise<string> {
     // Agrupar cuentas de resultado con saldo != 0
-    const revenueAccounts: { id: string; code: string; name: string; balance: number }[] = [];
-    const expenseAccounts: { id: string; code: string; name: string; balance: number }[] = [];
+    const revenueAccounts: {
+      id: string;
+      code: string;
+      name: string;
+      balance: number;
+    }[] = [];
+    const expenseAccounts: {
+      id: string;
+      code: string;
+      name: string;
+      balance: number;
+    }[] = [];
 
     for (const [accountId, account] of accountMap) {
       if (!account.allowsMovements) continue;
@@ -648,14 +761,20 @@ export class AccountingBalanceService {
 
       const finalBalanceNum = parseFloat(balance.finalBalance);
 
-      if (account.accountType === 'REVENUE' && Math.abs(finalBalanceNum) > 0.000001) {
+      if (
+        account.accountType === 'REVENUE' &&
+        Math.abs(finalBalanceNum) > 0.000001
+      ) {
         revenueAccounts.push({
           id: accountId,
           code: account.code,
           name: account.name,
           balance: finalBalanceNum,
         });
-      } else if (account.accountType === 'EXPENSE' && Math.abs(finalBalanceNum) > 0.000001) {
+      } else if (
+        account.accountType === 'EXPENSE' &&
+        Math.abs(finalBalanceNum) > 0.000001
+      ) {
         expenseAccounts.push({
           id: accountId,
           code: account.code,
@@ -670,21 +789,19 @@ export class AccountingBalanceService {
     }
 
     // Buscar cuenta de patrimonio para el resultado del ejercicio
-    let resultAccount = [...accountMap.values()]
-      .find(
-        (a) =>
-          a.accountType === 'EQUITY' &&
-          a.allowsMovements &&
-          (a.name.toLowerCase().includes('resultado') ||
-            a.name.toLowerCase().includes('excedente') ||
-            a.name.toLowerCase().includes('pérdida') ||
-            a.name.toLowerCase().includes('perdida')),
-      );
+    let resultAccount = [...accountMap.values()].find(
+      (a) =>
+        a.accountType === 'EQUITY' &&
+        a.allowsMovements &&
+        (a.name.toLowerCase().includes('resultado') ||
+          a.name.toLowerCase().includes('excedente') ||
+          a.name.toLowerCase().includes('pérdida') ||
+          a.name.toLowerCase().includes('perdida')),
+    );
 
     if (!resultAccount) {
       resultAccount = [...accountMap.values()].find(
-        (a) =>
-          a.accountType === 'EQUITY' && a.allowsMovements,
+        (a) => a.accountType === 'EQUITY' && a.allowsMovements,
       );
     }
 
@@ -710,7 +827,8 @@ export class AccountingBalanceService {
         originType: 'FISCAL_CLOSING',
         status: 'POSTED',
         postedAt: new Date(),
-        currencyCode: 'USD',
+        currencyCode: 'VES',
+        baseCurrencyCode: 'VES',
       })
       .returning({ id: schema.accountingEntries.id });
 
@@ -718,28 +836,45 @@ export class AccountingBalanceService {
 
     const details: NewAccountingEntryDetail[] = [];
 
-    // REVENUE: CREDIT nature, saldo negativo => DEBIT para llevarlo a cero
-    for (const account of revenueAccounts) {
-      const amount = Math.abs(account.balance).toFixed(6);
+    const closeDetail = (
+      accountPlanId: string,
+      debit: string,
+      credit: string,
+      description: string,
+    ) =>
       details.push({
         accountingEntryId: closingEntryId,
-        accountPlanId: account.id,
-        debit: amount,
-        credit: '0.00',
-        description: `Cierre fiscal: ${account.code} - ${account.name}`,
+        accountPlanId,
+        debit,
+        credit,
+        debitBase: debit,
+        creditBase: credit,
+        debitForeign: '0.00',
+        creditForeign: '0.00',
+        currencyCode: 'VES',
+        description,
       });
+
+    // REVENUE: CREDIT nature, saldo negativo => DEBIT para llevarlo a cero
+    for (const account of revenueAccounts) {
+      const amount = Math.abs(account.balance).toFixed(4);
+      closeDetail(
+        account.id,
+        amount,
+        '0.00',
+        `Cierre fiscal: ${account.code} - ${account.name}`,
+      );
     }
 
     // EXPENSE: DEBIT nature, saldo positivo => CREDIT para llevarlo a cero
     for (const account of expenseAccounts) {
-      const amount = account.balance.toFixed(6);
-      details.push({
-        accountingEntryId: closingEntryId,
-        accountPlanId: account.id,
-        debit: '0.00',
-        credit: amount,
-        description: `Cierre fiscal: ${account.code} - ${account.name}`,
-      });
+      const amount = account.balance.toFixed(4);
+      closeDetail(
+        account.id,
+        '0.00',
+        amount,
+        `Cierre fiscal: ${account.code} - ${account.name}`,
+      );
     }
 
     // Calcular resultado neto
@@ -747,31 +882,26 @@ export class AccountingBalanceService {
       (sum, a) => sum + Math.abs(a.balance),
       0,
     );
-    const totalExpense = expenseAccounts.reduce(
-      (sum, a) => sum + a.balance,
-      0,
-    );
+    const totalExpense = expenseAccounts.reduce((sum, a) => sum + a.balance, 0);
     const netResult = totalRevenue - totalExpense;
 
     if (Math.abs(netResult) > 0.000001) {
       if (netResult > 0) {
         // Utilidad => CREDIT a patrimonio
-        details.push({
-          accountingEntryId: closingEntryId,
-          accountPlanId: resultAccount.id,
-          debit: '0.00',
-          credit: netResult.toFixed(6),
-          description: `Resultado del ejercicio (Utilidad): ${resultAccount.code} - ${resultAccount.name}`,
-        });
+        closeDetail(
+          resultAccount.id,
+          '0.00',
+          netResult.toFixed(4),
+          `Resultado del ejercicio (Utilidad): ${resultAccount.code} - ${resultAccount.name}`,
+        );
       } else {
         // Pérdida => DEBIT a patrimonio
-        details.push({
-          accountingEntryId: closingEntryId,
-          accountPlanId: resultAccount.id,
-          debit: Math.abs(netResult).toFixed(6),
-          credit: '0.00',
-          description: `Resultado del ejercicio (Pérdida): ${resultAccount.code} - ${resultAccount.name}`,
-        });
+        closeDetail(
+          resultAccount.id,
+          Math.abs(netResult).toFixed(4),
+          '0.00',
+          `Resultado del ejercicio (Pérdida): ${resultAccount.code} - ${resultAccount.name}`,
+        );
       }
     }
 
@@ -804,9 +934,7 @@ export class AccountingBalanceService {
               eq(schema.accountingEntries.status, 'POSTED'),
             ),
           )
-          .where(
-            eq(schema.accountingEntryDetails.accountPlanId, accountId),
-          );
+          .where(eq(schema.accountingEntryDetails.accountPlanId, accountId));
 
         const totalDebit = reAgg?.totalDebit ?? '0.00';
         const totalCredit = reAgg?.totalCredit ?? '0.00';
@@ -833,9 +961,7 @@ export class AccountingBalanceService {
               finalBalance: finalNum,
               updatedById: userId,
             })
-            .where(
-              eq(schema.accountBalances.id, existingBalance.id),
-            );
+            .where(eq(schema.accountBalances.id, existingBalance.id));
         }
       }
     }
@@ -868,21 +994,19 @@ export class AccountingBalanceService {
           eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
           eq(schema.moduleSettings.key, 'NRO-ASIENTO'),
         ),
-      );
+      )
+      .for('update');
 
-    const nextValue = parseInt(setting?.value ?? '0', 10) + 1;
+    if (!setting) {
+      throw new NotFoundException('Contador NRO-ASIENTO no configurado');
+    }
+
+    const nextValue = parseInt(setting.value ?? '0', 10) + 1;
 
     await tx
       .update(schema.moduleSettings)
       .set({ value: nextValue.toString(), updatedBy: createdBy })
-      .where(
-        and(
-          eq(schema.moduleSettings.tenantId, tenantId),
-          eq(schema.moduleSettings.module, 'accounting'),
-          eq(schema.moduleSettings.submodule, 'chart_of_accounts'),
-          eq(schema.moduleSettings.key, 'NRO-ASIENTO'),
-        ),
-      );
+      .where(eq(schema.moduleSettings.id, setting.id));
 
     return nextValue;
   }
@@ -946,6 +1070,15 @@ export class AccountingBalanceService {
         debitBalance: '0.00',
         creditBalance: '0.00',
         finalBalance: prev.finalBalance,
+        initialBalanceBase: prev.finalBalanceBase,
+        debitBalanceBase: '0.00',
+        creditBalanceBase: '0.00',
+        finalBalanceBase: prev.finalBalanceBase,
+        initialBalanceForeign: prev.finalBalanceForeign,
+        debitBalanceForeign: '0.00',
+        creditBalanceForeign: '0.00',
+        finalBalanceForeign: prev.finalBalanceForeign,
+        currencyCode: prev.currencyCode ?? 'VES',
         createdById: userId,
         updatedById: userId,
       }));
@@ -989,7 +1122,6 @@ export class AccountingBalanceService {
       page = 1,
       limit = 10,
       search = '',
-      sortBy = 'accountCode',
       sortOrder = 'asc',
       accountingCycleId,
     } = dto;

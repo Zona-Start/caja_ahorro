@@ -21,7 +21,9 @@ function formatAmount(value: string | null): string {
   });
 }
 
-export function buildVariationsTableContent(data: VariationReportRow[]): Content {
+export function buildVariationsTableContent(
+  data: VariationReportRow[],
+): Content {
   const tableBody = [
     [
       { text: 'CÉDULA', style: 'tableHeader' },
@@ -35,8 +37,7 @@ export function buildVariationsTableContent(data: VariationReportRow[]): Content
     ],
     ...data.map((item) => {
       const isExclusion =
-        item.termUnits !== null &&
-        item.installmentNumber >= item.termUnits;
+        item.termUnits !== null && item.installmentNumber >= item.termUnits;
       return [
         item.cedula,
         item.fullname,

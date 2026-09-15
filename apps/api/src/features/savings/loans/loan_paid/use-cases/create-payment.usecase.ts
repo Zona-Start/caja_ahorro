@@ -1,12 +1,14 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
+import { loans } from '@/database/schema';
 import { OutboxWriterService } from '@/shared/outbox';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
   CurrencyCodeEnum,
 } from '@/types/enum';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { v4 as uuidv4 } from 'uuid';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
@@ -53,6 +55,16 @@ export class CreatePaymentUseCase {
     this.validator.validateLoanStatus(loan);
 
     const result = await this.db.transaction(async (tx) => {
+      const [lockedLoan] = await tx
+        .select()
+        .from(loans)
+        .where(and(eq(loans.id, loanId), eq(loans.tenantId, tenantId)))
+        .for('update');
+
+      if (!lockedLoan) {
+        throw new NotFoundException('Loan not found');
+      }
+
       const installmentResult =
         await this.validator.calculateCoveredInstallments(loanId, amount, tx);
 

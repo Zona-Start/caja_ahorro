@@ -5,6 +5,7 @@ import {
   loanAmortizationSchedule,
   loanPayments,
   loans,
+  loanTypes,
 } from '@/database/schema';
 import { LoanStatusEnum } from '@/types/enum';
 import {
@@ -44,9 +45,11 @@ export class LoanPaymentValidator {
         status: loans.status,
         currencyCode: loans.currencyCode,
         associateFullname: associates.fullname,
+        loanTypeName: loanTypes.name,
       })
       .from(loans)
       .leftJoin(associates, eq(associates.id, loans.associateId))
+      .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
       .where(and(eq(loans.id, loanId), eq(loans.tenantId, tenantId)));
 
     if (!loan) {
@@ -277,12 +280,14 @@ export class LoanPaymentValidator {
         associateId: loans.associateId,
         currencyCode: loans.currencyCode,
         associateFullname: associates.fullname,
+        loanTypeName: loanTypes.name,
       })
       .from(loanPayments)
       .leftJoin(
         loans,
         and(eq(loans.id, loanPayments.loanId), eq(loans.tenantId, tenantId)),
       )
+      .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
       .leftJoin(associates, eq(associates.id, loans.associateId))
       .where(
         and(

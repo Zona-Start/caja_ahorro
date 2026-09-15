@@ -1,6 +1,5 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
 import {
   BadRequestException,
   Inject,
@@ -8,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { and, eq, isNull, lte, gte, ne, sql, SQL, inArray } from 'drizzle-orm';
+import { and, eq, inArray, lte, ne, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import {
@@ -24,7 +23,7 @@ export class BankReconciliationsService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   private generateInternalCode(): string {
     const prefix = 'MB';
@@ -33,14 +32,27 @@ export class BankReconciliationsService {
     return `${prefix}-${ts}${random}`;
   }
 
-  async create(dto: CreateBankReconciliationDto, userId: string, tenantId: string) {
+  async create(
+    dto: CreateBankReconciliationDto,
+    userId: string,
+    tenantId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const [bankAccount] = await tx
-        .select({ id: schema.bankAccounts.id, currentBalance: schema.bankAccounts.currentBalance })
+        .select({
+          id: schema.bankAccounts.id,
+          currentBalance: schema.bankAccounts.currentBalance,
+        })
         .from(schema.bankAccounts)
-        .where(and(eq(schema.bankAccounts.id, dto.bankAccountId), eq(schema.bankAccounts.tenantId, tenantId)));
+        .where(
+          and(
+            eq(schema.bankAccounts.id, dto.bankAccountId),
+            eq(schema.bankAccounts.tenantId, tenantId),
+          ),
+        );
 
-      if (!bankAccount) throw new NotFoundException('Cuenta bancaria no encontrada');
+      if (!bankAccount)
+        throw new NotFoundException('Cuenta bancaria no encontrada');
 
       const bookBalanceBefore = bankAccount.currentBalance?.toString() ?? '0';
 
@@ -72,15 +84,25 @@ export class BankReconciliationsService {
       const [recon] = await tx
         .select()
         .from(schema.bankReconciliations)
-        .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)))
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
         .for('update');
 
       if (!recon) throw new NotFoundException('Conciliación no encontrada');
-      if (recon.status !== 'IN_PROGRESS') throw new BadRequestException('Solo se pueden agregar líneas a conciliaciones en progreso');
+      if (recon.status !== 'IN_PROGRESS')
+        throw new BadRequestException(
+          'Solo se pueden agregar líneas a conciliaciones en progreso',
+        );
 
       const txDateStr = dto.transactionDate.toISOString().split('T')[0];
       if (txDateStr < recon.startDate || txDateStr > recon.statementDate) {
-        throw new BadRequestException('La fecha del movimiento debe estar dentro del rango de fechas de la conciliación');
+        throw new BadRequestException(
+          'La fecha del movimiento debe estar dentro del rango de fechas de la conciliación',
+        );
       }
 
       const [line] = await tx
@@ -107,15 +129,28 @@ export class BankReconciliationsService {
     return this.drizzle
       .select()
       .from(schema.bankStatementLines)
-      .where(and(eq(schema.bankStatementLines.bankReconciliationId, reconciliationId), eq(schema.bankStatementLines.tenantId, tenantId)))
+      .where(
+        and(
+          eq(schema.bankStatementLines.bankReconciliationId, reconciliationId),
+          eq(schema.bankStatementLines.tenantId, tenantId),
+        ),
+      )
       .orderBy(sql`${schema.bankStatementLines.transactionDate} desc`);
   }
 
   async getBookTransactions(reconciliationId: string, tenantId: string) {
     const [recon] = await this.drizzle
-      .select({ bankAccountId: schema.bankReconciliations.bankAccountId, statementDate: schema.bankReconciliations.statementDate })
+      .select({
+        bankAccountId: schema.bankReconciliations.bankAccountId,
+        statementDate: schema.bankReconciliations.statementDate,
+      })
       .from(schema.bankReconciliations)
-      .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankReconciliations.id, reconciliationId),
+          eq(schema.bankReconciliations.tenantId, tenantId),
+        ),
+      );
 
     if (!recon) throw new NotFoundException('Conciliación no encontrada');
 
@@ -138,7 +173,12 @@ export class BankReconciliationsService {
       const [recon] = await tx
         .select()
         .from(schema.bankReconciliations)
-        .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)))
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
         .for('update');
 
       if (!recon) throw new NotFoundException('Conciliación no encontrada');
@@ -146,7 +186,15 @@ export class BankReconciliationsService {
       const pendingLines = await tx
         .select()
         .from(schema.bankStatementLines)
-        .where(and(eq(schema.bankStatementLines.bankReconciliationId, reconciliationId), eq(schema.bankStatementLines.status, 'PENDING')));
+        .where(
+          and(
+            eq(
+              schema.bankStatementLines.bankReconciliationId,
+              reconciliationId,
+            ),
+            eq(schema.bankStatementLines.status, 'PENDING'),
+          ),
+        );
 
       const bookTxns = await tx
         .select()
@@ -170,7 +218,9 @@ export class BankReconciliationsService {
           (btx) =>
             Number(btx.debitAmount) === lineDebit &&
             Number(btx.creditAmount) === lineCredit &&
-            (line.bankReference ? btx.bankReference === line.bankReference : true) &&
+            (line.bankReference
+              ? btx.bankReference === line.bankReference
+              : true) &&
             btx.transactionDate === line.transactionDate,
         );
 
@@ -178,7 +228,10 @@ export class BankReconciliationsService {
           // Mark statement line as MATCHED (not RECONCILED yet)
           await tx
             .update(schema.bankStatementLines)
-            .set({ status: 'MATCHED', matchedTransactionId: exactMatch.id } as any)
+            .set({
+              status: 'MATCHED',
+              matchedTransactionId: exactMatch.id,
+            } as any)
             .where(eq(schema.bankStatementLines.id, line.id));
 
           // DO NOT change bank_transactions.reconciliationStatus here
@@ -198,29 +251,58 @@ export class BankReconciliationsService {
     });
   }
 
-  async manualMatch(reconciliationId: string, dto: ManualMatchDto, tenantId: string) {
+  async manualMatch(
+    reconciliationId: string,
+    dto: ManualMatchDto,
+    tenantId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const [recon] = await tx
         .select()
         .from(schema.bankReconciliations)
-        .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)))
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
         .for('update');
 
       if (!recon) throw new NotFoundException('Conciliación no encontrada');
-      if (recon.status !== 'IN_PROGRESS') throw new BadRequestException('Conciliación no está en progreso');
+      if (recon.status !== 'IN_PROGRESS')
+        throw new BadRequestException('Conciliación no está en progreso');
 
       const lines = await tx
         .select()
         .from(schema.bankStatementLines)
-        .where(and(eq(schema.bankStatementLines.bankReconciliationId, reconciliationId), inArray(schema.bankStatementLines.id, dto.statementLineIds)));
+        .where(
+          and(
+            eq(
+              schema.bankStatementLines.bankReconciliationId,
+              reconciliationId,
+            ),
+            inArray(schema.bankStatementLines.id, dto.statementLineIds),
+          ),
+        );
 
       const bookTxns = await tx
         .select()
         .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.tenantId, tenantId), inArray(schema.bankTransactions.id, dto.bankTransactionIds)));
+        .where(
+          and(
+            eq(schema.bankTransactions.tenantId, tenantId),
+            inArray(schema.bankTransactions.id, dto.bankTransactionIds),
+          ),
+        );
 
-      const linesTotal = lines.reduce((s, l) => s + Number(l.creditAmount) - Number(l.debitAmount), 0);
-      const booksTotal = bookTxns.reduce((s, b) => s + Number(b.creditAmount) - Number(b.debitAmount), 0);
+      const linesTotal = lines.reduce(
+        (s, l) => s + Number(l.creditAmount) - Number(l.debitAmount),
+        0,
+      );
+      const booksTotal = bookTxns.reduce(
+        (s, b) => s + Number(b.creditAmount) - Number(b.debitAmount),
+        0,
+      );
 
       if (Math.abs(linesTotal - booksTotal) > 0.001) {
         throw new BadRequestException(
@@ -231,7 +313,10 @@ export class BankReconciliationsService {
       for (const line of lines) {
         await tx
           .update(schema.bankStatementLines)
-          .set({ status: 'MATCHED', matchedTransactionId: bookTxns[0]?.id } as any)
+          .set({
+            status: 'MATCHED',
+            matchedTransactionId: bookTxns[0]?.id,
+          } as any)
           .where(eq(schema.bankStatementLines.id, line.id));
       }
 
@@ -247,7 +332,9 @@ export class BankReconciliationsService {
         }
       }
 
-      return { message: `${lines.length} línea(s) emparejada(s) con ${bookTxns.length} movimiento(s).` };
+      return {
+        message: `${lines.length} línea(s) emparejada(s) con ${bookTxns.length} movimiento(s).`,
+      };
     });
   }
 
@@ -261,19 +348,34 @@ export class BankReconciliationsService {
       const [recon] = await tx
         .select()
         .from(schema.bankReconciliations)
-        .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)))
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
         .for('update');
 
       if (!recon) throw new NotFoundException('Conciliación no encontrada');
-      if (recon.status !== 'IN_PROGRESS') throw new BadRequestException('Conciliación no está en progreso');
+      if (recon.status !== 'IN_PROGRESS')
+        throw new BadRequestException('Conciliación no está en progreso');
 
       const [line] = await tx
         .select()
         .from(schema.bankStatementLines)
-        .where(and(eq(schema.bankStatementLines.id, dto.statementLineId), eq(schema.bankStatementLines.bankReconciliationId, reconciliationId)));
+        .where(
+          and(
+            eq(schema.bankStatementLines.id, dto.statementLineId),
+            eq(
+              schema.bankStatementLines.bankReconciliationId,
+              reconciliationId,
+            ),
+          ),
+        );
 
       if (!line) throw new NotFoundException('Línea de extracto no encontrada');
-      if (line.status !== 'PENDING') throw new BadRequestException('La línea ya fue conciliada');
+      if (line.status !== 'PENDING')
+        throw new BadRequestException('La línea ya fue conciliada');
 
       const internalCode = this.generateInternalCode();
 
@@ -308,28 +410,62 @@ export class BankReconciliationsService {
         description: `Generado desde extracto: ${line.description}`,
       } as any);
 
-      return { message: 'Movimiento contable generado y conciliado', transaction };
+      return {
+        message: 'Movimiento contable generado y conciliado',
+        transaction,
+      };
     });
   }
 
-  async cancelReconciliation(reconciliationId: string, userId: string, tenantId: string) {
+  async cancelReconciliation(
+    reconciliationId: string,
+    userId: string,
+    tenantId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const [recon] = await tx
         .select()
         .from(schema.bankReconciliations)
-        .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)))
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
         .for('update');
 
       if (!recon) throw new NotFoundException('Conciliación no encontrada');
-      if (recon.status === 'COMPLETED') throw new BadRequestException('No se puede cancelar una conciliación completada');
+      if (recon.status === 'COMPLETED')
+        throw new BadRequestException(
+          'No se puede cancelar una conciliación completada',
+        );
 
       await tx
         .update(schema.bankTransactions)
-        .set({ reconciliationStatus: 'PENDING', bankReconciliationId: null } as any)
-        .where(and(eq(schema.bankTransactions.bankReconciliationId, reconciliationId), eq(schema.bankTransactions.tenantId, tenantId)));
+        .set({
+          reconciliationStatus: 'PENDING',
+          bankReconciliationId: null,
+        } as any)
+        .where(
+          and(
+            eq(schema.bankTransactions.bankReconciliationId, reconciliationId),
+            eq(schema.bankTransactions.tenantId, tenantId),
+          ),
+        );
 
-      await tx.delete(schema.bankReconciliationDetails).where(eq(schema.bankReconciliationDetails.bankReconciliationId, reconciliationId));
-      await tx.delete(schema.bankStatementLines).where(eq(schema.bankStatementLines.bankReconciliationId, reconciliationId));
+      await tx
+        .delete(schema.bankReconciliationDetails)
+        .where(
+          eq(
+            schema.bankReconciliationDetails.bankReconciliationId,
+            reconciliationId,
+          ),
+        );
+      await tx
+        .delete(schema.bankStatementLines)
+        .where(
+          eq(schema.bankStatementLines.bankReconciliationId, reconciliationId),
+        );
 
       const [cancelled] = await tx
         .update(schema.bankReconciliations)
@@ -344,40 +480,85 @@ export class BankReconciliationsService {
     });
   }
 
-  async processAndComplete(reconciliationId: string, userId: string, tenantId: string) {
+  async processAndComplete(
+    reconciliationId: string,
+    userId: string,
+    tenantId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const [recon] = await tx
         .select()
         .from(schema.bankReconciliations)
-        .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)))
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
         .for('update');
 
       if (!recon) throw new NotFoundException('Conciliación no encontrada');
-      if (recon.status === 'COMPLETED') throw new BadRequestException('La conciliación ya está completada');
+      if (recon.status === 'COMPLETED')
+        throw new BadRequestException('La conciliación ya está completada');
+
+      // Bloquear la cuenta bancaria para serializar conciliaciones concurrentes
+      const [lockedAccount] = await tx
+        .select()
+        .from(schema.bankAccounts)
+        .where(eq(schema.bankAccounts.id, recon.bankAccountId))
+        .for('update');
+
+      if (!lockedAccount) {
+        throw new NotFoundException('Cuenta bancaria no encontrada');
+      }
 
       const pendingLines = await tx
         .select()
         .from(schema.bankStatementLines)
-        .where(and(eq(schema.bankStatementLines.bankReconciliationId, reconciliationId), eq(schema.bankStatementLines.status, 'PENDING')));
+        .where(
+          and(
+            eq(
+              schema.bankStatementLines.bankReconciliationId,
+              reconciliationId,
+            ),
+            eq(schema.bankStatementLines.status, 'PENDING'),
+          ),
+        );
 
       if (pendingLines.length > 0) {
-        throw new BadRequestException(`Hay ${pendingLines.length} línea(s) del extracto sin conciliar.`);
+        throw new BadRequestException(
+          `Hay ${pendingLines.length} línea(s) del extracto sin conciliar.`,
+        );
       }
 
       const bookBalanceBefore = Number(recon.bookBalanceBefore);
 
       // Get all MATCHED detail links to find involved transactions
       const matchedDetails = await tx
-        .select({ bankTransactionId: schema.bankReconciliationDetails.bankTransactionId })
+        .select({
+          bankTransactionId: schema.bankReconciliationDetails.bankTransactionId,
+        })
         .from(schema.bankReconciliationDetails)
-        .where(eq(schema.bankReconciliationDetails.bankReconciliationId, reconciliationId));
+        .where(
+          eq(
+            schema.bankReconciliationDetails.bankReconciliationId,
+            reconciliationId,
+          ),
+        );
 
       // Finalize: update all bank_transactions that are linked via details
-      const linkedTxIds = [...new Set(matchedDetails.map((d: any) => d.bankTransactionId).filter(Boolean))];
+      const linkedTxIds = [
+        ...new Set(
+          matchedDetails.map((d: any) => d.bankTransactionId).filter(Boolean),
+        ),
+      ];
       for (const txId of linkedTxIds) {
         await tx
           .update(schema.bankTransactions)
-          .set({ reconciliationStatus: 'RECONCILED' as any, bankReconciliationId: reconciliationId } as any)
+          .set({
+            reconciliationStatus: 'RECONCILED' as any,
+            bankReconciliationId: reconciliationId,
+          } as any)
           .where(eq(schema.bankTransactions.id, txId as string));
       }
 
@@ -385,21 +566,39 @@ export class BankReconciliationsService {
       await tx
         .update(schema.bankStatementLines)
         .set({ status: 'RECONCILED' } as any)
-        .where(eq(schema.bankStatementLines.bankReconciliationId, reconciliationId));
+        .where(
+          eq(schema.bankStatementLines.bankReconciliationId, reconciliationId),
+        );
 
       // Calculate KPIs
       const reconciledTxns = await tx
-        .select({ debitAmount: schema.bankTransactions.debitAmount, creditAmount: schema.bankTransactions.creditAmount })
+        .select({
+          debitAmount: schema.bankTransactions.debitAmount,
+          creditAmount: schema.bankTransactions.creditAmount,
+        })
         .from(schema.bankTransactions)
-        .where(and(eq(schema.bankTransactions.bankReconciliationId, reconciliationId), eq(schema.bankTransactions.tenantId, tenantId)));
+        .where(
+          and(
+            eq(schema.bankTransactions.bankReconciliationId, reconciliationId),
+            eq(schema.bankTransactions.tenantId, tenantId),
+          ),
+        );
 
-      const netReconciled = reconciledTxns.reduce((s: number, t: any) => s + Number(t.creditAmount) - Number(t.debitAmount), 0);
+      const netReconciled = reconciledTxns.reduce(
+        (s: number, t: any) =>
+          s + Number(t.creditAmount) - Number(t.debitAmount),
+        0,
+      );
       const bookBalanceAfter = (bookBalanceBefore + netReconciled).toString();
       const statementBalance = Number(recon.statementEndingBalance);
-      const difference = (Number(bookBalanceAfter) - statementBalance).toString();
+      const difference = (
+        Number(bookBalanceAfter) - statementBalance
+      ).toString();
 
       if (Math.abs(Number(difference)) > 0.001) {
-        throw new BadRequestException(`La conciliación no cuadra. Diferencia: ${difference}`);
+        throw new BadRequestException(
+          `La conciliación no cuadra. Diferencia: ${difference}`,
+        );
       }
 
       const [updated] = await tx
@@ -419,8 +618,13 @@ export class BankReconciliationsService {
   }
 
   async findAll(bankAccountId: string | undefined, tenantId: string) {
-    const conditions: SQL<unknown>[] = [eq(schema.bankReconciliations.tenantId, tenantId)];
-    if (bankAccountId) conditions.push(eq(schema.bankReconciliations.bankAccountId, bankAccountId));
+    const conditions: SQL<unknown>[] = [
+      eq(schema.bankReconciliations.tenantId, tenantId),
+    ];
+    if (bankAccountId)
+      conditions.push(
+        eq(schema.bankReconciliations.bankAccountId, bankAccountId),
+      );
     return this.drizzle
       .select()
       .from(schema.bankReconciliations)
@@ -432,7 +636,12 @@ export class BankReconciliationsService {
     const [recon] = await this.drizzle
       .select()
       .from(schema.bankReconciliations)
-      .where(and(eq(schema.bankReconciliations.id, id), eq(schema.bankReconciliations.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankReconciliations.id, id),
+          eq(schema.bankReconciliations.tenantId, tenantId),
+        ),
+      );
 
     if (!recon) throw new NotFoundException('Conciliación no encontrada');
 
@@ -444,7 +653,12 @@ export class BankReconciliationsService {
         currencyCode: schema.bankAccounts.currencyCode,
       })
       .from(schema.bankAccounts)
-      .where(and(eq(schema.bankAccounts.id, recon.bankAccountId), eq(schema.bankAccounts.tenantId, tenantId)));
+      .where(
+        and(
+          eq(schema.bankAccounts.id, recon.bankAccountId),
+          eq(schema.bankAccounts.tenantId, tenantId),
+        ),
+      );
 
     const details = await this.drizzle
       .select()
@@ -454,49 +668,106 @@ export class BankReconciliationsService {
     const statementLines = await this.drizzle
       .select()
       .from(schema.bankStatementLines)
-      .where(and(eq(schema.bankStatementLines.bankReconciliationId, id), eq(schema.bankStatementLines.tenantId, tenantId)))
+      .where(
+        and(
+          eq(schema.bankStatementLines.bankReconciliationId, id),
+          eq(schema.bankStatementLines.tenantId, tenantId),
+        ),
+      )
       .orderBy(sql`${schema.bankStatementLines.transactionDate} desc`);
 
-    return { ...recon, bankAccount: bankAccount || null, details, statementLines };
+    return {
+      ...recon,
+      bankAccount: bankAccount || null,
+      details,
+      statementLines,
+    };
   }
 
-  async findAllByPagination(dto: FilterBankReconciliationDto, tenantId: string) {
-    const { page = 1, limit = 10, bankAccountId, status, sortBy = 'statementDate', sortOrder = 'desc' } = dto;
+  async findAllByPagination(
+    dto: FilterBankReconciliationDto,
+    tenantId: string,
+  ) {
+    const {
+      page = 1,
+      limit = 10,
+      bankAccountId,
+      status,
+      sortBy = 'statementDate',
+      sortOrder = 'desc',
+    } = dto;
     const offset = (page - 1) * limit;
 
-    const conditions: SQL<unknown>[] = [eq(schema.bankReconciliations.tenantId, tenantId)];
-    if (bankAccountId) conditions.push(eq(schema.bankReconciliations.bankAccountId, bankAccountId));
-    if (status) conditions.push(sql`${schema.bankReconciliations.status} = ${status}`);
+    const conditions: SQL<unknown>[] = [
+      eq(schema.bankReconciliations.tenantId, tenantId),
+    ];
+    if (bankAccountId)
+      conditions.push(
+        eq(schema.bankReconciliations.bankAccountId, bankAccountId),
+      );
+    if (status)
+      conditions.push(sql`${schema.bankReconciliations.status} = ${status}`);
 
     const whereCondition = and(...conditions);
-    const orderBy = sortOrder === 'asc'
-      ? sql`${schema.bankReconciliations[sortBy as keyof typeof schema.bankReconciliations]} asc`
-      : sql`${schema.bankReconciliations[sortBy as keyof typeof schema.bankReconciliations]} desc`;
+    const orderBy =
+      sortOrder === 'asc'
+        ? sql`${schema.bankReconciliations[sortBy as keyof typeof schema.bankReconciliations]} asc`
+        : sql`${schema.bankReconciliations[sortBy as keyof typeof schema.bankReconciliations]} desc`;
 
-    const totalCountResult = await this.drizzle.select({ count: sql<number>`count(*)` }).from(schema.bankReconciliations).where(whereCondition);
+    const totalCountResult = await this.drizzle
+      .select({ count: sql<number>`count(*)` })
+      .from(schema.bankReconciliations)
+      .where(whereCondition);
     const totalItems = Number(totalCountResult[0].count);
 
-    const data = await this.drizzle.select().from(schema.bankReconciliations).where(whereCondition).orderBy(orderBy).limit(limit).offset(offset);
+    const data = await this.drizzle
+      .select()
+      .from(schema.bankReconciliations)
+      .where(whereCondition)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
 
     return {
       data,
-      meta: { totalItems, itemCount: data.length, itemsPerPage: limit, totalPages: Math.ceil(totalItems / limit), currentPage: page },
+      meta: {
+        totalItems,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page,
+      },
     };
   }
 
   async uploadExcelAndCreateReconciliation(
     fileBuffer: Buffer,
-    dto: { bankAccountId: string; startDate: Date; statementDate: Date; statementEndingBalance: number; notes?: string },
+    dto: {
+      bankAccountId: string;
+      startDate: Date;
+      statementDate: Date;
+      statementEndingBalance: number;
+      notes?: string;
+    },
     userId: string,
     tenantId: string,
   ) {
     return this.drizzle.transaction(async (tx) => {
       const [bankAccount] = await tx
-        .select({ id: schema.bankAccounts.id, currentBalance: schema.bankAccounts.currentBalance })
+        .select({
+          id: schema.bankAccounts.id,
+          currentBalance: schema.bankAccounts.currentBalance,
+        })
         .from(schema.bankAccounts)
-        .where(and(eq(schema.bankAccounts.id, dto.bankAccountId), eq(schema.bankAccounts.tenantId, tenantId)));
+        .where(
+          and(
+            eq(schema.bankAccounts.id, dto.bankAccountId),
+            eq(schema.bankAccounts.tenantId, tenantId),
+          ),
+        );
 
-      if (!bankAccount) throw new NotFoundException('Cuenta bancaria no encontrada');
+      if (!bankAccount)
+        throw new NotFoundException('Cuenta bancaria no encontrada');
 
       const bookBalanceBefore = bankAccount.currentBalance?.toString() ?? '0';
 
@@ -532,7 +803,14 @@ export class BankReconciliationsService {
 
         if (!transactionDate || !description) return;
 
-        lines.push({ transactionDate, description, bankReference, debitAmount, creditAmount, isCredit: creditAmount > 0 });
+        lines.push({
+          transactionDate,
+          description,
+          bankReference,
+          debitAmount,
+          creditAmount,
+          isCredit: creditAmount > 0,
+        });
       });
 
       for (const l of lines) {
@@ -554,24 +832,53 @@ export class BankReconciliationsService {
     });
   }
 
-  async unmatchStatementLine(reconciliationId: string, statementLineId: string, tenantId: string) {
+  async unmatchStatementLine(
+    reconciliationId: string,
+    statementLineId: string,
+    tenantId: string,
+  ) {
     return this.drizzle.transaction(async (tx) => {
       const [recon] = await tx
         .select()
         .from(schema.bankReconciliations)
-        .where(and(eq(schema.bankReconciliations.id, reconciliationId), eq(schema.bankReconciliations.tenantId, tenantId)))
+        .where(
+          and(
+            eq(schema.bankReconciliations.id, reconciliationId),
+            eq(schema.bankReconciliations.tenantId, tenantId),
+          ),
+        )
         .for('update');
 
       if (!recon) throw new NotFoundException('Conciliación no encontrada');
-      if (recon.status !== 'IN_PROGRESS') throw new BadRequestException('Conciliación no está en progreso');
+      if (recon.status !== 'IN_PROGRESS')
+        throw new BadRequestException('Conciliación no está en progreso');
 
       await tx
         .delete(schema.bankReconciliationDetails)
-        .where(and(eq(schema.bankReconciliationDetails.bankReconciliationId, reconciliationId), eq(schema.bankReconciliationDetails.statementLineId, statementLineId)));
+        .where(
+          and(
+            eq(
+              schema.bankReconciliationDetails.bankReconciliationId,
+              reconciliationId,
+            ),
+            eq(
+              schema.bankReconciliationDetails.statementLineId,
+              statementLineId,
+            ),
+          ),
+        );
 
       await tx
         .delete(schema.bankStatementLines)
-        .where(and(eq(schema.bankStatementLines.id, statementLineId), eq(schema.bankStatementLines.bankReconciliationId, reconciliationId)));
+        .where(
+          and(
+            eq(schema.bankStatementLines.id, statementLineId),
+            eq(
+              schema.bankStatementLines.bankReconciliationId,
+              reconciliationId,
+            ),
+          ),
+        );
 
       return { message: 'Línea anulada y eliminada' };
     });

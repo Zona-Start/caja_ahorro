@@ -34,13 +34,13 @@ import { and, desc, eq, ilike, inArray, or, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
-import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 import {
   BulkWithdrawalAssociateDto,
   CreateWithdrawalAssociateDto,
   DisburseWithdrawalAssociateDto,
   FilterWithdrawalAssociateDto,
 } from './dto/withdrawal.schema';
+import { WithdrawalAssociateAccountingService } from './withdrawal-associate-accounting.service';
 
 @Injectable()
 export class WithdrawalAssociateService {
@@ -52,7 +52,7 @@ export class WithdrawalAssociateService {
     private readonly withdrawalAccountingService: WithdrawalAssociateAccountingService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   private _hasElapsedMonths(
     currentDate: Date,
@@ -292,7 +292,8 @@ export class WithdrawalAssociateService {
             eq(withdrawalsAssociates.id, id),
             eq(withdrawalsAssociates.tenantId, tenantId),
           ),
-        );
+        )
+        .for('update');
 
       if (!withdrawal) {
         throw new NotFoundException('Retiro no encontrado.');
@@ -358,6 +359,7 @@ export class WithdrawalAssociateService {
           status: 'PENDING' as movementStatusEnum,
         },
         tenantId,
+        tx,
       );
 
       if (administrativeFee > 0) {
@@ -375,6 +377,7 @@ export class WithdrawalAssociateService {
             status: 'PENDING' as movementStatusEnum,
           },
           tenantId,
+          tx,
         );
       }
 
@@ -595,26 +598,26 @@ export class WithdrawalAssociateService {
       }),
       accountId
         ? this.db
-          .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
-          .from(withdrawalsAssociates)
-          .where(
-            and(
-              eq(withdrawalsAssociates.associateAccountId, accountId),
-              eq(withdrawalsAssociates.tenantId, tenantId),
-              or(
-                eq(
-                  withdrawalsAssociates.status,
-                  withdrawalStatusEnum.DISBURSED,
-                ),
-                eq(
-                  withdrawalsAssociates.status,
-                  withdrawalStatusEnum.PROCESSED,
+            .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
+            .from(withdrawalsAssociates)
+            .where(
+              and(
+                eq(withdrawalsAssociates.associateAccountId, accountId),
+                eq(withdrawalsAssociates.tenantId, tenantId),
+                or(
+                  eq(
+                    withdrawalsAssociates.status,
+                    withdrawalStatusEnum.DISBURSED,
+                  ),
+                  eq(
+                    withdrawalsAssociates.status,
+                    withdrawalStatusEnum.PROCESSED,
+                  ),
                 ),
               ),
-            ),
-          )
-          .orderBy(desc(withdrawalsAssociates.withdrawalDate))
-          .limit(1)
+            )
+            .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+            .limit(1)
         : Promise.resolve([]),
     ]);
 
@@ -1096,7 +1099,8 @@ export class WithdrawalAssociateService {
 
       if (
         withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
-        withdrawalRecord.status !== withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+        withdrawalRecord.status !==
+          withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
       ) {
         throw new BadRequestException(
           'Solo se pueden desembolsar retiros aprobados o en lote de pago',
@@ -1261,7 +1265,8 @@ export class WithdrawalAssociateService {
 
       if (
         withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
-        withdrawalRecord.status !== withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+        withdrawalRecord.status !==
+          withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
       ) {
         throw new BadRequestException(
           'Solo se pueden procesar retiros aprobados o en lote de pago',
@@ -1523,7 +1528,9 @@ export class WithdrawalAssociateService {
       );
 
     if (!account || !account.associateAccountId) {
-      throw new NotFoundException(`Asociado con cédula ${row.cedula} no encontrado.`);
+      throw new NotFoundException(
+        `Asociado con cédula ${row.cedula} no encontrado.`,
+      );
     }
 
     // 2) Validar bloqueos: credinomina, préstamos, créditos
@@ -1613,7 +1620,10 @@ export class WithdrawalAssociateService {
       .from(withdrawalsAssociates)
       .where(
         and(
-          eq(withdrawalsAssociates.associateAccountId, account.associateAccountId),
+          eq(
+            withdrawalsAssociates.associateAccountId,
+            account.associateAccountId,
+          ),
           eq(withdrawalsAssociates.tenantId, tenantId),
         ),
       )
@@ -1656,12 +1666,13 @@ export class WithdrawalAssociateService {
 
     // 6) Transacción financiera (retiro + movimientos)
     const coreResult = await this.db.transaction(async (tx) => {
-      const referenceCode = await this.generateCodeService.generateNextReference(
-        'RET-SOC',
-        tenantId,
-        'savings',
-        'withdrawals',
-      );
+      const referenceCode =
+        await this.generateCodeService.generateNextReference(
+          'RET-SOC',
+          tenantId,
+          'savings',
+          'withdrawals',
+        );
 
       const [inserted] = await tx
         .insert(withdrawalsAssociates)
@@ -1775,9 +1786,7 @@ export class WithdrawalAssociateService {
     };
   }
 
-  private async parseBulkWorkbook(
-    fileBuffer: Buffer,
-  ): Promise<{
+  private async parseBulkWorkbook(fileBuffer: Buffer): Promise<{
     typeName: string;
     validDate: Date;
     rows: { cedula: string; monto: number }[];
@@ -1808,8 +1817,9 @@ export class WithdrawalAssociateService {
     };
 
     // B1: nombre del tipo de retiro
-    const typeName = String(getCellValue(worksheet.getCell('B1').value) ?? '')
-      .trim();
+    const typeName = String(
+      getCellValue(worksheet.getCell('B1').value) ?? '',
+    ).trim();
     if (!typeName) {
       throw new BadRequestException(
         'La celda B1 debe contener el nombre del tipo de retiro.',

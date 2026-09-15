@@ -2,99 +2,54 @@ import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { exchangeRates } from '@/database/schema';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { and } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 
 @Injectable()
 export class BcvService implements OnModuleInit {
   private readonly logger = new Logger(BcvService.name);
-  private readonly BCV_URL = 'https://www.bcv.org.ve/';
 
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-    private readonly configService: ConfigService,
   ) {}
 
   onModuleInit() {
     this.logger.log('BCV Service initialized');
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_7AM)
-  async syncExchangeRates() {
-    const autoSync = this.configService.get<boolean>('exchange_rate_auto_sync');
-
-    if (!autoSync) {
-      this.logger.debug('Auto sync disabled, skipping BCV fetch');
-      return;
+  /**
+   * Devuelve la tasa de cambio de una moneda para una fecha concreta (día hábil).
+   * Si no existe exactamente en esa fecha, cae a la más reciente con rate_date <= date.
+   * Es la fuente única para congelar la tasa histórica de una transacción.
+   */
+  async getRateAt(
+    currencyCode: 'USD' | 'EUR' | 'VES',
+    date: Date | string,
+  ): Promise<{ rate: string; rateDate: string } | null> {
+    if (currencyCode === 'VES') {
+      return { rate: '1', rateDate: this.toDateString(date) };
     }
 
-    try {
-      await this.fetchAndSaveRates();
-    } catch (error) {
-      this.logger.error('Failed to sync exchange rates from BCV', error);
-    }
-  }
+    const dateStr = this.toDateString(date);
+    const currency = await this.db.query.currencies.findFirst({
+      where: (c, { eq }) => eq(c.code, currencyCode),
+    });
+    if (!currency) return null;
 
-  async fetchAndSaveRates() {
-    this.logger.log('Fetching exchange rates from BCV...');
+    const rate = await this.db.query.exchangeRates.findFirst({
+      where: (r, { eq, lte }) =>
+        and(eq(r.currencyId, currency.id), lte(r.rateDate, dateStr)),
+      orderBy: (r, { desc }) => [desc(r.rateDate)],
+    });
 
-    try {
-      const response = await fetch(this.BCV_URL, {
-        headers: {
-          Accept: 'application/json',
-        },
-      });
+    if (!rate) return null;
 
-      if (!response.ok) {
-        throw new Error(`BCV returned ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      const usdRate = this.extractUSDRate(data);
-
-      const currency = await this.db.query.currencies.findFirst({
-        where: (c, { eq }) => eq(c.code, 'USD'),
-      });
-
-      if (!currency) {
-        this.logger.warn('USD currency not found in database');
-        return;
-      }
-
-      await this.db.insert(exchangeRates).values({
-        currencyId: currency.id,
-        rate: usdRate,
-        source: 'BCV',
-        isAutomatic: true,
-        fetchedAt: new Date(),
-      });
-
-      this.logger.log(`Exchange rate saved: 1 USD = ${usdRate} VES`);
-    } catch (error) {
-      this.logger.error('Error fetching BCV rates', error);
-      throw error;
-    }
-  }
-
-  private extractUSDRate(data: any): string {
-    try {
-      if (data.dolar) {
-        return data.dolar.replace(',', '.');
-      }
-      if (data?.result?.[0]?.dolares) {
-        return data.result[0].dolares.replace(',', '.');
-      }
-      return '1';
-    } catch {
-      return '1';
-    }
+    return { rate: String(rate.rate), rateDate: String(rate.rateDate) };
   }
 
   async getLatestRate(
     currencyCode: 'USD' | 'EUR',
-  ): Promise<{ rate: string; fetchedAt: Date } | null> {
+  ): Promise<{ rate: string; rateDate: string } | null> {
     const currency = await this.db.query.currencies.findFirst({
       where: (c, { eq }) => eq(c.code, currencyCode),
     });
@@ -102,55 +57,71 @@ export class BcvService implements OnModuleInit {
 
     const rate = await this.db.query.exchangeRates.findFirst({
       where: (r, { eq }) => eq(r.currencyId, currency.id),
-      orderBy: (r, { desc }) => [desc(r.fetchedAt)],
+      orderBy: (r, { desc }) => [desc(r.rateDate)],
     });
 
     if (!rate) return null;
 
-    return { rate: rate.rate, fetchedAt: rate.fetchedAt! };
+    return { rate: String(rate.rate), rateDate: String(rate.rateDate) };
   }
 
+  /** Tasa vigente para el día de hoy (con fallback a la más reciente <= hoy). */
   async getTodayRate(): Promise<string | null> {
-    const currency = await this.db.query.currencies.findFirst({
-      where: (c, { eq }) => eq(c.code, 'USD'),
-    });
-
-    if (!currency) return null;
-
-    const rate = await this.db.query.exchangeRates.findFirst({
-      where: (r, { eq, and, gte, lte }) =>
-        and(
-          eq(r.currencyId, currency.id),
-          gte(r.fetchedAt, new Date(new Date().setHours(0, 0, 0, 0))),
-          lte(r.fetchedAt, new Date(new Date().setHours(23, 59, 59, 999))),
-        ),
-      orderBy: (r, { desc }) => [desc(r.fetchedAt)],
-    });
-
-    return rate?.rate || null;
+    const rate = await this.getRateAt('USD', new Date());
+    return rate?.rate ?? null;
   }
 
-  async setRateManual(rate: string, userId: string) {
+  /** Fija manualmente la tasa del día (upsert por moneda y rate_date). */
+  async setRateManual(
+    rate: string,
+    userId: string,
+    rateDate?: Date | string,
+    currencyCode: 'USD' | 'EUR' = 'USD',
+  ): Promise<{ id: string; rate: string; rateDate: string }> {
     const currency = await this.db.query.currencies.findFirst({
-      where: (c, { eq }) => eq(c.code, 'USD'),
+      where: (c, { eq }) => eq(c.code, currencyCode),
     });
 
     if (!currency) {
-      throw new Error('USD currency not found');
+      throw new Error(`${currencyCode} currency not found`);
     }
 
-    const result = await this.db.insert(exchangeRates).values({
-      currencyId: currency.id,
-      rate,
-      source: 'MANUAL',
-      isAutomatic: false,
-      fetchedAt: new Date(),
-    });
+    const dateStr = this.toDateString(rateDate ?? new Date());
+
+    const [result] = await this.db
+      .insert(exchangeRates)
+      .values({
+        currencyId: currency.id,
+        rate,
+        rateDate: dateStr,
+        source: 'MANUAL',
+        isAutomatic: false,
+        fetchedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [exchangeRates.currencyId, exchangeRates.rateDate],
+        set: {
+          rate,
+          source: 'MANUAL',
+          isAutomatic: false,
+          fetchedAt: new Date(),
+        },
+      })
+      .returning({
+        id: exchangeRates.id,
+        rate: exchangeRates.rate,
+        rateDate: exchangeRates.rateDate,
+      });
 
     this.logger.log(
-      `Manual exchange rate set: 1 USD = ${rate} VES by user ${userId}`,
+      `Manual exchange rate set: 1 ${currencyCode} = ${rate} VES (${dateStr}) by user ${userId}`,
     );
 
     return result;
+  }
+
+  private toDateString(date: Date | string): string {
+    const d = typeof date === 'string' ? new Date(date) : date;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 }

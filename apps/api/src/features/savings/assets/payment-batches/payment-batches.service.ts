@@ -2,7 +2,9 @@ import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import {
+  CurrencyCodeEnum,
   paymentBatchItemStatus,
   paymentBatchItemType,
   paymentBatchStatus,
@@ -18,18 +20,18 @@ import { format } from 'date-fns';
 import { and, eq, ilike, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { LoanManagementService } from '../../loans/loan_management/loan-management.service';
-import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { SettlementAssociateService } from '../../settlement/settlement-associate.service';
 import { WithdrawalAssociateService } from '../../withdrawalls/withdrawal-associate/withdrawal-associate.service';
 import {
   ConfirmPaymentBatchDto,
-  ConfirmPaymentBatchItemDto,
   CreatePaymentBatchDto,
   CreateSinglePaymentBatchItemDto,
   FilterPaymentBatchDto,
 } from './dto/payment-batches.schema';
 
-function mapSnakeToCamel(row: Record<string, unknown>): Record<string, unknown> {
+function mapSnakeToCamel(
+  row: Record<string, unknown>,
+): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(row)) {
     const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -48,7 +50,7 @@ export class PaymentBatchesService {
     private readonly settlementService: SettlementAssociateService,
     private readonly loanService: LoanManagementService,
     private readonly bankMovementsService: BankMovementsService,
-  ) { }
+  ) {}
 
   async create(tenantId: string, userId: string, dto: CreatePaymentBatchDto) {
     return this.db.transaction(async (tx) => {
@@ -367,7 +369,8 @@ export class PaymentBatchesService {
     const itemsResult = await this.db.execute(
       sql`SELECT * FROM savings.payment_batch_items WHERE payment_batch_id = ${batchId}`,
     );
-    const items = itemsResult.rows as (typeof schema.paymentBatchItems.$inferSelect)[];
+    const items =
+      itemsResult.rows as (typeof schema.paymentBatchItems.$inferSelect)[];
 
     if (!items.length) throw new BadRequestException('Lote sin ítems');
 
@@ -402,7 +405,10 @@ export class PaymentBatchesService {
       line += '20';
       line += idType;
       line += rzf(idNum, 9);
-      line += rzf(String(row.beneficiary_account_number ?? ''), 20).slice(0, 20);
+      line += rzf(String(row.beneficiary_account_number ?? ''), 20).slice(
+        0,
+        20,
+      );
       line += rzf(amount, 15);
       content += line + '\n';
     }
@@ -542,7 +548,9 @@ export class PaymentBatchesService {
       for (const itemResult of dto.items) {
         const item = batch.items.find((i) => i.id === itemResult.itemId);
         if (!item) {
-          throw new BadRequestException(`Ítem ${itemResult.itemId} no pertenece al lote`);
+          throw new BadRequestException(
+            `Ítem ${itemResult.itemId} no pertenece al lote`,
+          );
         }
 
         if (!itemResult.processed) {
@@ -600,7 +608,7 @@ export class PaymentBatchesService {
               item.sourceId,
               {
                 bankAccountId: batch.bankId!,
-                currencyCode: batch.currencyCode,
+                currencyCode: batch.currencyCode as CurrencyCodeEnum,
                 paymentMethod: 'transfer',
                 disbursementDate: processedAt,
                 bankReference: dto.bankReference,
@@ -713,7 +721,10 @@ export class PaymentBatchesService {
                   and(
                     eq(schema.withdrawalsAssociates.id, item.sourceId),
                     eq(schema.withdrawalsAssociates.tenantId, tenantId),
-                    eq(schema.withdrawalsAssociates.status, 'PENDING_DISBURSEMENT_BANK_BATCH'),
+                    eq(
+                      schema.withdrawalsAssociates.status,
+                      'PENDING_DISBURSEMENT_BANK_BATCH',
+                    ),
                   ),
                 );
               break;
@@ -725,7 +736,10 @@ export class PaymentBatchesService {
                   and(
                     eq(schema.liquidationsAssociates.id, item.sourceId),
                     eq(schema.liquidationsAssociates.tenantId, tenantId),
-                    eq(schema.liquidationsAssociates.status, 'PENDING_DISBURSEMENT_BANK_BATCH'),
+                    eq(
+                      schema.liquidationsAssociates.status,
+                      'PENDING_DISBURSEMENT_BANK_BATCH',
+                    ),
                   ),
                 );
               break;
@@ -854,7 +868,10 @@ export class PaymentBatchesService {
     let allItems: any[] = [];
     if (batchIds.length) {
       const result = await this.db.execute(
-        sql`SELECT * FROM savings.payment_batch_items WHERE payment_batch_id = ANY(${sql`ARRAY[${sql.join(batchIds.map(id => sql`${id}::uuid`), sql`, `)}]`})`,
+        sql`SELECT * FROM savings.payment_batch_items WHERE payment_batch_id = ANY(${sql`ARRAY[${sql.join(
+          batchIds.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )}]`})`,
       );
       allItems = result.rows.map(mapSnakeToCamel);
     }
@@ -864,10 +881,10 @@ export class PaymentBatchesService {
       totalAmount: Number(row.totalAmount).toFixed(2),
       bank: row.bankId
         ? {
-          id: row.bankId,
-          name: row.bankAccountName,
-          accountNumber: row.bankAccountNumber,
-        }
+            id: row.bankId,
+            name: row.bankAccountName,
+            accountNumber: row.bankAccountNumber,
+          }
         : undefined,
       items: allItems.filter((it) => it.paymentBatchId === row.id),
     }));
@@ -931,10 +948,10 @@ export class PaymentBatchesService {
       totalAmount: Number(row.totalAmount).toFixed(2),
       bank: row.bankId
         ? {
-          id: row.bankId,
-          name: row.bankAccountName,
-          accountNumber: row.bankAccountNumber,
-        }
+            id: row.bankId,
+            name: row.bankAccountName,
+            accountNumber: row.bankAccountNumber,
+          }
         : undefined,
       items: allItems,
     };

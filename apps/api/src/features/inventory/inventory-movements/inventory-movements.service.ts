@@ -14,7 +14,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, ilike, inArray, sql, SQL } from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   CreateInventoryMovementDto,
@@ -62,7 +62,7 @@ export class InventoryMovementsService {
     private db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   async create(
     dto: CreateInventoryMovementDto,
@@ -142,10 +142,36 @@ export class InventoryMovementsService {
               stockOnHand: sql`${products.stockOnHand} + ${item.quantity}`,
               stockOnOrder: sql`${products.stockOnOrder} - ${item.quantity}`,
             })
-            .where(eq(products.id, item.productId));
+            .where(
+              and(
+                eq(products.id, item.productId),
+                gte(products.stockOnOrder, item.quantity),
+              ),
+            );
         }
 
         await updatePurchaseOrderStatus(dto.purchaseOrderId, tx);
+      }
+
+      // Flujos de salida: descuentan stock físico de forma atómica con guarda
+      if (
+        OUTFLOW_TYPES.includes(
+          dto.movementType as (typeof OUTFLOW_TYPES)[number],
+        )
+      ) {
+        for (const item of dto.items) {
+          await tx
+            .update(products)
+            .set({
+              stockOnHand: sql`${products.stockOnHand} - ${item.quantity}`,
+            })
+            .where(
+              and(
+                eq(products.id, item.productId),
+                gte(products.stockOnHand, item.quantity),
+              ),
+            );
+        }
       }
 
       return movement;
@@ -218,7 +244,9 @@ export class InventoryMovementsService {
     }
 
     if (purchaseOrderId) {
-      searchConditions.push(eq(inventoryMovements.purchaseOrderId, purchaseOrderId));
+      searchConditions.push(
+        eq(inventoryMovements.purchaseOrderId, purchaseOrderId),
+      );
     }
 
     if (startDate && endDate) {
@@ -320,8 +348,8 @@ export class InventoryMovementsService {
       ...m,
       movementDate: m.movementDate
         ? new Date(m.movementDate as unknown as string)
-          .toISOString()
-          .split('T')[0]
+            .toISOString()
+            .split('T')[0]
         : null,
       createdAt: m.createdAt
         ? new Date(m.createdAt as unknown as string).toISOString()
@@ -413,8 +441,8 @@ export class InventoryMovementsService {
       ...movement,
       movementDate: movement.movementDate
         ? new Date(movement.movementDate as unknown as string)
-          .toISOString()
-          .split('T')[0]
+            .toISOString()
+            .split('T')[0]
         : null,
       createdAt: movement.createdAt
         ? new Date(movement.createdAt as unknown as string).toISOString()

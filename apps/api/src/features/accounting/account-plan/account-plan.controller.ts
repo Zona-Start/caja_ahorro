@@ -1,3 +1,4 @@
+import { Permissions } from '@/common/decorators/permissions.decorator';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
@@ -16,8 +17,6 @@ import { AccountPlanService } from './account-plan.service';
 import { CreateAccountPlanDto } from './dto/create-account-plan.dto';
 import { FilterAccountPlanDto } from './dto/filter-account-plan.dto';
 import { UpdateAccountPlanDto } from './dto/update-account-plan.dto';
-import { Permissions } from '@/common/decorators/permissions.decorator';
-
 
 @ApiTags('account-plan')
 @Controller('account-plan')
@@ -25,7 +24,7 @@ export class AccountPlanController {
   constructor(
     private readonly accountPlanService: AccountPlanService,
     private readonly tenantService: TenantContextService,
-  ) { }
+  ) {}
 
   @Post()
   @Permissions('accounting:chart_of_accounts:create')
