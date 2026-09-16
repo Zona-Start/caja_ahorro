@@ -2,6 +2,7 @@ import { formatCurrency } from '@/lib/format-utils';
 import { Badge } from '@repo/shadcn/badge';
 import type { ColumnDef } from '@tanstack/react-table';
 import {
+  EXPENSE_NATURE_OPTIONS,
   EXPENSE_STATUS_OPTIONS,
   PAYMENT_SOURCE_OPTIONS,
   type Expense,
@@ -12,8 +13,10 @@ const STATUS_VARIANTS: Record<
   string,
   'success' | 'warning' | 'destructive' | 'secondary'
 > = {
-  APPROVED: 'success',
+  DRAFT: 'secondary',
   PENDING_APPROVAL: 'warning',
+  APPROVED: 'success',
+  PAID: 'secondary',
   REJECTED: 'destructive',
 };
 
@@ -37,6 +40,20 @@ export const expenseColumns: ColumnDef<Expense>[] = [
     accessorKey: 'description',
     header: 'Descripción',
     cell: ({ getValue }) => getValue<string>() || '-',
+  },
+  {
+    accessorKey: 'nature',
+    header: 'Naturaleza',
+    cell: ({ getValue }) => {
+      const value = getValue<string>() ?? 'VARIABLE';
+      return (
+        <Badge variant={value === 'FIXED' ? 'warning' : 'outline'}>
+          {EXPENSE_NATURE_OPTIONS[
+            value as keyof typeof EXPENSE_NATURE_OPTIONS
+          ] ?? value}
+        </Badge>
+      );
+    },
   },
   {
     accessorKey: 'status',
@@ -70,7 +87,25 @@ export const expenseColumns: ColumnDef<Expense>[] = [
     cell: ({ row, getValue }) => {
       const value = getValue<number>();
       if (value == null) return '-';
-      return formatCurrency(value, row.original.currencyCode || 'VES');
+
+      const currency = row.original.currencyCode || 'VES';
+      // El monto base viene expresado en Bolívares (VES)
+      if (currency === 'VES') {
+        return formatCurrency(value, 'VES');
+      }
+
+      // En divisa: monto real = monto en Bs / tasa de cambio guardada
+      const rate = Number(row.original.exchangeRate ?? 0);
+      const foreignAmount = rate > 0 ? value / rate : value;
+      const formatted = foreignAmount.toLocaleString('es-VE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return (
+        <span className="whitespace-nowrap font-medium">
+          {currency} {formatted}
+        </span>
+      );
     },
   },
   {

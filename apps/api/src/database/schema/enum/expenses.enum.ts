@@ -39,19 +39,32 @@ export const expensePaymentSourceEnum = treasurySchema.enum(
 );
 
 export const expenseStatusEnum = treasurySchema.enum('expense_status', [
+  'DRAFT',
   'PENDING_APPROVAL',
   'APPROVED',
+  'PAID',
   'REJECTED',
+]);
+
+// Naturaleza del gasto: fijo (recurrente/programado) o variable (transaccional)
+export const expenseNatureEnum = treasurySchema.enum('expense_nature', [
+  'FIXED',
+  'VARIABLE',
 ]);
 
 export const pettyCashVoucherStatusEnum = treasurySchema.enum(
   'petty_cash_voucher_status',
-  ['OPEN', 'LIQUIDATED'],
+  ['OPEN', 'LIQUIDATED', 'SETTLED'],
 );
 
 export const pettyCashSettlementStatusEnum = treasurySchema.enum(
   'petty_cash_settlement_status',
   ['OPEN', 'CLOSED'],
+);
+
+export const pettyCashReplenishmentStatusEnum = treasurySchema.enum(
+  'petty_cash_replenishment_status',
+  ['NONE', 'PENDING', 'PAID'],
 );
 
 export const expenseReportStatusEnum = treasurySchema.enum(

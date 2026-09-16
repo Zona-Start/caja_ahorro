@@ -19,9 +19,6 @@ import {
   UpdatePettyCashVoucherDto,
 } from './dto/petty-cash-vouchers.schema';
 
-const round = (value: number, decimals: number) =>
-  Number(value.toFixed(decimals));
-
 @Injectable()
 export class PettyCashVouchersService {
   private readonly logger = new Logger(PettyCashVouchersService.name);
@@ -64,6 +61,7 @@ export class PettyCashVouchersService {
         tenantId: schema.pettyCashVouchers.tenantId,
         fundId: schema.pettyCashVouchers.fundId,
         fundName: schema.pettyCashFunds.name,
+        currencyCode: schema.pettyCashFunds.currencyCode,
         voucherNumber: schema.pettyCashVouchers.voucherNumber,
         beneficiaryName: schema.pettyCashVouchers.beneficiaryName,
         amount: schema.pettyCashVouchers.amount,
@@ -327,7 +325,8 @@ export class PettyCashVouchersService {
         );
       }
 
-      // El dinero ya salió del fondo al emitir el vale: el gasto nace aprobado
+      // El dinero ya salió del fondo al emitir el vale: el gasto nace PAGADO
+      // (no entra a la cola de pagos ni vuelve a descontar el fondo).
       const [expense] = await tx
         .insert(schema.expenses)
         .values({
@@ -338,18 +337,34 @@ export class PettyCashVouchersService {
           pettyCashFundId: voucher.fundId,
           type: 'EXPRESS',
           paymentStatus: 'PAID',
-          status: 'APPROVED',
+          status: 'PAID',
+          nature: 'VARIABLE',
           amountBase: String(voucher.amount),
           taxAmountBase: '0.0000',
           currencyCode: fund.currencyCode,
           exchangeRate: '1',
+          receiptNumber: dto.receiptNumber || null,
           receiptImageUrl: voucher.ticketImageUrl,
           description: dto.description || voucher.concept,
           createdById: userId,
           approvedByUserId: userId,
           approvedAt: new Date(),
+          paidByUserId: userId,
+          paidAt: new Date(),
         })
         .returning();
+
+      // Línea de detalle del gasto (concepto del vale)
+      await tx.insert(schema.expenseDetails).values({
+        expenseId: expense.id,
+        tenantId,
+        categoryId: dto.categoryId,
+        description: dto.description || voucher.concept,
+        amount: String(voucher.amount),
+        taxRate: '0',
+        taxAmount: '0',
+        isExempt: true,
+      });
 
       const [updatedVoucher] = await tx
         .update(schema.pettyCashVouchers)
@@ -363,12 +378,22 @@ export class PettyCashVouchersService {
         .where(eq(schema.pettyCashVouchers.id, voucher.id))
         .returning();
 
-      void round;
       return { voucher: updatedVoucher, expense };
     });
 
     // Asiento contable (idéntico al flujo de gastos, tolerante a fallos)
     try {
+      // Cuenta principal del gasto (definida en la categoría)
+      const [expenseCategory] = await this.db
+        .select({
+          accountingAccountId: schema.expenseCategories.accountingAccountId,
+        })
+        .from(schema.expenseCategories)
+        .where(eq(schema.expenseCategories.id, result.expense.categoryId))
+        .limit(1);
+
+      const voucherTotal = Number(result.expense.amountBase);
+
       await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
         userId,
@@ -386,20 +411,32 @@ export class PettyCashVouchersService {
           originType: 'EXPENSE',
           globalDescriptions: { EXPENSE_AMOUNT: result.expense.description },
           roleAliases: { EXPENSE_AMOUNT: 'TOTAL' },
+          explicitDetails: expenseCategory?.accountingAccountId
+            ? [
+                {
+                  accountPlanId: expenseCategory.accountingAccountId,
+                  movementType: 'DEBIT' as const,
+                  amount: voucherTotal,
+                  description: result.expense.description,
+                },
+              ]
+            : undefined,
           items: [
             {
               supplierId: undefined,
               amounts: {
                 EXPENSE_AMOUNT: Number(result.expense.amountBase),
                 EXPENSE_TAX: 0,
-                TOTAL_AMOUNT: Number(result.expense.amountBase),
+                TOTAL_AMOUNT: voucherTotal,
                 VAT_WITHHOLDING: 0,
                 ISLR_WITHHOLDING: 0,
+                EXPENSE_COUNTERPART: voucherTotal,
               },
               description: result.expense.description,
               descriptions: {
                 EXPENSE_AMOUNT: result.expense.description,
                 TOTAL_AMOUNT: result.expense.description,
+                EXPENSE_COUNTERPART: result.expense.description,
               },
             },
           ],

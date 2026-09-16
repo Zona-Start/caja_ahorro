@@ -96,6 +96,9 @@ export function usePayExpenseReportMutation(): UseMutationResult<
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: expenseReportsKeys.all });
       queryClient.invalidateQueries({ queryKey: ['cash-registers'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['petty-cash'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toastSuccess('Reembolso pagado y gasto generado correctamente');
     },
     onError: (error) => toastError(getErrorMessage(error)),

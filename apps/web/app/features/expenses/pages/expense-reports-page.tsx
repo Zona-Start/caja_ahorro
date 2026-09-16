@@ -253,8 +253,13 @@ function PayReportModal({
   onConfirm: (payload: PayReportForm) => void;
   isPending: boolean;
 }) {
-  const { data: bankData } = useBankAccountAll();
-  const { data: pettyData } = usePettyCashAll();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+  const { data: bankData } = useBankAccountAll(
+    hasPermission('banking:accounts', 'read'),
+  );
+  const { data: pettyData } = usePettyCashAll(
+    hasPermission('treasury:petty-cash', 'read'),
+  );
   const [paymentSource, setPaymentSource] = useState<
     'BANK_ACCOUNT' | 'PETTY_CASH'
   >('BANK_ACCOUNT');

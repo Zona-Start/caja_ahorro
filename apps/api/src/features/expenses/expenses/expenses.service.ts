@@ -2,6 +2,7 @@ import { DRIZZLE_PROVIDER, DrizzleDatabase } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import { CurrencyCodeEnum } from '@/types/enum';
 import {
@@ -22,6 +23,24 @@ type ExpenseRow = typeof schema.expenses.$inferSelect;
 const round = (value: number, decimals: number) =>
   Number(value.toFixed(decimals));
 
+// Calcula la próxima fecha de pago según la frecuencia
+function computeNextDueDate(base: Date, frequency: string | null): Date | null {
+  if (!frequency) return null;
+  const DAY = 24 * 60 * 60 * 1000;
+  if (frequency === 'BIWEEKLY') {
+    return new Date(base.getTime() + 14 * DAY);
+  }
+  const months =
+    frequency === 'QUARTERLY' ? 3 : frequency === 'ANNUAL' ? 12 : 1;
+  return new Date(
+    Date.UTC(
+      base.getUTCFullYear(),
+      base.getUTCMonth() + months,
+      base.getUTCDate(),
+    ),
+  );
+}
+
 @Injectable()
 export class ExpensesService {
   private readonly logger = new Logger(ExpensesService.name);
@@ -31,6 +50,7 @@ export class ExpensesService {
     private readonly eventEmitter: EventEmitter2,
     private readonly accountingEntriesService: AccountingEntriesService,
     private readonly exchangeRateService: ExchangeRateService,
+    private readonly bankMovementsService: BankMovementsService,
   ) {}
 
   // ──────────────────────────────────────────────────────────────
@@ -92,6 +112,7 @@ export class ExpensesService {
       costCenterId,
       paymentSource,
       type,
+      nature,
       status,
       startDate,
       endDate,
@@ -107,6 +128,7 @@ export class ExpensesService {
         ? [eq(schema.expenses.paymentSource, paymentSource)]
         : []),
       ...(type ? [eq(schema.expenses.type, type)] : []),
+      ...(nature ? [eq(schema.expenses.nature, nature)] : []),
       ...(status ? [eq(schema.expenses.status, status)] : []),
       ...(startDate
         ? [sql`${schema.expenses.createdAt} >= ${new Date(startDate)}`]
@@ -141,8 +163,12 @@ export class ExpensesService {
         categoryName: schema.expenseCategories.name,
         paymentSource: schema.expenses.paymentSource,
         type: schema.expenses.type,
+        nature: schema.expenses.nature,
         status: schema.expenses.status,
         paymentStatus: schema.expenses.paymentStatus,
+        dueDate: schema.expenses.dueDate,
+        frequency: schema.expenses.frequency,
+        nextDueDate: schema.expenses.nextDueDate,
         amountBase: schema.expenses.amountBase,
         taxAmountBase: schema.expenses.taxAmountBase,
         currencyCode: schema.expenses.currencyCode,
@@ -157,6 +183,8 @@ export class ExpensesService {
         rejectedByUserId: schema.expenses.rejectedByUserId,
         rejectedAt: schema.expenses.rejectedAt,
         rejectionReason: schema.expenses.rejectionReason,
+        paidByUserId: schema.expenses.paidByUserId,
+        paidAt: schema.expenses.paidAt,
         createdAt: schema.expenses.createdAt,
       })
       .from(schema.expenses)
@@ -189,12 +217,39 @@ export class ExpensesService {
   async findOneWithDetails(id: string, tenantId: string) {
     const expense = await this.getRawExpense(id, tenantId);
     const details = await this.db
-      .select()
+      .select({
+        id: schema.expenseDetails.id,
+        categoryId: schema.expenseDetails.categoryId,
+        categoryName: schema.expenseCategories.name,
+        description: schema.expenseDetails.description,
+        amount: schema.expenseDetails.amount,
+        taxRate: schema.expenseDetails.taxRate,
+        taxAmount: schema.expenseDetails.taxAmount,
+        isExempt: schema.expenseDetails.isExempt,
+      })
       .from(schema.expenseDetails)
+      .leftJoin(
+        schema.expenseCategories,
+        eq(schema.expenseCategories.id, schema.expenseDetails.categoryId),
+      )
       .where(eq(schema.expenseDetails.expenseId, id))
       .orderBy(asc(schema.expenseDetails.createdAt));
 
-    return { ...expense, amountBase: Number(expense.amountBase), details };
+    let supplierName: string | null = null;
+    if (expense.supplierId) {
+      const [supplier] = await this.db
+        .select({ name: schema.suppliers.name })
+        .from(schema.suppliers)
+        .where(eq(schema.suppliers.id, expense.supplierId));
+      supplierName = supplier?.name ?? null;
+    }
+
+    return {
+      ...expense,
+      amountBase: Number(expense.amountBase),
+      supplierName,
+      details,
+    };
   }
 
   async findDetails(id: string, tenantId: string) {
@@ -289,6 +344,13 @@ export class ExpensesService {
           type: dto.type ?? 'EXPRESS',
           paymentStatus: 'PENDING',
           status: 'PENDING_APPROVAL',
+          nature: dto.nature ?? 'VARIABLE',
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          frequency: dto.nature === 'FIXED' ? (dto.frequency ?? null) : null,
+          nextDueDate:
+            dto.nature === 'FIXED' && dto.dueDate
+              ? computeNextDueDate(new Date(dto.dueDate), dto.frequency ?? null)
+              : null,
           amountBase: String(dto.amount),
           taxAmountBase: String(dto.taxAmountBase ?? 0),
           currencyCode: dto.currencyCode,
@@ -320,6 +382,50 @@ export class ExpensesService {
         );
       }
 
+      // 6. Si es un gasto FIJO, se programa en el automatizador (plantilla
+      // recurrente) para autogenerar la próxima ocurrencia en su fecha.
+      if (dto.nature === 'FIXED' && dto.dueDate && dto.frequency) {
+        const runBase = new Date(dto.dueDate);
+        const [template] = await tx
+          .insert(schema.recurringExpenseTemplates)
+          .values({
+            tenantId,
+            name: dto.description.slice(0, 255),
+            description: `${dto.description} (plantilla de gasto fijo)`,
+            categoryId: dto.categoryId,
+            supplierId: dto.supplierId ?? null,
+            costCenterId: dto.costCenterId ?? null,
+            amount: String(dto.amount),
+            currencyCode: dto.currencyCode,
+            paymentSource: dto.paymentSource,
+            bankAccountId:
+              dto.paymentSource === 'BANK_ACCOUNT'
+                ? (dto.bankAccountId ?? null)
+                : null,
+            pettyCashFundId:
+              dto.paymentSource === 'PETTY_CASH'
+                ? (dto.pettyCashFundId ?? null)
+                : null,
+            frequency: dto.frequency,
+            dayOfMonth:
+              dto.frequency === 'BIWEEKLY'
+                ? null
+                : Math.min(Math.max(runBase.getUTCDate(), 1), 28),
+            nextRunDate: computeNextDueDate(runBase, dto.frequency),
+            autoCreate: true,
+            isActive: true,
+            createdById: userId,
+          })
+          .returning({ id: schema.recurringExpenseTemplates.id });
+
+        await tx
+          .update(schema.expenses)
+          .set({ recurringTemplateId: template.id, updatedById: userId })
+          .where(eq(schema.expenses.id, expense.id));
+
+        expense.recurringTemplateId = template.id;
+      }
+
       return expense;
     });
 
@@ -341,7 +447,15 @@ export class ExpensesService {
   }
 
   // ──────────────────────────────────────────────────────────────
-  //  APPROVE: re-valida, deduce fuente, genera movimiento y asiento
+  //  APPROVE: valida y deja el gasto "Por Pagar".
+  //  Excepción: si la fuente es Caja POS o Fondo Fijo, el dinero ya
+  //  salió físicamente, por lo que se liquida al instante (PAID).
+  // ──────────────────────────────────────────────────────────────
+
+  // ──────────────────────────────────────────────────────────────
+  //  APPROVE: solo cambia el estado a "Aprobado / Por Pagar".
+  //  NO mueve dinero. Habilita el botón Pagar. El descuento ocurre
+  //  únicamente al registrar el pago.
   // ──────────────────────────────────────────────────────────────
 
   async approve(
@@ -361,15 +475,7 @@ export class ExpensesService {
 
       const amount = Number(expense.amountBase);
 
-      // 1. Re-validar disponible en la fuente (se descuenta al aprobar)
-      const sourceBalance = await this.validateSource(
-        tx,
-        tenantId,
-        expense,
-        amount,
-      );
-
-      // 2. Validaciones corporativas
+      // Validaciones corporativas (presupuesto + retenciones). No descuenta.
       let islrWithholding = 0;
       let vatWithholding = 0;
       if (isCorporate) {
@@ -406,34 +512,24 @@ export class ExpensesService {
         islrWithholding = round(amount * rates.islrRate, 4);
       }
 
-      // 3. Aprobar el gasto
+      const now = new Date();
       const [updated] = await tx
         .update(schema.expenses)
         .set({
           status: 'APPROVED',
-          paymentStatus: 'PAID',
+          paymentStatus: 'PENDING',
           islrWithholdingAmount: String(islrWithholding),
           vatWithholdingAmount: String(vatWithholding),
           approvedByUserId: userId,
-          approvedAt: new Date(),
+          approvedAt: now,
           updatedById: userId,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
         .where(eq(schema.expenses.id, id))
         .returning();
 
-      // 4. Afectar la fuente de financiamiento (descuento + movimiento de caja)
-      await this.applySourceFunding(tx, userId, expense, sourceBalance);
-
       return updated;
     });
-
-    // 5. Asiento contable (fuera de la tx: si falla no revierte la aprobación)
-    await this.generateAccountingEntry(
-      approved,
-      tenantId,
-      approved.createdById ?? '',
-    );
 
     this.eventEmitter.emit(
       'audit.log',
@@ -442,7 +538,7 @@ export class ExpensesService {
         action: 'UPDATE',
         tableName: 'expenses',
         recordId: id,
-        description: `Gasto aprobado: ${approved.description}`,
+        description: `Gasto aprobado (por pagar): ${approved.description}`,
         area: 'Expenses',
         newData: approved,
         tenantId,
@@ -450,6 +546,141 @@ export class ExpensesService {
     );
 
     return approved;
+  }
+
+  // ──────────────────────────────────────────────────────────────
+  //  PAY: aquí SÍ se mueve el dinero.
+  //  - Caja POS  → descuenta la sesión + movimiento de caja (OUTFLOW)
+  //  - Fondo Fijo→ descuenta el saldo del fondo
+  //  - Banco     → genera un movimiento bancario (débito) vinculado
+  //  Luego dispara el asiento contable (el módulo contable decide).
+  // ──────────────────────────────────────────────────────────────
+
+  async pay(id: string, userId: string, tenantId: string) {
+    const result = await this.db.transaction(async (tx) => {
+      const expense = await this.getRawExpenseInTx(tx, id, tenantId);
+
+      if (expense.status !== 'APPROVED') {
+        throw new BadRequestException(
+          `Solo los gastos aprobados y por pagar admiten esta operación (estado actual: ${expense.status})`,
+        );
+      }
+      if (
+        expense.nature === 'FIXED' &&
+        expense.dueDate &&
+        new Date(expense.dueDate).getTime() > Date.now()
+      ) {
+        throw new BadRequestException(
+          'Aún no corresponde el pago de este gasto fijo (fecha programada no alcanzada)',
+        );
+      }
+
+      const amount = Number(expense.amountBase);
+
+      // Si el gasto proviene de un vale de caja ya liquidado, el dinero ya salió
+      // del fondo al emitir el vale: no se vuelve a descontar ni a contabilizar.
+      let linkedToVoucher = false;
+      if (expense.paymentSource === 'PETTY_CASH') {
+        const [voucher] = await tx
+          .select({ id: schema.pettyCashVouchers.id })
+          .from(schema.pettyCashVouchers)
+          .where(
+            and(
+              eq(schema.pettyCashVouchers.expenseId, expense.id),
+              eq(schema.pettyCashVouchers.status, 'LIQUIDATED'),
+            ),
+          )
+          .limit(1);
+        linkedToVoucher = !!voucher;
+      }
+
+      // 1. Procesar el descuento según la fuente del dinero
+      if (linkedToVoucher) {
+        // Sin descuento: el efectivo ya salió del fondo al emitir el vale
+      } else if (expense.paymentSource === 'BANK_ACCOUNT') {
+        // Valida saldo disponible y genera el movimiento bancario (débito)
+        // vinculado al gasto. El servicio bancario actualiza el saldo.
+        await this.validateBankAccount(
+          tx,
+          tenantId,
+          expense.bankAccountId!,
+          amount,
+        );
+        await this.bankMovementsService.createAndReconcile(
+          {
+            movement: {
+              bankAccountId: expense.bankAccountId!,
+              transactionDate: new Date(),
+              paymentMethod: 'BANK_TRANSFER',
+              description: `Pago de gasto: ${expense.description}`,
+              category: 'OTHER_EXPENSE',
+              creditAmount: 0,
+              debitAmount: amount,
+              note: `Gasto ${expense.id}`,
+            },
+            links: [
+              {
+                internalRecordType: 'GENERAL_EXPENSE',
+                internalRecordId: expense.id,
+              },
+            ],
+          },
+          userId,
+          tenantId,
+          tx as unknown as DrizzleDatabase,
+        );
+      } else {
+        // Caja POS / Fondo Fijo: descuento directo del saldo en efectivo
+        const sourceBalance = await this.validateSource(
+          tx,
+          tenantId,
+          expense,
+          amount,
+        );
+        await this.applySourceFunding(tx, userId, expense, sourceBalance);
+      }
+
+      // 2. Marcar como pagado
+      const now = new Date();
+      const [updated] = await tx
+        .update(schema.expenses)
+        .set({
+          status: 'PAID',
+          paymentStatus: 'PAID',
+          paidByUserId: userId,
+          paidAt: now,
+          updatedById: userId,
+          updatedAt: now,
+        })
+        .where(eq(schema.expenses.id, id))
+        .returning();
+
+      return { paid: updated, skipAccounting: linkedToVoucher };
+    });
+
+    const paid = result.paid;
+
+    // 3. Asiento contable (el módulo contable decide si aplica o no).
+    //    Se omite si el gasto proviene de un vale (ya se contabilizó al rendir).
+    if (!result.skipAccounting) {
+      await this.generateAccountingEntry(paid, tenantId, userId);
+    }
+
+    this.eventEmitter.emit(
+      'audit.log',
+      new AuditLogEvent({
+        userId,
+        action: 'UPDATE',
+        tableName: 'expenses',
+        recordId: id,
+        description: `Gasto pagado: ${paid.description}`,
+        area: 'Expenses',
+        newData: paid,
+        tenantId,
+      }),
+    );
+
+    return paid;
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -494,9 +725,9 @@ export class ExpensesService {
   async softDelete(id: string, userId: string, tenantId: string) {
     const existing = await this.getRawExpense(id, tenantId);
 
-    if (existing.status === 'APPROVED') {
+    if (existing.status === 'APPROVED' || existing.status === 'PAID') {
       throw new BadRequestException(
-        'No se puede eliminar un gasto aprobado que ya afectó saldos contables',
+        'No se puede eliminar un gasto aprobado o pagado que ya afectó saldos contables',
       );
     }
 
@@ -873,7 +1104,8 @@ export class ExpensesService {
     return row?.value ?? null;
   }
 
-  // Descuenta la fuente y registra el movimiento de caja cuando aplica
+  // Descuenta la fuente en efectivo y registra el movimiento de caja cuando
+  // aplica. El Banco NO se maneja aquí: se procesa vía movimiento bancario.
   private async applySourceFunding(
     tx: Transaction,
     userId: string,
@@ -904,16 +1136,6 @@ export class ExpensesService {
         referenceId: expense.id,
         createdById: userId,
       });
-    } else if (expense.paymentSource === 'BANK_ACCOUNT') {
-      const newBalance = sourceBalance - amount;
-      await tx
-        .update(schema.bankAccounts)
-        .set({
-          currentBalance: String(newBalance),
-          updatedById: userId,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.bankAccounts.id, expense.bankAccountId!));
     } else if (expense.paymentSource === 'PETTY_CASH') {
       const newBalance = sourceBalance - amount;
       await tx
@@ -940,12 +1162,36 @@ export class ExpensesService {
     tenantId: string,
     userId: string,
   ): Promise<void> {
-    try {
-      const amount = Number(expense.amountBase);
-      const tax = Number(expense.taxAmountBase ?? 0);
-      const vatWith = Number(expense.vatWithholdingAmount ?? 0);
-      const islrWith = Number(expense.islrWithholdingAmount ?? 0);
+    const amount = Number(expense.amountBase);
+    const tax = Number(expense.taxAmountBase ?? 0);
+    const vatWith = Number(expense.vatWithholdingAmount ?? 0);
+    const islrWith = Number(expense.islrWithholdingAmount ?? 0);
+    const total = Number((amount + tax).toFixed(2));
 
+    // Cuenta principal: se define en la categoría del gasto.
+    const [category] = await this.db
+      .select({
+        accountingAccountId: schema.expenseCategories.accountingAccountId,
+      })
+      .from(schema.expenseCategories)
+      .where(eq(schema.expenseCategories.id, expense.categoryId))
+      .limit(1);
+
+    if (!category?.accountingAccountId) {
+      this.logger.warn(
+        `El gasto ${expense.id} no tiene una cuenta principal en su categoría; se usa el asiento de respaldo`,
+      );
+      try {
+        await this.createFallbackEntry(expense, tenantId, userId);
+      } catch (fallbackError) {
+        this.logger.warn(
+          `Asiento contable omitido para el gasto ${expense.id}: ${(fallbackError as Error).message}`,
+        );
+      }
+      return;
+    }
+
+    try {
       const entry = await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
         userId,
@@ -955,7 +1201,7 @@ export class ExpensesService {
           category: 'ADMINISTRATIVE',
           operationType: 'EXPENSE',
           description: `Gasto: ${expense.description}`,
-          entryDate: expense.approvedAt ?? new Date(),
+          entryDate: expense.paidAt ?? new Date(),
           autoPostKey: 'AUTO_POST_ENTRY_EXPENSES',
           currencyCode: expense.currencyCode as CurrencyCodeEnum,
           exchangeRate: Number(expense.exchangeRate),
@@ -963,20 +1209,33 @@ export class ExpensesService {
           originType: 'EXPENSE',
           globalDescriptions: { EXPENSE_AMOUNT: expense.description },
           roleAliases: { EXPENSE_AMOUNT: 'TOTAL' },
+          // La cuenta principal (débito) viene de la categoría del gasto.
+          // La regla contable ADMINISTRATIVE/EXPENSE solo aporta la contrapartida.
+          explicitDetails: [
+            {
+              accountPlanId: category.accountingAccountId,
+              movementType: 'DEBIT',
+              amount: total,
+              description: expense.description,
+              supplierId: expense.supplierId ?? undefined,
+            },
+          ],
           items: [
             {
               supplierId: expense.supplierId ?? undefined,
               amounts: {
                 EXPENSE_AMOUNT: amount,
                 EXPENSE_TAX: tax,
-                TOTAL_AMOUNT: amount + tax,
+                TOTAL_AMOUNT: total,
                 VAT_WITHHOLDING: vatWith,
                 ISLR_WITHHOLDING: islrWith,
+                EXPENSE_COUNTERPART: total,
               },
               description: expense.description,
               descriptions: {
                 EXPENSE_AMOUNT: expense.description,
                 TOTAL_AMOUNT: expense.description,
+                EXPENSE_COUNTERPART: expense.description,
               },
             },
           ],
@@ -1018,9 +1277,7 @@ export class ExpensesService {
     userId: string,
   ): Promise<void> {
     const amount = Number(expense.amountBase);
-    const period = (expense.approvedAt ?? new Date())
-      .toISOString()
-      .split('T')[0];
+    const period = (expense.paidAt ?? new Date()).toISOString().split('T')[0];
 
     const [cycle] = await this.db
       .select()

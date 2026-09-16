@@ -12,7 +12,9 @@ import type {
   CloseSettlementForm,
   LiquidateVoucherForm,
   OpenSettlementForm,
+  RealizeSettlementForm,
   Settlement,
+  SettlementPreview,
   Voucher,
   VoucherForm,
 } from '../schemas/petty-cash-operations.schema';
@@ -37,9 +39,7 @@ const getErrorMessage = (error: unknown): string => {
 
 // ───────────── VALES ─────────────
 
-export function useVouchersQuery(
-  params: VouchersQueryParams,
-): UseQueryResult<{
+export function useVouchersQuery(params: VouchersQueryParams): UseQueryResult<{
   data: Voucher[];
   meta: { totalCount: number; totalPages: number; page: number; limit: number };
 }> {
@@ -132,6 +132,78 @@ export function useOpenSettlementMutation(): UseMutationResult<
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pettyCashKeys.all });
       toastSuccess('Arqueo abierta/actualizado correctamente');
+    },
+    onError: (error) => toastError(getErrorMessage(error)),
+  });
+}
+
+export function useSettlementPreviewQuery(
+  fundId: string,
+  period?: string,
+  enabled = true,
+): UseQueryResult<SettlementPreview> {
+  return useQuery({
+    queryKey: [...pettyCashKeys.all, 'settlement-preview', fundId, period],
+    queryFn: async () => {
+      const response = await pettyCashSettlementsService.preview(
+        fundId,
+        period,
+      );
+      return response.data;
+    },
+    enabled: enabled && !!fundId,
+  });
+}
+
+export function useRealizeSettlementMutation(): UseMutationResult<
+  unknown,
+  unknown,
+  RealizeSettlementForm
+> {
+  const queryClient = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+
+  return useMutation({
+    mutationFn: (payload) => pettyCashSettlementsService.realize(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: pettyCashKeys.all });
+      toastSuccess('Arqueo realizado y cerrado correctamente');
+    },
+    onError: (error) => toastError(getErrorMessage(error)),
+  });
+}
+
+export function useReplenishSettlementMutation(): UseMutationResult<
+  unknown,
+  unknown,
+  string
+> {
+  const queryClient = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id) => pettyCashSettlementsService.replenish(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: pettyCashKeys.all });
+      toastSuccess('Reposición enviada a la cola de pagos');
+    },
+    onError: (error) => toastError(getErrorMessage(error)),
+  });
+}
+
+export function usePayReplenishmentMutation(): UseMutationResult<
+  unknown,
+  unknown,
+  string
+> {
+  const queryClient = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id) => pettyCashSettlementsService.payReplenishment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: pettyCashKeys.all });
+      toastSuccess('Reposición pagada: el saldo del fondo fue restituido');
     },
     onError: (error) => toastError(getErrorMessage(error)),
   });

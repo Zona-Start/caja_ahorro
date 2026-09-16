@@ -2,6 +2,7 @@ import { DRIZZLE_PROVIDER, DrizzleDatabase } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditLogEvent } from '@/features/audit/events/audit-log.event';
+import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,
@@ -29,6 +30,7 @@ export class ExpenseReportsService {
     @Inject(DRIZZLE_PROVIDER) private readonly db: DrizzleDatabase,
     private readonly eventEmitter: EventEmitter2,
     private readonly accountingEntriesService: AccountingEntriesService,
+    private readonly bankMovementsService: BankMovementsService,
   ) {}
 
   async findAllByPagination(tenantId: string, dto?: FilterExpenseReportDto) {
@@ -479,16 +481,31 @@ export class ExpenseReportsService {
             'No hay saldo suficiente en la cuenta bancaria',
           );
         }
-        await tx
-          .update(schema.bankAccounts)
-          .set({
-            currentBalance: String(
-              Number(account.currentBalance) - totalAmount,
-            ),
-            updatedById: userId,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.bankAccounts.id, account.id));
+        // Movimiento bancario (débito) vinculado al reembolso. El servicio
+        // bancario actualiza el saldo de la cuenta.
+        await this.bankMovementsService.createAndReconcile(
+          {
+            movement: {
+              bankAccountId: dto.bankAccountId!,
+              transactionDate: new Date(),
+              paymentMethod: 'BANK_TRANSFER',
+              description: `Pago de reembolso: ${report.title}`,
+              category: 'OTHER_EXPENSE',
+              creditAmount: 0,
+              debitAmount: totalAmount,
+              note: `Reembolso ${report.id}`,
+            },
+            links: [
+              {
+                internalRecordType: 'EXPENSE_REPORT',
+                internalRecordId: report.id,
+              },
+            ],
+          },
+          userId,
+          tenantId,
+          tx as unknown as DrizzleDatabase,
+        );
       } else {
         const [fund] = await tx
           .select()
@@ -532,7 +549,7 @@ export class ExpenseReportsService {
             dto.paymentSource === 'PETTY_CASH' ? dto.pettyCashFundId : null,
           type: 'EXPRESS',
           paymentStatus: 'PAID',
-          status: 'APPROVED',
+          status: 'PAID',
           amountBase: String(totalAmount),
           taxAmountBase: '0.0000',
           currencyCode: report.currencyCode,
@@ -542,6 +559,8 @@ export class ExpenseReportsService {
           createdById: userId,
           approvedByUserId: userId,
           approvedAt: new Date(),
+          paidByUserId: userId,
+          paidAt: new Date(),
         })
         .returning();
 
@@ -569,6 +588,15 @@ export class ExpenseReportsService {
 
     // 4. Asiento contable (tolerante a fallos)
     try {
+      // Cuenta principal del gasto (definida en la categoría)
+      const [expenseCategory] = await this.db
+        .select({
+          accountingAccountId: schema.expenseCategories.accountingAccountId,
+        })
+        .from(schema.expenseCategories)
+        .where(eq(schema.expenseCategories.id, firstItem.categoryId))
+        .limit(1);
+
       await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
         userId,
@@ -586,6 +614,16 @@ export class ExpenseReportsService {
           originType: 'EXPENSE_REPORT',
           globalDescriptions: { EXPENSE_AMOUNT: report.title },
           roleAliases: { EXPENSE_AMOUNT: 'TOTAL' },
+          explicitDetails: expenseCategory?.accountingAccountId
+            ? [
+                {
+                  accountPlanId: expenseCategory.accountingAccountId,
+                  movementType: 'DEBIT' as const,
+                  amount: totalAmount,
+                  description: report.title,
+                },
+              ]
+            : undefined,
           items: [
             {
               amounts: {
@@ -594,11 +632,13 @@ export class ExpenseReportsService {
                 TOTAL_AMOUNT: totalAmount,
                 VAT_WITHHOLDING: 0,
                 ISLR_WITHHOLDING: 0,
+                EXPENSE_COUNTERPART: totalAmount,
               },
               description: report.title,
               descriptions: {
                 EXPENSE_AMOUNT: report.title,
                 TOTAL_AMOUNT: report.title,
+                EXPENSE_COUNTERPART: report.title,
               },
             },
           ],

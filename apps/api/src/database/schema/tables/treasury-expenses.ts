@@ -14,11 +14,13 @@ import {
   cashMovementReferenceTypeEnum,
   cashMovementTypeEnum,
   cashSessionStatusEnum,
+  expenseNatureEnum,
   expensePaymentSourceEnum,
   expensePaymentStatusEnum,
   expenseReportStatusEnum,
   expenseStatusEnum,
   expenseTypeEnum,
+  pettyCashReplenishmentStatusEnum,
   pettyCashSettlementStatusEnum,
   pettyCashVoucherStatusEnum,
   recurringFrequencyEnum,
@@ -196,8 +198,15 @@ export const expenses = treasurySchema.table(
       .notNull(),
     // Flujo de aprobación: todo gasto nace PENDING_APPROVAL
     status: expenseStatusEnum('status').default('PENDING_APPROVAL').notNull(),
+    // Naturaleza del gasto: fijo (programado/recurrente) o variable
+    nature: expenseNatureEnum('nature').default('VARIABLE').notNull(),
+    dueDate: timestamp('due_date'),
+    frequency: recurringFrequencyEnum('frequency'),
+    nextDueDate: timestamp('next_due_date'),
     recurringTemplateId: uuid('recurring_template_id'),
     expenseReportId: uuid('expense_report_id'),
+    // Arqueo que cerró/concilió este gasto (Cerrado por Arqueo)
+    pettyCashSettlementId: uuid('petty_cash_settlement_id'),
 
     amountBase: numeric('amount_base', { precision: 18, scale: 4 }).notNull(),
     taxAmountBase: numeric('tax_amount_base', {
@@ -233,6 +242,11 @@ export const expenses = treasurySchema.table(
     }),
     rejectedAt: timestamp('rejected_at'),
     rejectionReason: text('rejection_reason'),
+
+    paidByUserId: uuid('paid_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    paidAt: timestamp('paid_at'),
 
     ...timestamps,
     deletedBy: uuid('deleted_by'),
@@ -337,6 +351,8 @@ export const pettyCashVouchers = treasurySchema.table(
     voucherDate: timestamp('voucher_date').defaultNow().notNull(),
     status: pettyCashVoucherStatusEnum('status').default('OPEN').notNull(),
     expenseId: uuid('expense_id'),
+    // Arqueo que cerró/concilió este vale (Cerrado por Arqueo)
+    settlementId: uuid('settlement_id'),
     liquidatedAt: timestamp('liquidated_at'),
     ...timestamps,
   },
@@ -393,6 +409,24 @@ export const pettyCashSettlements = treasurySchema.table(
       onDelete: 'set null',
     }),
     closedAt: timestamp('closed_at'),
+    // Reposición de efectivo (reembolso al custodio) solicitada desde el arqueo
+    replenishmentStatus: pettyCashReplenishmentStatusEnum(
+      'replenishment_status',
+    )
+      .default('NONE')
+      .notNull(),
+    replenishmentAmount: numeric('replenishment_amount', {
+      precision: 18,
+      scale: 4,
+    })
+      .default('0.0000')
+      .notNull(),
+    replenishmentRequestedAt: timestamp('replenishment_requested_at'),
+    replenishmentPaidAt: timestamp('replenishment_paid_at'),
+    replenishmentPaidByUserId: uuid('replenishment_paid_by_user_id').references(
+      () => users.id,
+      { onDelete: 'set null' },
+    ),
     ...timestamps,
   },
   (table) => ({

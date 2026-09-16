@@ -40,7 +40,7 @@ export function usePettyCashQuery(
   });
 }
 
-export function usePettyCashAll(): UseQueryResult<{
+export function usePettyCashAll(enabled = true): UseQueryResult<{
   data: Array<{
     id: string;
     name: string;
@@ -54,6 +54,7 @@ export function usePettyCashAll(): UseQueryResult<{
       const response = await pettyCashService.getAll();
       return { data: response.data || [] };
     },
+    enabled,
   });
 }
 

@@ -28,6 +28,7 @@ export class UpdatePettyCashVoucherDto extends createZodDto(
 export const LiquidatePettyCashVoucherSchema = z.object({
   categoryId: z.string().uuid('La categoría de gasto es requerida'),
   description: z.string().max(255).optional(),
+  receiptNumber: z.string().max(100).optional(),
 });
 export class LiquidatePettyCashVoucherDto extends createZodDto(
   LiquidatePettyCashVoucherSchema,

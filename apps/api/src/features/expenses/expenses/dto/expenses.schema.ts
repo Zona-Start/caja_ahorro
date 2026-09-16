@@ -34,6 +34,14 @@ export const CreateExpenseSchema = z
       .url('Debe ser una URL válida')
       .optional()
       .or(z.literal('')),
+
+    // Naturaleza del gasto y programación (solo fijo)
+    nature: z.enum(['FIXED', 'VARIABLE']).optional().default('VARIABLE'),
+    dueDate: z.string().optional(),
+    frequency: z
+      .enum(['MONTHLY', 'BIWEEKLY', 'QUARTERLY', 'ANNUAL'])
+      .optional(),
+
     // Fuente de financiamiento (según paymentSource)
     cashRegisterSessionId: z.string().uuid().optional(),
     bankAccountId: z.string().uuid().optional(),
@@ -66,6 +74,20 @@ export const CreateExpenseSchema = z
         path: ['pettyCashFundId'],
       });
     }
+    if (data.nature === 'FIXED' && !data.dueDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La fecha de pago es requerida para gastos fijos',
+        path: ['dueDate'],
+      });
+    }
+    if (data.nature === 'FIXED' && !data.frequency) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La frecuencia es requerida para gastos fijos',
+        path: ['frequency'],
+      });
+    }
   });
 
 export class CreateExpenseDto extends createZodDto(CreateExpenseSchema) {}
@@ -80,7 +102,10 @@ export const FilterExpenseSchema = z.object({
     .enum(['CASH_REGISTER', 'BANK_ACCOUNT', 'PETTY_CASH'])
     .optional(),
   type: z.enum(['EXPRESS', 'FORMAL_INVOICE']).optional(),
-  status: z.enum(['PENDING_APPROVAL', 'APPROVED', 'REJECTED']).optional(),
+  nature: z.enum(['FIXED', 'VARIABLE']).optional(),
+  status: z
+    .enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PAID', 'REJECTED'])
+    .optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });

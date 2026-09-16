@@ -22,7 +22,8 @@ export type AdministrativeOperation =
   | 'INVOICE_RECEPTION'
   | 'SUPPLIER_ADVANCE'
   | 'CREDIT_NOTE'
-  | 'SUPPLIER_PAYMENT';
+  | 'SUPPLIER_PAYMENT'
+  | 'EXPENSE';
 
 export type BankingOperation =
   | 'TRANSFER_BETWEEN_ACCOUNTS'
@@ -77,7 +78,8 @@ export type SavingsRole =
 export type AdministrativeRole =
   | 'PURCHASE_VAT'
   | 'SUPPLIER_CONTROL'
-  | 'GASTO_OPERATIVO';
+  | 'GASTO_OPERATIVO'
+  | 'EXPENSE_COUNTERPART';
 
 export type BankingRole =
   | 'SOURCE_BANK'

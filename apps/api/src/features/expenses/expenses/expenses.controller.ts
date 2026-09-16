@@ -83,7 +83,8 @@ export class ExpensesController {
     scope: 'tenant',
   })
   @ApiOperation({
-    summary: 'Approve a pending expense (deducts source + accounting entry)',
+    summary:
+      'Approve a pending expense (moves to APPROVED / Por Pagar, no money movement)',
   })
   async approve(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId, userId } =
@@ -96,6 +97,23 @@ export class ExpensesController {
       userPermissions,
     );
     return { message: 'Gasto aprobado correctamente', data };
+  }
+
+  @Patch(':id/pay')
+  @Permissions({
+    resource: 'treasury:expenses',
+    action: 'approve',
+    scope: 'tenant',
+  })
+  @ApiOperation({
+    summary:
+      'Register the actual payment of an approved expense: deducts the source (cash/fund or bank movement) + accounting entry',
+  })
+  async pay(@Req() req: any, @Param('id') id: string) {
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req);
+    const data = await this.service.pay(id, userId, targetTenantId);
+    return { message: 'Gasto pagado correctamente', data };
   }
 
   @Patch(':id/reject')

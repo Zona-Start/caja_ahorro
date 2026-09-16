@@ -23,6 +23,7 @@ export const expensesService = {
     if (params.search) query.set('search', params.search);
     if (params.paymentSource) query.set('paymentSource', params.paymentSource);
     if (params.type) query.set('type', params.type);
+    if (params.nature) query.set('nature', params.nature);
     if (params.status) query.set('status', params.status);
     const response = await apiClient.get(
       `${BASE_URL}/paginated?${query.toString()}`,
@@ -44,6 +45,11 @@ export const expensesService = {
 
   approve: async (id: string) => {
     const response = await apiClient.patch(`${BASE_URL}/${id}/approve`);
+    return response.data;
+  },
+
+  pay: async (id: string) => {
+    const response = await apiClient.patch(`${BASE_URL}/${id}/pay`);
     return response.data;
   },
 

@@ -18,6 +18,21 @@ const FREQUENCY_MONTHS: Record<string, number> = {
   ANNUAL: 12,
 };
 
+// Próxima fecha de pago a partir de una fecha base y una frecuencia
+function computeNextDueDate(base: Date, frequency: string | null): Date | null {
+  if (!frequency) return null;
+  const DAY = 24 * 60 * 60 * 1000;
+  if (frequency === 'BIWEEKLY') return new Date(base.getTime() + 14 * DAY);
+  const months = FREQUENCY_MONTHS[frequency] ?? 1;
+  return new Date(
+    Date.UTC(
+      base.getUTCFullYear(),
+      base.getUTCMonth() + months,
+      base.getUTCDate(),
+    ),
+  );
+}
+
 /**
  * Calcula la próxima ejecución estrictamente posterior a `base`.
  * BIWEEKLY = cada 14 días; el resto por día del mes en múltiplos de meses.
@@ -304,6 +319,7 @@ export class RecurringExpenseTemplatesService {
 
       let expenseId: string | null = existing?.id ?? null;
       if (!expenseId && template.autoCreate) {
+        const runDate = template.nextRunDate ?? new Date();
         const [expense] = await tx
           .insert(schema.expenses)
           .values({
@@ -324,6 +340,11 @@ export class RecurringExpenseTemplatesService {
             type: 'EXPRESS',
             paymentStatus: 'PENDING',
             status: 'PENDING_APPROVAL',
+            nature: 'FIXED',
+            dueDate: runDate,
+            frequency: template.frequency,
+            nextDueDate: computeNextDueDate(runDate, template.frequency),
+            recurringTemplateId: template.id,
             amountBase: template.amount,
             taxAmountBase: '0.0000',
             currencyCode: template.currencyCode,

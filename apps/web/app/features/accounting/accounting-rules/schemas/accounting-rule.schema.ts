@@ -17,6 +17,7 @@ export const accountingRuleSchema = z.object({
   category: z.enum([
     'SAVINGS_BANK',
     'PURCHASING',
+    'ADMINISTRATIVE',
     'BANKING',
     'ACCOUNTING',
     'INVENTORY',

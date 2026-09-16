@@ -8,11 +8,11 @@ import {
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { bankAccountKeys } from '../keys/bank-account-keys';
-import type {
-  BankAccountForm,
-  BankAccount,
-} from '../schemas/bank-account.schema';
 import type { BalancesByCurrency } from '../schemas/bank-account-response-api';
+import type {
+  BankAccount,
+  BankAccountForm,
+} from '../schemas/bank-account.schema';
 import {
   bankAccountService,
   type BankAccountQueryParams,
@@ -129,7 +129,7 @@ export function useDeleteBankAccountMutation(): UseMutationResult<
   });
 }
 
-export function useBankAccountAll(): UseQueryResult<{
+export function useBankAccountAll(enabled = true): UseQueryResult<{
   data: { id: string; accountName: string | null; accountNumber: string }[];
 }> {
   return useQuery({
@@ -147,6 +147,7 @@ export function useBankAccountAll(): UseQueryResult<{
         })),
       };
     },
+    enabled,
   });
 }
 

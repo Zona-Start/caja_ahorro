@@ -1,6 +1,7 @@
 export const categoryOptions = [
   'SAVINGS_BANK',
   'PURCHASING',
+  'ADMINISTRATIVE',
   'BANKING',
   'ACCOUNTING',
   'INVENTORY',
@@ -33,6 +34,7 @@ export const groupLabels: Record<OperationGroup, string> = {
 export const categoryTranslations: Record<Category, string> = {
   SAVINGS_BANK: 'Caja de Ahorro',
   PURCHASING: 'Compras',
+  ADMINISTRATIVE: 'Gastos',
   BANKING: 'Bancaria',
   ACCOUNTING: 'Contable',
   INVENTORY: 'Inventario',
@@ -64,6 +66,9 @@ export const operationsByGroup: Record<
       { value: 'DEBIT_NOTE', label: 'Nota de Débito', group: 'SYSTEM_EVENTS', referenceValue: 'ND' },
       { value: 'SUPPLIER_PAYMENT', label: 'Pago a Proveedor', group: 'SYSTEM_EVENTS', referenceValue: 'Pago Proveedor' },
     ],
+    ADMINISTRATIVE: [
+      { value: 'EXPENSE', label: 'Registro de Gasto', group: 'SYSTEM_EVENTS' },
+    ],
     INVENTORY: [
       { value: 'INVENTORY_ADJUSTMENT_NEG', label: 'Ajuste de Inventario (-)', group: 'SYSTEM_EVENTS', referenceValue: 'Ajuste Inv' },
       { value: 'SALE_OUTPUT', label: 'Salida por Venta', group: 'SYSTEM_EVENTS', referenceValue: 'Salida Inventario' },
@@ -86,6 +91,7 @@ export const operationsByCategory: Record<Category, OperationDef[]> = (() => {
   const result: Record<Category, OperationDef[]> = {
     SAVINGS_BANK: [],
     PURCHASING: [],
+    ADMINISTRATIVE: [],
     BANKING: [],
     ACCOUNTING: [],
     INVENTORY: [],
@@ -140,6 +146,9 @@ export const roleOptionsByCategory: Record<Category, RoleDef[]> = {
     { value: 'PURCHASE_VAT', label: 'Iva Compra' },
     { value: 'SUPPLIER_CONTROL', label: 'Proveedor Control' },
     { value: 'GASTO_OPERATIVO', label: 'Gasto Operativo' },
+  ],
+  ADMINISTRATIVE: [
+    { value: 'EXPENSE_COUNTERPART', label: 'Contrapartida del Gasto (Banco / Caja / Por Pagar)' },
   ],
   BANKING: [
     { value: 'SOURCE_BANK', label: 'Banco Origen' },

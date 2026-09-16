@@ -791,6 +791,19 @@ export class AccountingEntriesService {
       originType?: string;
       globalDescriptions?: Record<string, string>;
       roleAliases?: Record<string, string>;
+      /**
+       * Líneas contables explícitas que NO provienen de la regla contable.
+       * Se usan cuando una cuenta se resuelve por fuera del mapa de integración
+       * (ej. la cuenta principal definida en la categoría de un gasto).
+       */
+      explicitDetails?: {
+        accountPlanId: string;
+        movementType: 'DEBIT' | 'CREDIT';
+        amount: number;
+        description?: string;
+        associateId?: string;
+        supplierId?: string;
+      }[];
       items: {
         associateId?: string;
         supplierId?: string;
@@ -932,6 +945,35 @@ export class AccountingEntriesService {
             accountPlanId: ruleDetail.accountPlanId,
             debit: isDebit ? amount : 0,
             credit: !isDebit ? amount : 0,
+            description,
+            associateId,
+            supplierId,
+          });
+        }
+      }
+    }
+
+    // ---- Líneas explícitas (no provienen de la regla) ----
+    // Ej: la cuenta principal del gasto definida en su categoría. Se agregan
+    // para completar la partida doble junto con la regla (contrapartida).
+    if (params.explicitDetails && params.explicitDetails.length > 0) {
+      for (const raw of params.explicitDetails) {
+        if (!raw?.accountPlanId || !raw.amount) continue;
+        const isDebit = raw.movementType === 'DEBIT';
+        const associateId = raw.associateId ?? null;
+        const supplierId = raw.supplierId ?? null;
+        const description = raw.description || params.description;
+        const key = `${raw.accountPlanId}-${associateId || 'null'}-${supplierId || 'null'}-${description}`;
+
+        if (aggregatedDetails.has(key)) {
+          const existing = aggregatedDetails.get(key);
+          existing.debit += isDebit ? raw.amount : 0;
+          existing.credit += !isDebit ? raw.amount : 0;
+        } else {
+          aggregatedDetails.set(key, {
+            accountPlanId: raw.accountPlanId,
+            debit: isDebit ? raw.amount : 0,
+            credit: !isDebit ? raw.amount : 0,
             description,
             associateId,
             supplierId,

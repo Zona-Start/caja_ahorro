@@ -10,7 +10,7 @@ export function ExpenseList() {
   const { data, isLoading } = useExpensesQuery(filters);
 
   if (isLoading) {
-    return <DataTableSkeleton columnCount={7} rowCount={filters.limit} />;
+    return <DataTableSkeleton columnCount={8} rowCount={filters.limit} />;
   }
 
   const expenses = (data?.data || []) as unknown as Expense[];

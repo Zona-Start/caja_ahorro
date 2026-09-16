@@ -1,0 +1,1 @@
+ALTER TYPE "treasury"."petty_cash_voucher_status" ADD VALUE 'SETTLED';

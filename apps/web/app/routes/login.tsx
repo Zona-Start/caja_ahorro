@@ -4,7 +4,7 @@ import { redirect } from 'react-router';
 import { useTenantStore } from '@/stores/tenant.store';
 
 export function meta() {
-  const tenant = useTenantStore((s) => s.tenant);
+  const tenant = useTenantStore.getState().tenant;
   const name = tenant?.name || 'Zona Start';
   return [{ title: 'Ingresar | ' + name }];
 }

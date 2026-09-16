@@ -40,7 +40,7 @@ export function useCashRegistersQuery(
   });
 }
 
-export function useCashRegistersAll(): UseQueryResult<{
+export function useCashRegistersAll(enabled = true): UseQueryResult<{
   data: Array<{ id: string; name: string; isActive: boolean }>;
 }> {
   return useQuery({
@@ -49,6 +49,7 @@ export function useCashRegistersAll(): UseQueryResult<{
       const response = await cashRegistersService.getAll();
       return { data: response.data || [] };
     },
+    enabled,
   });
 }
 

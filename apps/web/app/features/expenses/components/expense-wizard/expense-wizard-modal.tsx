@@ -3,6 +3,7 @@
 import { AlertModal } from '@/components/shared/alert-modal';
 import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import { useSuppliersAllQuery } from '@/features/purchasing/suppliers/hooks/use-suppliers-queries';
+import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@repo/shadcn/button';
 import {
   Dialog,
@@ -24,6 +25,7 @@ import { Switch } from '@repo/shadcn/switch';
 import {
   AlertCircle,
   Building2,
+  CalendarClock,
   CheckCircle2,
   FileText,
   Landmark,
@@ -50,15 +52,17 @@ import {
 } from '../../hooks/use-expense-queries';
 import { usePettyCashAll } from '../../hooks/use-petty-cash-queries';
 import {
+  EXPENSE_FREQUENCY_OPTIONS,
+  EXPENSE_NATURE_OPTIONS,
   EXPENSE_TYPE_OPTIONS,
   PAYMENT_SOURCE_OPTIONS,
   type ExpenseForm,
 } from '../../schemas/expenses.schema';
-import { useAuthStore } from '@/stores/auth.store';
 
 interface ExpenseWizardModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  nature?: 'FIXED' | 'VARIABLE';
 }
 
 interface DetailLine {
@@ -84,22 +88,33 @@ const toFixed2 = (value: number) =>
 export function ExpenseWizardModal({
   open,
   onOpenChange,
+  nature: natureProp = 'VARIABLE',
 }: ExpenseWizardModalProps) {
   const { data: modeData } = useExpenseModeQuery();
   const mode = (modeData?.data?.mode ?? 'AGILE') as 'AGILE' | 'CORPORATE';
   const isCorporate = mode === 'CORPORATE';
 
+  const hasPermission = useAuthStore((state) => state.hasPermission);
+  const canReadCashRegisters = hasPermission('treasury:cash-registers', 'read');
+  const canReadBankAccounts = hasPermission('banking:accounts', 'read');
+  const canReadPettyCash = hasPermission('treasury:petty-cash', 'read');
+
   const { data: configData } = useExpenseConfigQuery(open);
   const { data: categoriesData } = useExpenseCategories();
   const { data: suppliers } = useSuppliersAllQuery(open);
-  const { data: registersData } = useCashRegistersAll();
-  const { data: bankAccountsData } = useBankAccountAll();
-  const { data: pettyCashData } = usePettyCashAll();
+  const { data: registersData } = useCashRegistersAll(canReadCashRegisters);
+  const { data: bankAccountsData } = useBankAccountAll(canReadBankAccounts);
+  const { data: pettyCashData } = usePettyCashAll(canReadPettyCash);
   const { data: costCentersData } = useCostCentersAll();
 
   const saveMutation = useCreateExpenseMutation();
 
   // ── Estado local ──
+  const [nature, setNature] = useState<'FIXED' | 'VARIABLE'>(natureProp);
+  const [dueDate, setDueDate] = useState('');
+  const [frequency, setFrequency] = useState<
+    'MONTHLY' | 'BIWEEKLY' | 'QUARTERLY' | 'ANNUAL'
+  >('MONTHLY');
   const [type, setType] = useState<'EXPRESS' | 'FORMAL_INVOICE'>('EXPRESS');
   const [supplierId, setSupplierId] = useState('');
   const [description, setDescription] = useState('');
@@ -119,18 +134,59 @@ export function ExpenseWizardModal({
   const [receiptNumber, setReceiptNumber] = useState('');
   const [receiptImageUrl, setReceiptImageUrl] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   // Al abrir la modal: fija el tipo por modo y los valores de configuración
   useEffect(() => {
     if (!open) return;
+    setNature(natureProp);
     setType(mode === 'AGILE' ? 'EXPRESS' : 'FORMAL_INVOICE');
-    setPaymentSource(mode === 'AGILE' ? 'CASH_REGISTER' : 'BANK_ACCOUNT');
+
+    // Elige la fuente por defecto entre las que el usuario puede consultar
+    const permitted: Array<'CASH_REGISTER' | 'BANK_ACCOUNT' | 'PETTY_CASH'> =
+      [];
+    if (canReadCashRegisters) permitted.push('CASH_REGISTER');
+    if (canReadBankAccounts) permitted.push('BANK_ACCOUNT');
+    if (canReadPettyCash) permitted.push('PETTY_CASH');
+    const preferred = mode === 'AGILE' ? 'CASH_REGISTER' : 'BANK_ACCOUNT';
+    const defaultSource = permitted.includes(preferred)
+      ? preferred
+      : permitted[0];
+    if (defaultSource) setPaymentSource(defaultSource);
+
     const rates = configData?.data;
     if (rates?.vatRate != null) {
       setVatRate((prev) => prev ?? rates.vatRate);
     }
-  }, [open, mode, configData]);
+  }, [
+    open,
+    mode,
+    configData,
+    natureProp,
+    canReadCashRegisters,
+    canReadBankAccounts,
+    canReadPettyCash,
+  ]);
+
+  // Vista previa de la próxima fecha de pago (gasto fijo)
+  const nextPaymentPreview = useMemo(() => {
+    if (nature !== 'FIXED' || !dueDate) return null;
+    const base = new Date(`${dueDate}T00:00:00`);
+    if (isNaN(base.getTime())) return null;
+    if (frequency === 'BIWEEKLY') {
+      const next = new Date(base.getTime() + 14 * 24 * 60 * 60 * 1000);
+      return next.toLocaleDateString('es-VE');
+    }
+    const months =
+      frequency === 'QUARTERLY' ? 3 : frequency === 'ANNUAL' ? 12 : 1;
+    const next = new Date(
+      Date.UTC(
+        base.getUTCFullYear(),
+        base.getUTCMonth() + months,
+        base.getUTCDate(),
+      ),
+    );
+    return next.toLocaleDateString('es-VE');
+  }, [nature, dueDate, frequency]);
 
   // Cuando cambia la moneda, precarga la tasa BCV
   useEffect(() => {
@@ -145,7 +201,7 @@ export function ExpenseWizardModal({
 
   const { data: activeSessionData } = useActiveSession(
     selectedRegisterId,
-    !!selectedRegisterId,
+    canReadCashRegisters && !!selectedRegisterId,
   );
   const session = activeSessionData?.data?.session;
 
@@ -206,6 +262,21 @@ export function ExpenseWizardModal({
         text: 'Facturas formales requieren proveedor',
         ok: false,
       });
+    }
+
+    if (nature === 'FIXED') {
+      if (!dueDate) {
+        canSave = false;
+        messages.push({
+          text: 'Gasto fijo: selecciona la fecha de pago',
+          ok: false,
+        });
+      } else {
+        messages.push({
+          text: `Gasto fijo programado (${EXPENSE_FREQUENCY_OPTIONS[frequency]})`,
+          ok: true,
+        });
+      }
     }
 
     if (paymentSource === 'CASH_REGISTER') {
@@ -278,6 +349,9 @@ export function ExpenseWizardModal({
     grandTotal,
     budgetUsage,
     costCenterId,
+    nature,
+    dueDate,
+    frequency,
   ]);
 
   const buildPayload = (): ExpenseForm => {
@@ -303,6 +377,9 @@ export function ExpenseWizardModal({
       type,
       receiptNumber: receiptNumber || undefined,
       receiptImageUrl: receiptImageUrl || undefined,
+      nature,
+      dueDate: nature === 'FIXED' ? dueDate || undefined : undefined,
+      frequency: nature === 'FIXED' ? frequency : undefined,
       cashRegisterSessionId: session?.id,
       bankAccountId: bankAccountId || undefined,
       pettyCashFundId: pettyCashFundId || undefined,
@@ -321,6 +398,9 @@ export function ExpenseWizardModal({
   };
 
   const resetForm = () => {
+    setNature(natureProp);
+    setDueDate('');
+    setFrequency('MONTHLY');
     setType(mode === 'AGILE' ? 'EXPRESS' : 'FORMAL_INVOICE');
     setSupplierId('');
     setDescription('');
@@ -353,7 +433,8 @@ export function ExpenseWizardModal({
       <DialogContent className="sm:max-w-[1000px] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" /> Registrar Gasto
+            <Receipt className="h-5 w-5" />
+            Registrar Gasto {nature === 'FIXED' ? 'Fijo' : 'Variable'}
           </DialogTitle>
           <DialogDescription>
             El gasto se registra como <strong>Pendiente de Aprobación</strong>.
@@ -382,7 +463,10 @@ export function ExpenseWizardModal({
                   }
                 >
                   <SelectTrigger className="mt-1 w-full overflow-hidden">
-                    <SelectValue placeholder="Selecciona..." className="truncate" />
+                    <SelectValue
+                      placeholder="Selecciona..."
+                      className="truncate"
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {Object.entries(EXPENSE_TYPE_OPTIONS).map(([k, label]) => (
@@ -412,7 +496,96 @@ export function ExpenseWizardModal({
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <span className="text-xs text-muted-foreground">
+                  Naturaleza del Gasto
+                </span>
+                <Select
+                  value={nature}
+                  onValueChange={(v) => setNature(v as 'FIXED' | 'VARIABLE')}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(EXPENSE_NATURE_OPTIONS).map(
+                      ([k, label]) => (
+                        <SelectItem key={k} value={k}>
+                          {label}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">
+                  Estado inicial
+                </span>
+                <div className="mt-1 h-9 flex items-center rounded-md border bg-muted/40 px-3 text-xs text-muted-foreground">
+                  Pendiente de Aprobación
+                </div>
+              </div>
             </div>
+
+            {nature === 'FIXED' && (
+              <div className="rounded-md border border-orange-500/30 bg-orange-500/5 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-orange-600" />
+                  <span className="text-xs font-semibold uppercase text-muted-foreground">
+                    Programación del Gasto Fijo
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Fecha de Pago *
+                    </span>
+                    <Input
+                      type="date"
+                      className="mt-1"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      Frecuencia *
+                    </span>
+                    <Select
+                      value={frequency}
+                      onValueChange={(v) =>
+                        setFrequency(
+                          v as 'MONTHLY' | 'BIWEEKLY' | 'QUARTERLY' | 'ANNUAL',
+                        )
+                      }
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(EXPENSE_FREQUENCY_OPTIONS).map(
+                          ([k, label]) => (
+                            <SelectItem key={k} value={k}>
+                              {label}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {nextPaymentPreview && (
+                  <p className="text-xs text-muted-foreground">
+                    Próximo pago calculado:{' '}
+                    <strong className="text-orange-600">
+                      {nextPaymentPreview}
+                    </strong>{' '}
+                    · el botón «Pagar» se habilitará al llegar la fecha.
+                  </p>
+                )}
+              </div>
+            )}
             <div>
               <span className="text-xs text-muted-foreground">
                 Descripción *
@@ -534,11 +707,18 @@ export function ExpenseWizardModal({
                       }
                     >
                       <SelectTrigger className="h-9 mt-1 w-full overflow-hidden">
-                        <SelectValue placeholder="Selecciona..." className="truncate" />
+                        <SelectValue
+                          placeholder="Selecciona..."
+                          className="truncate"
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map((c) => (
-                          <SelectItem key={c.id} value={c.id} className="truncate">
+                          <SelectItem
+                            key={c.id}
+                            value={c.id}
+                            className="truncate"
+                          >
                             {c.name}
                           </SelectItem>
                         ))}
@@ -616,7 +796,6 @@ export function ExpenseWizardModal({
               </div>
             ))}
 
-
             <div className="rounded-md border bg-background/60 p-3 text-sm space-y-1">
               <SummaryRow label="Base" value={toFixed2(baseTotal)} />
               <SummaryRow
@@ -624,14 +803,19 @@ export function ExpenseWizardModal({
                 value={toFixed2(ivaTotal)}
               />
               <div className="flex justify-between items-center pt-1 border-t">
-                <span className="font-medium">Total {currencyCode === 'VES' ? 'Bs' : currencyCode}</span>
+                <span className="font-medium">
+                  Total {currencyCode === 'VES' ? 'Bs' : currencyCode}
+                </span>
                 <span className="font-mono font-bold text-base text-primary">
-                  {toFixed2(baseTotal + ivaTotal)} {currencyCode === 'VES' ? 'Bs' : currencyCode}
+                  {toFixed2(baseTotal + ivaTotal)}{' '}
+                  {currencyCode === 'VES' ? 'Bs' : currencyCode}
                 </span>
               </div>
               {exchangeRate !== 1 && (
                 <div className="flex justify-between items-center pt-1 border-t">
-                  <span className="font-medium">Total Bs tasa BCV del día </span>
+                  <span className="font-medium">
+                    Total Bs tasa BCV del día{' '}
+                  </span>
                   <span className="font-mono font-bold text-base text-primary">
                     {toFixed2(grandTotal)} Bs
                   </span>
@@ -644,10 +828,7 @@ export function ExpenseWizardModal({
                 </p>
               )}
             </div>
-
           </div>
-
-
 
           {/* ── SECCIÓN VERDE: Fuente del Dinero ── */}
           <div className="rounded-lg border border-[#2EA640]/30 bg-[#2EA640]/5 p-4 space-y-3">
@@ -662,13 +843,13 @@ export function ExpenseWizardModal({
                 .filter(([key]) => {
                   // Validación de permisos según la clave
                   if (key === 'CASH_REGISTER') {
-                    return hasPermission("treasury:cash-registers", "read");
+                    return hasPermission('treasury:cash-registers', 'read');
                   }
                   if (key === 'PETTY_CASH') {
-                    return hasPermission("treasury:petty-cash", "read");
+                    return hasPermission('treasury:petty-cash', 'read');
                   }
                   if (key === 'BANK_ACCOUNT') {
-                    return hasPermission("banking:accounts", "read");
+                    return hasPermission('banking:accounts', 'read');
                   }
                   return true; // Por defecto si hubiera otra opción
                 })
@@ -682,10 +863,11 @@ export function ExpenseWizardModal({
                       onClick={() =>
                         setPaymentSource(key as typeof paymentSource)
                       }
-                      className={`rounded-md border p-2 text-xs font-medium transition-colors ${paymentSource === key
-                        ? 'border-[#2EA640] bg-[#2EA640]/10 text-[#2EA640]'
-                        : 'border-border hover:bg-muted'
-                        } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      className={`rounded-md border p-2 text-xs font-medium transition-colors ${
+                        paymentSource === key
+                          ? 'border-[#2EA640] bg-[#2EA640]/10 text-[#2EA640]'
+                          : 'border-border hover:bg-muted'
+                      } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
                     >
                       {label}
                     </button>
@@ -838,10 +1020,11 @@ export function ExpenseWizardModal({
 
           {/* ── PANEL DE REGLAS ── */}
           <div
-            className={`rounded-lg border p-3 ${rules.canSave
-              ? 'border-[#2EA640]/30 bg-[#2EA640]/5'
-              : 'border-destructive/30 bg-destructive/5'
-              }`}
+            className={`rounded-lg border p-3 ${
+              rules.canSave
+                ? 'border-[#2EA640]/30 bg-[#2EA640]/5'
+                : 'border-destructive/30 bg-destructive/5'
+            }`}
           >
             <div className="flex items-center gap-2 mb-2">
               {rules.canSave ? (
@@ -857,8 +1040,9 @@ export function ExpenseWizardModal({
               {rules.messages.map((msg, i) => (
                 <li
                   key={i}
-                  className={`text-xs flex items-center gap-1.5 ${msg.ok ? 'text-[#2EA640]' : 'text-destructive'
-                    }`}
+                  className={`text-xs flex items-center gap-1.5 ${
+                    msg.ok ? 'text-[#2EA640]' : 'text-destructive'
+                  }`}
                 >
                   {msg.ok ? (
                     <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
@@ -876,7 +1060,8 @@ export function ExpenseWizardModal({
             <div>
               <span className="text-xs text-muted-foreground">Total</span>
               <p className="text-xl font-black text-primary">
-                {toFixed2(baseTotal + ivaTotal)} {currencyCode === 'VES' ? 'Bs' : currencyCode}
+                {toFixed2(baseTotal + ivaTotal)}{' '}
+                {currencyCode === 'VES' ? 'Bs' : currencyCode}
               </p>
             </div>
             <div className="flex gap-2">

@@ -11,13 +11,28 @@ export const EXPENSE_TYPE_OPTIONS = {
   FORMAL_INVOICE: 'Factura Formal',
 } as const;
 
+export const EXPENSE_NATURE_OPTIONS = {
+  VARIABLE: 'Variable',
+  FIXED: 'Fijo',
+} as const;
+
+export const EXPENSE_FREQUENCY_OPTIONS = {
+  MONTHLY: 'Mensual',
+  BIWEEKLY: 'Quincenal',
+  QUARTERLY: 'Trimestral',
+  ANNUAL: 'Anual',
+} as const;
+
 export const EXPENSE_STATUS_OPTIONS = {
-  PENDING_APPROVAL: 'Pendiente',
-  APPROVED: 'Aprobado',
+  DRAFT: 'Borrador',
+  PENDING_APPROVAL: 'Pendiente de Aprobación',
+  APPROVED: 'Aprobado / Por Pagar',
+  PAID: 'Pagado',
   REJECTED: 'Rechazado',
 } as const;
 
 export const expenseDetailLineSchema = z.object({
+  id: z.string().uuid().optional(),
   categoryId: z.string().uuid('La categoría de la línea es requerida'),
   description: z.string().min(1, 'La descripción de la línea es requerida'),
   amount: z.coerce.number().positive('El monto debe ser mayor a cero'),
@@ -52,6 +67,11 @@ export const expenseBaseSchema = z.object({
     .optional()
     .or(z.literal('')),
 
+  // Naturaleza del gasto y programación (solo fijo)
+  nature: z.enum(['FIXED', 'VARIABLE']).optional().default('VARIABLE'),
+  dueDate: z.string().optional(),
+  frequency: z.enum(['MONTHLY', 'BIWEEKLY', 'QUARTERLY', 'ANNUAL']).optional(),
+
   cashRegisterSessionId: z.string().uuid().optional(),
   bankAccountId: z.string().uuid().optional(),
   pettyCashFundId: z.string().uuid().optional(),
@@ -81,20 +101,42 @@ export const expenseFormSchema = expenseBaseSchema.superRefine((data, ctx) => {
       path: ['pettyCashFundId'],
     });
   }
+  if (data.nature === 'FIXED' && !data.dueDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'La fecha de pago es requerida para gastos fijos',
+      path: ['dueDate'],
+    });
+  }
+  if (data.nature === 'FIXED' && !data.frequency) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'La frecuencia es requerida para gastos fijos',
+      path: ['frequency'],
+    });
+  }
 });
 
 export type ExpenseForm = z.infer<typeof expenseFormSchema>;
 
 export const expenseSchema = expenseBaseSchema.extend({
   id: z.string().uuid(),
+  amountBase: z.coerce.number().optional(),
   status: z
-    .enum(['PENDING_APPROVAL', 'APPROVED', 'REJECTED'])
+    .enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PAID', 'REJECTED'])
     .default('PENDING_APPROVAL'),
+  nature: z.enum(['FIXED', 'VARIABLE']).default('VARIABLE'),
   paymentStatus: z.string().optional(),
+  nextDueDate: z.string().nullable().optional(),
+  vatWithholdingAmount: z.coerce.number().optional(),
+  islrWithholdingAmount: z.coerce.number().optional(),
+  categoryName: z.string().optional(),
   approvedByUserId: z.string().uuid().optional(),
   approvedAt: z.string().optional(),
   rejectedAt: z.string().optional(),
   rejectionReason: z.string().nullable().optional(),
+  paidByUserId: z.string().uuid().nullable().optional(),
+  paidAt: z.string().nullable().optional(),
   createdAt: z.string().optional(),
 });
 
@@ -106,6 +148,7 @@ export const expenseFilterSchema = z.object({
   search: z.string().optional(),
   paymentSource: z.string().optional(),
   type: z.string().optional(),
+  nature: z.string().optional(),
   status: z.string().optional(),
 });
 

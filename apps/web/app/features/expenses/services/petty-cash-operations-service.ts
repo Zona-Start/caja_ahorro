@@ -3,7 +3,9 @@ import type {
   CloseSettlementForm,
   LiquidateVoucherForm,
   OpenSettlementForm,
+  RealizeSettlementForm,
   Settlement,
+  SettlementPreview,
   Voucher,
   VoucherForm,
 } from '../schemas/petty-cash-operations.schema';
@@ -26,11 +28,12 @@ export interface SettlementsQueryParams {
   period?: string;
 }
 
-const updateVoucherBody = (payload: VoucherForm) => ({
+const createVoucherBody = (payload: VoucherForm) => ({
+  fundId: payload.fundId,
   beneficiaryName: payload.beneficiaryName,
   amount: payload.amount,
   concept: payload.concept,
-  ticketImageUrl: payload.ticketImageUrl || null,
+  ticketImageUrl: payload.ticketImageUrl || undefined,
 });
 
 export const pettyCashVouchersService = {
@@ -58,7 +61,7 @@ export const pettyCashVouchersService = {
   create: async (payload: VoucherForm) => {
     const response = await apiClient.post(
       VOUCHERS_URL,
-      updateVoucherBody(payload),
+      createVoucherBody(payload),
     );
     return response.data;
   },
@@ -100,6 +103,36 @@ export const pettyCashSettlementsService = {
 
   open: async (payload: OpenSettlementForm) => {
     const response = await apiClient.post(SETTLEMENTS_URL, payload);
+    return response.data;
+  },
+
+  preview: async (fundId: string, period?: string) => {
+    const query = new URLSearchParams();
+    query.set('fundId', fundId);
+    if (period) query.set('period', period);
+    const response = await apiClient.get(
+      `${SETTLEMENTS_URL}/preview?${query.toString()}`,
+    );
+    return response.data as { data: SettlementPreview };
+  },
+
+  realize: async (payload: RealizeSettlementForm) => {
+    const response = await apiClient.post(
+      `${SETTLEMENTS_URL}/realize`,
+      payload,
+    );
+    return response.data;
+  },
+
+  replenish: async (id: string) => {
+    const response = await apiClient.post(`${SETTLEMENTS_URL}/${id}/replenish`);
+    return response.data;
+  },
+
+  payReplenishment: async (id: string) => {
+    const response = await apiClient.patch(
+      `${SETTLEMENTS_URL}/${id}/replenish/pay`,
+    );
     return response.data;
   },
 

@@ -7,6 +7,8 @@ export const expenseFilterSchema = z.object({
   search: z.string().optional(),
   paymentSource: z.string().optional(),
   type: z.string().optional(),
+  nature: z.string().optional(),
+  status: z.string().optional(),
 });
 
 export type ExpenseFilters = z.infer<typeof expenseFilterSchema>;

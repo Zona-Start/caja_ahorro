@@ -234,9 +234,14 @@ function TemplateFormModal({
   initial?: RecurringTemplate | null;
 }) {
   const saveMutation = useSaveRecurringMutation();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
   const { data: categoriesData } = useExpenseCategories();
-  const { data: bankData } = useBankAccountAll();
-  const { data: pettyData } = usePettyCashAll();
+  const { data: bankData } = useBankAccountAll(
+    hasPermission('banking:accounts', 'read'),
+  );
+  const { data: pettyData } = usePettyCashAll(
+    hasPermission('treasury:petty-cash', 'read'),
+  );
 
   const [state, setState] = useState<FormState>(() =>
     emptyState(initial ?? undefined),

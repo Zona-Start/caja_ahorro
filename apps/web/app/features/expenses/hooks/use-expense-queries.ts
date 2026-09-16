@@ -7,8 +7,13 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { cashRegistersKeys, expensesKeys } from '../keys/expenses-keys';
+import {
+  cashRegistersKeys,
+  expensesKeys,
+  pettyCashKeys,
+} from '../keys/expenses-keys';
 import type {
+  Expense,
   ExpenseFilters,
   ExpenseForm,
   ExpenseMode,
@@ -51,6 +56,33 @@ export function useExpenseModeQuery(): UseQueryResult<{ data: ExpenseMode }> {
     queryKey: expensesKeys.mode(),
     queryFn: () => expensesService.getMode(),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface ExpenseDetailLineResponse {
+  id?: string;
+  categoryId: string;
+  categoryName?: string | null;
+  description: string;
+  amount: string;
+  taxRate: string;
+  taxAmount: string;
+  isExempt: boolean;
+}
+
+export type ExpenseDetailResponse = Omit<Expense, 'details'> & {
+  supplierName?: string | null;
+  details?: ExpenseDetailLineResponse[];
+};
+
+export function useExpenseQuery(
+  id: string,
+  enabled = true,
+): UseQueryResult<{ data: ExpenseDetailResponse }> {
+  return useQuery({
+    queryKey: expensesKeys.detail(id),
+    queryFn: () => expensesService.getById(id),
+    enabled: enabled && !!id,
   });
 }
 
@@ -122,9 +154,34 @@ export function useApproveExpenseMutation(): UseMutationResult<
     mutationFn: (id) => expensesService.approve(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: expensesKeys.all });
-      // Invalida cajas/bancos/fondos porque la aprobación descuenta saldos
+      // Invalida cajas/bancos/fondos: la fuente puede afectarse
       queryClient.invalidateQueries({ queryKey: cashRegistersKeys.all });
-      toastSuccess('Gasto aprobado y descontado correctamente');
+      queryClient.invalidateQueries({ queryKey: pettyCashKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['bank-accounts'] });
+      toastSuccess('Gasto aprobado correctamente');
+    },
+    onError: (error) => {
+      toastError(getErrorMessage(error));
+    },
+  });
+}
+
+export function usePayExpenseMutation(): UseMutationResult<
+  unknown,
+  unknown,
+  string
+> {
+  const queryClient = useQueryClient();
+  const { success: toastSuccess, error: toastError } = useToastSystem();
+
+  return useMutation({
+    mutationFn: (id) => expensesService.pay(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expensesKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['bank-accounts'] });
+      queryClient.invalidateQueries({ queryKey: pettyCashKeys.all });
+      queryClient.invalidateQueries({ queryKey: cashRegistersKeys.all });
+      toastSuccess('Pago registrado: el gasto pasó a Pagado');
     },
     onError: (error) => {
       toastError(getErrorMessage(error));

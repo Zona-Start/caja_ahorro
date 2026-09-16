@@ -127,6 +127,34 @@
       "when": 1789419318003,
       "tag": "0017_old_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789489544859,
+      "tag": "0018_sloppy_gabe_jones",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789496904215,
+      "tag": "0019_loud_legion",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789498636276,
+      "tag": "0020_fine_next_avengers",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789520184879,
+      "tag": "0021_tan_maverick",
+      "breakpoints": true
     }
   ]
 }
