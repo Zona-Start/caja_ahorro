@@ -550,7 +550,7 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
 // ── Unidades de medida ──
 const UNIT_MEASURES = [
   { value: 'UNIT', label: 'Unidad' },
-  { value: 'KG', label: 'Kilogramo' },
+  { value: 'KILOGRAM', label: 'Kilogramo' },
   { value: 'LITER', label: 'Litro' },
   { value: 'METER', label: 'Metro' },
   { value: 'PACK', label: 'Paquete' },

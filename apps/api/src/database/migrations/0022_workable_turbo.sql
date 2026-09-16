@@ -1,0 +1,2 @@
+ALTER TABLE "inventory"."inventories_categories" DROP CONSTRAINT "inventories_categories_name_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "inventories_categories_tenant_name_unique" ON "inventory"."inventories_categories" USING btree ("tenant_id","name");

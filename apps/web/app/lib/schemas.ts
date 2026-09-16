@@ -17,7 +17,10 @@ export const permissionSchema = z.object({
 export const membershipSchema = z.object({
   tenantId: z.string().optional(),
   tenantName: z.string().optional(),
+  // `bussinessType` is the spelling emitted by the API. `businessType` is kept
+  // as a normalized alias so consumers can rely on a single key.
   bussinessType: z.string().optional(),
+  businessType: z.string().optional(),
   slug: z.string().nullable().optional(),
   logoUrl: z.string().nullable().optional(),
   primaryColor: z.string().nullable().optional(),
@@ -37,6 +40,7 @@ export const activeTenantSchema = z.object({
   slug: z.string().nullable().optional(),
   logoUrl: z.string().nullable().optional(),
   primaryColor: z.string().nullable().optional(),
+  businessType: z.string().optional(),
   modules: z.array(z.string()).default([]),
 });
 

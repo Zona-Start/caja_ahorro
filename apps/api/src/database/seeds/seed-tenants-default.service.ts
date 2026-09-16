@@ -256,6 +256,34 @@ export class AccountPlanSeederService {
               (p.action === 'create' || p.action === 'read'),
           );
           break;
+
+        case 'asistente':
+          // Operativo (plantilla EMPRESA_COMERCIAL): POS, inventario y caja
+          permsToAssign = allPermissions.filter(
+            (p) =>
+              (p.action === 'create' ||
+                p.action === 'read' ||
+                p.action === 'update') &&
+              (p.resource.startsWith('sales:') ||
+                p.resource.startsWith('inventory:') ||
+                p.resource === 'treasury:expenses' ||
+                p.resource === 'treasury:expense-categories' ||
+                p.resource === 'treasury:cash-registers' ||
+                p.resource === 'treasury:cash-sessions' ||
+                p.resource === 'treasury:cash-movements'),
+          );
+          break;
+
+        case 'contador':
+          // Contable (plantilla EMPRESA_COMERCIAL): lectura de ventas + inventario
+          permsToAssign = allPermissions.filter(
+            (p) =>
+              (p.action === 'read' || p.action === 'create') &&
+              (p.resource.startsWith('sales:') ||
+                p.resource.startsWith('inventory:') ||
+                p.resource.startsWith('accounting:')),
+          );
+          break;
       }
 
       // ✅ OPTIMIZACIÓN 2: BULK INSERT (Inserción Masiva)

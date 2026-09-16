@@ -28,6 +28,7 @@ const RESOURCE_MODULE_MAP: Record<string, string | null> = {
   banking: 'BANKING',
   inventory: 'INVENTORY',
   purchasing: 'PURCHASING',
+  sales: 'SALES',
   expenses: 'EXPENSES',
   'cash-registers': 'EXPENSES',
   'cash-sessions': 'EXPENSES',

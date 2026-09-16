@@ -44,6 +44,14 @@ const routes: RouteConfig = [
       'routes/dashboard/accounting/accounting-rules.tsx',
     ),
 
+    // ── Módulo de Ventas (EMPRESA_COMERCIAL) ──
+    route('ventas/pos', 'routes/dashboard/sales/pos.tsx'),
+    route('ventas/facturas', 'routes/dashboard/sales/facturas.tsx'),
+    route('ventas/cobros', 'routes/dashboard/sales/cobros.tsx'),
+    route('ventas/notas-entrega', 'routes/dashboard/sales/notas-entrega.tsx'),
+    route('ventas/clientes', 'routes/dashboard/sales/clientes.tsx'),
+    route('ventas/cierre', 'routes/dashboard/sales/cierre.tsx'),
+
     // ── Módulo de Caja de Ahorro ──
     route(
       'caja-ahorro/asociados',

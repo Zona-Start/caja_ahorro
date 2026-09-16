@@ -1,3 +1,4 @@
+import { useBusinessType } from '@/lib/business-type';
 import { useExpenseModeQuery } from '../../hooks/use-expense-queries';
 import { AgileExpenseForm } from './agile-expense-form';
 import { CorporateExpenseForm } from './corporate-expense-form';
@@ -9,6 +10,8 @@ interface ExpenseFormProps {
 
 export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
   const { data: modeData, isLoading } = useExpenseModeQuery();
+  const businessType = useBusinessType();
+  const isCommerce = businessType === 'EMPRESA_COMERCIAL';
   const mode = modeData?.data?.mode ?? 'CORPORATE';
 
   if (isLoading) {
@@ -21,7 +24,9 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
     );
   }
 
-  if (mode === 'AGILE') {
+  // Commerce tenants always use the simplified (agile) expense form, even if
+  // the tenant has the accounting module enabled.
+  if (isCommerce || mode === 'AGILE') {
     return <AgileExpenseForm onSuccess={onSuccess} onCancel={onCancel} />;
   }
 

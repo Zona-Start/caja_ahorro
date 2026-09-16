@@ -28,9 +28,18 @@ import {
   Users,
 } from 'lucide-react';
 
+/**
+ * Visibility scope of a navigation entry based on the tenant business type.
+ * - `all`: visible for every business type.
+ * - `corporate`: visible for `CAJA_AHORRO` and `EMPRESA_CORPORATIVA`.
+ * - `commerce`: visible only for `EMPRESA_COMERCIAL`.
+ */
+export type NavScope = 'all' | 'corporate' | 'commerce';
+
 export interface NavSubItem {
   label: string;
   href: string;
+  scope?: NavScope;
   requiresPermission?: {
     resource: string;
     action: string;
@@ -41,6 +50,7 @@ export interface NavItem {
   label: string;
   href: string;
   icon?: LucideIcon;
+  scope?: NavScope;
   requiresPermission?: {
     resource: string;
     action: string;
@@ -56,6 +66,9 @@ export interface NavGroup {
    * gated by permissions. When present, the group shows if ANY code is active.
    */
   modules?: string[];
+  /** Default `all`. Applies to the group and is inherited by its items unless
+   * the item/subitem declares its own `scope`. */
+  scope?: NavScope;
   items: NavItem[];
 }
 
@@ -71,7 +84,60 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Ventas',
+    scope: 'commerce',
+    modules: ['SALES'],
+    items: [
+      {
+        label: 'Punto de Venta',
+        href: '/dashboard/ventas/pos',
+        icon: ShoppingCart,
+        requiresPermission: {
+          resource: 'sales:invoices',
+          action: 'create',
+        },
+      },
+      {
+        label: 'Facturas',
+        href: '/dashboard/ventas/facturas',
+        icon: Receipt,
+        requiresPermission: {
+          resource: 'sales:invoices',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Cobros / CxC',
+        href: '/dashboard/ventas/cobros',
+        icon: DollarSign,
+        requiresPermission: {
+          resource: 'sales:payments',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Notas de Entrega',
+        href: '/dashboard/ventas/notas-entrega',
+        icon: FileText,
+        requiresPermission: {
+          resource: 'sales:delivery-notes',
+          action: 'read',
+        },
+      },
+      {
+        label: 'Clientes',
+        href: '/dashboard/ventas/clientes',
+        icon: Users,
+        requiresPermission: {
+          resource: 'sales:customers',
+          action: 'read',
+        },
+      },
+    ],
+  },
+  {
     label: 'Caja de Ahorro',
+    scope: 'corporate',
     modules: ['SAVINGS', 'LOANS', 'CREDITS'],
     items: [
       {
@@ -251,6 +317,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Inventario',
+    scope: 'all',
     modules: ['INVENTORY'],
     items: [
       {
@@ -275,6 +342,7 @@ export const navGroups: NavGroup[] = [
         label: 'Servicios',
         href: '/dashboard/inventario/servicios',
         icon: Boxes,
+        scope: 'corporate',
         requiresPermission: {
           resource: 'inventory:services',
           action: 'read',
@@ -284,6 +352,7 @@ export const navGroups: NavGroup[] = [
         label: 'Activos Fijos',
         href: '/dashboard/inventario/activos-fijos',
         icon: ClipboardList,
+        scope: 'corporate',
         requiresPermission: {
           resource: 'inventory:assets',
           action: 'read',
@@ -302,6 +371,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Compras',
+    scope: 'corporate',
     modules: ['PURCHASING'],
     items: [
       {
@@ -372,6 +442,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Bancos',
+    scope: 'corporate',
     modules: ['BANKING'],
     items: [
       {
@@ -423,6 +494,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Contabilidad',
+    scope: 'corporate',
     modules: ['ACCOUNTING'],
     items: [
       {
@@ -539,6 +611,7 @@ export const navGroups: NavGroup[] = [
 
   {
     label: 'Gastos y Cajas',
+    scope: 'all',
     modules: ['TREASURY'],
     items: [
       {
@@ -563,6 +636,7 @@ export const navGroups: NavGroup[] = [
         label: 'Centros de Costo',
         href: '/dashboard/gastos/centros-costo',
         icon: Layers,
+        scope: 'corporate',
         requiresPermission: {
           resource: 'treasury:cost-centers',
           action: 'read',
@@ -581,6 +655,7 @@ export const navGroups: NavGroup[] = [
         label: 'Gastos Recurrentes',
         href: '/dashboard/gastos/recurrentes',
         icon: RefreshCw,
+        scope: 'corporate',
         requiresPermission: {
           resource: 'treasury:recurring-expenses',
           action: 'read',
@@ -590,6 +665,7 @@ export const navGroups: NavGroup[] = [
         label: 'Reembolsos / Viáticos',
         href: '/dashboard/gastos/reembolsos',
         icon: HandCoins,
+        scope: 'corporate',
         requiresPermission: {
           resource: 'treasury:expense-reports',
           action: 'read',
@@ -599,6 +675,7 @@ export const navGroups: NavGroup[] = [
         label: 'Fondos Fijos',
         href: '/dashboard/gastos/fondos-fijos',
         icon: PiggyBank,
+        scope: 'corporate',
         requiresPermission: {
           resource: 'treasury:petty-cash',
           action: 'read',
@@ -607,7 +684,24 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'Arqueo de Caja',
+    scope: 'commerce',
+    modules: ['TREASURY'],
+    items: [
+      {
+        label: 'Cierre de Caja',
+        href: '/dashboard/ventas/cierre',
+        icon: DollarSign,
+        requiresPermission: {
+          resource: 'treasury:cash-registers',
+          action: 'read',
+        },
+      },
+    ],
+  },
+  {
     label: 'Administracion',
+    scope: 'corporate',
     modules: ['IAM'],
     items: [
       {
@@ -641,6 +735,7 @@ export const navGroups: NavGroup[] = [
   },
   {
     label: 'Configuración',
+    scope: 'corporate',
     modules: ['SYSTEM'],
     items: [
       {
@@ -666,6 +761,7 @@ export const navGroups: NavGroup[] = [
 
   {
     label: 'Sistema',
+    scope: 'corporate',
     modules: ['SYSTEM'],
     items: [
       {

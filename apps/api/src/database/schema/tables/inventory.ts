@@ -43,13 +43,17 @@ export const inventoriesCategories = inventorySchema.table(
       })
       .notNull(),
     group: varchar('group', { length: 100 }).notNull(),
-    name: varchar('name', { length: 100 }).notNull().unique(), // Ej: "Electrodomésticos", "Informática"
+    name: varchar('name', { length: 100 }).notNull(), // Ej: "Electrodomésticos", "Informática"
     description: text('description'),
     ...timestamps,
   },
   (table) => ({
     nameIdx: index('inventory_categories_name_idx').on(table.name),
     groupIdx: index('inventory_categories_group_idx').on(table.group),
+    // El nombre de la categoría debe ser único por tenant, no globalmente.
+    tenantNameUnique: uniqueIndex(
+      'inventories_categories_tenant_name_unique',
+    ).on(table.tenantId, table.name),
   }),
 );
 
@@ -66,8 +70,8 @@ export const products = inventorySchema.table(
     categoryId: uuid('category_id')
       .notNull()
       .references(() => inventoriesCategories.id, { onDelete: 'restrict' }),
-    internalCode: varchar('internal_code', { length: 50 }).notNull().unique(),
-    sku: varchar('sku', { length: 50 }).notNull().unique(), // Código SKU interno del producto (Ej: REF001)
+    internalCode: varchar('internal_code', { length: 50 }).notNull(),
+    sku: varchar('sku', { length: 50 }).notNull(), // Código SKU interno del producto (Ej: REF001)
     name: varchar('name', { length: 255 }).notNull(), // Nombre del producto (Ej: "Refrigerador 250L")
     description: text('description'),
     brand: varchar('brand', { length: 100 }),
@@ -93,6 +97,14 @@ export const products = inventorySchema.table(
     skuIdx: index('sales_prod_sku_idx').on(table.sku),
     nameIdx: index('sales_prod_name_idx').on(table.sku),
     categoryIdIdx: index('sales_prod_cat_id_idx').on(table.categoryId),
+    // El código interno y el SKU deben ser únicos por tenant, no globalmente.
+    tenantInternalCodeUnique: uniqueIndex(
+      'products_tenant_internal_code_unique',
+    ).on(table.tenantId, table.internalCode),
+    tenantSkuUnique: uniqueIndex('products_tenant_sku_unique').on(
+      table.tenantId,
+      table.sku,
+    ),
   }),
 );
 
@@ -155,23 +167,32 @@ export const productPrices = inventorySchema.table('product_prices', {
   ...timestamps,
 });
 
-export const services = inventorySchema.table('services', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id')
-    .references(() => tenants.id, {
-      onDelete: 'cascade',
-    })
-    .notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  internalCode: varchar('internal_code', { length: 50 }).notNull().unique(),
-  categoryId: uuid('category_id')
-    .notNull()
-    .references(() => inventoriesCategories.id, { onDelete: 'restrict' }),
-  description: text('description'),
-  status: statusSuppliers('status').notNull().default('ACTIVE'),
-  serviceType: varchar('service_type', { length: 50 }).notNull(),
-  ...timestamps,
-});
+export const services = inventorySchema.table(
+  'services',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, {
+        onDelete: 'cascade',
+      })
+      .notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    internalCode: varchar('internal_code', { length: 50 }).notNull(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => inventoriesCategories.id, { onDelete: 'restrict' }),
+    description: text('description'),
+    status: statusSuppliers('status').notNull().default('ACTIVE'),
+    serviceType: varchar('service_type', { length: 50 }).notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    // El código interno del servicio debe ser único por tenant.
+    tenantInternalCodeUnique: uniqueIndex(
+      'services_tenant_internal_code_unique',
+    ).on(table.tenantId, table.internalCode),
+  }),
+);
 
 /* ----------   Servicio (histórico / vigente) ---------- */
 export const servicePrices = inventorySchema.table('service_prices', {

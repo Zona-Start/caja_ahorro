@@ -30,6 +30,7 @@ import { CoreModule } from './features/core/core.module';
 import { ExpensesFeatureModule } from './features/expenses/expenses.module';
 import { InventoryFeatureModule } from './features/inventory/inventory-module';
 import { PurchasingFeaturesModule } from './features/purchasing/purchasing.module';
+import { SalesFeatureModule } from './features/sales/sales.module';
 import { SavingsFeaturesModule } from './features/savings/savings.module';
 import { StatsModule } from './features/stats/stats.module';
 import { StorageModule } from './features/storage/storage.module';
@@ -100,6 +101,7 @@ import { ProjectionModule } from './shared/projections';
     SavingsFeaturesModule,
     InventoryFeatureModule,
     PurchasingFeaturesModule,
+    SalesFeatureModule,
     StatsModule,
     StorageModule,
   ],

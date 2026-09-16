@@ -18,6 +18,7 @@ export default {
     'inventory',
     'core',
     'audit',
+    'sales',
   ],
   dbCredentials: {
     url: envVars.DATABASE_URL,

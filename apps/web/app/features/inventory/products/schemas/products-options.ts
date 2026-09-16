@@ -8,7 +8,7 @@ export const STATUS_TYPES = [
 
 export const UNIT_MEASURES = [
   { value: 'UNIT', label: 'Unidad' },
-  { value: 'KG', label: 'Kilogramo' },
+  { value: 'KILOGRAM', label: 'Kilogramo' },
   { value: 'LITER', label: 'Litro' },
   { value: 'METER', label: 'Metro' },
   { value: 'PACK', label: 'Paquete' },

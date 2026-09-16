@@ -19,7 +19,7 @@ export const productSchema = z.object({
   stockMax: z.coerce.number().min(0, 'El stock máximo debe ser >= 0').default(0),
   reorderPoint: z.coerce.number().min(0, 'El punto de reorden debe ser >= 0').default(0),
   status: z.enum(['AVAILABLE', 'DISABLED', 'OUT_OF_STOCK', 'COMMING_SOON', 'ON_SALE']).default('COMMING_SOON'),
-  unitOfMeasure: z.enum(['UNIT', 'KG', 'LITER', 'METER', 'PACK', 'BOX']).default('UNIT'),
+  unitOfMeasure: z.enum(['UNIT', 'KILOGRAM', 'LITER', 'METER', 'BOX', 'PACK']).default('UNIT'),
 
   // Moneda y tasas
   currencyCode: z.enum(['VES', 'USD', 'EUR']).default('VES'),

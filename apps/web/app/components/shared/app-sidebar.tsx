@@ -15,8 +15,9 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@repo/shadcn/collapsible';
 import { ChevronRight } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
-import { navGroups, type NavGroup, type NavItem } from '@/constants/navegations';
+import { navGroups, type NavGroup, type NavItem, type NavScope, type NavSubItem } from '@/constants/navegations';
 import { useAuthStore } from '@/stores/auth.store';
+import { useBusinessType } from '@/lib/business-type';
 import { NavUser } from './nav-user';
 import './sidebar-override.css';
 import { useTenantStore } from '@/stores/tenant.store';
@@ -26,22 +27,46 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const tenant = useTenantStore((s) => s.tenant);
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const hasModule = useAuthStore((s) => s.hasModule);
+  const businessType = useBusinessType();
   const location = useLocation();
 
   const logoUrl = tenant?.logoUrl || '/img/logo.png';
   const name = tenant?.name || 'Zona Start';
 
-  // 1. Mantenemos la evaluación atómica de permisos
-  const canSee = (item: any) => {
-    if (!item.requiresPermission) return true;
-    return hasPermission(item.requiresPermission.resource, item.requiresPermission.action);
+  // 0. Resolvemos la visibilidad según el tipo de negocio del tenant.
+  //    Si aún no se conoce el tipo, mostramos el menú completo (fallback seguro).
+  const scopeAllows = (scope: NavScope = 'all') => {
+    if (scope === 'all' || !businessType) return true;
+    if (scope === 'commerce') return businessType === 'EMPRESA_COMERCIAL';
+    return (
+      businessType === 'CAJA_AHORRO' ||
+      businessType === 'EMPRESA_CORPORATIVA'
+    );
   };
 
-  const filterItem = (item: NavItem): NavItem | null => {
-    if (!canSee(item)) return null;
+  // 1. Evaluamos permiso y scope heredando el scope del grupo contenedor.
+  const canSee = (
+    item: NavItem | NavSubItem,
+    inheritedScope: NavScope = 'all',
+  ) => {
+    if (!scopeAllows(item.scope ?? inheritedScope)) return false;
+    if (!item.requiresPermission) return true;
+    return hasPermission(
+      item.requiresPermission.resource,
+      item.requiresPermission.action,
+    );
+  };
+
+  const filterItem = (
+    item: NavItem,
+    inheritedScope: NavScope = 'all',
+  ): NavItem | null => {
+    if (!canSee(item, inheritedScope)) return null;
 
     if (item.items?.length) {
-      const visibleChildren = item.items.filter(canSee);
+      const visibleChildren = item.items.filter((child) =>
+        canSee(child, item.scope ?? inheritedScope),
+      );
       if (visibleChildren.length === 0) return null;
       return { ...item, items: visibleChildren };
     }
@@ -51,24 +76,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // 2. Pre-calculamos el árbol de navegación completo
   const visibleGroups = useMemo(() => {
     return navGroups.reduce((acc: NavGroup[], group) => {
-      // A. Validar que el tenant tenga los módulos activos
+      // A. Validar el scope del tipo de negocio
+      if (!scopeAllows(group.scope)) {
+        return acc;
+      }
+
+      // B. Validar que el tenant tenga los módulos activos
       if (group.modules?.length && !group.modules.some((m) => hasModule(m))) {
         return acc;
       }
 
-      // B. Filtrar los items en base a los permisos del rol actual
+      // C. Filtrar los items en base a scope y permisos del rol actual
       const validItems = group.items
-        .map(filterItem)
+        .map((item) => filterItem(item, group.scope))
         .filter((item): item is NavItem => item !== null);
 
-      // C. Solo incluir el grupo en la UI si le quedaron items visibles
+      // D. Solo incluir el grupo en la UI si le quedaron items visibles
       if (validItems.length > 0) {
         acc.push({ ...group, items: validItems });
       }
 
       return acc;
     }, []);
-  }, [hasPermission, hasModule]); // Recalcular solo si cambian los permisos o módulos
+  }, [businessType, hasPermission, hasModule]); // Recalcular si cambia negocio, permisos o módulos
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>

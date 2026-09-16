@@ -7,13 +7,17 @@ import {
   DialogTitle,
 } from '@repo/shadcn/dialog';
 import { QUERY_KEYS } from '@/lib/query-keys';
+import { useBusinessType } from '@/lib/business-type';
 import { ProductsService } from '../services/products-service';
 import { useProductsModalStore } from '../store/products-modal.store';
+import { CommerceProductForm } from './commerce-product-form';
 import { ProductsForm } from './products-form';
 import { ProductsViewModal } from './products-view-modal';
 
 export function ProductsModal() {
   const { isOpen, mode, data, closeModal } = useProductsModalStore();
+  const businessType = useBusinessType();
+  const isCommerce = businessType === 'EMPRESA_COMERCIAL';
 
   const { data: fullProduct, isLoading: isLoadingProduct } = useQuery({
     queryKey: QUERY_KEYS.products.detail(data?.id!),
@@ -51,6 +55,12 @@ export function ProductsModal() {
           <div className="flex justify-center py-8 text-sm text-muted-foreground">
             Cargando información del producto...
           </div>
+        ) : isCommerce ? (
+          <CommerceProductForm
+            onSuccess={closeModal}
+            onCancel={closeModal}
+            defaultValues={mode === 'edit' ? fullProduct : data}
+          />
         ) : (
           <ProductsForm
             onSuccess={closeModal}
