@@ -102,3 +102,87 @@ export function useDisburseIndividualLoan(): UseMutationResult<
     },
   });
 }
+
+export interface BulkLoanFailure {
+  row: number;
+  cedula: string;
+  associateName: string | null;
+  error: string;
+}
+
+export interface BulkLoanSuccess {
+  row: number;
+  cedula: string;
+  associateName: string;
+  reference: string;
+}
+
+export interface BulkLoanResult {
+  message: string;
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  successes: BulkLoanSuccess[];
+  failures: BulkLoanFailure[];
+}
+
+export function useBulkUploadLoans(
+  onSuccess?: (data: BulkLoanResult) => void,
+): UseMutationResult<BulkLoanResult, Error, FormData, unknown> {
+  const queryClient = useQueryClient();
+  const toast = useToastSystem();
+
+  return useMutation<BulkLoanResult, Error, FormData>({
+    mutationFn: (formData: FormData) =>
+      loansManagementService.bulkUpload(formData),
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({
+        queryKey: loansManagementKeys.lists(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: loansManagementKeys.count(),
+      });
+      if (response) onSuccess?.(response);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error en la carga masiva de préstamos');
+    },
+  });
+}
+
+export function useDownloadLoanBulkTemplate(
+  onSuccess?: () => void,
+): UseMutationResult<string, Error, void, unknown> {
+  const toast = useToastSystem();
+
+  return useMutation<string, Error, void>({
+    mutationFn: () => loansManagementService.downloadBulkTemplate(),
+    onSuccess: (base64) => {
+      try {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'plantilla_carga_masiva_prestamos.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast.success('Plantilla descargada');
+        onSuccess?.();
+      } catch {
+        toast.error('No se pudo generar la plantilla');
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Error al descargar la plantilla');
+    },
+  });
+}

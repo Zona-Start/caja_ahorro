@@ -1,4 +1,14 @@
+import { PaginationSchema } from '@/common/dto/pagination.dto';
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+
+export const FilterSettlementAssociateSchema = PaginationSchema.extend({
+  status: z.string().optional(),
+});
+
+export class FilterSettlementAssociateDto extends createZodDto(
+  FilterSettlementAssociateSchema,
+) {}
 
 export const BeneficiarySchema = z.object({
   fullname: z.string().min(3, 'El nombre completo es requerido'),
@@ -17,6 +27,14 @@ export const CreateSettlementAssociateSchema = z.object({
   tenantId: z.string().uuid().optional(),
 });
 
+export const CreateBulkSettlementAssociateSchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  // Datos bancarios OPCIONALES: si se envían, las liquidaciones se desembolsan.
+  bankAccountId: z.string().uuid().optional(),
+  transferDate: z.coerce.date().optional(),
+  bankReference: z.string().optional(),
+});
+
 export const DisburseSettlementAssociateSchema = z.object({
   bankAccountId: z.string().uuid(),
   transferDate: z.coerce.date(),
@@ -30,6 +48,9 @@ export const UpdateSettlementAssociateSchema = z.object({
 
 export type CreateSettlementAssociateDto = z.infer<
   typeof CreateSettlementAssociateSchema
+>;
+export type CreateBulkSettlementAssociateDto = z.infer<
+  typeof CreateBulkSettlementAssociateSchema
 >;
 export type DisburseSettlementAssociateDto = z.infer<
   typeof DisburseSettlementAssociateSchema

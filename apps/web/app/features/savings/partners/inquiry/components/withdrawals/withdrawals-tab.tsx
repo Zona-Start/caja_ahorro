@@ -9,9 +9,16 @@ interface WithdrawalsTabProps {
   page: number;
   setPage: (page: number) => void;
   limit: number;
+  setLimit: (limit: number) => void;
 }
 
-export function WithdrawalsTab({ id, page, setPage, limit }: WithdrawalsTabProps) {
+export function WithdrawalsTab({
+  id,
+  page,
+  setPage,
+  limit,
+  setLimit,
+}: WithdrawalsTabProps) {
   const {
     data: withdrawalsData,
     isLoading,
@@ -35,6 +42,10 @@ export function WithdrawalsTab({ id, page, setPage, limit }: WithdrawalsTabProps
       data={withdrawalsData?.data || []}
       totalItems={withdrawalsData?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
+      page={page}
+      pageSize={limit}
+      onPageChange={setPage}
+      onPageSizeChange={setLimit}
     />
   );
 }

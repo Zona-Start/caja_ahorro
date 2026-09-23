@@ -9,9 +9,16 @@ interface HaberesTabProps {
   page: number;
   setPage: (page: number) => void;
   limit: number;
+  setLimit: (limit: number) => void;
 }
 
-export function HaberesTab({ id, page, setPage, limit }: HaberesTabProps) {
+export function HaberesTab({
+  id,
+  page,
+  setPage,
+  limit,
+  setLimit,
+}: HaberesTabProps) {
   const {
     data: haberesData,
     isLoading: haberesLoading,
@@ -36,6 +43,10 @@ export function HaberesTab({ id, page, setPage, limit }: HaberesTabProps) {
       data={haberesData?.data || []}
       totalItems={haberesData?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
+      page={page}
+      pageSize={limit}
+      onPageChange={setPage}
+      onPageSizeChange={setLimit}
     />
   );
 }

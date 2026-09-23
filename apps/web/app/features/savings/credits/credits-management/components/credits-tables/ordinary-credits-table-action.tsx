@@ -9,17 +9,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@repo/shadcn/select';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { useCreditsFilters } from '../../hooks/use-credits-filters';
 import { ESTATUS_TYPES } from '../../schemas/credits-management-options';
 import { useAuthStore } from '@/stores/auth.store';
 
 interface OrdinaryCreditsTableActionProps {
   onNewCredit: () => void;
+  onBulkUpload: () => void;
 }
 
 export function OrdinaryCreditsTableAction({
   onNewCredit,
+  onBulkUpload,
 }: OrdinaryCreditsTableActionProps) {
   const { filters, setFilters } = useCreditsFilters();
 
@@ -30,6 +32,14 @@ export function OrdinaryCreditsTableAction({
     }),
   );
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const user = useAuthStore((state) => state.user);
+
+  const isAdmin =
+    (user?.isSystemAdmin ?? false) ||
+    (user?.memberships?.some(
+      (m) => m.role?.name?.toLowerCase() === 'admin',
+    ) ??
+      false);
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -62,9 +72,16 @@ export function OrdinaryCreditsTableAction({
         </Select>
       </div>
       {hasPermission("portfolio:credits", "create") && (
-        <Button size="sm" onClick={onNewCredit}>
-          <Plus className="mr-2 h-4 w-4" /> Nuevo Crédito
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button size="sm" variant="outline" onClick={onBulkUpload}>
+              <Upload className="mr-2 h-4 w-4" /> Carga Masiva
+            </Button>
+          )}
+          <Button size="sm" onClick={onNewCredit}>
+            <Plus className="mr-2 h-4 w-4" /> Nuevo Crédito
+          </Button>
+        </div>
       )}
     </div>
   );

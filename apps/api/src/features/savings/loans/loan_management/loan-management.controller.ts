@@ -1,7 +1,9 @@
 import { Permissions } from '@/common/decorators/permissions.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,10 +13,19 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UploadedFile,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Request, Response } from 'express';
+import { memoryStorage } from 'multer';
+import {
+  BulkLoanDto,
+  BulkLoanSchema,
+} from './dto/bulk-loan.schema';
 import {
   CalculateAmortizationSchema,
   CreateLoanDto,
@@ -42,6 +53,47 @@ export class LoanManagementController {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     return this.loanManagementService.request(targetTenantId, userId, dto);
+  }
+
+  @Get('template-bulk')
+  @Roles('admin')
+  @Permissions('portfolio:loans:create')
+  @ApiOperation({ summary: 'Download bulk loan upload template' })
+  async getTemplateBulk(@Res() res: Response) {
+    const buffer = await this.loanManagementService.generateBulkTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':
+        'attachment; filename="plantilla_carga_masiva_prestamos.xlsx"',
+    });
+    res.end(buffer);
+  }
+
+  @Post('bulk')
+  @Roles('admin')
+  @Permissions('portfolio:loans:create')
+  @ApiOperation({ summary: 'Bulk create, approve and disburse loans from Excel' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async createBulk(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+    @Body(new ZodValidatorPipe(BulkLoanSchema)) dto: BulkLoanDto,
+  ) {
+    if (!file) {
+      throw new BadRequestException('El archivo es requerido');
+    }
+    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
+      req,
+      dto,
+    );
+    return this.loanManagementService.createBulk(
+      targetTenantId,
+      userId,
+      file.buffer,
+      dto,
+    );
   }
 
   @Get('search-associate/:cedula')

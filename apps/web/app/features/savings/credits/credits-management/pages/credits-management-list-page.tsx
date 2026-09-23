@@ -13,6 +13,7 @@ import { OrdinaryCreditsHeader } from '../components/ordinary-credits-header';
 import { OrdinaryCreditsList } from '../components/ordinary-credits-list';
 import { OrdinaryCreditsTableAction } from '../components/credits-tables/ordinary-credits-table-action';
 import { CreateCreditModal } from '../components/credit-create-modal';
+import { CreditBulkModal } from '../components/credit-bulk-modal';
 import { useCreditsFilters } from '../hooks/use-credits-filters';
 import { creditManagementLoader } from '../loaders/credits-management.loader';
 import { creditManagementAction } from '../loaders/credits-management.action';
@@ -38,6 +39,7 @@ export default function CreditsManagementListPage() {
   const loaderResult = useLoaderData<typeof clientLoader>();
   const { filters } = useCreditsFilters();
   const [modalOpen, setModalOpen] = useState(false);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [viewData, setViewData] = useState<CreditTableRow | null>(null);
   const { data: detailData } = useCreditDetails(viewData?.id || '', {
     enabled: !!viewData?.id,
@@ -48,7 +50,7 @@ export default function CreditsManagementListPage() {
     <div className="space-y-4">
       <OrdinaryCreditsHeader />
       <Separator />
-      <OrdinaryCreditsTableAction onNewCredit={() => setModalOpen(true)} />
+      <OrdinaryCreditsTableAction onNewCredit={() => setModalOpen(true)} onBulkUpload={() => setBulkModalOpen(true)} />
       <OrdinaryCreditsList
         page={filters.page}
         search={filters.search}
@@ -61,6 +63,10 @@ export default function CreditsManagementListPage() {
       <CreateCreditModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+      />
+      <CreditBulkModal
+        open={bulkModalOpen}
+        onOpenChange={setBulkModalOpen}
       />
 
       {/* View Details Dialog */}

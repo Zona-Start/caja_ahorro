@@ -99,6 +99,25 @@ export const loansManagementService = {
     return response.data;
   },
 
+  bulkUpload: async (formData: FormData) => {
+    const response = await apiClient.post('/loan/bulk', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  downloadBulkTemplate: async (): Promise<string> => {
+    const response = await apiClient.get('/loan/template-bulk', {
+      responseType: 'arraybuffer',
+    });
+    let binary = '';
+    const bytes = new Uint8Array(response.data);
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
+  },
+
   getLoansManagementAllCount: async () => {
     const response = await apiClient.get('/loan/count');
     const schema = z.object({

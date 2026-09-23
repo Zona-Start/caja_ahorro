@@ -1,26 +1,6 @@
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { inquiryService } from '../services/inquiry-service';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import type {
-  AssociateStatement,
-  HaberesMovement,
-  WithdrawalListItem,
-  LoanListItem,
-  CreditListItem,
-  TransactionHistory,
-} from '../schemas/inquiry-schema';
-
-interface PaginatedResult<T> {
-  data: T[];
-  meta: {
-    page: number;
-    limit: number;
-    totalCount: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-}
 
 export function useStatementQuery(cedula: string | null) {
   return useQuery({
@@ -32,56 +12,61 @@ export function useStatementQuery(cedula: string | null) {
 
 export function useHaberesMovementsQuery(
   associateId: string,
-  params: { page?: number; limit?: number },
+  params: { page: number; limit: number },
 ) {
   return useQuery({
-    queryKey: QUERY_KEYS.inquiry.haberes(associateId),
+    queryKey: QUERY_KEYS.inquiry.haberes(associateId, params),
     queryFn: () => inquiryService.getHaberes(associateId, params),
     enabled: !!associateId,
+    placeholderData: (prev) => prev,
   });
 }
 
 export function useWithdrawalsQuery(
   associateId: string,
-  params: { page?: number; limit?: number },
+  params: { page: number; limit: number },
 ) {
   return useQuery({
-    queryKey: QUERY_KEYS.inquiry.withdrawals(associateId),
+    queryKey: QUERY_KEYS.inquiry.withdrawals(associateId, params),
     queryFn: () => inquiryService.getRetiros(associateId, params),
     enabled: !!associateId,
+    placeholderData: (prev) => prev,
   });
 }
 
 export function useTransactionHistoryQuery(
   associateId: string,
-  params: { page?: number; limit?: number },
+  params: { page: number; limit: number },
 ) {
   return useQuery({
-    queryKey: QUERY_KEYS.inquiry.history(associateId),
+    queryKey: QUERY_KEYS.inquiry.history(associateId, params),
     queryFn: () => inquiryService.getHistorial(associateId, params),
     enabled: !!associateId,
+    placeholderData: (prev) => prev,
   });
 }
 
 export function useLoansQuery(
   associateId: string,
-  params: { page?: number; limit?: number },
+  params: { page: number; limit: number },
 ) {
   return useQuery({
-    queryKey: QUERY_KEYS.inquiry.loans(associateId),
+    queryKey: QUERY_KEYS.inquiry.loans(associateId, params),
     queryFn: () => inquiryService.getPrestamos(associateId, params),
     enabled: !!associateId,
+    placeholderData: (prev) => prev,
   });
 }
 
 export function useCreditsQuery(
   associateId: string,
-  params: { page?: number; limit?: number },
+  params: { page: number; limit: number },
 ) {
   return useQuery({
-    queryKey: QUERY_KEYS.inquiry.credits(associateId),
+    queryKey: QUERY_KEYS.inquiry.credits(associateId, params),
     queryFn: () => inquiryService.getCreditos(associateId, params),
     enabled: !!associateId,
+    placeholderData: (prev) => prev,
   });
 }
 

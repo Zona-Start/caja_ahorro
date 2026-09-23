@@ -54,8 +54,10 @@ export const operationsByGroup: Record<
   },
   SYSTEM_EVENTS: {
     SAVINGS_BANK: [
-      { value: 'CREDIT_PAYMENT', label: 'Pago de Crédito', isDynamic: true, group: 'SYSTEM_EVENTS' },
-      { value: 'LOAN_PAYMENT', label: 'Pago de Préstamo', isDynamic: true, group: 'SYSTEM_EVENTS' },
+      { value: 'CREDIT_PAYMENT_INDIVIDUAL', label: 'Pago de Crédito Individual', isDynamic: true, group: 'SYSTEM_EVENTS' },
+      { value: 'CREDIT_PAYMENT_MASSIVE', label: 'Pago de Crédito Masivo', isDynamic: true, group: 'SYSTEM_EVENTS' },
+      { value: 'LOAN_PAYMENT_INDIVIDUAL', label: 'Pago de Préstamo Individual', isDynamic: true, group: 'SYSTEM_EVENTS' },
+      { value: 'LOAN_PAYMENT_MASSIVE', label: 'Pago de Préstamo Masivo', isDynamic: true, group: 'SYSTEM_EVENTS' },
       { value: 'SAVINGS_UPLOAD', label: 'Carga de Haberes voluntario', group: 'SYSTEM_EVENTS', referenceValue: 'Aporte Voluntario' },
       { value: 'SAVINGS_LIQUIDATION', label: 'Liquidación de Haberes', group: 'SYSTEM_EVENTS', referenceValue: 'Liquidacion Haberes' },
     ],
@@ -121,6 +123,34 @@ export function getOperationDef(operationType: string): OperationDef | undefined
   return undefined;
 }
 
+/** Operaciones de pago de préstamo (individual, masivo y legado) */
+export const LOAN_PAYMENT_OPERATIONS = [
+  'LOAN_PAYMENT',
+  'LOAN_PAYMENT_INDIVIDUAL',
+  'LOAN_PAYMENT_MASSIVE',
+];
+
+/** Operaciones de pago de crédito (individual, masivo y legado) */
+export const CREDIT_PAYMENT_OPERATIONS = [
+  'CREDIT_PAYMENT',
+  'CREDIT_PAYMENT_INDIVIDUAL',
+  'CREDIT_PAYMENT_MASSIVE',
+];
+
+export const isLoanTypeOperation = (operationType?: string): boolean =>
+  operationType === 'LOAN_TYPE' ||
+  (!!operationType && LOAN_PAYMENT_OPERATIONS.includes(operationType));
+
+export const isCreditTypeOperation = (operationType?: string): boolean =>
+  operationType === 'CREDIT_TYPE' ||
+  (!!operationType && CREDIT_PAYMENT_OPERATIONS.includes(operationType));
+
+export const isLoanPaymentOperation = (operationType?: string): boolean =>
+  !!operationType && LOAN_PAYMENT_OPERATIONS.includes(operationType);
+
+export const isCreditPaymentOperation = (operationType?: string): boolean =>
+  !!operationType && CREDIT_PAYMENT_OPERATIONS.includes(operationType);
+
 export const roleOptionsByCategory: Record<Category, RoleDef[]> = {
   SAVINGS_BANK: [
     { value: 'ASSOCIATED_SAVINGS', label: 'Ahorro Asociados (Haberes)' },
@@ -141,6 +171,7 @@ export const roleOptionsByCategory: Record<Category, RoleDef[]> = {
     { value: 'LOAN_PAYMENT', label: 'Pago / Abono a Préstamo' },
     { value: 'CREDIT_PAYMENT', label: 'Pago / Abono a Crédito' },
     { value: 'LOAN_WITHHOLDING', label: 'Retención de Préstamo' },
+    { value: 'CREDIT_WITHHOLDING', label: 'Retención de Creditos' },
   ],
   PURCHASING: [
     { value: 'PURCHASE_VAT', label: 'Iva Compra' },

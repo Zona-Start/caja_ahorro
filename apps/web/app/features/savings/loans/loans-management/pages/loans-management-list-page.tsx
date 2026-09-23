@@ -14,6 +14,7 @@ import { LoansHeader } from '../components/ordinary-loans-header';
 import { LoansTableAction } from '../components/loans-tables/ordinary-loans-table-action';
 import { OrdinaryLoansList } from '../components/ordinary-loans-list';
 import { CreateLoanModal } from '../components/loan-create-modal';
+import { LoanBulkModal } from '../components/loan-bulk-modal';
 import { useLoansFilters } from '../hooks/use-loans-filters';
 import { useLoanDetails } from '../hooks/use-loans-management-query';
 import { ESTATUS_TYPES } from '../schemas/loans-management-options';
@@ -27,6 +28,7 @@ function formatCurrency(n: number | string) {
 export default function LoansManagementListPage() {
   const { filters, setFilters } = useLoansFilters();
   const [modalOpen, setModalOpen] = useState(false);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
   const [viewData, setViewData] = useState<LoanTableRow | null>(null);
   const { data: detailData } = useLoanDetails(viewData?.id || '', {
     enabled: !!viewData?.id,
@@ -40,6 +42,7 @@ export default function LoansManagementListPage() {
         filters={filters}
         setFilters={setFilters}
         onNewLoan={() => setModalOpen(true)}
+        onBulkUpload={() => setBulkModalOpen(true)}
       />
       <OrdinaryLoansList
         page={filters.page}
@@ -53,6 +56,10 @@ export default function LoansManagementListPage() {
       <CreateLoanModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+      />
+      <LoanBulkModal
+        open={bulkModalOpen}
+        onOpenChange={setBulkModalOpen}
       />
 
       {/* View Details Dialog */}

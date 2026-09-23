@@ -10,6 +10,10 @@ import { Blocks, ClipboardList } from 'lucide-react';
 import { useMemo } from 'react';
 import {
   getOperationDef,
+  isCreditPaymentOperation,
+  isCreditTypeOperation,
+  isLoanPaymentOperation,
+  isLoanTypeOperation,
   operationTypeTranslations,
 } from '../constants/operations';
 import { useAccountingRulesParams } from '../hooks/use-accounting-rules-params';
@@ -53,11 +57,11 @@ function EntitySelector({
   );
   const { data: loanData, isLoading: lLoading } = useLoanTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    operation === 'LOAN_TYPE' || operation === 'LOAN_PAYMENT',
+    isLoanTypeOperation(operation),
   );
   const { data: creditData, isLoading: cLoading } = useCreditTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    operation === 'CREDIT_TYPE' || operation === 'CREDIT_PAYMENT',
+    isCreditTypeOperation(operation),
   );
   const { data: payrollData, isLoading: pLoading } = useCategoriesByTypeQuery(
     'payroll_type',
@@ -67,9 +71,9 @@ function EntitySelector({
   const isLoading =
     operation === 'WITHDRAWAL_TYPE'
       ? wLoading
-      : operation === 'LOAN_TYPE' || operation === 'LOAN_PAYMENT'
+      : isLoanTypeOperation(operation)
         ? lLoading
-        : operation === 'CREDIT_TYPE' || operation === 'CREDIT_PAYMENT'
+        : isCreditTypeOperation(operation)
           ? cLoading
           : operation === 'PAYROLL_CONCEPT'
             ? pLoading
@@ -111,14 +115,14 @@ function EntitySelector({
         configured: configuredRefs.has(c.name),
       }));
     }
-    if (operation === 'LOAN_PAYMENT' && loanData?.data) {
+    if (isLoanPaymentOperation(operation) && loanData?.data) {
       return loanData.data.map((l) => ({
         value: l.name,
         label: l.name,
         configured: configuredRefs.has(l.name),
       }));
     }
-    if (operation === 'CREDIT_PAYMENT' && creditData?.data) {
+    if (isCreditPaymentOperation(operation) && creditData?.data) {
       return creditData.data.map((c) => ({
         value: c.name,
         label: c.name,

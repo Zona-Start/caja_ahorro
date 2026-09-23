@@ -35,44 +35,38 @@ interface TabPageState {
 
 const DEFAULT_PAGE_STATE: TabPageState = { page: 1, limit: 10 };
 
+const INITIAL_PAGE_STATES: Record<TabValue, TabPageState> = {
+  haberes: { ...DEFAULT_PAGE_STATE },
+  retiros: { ...DEFAULT_PAGE_STATE },
+  historial: { ...DEFAULT_PAGE_STATE },
+  prestamos: { ...DEFAULT_PAGE_STATE },
+  creditos: { ...DEFAULT_PAGE_STATE },
+};
+
 export function InquiryTabs({ associate }: InquiryTabsProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('haberes');
+  const [pageStates, setPageStates] =
+    useState<Record<TabValue, TabPageState>>(INITIAL_PAGE_STATES);
 
-  const [pageStates, setPageStates] = useState<
-    Record<TabValue, TabPageState>
-  >({
-    haberes: { ...DEFAULT_PAGE_STATE },
-    retiros: { ...DEFAULT_PAGE_STATE },
-    historial: { ...DEFAULT_PAGE_STATE },
-    prestamos: { ...DEFAULT_PAGE_STATE },
-    creditos: { ...DEFAULT_PAGE_STATE },
-  });
-
-  const handleTabChange = useCallback((newTab: string) => {
-    setActiveTab(newTab as TabValue);
+  const setTabPage = useCallback((tab: TabValue, page: number) => {
     setPageStates((prev) => ({
       ...prev,
-      [newTab as TabValue]: { ...DEFAULT_PAGE_STATE },
+      [tab]: { ...prev[tab], page },
     }));
   }, []);
 
-  const createSetPage = useCallback(
-    (tab: TabValue) => (newPage: number) => {
-      setPageStates((prev) => ({
-        ...prev,
-        [tab]: { ...prev[tab], page: newPage },
-      }));
-    },
-    [],
-  );
-
-  const state = pageStates[activeTab];
+  const setTabLimit = useCallback((tab: TabValue, limit: number) => {
+    setPageStates((prev) => ({
+      ...prev,
+      [tab]: { page: 1, limit },
+    }));
+  }, []);
 
   return (
     <div className="w-full">
       <Tabs
         value={activeTab}
-        onValueChange={handleTabChange}
+        onValueChange={(v) => setActiveTab(v as TabValue)}
         className="flex flex-col w-full"
       >
         <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-muted/50">
@@ -89,44 +83,69 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
         </TabsList>
 
         <div className="mt-4">
-          <TabsContent value="haberes" forceMount hidden={activeTab !== 'haberes'}>
+          <TabsContent
+            value="haberes"
+            forceMount
+            hidden={activeTab !== 'haberes'}
+          >
             <HaberesTab
               id={associate.id}
               page={pageStates.haberes.page}
-              setPage={createSetPage('haberes')}
+              setPage={(p) => setTabPage('haberes', p)}
               limit={pageStates.haberes.limit}
+              setLimit={(l) => setTabLimit('haberes', l)}
             />
           </TabsContent>
-          <TabsContent value="retiros" forceMount hidden={activeTab !== 'retiros'}>
+          <TabsContent
+            value="retiros"
+            forceMount
+            hidden={activeTab !== 'retiros'}
+          >
             <WithdrawalsTab
               id={associate.id}
               page={pageStates.retiros.page}
-              setPage={createSetPage('retiros')}
+              setPage={(p) => setTabPage('retiros', p)}
               limit={pageStates.retiros.limit}
+              setLimit={(l) => setTabLimit('retiros', l)}
             />
           </TabsContent>
-          <TabsContent value="historial" forceMount hidden={activeTab !== 'historial'}>
+          <TabsContent
+            value="historial"
+            forceMount
+            hidden={activeTab !== 'historial'}
+          >
             <HistoryTab
               id={associate.id}
               page={pageStates.historial.page}
-              setPage={createSetPage('historial')}
+              setPage={(p) => setTabPage('historial', p)}
               limit={pageStates.historial.limit}
+              setLimit={(l) => setTabLimit('historial', l)}
             />
           </TabsContent>
-          <TabsContent value="prestamos" forceMount hidden={activeTab !== 'prestamos'}>
+          <TabsContent
+            value="prestamos"
+            forceMount
+            hidden={activeTab !== 'prestamos'}
+          >
             <LoansTab
               id={associate.id}
               page={pageStates.prestamos.page}
-              setPage={createSetPage('prestamos')}
+              setPage={(p) => setTabPage('prestamos', p)}
               limit={pageStates.prestamos.limit}
+              setLimit={(l) => setTabLimit('prestamos', l)}
             />
           </TabsContent>
-          <TabsContent value="creditos" forceMount hidden={activeTab !== 'creditos'}>
+          <TabsContent
+            value="creditos"
+            forceMount
+            hidden={activeTab !== 'creditos'}
+          >
             <CreditsTab
               id={associate.id}
               page={pageStates.creditos.page}
-              setPage={createSetPage('creditos')}
+              setPage={(p) => setTabPage('creditos', p)}
               limit={pageStates.creditos.limit}
+              setLimit={(l) => setTabLimit('creditos', l)}
             />
           </TabsContent>
         </div>

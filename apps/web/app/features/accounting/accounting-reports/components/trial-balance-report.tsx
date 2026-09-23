@@ -1,6 +1,7 @@
 import { useAccountingCycles } from '@/features/accounting/accounting-cycles/hooks/use-accounting-cycles-query';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
+import { Input } from '@repo/shadcn/input';
 import { Label } from '@repo/shadcn/label';
 import {
   Select,
@@ -22,15 +23,21 @@ export function TrialBalanceReport() {
 
   const [selectedCycleId, setSelectedCycleId] = useState<string>('');
   const [filters, setFilters] = useState({
-    level: '5',
+    startDate: '',
+    endDate: '',
     onlyWithMovements: 'true',
   });
 
   const { data, isLoading } = useTrialBalance({
     accountingCycleId: selectedCycleId,
     companyId: '1',
-    ...filters,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined,
+    onlyWithMovements: filters.onlyWithMovements,
   });
+
+  const hasRequiredFilters =
+    !!selectedCycleId && !!filters.startDate && !!filters.endDate;
 
   const handlePrint = () => {
     window.print();
@@ -39,9 +46,14 @@ export function TrialBalanceReport() {
   const handleExport = () => {
     const params = new URLSearchParams();
     if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
-    if (filters.level) params.append('level', filters.level);
-    if (filters.onlyWithMovements) params.append('onlyWithMovements', filters.onlyWithMovements);
-    window.open(`/accounting-reports/trial-balance/pdf?${params.toString()}`, '_blank');
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.onlyWithMovements)
+      params.append('onlyWithMovements', filters.onlyWithMovements);
+    window.open(
+      `/accounting-reports/trial-balance/pdf?${params.toString()}`,
+      '_blank',
+    );
   };
 
   return (
@@ -65,24 +77,27 @@ export function TrialBalanceReport() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="level">Nivel de Detalle</Label>
-              <Select
-                value={filters.level}
-                onValueChange={(value) =>
-                  setFilters({ ...filters, level: value })
+              <Label htmlFor="startDate">Desde</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={filters.startDate}
+                onChange={(e) =>
+                  setFilters({ ...filters, startDate: e.target.value })
                 }
-              >
-                <SelectTrigger id="level">
-                  <SelectValue placeholder="Seleccione nivel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
-                    <SelectItem key={level} value={level.toString()}>
-                      Nivel {level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="endDate">Hasta</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={filters.endDate}
+                onChange={(e) =>
+                  setFilters({ ...filters, endDate: e.target.value })
+                }
+              />
             </div>
 
             <div className="space-y-2">
@@ -114,84 +129,84 @@ export function TrialBalanceReport() {
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={!hasRequiredFilters}
+            >
               <Download className="h-4 w-4 mr-2" />
               Exportar
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <DataTableSkeleton columnCount={6} rowCount={10} />
-          ) : (
-            <div className="space-y-6">
-              {data ? (
-                <>
-                  <DataTable
-                    columns={columns}
-                    data={data.accounts}
-                    totalItems={data.accounts.length}
-                  />
-
-                  <div className="border rounded-lg p-4 bg-muted/50 mt-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="font-semibold block text-muted-foreground">
-                          Total Débito Inicial
-                        </span>
-                        <span className="font-mono text-lg font-bold">
-                          {Number(
-                            data.summary.totalInitialDebit,
-                          ).toLocaleString('es-VE', {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-semibold block text-muted-foreground">
-                          Total Crédito Inicial
-                        </span>
-                        <span className="font-mono text-lg font-bold">
-                          {Number(
-                            data.summary.totalInitialCredit,
-                          ).toLocaleString('es-VE', {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-semibold block text-muted-foreground">
-                          Total Débito Periodo
-                        </span>
-                        <span className="font-mono text-lg font-bold">
-                          {Number(data.summary.totalPeriodDebit).toLocaleString(
-                            'es-VE',
-                            { minimumFractionDigits: 2 },
-                          )}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-semibold block text-muted-foreground">
-                          Total Crédito Periodo
-                        </span>
-                        <span className="font-mono text-lg font-bold">
-                          {Number(
-                            data.summary.totalPeriodCredit,
-                          ).toLocaleString('es-VE', {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  Seleccione un ciclo contable para ver el reporte
-                </div>
-              )}
+          {!hasRequiredFilters ? (
+            <div className="text-center py-12 text-muted-foreground">
+              Seleccione el ciclo contable y el rango de fechas (desde / hasta)
+              para ver el reporte
             </div>
-          )}
+          ) : isLoading ? (
+            <DataTableSkeleton columnCount={6} rowCount={10} />
+          ) : data ? (
+            <div className="space-y-6">
+              <DataTable
+                columns={columns}
+                data={data.accounts}
+                totalItems={data.accounts.length}
+                manualPagination={false}
+              />
+
+              <div className="border rounded-lg p-4 bg-muted/50 mt-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="font-semibold block text-muted-foreground">
+                      Total Débito Inicial
+                    </span>
+                    <span className="font-mono text-lg font-bold">
+                      {Number(data.summary.totalInitialDebit).toLocaleString(
+                        'es-VE',
+                        { minimumFractionDigits: 2 },
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold block text-muted-foreground">
+                      Total Crédito Inicial
+                    </span>
+                    <span className="font-mono text-lg font-bold">
+                      {Number(data.summary.totalInitialCredit).toLocaleString(
+                        'es-VE',
+                        { minimumFractionDigits: 2 },
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold block text-muted-foreground">
+                      Total Débito Periodo
+                    </span>
+                    <span className="font-mono text-lg font-bold">
+                      {Number(data.summary.totalPeriodDebit).toLocaleString(
+                        'es-VE',
+                        { minimumFractionDigits: 2 },
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold block text-muted-foreground">
+                      Total Crédito Periodo
+                    </span>
+                    <span className="font-mono text-lg font-bold">
+                      {Number(data.summary.totalPeriodCredit).toLocaleString(
+                        'es-VE',
+                        { minimumFractionDigits: 2 },
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

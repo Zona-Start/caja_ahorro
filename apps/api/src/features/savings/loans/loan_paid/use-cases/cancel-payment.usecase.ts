@@ -135,6 +135,7 @@ export class CancelPaymentUseCase {
           status: '',
           currencyCode: payment.currencyCode,
           associateFullname: payment.associateFullname,
+          loanTypeName: payment.loanTypeName,
         },
         Number(payment.amount),
         totalPrincipalReverted,

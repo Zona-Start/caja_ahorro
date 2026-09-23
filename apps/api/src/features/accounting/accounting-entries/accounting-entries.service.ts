@@ -34,7 +34,7 @@ export class AccountingEntriesService {
     private readonly accountingCyclesService: AccountingCyclesService,
     private readonly auditHelper: AuditHelper,
     private readonly exchangeRateService: ExchangeRateService,
-  ) {}
+  ) { }
 
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
   async findAllPaginated(tenantId: string, dto: FilterAccountingEntryDto) {
@@ -312,32 +312,32 @@ export class AccountingEntriesService {
 
     const dtoDetailsEnriched = dto.details
       ? await this.enrichDetailsWithBimoney(
-          tenantId,
-          entryDate,
-          entryCurrency,
-          dto.exchangeRate,
-          dto.details,
-        )
+        tenantId,
+        entryDate,
+        entryCurrency,
+        dto.exchangeRate,
+        dto.details,
+      )
       : null;
 
     const detailsForValidation = (
       dtoDetailsEnriched
         ? dtoDetailsEnriched.map((d) => ({
-            accountPlanId: d.accountPlanId!,
-            debit: Number(d.debit || 0),
-            credit: Number(d.credit || 0),
-            debitForeign: Number(d.debitForeign || 0),
-            creditForeign: Number(d.creditForeign || 0),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId!,
+          debit: Number(d.debit || 0),
+          credit: Number(d.credit || 0),
+          debitForeign: Number(d.debitForeign || 0),
+          creditForeign: Number(d.creditForeign || 0),
+          description: d.description ?? existing.description,
+        }))
         : existing.details.map((d) => ({
-            accountPlanId: d.accountPlanId,
-            debit: Number(d.debit),
-            credit: Number(d.credit),
-            debitForeign: Number((d as any).debitForeign || 0),
-            creditForeign: Number((d as any).creditForeign || 0),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId,
+          debit: Number(d.debit),
+          credit: Number(d.credit),
+          debitForeign: Number((d as any).debitForeign || 0),
+          creditForeign: Number((d as any).creditForeign || 0),
+          description: d.description ?? existing.description,
+        }))
     ) as any;
 
     await this.validateAccountingEntry(
@@ -450,7 +450,6 @@ export class AccountingEntriesService {
     entryDate: Date,
     details: CreateAccountingEntryDetailDto[],
   ) {
-    console.log('details', details);
 
     const cycle = await this.accountingCyclesService.findOne(
       tenantId,
@@ -670,32 +669,20 @@ export class AccountingEntriesService {
     return generateAccountingEntriesTemplate();
   }
 
-  /* ---------- Importar asiento desde Excel ---------- */
+  /* ---------- Importar asientos desde Excel (una hoja = un asiento) ---------- */
   async importFromExcel(
     userId: string,
     tenantId: string,
     file: Express.Multer.File,
   ) {
-    const parsed = await parseAccountingEntriesExcel(file.buffer);
+    const parsedEntries = await parseAccountingEntriesExcel(file.buffer);
 
-    if (!parsed.description) {
-      throw new BadRequestException(
-        'La descripción general del asiento es requerida (línea 1).',
-      );
-    }
-    if (!parsed.entryDate) {
-      throw new BadRequestException(
-        'La fecha del asiento es requerida (línea 1).',
-      );
-    }
-    if (parsed.rows.length === 0) {
-      throw new BadRequestException(
-        'No se encontraron líneas de detalle en el Excel.',
-      );
-    }
-
-    // Resolver cuentas por código (con puntos)
-    const codes = [...new Set(parsed.rows.map((r) => r.accountCode))];
+    // Resolver cuentas por código (con puntos) para todas las hojas
+    const codes = [
+      ...new Set(
+        parsedEntries.flatMap((e) => e.rows.map((r) => r.accountCode)),
+      ),
+    ];
     const accounts = await this.drizzle
       .select({
         id: schema.accountPlan.id,
@@ -711,10 +698,12 @@ export class AccountingEntriesService {
       );
     const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
-    // Resolver asociados por cédula
+    // Resolver asociados por cédula para todas las hojas
     const cedulas = [
       ...new Set(
-        parsed.rows.map((r) => r.auxiliarSocio).filter((c): c is string => !!c),
+        parsedEntries
+          .flatMap((e) => e.rows.map((r) => r.auxiliarSocio))
+          .filter((c): c is string => !!c),
       ),
     ];
     let associateMap = new Map<string, { id: string }>();
@@ -731,45 +720,90 @@ export class AccountingEntriesService {
       associateMap = new Map(associates.map((a) => [a.cedula, a]));
     }
 
-    // Construir detalles del asiento
-    const details: CreateAccountingEntryDetailDto[] = parsed.rows.map((row) => {
-      const account = accountMap.get(row.accountCode);
-      if (!account) {
-        throw new BadRequestException(
-          `Cuenta no encontrada en el plan contable: ${row.accountCode}`,
-        );
-      }
+    // Crear un asiento por cada hoja
+    const created: {
+      sheet: string;
+      entryId?: string;
+      voucherNo?: string | null;
+      description: string;
+    }[] = [];
+    const errors: { sheet: string; message: string }[] = [];
 
-      let associateId: string | null = null;
-      if (row.auxiliarSocio) {
-        const assoc = associateMap.get(row.auxiliarSocio);
-        if (!assoc) {
+    for (const parsed of parsedEntries) {
+      try {
+        if (!parsed.entryDate) {
           throw new BadRequestException(
-            `Asociado no encontrado con cédula: ${row.auxiliarSocio}`,
+            'La fecha del asiento es requerida (línea 1).',
           );
         }
-        associateId = assoc.id;
+        if (parsed.rows.length < 2) {
+          throw new BadRequestException(
+            'El asiento debe tener al menos dos líneas de detalle.',
+          );
+        }
+
+        const details: CreateAccountingEntryDetailDto[] = parsed.rows.map(
+          (row) => {
+            const account = accountMap.get(row.accountCode);
+            if (!account) {
+              throw new BadRequestException(
+                `Cuenta no encontrada en el plan contable: ${row.accountCode}`,
+              );
+            }
+
+            let associateId: string | null = null;
+            if (row.auxiliarSocio) {
+              const assoc = associateMap.get(row.auxiliarSocio);
+              if (!assoc) {
+                throw new BadRequestException(
+                  `Asociado no encontrado con cédula: ${row.auxiliarSocio}`,
+                );
+              }
+              associateId = assoc.id;
+            }
+
+            return {
+              accountPlanId: account.id,
+              associateId,
+              supplierId: null,
+              debit: row.debit.toFixed(6),
+              credit: row.credit.toFixed(6),
+              description: row.descripcion || null,
+            } as CreateAccountingEntryDetailDto;
+          },
+        );
+
+        const dto: CreateAccountingEntryDto = {
+          entryDate: new Date(parsed.entryDate),
+          description: parsed.description,
+          currencyCode: CurrencyCodeEnum.VES,
+          originType: 'EXCEL_IMPORT',
+          details,
+        };
+
+        const entry = await this.create(userId, tenantId, dto);
+
+        created.push({
+          sheet: parsed.sheetName,
+          entryId: entry.id,
+          voucherNo: entry.voucherNo,
+          description: parsed.description,
+        });
+      } catch (error) {
+        errors.push({
+          sheet: parsed.sheetName,
+          message: error instanceof Error ? error.message : String(error),
+        });
       }
+    }
 
-      return {
-        accountPlanId: account.id,
-        associateId,
-        supplierId: null,
-        debit: row.debit.toFixed(6),
-        credit: row.credit.toFixed(6),
-        description: row.descripcion || null,
-      } as CreateAccountingEntryDetailDto;
-    });
-
-    const dto: CreateAccountingEntryDto = {
-      entryDate: new Date(parsed.entryDate),
-      description: parsed.description,
-      currencyCode: CurrencyCodeEnum.VES,
-      originType: 'EXCEL_IMPORT',
-      details,
+    return {
+      totalSheets: parsedEntries.length,
+      created: created.length,
+      failed: errors.length,
+      entries: created,
+      errors,
     };
-
-    return this.create(userId, tenantId, dto);
   }
 
   /* ---------- Crear Asiento Automático ---------- */
@@ -986,37 +1020,37 @@ export class AccountingEntriesService {
       aggregatedDetails.values(),
     );
 
-    // ---- DEBUG: volcar reglas y montos resueltos ----
-    this.logger.debug(
-      `[createAutomaticEntry] category=${params.category} operationType=${params.operationType} ref=${params.referenceValue ?? ''} submodule=${params.submodule}`,
-    );
-    this.logger.debug(
-      `[createAutomaticEntry] ruleDetails=${JSON.stringify(
-        ruleDetails.map((d) => ({
-          accountRole: d.accountRole,
-          movementType: d.movementType,
-          formula: d.formula,
-          accountPlanId: d.accountPlanId,
-          isAuxiliary: d.isAuxiliary,
-        })),
-      )}`,
-    );
-    this.logger.debug(
-      `[createAutomaticEntry] items.amounts=${JSON.stringify(
-        params.items.map((i) => i.amounts),
-      )}`,
-    );
-    this.logger.debug(
-      `[createAutomaticEntry] aggregatedDetails=${JSON.stringify(
-        detailsDraft,
-      )}`,
-    );
-    this.logger.debug(
-      `[createAutomaticEntry] totalDebit=${detailsDraft.reduce(
-        (a, d) => a + Number(d.debit),
-        0,
-      )} totalCredit=${detailsDraft.reduce((a, d) => a + Number(d.credit), 0)}`,
-    );
+    // // ---- DEBUG: volcar reglas y montos resueltos ----
+    // this.logger.debug(
+    //   `[createAutomaticEntry] category=${params.category} operationType=${params.operationType} ref=${params.referenceValue ?? ''} submodule=${params.submodule}`,
+    // );
+    // this.logger.debug(
+    //   `[createAutomaticEntry] ruleDetails=${JSON.stringify(
+    //     ruleDetails.map((d) => ({
+    //       accountRole: d.accountRole,
+    //       movementType: d.movementType,
+    //       formula: d.formula,
+    //       accountPlanId: d.accountPlanId,
+    //       isAuxiliary: d.isAuxiliary,
+    //     })),
+    //   )}`,
+    // );
+    // this.logger.debug(
+    //   `[createAutomaticEntry] items.amounts=${JSON.stringify(
+    //     params.items.map((i) => i.amounts),
+    //   )}`,
+    // );
+    // this.logger.debug(
+    //   `[createAutomaticEntry] aggregatedDetails=${JSON.stringify(
+    //     detailsDraft,
+    //   )}`,
+    // );
+    // this.logger.debug(
+    //   `[createAutomaticEntry] totalDebit=${detailsDraft.reduce(
+    //     (a, d) => a + Number(d.debit),
+    //     0,
+    //   )} totalCredit=${detailsDraft.reduce((a, d) => a + Number(d.credit), 0)}`,
+    // );
     // ---- FIN DEBUG ----
 
     const enrichedDetails = await this.enrichDetailsWithBimoney(

@@ -32,6 +32,10 @@ import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-c
 import {
   categoryTranslations,
   getOperationDef,
+  isCreditPaymentOperation,
+  isCreditTypeOperation,
+  isLoanPaymentOperation,
+  isLoanTypeOperation,
   operationsByCategory,
   operationTypeTranslations,
   roleOptionsByCategory,
@@ -85,11 +89,11 @@ export function AccountingRuleForm({
   );
   const { data: loanTypes, isLoading: isLoadingLoans } = useLoanTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    (operationType === 'LOAN_TYPE' || operationType === 'LOAN_PAYMENT') && !!reference,
+    isLoanTypeOperation(operationType) && !!reference,
   );
   const { data: creditTypes, isLoading: isLoadingCredits } = useCreditTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
-    (operationType === 'CREDIT_TYPE' || operationType === 'CREDIT_PAYMENT') && !!reference,
+    isCreditTypeOperation(operationType) && !!reference,
   );
   const { data: payrollTypes, isLoading: isLoadingPayroll } = useCategoriesByTypeQuery(
     'payroll_type',
@@ -98,8 +102,8 @@ export function AccountingRuleForm({
 
   const isLoadingData = isLoadingRules || isLoadingAccounts ||
     (operationType === 'WITHDRAWAL_TYPE' && !!reference && isLoadingWithdrawals) ||
-    ((operationType === 'LOAN_TYPE' || operationType === 'LOAN_PAYMENT') && !!reference && isLoadingLoans) ||
-    ((operationType === 'CREDIT_TYPE' || operationType === 'CREDIT_PAYMENT') && !!reference && isLoadingCredits) ||
+    (isLoanTypeOperation(operationType) && !!reference && isLoadingLoans) ||
+    (isCreditTypeOperation(operationType) && !!reference && isLoadingCredits) ||
     (operationType === 'PAYROLL_CONCEPT' && !!reference && isLoadingPayroll);
 
   const referenceLabel = useMemo(() => {
@@ -126,7 +130,10 @@ export function AccountingRuleForm({
       );
       return found?.name ?? reference;
     }
-    if (operationType === 'LOAN_PAYMENT' || operationType === 'CREDIT_PAYMENT') {
+    if (
+      isLoanPaymentOperation(operationType) ||
+      isCreditPaymentOperation(operationType)
+    ) {
       return reference;
     }
     if (operationType === 'PAYROLL_CONCEPT') {

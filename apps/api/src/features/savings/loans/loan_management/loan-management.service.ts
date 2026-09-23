@@ -36,6 +36,14 @@ import {
 } from '@nestjs/common';
 import { and, count, desc, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as ExcelJS from 'exceljs';
+import {
+  BulkLoanDto,
+  BulkLoanFailure,
+  BulkLoanResult,
+  BulkLoanRow,
+  BulkLoanSuccess,
+} from './dto/bulk-loan.schema';
 import {
   CreateLoanDto,
   DisburseLoanDto,
@@ -54,7 +62,7 @@ export class LoanManagementService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) {}
+  ) { }
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -381,11 +389,11 @@ export class LoanManagementService {
       throw new NotFoundException('Asociado no encontrado');
     }
 
-    if (assoc.isPayrollCredit) {
-      throw new BadRequestException(
-        'El asociado tiene credinomina activo, no puede solicitar préstamos',
-      );
-    }
+    // if (assoc.isPayrollCredit) {
+    //   throw new BadRequestException(
+    //     'El asociado tiene credinomina activo, no puede solicitar préstamos',
+    //   );
+    // }
 
     if (
       loanType.minLoanAmount &&
@@ -557,15 +565,15 @@ export class LoanManagementService {
     const schedule =
       capital > 0
         ? this.generateAmortizationSchedule(
-            capital,
-            finalTermUnits,
-            finalRate,
-            startDate,
-            '',
-            userId,
-            finalTermType,
-            expensesAmount,
-          )
+          capital,
+          finalTermUnits,
+          finalRate,
+          startDate,
+          '',
+          userId,
+          finalTermType,
+          expensesAmount,
+        )
         : [];
 
     const newLoan = await this.db.transaction(async (tx) => {
@@ -695,8 +703,8 @@ export class LoanManagementService {
           eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
         );
 
-      if (assoc?.isPayrollCredit)
-        throw new BadRequestException('Crédito nómina activo');
+      // if (assoc?.isPayrollCredit)
+      //   throw new BadRequestException('Crédito nómina activo');
 
       const avail = Number(assoc?.balance ?? 0) * 0.8;
       const reqAmt = Number(requestedAmount);
@@ -1641,6 +1649,348 @@ export class LoanManagementService {
       );
     }
     return { message: 'Loan canceled successfully' };
+  }
+
+  // ─── CARGA MASIVA DE PRÉSTAMOS (EXCEL) ──────────────────────────────────
+
+  private mapBulkTermType(raw?: string): 'installments' | 'quotas' | undefined {
+    if (!raw) return undefined;
+    const v = raw.trim().toUpperCase();
+    if (
+      ['PLAZOS', 'PLAZO', 'INSTALLMENTS', 'QUINCENAL', 'QUINCENALES'].includes(v)
+    ) {
+      return 'installments';
+    }
+    if (['CUOTAS', 'CUOTA', 'QUOTAS', 'MENSUAL', 'MENSUALES'].includes(v)) {
+      return 'quotas';
+    }
+    return undefined;
+  }
+
+  private cellText(cell: ExcelJS.Cell): string {
+    const value = cell.value;
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      if (value instanceof Date) return value.toISOString();
+      if ('result' in value) {
+        return String((value as ExcelJS.CellFormulaValue).result ?? '');
+      }
+      if ('richText' in value) {
+        return (value as ExcelJS.CellRichTextValue).richText
+          .map((r) => r.text)
+          .join('');
+      }
+      if ('text' in value) {
+        return String((value as ExcelJS.CellHyperlinkValue).text ?? '');
+      }
+      return '';
+    }
+    return String(value);
+  }
+
+  private cellNumber(cell: ExcelJS.Cell): number | undefined {
+    const value = cell.value;
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value === 'number') return value;
+    const parsed = parseFloat(this.cellText(cell).replace(',', '.'));
+    return isNaN(parsed) ? undefined : parsed;
+  }
+
+  private cellDate(cell: ExcelJS.Cell): Date | undefined {
+    const value = cell.value;
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    const text = this.cellText(cell).trim();
+    if (!text) return undefined;
+    const iso = new Date(text);
+    if (!isNaN(iso.getTime())) return iso;
+    const parts = text.split(/[/-]/);
+    if (parts.length === 3) {
+      const [d, m, y] = parts.map((p) => parseInt(p, 10));
+      if (d && m && y) {
+        const date = new Date(y < 100 ? 2000 + y : y, m - 1, d);
+        if (!isNaN(date.getTime())) return date;
+      }
+    }
+    return undefined;
+  }
+
+  async generateBulkTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+
+    const sheet = workbook.addWorksheet('prestamos');
+
+    const headers = [
+      'Cédula del Asociado *',
+      'Tipo de Préstamo *',
+      'Monto *',
+      'Tasa de Interés Anual (%)',
+      '% Gasto Administrativo',
+      'Modalidad de Pago (PLAZOS/CUOTAS)',
+      'Cantidad (Plazos o Cuotas)',
+      'Fecha de Inicio (AAAA-MM-DD)',
+      'Observaciones',
+    ];
+
+    sheet.getRow(1).values = headers;
+    sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet.getRow(1).alignment = { wrapText: true, vertical: 'middle' };
+    sheet.getRow(1).height = 32;
+    sheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F497D' },
+    };
+
+    sheet.columns = [
+      { width: 22 },
+      { width: 26 },
+      { width: 16 },
+      { width: 20 },
+      { width: 20 },
+      { width: 30 },
+      { width: 24 },
+      { width: 24 },
+      { width: 32 },
+    ];
+
+    sheet.getRow(2).values = [
+      '12345678',
+      'Préstamo Personal',
+      2000,
+      12,
+      8,
+      'PLAZOS',
+      24,
+      '2026-01-15',
+      'Ejemplo de registro',
+    ];
+
+    const instructions = workbook.addWorksheet('Instrucciones');
+    instructions.columns = [{ width: 30 }, { width: 70 }];
+    instructions.getRow(1).values = ['Campo', 'Descripción'];
+    instructions.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    instructions.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F497D' },
+    };
+
+    const obs: [string, string][] = [
+      [
+        'Cédula del Asociado *',
+        'Obligatorio. Cédula del asociado solicitante. Debe existir y estar activo.',
+      ],
+      [
+        'Tipo de Préstamo *',
+        'Obligatorio. Debe coincidir exactamente con un tipo de préstamo configurado.',
+      ],
+      ['Monto *', 'Obligatorio. Monto solicitado, mayor a 0.'],
+      [
+        'Tasa de Interés Anual (%)',
+        'Opcional. Si se omite se usa la tasa del tipo de préstamo.',
+      ],
+      [
+        '% Gasto Administrativo',
+        'Opcional. Si se omite se usa el del tipo de préstamo.',
+      ],
+      [
+        'Modalidad de Pago',
+        'Opcional. PLAZOS (quincenal) o CUOTAS (mensual). Por defecto la del tipo de préstamo.',
+      ],
+      [
+        'Cantidad (Plazos o Cuotas)',
+        'Opcional. Número entero mayor a 0. Por defecto la del tipo de préstamo.',
+      ],
+      [
+        'Fecha de Inicio',
+        'Opcional. Formato AAAA-MM-DD o DD/MM/AAAA. Por defecto la fecha actual.',
+      ],
+      ['Observaciones', 'Opcional. Texto libre.'],
+      [
+        '* Campos obligatorios',
+        'Las filas con errores no detienen la carga; se reportan al finalizar. Cada préstamo se crea, aprueba y desembolsa.',
+      ],
+    ];
+    obs.forEach((row, i) => {
+      instructions.getRow(i + 2).values = row;
+      instructions.getRow(i + 2).alignment = { wrapText: true, vertical: 'top' };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer as ArrayBuffer);
+  }
+
+  private async parseBulkWorkbook(fileBuffer: Buffer): Promise<BulkLoanRow[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(fileBuffer as any);
+
+    const sheet = workbook.getWorksheet(1);
+    if (!sheet) {
+      throw new BadRequestException('El archivo no contiene hojas de cálculo');
+    }
+
+    const rows: BulkLoanRow[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // encabezados
+      const cedula = this.cellText(row.getCell(1)).trim();
+      const loanTypeName = this.cellText(row.getCell(2)).trim();
+      const amount = this.cellNumber(row.getCell(3));
+      if (!cedula && !loanTypeName && !amount) return; // fila vacía
+      rows.push({
+        rowNumber,
+        cedula,
+        loanTypeName,
+        amount: amount ?? 0,
+        annualRate: this.cellNumber(row.getCell(4)),
+        expensesPercentage: this.cellNumber(row.getCell(5)),
+        termTypeRaw: this.cellText(row.getCell(6)).trim(),
+        termUnits: this.cellNumber(row.getCell(7)),
+        startDate: this.cellDate(row.getCell(8)),
+        notes: this.cellText(row.getCell(9)).trim() || undefined,
+      });
+    });
+
+    return rows;
+  }
+
+  async createBulk(
+    tenantId: string,
+    userId: string,
+    fileBuffer: Buffer,
+    dto: BulkLoanDto,
+  ): Promise<BulkLoanResult> {
+    const rows = await this.parseBulkWorkbook(fileBuffer);
+
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        'No se encontraron registros válidos en el archivo',
+      );
+    }
+
+    const successes: BulkLoanSuccess[] = [];
+    const failures: BulkLoanFailure[] = [];
+
+    const paymentMethod = dto.paymentMethod ?? 'transfer';
+    const disbursementDate = dto.disbursementDate ?? new Date();
+
+    for (const row of rows) {
+      let associateName: string | null = null;
+      let createdId: string | null = null;
+      try {
+        if (!row.cedula) {
+          throw new BadRequestException('La cédula es obligatoria');
+        }
+        if (!row.loanTypeName) {
+          throw new BadRequestException('El tipo de préstamo es obligatorio');
+        }
+        if (!row.amount || row.amount <= 0) {
+          throw new BadRequestException('El monto debe ser mayor a 0');
+        }
+
+        const [assoc] = await this.db
+          .select({ id: associates.id, fullname: associates.fullname })
+          .from(associates)
+          .where(
+            and(
+              eq(associates.cedula, row.cedula),
+              eq(associates.tenantId, tenantId),
+            ),
+          );
+
+        if (!assoc) {
+          throw new NotFoundException(
+            `Asociado con cédula ${row.cedula} no encontrado`,
+          );
+        }
+        associateName = assoc.fullname;
+
+        const [loanType] = await this.db
+          .select()
+          .from(loanTypes)
+          .where(
+            and(
+              eq(loanTypes.tenantId, tenantId),
+              ilike(loanTypes.name, row.loanTypeName),
+            ),
+          );
+
+        if (!loanType) {
+          throw new NotFoundException(
+            `Tipo de préstamo "${row.loanTypeName}" no encontrado`,
+          );
+        }
+
+        const mappedTermType = this.mapBulkTermType(row.termTypeRaw);
+        const finalTermType =
+          mappedTermType ??
+          (['installments', 'quotas'].includes(loanType.termType ?? '')
+            ? (loanType.termType as 'installments' | 'quotas')
+            : undefined);
+
+        const startDate = row.startDate ?? new Date();
+
+        const createDto: CreateLoanDto = {
+          associateId: assoc.id,
+          loanTypeId: loanType.id,
+          requestedAmount: row.amount,
+          loanModality: loanModalityTypeEnum.ORDINARY,
+          paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+          startDate,
+          requestDate: startDate,
+          interestRate: row.annualRate,
+          expensesPercentage: row.expensesPercentage,
+          termType: finalTermType,
+          termUnits: row.termUnits,
+          notes: row.notes,
+        } as CreateLoanDto;
+
+        const created = await this.request(tenantId, userId, createDto);
+        createdId = created.id;
+
+        const approved = await this.approve(tenantId, userId, created.id);
+
+        await this.disburse(tenantId, userId, created.id, {
+          bankAccountId: dto.bankAccountId ?? '',
+          currencyCode: 'VES',
+          paymentMethod,
+          disbursementDate,
+          description: `Carga masiva de préstamos`,
+        } as DisburseLoanDto);
+
+        successes.push({
+          row: row.rowNumber,
+          cedula: row.cedula,
+          associateName: assoc.fullname,
+          reference: approved.customReference ?? created.id,
+        });
+        createdId = null;
+      } catch (error) {
+        if (createdId) {
+          try {
+            await this.remove(createdId, tenantId, userId);
+          } catch {
+            // limpieza best-effort
+          }
+        }
+        failures.push({
+          row: row.rowNumber,
+          cedula: row.cedula,
+          associateName,
+          error: (error as any)?.message ?? 'Error desconocido',
+        });
+      }
+    }
+
+    return {
+      message: `Carga masiva finalizada. ${successes.length} préstamo(s) creado(s), ${failures.length} con error.`,
+      totalRows: rows.length,
+      successCount: successes.length,
+      failureCount: failures.length,
+      successes,
+      failures,
+    };
   }
 
   // ─── CONTADOR DE PRÉSTAMOS ──────────────────────────────────────────────

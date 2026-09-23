@@ -125,6 +125,25 @@ export const creditManagementService = {
     return CreditManagementMutationResponse.parse(response.data);
   },
 
+  bulkUpload: async (formData: FormData) => {
+    const response = await apiClient.post('/credit/bulk', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  downloadBulkTemplate: async (): Promise<string> => {
+    const response = await apiClient.get('/credit/template-bulk', {
+      responseType: 'arraybuffer',
+    });
+    let binary = '';
+    const bytes = new Uint8Array(response.data);
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
+  },
+
   approveCreditManagement: async (id: string) => {
     const response = await apiClient.post(`/credit/approve/${id}`);
     return CreditManagementMutationResponse.parse(response.data);

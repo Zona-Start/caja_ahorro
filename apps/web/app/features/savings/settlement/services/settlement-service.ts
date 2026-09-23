@@ -1,6 +1,11 @@
 import { apiClient } from '@/lib/api-client';
 import { type AssociatesSettlement, settlementAssociate } from '../schemas/individual-settlement-api-schema';
-import { type SettlementPaymentApi, settlementApiSchema } from '../schemas/settlement-api-response';
+import {
+  type SettlementBulkResponse,
+  type SettlementPaymentApi,
+  settlementApiSchema,
+  settlementBulkResponseSchema,
+} from '../schemas/settlement-api-response';
 import { type Settlement } from '../schemas/settlement.schema';
 
 export const settlementService = {
@@ -19,6 +24,7 @@ export const settlementService = {
     });
 
     if (params.search) searchParams.set('search', String(params.search));
+    if (params.status) searchParams.set('status', String(params.status));
 
     const response = await apiClient.get(
       `/savings-banks/settlement-associate?${searchParams.toString()}`,
@@ -78,5 +84,28 @@ export const settlementService = {
       formData,
     );
     return response.data;
+  },
+
+  downloadTemplate: async (): Promise<string> => {
+    const response = await apiClient.get(
+      '/savings-banks/settlement-associate/download-template',
+      { responseType: 'arraybuffer' },
+    );
+    const bytes = new Uint8Array(response.data as ArrayBuffer);
+    let binary = '';
+    const len = bytes.length;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]!);
+    }
+    return btoa(binary);
+  },
+
+  bulkUpload: async (formData: FormData): Promise<SettlementBulkResponse> => {
+    const response = await apiClient.post(
+      '/savings-banks/settlement-associate/bulk',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return settlementBulkResponseSchema.parse(response.data);
   },
 };

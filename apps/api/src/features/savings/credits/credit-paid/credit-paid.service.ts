@@ -57,7 +57,7 @@ export class CreditPaidService implements OnModuleInit {
     private readonly auditHelper: AuditHelper,
     private readonly accountingEntriesService: AccountingEntriesService,
     private moduleRef: ModuleRef,
-  ) {}
+  ) { }
 
   onModuleInit() {
     this.bankMovementsService = this.moduleRef.get(BankMovementsService, {
@@ -136,12 +136,12 @@ export class CreditPaidService implements OnModuleInit {
     }[] = [];
     let partialInstallment:
       | {
-          id: string;
-          paidAmount: number;
-          originalPaidAmount: number;
-          principal: number;
-          interest: number;
-        }
+        id: string;
+        paidAmount: number;
+        originalPaidAmount: number;
+        principal: number;
+        interest: number;
+      }
       | undefined;
     let remainingPaymentAmount = amount;
 
@@ -541,7 +541,7 @@ export class CreditPaidService implements OnModuleInit {
             module: 'portfolio',
             submodule: 'credits',
             category: 'SAVINGS_BANK',
-            operationType: 'CREDIT_PAYMENT',
+            operationType: 'CREDIT_PAYMENT_INDIVIDUAL',
             description: `Pago de Crédito - ${fullname}`,
             entryDate: paymentDate ? new Date(paymentDate) : new Date(),
             referenceValue: resutAccount[0]?.creditType ?? 'Pago Creditos',
@@ -554,21 +554,18 @@ export class CreditPaidService implements OnModuleInit {
               {
                 associateId: resutAccount[0]?.associateId,
                 amounts: {
-                  CREDIT_PAYMENT: roundedPrincipal,
-                  LOAN_INTEREST_INCOME: roundedInterest,
-                  LOAN_WITHHOLDING: roundedPayment,
+                  CREDIT_PAYMENT: roundedPayment,
+                  BANK_ACCOUNT: roundedPayment,
                 },
                 descriptions: {
                   CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
-                  LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
-                  LOAN_WITHHOLDING: `RETENCIONES DE CREDITOS de ${dateStr}`,
+                  BANK_ACCOUNT: `PAGO CREDITO DEL ${dateStr}`,
                 },
               },
             ],
             globalDescriptions: {
               CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
-              LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
-              LOAN_WITHHOLDING: `RETENCIONES DE CREDITOS de ${dateStr}`,
+              BANK_ACCOUNT: `PAGO CREDITO DEL ${dateStr}`,
             },
           };
 
@@ -595,16 +592,16 @@ export class CreditPaidService implements OnModuleInit {
           accountingWarning = message;
           this.logger.error(
             `[create] ERROR generando asiento contable del pago de crédito. ` +
-              `creditId=${creditId} paymentId=${result?.insertedPaymentId} ` +
-              `amount=${amount} applied=${result?.appliedAmountExact} ` +
-              `principal=${roundedPrincipal} interest=${roundedInterest} ` +
-              `payment=${roundedPayment}`,
+            `creditId=${creditId} paymentId=${result?.insertedPaymentId} ` +
+            `amount=${amount} applied=${result?.appliedAmountExact} ` +
+            `principal=${roundedPrincipal} interest=${roundedInterest} ` +
+            `payment=${roundedPayment}`,
           );
           this.logger.error(
             `[create] Detalle del error: name=${errInfo?.name} message=${message}\n` +
-              `status=${errInfo?.response?.status} ` +
-              `response=${JSON.stringify(errInfo?.response?.data ?? null)}\n` +
-              `stack=${errInfo?.stack ?? '(sin stack)'}`,
+            `status=${errInfo?.response?.status} ` +
+            `response=${JSON.stringify(errInfo?.response?.data ?? null)}\n` +
+            `stack=${errInfo?.stack ?? '(sin stack)'}`,
           );
         }
       }
@@ -704,6 +701,9 @@ export class CreditPaidService implements OnModuleInit {
       accountingWarning: undefined as string | undefined,
     };
 
+    const dateStr = format(finalPaymentDate, 'dd/MM/yyyy');
+    const bulkCreditTypes = new Set<string>();
+
     const result = await this.db.transaction(async (tx) => {
       let bulkTotalPrincipal = 0;
       let bulkTotalInterest = 0;
@@ -761,6 +761,14 @@ export class CreditPaidService implements OnModuleInit {
             });
             continue;
           }
+
+          const [creditTypeRow] = await tx
+            .select({ name: creditsTypes.name })
+            .from(credits)
+            .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
+            .where(eq(credits.id, credit.id));
+          const creditTypeName = creditTypeRow?.name ?? 'CREDITOS';
+          bulkCreditTypes.add(creditTypeName);
 
           const installmentResult = await this._calculateCoveredInstallments(
             credit.id,
@@ -915,7 +923,7 @@ export class CreditPaidService implements OnModuleInit {
                   (credit.currencyCode as CurrencyCodeEnum) ??
                   CurrencyCodeEnum.VES,
                 transactionDate: finalPaymentDate,
-                description: 'Pago Crédito (Carga Masiva Excel)',
+                description: 'Pago Cuota Crédito',
                 referenceId: String(insertedPayment.id),
                 referenceType: 'creditPayments',
                 referenceNumber: insertedPayment.customReference ?? undefined,
@@ -938,8 +946,8 @@ export class CreditPaidService implements OnModuleInit {
               LOAN_INTEREST_INCOME: roundedInterest,
             },
             descriptions: {
-              CREDIT_PAYMENT: `CUOTA CREDITO DEL ${associate.fullname}`,
-              LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${associate.fullname}`,
+              CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+              LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
             },
           });
 
@@ -963,7 +971,17 @@ export class CreditPaidService implements OnModuleInit {
       // Asiento contable único para toda la carga masiva (no-fatal)
       if (results.totalProcessed > 0) {
         try {
-          const dateStr = format(finalPaymentDate, 'dd/MM/yyyy');
+          const bulkCreditType =
+            bulkCreditTypes.size > 0
+              ? Array.from(bulkCreditTypes)[0]
+              : 'CREDITOS';
+          if (bulkCreditTypes.size > 1) {
+            this.logger.warn(
+              `[bulkUpload] Se detectaron múltiples tipos de crédito (${Array.from(
+                bulkCreditTypes,
+              ).join(', ')}). Se usará "${bulkCreditType}" como referencia contable.`,
+            );
+          }
 
           await this.accountingEntriesService.createAutomaticEntry(
             tenantId,
@@ -972,10 +990,10 @@ export class CreditPaidService implements OnModuleInit {
               module: 'portfolio',
               submodule: 'credits',
               category: 'SAVINGS_BANK',
-              operationType: 'CREDIT_PAYMENT',
+              operationType: 'CREDIT_PAYMENT_MASSIVE',
               description: `Carga Masiva Pagos de Créditos - ${results.totalProcessed} registros`,
               entryDate: finalPaymentDate,
-              referenceValue: 'Pago Creditos',
+              referenceValue: bulkCreditType,
               currencyCode: CurrencyCodeEnum.VES,
               originType: 'CREDIT_PAYMENT',
               items: [
@@ -983,23 +1001,27 @@ export class CreditPaidService implements OnModuleInit {
                 {
                   associateId: undefined,
                   amounts: {
-                    LOAN_WITHHOLDING: Number(totalAmountApplied.toFixed(2)),
+                    CREDIT_WITHHOLDING: Number(totalAmountApplied.toFixed(2)),
                   },
                   descriptions: {
-                    LOAN_WITHHOLDING: `RETENCIONES DE CREDITOS (${results.totalProcessed} registros)`,
+                    CREDIT_WITHHOLDING: `RETENCIONES DE CREDITO de ${dateStr}`,
                   },
                 },
               ],
+              globalDescriptions: {
+                CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+                LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
+                CREDIT_WITHHOLDING: `RETENCIONES DE CREDITO de ${dateStr}`,
+              },
             },
             tx,
           );
         } catch (error) {
           const errInfo = error as { message?: string; stack?: string };
           this.logger.error(
-            `[bulkUpload] Error generando asiento contable masivo: ${
-              errInfo?.message ?? String(error)
+            `[bulkUpload] Error generando asiento contable masivo: ${errInfo?.message ?? String(error)
             } ` +
-              `processed=${results.totalProcessed} principal=${bulkTotalPrincipal} interest=${bulkTotalInterest} applied=${totalAmountApplied}`,
+            `processed=${results.totalProcessed} principal=${bulkTotalPrincipal} interest=${bulkTotalInterest} applied=${totalAmountApplied}`,
           );
           this.logger.error(
             `[bulkUpload] Detalle: stack=${errInfo?.stack ?? '(sin stack)'}`,
@@ -1186,20 +1208,20 @@ export class CreditPaidService implements OnModuleInit {
 
     const creditAmortization = result[0]?.creditId
       ? await this.db
-          .select({
-            id: creditAmortizationSchedule.id,
-            quotaNumber: creditAmortizationSchedule.installmentNumber,
-            quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
-            quotaDate: creditAmortizationSchedule.dueDate,
-            quotaStatus: creditAmortizationSchedule.paymentStatus,
-            quotaPartial: creditAmortizationSchedule.paidAmount,
-            principalBalancePending:
-              creditAmortizationSchedule.principalBalancePending,
-            paidAmount: creditAmortizationSchedule.paidAmount,
-          })
-          .from(creditAmortizationSchedule)
-          .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
-          .orderBy(sql<string>`
+        .select({
+          id: creditAmortizationSchedule.id,
+          quotaNumber: creditAmortizationSchedule.installmentNumber,
+          quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+          quotaDate: creditAmortizationSchedule.dueDate,
+          quotaStatus: creditAmortizationSchedule.paymentStatus,
+          quotaPartial: creditAmortizationSchedule.paidAmount,
+          principalBalancePending:
+            creditAmortizationSchedule.principalBalancePending,
+          paidAmount: creditAmortizationSchedule.paidAmount,
+        })
+        .from(creditAmortizationSchedule)
+        .where(eq(creditAmortizationSchedule.creditId, result[0].creditId))
+        .orderBy(sql<string>`
     CASE payment_status
       WHEN 'PARTIAL' THEN 1
       WHEN 'PENDING' THEN 2
@@ -1344,6 +1366,8 @@ export class CreditPaidService implements OnModuleInit {
         id: creditPayments.id,
         status: creditPayments.status,
         creditId: creditPayments.creditId,
+        amount: creditPayments.amount,
+        customReference: creditPayments.customReference,
       })
       .from(creditPayments)
       .where(
@@ -1466,6 +1490,70 @@ export class CreditPaidService implements OnModuleInit {
         },
       );
     });
+
+    // Reverso contable del pago individual (no-fatal)
+    try {
+      const [creditInfo] = await this.db
+        .select({
+          creditType: creditsTypes.name,
+          associateId: credits.associateId,
+          associateFullname: associates.fullname,
+          currencyCode: credits.currencyCode,
+        })
+        .from(credits)
+        .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
+        .leftJoin(associates, eq(associates.id, credits.associateId))
+        .where(eq(credits.id, payment.creditId));
+
+      const dateStr = format(new Date(), 'dd/MM/yyyy');
+      const reversedAmount = Number(payment.amount);
+
+      await this.accountingEntriesService.createAutomaticEntry(
+        tenantId,
+        userId,
+        {
+          module: 'portfolio',
+          submodule: 'credits',
+          category: 'SAVINGS_BANK',
+          operationType: 'CREDIT_PAYMENT_INDIVIDUAL',
+          description: `ANULACIÓN: Pago de Crédito - ${creditInfo?.associateFullname ?? 'ASOCIADO'
+            } (Ref: ${payment.customReference ?? paymentId})`,
+          entryDate: new Date(),
+          referenceValue: creditInfo?.creditType ?? 'CREDITOS',
+          currencyCode:
+            (creditInfo?.currencyCode as CurrencyCodeEnum) ??
+            CurrencyCodeEnum.VES,
+          originReferenceId: String(paymentId),
+          originType: 'CREDIT_PAYMENT_REVERSAL',
+          items: [
+            {
+              associateId: creditInfo?.associateId,
+              amounts: {
+                CREDIT_PAYMENT: -reversedAmount,
+                BANK_ACCOUNT: -reversedAmount,
+              },
+              descriptions: {
+                CREDIT_PAYMENT: `REVERSA: CUOTA CREDITO DEL ${dateStr}`,
+                BANK_ACCOUNT: `REVERSA: PAGO CREDITO DEL ${dateStr}`,
+              },
+            },
+          ],
+          globalDescriptions: {
+            CREDIT_PAYMENT: `REVERSA: CUOTA CREDITO DEL ${dateStr}`,
+            BANK_ACCOUNT: `REVERSA: PAGO CREDITO DEL ${dateStr}`,
+          },
+        },
+      );
+    } catch (error) {
+      const errInfo = error as { message?: string; stack?: string };
+      this.logger.error(
+        `[remove] Error generando reverso contable del pago ${paymentId}: ${errInfo?.message ?? String(error)
+        }`,
+      );
+      this.logger.error(
+        `[remove] Detalle: stack=${errInfo?.stack ?? '(sin stack)'}`,
+      );
+    }
 
     return { message: 'Credit payment canceled successfully' };
   }

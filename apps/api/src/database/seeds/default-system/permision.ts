@@ -347,6 +347,13 @@ export const DEFAULT_PERMISSIONS = [
     scope: 'tenant',
   },
   {
+    resource: 'savings:liquidations',
+    action: 'mass_upload',
+    name: 'Liquidacion Masiva de Haberes',
+    description: 'Subir Excel/CSV de liquidación de haberes.',
+    scope: 'tenant',
+  },
+  {
     resource: 'savings:configuration',
     action: 'read',
     name: 'Consultar Config. Ahorros',

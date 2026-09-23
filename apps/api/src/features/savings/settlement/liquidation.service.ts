@@ -25,7 +25,7 @@ import {
 export class SavingsLiquidationService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-  ) {}
+  ) { }
 
   async calculateAssociateLiquidation(
     identificationNumber: string,
@@ -86,7 +86,7 @@ export class SavingsLiquidationService {
         haberes_contribution: associateHaberesBalance.haberesContribution,
         haberes_voluntary: associateHaberesBalance.haberesVoluntary,
         haberes_employer: associateHaberesBalance.haberesEmployer,
-        surpluses: associateHaberesBalance.surpluses,
+        surpluses: associateHaberesBalance.haberesSurplusContribution,
         total_withdrawals: associateHaberesBalance.totalWithdrawals,
         total_withdrawal_fees: associateHaberesBalance.totalWithdrawalFees,
       })

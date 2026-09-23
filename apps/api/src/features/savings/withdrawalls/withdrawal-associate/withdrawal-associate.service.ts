@@ -52,7 +52,7 @@ export class WithdrawalAssociateService {
     private readonly withdrawalAccountingService: WithdrawalAssociateAccountingService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   private _hasElapsedMonths(
     currentDate: Date,
@@ -598,26 +598,26 @@ export class WithdrawalAssociateService {
       }),
       accountId
         ? this.db
-            .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
-            .from(withdrawalsAssociates)
-            .where(
-              and(
-                eq(withdrawalsAssociates.associateAccountId, accountId),
-                eq(withdrawalsAssociates.tenantId, tenantId),
-                or(
-                  eq(
-                    withdrawalsAssociates.status,
-                    withdrawalStatusEnum.DISBURSED,
-                  ),
-                  eq(
-                    withdrawalsAssociates.status,
-                    withdrawalStatusEnum.PROCESSED,
-                  ),
+          .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
+          .from(withdrawalsAssociates)
+          .where(
+            and(
+              eq(withdrawalsAssociates.associateAccountId, accountId),
+              eq(withdrawalsAssociates.tenantId, tenantId),
+              or(
+                eq(
+                  withdrawalsAssociates.status,
+                  withdrawalStatusEnum.DISBURSED,
+                ),
+                eq(
+                  withdrawalsAssociates.status,
+                  withdrawalStatusEnum.PROCESSED,
                 ),
               ),
-            )
-            .orderBy(desc(withdrawalsAssociates.withdrawalDate))
-            .limit(1)
+            ),
+          )
+          .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+          .limit(1)
         : Promise.resolve([]),
     ]);
 
@@ -1100,7 +1100,7 @@ export class WithdrawalAssociateService {
       if (
         withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
         withdrawalRecord.status !==
-          withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+        withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
       ) {
         throw new BadRequestException(
           'Solo se pueden desembolsar retiros aprobados o en lote de pago',
@@ -1266,7 +1266,7 @@ export class WithdrawalAssociateService {
       if (
         withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
         withdrawalRecord.status !==
-          withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+        withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
       ) {
         throw new BadRequestException(
           'Solo se pueden procesar retiros aprobados o en lote de pago',
@@ -1362,7 +1362,7 @@ export class WithdrawalAssociateService {
             new Date(withdrawalRecord.withdrawalDate) ?? new Date(),
           requestedAmount: Number(withdrawalRecord.requestedAmount),
           administrativeFee: Number(withdrawalRecord.administrativeFee),
-          disbursedAmount: Number(withdrawalRecord.disbursedAmount),
+          isHouseInventary: withdrawalTypeRecord?.isHouseComercial ? 'CASA-COMERCIAL' : withdrawalTypeRecord?.isInternalInventory ? 'INVENTARIO-INTERNO' : 'PARCIAL',
         },
       };
     };
@@ -1403,12 +1403,10 @@ export class WithdrawalAssociateService {
     sheet.getCell('B1').value = 'Retiros Parciales';
     sheet.getCell('A1').font = { bold: true };
     sheet.getCell('B1').font = { bold: true, color: { argb: 'FFFF0000' } };
-    sheet.getCell('C1').value = 'fecha';
-    sheet.getCell('D1').value = '2026-01-28';
-    sheet.getCell('D1').font = { bold: true };
 
     sheet.getCell('A2').value = 'cedula';
     sheet.getCell('B2').value = 'monto';
+    sheet.getCell('C2').value = 'fecha';
     sheet.getRow(2).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     sheet.getRow(2).fill = {
       type: 'pattern',
@@ -1422,6 +1420,7 @@ export class WithdrawalAssociateService {
 
     sheet.getCell('A3').value = '12345678';
     sheet.getCell('B3').value = 1000;
+    sheet.getCell('C3').value = '2026-01-28';
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer as ArrayBuffer);
@@ -1433,8 +1432,7 @@ export class WithdrawalAssociateService {
     fileBuffer: Buffer,
     dto: BulkWithdrawalAssociateDto,
   ) {
-    const { typeName, validDate, rows } =
-      await this.parseBulkWorkbook(fileBuffer);
+    const { typeName, rows } = await this.parseBulkWorkbook(fileBuffer);
 
     if (rows.length === 0) {
       throw new BadRequestException(
@@ -1458,7 +1456,7 @@ export class WithdrawalAssociateService {
     const isGoodsWithdrawal =
       withdrawalType.isHouseComercial || withdrawalType.isInternalInventory;
     const targetStatus = isGoodsWithdrawal
-      ? withdrawalStatusEnum.APPROVED
+      ? withdrawalStatusEnum.PROCESSED
       : withdrawalStatusEnum.DISBURSED;
     const feePercentage = Number(
       withdrawalType.administrativeFeePercentage ?? 0,
@@ -1475,7 +1473,6 @@ export class WithdrawalAssociateService {
           withdrawalType,
           targetStatus,
           feePercentage,
-          validDate,
           row,
         );
         processed.push(result);
@@ -1503,8 +1500,7 @@ export class WithdrawalAssociateService {
     withdrawalType: typeof withdrawalTypes.$inferSelect,
     targetStatus: withdrawalStatusEnum,
     feePercentage: number,
-    validDate: Date,
-    row: { cedula: string; monto: number },
+    row: { cedula: string; monto: number; fecha: Date },
   ) {
     // 1) Localizar cuenta del asociado por cédula
     const [account] = await this.db
@@ -1644,7 +1640,7 @@ export class WithdrawalAssociateService {
         lastWithdrawal.status === withdrawalStatusEnum.ADJUSTED
       ) {
         const monthsAllowed = this._hasElapsedMonths(
-          validDate,
+          row.fecha,
           Number(setting?.value),
           lastWithdrawal?.createdAt ?? null,
         );
@@ -1658,11 +1654,14 @@ export class WithdrawalAssociateService {
 
     // 5) Calcular montos
     const administrativeFee = (row.monto * feePercentage) / 100;
-    const disbursedAmount = row.monto - administrativeFee;
-    const movementStatus: movementStatusEnum =
+    // Desembolsado: se descuenta el gasto. Procesado: no se descuenta.
+    const disbursedAmount =
       targetStatus === withdrawalStatusEnum.DISBURSED
-        ? movementStatusEnum.COMPLETED
-        : movementStatusEnum.PENDING;
+        ? row.monto - administrativeFee
+        : row.monto + administrativeFee;
+    // Tanto desembolsado como procesado completan los movimientos de la cuenta.
+    const movementStatus: movementStatusEnum = movementStatusEnum.COMPLETED;
+    const isHouseInventary = withdrawalType.isHouseComercial ? 'CASA-COMERCIAL' : withdrawalType.isInternalInventory ? 'INVENTARIO-INTERNO' : 'PARCIAL';
 
     // 6) Transacción financiera (retiro + movimientos)
     const coreResult = await this.db.transaction(async (tx) => {
@@ -1680,7 +1679,7 @@ export class WithdrawalAssociateService {
           tenantId,
           associateAccountId: account.associateAccountId,
           requestedAmount: row.monto.toString(),
-          withdrawalDate: validDate,
+          withdrawalDate: row.fecha,
           withdrawalTypeId: withdrawalType.id,
           referenceCode,
           paymentMethod: paymentMethodEnum.BANK_TRANSFER,
@@ -1695,6 +1694,7 @@ export class WithdrawalAssociateService {
 
       const typeDesc = withdrawalType.description || 'RETIRO DE HABERES';
 
+
       await this.associateAccountsMovementsService.create(
         userId,
         {
@@ -1702,7 +1702,7 @@ export class WithdrawalAssociateService {
           movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
           amount: row.monto,
           currencyCode: CurrencyCodeEnum.VES,
-          transactionDate: validDate,
+          transactionDate: row.fecha,
           description: `Retiro ${typeDesc} - Ref: ${referenceCode}`,
           referenceId: inserted.id,
           referenceType: 'withdrawalsAssociates',
@@ -1720,7 +1720,7 @@ export class WithdrawalAssociateService {
             movementType: AssociateMovementTypeEnum.WITHDRAWAL_FEE_DEBIT,
             amount: administrativeFee,
             currencyCode: CurrencyCodeEnum.VES,
-            transactionDate: validDate,
+            transactionDate: row.fecha,
             description: `Gasto Administrativo por ${typeDesc} - Ref: ${referenceCode}`,
             referenceId: inserted.id,
             referenceType: 'withdrawalsAssociates',
@@ -1756,25 +1756,56 @@ export class WithdrawalAssociateService {
           requestedAmount: row.monto,
           administrativeFee,
           disbursedAmount,
-          entryDate: validDate,
+          entryDate: row.fecha,
         },
       };
     });
 
-    // 7) Asiento contable individual (solo desembolsados; no-fatal)
+    // 7) Asiento contable individual (no-fatal para ambos estados)
     let accountingWarning: string | undefined;
-    if (targetStatus === withdrawalStatusEnum.DISBURSED) {
-      try {
+    try {
+      if (targetStatus === withdrawalStatusEnum.DISBURSED) {
         await this.withdrawalAccountingService.generateDisbursementEntry(
           tenantId,
           userId,
           coreResult.accountingParams,
           undefined,
         );
-      } catch (error) {
-        accountingWarning =
-          (error as any)?.message ?? 'Error al generar el asiento contable';
+      } else {
+        console.log({
+          withdrawalId: coreResult.accountingParams.withdrawalId,
+          associateId: coreResult.accountingParams.associateId,
+          associateFullname: coreResult.accountingParams.associateFullname,
+          associateCedula: coreResult.accountingParams.associateCedula,
+          withdrawalTypeDescription:
+            coreResult.accountingParams.withdrawalTypeDescription,
+          withdrawalDate: row.fecha,
+          requestedAmount: coreResult.accountingParams.requestedAmount,
+          administrativeFee: coreResult.accountingParams.administrativeFee,
+        },);
+
+        await this.withdrawalAccountingService.generateProcessingEntry(
+          tenantId,
+          userId,
+          {
+            withdrawalId: coreResult.accountingParams.withdrawalId,
+            associateId: coreResult.accountingParams.associateId,
+            associateFullname: coreResult.accountingParams.associateFullname,
+            associateCedula: coreResult.accountingParams.associateCedula,
+            withdrawalTypeDescription:
+              coreResult.accountingParams.withdrawalTypeDescription,
+            withdrawalDate: row.fecha,
+            requestedAmount: coreResult.accountingParams.requestedAmount,
+            administrativeFee: coreResult.accountingParams.administrativeFee,
+            isHouseInventary: isHouseInventary,
+
+          },
+          undefined,
+        );
       }
+    } catch (error) {
+      accountingWarning =
+        (error as any)?.message ?? 'Error al generar el asiento contable';
     }
 
     return {
@@ -1788,8 +1819,7 @@ export class WithdrawalAssociateService {
 
   private async parseBulkWorkbook(fileBuffer: Buffer): Promise<{
     typeName: string;
-    validDate: Date;
-    rows: { cedula: string; monto: number }[];
+    rows: { cedula: string; monto: number; fecha: Date }[];
   }> {
     if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
       throw new BadRequestException(
@@ -1816,6 +1846,19 @@ export class WithdrawalAssociateService {
       return cellValue;
     };
 
+    const parseDate = (raw: any): Date | null => {
+      if (raw === null || raw === undefined || raw === '') return null;
+      if (raw instanceof Date) return raw;
+      // Excel puede devolver un número de serie o una cadena
+      const num = Number(raw);
+      if (!isNaN(num) && num > 20000) {
+        const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+        if (!isNaN(date.getTime())) return date;
+      }
+      const date = new Date(String(raw));
+      return isNaN(date.getTime()) ? null : date;
+    };
+
     // B1: nombre del tipo de retiro
     const typeName = String(
       getCellValue(worksheet.getCell('B1').value) ?? '',
@@ -1826,33 +1869,26 @@ export class WithdrawalAssociateService {
       );
     }
 
-    // D1: fecha
-    const rawDate = getCellValue(worksheet.getCell('D1').value);
-    let validDate: Date;
-    if (rawDate instanceof Date) {
-      validDate = rawDate;
-    } else {
-      validDate = new Date(String(rawDate || ''));
-    }
-    if (isNaN(validDate.getTime()) || validDate.getFullYear() < 2000) {
-      throw new BadRequestException(
-        'La fecha en la celda D1 es inválida o muy antigua.',
-      );
-    }
-
-    // Filas de datos desde la fila 3
-    const rows: { cedula: string; monto: number }[] = [];
+    // Filas de datos desde la fila 3 (A=cédula, B=monto, C=fecha)
+    const rows: { cedula: string; monto: number; fecha: Date }[] = [];
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber <= 2) return;
       const cedula = String(getCellValue(row.getCell(1).value) ?? '').trim();
       const monto = parseFloat(
         String(getCellValue(row.getCell(2).value) ?? '0'),
       );
-      if (cedula && monto > 0) {
-        rows.push({ cedula, monto });
+      if (!cedula || !(monto > 0)) return;
+
+      const fecha = parseDate(getCellValue(row.getCell(3).value));
+      if (!fecha) {
+        throw new BadRequestException(
+          `La fecha en la fila ${rowNumber} es inválida o está vacía.`,
+        );
       }
+
+      rows.push({ cedula, monto, fecha });
     });
 
-    return { typeName, validDate, rows };
+    return { typeName, rows };
   }
 }

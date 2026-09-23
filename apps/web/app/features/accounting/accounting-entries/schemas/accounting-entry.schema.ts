@@ -9,10 +9,13 @@ export const accountingEntryDetailSchema = z.object({
   debit: z.number().min(0, 'El débito debe ser un valor positivo.'),
   credit: z.number().min(0, 'El crédito debe ser un valor positivo.'),
   description: z.string().optional(),
+  associateId: z.string().optional().nullable(),
+  /** UI-only: indica si la fila lleva auxiliar socio (no se envía al backend) */
+  useAssociate: z.boolean().optional(),
   account: z
     .object({
       code: z.string(),
-      name: z.string(),
+      name: z.string().optional(),
     })
     .optional(),
 });

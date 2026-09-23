@@ -10,6 +10,8 @@ export interface ParsedAccountingEntryRow {
 }
 
 export interface ParsedAccountingEntry {
+  /** Nombre de la hoja del Excel (se usa para reportar errores) */
+  sheetName: string;
   description: string;
   entryDate: string;
   rows: ParsedAccountingEntryRow[];
@@ -42,94 +44,130 @@ function parseDate(value: unknown): string {
 }
 
 /**
- * Parsea el Excel de asientos contables.
+ * Determina si una hoja está completamente vacía.
+ */
+function isSheetEmpty(worksheet: ExcelJS.Worksheet): boolean {
+  let hasValue = false;
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      const v = cell.value;
+      if (v !== null && v !== undefined && String(v).trim() !== '') {
+        hasValue = true;
+      }
+    });
+  });
+  return !hasValue;
+}
+
+/**
+ * Parsea UNA hoja del Excel como un asiento contable.
  * Línea 1: Descripción y Fecha (etiquetas "Descripción" y "Fecha" seguidas de su valor).
- * Línea 2: encabezados de columnas (cuenta, auxiliar_socio, debitos, creditos).
+ * Línea 2: encabezados de columnas (cuenta, auxiliar_socio, descripcion, debitos, creditos).
  * Líneas 3+: detalle de cada línea del asiento.
+ */
+function parseWorksheet(worksheet: ExcelJS.Worksheet): ParsedAccountingEntry {
+  const sheetName = worksheet.name;
+
+  // ---- Línea 1: Descripción y Fecha ----
+  const headerRow = worksheet.getRow(1);
+  let description = '';
+  let entryDate = '';
+
+  headerRow.eachCell((cell, colNumber) => {
+    const label = String(cell.value ?? '')
+      .trim()
+      .toLowerCase();
+    if (label === 'descripción' || label === 'descripcion') {
+      description = String(headerRow.getCell(colNumber + 1).value ?? '').trim();
+    } else if (label === 'fecha') {
+      entryDate = parseDate(headerRow.getCell(colNumber + 1).value);
+    }
+  });
+
+  // Si no hay descripción, se usa el nombre de la hoja
+  if (!description) description = sheetName;
+
+  // ---- Línea 2: encabezados de columnas ----
+  const columnsRow = worksheet.getRow(2);
+  const headers: { [key: string]: number } = {};
+  columnsRow.eachCell((cell, colNumber) => {
+    const headerName = String(cell.value ?? '')
+      .toLowerCase()
+      .trim();
+    headers[headerName] = colNumber;
+  });
+
+  const cuentaCol = headers['cuenta'];
+  const auxiliarSocioCol =
+    headers['auxiliar_socio'] || headers['auxiliar socio'] || headers['socio'];
+  const descripcionCol = headers['descripcion'];
+  const debitCol = headers['debitos'] || headers['debito'] || headers['debe'];
+  const creditCol =
+    headers['creditos'] || headers['credito'] || headers['haber'];
+
+  if (!cuentaCol || !debitCol || !creditCol) {
+    throw new BadRequestException(
+      `Hoja "${sheetName}": faltan columnas requeridas (cuenta, debitos, creditos).`,
+    );
+  }
+
+  // ---- Líneas 3+: detalle ----
+  const rows: ParsedAccountingEntryRow[] = [];
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber <= 2) return; // Saltar línea de datos generales y encabezados
+
+    const accountCode = String(row.getCell(cuentaCol).value ?? '').trim();
+    if (!accountCode) return; // fila vacía
+
+    const auxiliarSocio = auxiliarSocioCol
+      ? String(row.getCell(auxiliarSocioCol).value ?? '').trim()
+      : '';
+    const debit = Number(row.getCell(debitCol).value ?? 0) || 0;
+    const credit = Number(row.getCell(creditCol).value ?? 0) || 0;
+    const descripcion = descripcionCol
+      ? String(row.getCell(descripcionCol).value ?? '').trim()
+      : '';
+
+    rows.push({
+      accountCode,
+      auxiliarSocio: auxiliarSocio || null,
+      debit,
+      credit,
+      descripcion,
+    });
+  });
+
+  return { sheetName, description, entryDate, rows };
+}
+
+/**
+ * Parsea el Excel completo. Cada hoja del libro se interpreta como un asiento
+ * contable independiente. Se omiten las hojas completamente vacías.
  */
 export async function parseAccountingEntriesExcel(
   buffer: Buffer,
-): Promise<ParsedAccountingEntry> {
+): Promise<ParsedAccountingEntry[]> {
   try {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as any);
 
-    const worksheet = workbook.worksheets[0];
-    if (!worksheet) {
+    if (!workbook.worksheets || workbook.worksheets.length === 0) {
       throw new BadRequestException('El archivo Excel está vacío');
     }
 
-    // ---- Línea 1: Descripción y Fecha ----
-    const headerRow = worksheet.getRow(1);
-    let description = '';
-    let entryDate = '';
+    const entries: ParsedAccountingEntry[] = [];
+    for (const worksheet of workbook.worksheets) {
+      if (isSheetEmpty(worksheet)) continue;
+      entries.push(parseWorksheet(worksheet));
+    }
 
-    headerRow.eachCell((cell, colNumber) => {
-      const label = String(cell.value ?? '')
-        .trim()
-        .toLowerCase();
-      if (label === 'descripción' || label === 'descripcion') {
-        description = String(
-          headerRow.getCell(colNumber + 1).value ?? '',
-        ).trim();
-      } else if (label === 'fecha') {
-        entryDate = parseDate(headerRow.getCell(colNumber + 1).value);
-      }
-    });
-
-    // ---- Línea 2: encabezados de columnas ----
-    const columnsRow = worksheet.getRow(2);
-    const headers: { [key: string]: number } = {};
-    columnsRow.eachCell((cell, colNumber) => {
-      const headerName = String(cell.value ?? '')
-        .toLowerCase()
-        .trim();
-      headers[headerName] = colNumber;
-    });
-
-    const cuentaCol = headers['cuenta'];
-    const auxiliarSocioCol =
-      headers['auxiliar_socio'] ||
-      headers['auxiliar socio'] ||
-      headers['socio'];
-    const descripcionCol = headers['descripcion'];
-    const debitCol = headers['debitos'] || headers['debito'] || headers['debe'];
-    const creditCol =
-      headers['creditos'] || headers['credito'] || headers['haber'];
-
-    if (!cuentaCol || !debitCol || !creditCol || !descripcionCol) {
+    if (entries.length === 0) {
       throw new BadRequestException(
-        'Faltan columnas requeridas en la plantilla: cuenta, debitos, creditos y descripcion',
+        'El archivo Excel no contiene hojas con datos de asientos.',
       );
     }
 
-    // ---- Líneas 3+: detalle ----
-    const rows: ParsedAccountingEntryRow[] = [];
-    worksheet.eachRow((row, rowNumber) => {
-      if (rowNumber <= 2) return; // Saltar línea de datos generales y encabezados
-
-      const accountCode = String(row.getCell(cuentaCol).value ?? '').trim();
-      if (!accountCode) return; // fila vacía
-
-      const auxiliarSocio = auxiliarSocioCol
-        ? String(row.getCell(auxiliarSocioCol).value ?? '').trim()
-        : '';
-      const debit = Number(row.getCell(debitCol).value ?? 0) || 0;
-      const credit = Number(row.getCell(creditCol).value ?? 0) || 0;
-      const descripcion = String(
-        row.getCell(descripcionCol).value ?? '',
-      ).trim();
-
-      rows.push({
-        accountCode,
-        auxiliarSocio: auxiliarSocio || null,
-        debit,
-        credit,
-        descripcion,
-      });
-    });
-
-    return { description, entryDate, rows };
+    return entries;
   } catch (error) {
     if (error instanceof BadRequestException) {
       throw error;
@@ -143,24 +181,27 @@ export async function parseAccountingEntriesExcel(
 }
 
 /**
- * Genera el buffer del archivo de plantilla para la carga de asientos.
+ * Escribe el contenido de un asiento de ejemplo en una hoja.
  */
-export async function generateAccountingEntriesTemplate(): Promise<Buffer> {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Asiento Contable');
-
+function writeExampleSheet(
+  worksheet: ExcelJS.Worksheet,
+  description: string,
+  date: string,
+  lines: { cuenta: string; auxiliar?: string; descripcion: string; debitos: number; creditos: number }[],
+) {
   worksheet.columns = [
     { header: '', key: 'a', width: 18 },
-    { header: '', key: 'b', width: 40 },
-    { header: '', key: 'c', width: 18 },
+    { header: '', key: 'b', width: 18 },
+    { header: '', key: 'c', width: 40 },
     { header: '', key: 'd', width: 18 },
+    { header: '', key: 'e', width: 18 },
   ];
 
   // Línea 1: Descripción y Fecha
   worksheet.getCell('A1').value = 'Descripción';
-  worksheet.getCell('B1').value = 'Asiento de ejemplo';
+  worksheet.getCell('B1').value = description;
   worksheet.getCell('C1').value = 'Fecha';
-  worksheet.getCell('D1').value = '2026-01-15';
+  worksheet.getCell('D1').value = date;
 
   // Línea 2: encabezados
   worksheet.getCell('A2').value = 'cuenta';
@@ -169,20 +210,17 @@ export async function generateAccountingEntriesTemplate(): Promise<Buffer> {
   worksheet.getCell('D2').value = 'debitos';
   worksheet.getCell('E2').value = 'creditos';
 
-  // Líneas de ejemplo (partida doble equilibrada)
-  worksheet.getCell('A3').value = '112.01.01.01.001';
-  worksheet.getCell('B3').value = '';
-  worksheet.getCell('C3').value = 'APORTE DE SOCIO';
-  worksheet.getCell('D3').value = 1000.0;
-  worksheet.getCell('E3').value = 0;
+  // Líneas de ejemplo
+  lines.forEach((line, i) => {
+    const rowNumber = i + 3;
+    worksheet.getCell(`A${rowNumber}`).value = line.cuenta;
+    worksheet.getCell(`B${rowNumber}`).value = line.auxiliar ?? '';
+    worksheet.getCell(`C${rowNumber}`).value = line.descripcion;
+    worksheet.getCell(`D${rowNumber}`).value = line.debitos;
+    worksheet.getCell(`E${rowNumber}`).value = line.creditos;
+  });
 
-  worksheet.getCell('A4').value = '311.01.01.00.001';
-  worksheet.getCell('B4').value = 'V-12345678';
-  worksheet.getCell('C4').value = 'APORTE DE SOCIO';
-  worksheet.getCell('D4').value = 1000.0;
-  worksheet.getCell('E4').value = 0;
-
-  // Estilos básicos para encabezados
+  // Estilos
   const headerRow1 = worksheet.getRow(1);
   headerRow1.getCell(1).font = { bold: true };
   headerRow1.getCell(3).font = { bold: true };
@@ -196,6 +234,48 @@ export async function generateAccountingEntriesTemplate(): Promise<Buffer> {
       fgColor: { argb: 'FFF3F4F6' },
     };
   });
+}
+
+/**
+ * Genera el buffer de la plantilla para la carga masiva de asientos.
+ * Cada hoja del libro representa un asiento contable independiente.
+ */
+export async function generateAccountingEntriesTemplate(): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+
+  const sheet1 = workbook.addWorksheet('Asiento 1');
+  writeExampleSheet(sheet1, 'Asiento de ejemplo 1', '2026-01-15', [
+    {
+      cuenta: '112.01.01.01.001',
+      descripcion: 'APORTE DE SOCIO',
+      debitos: 1000.0,
+      creditos: 0,
+    },
+    {
+      cuenta: '311.01.01.00.001',
+      auxiliar: 'V-12345678',
+      descripcion: 'APORTE DE SOCIO',
+      debitos: 0,
+      creditos: 1000.0,
+    },
+  ]);
+
+  const sheet2 = workbook.addWorksheet('Asiento 2');
+  writeExampleSheet(sheet2, 'Asiento de ejemplo 2', '2026-01-16', [
+    {
+      cuenta: '112.01.01.01.001',
+      descripcion: 'RETIRO DE SOCIO',
+      debitos: 0,
+      creditos: 500.0,
+    },
+    {
+      cuenta: '311.03.00.00.001',
+      auxiliar: 'V-12345678',
+      descripcion: 'RETIRO DE SOCIO',
+      debitos: 500.0,
+      creditos: 0,
+    },
+  ]);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);

@@ -89,7 +89,9 @@ export class AccountingEntriesController {
     scope: 'tenant',
   })
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'Importar asiento contable desde Excel' })
+  @ApiOperation({
+    summary: 'Importar asientos contables desde Excel (una hoja = un asiento)',
+  })
   async importFromExcel(
     @Req() req: Request,
     @UploadedFile() file: Express.Multer.File,
@@ -103,7 +105,11 @@ export class AccountingEntriesController {
       targetTenantId,
       file,
     );
-    return { message: 'Asiento contable importado exitosamente', data };
+    const message =
+      data.failed > 0
+        ? `Se importaron ${data.created} de ${data.totalSheets} asientos. ${data.failed} con errores.`
+        : `Se importaron ${data.created} asiento(s) exitosamente.`;
+    return { message, data };
   }
 
   @Get()

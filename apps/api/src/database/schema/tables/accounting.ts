@@ -188,13 +188,10 @@ export const accountingEntryDetails = accountingSchema.table(
       sql`${table.debit} >= 0 AND ${table.credit} >= 0 AND ${table.debitBase} >= 0 AND ${table.creditBase} >= 0 AND ${table.debitForeign} >= 0 AND ${table.creditForeign} >= 0`,
     ), // Asegurar no negativos
     // La dirección (débito/crédito) debe ser la misma en moneda base y extranjera.
+    // Se permite una sola moneda (base pura o extranjera pura) dejando el otro lado en 0.
     checkBaseForeignDirection: check(
       'base_foreign_direction_check',
-      sql`(
-        (${table.debitBase} > 0 AND ${table.creditBase} = 0 AND ${table.debitForeign} > 0 AND ${table.creditForeign} = 0)
-        OR (${table.creditBase} > 0 AND ${table.debitBase} = 0 AND ${table.creditForeign} > 0 AND ${table.debitForeign} = 0)
-        OR (${table.debitBase} = 0 AND ${table.creditBase} = 0 AND ${table.debitForeign} = 0 AND ${table.creditForeign} = 0)
-      )`,
+      sql`NOT (${table.debitBase} > 0 AND ${table.creditForeign} > 0) AND NOT (${table.creditBase} > 0 AND ${table.debitForeign} > 0)`,
     ),
     checkOnlyOneAuxiliary: check(
       'only_one_auxiliary_check', //Un detalle del asiento no puede ser de un socio Y de un proveedor al mismo tiempo.

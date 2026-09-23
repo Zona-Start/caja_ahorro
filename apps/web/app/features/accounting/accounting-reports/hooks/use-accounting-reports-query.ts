@@ -22,7 +22,8 @@ export function useTrialBalance(params: any) {
   return useQuery({
     queryKey: QUERY_KEYS.accountingReports.trialBalance(params),
     queryFn: () => AccountingReportsService.getTrialBalance(params),
-    enabled: !!params.accountingCycleId,
+    enabled:
+      !!params.accountingCycleId && !!params.startDate && !!params.endDate,
   });
 }
 

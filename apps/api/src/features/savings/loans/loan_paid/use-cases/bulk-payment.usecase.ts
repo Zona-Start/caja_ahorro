@@ -1,6 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { loans } from '@/database/schema';
+import { loans, loanTypes } from '@/database/schema';
 import { OutboxWriterService } from '@/shared/outbox';
 import {
   AssociateMovementTypeEnum,
@@ -25,7 +25,7 @@ export class BulkPaymentUseCase {
     private readonly validator: LoanPaymentValidator,
     private readonly processor: LoanPaymentProcessor,
     private readonly accounting: LoanPaymentAccounting,
-  ) {}
+  ) { }
 
   async execute(
     tenantId: string,
@@ -91,10 +91,10 @@ export class BulkPaymentUseCase {
     }> = [];
 
     const result = await this.db.transaction(async (tx) => {
-      let bulkTotalPrincipal = 0;
-      let bulkTotalInterest = 0;
-      let totalAmountApplied = 0;
-      const accountingItemsForEntry: any[] = [];
+      const accountingGroups = new Map<
+        string,
+        { items: any[]; totalAmount: number; count: number }
+      >();
 
       for (const item of itemsFromExcel) {
         try {
@@ -116,6 +116,7 @@ export class BulkPaymentUseCase {
             .select({
               id: loans.id,
               currencyCode: loans.currencyCode,
+              loanTypeId: loans.loanTypeId,
             })
             .from(loans)
             .where(
@@ -138,6 +139,12 @@ export class BulkPaymentUseCase {
             });
             continue;
           }
+
+          const [loanType] = await tx
+            .select({ name: loanTypes.name })
+            .from(loanTypes)
+            .where(eq(loanTypes.id, loan.loanTypeId));
+          const loanTypeName = loanType?.name ?? 'Pago Prestamo';
 
           const installmentResult =
             await this.validator.calculateCoveredInstallments(
@@ -182,7 +189,7 @@ export class BulkPaymentUseCase {
               bankId: undefined,
               paymentMethod: 'BANK_TRANSFER',
               transactionReference: customReference,
-              comment: 'Carga Masiva Excel',
+              comment: 'Carga Pagos Masiva Excel',
               userId,
               customReference,
             },
@@ -256,7 +263,7 @@ export class BulkPaymentUseCase {
                 amount: item.amount,
                 currencyCode: (loan.currencyCode ?? 'VES') as CurrencyCodeEnum,
                 transactionDate: finalPaymentDate,
-                description: 'Pago Préstamo (Carga Masiva Excel)',
+                description: 'Pago Cuota Préstamo',
                 referenceId: insertedPayment.id,
                 referenceType: 'loansPayments',
               },
@@ -271,7 +278,13 @@ export class BulkPaymentUseCase {
             (roundedPayment - roundedInterest).toFixed(2),
           );
 
-          accountingItemsForEntry.push({
+          let group = accountingGroups.get(loanTypeName);
+          if (!group) {
+            group = { items: [], totalAmount: 0, count: 0 };
+            accountingGroups.set(loanTypeName, group);
+          }
+
+          group.items.push({
             associateId: associate.id,
             amounts: {
               LOAN_PAYMENT: roundedPrincipal,
@@ -283,9 +296,8 @@ export class BulkPaymentUseCase {
             },
           });
 
-          bulkTotalPrincipal += roundedPrincipal;
-          bulkTotalInterest += roundedInterest;
-          totalAmountApplied += roundedPayment;
+          group.totalAmount += roundedPayment;
+          group.count++;
 
           results.success.push({
             cedula: item.cedula,
@@ -318,15 +330,18 @@ export class BulkPaymentUseCase {
       }
 
       if (results.totalProcessed > 0) {
-        await this.accounting.generateBulkEntry(
-          tenantId,
-          userId,
-          accountingItemsForEntry,
-          totalAmountApplied,
-          finalPaymentDate,
-          results.totalProcessed,
-          tx,
-        );
+        for (const [loanTypeName, group] of accountingGroups) {
+          await this.accounting.generateBulkEntry(
+            tenantId,
+            userId,
+            group.items,
+            group.totalAmount,
+            finalPaymentDate,
+            group.count,
+            loanTypeName,
+            tx,
+          );
+        }
       }
 
       await this.outbox.writeMany(tx, outboxEntries);

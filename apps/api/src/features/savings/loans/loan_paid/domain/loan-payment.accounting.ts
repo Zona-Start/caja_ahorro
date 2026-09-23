@@ -12,7 +12,7 @@ export class LoanPaymentAccounting {
 
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) {}
+  ) { }
 
   async generatePaymentEntry(
     tenantId: string,
@@ -28,10 +28,6 @@ export class LoanPaymentAccounting {
     const fullname = loanData.associateFullname ?? 'ASOCIADO';
     const referenceValue = loanData.loanTypeName ?? 'Pago Prestamo';
     const roundedPayment = Number(paymentAmount.toFixed(2));
-    const roundedInterest = Number(interestAmount.toFixed(2));
-    const roundedPrincipal = Number(
-      (roundedPayment - roundedInterest).toFixed(2),
-    );
 
     try {
       const entry = await this.accountingEntriesService.createAutomaticEntry(
@@ -41,7 +37,7 @@ export class LoanPaymentAccounting {
           module: 'portfolio',
           submodule: 'loans',
           category: 'SAVINGS_BANK',
-          operationType: 'LOAN_PAYMENT',
+          operationType: 'LOAN_PAYMENT_INDIVIDUAL',
           description: `Pago de Préstamo - ${fullname}`,
           entryDate: paymentDate,
           referenceValue,
@@ -53,21 +49,18 @@ export class LoanPaymentAccounting {
             {
               associateId: loanData.associateId,
               amounts: {
-                LOAN_PAYMENT: roundedPrincipal,
-                LOAN_INTEREST_INCOME: roundedInterest,
-                LOAN_WITHHOLDING: roundedPayment,
+                LOAN_PAYMENT: roundedPayment,
+                BANK_ACCOUNT: roundedPayment,
               },
               descriptions: {
                 LOAN_PAYMENT: `CUOTA PRESTAMO DEL ${dateStr}`,
-                LOAN_INTEREST_INCOME: `INTERES PRESTAMO DEL ${dateStr}`,
-                LOAN_WITHHOLDING: `RETENCIONES DE PRESTAMOS de ${dateStr}`,
+                BANK_ACCOUNT: `PAGO PRESTAMO DEL ${dateStr}`,
               },
             },
           ],
           globalDescriptions: {
             LOAN_PAYMENT: `CUOTA PRESTAMO DEL ${dateStr}`,
-            LOAN_INTEREST_INCOME: `INTERES PRESTAMO DEL ${dateStr}`,
-            LOAN_WITHHOLDING: `RETENCIONES DE PRESTAMOS de ${dateStr}`,
+            BANK_ACCOUNT: `PAGO PRESTAMO DEL ${dateStr}`,
           },
         },
         tx,
@@ -109,20 +102,16 @@ export class LoanPaymentAccounting {
     const referenceValue = loanData.loanTypeName ?? 'Pago Prestamo';
 
     const roundedPayment = Number(paymentAmount.toFixed(2));
-    const roundedInterest = Number(interestAmount.toFixed(2));
-    const roundedPrincipal = Number(
-      (roundedPayment - roundedInterest).toFixed(2),
-    );
 
     try {
       await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
         userId,
         {
-          module: 'savings',
+          module: 'portfolio',
           submodule: 'loans',
           category: 'SAVINGS_BANK',
-          operationType: 'LOAN_PAYMENT',
+          operationType: 'LOAN_PAYMENT_INDIVIDUAL',
           description: `ANULACIÓN: Pago de Préstamo - ${fullname} (Ref: ${paymentRef})`,
           entryDate: new Date(),
           referenceValue,
@@ -134,21 +123,18 @@ export class LoanPaymentAccounting {
             {
               associateId: loanData.associateId,
               amounts: {
-                LOAN_PAYMENT: -roundedPrincipal,
-                LOAN_INTEREST_INCOME: -roundedInterest,
-                LOAN_WITHHOLDING: -roundedPayment,
+                LOAN_PAYMENT: -roundedPayment,
+                BANK_ACCOUNT: -roundedPayment,
               },
               descriptions: {
                 LOAN_PAYMENT: `REVERSA: CUOTA PRESTAMO - Ref: ${paymentRef}`,
-                LOAN_INTEREST_INCOME: `REVERSA: INTERES PRESTAMO - Ref: ${paymentRef}`,
-                LOAN_WITHHOLDING: `REVERSA: RETENCIONES DE PRESTAMOS - Ref: ${paymentRef}`,
+                BANK_ACCOUNT: `REVERSA: PAGO PRESTAMO - Ref: ${paymentRef}`,
               },
             },
           ],
           globalDescriptions: {
             LOAN_PAYMENT: `REVERSA: CUOTA PRESTAMO - Ref: ${paymentRef}`,
-            LOAN_INTEREST_INCOME: `REVERSA: INTERES PRESTAMO - Ref: ${paymentRef}`,
-            LOAN_WITHHOLDING: `REVERSA: RETENCIONES DE PRESTAMOS - Ref: ${paymentRef}`,
+            BANK_ACCOUNT: `REVERSA: PAGO PRESTAMO - Ref: ${paymentRef}`,
           },
         },
         tx,
@@ -173,9 +159,11 @@ export class LoanPaymentAccounting {
     totalAmount: number,
     paymentDate: Date,
     totalProcessed: number,
+    loanTypeName: string,
     tx: NodePgDatabase<typeof schema>,
   ): Promise<void> {
     const roundedTotalPayment = Number(totalAmount.toFixed(2));
+    const referenceValue = loanTypeName || 'Pago Prestamo';
 
     items.push({
       associateId: 0,
@@ -195,10 +183,10 @@ export class LoanPaymentAccounting {
           module: 'portfolio',
           submodule: 'loans',
           category: 'SAVINGS_BANK',
-          operationType: 'LOAN_PAYMENT',
+          operationType: 'LOAN_PAYMENT_MASSIVE',
           description: `Carga Pagos de Préstamos - ${totalProcessed} registros`,
           entryDate: paymentDate,
-          referenceValue: 'Pago Prestamo',
+          referenceValue,
           autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
           currencyCode: CurrencyCodeEnum.VES,
           originType: 'LOAN_PAYMENT',

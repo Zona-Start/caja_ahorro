@@ -1,9 +1,10 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Button } from '@repo/shadcn/button';
 import { DataTableFilterBox } from '@repo/shadcn/table/data-table-filter-box';
 import { DataTableSearch } from '@repo/shadcn/table/data-table-search';
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
 import { useLoanTypesQuery } from '../../../type-loans/hooks/use-type-loans-query';
 import {
   ESTATUS_TYPES,
@@ -17,6 +18,7 @@ interface LoansTableActionProps {
   filters: LoansFilters;
   setFilters: (newFilters: Partial<LoansFilters>) => void;
   onNewLoan: () => void;
+  onBulkUpload: () => void;
 }
 
 const ESTATUS_OPTIONS = Object.entries(ESTATUS_TYPES).map(([value, label]) => ({
@@ -35,12 +37,24 @@ export function LoansTableAction({
   filters,
   setFilters,
   onNewLoan,
+  onBulkUpload,
 }: LoansTableActionProps) {
   const { data: loanTypes } = useLoanTypesQuery(
     { page: 1, limit: 100, sortBy: 'id', sortOrder: 'asc' },
     false,
   );
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const user = useAuthStore((state) => state.user);
+
+  const isAdmin = useMemo(() => {
+    if (!user) return false;
+    if (user.isSystemAdmin) return true;
+    const activeId = user.activeTenantId;
+    const role =
+      user.memberships?.find((m) => m.tenantId === activeId)?.role?.name ??
+      user.memberships?.[0]?.role?.name;
+    return (role ?? '').toLowerCase() === 'admin';
+  }, [user]);
 
   const LOAN_TYPE_OPTIONS =
     loanTypes?.data?.map((loanType) => ({
@@ -120,11 +134,18 @@ export function LoansTableAction({
           filterValue={filters.modality || ''}
         />
       </div>
-      {hasPermission('portfolio:loans', 'create') && (
-        <Button size="sm" onClick={onNewLoan}>
-          <Plus className="h-4 w-4" /> Nuevo Préstamo
-        </Button>
-      )}
+      <div className="flex items-center gap-2">
+        {isAdmin && (
+          <Button size="sm" variant="outline" onClick={onBulkUpload}>
+            <Upload className="h-4 w-4" /> Carga Masiva
+          </Button>
+        )}
+        {hasPermission('portfolio:loans', 'create') && (
+          <Button size="sm" onClick={onNewLoan}>
+            <Plus className="h-4 w-4" /> Nuevo Préstamo
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

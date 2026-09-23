@@ -166,12 +166,17 @@ export function AccountingEntryImportModal({
             <p className="font-medium">La plantilla debe contener:</p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
               <li>
+                <strong>Cada hoja del Excel</strong> es un asiento contable
+                independiente. Agrega tantas hojas como asientos quieras
+                importar.
+              </li>
+              <li>
                 <strong>Línea 1:</strong> descripción general del asiento y
                 fecha.
               </li>
               <li>
-                <strong>Línea 2:</strong> columnas{' '}
-                <code>cuenta</code>, <code>auxiliar_socio</code>,{' '}
+                <strong>Línea 2:</strong> columnas <code>cuenta</code>,{' '}
+                <code>auxiliar_socio</code>, <code>descripcion</code>,{' '}
                 <code>debitos</code>, <code>creditos</code>.
               </li>
               <li>
@@ -199,7 +204,7 @@ export function AccountingEntryImportModal({
             onClick={handleImport}
             disabled={!file || importMutation.isPending}
           >
-            {importMutation.isPending ? 'Importando...' : 'Importar asiento'}
+            {importMutation.isPending ? 'Importando...' : 'Importar asientos'}
           </Button>
         </DialogFooter>
       </DialogContent>

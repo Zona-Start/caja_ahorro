@@ -34,6 +34,21 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   totalItems: number;
   pageSizeOptions?: number[];
+  /**
+   * Si es true (por defecto) la paginación es del servidor: la tabla no corta
+   * los datos y usa `totalItems` para calcular las páginas.
+   * Si es false, la paginación es del cliente: la tabla corta `data` por página.
+   */
+  manualPagination?: boolean;
+  /**
+   * Paginación controlada. Cuando se provee `page` + `onPageChange`, la tabla
+   * deja de usar el estado global de la URL (nuqs) y obedece a los props.
+   * Permite que múltiples tablas (ej. tabs) tengan paginación independiente.
+   */
+  page?: number;
+  pageSize?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -41,17 +56,28 @@ export function DataTable<TData, TValue>({
   data,
   totalItems,
   pageSizeOptions = [10, 20, 30, 40, 50],
+  manualPagination = true,
+  page: controlledPage,
+  pageSize: controlledPageSize,
+  onPageChange,
+  onPageSizeChange,
 }: DataTableProps<TData, TValue>) {
-  const [currentPage, setCurrentPage] = useQueryState(
+  const [urlPage, setUrlPage] = useQueryState(
     'page',
     parseAsInteger.withOptions({ shallow: false }).withDefault(1),
   );
-  const [pageSize, setPageSize] = useQueryState(
+  const [urlPageSize, setUrlPageSize] = useQueryState(
     'limit',
     parseAsInteger
       .withOptions({ shallow: false, history: 'push' })
       .withDefault(10),
   );
+
+  const isControlled =
+    controlledPage !== undefined && onPageChange !== undefined;
+
+  const currentPage = isControlled ? controlledPage : urlPage;
+  const pageSize = isControlled ? (controlledPageSize ?? 10) : urlPageSize;
 
   const paginationState = {
     pageIndex: currentPage - 1, // zero-based index for React Table
@@ -70,21 +96,33 @@ export function DataTable<TData, TValue>({
         ? updaterOrValue(paginationState)
         : updaterOrValue;
 
-    setCurrentPage(pagination.pageIndex + 1); // converting zero-based index to one-based
-    setPageSize(pagination.pageSize);
+    const pageSizeChanged = pagination.pageSize !== paginationState.pageSize;
+
+    if (isControlled) {
+      if (pageSizeChanged) {
+        onPageSizeChange?.(pagination.pageSize);
+        onPageChange?.(1);
+      } else {
+        onPageChange?.(pagination.pageIndex + 1);
+      }
+      return;
+    }
+
+    setUrlPage(pagination.pageIndex + 1); // converting zero-based index to one-based
+    setUrlPageSize(pagination.pageSize);
   };
 
   const table = useReactTable({
     data,
     columns,
-    pageCount: pageCount,
+    pageCount: manualPagination ? pageCount : undefined,
     state: {
       pagination: paginationState,
     },
     onPaginationChange: handlePaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: true,
+    manualPagination,
     manualFiltering: true,
   });
 

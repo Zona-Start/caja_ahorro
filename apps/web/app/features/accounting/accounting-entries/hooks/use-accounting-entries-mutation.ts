@@ -47,14 +47,27 @@ export function useImportAccountingEntryMutation() {
 
   return useMutation({
     mutationFn: (file: File) => AccountingEntriesService.importExcel(file),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.accountingEntries.all,
       });
-      toast({
-        title: 'Asiento importado',
-        description: 'El asiento contable ha sido importado exitosamente.',
-      });
+
+      const { created, failed, totalSheets, errors } = response.data;
+
+      if (failed > 0) {
+        toast({
+          title: `Importación parcial: ${created} de ${totalSheets} asientos`,
+          description:
+            errors.map((e) => `${e.sheet}: ${e.message}`).join(' | ') ||
+            'Algunas hojas no pudieron procesarse.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Importación exitosa',
+          description: `Se importaron ${created} asiento(s) de ${totalSheets} hoja(s).`,
+        });
+      }
     },
     onError: (error: unknown) => {
       toast({

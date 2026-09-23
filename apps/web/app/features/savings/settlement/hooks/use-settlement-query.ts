@@ -1,6 +1,7 @@
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { settlementService } from '../services/settlement-service';
+import { type SettlementBulkResponse } from '../schemas/settlement-api-response';
 import { type Settlement } from '../schemas/settlement.schema';
 
 export function useSettlementsQuery(filters: Record<string, unknown>) {
@@ -68,5 +69,24 @@ export function useDisburseSettlementMutation() {
         queryKey: QUERY_KEYS.settlements.lists(),
       });
     },
+  });
+}
+
+export function useBulkUploadSettlementMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<SettlementBulkResponse, Error, FormData>({
+    mutationFn: (formData: FormData) => settlementService.bulkUpload(formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.settlements.lists(),
+      });
+    },
+  });
+}
+
+export function useDownloadSettlementTemplateMutation() {
+  return useMutation<string, Error, void>({
+    mutationFn: () => settlementService.downloadTemplate(),
   });
 }

@@ -5,7 +5,9 @@ export const accountingEntryDetailApiSchema = z.object({
   accountPlanId: z.string(),
   debit: z.string(),
   credit: z.string(),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
+  associateId: z.string().optional().nullable(),
+  supplierId: z.string().optional().nullable(),
   createdAt: z.string().optional().nullable(),
   updatedAt: z.string().optional().nullable(),
   createdById: z.string().optional().nullable(),
@@ -45,6 +47,29 @@ export const accountingEntryResponseSchema = z.object({
 
 export const accountingEntryDeleteResponseSchema = z.object({
   message: z.string(),
+});
+
+export const accountingEntryImportResponseSchema = z.object({
+  message: z.string(),
+  data: z.object({
+    totalSheets: z.number(),
+    created: z.number(),
+    failed: z.number(),
+    entries: z.array(
+      z.object({
+        sheet: z.string(),
+        entryId: z.string().optional(),
+        voucherNo: z.string().optional().nullable(),
+        description: z.string().optional(),
+      }),
+    ),
+    errors: z.array(
+      z.object({
+        sheet: z.string(),
+        message: z.string(),
+      }),
+    ),
+  }),
 });
 
 export const accountingEntryListResponseSchema = z.object({

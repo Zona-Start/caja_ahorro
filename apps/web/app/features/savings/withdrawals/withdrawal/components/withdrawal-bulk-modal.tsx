@@ -270,27 +270,22 @@ export function WithdrawalBulkModal({ open, onOpenChange }: Props) {
                     </code>
                   </p>
                   <p>
-                    2. Fila 1:{' '}
-                    <code className="bg-amber-200/50 px-1 rounded font-bold">
-                      C1 = fecha
-                    </code>{' '}
-                    |{' '}
-                    <code className="bg-amber-200/50 px-1 rounded font-bold">
-                      D1 = YYYY-MM-DD
-                    </code>
-                  </p>
-                  <p>
-                    3. Fila 2:{' '}
+                    2. Fila 2:{' '}
                     <code className="bg-amber-200/50 px-1 rounded font-bold">
                       cedula
+                    </code>
+                    ,{' '}
+                    <code className="bg-amber-200/50 px-1 rounded font-bold">
+                      monto
                     </code>{' '}
                     y{' '}
                     <code className="bg-amber-200/50 px-1 rounded font-bold">
-                      monto
+                      fecha
                     </code>
                   </p>
                   <p>
-                    4. Fila 3 en adelante: los datos (cédula en A, monto en B).
+                    3. Fila 3 en adelante: los datos (cédula en A, monto en B,
+                    fecha en C en formato YYYY-MM-DD).
                   </p>
                   <p className="text-amber-700 font-medium">
                     Nota: el nombre en B1 debe coincidir exactamente con el tipo de

@@ -25,14 +25,14 @@ export interface ProcessingAccountingParams {
   withdrawalDate: Date;
   requestedAmount: number;
   administrativeFee: number;
-  disbursedAmount: number;
+  isHouseInventary: string;
 }
 
 @Injectable()
 export class WithdrawalAssociateAccountingService {
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) {}
+  ) { }
 
   async generateDisbursementEntry(
     tenantId: string,
@@ -115,21 +115,21 @@ export class WithdrawalAssociateAccountingService {
           {
             associateId: params.associateId,
             amounts: {
-              SPECIAL_WITHDRAWAL_SAVINGS: params.requestedAmount,
-              SERVICE_FEE_INCOME: params.administrativeFee || 0,
-              OPERATION_COUNTERPART: params.disbursedAmount,
+              SPECIAL_WITHDRAWAL_SAVINGS: params.requestedAmount + (params.administrativeFee || 0),
+              SERVICE_FEE_INCOME: params.isHouseInventary === 'CASA-COMERCIAL' ? params.requestedAmount : params.administrativeFee,
+              OPERATION_COUNTERPART: params.isHouseInventary === 'CASA-COMERCIAL' ? params.administrativeFee : params.requestedAmount,
             },
             descriptions: {
               SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
-              SERVICE_FEE_INCOME: typeDesc,
-              OPERATION_COUNTERPART: `${params.associateCedula} ${params.associateFullname}`,
+              SERVICE_FEE_INCOME: params.isHouseInventary === 'CASA-COMERCIAL' ? `${params.associateCedula} ${params.associateFullname}` : typeDesc,
+              OPERATION_COUNTERPART: params.isHouseInventary === 'CASA-COMERCIAL' ? typeDesc : `${params.associateCedula} ${params.associateFullname}`,
             },
           },
         ],
         globalDescriptions: {
           SPECIAL_WITHDRAWAL_SAVINGS: typeDesc,
-          SERVICE_FEE_INCOME: typeDesc,
-          OPERATION_COUNTERPART: `${params.associateCedula} ${params.associateFullname}`,
+          SERVICE_FEE_INCOME: params.isHouseInventary === 'CASA-COMERCIAL' ? `${params.associateCedula} ${params.associateFullname}` : typeDesc,
+          OPERATION_COUNTERPART: params.isHouseInventary === 'CASA-COMERCIAL' ? typeDesc : `${params.associateCedula} ${params.associateFullname}`,
         },
       },
       tx,

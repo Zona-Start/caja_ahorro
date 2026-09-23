@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import {
   accountingEntryDeleteResponseSchema,
+  accountingEntryImportResponseSchema,
   accountingEntryPaginationResponseSchema,
   accountingEntryResponseSchema,
 } from '../schemas/accounting-entry-api';
@@ -89,7 +90,7 @@ export class AccountingEntriesService {
     const response = await apiClient.post('/accounting/entries/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return accountingEntryResponseSchema.parse(response.data).data;
+    return accountingEntryImportResponseSchema.parse(response.data);
   }
 
   static async downloadTemplate() {

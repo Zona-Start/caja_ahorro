@@ -9,9 +9,16 @@ interface LoansTabProps {
   page: number;
   setPage: (page: number) => void;
   limit: number;
+  setLimit: (limit: number) => void;
 }
 
-export function LoansTab({ id, page, setPage, limit }: LoansTabProps) {
+export function LoansTab({
+  id,
+  page,
+  setPage,
+  limit,
+  setLimit,
+}: LoansTabProps) {
   const {
     data: loansData,
     isLoading,
@@ -35,6 +42,10 @@ export function LoansTab({ id, page, setPage, limit }: LoansTabProps) {
       data={loansData?.data || []}
       totalItems={loansData?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
+      page={page}
+      pageSize={limit}
+      onPageChange={setPage}
+      onPageSizeChange={setLimit}
     />
   );
 }

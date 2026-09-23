@@ -25,3 +25,32 @@ export const settlementApiSchema = z.object({
 });
 
 export type SettlementPaymentApi = z.infer<typeof settlementApiSchema>;
+
+export const settlementBulkResponseSchema = z.object({
+  message: z.string().optional(),
+  totalProcessed: z.number(),
+  totalDisbursed: z.number().optional(),
+  totalErrors: z.number().optional(),
+  bankMovementCreated: z.boolean().optional(),
+  success: z
+    .array(
+      z.object({
+        cedula: z.string(),
+        customReference: z.string().nullable().optional(),
+        liquidationId: z.string().optional(),
+        disbursed: z.boolean().optional(),
+        disburseError: z.string().optional(),
+      }),
+    )
+    .optional(),
+  errors: z.array(
+    z.object({
+      cedula: z.string(),
+      error: z.string(),
+    }),
+  ),
+});
+
+export type SettlementBulkResponse = z.infer<
+  typeof settlementBulkResponseSchema
+>;

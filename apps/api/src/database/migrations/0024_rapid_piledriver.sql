@@ -1,0 +1,2 @@
+ALTER TABLE "accounting"."accounting_entry_details" DROP CONSTRAINT "base_foreign_direction_check";--> statement-breakpoint
+ALTER TABLE "accounting"."accounting_entry_details" ADD CONSTRAINT "base_foreign_direction_check" CHECK (NOT ("accounting"."accounting_entry_details"."debit_base" > 0 AND "accounting"."accounting_entry_details"."credit_foreign" > 0) AND NOT ("accounting"."accounting_entry_details"."credit_base" > 0 AND "accounting"."accounting_entry_details"."debit_foreign" > 0));

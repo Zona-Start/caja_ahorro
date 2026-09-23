@@ -9,9 +9,16 @@ interface CreditsTabProps {
   page: number;
   setPage: (page: number) => void;
   limit: number;
+  setLimit: (limit: number) => void;
 }
 
-export function CreditsTab({ id, page, setPage, limit }: CreditsTabProps) {
+export function CreditsTab({
+  id,
+  page,
+  setPage,
+  limit,
+  setLimit,
+}: CreditsTabProps) {
   const {
     data: creditsData,
     isLoading,
@@ -35,6 +42,10 @@ export function CreditsTab({ id, page, setPage, limit }: CreditsTabProps) {
       data={creditsData?.data || []}
       totalItems={creditsData?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
+      page={page}
+      pageSize={limit}
+      onPageChange={setPage}
+      onPageSizeChange={setLimit}
     />
   );
 }

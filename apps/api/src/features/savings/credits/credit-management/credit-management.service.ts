@@ -17,6 +17,13 @@ import {
 } from '@/database/schema/tables/savings';
 import { associateHaberesBalance } from '@/database/schema/views';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
+import * as ExcelJS from 'exceljs';
+import {
+  BulkCreditResult,
+  BulkCreditRow,
+  BulkCreditSuccess,
+  BulkCreditFailure,
+} from './dto/bulk-credit.schema';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
@@ -1838,6 +1845,306 @@ export class CreditManagementService {
           (item) => item.paymentStatus === 'PENDING',
         ).length,
       },
+    };
+  }
+
+  // ─── CARGA MASIVA (EXCEL) ───────────────────────────────────────────────
+
+  private mapTermType(raw?: string): 'installments' | 'quotas' | undefined {
+    if (!raw) return undefined;
+    const v = raw.trim().toUpperCase();
+    if (['PLAZOS', 'PLAZO', 'INSTALLMENTS', 'QUINCENAL', 'QUINCENALES'].includes(v)) {
+      return 'installments';
+    }
+    if (['CUOTAS', 'CUOTA', 'QUOTAS', 'MENSUAL', 'MENSUALES'].includes(v)) {
+      return 'quotas';
+    }
+    return undefined;
+  }
+
+  private cellText(cell: ExcelJS.Cell): string {
+    const value = cell.value;
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object') {
+      if (value instanceof Date) return value.toISOString();
+      if ('result' in value) return String((value as ExcelJS.CellFormulaValue).result ?? '');
+      if ('richText' in value) {
+        return (value as ExcelJS.CellRichTextValue).richText
+          .map((r) => r.text)
+          .join('');
+      }
+      if ('text' in value) return String((value as ExcelJS.CellHyperlinkValue).text ?? '');
+      return '';
+    }
+    return String(value);
+  }
+
+  private cellNumber(cell: ExcelJS.Cell): number | undefined {
+    const value = cell.value;
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value === 'number') return value;
+    const parsed = parseFloat(this.cellText(cell).replace(',', '.'));
+    return isNaN(parsed) ? undefined : parsed;
+  }
+
+  private cellDate(cell: ExcelJS.Cell): Date | undefined {
+    const value = cell.value;
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    const text = this.cellText(cell).trim();
+    if (!text) return undefined;
+    const iso = new Date(text);
+    if (!isNaN(iso.getTime())) return iso;
+    // dd/mm/yyyy
+    const parts = text.split(/[/-]/);
+    if (parts.length === 3) {
+      const [d, m, y] = parts.map((p) => parseInt(p, 10));
+      if (d && m && y) {
+        const date = new Date(y < 100 ? 2000 + y : y, m - 1, d);
+        if (!isNaN(date.getTime())) return date;
+      }
+    }
+    return undefined;
+  }
+
+  async generateBulkTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+
+    const sheet = workbook.addWorksheet('creditos');
+
+    const headers = [
+      'Cédula del Asociado *',
+      'Tipo de Crédito *',
+      'Monto *',
+      'Tasa de Interés Anual (%)',
+      '% Gasto Administrativo',
+      'Modalidad de Pago (PLAZOS/CUOTAS)',
+      'Cantidad (Plazos o Cuotas)',
+      'Fecha de Inicio (AAAA-MM-DD)',
+      'Observaciones',
+    ];
+
+    sheet.getRow(1).values = headers;
+    sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet.getRow(1).alignment = { wrapText: true, vertical: 'middle' };
+    sheet.getRow(1).height = 32;
+    sheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F497D' },
+    };
+
+    sheet.columns = [
+      { width: 22 },
+      { width: 26 },
+      { width: 16 },
+      { width: 20 },
+      { width: 20 },
+      { width: 30 },
+      { width: 24 },
+      { width: 24 },
+      { width: 32 },
+    ];
+
+    sheet.getRow(2).values = [
+      '12345678',
+      'Crédito Ordinario',
+      2000,
+      12,
+      8,
+      'PLAZOS',
+      24,
+      '2026-01-15',
+      'Ejemplo de registro',
+    ];
+
+    const instructions = workbook.addWorksheet('Instrucciones');
+    instructions.columns = [{ width: 30 }, { width: 70 }];
+    instructions.getRow(1).values = ['Campo', 'Descripción'];
+    instructions.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    instructions.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF1F497D' },
+    };
+
+    const obs: [string, string][] = [
+      ['Cédula del Asociado *', 'Obligatorio. Cédula del asociado solicitante. Debe existir y estar activo.'],
+      ['Tipo de Crédito *', 'Obligatorio. Debe coincidir exactamente con un tipo de crédito configurado.'],
+      ['Monto *', 'Obligatorio. Monto solicitado, mayor a 0.'],
+      ['Tasa de Interés Anual (%)', 'Opcional. Si se omite se usa la tasa del tipo de crédito.'],
+      ['% Gasto Administrativo', 'Opcional. Si se omite se usa el del tipo de crédito.'],
+      ['Modalidad de Pago', 'Opcional. PLAZOS (quincenal) o CUOTAS (mensual). Por defecto la del tipo de crédito.'],
+      ['Cantidad (Plazos o Cuotas)', 'Opcional. Número entero mayor a 0. Por defecto la del tipo de crédito.'],
+      ['Fecha de Inicio', 'Opcional. Formato AAAA-MM-DD o DD/MM/AAAA. Por defecto la fecha actual.'],
+      ['Observaciones', 'Opcional. Texto libre.'],
+      ['* Campos obligatorios', 'Las filas con errores no detienen la carga; se reportan al finalizar.'],
+    ];
+    obs.forEach((row, i) => {
+      instructions.getRow(i + 2).values = row;
+      instructions.getRow(i + 2).alignment = { wrapText: true, vertical: 'top' };
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer as ArrayBuffer);
+  }
+
+  private async parseBulkWorkbook(fileBuffer: Buffer): Promise<BulkCreditRow[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(fileBuffer as any);
+
+    const sheet = workbook.getWorksheet(1);
+    if (!sheet) {
+      throw new BadRequestException('El archivo no contiene hojas de cálculo');
+    }
+
+    const rows: BulkCreditRow[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // encabezados
+      const cedula = this.cellText(row.getCell(1)).trim();
+      const creditTypeName = this.cellText(row.getCell(2)).trim();
+      const amount = this.cellNumber(row.getCell(3));
+      if (!cedula && !creditTypeName && !amount) return; // fila vacía
+      rows.push({
+        rowNumber,
+        cedula,
+        creditTypeName,
+        amount: amount ?? 0,
+        annualRate: this.cellNumber(row.getCell(4)),
+        expensesPercentage: this.cellNumber(row.getCell(5)),
+        termTypeRaw: this.cellText(row.getCell(6)).trim(),
+        termUnits: this.cellNumber(row.getCell(7)),
+        startDate: this.cellDate(row.getCell(8)),
+        notes: this.cellText(row.getCell(9)).trim() || undefined,
+      });
+    });
+
+    return rows;
+  }
+
+  async createBulk(
+    tenantId: string,
+    userId: string,
+    fileBuffer: Buffer,
+  ): Promise<BulkCreditResult> {
+    const rows = await this.parseBulkWorkbook(fileBuffer);
+
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        'No se encontraron registros válidos en el archivo',
+      );
+    }
+
+    const successes: BulkCreditSuccess[] = [];
+    const failures: BulkCreditFailure[] = [];
+
+    for (const row of rows) {
+      let associateName: string | null = null;
+      let createdId: string | null = null;
+      try {
+        if (!row.cedula) {
+          throw new BadRequestException('La cédula es obligatoria');
+        }
+        if (!row.creditTypeName) {
+          throw new BadRequestException('El tipo de crédito es obligatorio');
+        }
+        if (!row.amount || row.amount <= 0) {
+          throw new BadRequestException('El monto debe ser mayor a 0');
+        }
+
+        const [assoc] = await this.db
+          .select({ id: associates.id, fullname: associates.fullname })
+          .from(associates)
+          .where(
+            and(
+              eq(associates.cedula, row.cedula),
+              eq(associates.tenantId, tenantId),
+            ),
+          );
+
+        if (!assoc) {
+          throw new NotFoundException(
+            `Asociado con cédula ${row.cedula} no encontrado`,
+          );
+        }
+        associateName = assoc.fullname;
+
+        const [creditType] = await this.db
+          .select()
+          .from(creditsTypes)
+          .where(
+            and(
+              eq(creditsTypes.tenantId, tenantId),
+              ilike(creditsTypes.name, row.creditTypeName),
+            ),
+          );
+
+        if (!creditType) {
+          throw new NotFoundException(
+            `Tipo de crédito "${row.creditTypeName}" no encontrado`,
+          );
+        }
+
+        const mappedTermType = this.mapTermType(row.termTypeRaw);
+        const finalTermType =
+          mappedTermType ??
+          (['installments', 'quotas'].includes(creditType.termType ?? '')
+            ? (creditType.termType as 'installments' | 'quotas')
+            : undefined);
+
+        const startDate = row.startDate ?? new Date();
+
+        const dto: CreateCreditDto = {
+          associateId: assoc.id,
+          creditTypeId: creditType.id,
+          creditModality: creditModalityTypeEnum.ORDINARY,
+          requestDate: startDate,
+          startDate,
+          requestedAmount: row.amount,
+          interestRate: row.annualRate,
+          expensesPercentage: row.expensesPercentage,
+          termType: finalTermType,
+          termUnits: row.termUnits,
+          notes: row.notes,
+        } as CreateCreditDto;
+
+        const created = await this.request(tenantId, userId, dto);
+        createdId = created.id;
+
+        await this.approve(tenantId, userId, created.id);
+
+        successes.push({
+          row: row.rowNumber,
+          cedula: row.cedula,
+          associateName: assoc.fullname,
+          reference: created.customReference ?? created.id,
+        });
+        createdId = null;
+      } catch (error) {
+        if (createdId) {
+          try {
+            await this.remove(tenantId, userId, createdId);
+          } catch {
+            // limpieza best-effort
+          }
+        }
+        failures.push({
+          row: row.rowNumber,
+          cedula: row.cedula,
+          associateName,
+          error: (error as any)?.message ?? 'Error desconocido',
+        });
+      }
+    }
+
+    return {
+      message: `Carga masiva finalizada. ${successes.length} crédito(s) creado(s), ${failures.length} con error.`,
+      totalRows: rows.length,
+      successCount: successes.length,
+      failureCount: failures.length,
+      successes,
+      failures,
     };
   }
 }

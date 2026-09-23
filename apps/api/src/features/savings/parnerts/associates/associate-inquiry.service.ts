@@ -9,6 +9,7 @@ const haberesTypes = [
   'EMPLOYER_CONTRIBUTION',
   'VOLUNTARY_SAVINGS',
   'DIVIDEND_CREDIT',
+  'SURPLUS_SAVINGS_CONTRIBUTION'
 ];
 
 export interface PaginatedResult<T> {
@@ -51,7 +52,7 @@ export class AssociateInquiryService {
   constructor(
     @Inject(DRIZZLE_PROVIDER)
     private readonly drizzle: NodePgDatabase<typeof schema>,
-  ) {}
+  ) { }
 
   async getStatement(
     tenantId: string,

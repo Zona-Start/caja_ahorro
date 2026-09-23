@@ -2,6 +2,7 @@ import { PaginationDto } from '@/common/dto/pagination.dto';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,9 +11,15 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  UploadedFile,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { Request } from 'express';
 import { CreditManagementService } from './credit-management.service';
 import {
@@ -23,6 +30,7 @@ import {
   FilterCreditDto,
   FilterCreditSchema,
 } from './dto/credit.schema';
+import { BulkCreditSchema, BulkCreditDto } from './dto/bulk-credit.schema';
 
 @ApiTags('credit')
 @Controller('credit')
@@ -38,6 +46,37 @@ export class CreditManagementController {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
     return this.service.request(targetTenantId, userId, dto);
+  }
+
+  @Get('template-bulk')
+  @ApiOperation({ summary: 'Download bulk credit upload template' })
+  async getTemplateBulk(@Res() res: Response) {
+    const buffer = await this.service.generateBulkTemplate();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition':
+        'attachment; filename="plantilla_carga_masiva_creditos.xlsx"',
+    });
+    res.end(buffer);
+  }
+
+  @Post('bulk')
+  @ApiOperation({ summary: 'Bulk create credits from an Excel file' })
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  async createBulk(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File,
+    @Body(new ZodValidatorPipe(BulkCreditSchema)) dto: BulkCreditDto,
+  ) {
+    if (!file) {
+      throw new BadRequestException('El archivo es requerido');
+    }
+    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
+      req,
+      dto,
+    );
+    return this.service.createBulk(targetTenantId, userId, file.buffer);
   }
 
   @Get('search-associate/:cedula')

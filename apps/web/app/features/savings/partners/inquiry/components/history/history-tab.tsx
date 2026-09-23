@@ -9,9 +9,16 @@ interface HistoryTabProps {
   page: number;
   setPage: (page: number) => void;
   limit: number;
+  setLimit: (limit: number) => void;
 }
 
-export function HistoryTab({ id, page, setPage, limit }: HistoryTabProps) {
+export function HistoryTab({
+  id,
+  page,
+  setPage,
+  limit,
+  setLimit,
+}: HistoryTabProps) {
   const {
     data: historyData,
     isLoading,
@@ -35,6 +42,10 @@ export function HistoryTab({ id, page, setPage, limit }: HistoryTabProps) {
       data={historyData?.data || []}
       totalItems={historyData?.meta?.totalCount || 0}
       pageSizeOptions={[10, 20, 30, 50]}
+      page={page}
+      pageSize={limit}
+      onPageChange={setPage}
+      onPageSizeChange={setLimit}
     />
   );
 }
