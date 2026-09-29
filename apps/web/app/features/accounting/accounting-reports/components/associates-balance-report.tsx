@@ -1,4 +1,5 @@
 import { useAccountingCycles } from '@/features/accounting/accounting-cycles/hooks/use-accounting-cycles-query';
+import { AssociateSearchSelect } from '@/features/savings/partners/associates/components/associate-search-select';
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { Label } from '@repo/shadcn/label';
@@ -20,10 +21,12 @@ export function AssociatesBalanceReport() {
   const { data: cyclesData } = useAccountingCycles();
 
   const [selectedCycleId, setSelectedCycleId] = useState<string>('');
+  const [selectedAssociateId, setSelectedAssociateId] = useState<string>('');
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useAssociatesBalance({
     accountingCycleId: selectedCycleId,
+    associateId: selectedAssociateId || undefined,
     page,
     limit: 20,
   });
@@ -33,8 +36,13 @@ export function AssociatesBalanceReport() {
   };
 
   const handleExport = () => {
-    const pdfUrl = `/accounting-reports/associates-balance/pdf?accountingCycleId=${selectedCycleId}`;
-    window.open(pdfUrl, '_blank');
+    const params = new URLSearchParams();
+    if (selectedCycleId) params.append('accountingCycleId', selectedCycleId);
+    if (selectedAssociateId) params.append('associateId', selectedAssociateId);
+    window.open(
+      `/accounting-reports/associates-balance/pdf?${params.toString()}`,
+      '_blank',
+    );
   };
 
   return (
@@ -57,6 +65,17 @@ export function AssociatesBalanceReport() {
                 }}
                 placeholder="Seleccione un ciclo"
                 defaultValue={selectedCycleId}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Asociado</Label>
+              <AssociateSearchSelect
+                onSelect={(associate) => {
+                  setSelectedAssociateId(associate?.id || '');
+                  setPage(1);
+                }}
+                placeholder="Buscar asociado por cédula o nombre..."
               />
             </div>
           </div>
@@ -199,7 +218,7 @@ export function AssociatesBalanceReport() {
 
               {data?.data.length === 0 && (
                 <div className="text-center py-12 text-muted-foreground">
-                  No se encontraron movimientos para el ciclo seleccionado
+                  No se encontraron movimientos para los filtros seleccionados
                 </div>
               )}
             </div>

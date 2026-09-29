@@ -183,6 +183,13 @@
       "when": 1790033210735,
       "tag": "0025_dizzy_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790650354213,
+      "tag": "0026_brainy_apocalypse",
+      "breakpoints": true
     }
   ]
 }

@@ -266,9 +266,11 @@ export function AccountingEntryForm({
                               maximumFractionDigits: 2,
                             })}
                             onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, '');
+                              const raw = e.target.value;
+                              const isNegative = raw.trim().startsWith('-');
+                              const digits = raw.replace(/\D/g, '');
                               const value = parseInt(digits || '0', 10) / 100;
-                              field.onChange(value);
+                              field.onChange(isNegative ? -value : value);
                             }}
                             onFocus={(e) => e.target.select()}
                           />
@@ -289,9 +291,11 @@ export function AccountingEntryForm({
                               maximumFractionDigits: 2,
                             })}
                             onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, '');
+                              const raw = e.target.value;
+                              const isNegative = raw.trim().startsWith('-');
+                              const digits = raw.replace(/\D/g, '');
                               const value = parseInt(digits || '0', 10) / 100;
-                              field.onChange(value);
+                              field.onChange(isNegative ? -value : value);
                             }}
                             onFocus={(e) => e.target.select()}
                           />

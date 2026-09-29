@@ -1,0 +1,3 @@
+ALTER TABLE "accounting"."accounting_entry_details" DROP CONSTRAINT "amount_positive_check";--> statement-breakpoint
+ALTER TABLE "accounting"."accounting_entry_details" DROP CONSTRAINT "debit_credit_check";--> statement-breakpoint
+ALTER TABLE "accounting"."accounting_entry_details" ADD CONSTRAINT "debit_credit_check" CHECK (("accounting"."accounting_entry_details"."debit" <> 0 AND "accounting"."accounting_entry_details"."credit" = 0) OR ("accounting"."accounting_entry_details"."debit" = 0 AND "accounting"."accounting_entry_details"."credit" <> 0) OR ("accounting"."accounting_entry_details"."debit" = 0 AND "accounting"."accounting_entry_details"."credit" = 0));

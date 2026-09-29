@@ -31,7 +31,7 @@ export function LoansPaidTableAction({ onCreateClick, onBulkClick }: Props) {
     <div className="flex items-center justify-between mt-4">
       <div className="flex items-center gap-4 grow">
         <DataTableSearch
-          title="Buscar por referencia"
+          title="Buscar por referencia de préstamo"
           searchKey="search"
           searchQuery={filters.search || ''}
           setSearchQuery={(v) => setFilters({ search: v })}

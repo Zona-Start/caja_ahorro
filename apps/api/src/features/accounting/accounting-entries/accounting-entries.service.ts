@@ -493,7 +493,7 @@ export class AccountingEntriesService {
 
       const deb = Number(d.debit);
       const cr = Number(d.credit);
-      if ((deb > 0 && cr > 0) || (deb === 0 && cr === 0))
+      if ((deb !== 0 && cr !== 0) || (deb === 0 && cr === 0))
         throw new BadRequestException(
           'Cada línea debe tener débito O crédito.',
         );

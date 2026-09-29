@@ -181,12 +181,10 @@ export const accountingEntryDetails = accountingSchema.table(
   (table) => ({
     checkDebitCredit: check(
       'debit_credit_check',
-      sql`(${table.debit} > 0 AND ${table.credit} = 0) OR (${table.debit} = 0 AND ${table.credit} > 0) OR (${table.debit} = 0 AND ${table.credit} = 0)`,
-    ), // Permitir 0 en ambos para ajustes? Revisar. Idealmente no.
-    checkAmountPositive: check(
-      'amount_positive_check',
-      sql`${table.debit} >= 0 AND ${table.credit} >= 0 AND ${table.debitBase} >= 0 AND ${table.creditBase} >= 0 AND ${table.debitForeign} >= 0 AND ${table.creditForeign} >= 0`,
-    ), // Asegurar no negativos
+      sql`(${table.debit} <> 0 AND ${table.credit} = 0) OR (${table.debit} = 0 AND ${table.credit} <> 0) OR (${table.debit} = 0 AND ${table.credit} = 0)`,
+    ), // Cada línea va en una sola columna (debe o haber); se permiten valores negativos.
+    // Se permite saldo con signo negativo en débito/crédito (y sus equivalentes base/extranjera),
+    // por lo que ya no se aplica la restricción `amount_positive_check`.
     // La dirección (débito/crédito) debe ser la misma en moneda base y extranjera.
     // Se permite una sola moneda (base pura o extranjera pura) dejando el otro lado en 0.
     checkBaseForeignDirection: check(

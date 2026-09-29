@@ -20,10 +20,12 @@ type AssociateOneResponse = z.infer<typeof AssociatesResponseOneSchema>;
 
 export function useAssociatesQuery(
   filters: Record<string, any>,
+  enabled: boolean = true,
 ): UseQueryResult<AssociatesListResponse> {
   return useQuery({
     queryKey: QUERY_KEYS.associates.list(filters),
     queryFn: () => associatesService.getAll(filters),
+    enabled,
   });
 }
 

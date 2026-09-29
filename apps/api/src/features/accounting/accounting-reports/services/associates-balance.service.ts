@@ -35,6 +35,18 @@ export class AssociatesBalanceService {
       );
     }
 
+    if (associateId) {
+      entryConditions.push(
+        eq(schema.accountingEntryDetails.associateId, associateId),
+      );
+    }
+
+    if (accountPlanId) {
+      entryConditions.push(
+        eq(schema.accountingEntryDetails.accountPlanId, accountPlanId),
+      );
+    }
+
     const movements = await this.drizzle
       .select({
         associateId: schema.accountingEntryDetails.associateId,

@@ -113,7 +113,7 @@ export class LoanPaidService {
     const conditions: SQL<unknown>[] = [eq(loanPayments.tenantId, tenantId)];
 
     if (search) {
-      conditions.push(ilike(loanPayments.customReference, `%${search}%`));
+      conditions.push(ilike(loans.customReference, `%${search}%`));
     }
     if (bank !== '') {
       conditions.push(eq(loanPayments.bankId, bank));
@@ -137,6 +137,7 @@ export class LoanPaidService {
     const totalCountResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(loanPayments)
+      .leftJoin(loans, eq(loans.id, loanPayments.loanId))
       .where(where);
 
     const totalCount = Number(totalCountResult[0].count);

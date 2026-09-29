@@ -6,8 +6,8 @@ const statusEnum = z.enum(Object.keys(ENTRY_STATUS) as [string, ...string[]]);
 export const accountingEntryDetailSchema = z.object({
   id: z.string().optional(),
   accountPlanId: z.string({ required_error: 'La cuenta es requerida.' }),
-  debit: z.number().min(0, 'El débito debe ser un valor positivo.'),
-  credit: z.number().min(0, 'El crédito debe ser un valor positivo.'),
+  debit: z.number(),
+  credit: z.number(),
   description: z.string().optional(),
   associateId: z.string().optional().nullable(),
   /** UI-only: indica si la fila lleva auxiliar socio (no se envía al backend) */
