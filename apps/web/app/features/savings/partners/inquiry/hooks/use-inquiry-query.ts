@@ -46,6 +46,28 @@ export function useTransactionHistoryQuery(
   });
 }
 
+export function useOverchargeMovementsQuery(
+  associateId: string,
+  movementType: string,
+  params: { page: number; limit: number },
+) {
+  return useQuery({
+    queryKey: QUERY_KEYS.inquiry.overcharges(associateId, movementType, params),
+    queryFn: () =>
+      inquiryService.getMovimientosPorTipo(associateId, movementType, params),
+    enabled: !!associateId && !!movementType,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useOverchargeSummaryQuery(associateId: string) {
+  return useQuery({
+    queryKey: QUERY_KEYS.inquiry.overchargeSummary(associateId),
+    queryFn: () => inquiryService.getExcesosResumen(associateId),
+    enabled: !!associateId,
+  });
+}
+
 export function useLoansQuery(
   associateId: string,
   params: { page: number; limit: number },

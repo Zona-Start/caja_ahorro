@@ -16,6 +16,8 @@ import { AssociateInquiryService } from './associate-inquiry.service';
 import {
   InquiryStatementFilterDto,
   InquiryStatementFilterSchema,
+  InquiryOverchargeFilterDto,
+  InquiryOverchargeFilterSchema,
 } from './dto/inquiry-filter.zod.dto';
 
 @ApiTags('savings-banks/associates/inquiry')
@@ -163,6 +165,69 @@ export class AssociateInquiryController {
       query.search,
     );
     return { message: 'Historial obtenido exitosamente', ...data };
+  }
+
+  @Get('movimientos/:associateId')
+  @ApiOperation({
+    summary:
+      'Movimientos del asociado filtrados por tipo (cobros en exceso / reversiones)',
+  })
+  @ApiQuery({
+    name: 'movementType',
+    required: true,
+    enum: [
+      'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
+      'LOAN_PAYMENT_REVERSAL_CREDIT',
+      'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT',
+    ],
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista paginada de movimientos filtrada por tipo.',
+  })
+  async getMovimientosPorTipo(
+    @Req() req: Request,
+    @Param('associateId') associateId: string,
+    @Query(new ZodValidatorPipe(InquiryOverchargeFilterSchema))
+    query: InquiryOverchargeFilterDto,
+  ) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const data = await this.inquiryService.getMovimientosPorTipo(
+      targetTenantId,
+      associateId,
+      query.movementType,
+      page,
+      limit,
+    );
+    return { message: 'Movimientos obtenidos exitosamente', ...data };
+  }
+
+  @Get('excesos/:associateId')
+  @ApiOperation({
+    summary:
+      'Resumen (conteo por tipo) de cobros en exceso / reversiones del asociado',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Conteo de movimientos por tipo de cobro en exceso.',
+  })
+  async getExcesosResumen(
+    @Req() req: Request,
+    @Param('associateId') associateId: string,
+  ) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    const data = await this.inquiryService.getExcesosResumen(
+      targetTenantId,
+      associateId,
+    );
+    return {
+      message: 'Resumen de cobros en exceso obtenido exitosamente',
+      data,
+    };
   }
 
   @Get('prestamo/:loanId/detalle')

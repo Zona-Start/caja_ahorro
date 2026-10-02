@@ -123,6 +123,21 @@ export const historyPaginatedResponseSchema = z.object({
   meta: metaSchema,
 });
 
+export const overchargeMovementSchema = transactionHistorySchema;
+
+export const overchargesPaginatedResponseSchema = historyPaginatedResponseSchema;
+
+export const overchargeSummarySchema = z.object({
+  SAVING_WITHDRAWAL_REVERSAL_CREDIT: z.number(),
+  LOAN_PAYMENT_REVERSAL_CREDIT: z.number(),
+  COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT: z.number(),
+});
+
+export const overchargeSummaryResponseSchema = z.object({
+  message: z.string(),
+  data: overchargeSummarySchema,
+});
+
 export const amortizationItemSchema = z.object({
   id: z.string(),
   loanId: z.string().optional(),
@@ -270,3 +285,5 @@ export type WithdrawalListItem = z.infer<typeof withdrawalListItemSchema>;
 export type LoanListItem = z.infer<typeof loanListItemSchema>;
 export type CreditListItem = z.infer<typeof creditListItemSchema>;
 export type TransactionHistory = z.infer<typeof transactionHistorySchema>;
+export type OverchargeMovement = z.infer<typeof overchargeMovementSchema>;
+export type OverchargeSummary = z.infer<typeof overchargeSummarySchema>;

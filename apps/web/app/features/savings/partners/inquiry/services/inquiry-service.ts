@@ -6,6 +6,8 @@ import {
   loansPaginatedResponseSchema,
   creditsPaginatedResponseSchema,
   historyPaginatedResponseSchema,
+  overchargesPaginatedResponseSchema,
+  overchargeSummaryResponseSchema,
   loanDetailResponseSchema,
   creditDetailResponseSchema,
   withdrawalDetailResponseSchema,
@@ -54,6 +56,26 @@ export const inquiryService = {
       params: { page: params.page || 1, limit: params.limit || 10 },
     });
     return historyPaginatedResponseSchema.parse(response.data);
+  },
+
+  getMovimientosPorTipo: async (
+    associateId: string,
+    movementType: string,
+    params: { page?: number; limit?: number },
+  ) => {
+    const response = await apiClient.get(`${BASE}/movimientos/${associateId}`, {
+      params: {
+        movementType,
+        page: params.page || 1,
+        limit: params.limit || 10,
+      },
+    });
+    return overchargesPaginatedResponseSchema.parse(response.data);
+  },
+
+  getExcesosResumen: async (associateId: string) => {
+    const response = await apiClient.get(`${BASE}/excesos/${associateId}`);
+    return overchargeSummaryResponseSchema.parse(response.data);
   },
 
   getPrestamoDetalle: async (loanId: string) => {

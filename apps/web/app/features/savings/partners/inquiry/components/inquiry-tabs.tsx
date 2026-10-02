@@ -8,6 +8,11 @@ import {
   ShoppingCart,
 } from 'lucide-react';
 import type { AssociateStatement } from '../schemas/inquiry-schema';
+import {
+  OVERCHARGE_MOVEMENT_TYPES,
+  type OverchargeMovementType,
+} from '../schemas/inquiry-options';
+import { useOverchargeSummaryQuery } from '../hooks/use-inquiry-query';
 import { CreditsTab } from './credits/credits-tab';
 import { HaberesTab } from './haberes/haberes-tab';
 import { HistoryTab } from './history/history-tab';
@@ -47,6 +52,12 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
   const [activeTab, setActiveTab] = useState<TabValue>('haberes');
   const [pageStates, setPageStates] =
     useState<Record<TabValue, TabPageState>>(INITIAL_PAGE_STATES);
+
+  const { data: overchargeSummary } = useOverchargeSummaryQuery(associate.id);
+  const counts = overchargeSummary?.data;
+
+  const hasOvercharges = (type: OverchargeMovementType) =>
+    (counts?.[type] ?? 0) > 0;
 
   const setTabPage = useCallback((tab: TabValue, page: number) => {
     setPageStates((prev) => ({
@@ -107,6 +118,9 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
               setPage={(p) => setTabPage('retiros', p)}
               limit={pageStates.retiros.limit}
               setLimit={(l) => setTabLimit('retiros', l)}
+              hasOvercharges={hasOvercharges(
+                OVERCHARGE_MOVEMENT_TYPES.RETIROS,
+              )}
             />
           </TabsContent>
           <TabsContent
@@ -133,6 +147,9 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
               setPage={(p) => setTabPage('prestamos', p)}
               limit={pageStates.prestamos.limit}
               setLimit={(l) => setTabLimit('prestamos', l)}
+              hasOvercharges={hasOvercharges(
+                OVERCHARGE_MOVEMENT_TYPES.PRESTAMOS,
+              )}
             />
           </TabsContent>
           <TabsContent
@@ -146,6 +163,9 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
               setPage={(p) => setTabPage('creditos', p)}
               limit={pageStates.creditos.limit}
               setLimit={(l) => setTabLimit('creditos', l)}
+              hasOvercharges={hasOvercharges(
+                OVERCHARGE_MOVEMENT_TYPES.CREDITOS,
+              )}
             />
           </TabsContent>
         </div>

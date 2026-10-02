@@ -12,6 +12,15 @@ const haberesTypes = [
   'SURPLUS_SAVINGS_CONTRIBUTION'
 ];
 
+const overchargeMovementTypes = [
+  'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
+  'LOAN_PAYMENT_REVERSAL_CREDIT',
+  'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT',
+] as const;
+
+type AssociateMovementType =
+  (typeof schema.associateAccountMovements.movementType.enumValues)[number];
+
 export interface PaginatedResult<T> {
   data: T[];
   meta: {
@@ -515,6 +524,132 @@ export class AssociateInquiryService {
         hasPreviousPage: page > 1,
       },
     };
+  }
+
+  async getMovimientosPorTipo(
+    tenantId: string,
+    associateId: string,
+    movementType: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedResult<Record<string, unknown>>> {
+    const conditions: SQL<unknown>[] = [
+      eq(schema.associateAccounts.associateId, associateId),
+      eq(
+        schema.associateAccountMovements.movementType,
+        movementType as AssociateMovementType,
+      ),
+    ];
+
+    if (tenantId) {
+      conditions.push(
+        sql`${schema.associateAccounts.associateId} IN (
+          SELECT id FROM ${schema.associates} WHERE tenant_id = ${tenantId}
+        )`,
+      );
+    }
+
+    const whereClause = and(...conditions);
+    const offset = (page - 1) * limit;
+
+    const [totalResult, data] = await Promise.all([
+      this.drizzle
+        .select({ total: sql<number>`count(*)` })
+        .from(schema.associateAccountMovements)
+        .innerJoin(
+          schema.associateAccounts,
+          eq(
+            schema.associateAccountMovements.associateAccountId,
+            schema.associateAccounts.id,
+          ),
+        )
+        .where(whereClause),
+      this.drizzle
+        .select({
+          tipo: schema.associateAccountMovements.movementType,
+          monto: schema.associateAccountMovements.amount,
+          fecha: schema.associateAccountMovements.transactionDate,
+          descripcion: schema.associateAccountMovements.description,
+          numeroReferencia: schema.associateAccountMovements.internalCode,
+          status: schema.associateAccountMovements.status,
+        })
+        .from(schema.associateAccountMovements)
+        .innerJoin(
+          schema.associateAccounts,
+          eq(
+            schema.associateAccountMovements.associateAccountId,
+            schema.associateAccounts.id,
+          ),
+        )
+        .where(whereClause)
+        .orderBy(desc(schema.associateAccountMovements.transactionDate))
+        .limit(limit)
+        .offset(offset),
+    ]);
+
+    const totalCount = Number(totalResult[0]?.total || 0);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      data: data.map((d) => ({
+        ...d,
+        fecha: d.fecha?.toISOString() || null,
+      })),
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
+  }
+
+  async getExcesosResumen(
+    tenantId: string,
+    associateId: string,
+  ): Promise<Record<string, number>> {
+    const conditions: SQL<unknown>[] = [
+      eq(schema.associateAccounts.associateId, associateId),
+      sql`${schema.associateAccountMovements.movementType} IN (${sql.join(
+        overchargeMovementTypes.map((t) => sql`${t}`),
+        sql`, `,
+      )})`,
+    ];
+
+    if (tenantId) {
+      conditions.push(
+        sql`${schema.associateAccounts.associateId} IN (
+          SELECT id FROM ${schema.associates} WHERE tenant_id = ${tenantId}
+        )`,
+      );
+    }
+
+    const rows = await this.drizzle
+      .select({
+        movementType: schema.associateAccountMovements.movementType,
+        total: sql<number>`count(*)`,
+      })
+      .from(schema.associateAccountMovements)
+      .innerJoin(
+        schema.associateAccounts,
+        eq(
+          schema.associateAccountMovements.associateAccountId,
+          schema.associateAccounts.id,
+        ),
+      )
+      .where(and(...conditions))
+      .groupBy(schema.associateAccountMovements.movementType);
+
+    const summary: Record<string, number> = {};
+    for (const type of overchargeMovementTypes) {
+      summary[type] = 0;
+    }
+    for (const row of rows) {
+      summary[row.movementType] = Number(row.total);
+    }
+    return summary;
   }
 
   async getPrestamoDetalle(

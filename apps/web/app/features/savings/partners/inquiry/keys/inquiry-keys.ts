@@ -18,4 +18,18 @@ export const inquiryKeys = {
     [...inquiryKeys.movements(), 'loans', id, params] as const,
   credits: (id: string, params: InquiryPaginationParams) =>
     [...inquiryKeys.movements(), 'credits', id, params] as const,
+  overcharges: (
+    id: string,
+    movementType: string,
+    params: InquiryPaginationParams,
+  ) =>
+    [
+      ...inquiryKeys.movements(),
+      'overcharges',
+      id,
+      movementType,
+      params,
+    ] as const,
+  overchargeSummary: (id: string) =>
+    [...inquiryKeys.movements(), 'overcharges-summary', id] as const,
 };
