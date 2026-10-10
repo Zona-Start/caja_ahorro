@@ -50,7 +50,7 @@ export const associateAccountBalances = savingsSchema.view(
             'COMMERCIAL_CREDIT_PAYMENT_DEBIT','WITHDRAWAL_FEE_DEBIT',
             'LOAN_INTEREST_DEBIT','LOAN_FEE_DEBIT','LOAN_ADMIN_FEE_DEBIT',
             'LATE_PAYMENT_FEE_DEBIT','PAYMENT_REVERSAL_DEBIT',
-            'CREDIT_ADMIN_FEE_DEBIT','ADJUSTMENT_DEBIT','FEE_CORRECTION_DEBIT',
+            'CREDIT_ADMIN_FEE_DEBIT','FEE_CORRECTION_DEBIT',
             'ADMIN_FEE_DEBIT','OTHER_DEBIT','FEE_DEBIT'
           ) THEN -aam.amount
           ELSE 0
@@ -77,6 +77,11 @@ export const loanOutstandingBalance = savingsSchema.view(
       scale: 6,
     }).notNull(),
     totalInterestPending: numeric('total_interest_pending', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    /** Capital pendiente (solo principal). Coincide con la cuenta contable. */
+    capitalPendiente: numeric('capital_pendiente', {
       precision: 20,
       scale: 6,
     }).notNull(),
@@ -107,6 +112,13 @@ export const loanOutstandingBalance = savingsSchema.view(
       END
     ) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS total_interest_pending,
     COALESCE(SUM(
+      CASE
+        WHEN las.payment_status = 'PARTIAL' THEN
+          GREATEST(las.principal_amount - GREATEST(COALESCE(las.paid_amount, 0) - las.interest_amount, 0), 0)
+        ELSE las.principal_amount
+      END
+    ) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS capital_pendiente,
+    COALESCE(SUM(
       GREATEST((las.principal_amount + las.interest_amount) - COALESCE(las.paid_amount, 0), 0)
     ) FILTER (WHERE las.payment_status IN ('PENDING','PARTIAL')), 0) AS outstanding_total_balance
   FROM ${loans} l
@@ -129,6 +141,11 @@ export const creditOutstandingBalance = savingsSchema.view(
       scale: 6,
     }).notNull(),
     totalInterestPending: numeric('total_interest_pending', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
+    /** Capital pendiente (solo principal). Coincide con la cuenta contable. */
+    capitalPendiente: numeric('capital_pendiente', {
       precision: 20,
       scale: 6,
     }).notNull(),
@@ -158,6 +175,13 @@ export const creditOutstandingBalance = savingsSchema.view(
         ELSE cas.interest_amount
       END
     ) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS total_interest_pending,
+    COALESCE(SUM(
+      CASE
+        WHEN cas.payment_status = 'PARTIAL' THEN
+          GREATEST(cas.principal_amount - GREATEST(COALESCE(cas.paid_amount, 0) - cas.interest_amount, 0), 0)
+        ELSE cas.principal_amount
+      END
+    ) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS capital_pendiente,
     COALESCE(SUM(
       GREATEST((cas.principal_amount + cas.interest_amount) - COALESCE(cas.paid_amount, 0), 0)
     ) FILTER (WHERE cas.payment_status IN ('PENDING','PARTIAL')), 0) AS outstanding_total_balance
@@ -202,6 +226,10 @@ export const associateHaberesBalance = savingsSchema.view(
       precision: 20,
       scale: 6,
     }).notNull(),
+    totalOverpayment: numeric('total_overpayment', {
+      precision: 20,
+      scale: 6,
+    }).notNull(),
   },
 ).as(sql`
   SELECT
@@ -214,7 +242,14 @@ export const associateHaberesBalance = savingsSchema.view(
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'EMPLOYER_CONTRIBUTION'), 0) AS haberes_employer,
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'DIVIDEND_CREDIT'), 0) AS surpluses,
     COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'SAVING_WITHDRAWAL'), 0) AS total_withdrawals,
-    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'WITHDRAWAL_FEE_DEBIT'), 0) AS total_withdrawal_fees
+    COALESCE(SUM(amount_change) FILTER (WHERE movement_type = 'WITHDRAWAL_FEE_DEBIT'), 0) AS total_withdrawal_fees,
+    COALESCE(SUM(amount_change) FILTER (
+    	WHERE movement_type IN (
+    	'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
+    	'LOAN_PAYMENT_REVERSAL_CREDIT',
+    	'CREDIT_PAYMENT_REVERSAL_CREDIT'
+    	) 
+    ), 0) AS total_overpayment
   FROM (
     SELECT
       associate_account_id,
@@ -225,10 +260,10 @@ export const associateHaberesBalance = savingsSchema.view(
           'ADJUSTMENT_CREDIT','DIVIDEND_CREDIT','FEE_REIMBURSEMENT_CREDIT',
           'LOAN_OVERPAYMENT_CREDIT','COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT',
           'SAVING_WITHDRAWAL_REVERSAL_CREDIT','LIQUIDATION_BALANCE_REVERSAL_CREDIT',
-          'ACCOUNTING_ADJUSTMENT_CREDIT','OTHER_CREDIT'
+          'ACCOUNTING_ADJUSTMENT_CREDIT','OTHER_CREDIT', 'LOAN_PAYMENT_REVERSAL_CREDIT','CREDIT_PAYMENT_REVERSAL_CREDIT'
         ) THEN amount
         WHEN movement_type IN (
-          'SAVING_WITHDRAWAL','WITHDRAWAL_FEE_DEBIT','ADJUSTMENT_DEBIT',
+          'SAVING_WITHDRAWAL','WITHDRAWAL_FEE_DEBIT',
           'FEE_CORRECTION_DEBIT','PAYMENT_REVERSAL_DEBIT','ADMIN_FEE_DEBIT',
           'OTHER_DEBIT','FEE_DEBIT','LIQUIDATION_BALANCE',
           'ACCOUNTING_ADJUSTMENT_DEBIT','LIQUIDATION_LOAN_PAYMENT_DEBIT',

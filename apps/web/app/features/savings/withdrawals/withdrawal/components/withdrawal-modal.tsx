@@ -30,6 +30,7 @@ import {
   FormMessage,
 } from '@repo/shadcn/form';
 import { CustomCalendar } from '@repo/shadcn/components/ui/custom-calendar';
+import { Switch } from '@repo/shadcn/switch';
 import { AlertModal } from '@/components/shared/alert-modal';
 import {
   AlertCircle,
@@ -45,10 +46,12 @@ import {
   Building2,
   Info,
   Send,
+  ShieldAlert,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/format-utils';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { useToastSystem } from '@/hooks/use-toast-system';
+import { useAuthStore } from '@/stores/auth.store';
 import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import {
   useAssociateWithdrawalRequestQuery,
@@ -78,6 +81,9 @@ const WITHDRAWAL_DEFAULTS: Withdrawal = {
   date: new Date(),
   description: '',
   commercialHouseId: null,
+  allowWithActiveLoanOrCredit: false,
+  allowWithPayrollCredit: false,
+  allowEarlyWithdrawal: false,
   withdrawalItems: [],
 };
 
@@ -97,6 +103,9 @@ interface ItemLine {
 export function WithdrawalModal({ open, onOpenChange }: Props) {
   const toast = useToastSystem();
   const queryClient = useQueryClient();
+  const canApprove = useAuthStore((s) =>
+    s.hasPermission('savings:withdrawals', 'approve'),
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
@@ -141,6 +150,13 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
 
   const watchTypeId = useWatch({ control: form.control, name: 'withdrawalTypeId' });
   const watchAmount = useWatch({ control: form.control, name: 'requestedAmount' }) || 0;
+  const allowWithActiveLoanOrCredit =
+    useWatch({ control: form.control, name: 'allowWithActiveLoanOrCredit' }) ??
+    false;
+  const allowWithPayrollCredit =
+    useWatch({ control: form.control, name: 'allowWithPayrollCredit' }) ?? false;
+  const allowEarlyWithdrawal =
+    useWatch({ control: form.control, name: 'allowEarlyWithdrawal' }) ?? false;
 
   const selectedType = withdrawalTypes.find(
     (t) => t.id === watchTypeId,
@@ -187,16 +203,37 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       ok: true,
     });
     if (associate.hasActiveLoan) {
-      r.canSave = false;
-      r.messages.push({ text: 'Préstamo activo - Bloqueado', ok: false });
+      if (allowWithActiveLoanOrCredit) {
+        r.messages.push({
+          text: 'Préstamo activo - Permitido por parámetro especial',
+          ok: true,
+        });
+      } else {
+        r.canSave = false;
+        r.messages.push({ text: 'Préstamo activo - Bloqueado', ok: false });
+      }
     }
     if (associate.hasActiveCredit) {
-      r.canSave = false;
-      r.messages.push({ text: 'Crédito activo - Bloqueado', ok: false });
+      if (allowWithActiveLoanOrCredit) {
+        r.messages.push({
+          text: 'Crédito activo - Permitido por parámetro especial',
+          ok: true,
+        });
+      } else {
+        r.canSave = false;
+        r.messages.push({ text: 'Crédito activo - Bloqueado', ok: false });
+      }
     }
     if (associate.hasPayrollCredit) {
-      r.canSave = false;
-      r.messages.push({ text: 'Credinomina activo - Bloqueado', ok: false });
+      if (allowWithPayrollCredit) {
+        r.messages.push({
+          text: 'Credinomina activo - Permitido por parámetro especial',
+          ok: true,
+        });
+      } else {
+        r.canSave = false;
+        r.messages.push({ text: 'Credinomina activo - Bloqueado', ok: false });
+      }
     }
     if (
       selectedType?.withdrawalPercentage &&
@@ -216,12 +253,19 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
           new Date(associate.lastWithdrawalDate).getTime()) /
         (30 * 24 * 60 * 60 * 1000);
       if (monthsSince < wtMonths) {
-        r.canSave = false;
         const remaining = Math.ceil(wtMonths - monthsSince);
-        r.messages.push({
-          text: `Tiempo entre retiros: faltan ${remaining} mes(es) - Bloqueado`,
-          ok: false,
-        });
+        if (allowEarlyWithdrawal) {
+          r.messages.push({
+            text: `Tiempo entre retiros: faltan ${remaining} mes(es) - Permitido por parámetro especial`,
+            ok: true,
+          });
+        } else {
+          r.canSave = false;
+          r.messages.push({
+            text: `Tiempo entre retiros: faltan ${remaining} mes(es) - Bloqueado`,
+            ok: false,
+          });
+        }
       }
     }
     if (!selectedType) {
@@ -240,7 +284,34 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       r.messages.push({ text: 'Agregue al menos un item', ok: false });
     }
     return r;
-  }, [associate, effectiveAmount, selectedType, items, supplierId]);
+  }, [
+    associate,
+    effectiveAmount,
+    selectedType,
+    items,
+    supplierId,
+    allowWithActiveLoanOrCredit,
+    allowWithPayrollCredit,
+    allowEarlyWithdrawal,
+  ]);
+
+  const timeRuleBlocked = useMemo(() => {
+    const wtMonths = associate?.withdrawalTimeMonths ?? 0;
+    if (wtMonths <= 0 || !associate?.lastWithdrawalDate) return false;
+    const monthsSince =
+      (new Date().getTime() -
+        new Date(associate.lastWithdrawalDate).getTime()) /
+      (30 * 24 * 60 * 60 * 1000);
+    return monthsSince < wtMonths;
+  }, [associate]);
+
+  const showSpecialParams =
+    canApprove &&
+    !!associate?.associateAccountId &&
+    (associate.hasActiveLoan ||
+      associate.hasActiveCredit ||
+      associate.hasPayrollCredit ||
+      timeRuleBlocked);
 
   useEffect(() => {
     if (shouldFetch && !searching) {
@@ -577,6 +648,79 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                           {selectedType.isHouseComercial ? 'Sí' : 'No'}
                         </span>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* PARÁMETROS ESPECIALES */}
+                {showSpecialParams && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50/60 dark:bg-amber-900/10 p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm font-semibold uppercase text-muted-foreground">
+                        Parámetros Especiales
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Permite crear el retiro aunque el asociado tenga condiciones
+                      bloqueantes. Solo disponible para usuarios con permiso de
+                      aprobación.
+                    </p>
+                    <div className="space-y-2">
+                      {(associate!.hasActiveLoan || associate!.hasActiveCredit) && (
+                        <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
+                          <div className="pr-2">
+                            <p className="text-sm font-medium">
+                              Permitir con préstamo o crédito
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Omite el bloqueo por préstamo o crédito activo.
+                            </p>
+                          </div>
+                          <Switch
+                            checked={allowWithActiveLoanOrCredit}
+                            onCheckedChange={(v) =>
+                              form.setValue('allowWithActiveLoanOrCredit', v)
+                            }
+                          />
+                        </div>
+                      )}
+                      {associate!.hasPayrollCredit && (
+                        <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
+                          <div className="pr-2">
+                            <p className="text-sm font-medium">
+                              Permitir con credinomina
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Omite el bloqueo por credinomina activa.
+                            </p>
+                          </div>
+                          <Switch
+                            checked={allowWithPayrollCredit}
+                            onCheckedChange={(v) =>
+                              form.setValue('allowWithPayrollCredit', v)
+                            }
+                          />
+                        </div>
+                      )}
+                      {timeRuleBlocked && (
+                        <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
+                          <div className="pr-2">
+                            <p className="text-sm font-medium">
+                              Permitir antes del tiempo mínimo
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Omite la espera mínima entre retiros.
+                            </p>
+                          </div>
+                          <Switch
+                            checked={allowEarlyWithdrawal}
+                            onCheckedChange={(v) =>
+                              form.setValue('allowEarlyWithdrawal', v)
+                            }
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

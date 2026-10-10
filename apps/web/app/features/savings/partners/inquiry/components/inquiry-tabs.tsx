@@ -59,6 +59,7 @@ export function InquiryTabs({ associate }: InquiryTabsProps) {
   const hasOvercharges = (type: OverchargeMovementType) =>
     (counts?.[type] ?? 0) > 0;
 
+
   const setTabPage = useCallback((tab: TabValue, page: number) => {
     setPageStates((prev) => ({
       ...prev,

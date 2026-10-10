@@ -84,6 +84,8 @@ export {
   loans,
   paymentBatchItems,
   paymentBatches,
+  reimbursementDetails,
+  reimbursements,
   withdrawalTypes,
   withdrawalsAssociates,
 } from './savings';

@@ -1,4 +1,5 @@
 import { PdfGeneratorService } from '@/common/modules/pdf-generator/pdf-generator.service';
+import { computePendingBalance } from '@/common/utils/pending-balance';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
@@ -18,7 +19,7 @@ import {
 } from '@/types/enum';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { format } from 'date-fns';
-import { and, eq, ilike, ne, SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { LoanPaymentProcessor } from './domain/loan-payment.processor';
@@ -261,6 +262,8 @@ export class LoanPaidService {
         quotaDate: loanAmortizationSchedule.dueDate,
         quotaStatus: loanAmortizationSchedule.paymentStatus,
         quotaPartial: loanAmortizationSchedule.paidAmount,
+        principalAmount: loanAmortizationSchedule.principalAmount,
+        interestAmount: loanAmortizationSchedule.interestAmount,
         principalBalancePending:
           loanAmortizationSchedule.principalBalancePending,
         paidAmount: loanAmortizationSchedule.paidAmount,
@@ -276,25 +279,33 @@ export class LoanPaidService {
         END ASC,
         id ASC`);
 
-    const pendingQuotas = loanAmortization.filter(
-      (item) => item.quotaStatus === 'PENDING',
-    );
-    const partialQuotas = loanAmortization.filter(
-      (item) => item.quotaStatus === 'PARTIAL',
-    );
+    const loanId = result.length === 0 ? null : result[0]?.loanId;
 
-    const totalPending = pendingQuotas.reduce((acc, item) => {
-      return acc + (Number(item.quotaAmount) || 0);
-    }, 0);
+    // Saldo pendiente = saldo corriente (último pago) o capital pendiente del
+    // schedule si no hay pagos. Igual que el detalle del inquiry y el contable.
+    let pendingBalance = 0;
+    if (loanId) {
+      const [lastPayment] = await this.db
+        .select({ balancePending: loanPayments.balancePending })
+        .from(loanPayments)
+        .where(
+          and(eq(loanPayments.loanId, loanId), eq(loanPayments.status, 'DONE')),
+        )
+        .orderBy(desc(loanPayments.paymentDate), desc(loanPayments.createdAt))
+        .limit(1);
 
-    const totalPartial = partialQuotas.reduce((acc, item) => {
-      const totalAmount = Number(item.quotaAmount) || 0;
-      const paidAmount = Number(item.paidAmount) || 0;
-      const remaining = totalAmount - paidAmount;
-      return acc + (remaining > 0 ? remaining : 0);
-    }, 0);
-
-    const totalPendingAmount = totalPending + totalPartial;
+      pendingBalance =
+        lastPayment?.balancePending != null
+          ? Number(lastPayment.balancePending)
+          : computePendingBalance(
+              loanAmortization.map((i) => ({
+                principalAmount: i.principalAmount,
+                interestAmount: i.interestAmount,
+                paidAmount: i.paidAmount,
+                paymentStatus: i.quotaStatus,
+              })),
+            );
+    }
 
     const transformLoandAdmortization = loanAmortization.map((item) => ({
       ...item,
@@ -311,9 +322,9 @@ export class LoanPaidService {
       email: associate[0].email,
       accountNumber: associate[0].accountNumber || null,
       balance: associate[0].balance || null,
-      loanId: result.length === 0 ? null : result[0]?.loanId,
+      loanId,
       loanType: result.length === 0 ? null : result[0]?.loanType,
-      loanTotalAmount: String(totalPendingAmount.toFixed(2)),
+      loanTotalAmount: String(pendingBalance.toFixed(2)),
       loanModality: result.length === 0 ? null : result[0]?.loanModality,
       loanCustomReference:
         result.length === 0 ? null : result[0]?.loanCustomReference,

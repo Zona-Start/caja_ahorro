@@ -166,6 +166,7 @@ export enum AssociateMovementTypeEnum {
   // Reversiones de Pagos (lo que antes era 'PAYMENT_REVERSAL_DEBIT')
   LOAN_PAYMENT_REVERSAL_CREDIT = 'LOAN_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de préstamo (Crédito a la cuenta del asociado)
   COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT = 'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de crédito comercial
+  CREDIT_PAYMENT_REVERSAL_CREDIT = 'CREDIT_PAYMENT_REVERSAL_CREDIT',
 
   // Reversiones de Retiros
   SAVING_WITHDRAWAL_REVERSAL_CREDIT = 'SAVING_WITHDRAWAL_REVERSAL_CREDIT', // Nuevo: Reversión de un retiro de ahorros

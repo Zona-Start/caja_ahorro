@@ -1,4 +1,5 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { computePendingBalance } from '@/common/utils/pending-balance';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
@@ -33,7 +34,7 @@ import {
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { format } from 'date-fns';
-import { and, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, ne, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
@@ -71,9 +72,10 @@ export class CreditPaidService implements OnModuleInit {
   ): Promise<number> {
     const creditAmortization = await db
       .select({
-        quotaAmount: creditAmortizationSchedule.totalInstallmentAmount,
+        principalAmount: creditAmortizationSchedule.principalAmount,
+        interestAmount: creditAmortizationSchedule.interestAmount,
         paidAmount: creditAmortizationSchedule.paidAmount,
-        quotaStatus: creditAmortizationSchedule.paymentStatus,
+        paymentStatus: creditAmortizationSchedule.paymentStatus,
       })
       .from(creditAmortizationSchedule)
       .where(eq(creditAmortizationSchedule.creditId, creditId))
@@ -86,20 +88,47 @@ export class CreditPaidService implements OnModuleInit {
       END ASC,
       id ASC`);
 
-    const totalRemainingExact = creditAmortization.reduce((acc, item) => {
-      const total = Number(item.quotaAmount);
-      const paid = Number(item.paidAmount || 0);
-      const remaining = total - paid;
-      return acc + (remaining > EPSILON_COMPARISON ? remaining : 0);
-    }, 0);
+    return computePendingBalance(creditAmortization);
+  }
 
-    return parseFloat(totalRemainingExact.toFixed(6));
+  /**
+   * Saldo pendiente de partida para un nuevo pago.
+   *
+   * Es el `balance_pending` del último pago registrado (saldo corriente, que ya
+   * está cuadrado con el saldo contable, incluso en créditos migrados). Si el
+   * crédito no tiene pagos, se calcula desde la tabla de amortización.
+   */
+  private async _getPendingBalanceBase(
+    creditId: string,
+    db: NodePgDatabase<typeof schema> = this.db,
+  ): Promise<number> {
+    const [lastPayment] = await db
+      .select({ balancePending: creditPayments.balancePending })
+      .from(creditPayments)
+      .where(
+        and(
+          eq(creditPayments.creditId, creditId),
+          eq(creditPayments.status, 'DONE'),
+        ),
+      )
+      .orderBy(
+        desc(creditPayments.paymentDate),
+        desc(creditPayments.createdAt),
+      )
+      .limit(1);
+
+    if (lastPayment?.balancePending != null) {
+      return Number(lastPayment.balancePending);
+    }
+
+    return this._calculateBalancePending(creditId, db);
   }
 
   private async _calculateCoveredInstallments(
     creditId: string,
     amount: number,
     db: NodePgDatabase<typeof schema> = this.db,
+    pendingBalanceBase?: number,
   ): Promise<{
     paidInstallmentDetails: {
       id: string;
@@ -127,6 +156,100 @@ export class CreditPaidService implements OnModuleInit {
         ),
         orderBy: creditAmortizationSchedule.installmentNumber,
       });
+
+    const pendingBase =
+      pendingBalanceBase ?? (await this._getPendingBalanceBase(creditId, db));
+
+    // Cierre: si el pago cubre el capital pendiente, se cierran todas las
+    // cuotas restantes y se condona el interés no cobrado (no genera
+    // movimientos ni asientos de interés adicionales).
+    if (amount + EPSILON_COMPARISON >= pendingBase) {
+      let totalInterestDue = 0;
+      const closingDetails: {
+        id: string;
+        amount: number;
+        principal: number;
+        interest: number;
+      }[] = [];
+
+      for (const installment of pendingInstallments) {
+        const installmentTotal = Number(installment.totalInstallmentAmount);
+        const installmentPaid = Number(installment.paidAmount || 0);
+        const dueAmountExact = installmentTotal - installmentPaid;
+        if (dueAmountExact <= EPSILON_COMPARISON) continue;
+
+        const princInst = Number(installment.principalAmount);
+        const intInst = Number(installment.interestAmount);
+        const interestPaidBefore = Math.min(installmentPaid, intInst);
+        const interestStillDue = Math.max(0, intInst - interestPaidBefore);
+        const principalPaidBefore = Math.max(0, installmentPaid - intInst);
+        const principalStillDue = Math.max(0, princInst - principalPaidBefore);
+
+        totalInterestDue += interestStillDue;
+
+        closingDetails.push({
+          id: installment.id,
+          amount: parseFloat(dueAmountExact.toFixed(6)),
+          principal: parseFloat(principalStillDue.toFixed(6)),
+          interest: parseFloat(interestStillDue.toFixed(6)),
+        });
+      }
+
+      if (closingDetails.length === 0) {
+        return {
+          paidInstallmentDetails: [],
+          partialInstallment: undefined,
+          remainingAmount: parseFloat(Math.max(0, amount).toFixed(6)),
+        };
+      }
+
+      // El capital registrado cierra exactamente contra el saldo base.
+      const principalSum = closingDetails.reduce(
+        (sum, detail) => sum + detail.principal,
+        0,
+      );
+      const principalDelta = parseFloat(
+        (pendingBase - principalSum).toFixed(6),
+      );
+      const lastDetail = closingDetails[closingDetails.length - 1];
+      lastDetail.principal = parseFloat(
+        Math.max(0, lastDetail.principal + principalDelta).toFixed(6),
+      );
+
+      // Solo se registra como interés el excedente sobre el capital; el
+      // interés no cobrado se condona.
+      const interestToRecord = Math.min(
+        Math.max(0, amount - pendingBase),
+        totalInterestDue,
+      );
+      let interestToCondone = parseFloat(
+        (totalInterestDue - interestToRecord).toFixed(6),
+      );
+      for (
+        let i = closingDetails.length - 1;
+        i >= 0 && interestToCondone > 0;
+        i--
+      ) {
+        const reduce = Math.min(closingDetails[i].interest, interestToCondone);
+        closingDetails[i].interest = parseFloat(
+          (closingDetails[i].interest - reduce).toFixed(6),
+        );
+        interestToCondone = parseFloat((interestToCondone - reduce).toFixed(6));
+      }
+
+      for (const detail of closingDetails) {
+        detail.amount = parseFloat(
+          (detail.principal + detail.interest).toFixed(6),
+        );
+      }
+
+      return {
+        paidInstallmentDetails: closingDetails,
+        partialInstallment: undefined,
+        // Exceso = lo que supera el CAPITAL pendiente (el interés se condona).
+        remainingAmount: parseFloat(Math.max(0, amount - pendingBase).toFixed(6)),
+      };
+    }
 
     const paidInstallmentDetails: {
       id: string;
@@ -273,8 +396,18 @@ export class CreditPaidService implements OnModuleInit {
         throw new NotFoundException('Credit not found');
       }
 
+      const pendingBalanceBase = await this._getPendingBalanceBase(
+        creditId,
+        tx,
+      );
+
       const { paidInstallmentDetails, partialInstallment, remainingAmount } =
-        await this._calculateCoveredInstallments(creditId, amount, tx);
+        await this._calculateCoveredInstallments(
+          creditId,
+          amount,
+          tx,
+          pendingBalanceBase,
+        );
 
       let totalPrincipalPaid = 0;
       let totalInterestPaid = 0;
@@ -289,14 +422,11 @@ export class CreditPaidService implements OnModuleInit {
         totalInterestPaid += partialInstallment.interest;
       }
 
-      const currentBalanceCalculatedFromInstallments =
-        await this._calculateBalancePending(creditId, tx);
-
       const appliedAmountExact = amount - remainingAmount;
 
       let newBalancePending = Math.max(
         0,
-        currentBalanceCalculatedFromInstallments - appliedAmountExact,
+        pendingBalanceBase - totalPrincipalPaid,
       );
 
       if (newBalancePending < EPSILON_COMPARISON) {
@@ -411,7 +541,6 @@ export class CreditPaidService implements OnModuleInit {
         customReference: insertedPayment.customReference,
         balanceInFavorValue: balanceInFavorValue,
         appliedAmountExact,
-        totalPrincipalPaid,
         totalInterestPaid,
       };
     });
@@ -420,7 +549,7 @@ export class CreditPaidService implements OnModuleInit {
       const resutAccount = await db
         .select({
           id: schema.associateAccounts.id,
-          referenceLoans: credits.customReference,
+          referenceCredits: credits.customReference,
           associateId: schema.credits.associateId,
           associateFullname: schema.associates.fullname,
           currencyCode: schema.credits.currencyCode,
@@ -446,14 +575,38 @@ export class CreditPaidService implements OnModuleInit {
           ),
         );
 
-      const payloadMovementLoan = {
+      const roundedPayment = Number(result.appliedAmountExact.toFixed(2));
+      const roundedInterest = Number(result.totalInterestPaid.toFixed(2));
+
+      // Pago en exceso: se condona el interés de todas las cuotas cubiertas y
+      // todo el dinero va a la cuenta del crédito (capital).
+      const hasExcess = result.balanceInFavorValue > 0;
+      const effectiveInterest = hasExcess ? 0 : roundedInterest;
+      const effectivePrincipal = Number(
+        (roundedPayment - effectiveInterest).toFixed(2),
+      );
+
+      const payloadMovementCapital = {
         associateAccountId: resutAccount[0].id,
         movementType:
           'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
-        amount: amount,
+        amount: effectivePrincipal,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: paymentDate ? paymentDate : undefined,
-        description: 'Pago Crédito',
+        description: `Pago Cuota Capital Crédito Nº ${resutAccount[0].referenceCredits}`,
+        referenceId: String(result.insertedPaymentId),
+        referenceType: 'creditPayments',
+        referenceNumber: result.customReference ?? undefined,
+        area: 'CREDITOS',
+      };
+
+      const payloadMovementInterest = {
+        associateAccountId: resutAccount[0].id,
+        movementType: 'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
+        amount: effectiveInterest,
+        currencyCode: 'VES' as CurrencyCodeEnum,
+        transactionDate: paymentDate ? paymentDate : undefined,
+        description: `Pago Cuota Interés Crédito Nº ${resutAccount[0].referenceCredits}`,
         referenceId: String(result.insertedPaymentId),
         referenceType: 'creditPayments',
         referenceNumber: result.customReference ?? undefined,
@@ -461,11 +614,20 @@ export class CreditPaidService implements OnModuleInit {
       };
 
       if (!liquidationActive && resutAccount[0].id) {
-        await this.associateAccountsMovementsService.create(
-          userId,
-          payloadMovementLoan,
-          tenantId,
-        );
+        if (effectivePrincipal > 0) {
+          await this.associateAccountsMovementsService.create(
+            userId,
+            payloadMovementCapital,
+            tenantId,
+          );
+        }
+        if (effectiveInterest > 0) {
+          await this.associateAccountsMovementsService.create(
+            userId,
+            payloadMovementInterest,
+            tenantId,
+          );
+        }
       }
 
       if (!liquidationActive && bankId) {
@@ -474,7 +636,7 @@ export class CreditPaidService implements OnModuleInit {
             bankAccountId: bankId,
             transactionDate: paymentDate ?? new Date(),
             paymentMethod: paymentMethod as paymentMethodEnum,
-            description: 'Pago de Cuota Crédito',
+            description: `Pago de Cuota Crédito Nº ${resutAccount[0].referenceCredits}`,
             bankReference: transactionReference,
             category: 'CREDIT_PAYMENT' as BankTransactionCategory,
             creditAmount: amount,
@@ -502,11 +664,11 @@ export class CreditPaidService implements OnModuleInit {
           const payloadMovementOverpayment = {
             associateAccountId: resutAccount[0].id,
             movementType:
-              'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT' as AssociateMovementTypeEnum,
+              'CREDIT_PAYMENT_REVERSAL_CREDIT' as AssociateMovementTypeEnum,
             amount: result.balanceInFavorValue,
             currencyCode: 'VES' as CurrencyCodeEnum,
             transactionDate: paymentDate ? paymentDate : undefined,
-            description: 'CREDITO SOBREGIRO PAGO DE CREDITO',
+            description: 'Ajuste a favor por cobro en exceso por pago de credito Nº' + resutAccount[0].referenceCredits,
             referenceId: String(creditId),
             referenceType: 'credits',
             referenceNumber: undefined,
@@ -523,20 +685,17 @@ export class CreditPaidService implements OnModuleInit {
 
       if (!liquidationActive) {
         let accountingWarning: string | undefined;
-        let roundedPayment = 0;
-        let roundedInterest = 0;
-        let roundedPrincipal = 0;
         try {
           const dateStr = paymentDate
             ? format(new Date(paymentDate), 'dd/MM/yyyy')
             : format(new Date(), 'dd/MM/yyyy');
           const fullname = resutAccount[0]?.associateFullname ?? 'ASOCIADO';
 
-          roundedPayment = Number(result.appliedAmountExact.toFixed(2));
-          roundedInterest = Number(result.totalInterestPaid.toFixed(2));
-          roundedPrincipal = Number(
-            (roundedPayment - roundedInterest).toFixed(2),
+          const roundedTotal = Number(amount.toFixed(2));
+          const accountingPrincipal = Number(
+            (roundedTotal - effectiveInterest).toFixed(2),
           );
+
           const accountingPayload = {
             module: 'portfolio',
             submodule: 'credits',
@@ -554,23 +713,26 @@ export class CreditPaidService implements OnModuleInit {
               {
                 associateId: resutAccount[0]?.associateId,
                 amounts: {
-                  CREDIT_PAYMENT: roundedPayment,
-                  BANK_ACCOUNT: roundedPayment,
+                  CREDIT_PAYMENT: accountingPrincipal,
+                  LOAN_INTEREST_INCOME: effectiveInterest,
+                  BANK_ACCOUNT: roundedTotal,
                 },
                 descriptions: {
                   CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+                  LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
                   BANK_ACCOUNT: `PAGO CREDITO DEL ${dateStr}`,
                 },
               },
             ],
             globalDescriptions: {
               CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+              LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
               BANK_ACCOUNT: `PAGO CREDITO DEL ${dateStr}`,
             },
           };
 
           this.logger.debug(
-            `[create] Enviando asiento contable: paymentId=${result?.insertedPaymentId} amount=${amount} applied=${result?.appliedAmountExact} principal=${roundedPrincipal} interest=${roundedInterest} payment=${roundedPayment}`,
+            `[create] Enviando asiento contable: paymentId=${result?.insertedPaymentId} amount=${amount} applied=${result?.appliedAmountExact} principal=${effectivePrincipal} interest=${effectiveInterest} payment=${roundedPayment} accountingPrincipal=${accountingPrincipal} accountingBank=${roundedTotal}`,
           );
 
           await this.accountingEntriesService.createAutomaticEntry(
@@ -594,7 +756,7 @@ export class CreditPaidService implements OnModuleInit {
             `[create] ERROR generando asiento contable del pago de crédito. ` +
             `creditId=${creditId} paymentId=${result?.insertedPaymentId} ` +
             `amount=${amount} applied=${result?.appliedAmountExact} ` +
-            `principal=${roundedPrincipal} interest=${roundedInterest} ` +
+            `principal=${effectivePrincipal} interest=${effectiveInterest} ` +
             `payment=${roundedPayment}`,
           );
           this.logger.error(
@@ -742,6 +904,7 @@ export class CreditPaidService implements OnModuleInit {
             .select({
               id: credits.id,
               associateId: credits.associateId,
+              customReference: credits.customReference,
               currencyCode: credits.currencyCode,
             })
             .from(credits)
@@ -754,212 +917,365 @@ export class CreditPaidService implements OnModuleInit {
             )
             .for('update');
 
-          if (!credit) {
-            results.errors.push({
-              cedula: item.cedula,
-              error: 'No se encontró crédito activo',
-            });
-            continue;
-          }
+          if (!credit && item.amount > 0) {
 
-          const [creditTypeRow] = await tx
-            .select({ name: creditsTypes.name })
-            .from(credits)
-            .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
-            .where(eq(credits.id, credit.id));
-          const creditTypeName = creditTypeRow?.name ?? 'CREDITOS';
-          bulkCreditTypes.add(creditTypeName);
-
-          const installmentResult = await this._calculateCoveredInstallments(
-            credit.id,
-            item.amount,
-            tx,
-          );
-
-          const appliedAmountExact =
-            item.amount - installmentResult.remainingAmount;
-
-          if (appliedAmountExact <= 0) {
-            results.errors.push({
-              cedula: item.cedula,
-              error: 'Monto insuficiente para abonar',
-            });
-            continue;
-          }
-
-          const currentBalance = await this._calculateBalancePending(
-            credit.id,
-            tx,
-          );
-          let newBalancePending = Math.max(
-            0,
-            currentBalance - appliedAmountExact,
-          );
-          if (newBalancePending < EPSILON_COMPARISON) newBalancePending = 0;
-
-          const customReference =
-            await this.generateCodeService.generateNextReference(
-              'CRE-PAG',
-              tenantId,
-              'portfolio',
-              'credit-payments',
-            );
-
-          const [insertedPayment] = await tx
-            .insert(creditPayments)
-            .values({
-              tenantId,
-              creditId: credit.id,
-              paymentDate: finalPaymentDate,
-              paymentType: 'PAYING',
-              amount: String(item.amount),
-              balancePending: String(newBalancePending.toFixed(6)),
-              bankId: null,
-              paymentMethod: paymentMethodEnum.BANK_TRANSFER,
-              transactionReference: customReference,
-              comment: 'Carga Masiva Excel Pagos de Créditos',
-              createdById: userId,
-              customReference,
-            })
-            .returning({
-              id: creditPayments.id,
-              customReference: creditPayments.customReference,
-            });
-
-          let localPrincipal = 0;
-          let localInterest = 0;
-
-          for (const inst of installmentResult.paidInstallmentDetails) {
-            localPrincipal += inst.principal;
-            localInterest += inst.interest;
-            await tx.insert(creditPaymentsDetails).values({
-              creditPaymentId: insertedPayment.id,
-              installmentId: inst.id,
-              amount: String(inst.amount),
-              createdById: userId,
-            });
-            await tx
-              .update(creditAmortizationSchedule)
-              .set({
-                paymentStatus: 'PAID',
-                updatedById: userId,
-                paidAmount: sql`total_installment_amount`,
+            const [lastPaidCredit] = await tx
+              .select({
+                id: credits.id,
+                associateId: credits.associateId,
+                currencyCode: credits.currencyCode,
+                customReference: credits.customReference,
+                creditTypeName: creditsTypes.name
               })
+              .from(credits)
+              .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
               .where(
                 and(
-                  eq(creditAmortizationSchedule.id, inst.id),
-                  ne(creditAmortizationSchedule.paymentStatus, 'PAID'),
+                  eq(credits.tenantId, tenantId),
+                  eq(credits.associateId, associate.id),
+                  eq(credits.status, CreditStatusEnum.PAID),
+
                 ),
+              ).orderBy(desc(credits.startDate)).limit(1)
+
+            if (lastPaidCredit) {
+              bulkCreditTypes.add(lastPaidCredit.creditTypeName ?? 'CREDITOS COMERCIALES');
+              const [associateAccount] = await tx
+                .select({ id: associateAccounts.id })
+                .from(associateAccounts)
+                .leftJoin(
+                  associates,
+                  eq(associates.id, associateAccounts.associateId),
+                )
+                .where(
+                  and(
+                    eq(associateAccounts.associateId, associate.id),
+                    eq(associateAccounts.status, 'ACTIVE'),
+                  ),
+                );
+
+              if (associateAccount?.id) {
+                await this.associateAccountsMovementsService.create(
+                  userId,
+                  {
+                    associateAccountId: associateAccount.id,
+                    movementType:
+                      'CREDIT_PAYMENT_REVERSAL_CREDIT' as AssociateMovementTypeEnum,
+                    amount: item.amount,
+                    currencyCode:
+                      (lastPaidCredit.currencyCode as CurrencyCodeEnum),
+                    transactionDate: finalPaymentDate,
+                    description: 'Ajuste a favor por cobro en exceso por pago de credito Nº' + lastPaidCredit.customReference,
+                    referenceId: lastPaidCredit.id,
+                    referenceType: 'credits',
+                    referenceNumber: undefined,
+                    area: 'CREDITOS',
+                  },
+                  tenantId,
+                );
+              }
+
+              const roundedPayment = Number(item.amount);
+              const roundedInterest = Number(0);
+              const roundedPrincipal = Number(
+                (roundedPayment - roundedInterest).toFixed(2),
               );
-          }
 
-          if (installmentResult.partialInstallment) {
-            localPrincipal += installmentResult.partialInstallment.principal;
-            localInterest += installmentResult.partialInstallment.interest;
+              accountingItemsForEntry.push({
+                associateId: associate.id,
+                amounts: {
+                  CREDIT_PAYMENT: item.amount,
+                  LOAN_INTEREST_INCOME: 0,
+                },
+                descriptions: {
+                  CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+                  LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
+                },
+              });
 
-            const amountAppliedToPartial =
-              installmentResult.partialInstallment.paidAmount -
-              installmentResult.partialInstallment.originalPaidAmount;
+              bulkTotalPrincipal += roundedPrincipal;
+              bulkTotalInterest += roundedInterest;
+              totalAmountApplied += roundedPayment;
+
+              results.success.push({
+                cedula: item.cedula,
+                ref: 'Asocido sin credito activo, Saldo cargado a favor como exceso',
+              });
+              results.totalProcessed++;
+            } else {
+              results.errors.push({
+                cedula: item.cedula,
+                error: 'Verificar Asociado no tiene ningun credito registrado del cual tenga alguna cuota en exceso,',
+              });
+              continue;
+            }
+
+          } else {
+
+            const [creditTypeRow] = await tx
+              .select({ name: creditsTypes.name })
+              .from(credits)
+              .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
+              .where(eq(credits.id, credit.id));
+            const creditTypeName = creditTypeRow?.name ?? 'CREDITOS';
+            bulkCreditTypes.add(creditTypeName);
+
+            const pendingBalanceBase = await this._getPendingBalanceBase(
+              credit.id,
+              tx,
+            );
+
+            const installmentResult = await this._calculateCoveredInstallments(
+              credit.id,
+              item.amount,
+              tx,
+              pendingBalanceBase,
+            );
+
+            const appliedAmountExact =
+              item.amount - installmentResult.remainingAmount;
+
+            if (appliedAmountExact <= 0) {
+              results.errors.push({
+                cedula: item.cedula,
+                error: 'Monto insuficiente para abonar',
+              });
+              continue;
+            }
+
+            let localPrincipal = 0;
+            let localInterest = 0;
+
+            for (const inst of installmentResult.paidInstallmentDetails) {
+              localPrincipal += inst.principal;
+              localInterest += inst.interest;
+            }
+
+            if (installmentResult.partialInstallment) {
+              localPrincipal += installmentResult.partialInstallment.principal;
+              localInterest += installmentResult.partialInstallment.interest;
+            }
+
+            let newBalancePending = Math.max(
+              0,
+              pendingBalanceBase - localPrincipal,
+            );
+            if (newBalancePending < EPSILON_COMPARISON) newBalancePending = 0;
+
+            const customReference =
+              await this.generateCodeService.generateNextReference(
+                'CRE-PAG',
+                tenantId,
+                'portfolio',
+                'credit-payments',
+              );
+
+            const [insertedPayment] = await tx
+              .insert(creditPayments)
+              .values({
+                tenantId,
+                creditId: credit.id,
+                paymentDate: finalPaymentDate,
+                paymentType: 'PAYING',
+                amount: String(item.amount),
+                balancePending: String(newBalancePending.toFixed(6)),
+                bankId: null,
+                paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+                transactionReference: customReference,
+                comment: 'Carga Masiva Excel Pagos de Créditos',
+                createdById: userId,
+                customReference,
+              })
+              .returning({
+                id: creditPayments.id,
+                customReference: creditPayments.customReference,
+              });
+
+            for (const inst of installmentResult.paidInstallmentDetails) {
+              await tx.insert(creditPaymentsDetails).values({
+                creditPaymentId: insertedPayment.id,
+                installmentId: inst.id,
+                amount: String(inst.amount),
+                createdById: userId,
+              });
+              await tx
+                .update(creditAmortizationSchedule)
+                .set({
+                  paymentStatus: 'PAID',
+                  updatedById: userId,
+                  paidAmount: sql`total_installment_amount`,
+                })
+                .where(
+                  and(
+                    eq(creditAmortizationSchedule.id, inst.id),
+                    ne(creditAmortizationSchedule.paymentStatus, 'PAID'),
+                  ),
+                );
+            }
+
+            if (installmentResult.partialInstallment) {
+              const amountAppliedToPartial =
+                installmentResult.partialInstallment.paidAmount -
+                installmentResult.partialInstallment.originalPaidAmount;
+
+              await tx
+                .update(creditAmortizationSchedule)
+                .set({
+                  paymentStatus: 'PARTIAL',
+                  paidAmount: sql`${creditAmortizationSchedule.paidAmount} + ${amountAppliedToPartial.toFixed(6)}`,
+                  updatedById: userId,
+                })
+                .where(
+                  eq(
+                    creditAmortizationSchedule.id,
+                    installmentResult.partialInstallment.id,
+                  ),
+                );
+
+              await tx.insert(creditPaymentsDetails).values({
+                creditPaymentId: insertedPayment.id,
+                installmentId: installmentResult.partialInstallment.id,
+                amount: String(amountAppliedToPartial.toFixed(6)),
+                createdById: userId,
+              });
+            }
+
+            const newCreditStatus =
+              newBalancePending <= 0 ? 'PAID' : 'IN_PAYMENT';
 
             await tx
-              .update(creditAmortizationSchedule)
+              .update(credits)
               .set({
-                paymentStatus: 'PARTIAL',
-                paidAmount: sql`${creditAmortizationSchedule.paidAmount} + ${amountAppliedToPartial.toFixed(6)}`,
+                status: newCreditStatus as CreditStatusEnum,
+                balanceInFavor: String(
+                  installmentResult.remainingAmount.toFixed(6),
+                ),
                 updatedById: userId,
               })
+              .where(eq(credits.id, credit.id));
+
+            const [associateAccount] = await tx
+              .select({ id: associateAccounts.id })
+              .from(associateAccounts)
+              .leftJoin(
+                associates,
+                eq(associates.id, associateAccounts.associateId),
+              )
               .where(
-                eq(
-                  creditAmortizationSchedule.id,
-                  installmentResult.partialInstallment.id,
+                and(
+                  eq(associateAccounts.associateId, associate.id),
+                  eq(associateAccounts.status, 'ACTIVE'),
                 ),
               );
 
-            await tx.insert(creditPaymentsDetails).values({
-              creditPaymentId: insertedPayment.id,
-              installmentId: installmentResult.partialInstallment.id,
-              amount: String(amountAppliedToPartial.toFixed(6)),
-              createdById: userId,
-            });
-          }
+            const roundedPayment = Number(appliedAmountExact.toFixed(2));
+            const roundedInterest = Number(localInterest.toFixed(2));
 
-          const newCreditStatus =
-            newBalancePending <= 0 ? 'PAID' : 'IN_PAYMENT';
-
-          await tx
-            .update(credits)
-            .set({
-              status: newCreditStatus as CreditStatusEnum,
-              balanceInFavor: String(
-                installmentResult.remainingAmount.toFixed(6),
-              ),
-              updatedById: userId,
-            })
-            .where(eq(credits.id, credit.id));
-
-          const [associateAccount] = await tx
-            .select({ id: associateAccounts.id })
-            .from(associateAccounts)
-            .leftJoin(
-              associates,
-              eq(associates.id, associateAccounts.associateId),
-            )
-            .where(
-              and(
-                eq(associateAccounts.associateId, associate.id),
-                eq(associateAccounts.status, 'ACTIVE'),
-              ),
+            // Pago en exceso: se condona el interés de todas las cuotas
+            // cubiertas y todo el dinero va a la cuenta del crédito (capital).
+            const hasExcess = installmentResult.remainingAmount > 0;
+            const effectiveInterest = hasExcess ? 0 : roundedInterest;
+            const effectivePrincipal = Number(
+              (roundedPayment - effectiveInterest).toFixed(2),
             );
 
-          if (associateAccount?.id) {
-            await this.associateAccountsMovementsService.create(
-              userId,
-              {
-                associateAccountId: associateAccount.id,
-                movementType:
-                  'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
-                amount: item.amount,
-                currencyCode:
-                  (credit.currencyCode as CurrencyCodeEnum) ??
-                  CurrencyCodeEnum.VES,
-                transactionDate: finalPaymentDate,
-                description: 'Pago Cuota Crédito',
-                referenceId: String(insertedPayment.id),
-                referenceType: 'creditPayments',
-                referenceNumber: insertedPayment.customReference ?? undefined,
-                area: 'CREDITOS',
+            if (associateAccount?.id) {
+              if (effectivePrincipal > 0) {
+                await this.associateAccountsMovementsService.create(
+                  userId,
+                  {
+                    associateAccountId: associateAccount.id,
+                    movementType:
+                      'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
+                    amount: effectivePrincipal,
+                    currencyCode:
+                      (credit.currencyCode as CurrencyCodeEnum) ??
+                      CurrencyCodeEnum.VES,
+                    transactionDate: finalPaymentDate,
+                    description: `Pago Cuota Capital Crédito Nº ${credit.customReference}`,
+                    referenceId: String(insertedPayment.id),
+                    referenceType: 'creditPayments',
+                    referenceNumber: insertedPayment.customReference ?? undefined,
+                    area: 'CREDITOS',
+                  },
+                  tenantId,
+                );
+              }
+              if (effectiveInterest > 0) {
+                await this.associateAccountsMovementsService.create(
+                  userId,
+                  {
+                    associateAccountId: associateAccount.id,
+                    movementType:
+                      'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
+                    amount: effectiveInterest,
+                    currencyCode:
+                      (credit.currencyCode as CurrencyCodeEnum) ??
+                      CurrencyCodeEnum.VES,
+                    transactionDate: finalPaymentDate,
+                    description: `Pago Cuota Interés Crédito Nº ${credit.customReference}`,
+                    referenceId: String(insertedPayment.id),
+                    referenceType: 'creditPayments',
+                    referenceNumber: insertedPayment.customReference ?? undefined,
+                    area: 'CREDITOS',
+                  },
+                  tenantId,
+                );
+              }
+              if (hasExcess) {
+                await this.associateAccountsMovementsService.create(
+                  userId,
+                  {
+                    associateAccountId: associateAccount.id,
+                    movementType:
+                      'CREDIT_PAYMENT_REVERSAL_CREDIT' as AssociateMovementTypeEnum,
+                    amount: installmentResult.remainingAmount,
+                    currencyCode:
+                      (credit.currencyCode as CurrencyCodeEnum) ??
+                      CurrencyCodeEnum.VES,
+                    transactionDate: finalPaymentDate,
+                    description:
+                      'Ajuste a favor por cobro en exceso por pago de credito Nº' +
+                      credit.customReference,
+                    referenceId: String(credit.id),
+                    referenceType: 'credits',
+                    referenceNumber: undefined,
+                    area: 'CREDITOS',
+                  },
+                  tenantId,
+                );
+              }
+            }
+
+            accountingItemsForEntry.push({
+              associateId: associate.id,
+              amounts: hasExcess
+                ? {
+                    CREDIT_PAYMENT: item.amount,
+                    LOAN_INTEREST_INCOME: 0,
+                  }
+                : {
+                    CREDIT_PAYMENT: effectivePrincipal,
+                    LOAN_INTEREST_INCOME: effectiveInterest,
+                  },
+              descriptions: {
+                CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
+                LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
               },
-              tenantId,
-            );
+            });
+
+            bulkTotalPrincipal += hasExcess ? item.amount : effectivePrincipal;
+            bulkTotalInterest += effectiveInterest;
+            totalAmountApplied += hasExcess ? item.amount : roundedPayment;
+
+            results.success.push({
+              cedula: item.cedula,
+              ref: insertedPayment.customReference,
+            });
+            results.totalProcessed++;
           }
 
-          const roundedPayment = Number(appliedAmountExact.toFixed(2));
-          const roundedInterest = Number(localInterest.toFixed(2));
-          const roundedPrincipal = Number(
-            (roundedPayment - roundedInterest).toFixed(2),
-          );
 
-          accountingItemsForEntry.push({
-            associateId: associate.id,
-            amounts: {
-              CREDIT_PAYMENT: roundedPrincipal,
-              LOAN_INTEREST_INCOME: roundedInterest,
-            },
-            descriptions: {
-              CREDIT_PAYMENT: `CUOTA CREDITO DEL ${dateStr}`,
-              LOAN_INTEREST_INCOME: `INTERES CREDITO DEL ${dateStr}`,
-            },
-          });
-
-          bulkTotalPrincipal += roundedPrincipal;
-          bulkTotalInterest += roundedInterest;
-          totalAmountApplied += roundedPayment;
-
-          results.success.push({
-            cedula: item.cedula,
-            ref: insertedPayment.customReference,
-          });
-          results.totalProcessed++;
         } catch (err) {
           results.errors.push({
             cedula: item.cedula,
@@ -1215,6 +1531,8 @@ export class CreditPaidService implements OnModuleInit {
           quotaDate: creditAmortizationSchedule.dueDate,
           quotaStatus: creditAmortizationSchedule.paymentStatus,
           quotaPartial: creditAmortizationSchedule.paidAmount,
+          principalAmount: creditAmortizationSchedule.principalAmount,
+          interestAmount: creditAmortizationSchedule.interestAmount,
           principalBalancePending:
             creditAmortizationSchedule.principalBalancePending,
           paidAmount: creditAmortizationSchedule.paidAmount,
@@ -1231,26 +1549,39 @@ export class CreditPaidService implements OnModuleInit {
     id ASC`)
       : [];
 
-    const pendingQuotas = creditAmortization.filter(
-      (item) => item.quotaStatus === 'PENDING',
-    );
-    const partialQuotas = creditAmortization.filter(
-      (item) => item.quotaStatus === 'PARTIAL',
-    );
+    const creditId = result.length === 0 ? null : result[0]?.creditId;
 
-    const totalPending = pendingQuotas.reduce((acc, item) => {
-      const amount = Number(item.quotaAmount) || 0;
-      return acc + amount;
-    }, 0);
+    // Saldo pendiente = saldo corriente (último pago) o capital pendiente del
+    // schedule si no hay pagos. Igual que el detalle del inquiry y el contable.
+    let pendingBalance = 0;
+    if (creditId) {
+      const [lastPayment] = await this.db
+        .select({ balancePending: creditPayments.balancePending })
+        .from(creditPayments)
+        .where(
+          and(
+            eq(creditPayments.creditId, creditId),
+            eq(creditPayments.status, 'DONE'),
+          ),
+        )
+        .orderBy(
+          desc(creditPayments.paymentDate),
+          desc(creditPayments.createdAt),
+        )
+        .limit(1);
 
-    const totalPartial = partialQuotas.reduce((acc, item) => {
-      const totalAmount = Number(item.quotaAmount) || 0;
-      const paidAmount = Number(item.paidAmount) || 0;
-      const remaining = totalAmount - paidAmount;
-      return acc + (remaining > 0 ? remaining : 0);
-    }, 0);
-
-    const totalPendingAmount = totalPending + totalPartial;
+      pendingBalance =
+        lastPayment?.balancePending != null
+          ? Number(lastPayment.balancePending)
+          : computePendingBalance(
+              creditAmortization.map((i) => ({
+                principalAmount: i.principalAmount,
+                interestAmount: i.interestAmount,
+                paidAmount: i.paidAmount,
+                paymentStatus: i.quotaStatus,
+              })),
+            );
+    }
 
     if (associate.length === 0) {
       throw new InternalServerErrorException(
@@ -1272,9 +1603,9 @@ export class CreditPaidService implements OnModuleInit {
       email: associate[0].email,
       accountNumber: associate[0].accountNumber || null,
       balance: associate[0].balance || null,
-      creditId: result.length === 0 ? null : result[0]?.creditId,
+      creditId,
       creditType: result.length === 0 ? null : result[0]?.creditType,
-      creditTotalAmount: String(totalPendingAmount.toFixed(2)),
+      creditTotalAmount: String(pendingBalance.toFixed(2)),
       creditModality: result.length === 0 ? null : result[0]?.creditModality,
       creditCustomReference:
         result.length === 0 ? null : result[0]?.creditCustomReference,

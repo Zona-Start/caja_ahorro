@@ -78,6 +78,7 @@ export const MOVEMENT_TYPES = {
   SPECIAL_CREDIT_DISBURSEMENT_REVERSAL_DEBIT:
     'Reversión de Desembolso de Crédito Especial',
   LOAN_PAYMENT_REVERSAL_CREDIT: 'Reversión de Pago de Préstamo',
+  CREDIT_PAYMENT_REVERSAL_CREDIT: 'Reversión de Pago de Crédito',
   COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT:
     'Reversión de Pago de Crédito Comercial',
   SAVING_WITHDRAWAL_REVERSAL_CREDIT: 'Reversión de Retiro de Ahorro',
@@ -151,7 +152,7 @@ export const MOVEMENT_STATUS_TYPES = {
 export const OVERCHARGE_MOVEMENT_TYPES = {
   RETIROS: 'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
   PRESTAMOS: 'LOAN_PAYMENT_REVERSAL_CREDIT',
-  CREDITOS: 'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT',
+  CREDITOS: 'CREDIT_PAYMENT_REVERSAL_CREDIT',
 } as const;
 
 export type OverchargeMovementType =

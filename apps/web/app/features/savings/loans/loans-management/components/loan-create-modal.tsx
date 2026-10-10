@@ -11,6 +11,7 @@ import {
   Info,
   Loader2,
   X,
+  Settings2,
 } from 'lucide-react';
 import {
   Dialog,
@@ -23,6 +24,7 @@ import { Button } from '@repo/shadcn/button';
 import { Input } from '@repo/shadcn/input';
 import { Label } from '@repo/shadcn/label';
 import { Separator } from '@repo/shadcn/separator';
+import { Switch } from '@repo/shadcn/switch';
 import {
   Select,
   SelectContent,
@@ -47,6 +49,7 @@ import { AlertModal } from '@/components/shared/alert-modal';
 import { loansManagementKeys } from '../keys/loans-management-keys';
 import { useLoanTypesQuery } from '../../type-loans/hooks/use-type-loans-query';
 import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
+import { useAuthStore } from '@/stores/auth.store';
 
 function formatCurrency(n: number) {
   return n?.toLocaleString('es', { minimumFractionDigits: 2 }) ?? '0,00';
@@ -63,6 +66,14 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [shouldFetch, setShouldFetch] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  const canApprove = hasPermission('portfolio:loans', 'approve');
+  const [specialParams, setSpecialParams] = useState({
+    bypassPayrollCredit: false,
+    bypassAvailableBalance: false,
+    bypassPaymentCapacity: false,
+  });
 
   const { data: associateData, isFetching: searching } = useSearchAssociate(
     submittedSearch,
@@ -109,6 +120,11 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
     setSearchQuery('');
     setSubmittedSearch('');
     setShouldFetch(false);
+    setSpecialParams({
+      bypassPayrollCredit: false,
+      bypassAvailableBalance: false,
+      bypassPaymentCapacity: false,
+    });
     reset({ ...loanDefaults });
   }, [reset]);
 
@@ -217,10 +233,16 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       r.messages.push('Debe ingresar un monto mayor a 0');
     }
     if (watchAmount > associateData.available80) {
-      r.canSave = false;
-      r.messages.push(
-        `El monto (${formatCurrency(watchAmount)}) supera el 80% disponible (${formatCurrency(associateData.available80)})`,
-      );
+      if (canApprove && specialParams.bypassAvailableBalance) {
+        r.messages.push(
+          `80% disponible desbloqueado por parámetro especial (supera ${formatCurrency(associateData.available80)} Bs)`,
+        );
+      } else {
+        r.canSave = false;
+        r.messages.push(
+          `El monto (${formatCurrency(watchAmount)}) supera el 80% disponible (${formatCurrency(associateData.available80)})`,
+        );
+      }
     } else if (watchAmount > 0) {
       r.messages.push(
         `Disponible 80%: ${formatCurrency(associateData.available80)} Bs`,
@@ -235,8 +257,12 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       r.messages.push('Tiene un crédito activo - Bloqueado');
     }
     if (associateData.hasPayrollCredit) {
-      r.canSave = false;
-      r.messages.push('Tiene credinomina activo - Bloqueado');
+      if (canApprove && specialParams.bypassPayrollCredit) {
+        r.messages.push('Credinomina desbloqueado por parámetro especial');
+      } else {
+        r.canSave = false;
+        r.messages.push('Tiene credinomina activo - Bloqueado');
+      }
     }
     const monthlyPmt = amortData?.monthlyPayment ?? 0;
     if (
@@ -244,10 +270,16 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       monthlyPmt > 0 &&
       monthlyPmt > associateData.paymentCapacity
     ) {
-      r.canSave = false;
-      r.messages.push(
-        `La cuota (${formatCurrency(monthlyPmt)}) supera capacidad de pago del 30% (${formatCurrency(associateData.paymentCapacity)})`,
-      );
+      if (canApprove && specialParams.bypassPaymentCapacity) {
+        r.messages.push(
+          'Capacidad de pago (30%) desbloqueada por parámetro especial',
+        );
+      } else {
+        r.canSave = false;
+        r.messages.push(
+          `La cuota (${formatCurrency(monthlyPmt)}) supera capacidad de pago del 30% (${formatCurrency(associateData.paymentCapacity)})`,
+        );
+      }
     } else if (associateData.paymentCapacity > 0) {
       r.messages.push(
         `Capacidad de pago (30%): ${formatCurrency(associateData.paymentCapacity)} Bs/mes`,
@@ -276,7 +308,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       );
     }
     return r;
-  }, [associateData, watchAmount, selectedType, amortData]);
+  }, [associateData, watchAmount, selectedType, amortData, canApprove, specialParams]);
 
   const handleFormSubmit = useCallback(
     (data: LoanManagement) => {
@@ -289,6 +321,13 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
         expensesPercentage: Number(data.expensesPercentage || 0),
         paymentMethod: 'BANK_TRANSFER',
         startDate: data.startDate,
+        ...(canApprove
+          ? {
+              bypassPayrollCredit: specialParams.bypassPayrollCredit,
+              bypassAvailableBalance: specialParams.bypassAvailableBalance,
+              bypassPaymentCapacity: specialParams.bypassPaymentCapacity,
+            }
+          : {}),
       };
 
       saveLoan(formatted, {
@@ -298,7 +337,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       });
       setConfirmOpen(false);
     },
-    [saveLoan, onClose, associateData],
+    [saveLoan, onClose, associateData, canApprove, specialParams],
   );
 
   const handleClose = useCallback(() => {
@@ -856,6 +895,81 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         {msg}
                       </p>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Parámetros Especiales (solo permiso portfolio:loans:approve) */}
+              {canApprove && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-semibold uppercase text-muted-foreground">
+                      Parámetros Especiales
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Desbloquee reglas de negocio solo si está autorizado. Las
+                    reglas desbloqueadas no se validarán al crear el préstamo.
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-3 rounded-md border bg-background p-2">
+                      <div>
+                        <p className="text-sm font-medium">
+                          Permitir credinomina activa
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ignora el bloqueo cuando el asociado tiene credinomina.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={specialParams.bypassPayrollCredit}
+                        onCheckedChange={(v) =>
+                          setSpecialParams((p) => ({
+                            ...p,
+                            bypassPayrollCredit: v,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-md border bg-background p-2">
+                      <div>
+                        <p className="text-sm font-medium">
+                          Permitir superar monto disponible (80%)
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ignora el límite del 80% de haberes.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={specialParams.bypassAvailableBalance}
+                        onCheckedChange={(v) =>
+                          setSpecialParams((p) => ({
+                            ...p,
+                            bypassAvailableBalance: v,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-md border bg-background p-2">
+                      <div>
+                        <p className="text-sm font-medium">
+                          Permitir superar capacidad de pago (30%)
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ignora el límite de capacidad de pago del 30%.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={specialParams.bypassPaymentCapacity}
+                        onCheckedChange={(v) =>
+                          setSpecialParams((p) => ({
+                            ...p,
+                            bypassPaymentCapacity: v,
+                          }))
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               )}

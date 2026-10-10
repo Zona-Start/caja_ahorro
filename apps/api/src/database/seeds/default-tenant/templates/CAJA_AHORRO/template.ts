@@ -249,6 +249,20 @@ export const CAJA_AHORRO_TEMPLATE: BusinessTypeTemplate = {
       value: '0',
       description: 'Consecutivo Pago Crédito',
     },
+    {
+      module: 'savings',
+      submodule: 'reimbursements',
+      key: 'REI',
+      value: '0',
+      description: 'Consecutivo Reintegro de Saldo a Favor',
+    },
+    {
+      module: 'savings',
+      submodule: 'reimbursements',
+      key: 'AUTO_POST_ENTRY_REIMBURSEMENTS',
+      value: 'true',
+      description: 'Generar asiento contable en reintegros',
+    },
 
     //inventories
     {

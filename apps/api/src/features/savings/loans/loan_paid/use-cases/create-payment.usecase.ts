@@ -30,7 +30,7 @@ export class CreatePaymentUseCase {
     private readonly accounting: LoanPaymentAccounting,
     private readonly bank: LoanPaymentBank,
     private readonly audit: LoanPaymentAudit,
-  ) {}
+  ) { }
 
   async execute(
     tenantId: string,
@@ -65,13 +65,20 @@ export class CreatePaymentUseCase {
         throw new NotFoundException('Loan not found');
       }
 
-      const installmentResult =
-        await this.validator.calculateCoveredInstallments(loanId, amount, tx);
-
-      const currentBalance = await this.validator.calculateBalancePending(
+      const pendingBalanceBase = await this.validator.getPendingBalanceBase(
         loanId,
         tx,
       );
+
+      const installmentResult =
+        await this.validator.calculateCoveredInstallments(
+          loanId,
+          amount,
+          tx,
+          pendingBalanceBase,
+        );
+
+
 
       const appliedAmountExact = this.processor.getAppliedAmount(
         amount,
@@ -81,11 +88,20 @@ export class CreatePaymentUseCase {
       let totalPrincipalPaid = 0;
       let totalInterestPaid = 0;
 
-      const newBalancePending = this.processor.getNewBalancePending(
-        currentBalance,
-        appliedAmountExact,
-      );
+      for (const installment of installmentResult.paidInstallmentDetails) {
+        totalPrincipalPaid += installment.principal;
+        totalInterestPaid += installment.interest;
+      }
 
+      if (installmentResult.partialInstallment) {
+        totalPrincipalPaid += installmentResult.partialInstallment.principal;
+        totalInterestPaid += installmentResult.partialInstallment.interest;
+      }
+
+      const newBalancePending = this.processor.getNewBalancePending(
+        pendingBalanceBase,
+        totalPrincipalPaid,
+      );
       const customReference = await this.processor.generateReference(tenantId);
 
       const insertedPayment = await this.processor.insertPayment(
@@ -106,10 +122,9 @@ export class CreatePaymentUseCase {
         tx,
       );
 
-      for (const installment of installmentResult.paidInstallmentDetails) {
-        totalPrincipalPaid += installment.principal;
-        totalInterestPaid += installment.interest;
 
+
+      for (const installment of installmentResult.paidInstallmentDetails) {
         await this.processor.insertPaymentDetail(
           insertedPayment.id,
           installment.id,
@@ -121,9 +136,6 @@ export class CreatePaymentUseCase {
       }
 
       if (installmentResult.partialInstallment) {
-        totalPrincipalPaid += installmentResult.partialInstallment.principal;
-        totalInterestPaid += installmentResult.partialInstallment.interest;
-
         await this.processor.updateInstallmentPartial(
           installmentResult.partialInstallment.id,
           installmentResult.partialInstallment.paidAmount,
@@ -157,14 +169,26 @@ export class CreatePaymentUseCase {
         tx,
       );
 
+
+      const roundedPayment = Number(appliedAmountExact.toFixed(2));
+      const roundedInterest = Number(totalInterestPaid.toFixed(2));
+
+      // Pago en exceso: se condona el interés de todas las cuotas cubiertas y
+      // todo el dinero va a la cuenta del préstamo (capital).
+      const hasExcess = balanceInFavorValue > 0;
+      const effectiveInterest = hasExcess ? 0 : roundedInterest;
+      const effectivePrincipal = Number(
+        (roundedPayment - effectiveInterest).toFixed(2),
+      );
+
+
       if (!liquidationActive) {
         await this.accounting.generatePaymentEntry(
           tenantId,
           userId,
           loan,
-          appliedAmountExact,
-          totalPrincipalPaid,
-          totalInterestPaid,
+          amount,
+          effectiveInterest,
           paymentDate ? new Date(paymentDate) : new Date(),
           tx,
         );
@@ -196,23 +220,45 @@ export class CreatePaymentUseCase {
       );
 
       if (acc?.id) {
-        await this.processor.createAssociateMovement(
-          userId,
-          {
-            associateAccountId: acc.id,
-            movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
-            amount,
-            currencyCode: 'VES' as CurrencyCodeEnum,
-            transactionDate: paymentDate ? new Date(paymentDate) : undefined,
-            description: 'Pago Prestamo',
-            referenceId: insertedPayment.id,
-            referenceType: 'loansPayments',
-            referenceNumber: insertedPayment.customReference ?? undefined,
-            area: 'PRESTAMOS',
-          },
-          tenantId,
-          tx,
-        );
+        if (effectivePrincipal > 0) {
+          await this.processor.createAssociateMovement(
+            userId,
+            {
+              associateAccountId: acc.id,
+              movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
+              amount: effectivePrincipal,
+              currencyCode: 'VES' as CurrencyCodeEnum,
+              transactionDate: paymentDate ? new Date(paymentDate) : undefined,
+              description: `Pago Cuota Capital Préstamo Nº ${lockedLoan.customReference}`,
+              referenceId: insertedPayment.id,
+              referenceType: 'loansPayments',
+              referenceNumber: insertedPayment.customReference ?? undefined,
+              area: 'PRESTAMOS',
+            },
+            tenantId,
+            tx,
+          );
+        }
+
+        if (effectiveInterest > 0) {
+          await this.processor.createAssociateMovement(
+            userId,
+            {
+              associateAccountId: acc.id,
+              movementType: AssociateMovementTypeEnum.LOAN_INTEREST_DEBIT,
+              amount: effectiveInterest,
+              currencyCode: 'VES' as CurrencyCodeEnum,
+              transactionDate: paymentDate ? new Date(paymentDate) : undefined,
+              description: `Pago Cuota Interés Préstamo Nº ${lockedLoan.customReference}`,
+              referenceId: insertedPayment.id,
+              referenceType: 'loansPayments',
+              referenceNumber: insertedPayment.customReference ?? undefined,
+              area: 'PRESTAMOS',
+            },
+            tenantId,
+            tx,
+          );
+        }
       }
 
       if (bankId && !liquidationActive) {
@@ -221,7 +267,7 @@ export class CreatePaymentUseCase {
             bankAccountId: bankId,
             transactionDate: new Date(paymentDate) ?? new Date(),
             paymentMethod,
-            description: 'Pago de Cuota Prestamo',
+            description: `Pago de Cuota Prestamo Nº ${lockedLoan.customReference}`,
             bankReference: transactionReference,
             category: 'LOAN_PAYMENT' as BankTransactionCategory,
             creditAmount: amount,
@@ -237,16 +283,17 @@ export class CreatePaymentUseCase {
       }
 
       if (!liquidationActive) {
+
         if (balanceInFavorValue > EPSILON_COMPARISON && acc?.id) {
           await this.processor.createAssociateMovement(
             userId,
             {
               associateAccountId: acc.id,
-              movementType: AssociateMovementTypeEnum.LOAN_OVERPAYMENT_CREDIT,
+              movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
               amount: balanceInFavorValue,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: paymentDate ? new Date(paymentDate) : undefined,
-              description: 'Credito Sobregiro de Prestamo',
+              description: 'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' + lockedLoan.customReference,
               referenceId: loanId,
               referenceType: 'loans',
               area: 'PRESTAMOS',

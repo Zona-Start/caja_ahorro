@@ -6,6 +6,7 @@ import { PaymentBatchesModule } from './assets/payment-batches/payment-batches.m
 import { CreditsFeaturesModule } from './credits/credits.module';
 import { LoansFeaturesModule } from './loans/loans.module';
 import { AssociatesFeaturesModule } from './parnerts/associatesFeatures.module';
+import { ReimbursementModule } from './reimbursement/reimbursement.module';
 import { SettlementAssociateModule } from './settlement/settlement-associate.module';
 import { WithdrawalFeaturesModule } from './withdrawalls/withdrawal.module';
 
@@ -16,6 +17,7 @@ import { WithdrawalFeaturesModule } from './withdrawalls/withdrawal.module';
     WithdrawalFeaturesModule,
     AssociatesFeaturesModule,
     SettlementAssociateModule,
+    ReimbursementModule,
     IndividualLoadModule,
     ContributionBatchesModule,
     PaymentBatchesModule,

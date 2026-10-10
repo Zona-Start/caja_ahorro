@@ -1,5 +1,6 @@
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
+import { computePendingBalance } from '@/common/utils/pending-balance';
 import {
   associates,
   loanAmortizationSchedule,
@@ -15,7 +16,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
   EPSILON_COMPARISON,
@@ -90,9 +91,10 @@ export class LoanPaymentValidator {
     const conn = db || this.db;
     const loanAmortization = await conn
       .select({
-        quotaAmount: loanAmortizationSchedule.totalInstallmentAmount,
+        principalAmount: loanAmortizationSchedule.principalAmount,
+        interestAmount: loanAmortizationSchedule.interestAmount,
         paidAmount: loanAmortizationSchedule.paidAmount,
-        quotaStatus: loanAmortizationSchedule.paymentStatus,
+        paymentStatus: loanAmortizationSchedule.paymentStatus,
       })
       .from(loanAmortizationSchedule)
       .where(eq(loanAmortizationSchedule.loanId, loanId))
@@ -107,20 +109,49 @@ export class LoanPaymentValidator {
           id ASC`,
       );
 
-    const totalRemainingExact = loanAmortization.reduce((acc, item) => {
-      const total = Number(item.quotaAmount);
-      const paid = Number(item.paidAmount || 0);
-      const remaining = total - paid;
-      return acc + (remaining > EPSILON_COMPARISON ? remaining : 0);
-    }, 0);
+    return computePendingBalance(loanAmortization);
+  }
 
-    return parseFloat(totalRemainingExact.toFixed(6));
+  /**
+   * Saldo pendiente de partida para un nuevo pago.
+   *
+   * Es el `balance_pending` del último pago registrado (saldo corriente, que ya
+   * está cuadrado con el saldo contable, incluso en préstamos migrados). Si el
+   * préstamo no tiene pagos, se calcula desde la tabla de amortización (caso de
+   * préstamos nuevos).
+   */
+  async getPendingBalanceBase(
+    loanId: string,
+    db?: NodePgDatabase<typeof schema>,
+  ): Promise<number> {
+    const conn = db || this.db;
+    const [lastPayment] = await conn
+      .select({ balancePending: loanPayments.balancePending })
+      .from(loanPayments)
+      .where(
+        and(
+          eq(loanPayments.loanId, loanId),
+          eq(loanPayments.status, 'DONE'),
+        ),
+      )
+      .orderBy(
+        desc(loanPayments.paymentDate),
+        desc(loanPayments.createdAt),
+      )
+      .limit(1);
+
+    if (lastPayment?.balancePending != null) {
+      return Number(lastPayment.balancePending);
+    }
+
+    return this.calculateBalancePending(loanId, conn);
   }
 
   async calculateCoveredInstallments(
     loanId: string,
     amount: number,
     db?: NodePgDatabase<typeof schema>,
+    pendingBalanceBase?: number,
   ): Promise<InstallmentResult> {
     const conn = db || this.db;
     const pendingInstallments =
@@ -134,6 +165,95 @@ export class LoanPaymentValidator {
         ),
         orderBy: loanAmortizationSchedule.installmentNumber,
       });
+
+    const pendingBase =
+      pendingBalanceBase ?? (await this.getPendingBalanceBase(loanId, conn));
+
+    // Cierre: si el pago cubre el capital pendiente, se cierran todas las
+    // cuotas restantes y se condona el interés no cobrado (no genera
+    // movimientos ni asientos de interés adicionales).
+    if (amount + EPSILON_COMPARISON >= pendingBase) {
+      let totalInterestDue = 0;
+      const closingDetails: PaidInstallmentDetail[] = [];
+
+      for (const installment of pendingInstallments) {
+        const installmentTotal = Number(installment.totalInstallmentAmount);
+        const installmentPaid = Number(installment.paidAmount || 0);
+        const dueAmountExact = installmentTotal - installmentPaid;
+        if (dueAmountExact <= EPSILON_COMPARISON) continue;
+
+        const princInst = Number(installment.principalAmount);
+        const intInst = Number(installment.interestAmount);
+        const interestPaidBefore = Math.min(installmentPaid, intInst);
+        const interestStillDue = Math.max(0, intInst - interestPaidBefore);
+        const principalPaidBefore = Math.max(0, installmentPaid - intInst);
+        const principalStillDue = Math.max(0, princInst - principalPaidBefore);
+
+        totalInterestDue += interestStillDue;
+
+        closingDetails.push({
+          id: installment.id,
+          amount: dueAmountExact,
+          principal: principalStillDue,
+          interest: interestStillDue,
+        });
+      }
+
+      if (closingDetails.length === 0) {
+        return {
+          paidInstallmentDetails: [],
+          partialInstallment: undefined,
+          remainingAmount: parseFloat(Math.max(0, amount).toFixed(6)),
+        };
+      }
+
+      // El capital registrado cierra exactamente contra el saldo base.
+      const principalSum = closingDetails.reduce(
+        (sum, detail) => sum + detail.principal,
+        0,
+      );
+      const principalDelta = parseFloat(
+        (pendingBase - principalSum).toFixed(6),
+      );
+      const lastDetail = closingDetails[closingDetails.length - 1];
+      lastDetail.principal = parseFloat(
+        Math.max(0, lastDetail.principal + principalDelta).toFixed(6),
+      );
+
+      // Solo se registra como interés el excedente sobre el capital; el
+      // interés no cobrado se condona.
+      const interestToRecord = Math.min(
+        Math.max(0, amount - pendingBase),
+        totalInterestDue,
+      );
+      let interestToCondone = parseFloat(
+        (totalInterestDue - interestToRecord).toFixed(6),
+      );
+      for (
+        let i = closingDetails.length - 1;
+        i >= 0 && interestToCondone > 0;
+        i--
+      ) {
+        const reduce = Math.min(closingDetails[i].interest, interestToCondone);
+        closingDetails[i].interest = parseFloat(
+          (closingDetails[i].interest - reduce).toFixed(6),
+        );
+        interestToCondone = parseFloat((interestToCondone - reduce).toFixed(6));
+      }
+
+      for (const detail of closingDetails) {
+        detail.amount = parseFloat(
+          (detail.principal + detail.interest).toFixed(6),
+        );
+      }
+
+      return {
+        paidInstallmentDetails: closingDetails,
+        partialInstallment: undefined,
+        // Exceso = lo que supera el CAPITAL pendiente (el interés se condona).
+        remainingAmount: parseFloat(Math.max(0, amount - pendingBase).toFixed(6)),
+      };
+    }
 
     const paidInstallmentDetails: PaidInstallmentDetail[] = [];
     let partialInstallment: PartialInstallment | undefined;

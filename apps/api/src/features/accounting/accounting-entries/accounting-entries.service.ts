@@ -510,8 +510,17 @@ export class AccountingEntriesService {
 
     // Usar una epsilon para comparaciones de punto flotante si es necesario,
     // pero aquí estamos con Numbers. Lo ideal es usar un redondeo a 2 o 6 decimales.
-    if (Math.abs(totalDebit - totalCredit) > 0.000001)
-      throw new BadRequestException('El asiento no está cuadrado.');
+    if (Math.abs(totalDebit - totalCredit) > 0.000001) {
+      const linesSummary = details
+        .map((d) => {
+          const acc = map.get(d.accountPlanId);
+          return `${acc?.code ?? d.accountPlanId} ${d.description ?? ''} D=${Number(d.debit)} C=${Number(d.credit)}`;
+        })
+        .join(' | ');
+      throw new BadRequestException(
+        `El asiento no está cuadrado. Débito=${totalDebit} Crédito=${totalCredit}. Líneas: ${linesSummary}`,
+      );
+    }
     if (
       hasForeign &&
       Math.abs(totalForeignDebit - totalForeignCredit) > 0.000001
@@ -1020,37 +1029,40 @@ export class AccountingEntriesService {
       aggregatedDetails.values(),
     );
 
-    // // ---- DEBUG: volcar reglas y montos resueltos ----
-    // this.logger.debug(
-    //   `[createAutomaticEntry] category=${params.category} operationType=${params.operationType} ref=${params.referenceValue ?? ''} submodule=${params.submodule}`,
-    // );
-    // this.logger.debug(
-    //   `[createAutomaticEntry] ruleDetails=${JSON.stringify(
-    //     ruleDetails.map((d) => ({
-    //       accountRole: d.accountRole,
-    //       movementType: d.movementType,
-    //       formula: d.formula,
-    //       accountPlanId: d.accountPlanId,
-    //       isAuxiliary: d.isAuxiliary,
-    //     })),
-    //   )}`,
-    // );
-    // this.logger.debug(
-    //   `[createAutomaticEntry] items.amounts=${JSON.stringify(
-    //     params.items.map((i) => i.amounts),
-    //   )}`,
-    // );
-    // this.logger.debug(
-    //   `[createAutomaticEntry] aggregatedDetails=${JSON.stringify(
-    //     detailsDraft,
-    //   )}`,
-    // );
-    // this.logger.debug(
-    //   `[createAutomaticEntry] totalDebit=${detailsDraft.reduce(
-    //     (a, d) => a + Number(d.debit),
-    //     0,
-    //   )} totalCredit=${detailsDraft.reduce((a, d) => a + Number(d.credit), 0)}`,
-    // );
+    // ---- DEBUG: volcar reglas y montos resueltos ----
+    this.logger.log(
+      `[createAutomaticEntry] category=${params.category} operationType=${params.operationType} ref=${params.referenceValue ?? ''} submodule=${params.submodule}`,
+    );
+    this.logger.log(
+      `[createAutomaticEntry] ruleDetails=${JSON.stringify(
+        ruleDetails.map((d) => ({
+          accountRole: d.accountRole,
+          movementType: d.movementType,
+          formula: d.formula,
+          accountPlanId: d.accountPlanId,
+          isAuxiliary: d.isAuxiliary,
+        })),
+      )}`,
+    );
+    this.logger.log(
+      `[createAutomaticEntry] items.amounts=${JSON.stringify(
+        params.items.map((i) => i.amounts),
+      )}`,
+    );
+    this.logger.log(
+      `[createAutomaticEntry] aggregatedDetails=${JSON.stringify(
+        detailsDraft,
+      )}`,
+    );
+    this.logger.log(
+      `[createAutomaticEntry] totalDebit=${detailsDraft.reduce(
+        (a, d) => a + Number(d.debit),
+        0,
+      )} totalCredit=${detailsDraft.reduce(
+        (a, d) => a + Number(d.credit),
+        0,
+      )}`,
+    );
     // ---- FIN DEBUG ----
 
     const enrichedDetails = await this.enrichDetailsWithBimoney(

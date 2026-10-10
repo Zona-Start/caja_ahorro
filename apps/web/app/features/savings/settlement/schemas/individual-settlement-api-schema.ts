@@ -9,6 +9,7 @@ export const settlementAssociate = z.object({
   email: z.string().email().nullable(),
   is_payroll_credit: z.boolean(),
   associate_account_id: z.string(),
+  currency_code: z.string(),
   account_number: z.string(),
   total_savings_balance: z.number(),
   haberes_contribution: z.number(),
@@ -20,6 +21,7 @@ export const settlementAssociate = z.object({
   total_outstanding_loans: z.number(),
   total_outstanding_credits: z.number(),
   net_liquidation_amount: z.number(),
+  total_overpayment: z.number(),
 });
 
 export type AssociatesSettlement = z.infer<typeof settlementAssociate>;

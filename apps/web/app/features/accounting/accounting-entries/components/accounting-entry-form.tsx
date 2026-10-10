@@ -15,9 +15,9 @@ import { cn } from '@repo/shadcn/lib/utils';
 import { SelectSearchable } from '@repo/shadcn/select-searchable';
 import { Switch } from '@repo/shadcn/switch';
 import { PlusCircle, Trash2 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
-import { useAssociatesQuery } from '@/features/savings/partners/associates/hooks/use-associates-query';
+import { AssociateSearchSelect } from '@/features/savings/partners/associates/components/associate-search-select';
 import { useAccountingAccounts } from '../../accounting-accounts/hooks/use-accounting-accounts-query';
 import { useAccountingEntryMutation } from '../hooks/use-accounting-entries-mutation';
 import {
@@ -40,16 +40,6 @@ export function AccountingEntryForm({
   const { mutate: saveAccountingEntry, isPending: isSaving } =
     useAccountingEntryMutation();
   const { data: accounts } = useAccountingAccounts();
-  const { data: associatesData } = useAssociatesQuery({ page: 1, limit: 1000 });
-
-  const associateOptions = useMemo(
-    () =>
-      (associatesData?.data || []).map((a) => ({
-        value: a.id,
-        label: `${a.cedula} - ${a.fullname}`,
-      })),
-    [associatesData],
-  );
 
   const form = useForm<AccountingEntry>({
     resolver: zodResolver(accountingEntrySchema),
@@ -350,11 +340,12 @@ export function AccountingEntryForm({
                       name={`details.${index}.associateId`}
                       render={({ field: f }) => (
                         <FormItem className="flex-1">
-                          <SelectSearchable
-                            options={associateOptions}
-                            onValueChange={(value) => f.onChange(value)}
+                          <AssociateSearchSelect
+                            value={f.value ?? null}
+                            onSelect={(associate) =>
+                              f.onChange(associate?.id ?? null)
+                            }
                             placeholder="Buscar asociado por cédula o nombre..."
-                            value={f.value ?? undefined}
                           />
                           <FormMessage />
                         </FormItem>

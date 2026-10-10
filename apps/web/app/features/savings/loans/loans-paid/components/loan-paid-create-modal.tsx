@@ -121,15 +121,9 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   );
   const nextInstallment = pendingSchedule[0];
 
-  const pendingTotal = useMemo(
-    () =>
-      pendingSchedule.reduce((sum, s) => {
-        const total = Number(s.quotaAmount) || 0;
-        const paid = Number(s.paidAmount) || 0;
-        return sum + Math.max(0, total - paid);
-      }, 0),
-    [pendingSchedule],
-  );
+  // Saldo pendiente provisto por el backend (saldo corriente contable), igual
+  // que el detalle del inquiry. No se recalcula en el front.
+  const pendingTotal = Number(selectedAssociate?.loanTotalAmount) || 0;
 
   const calculationResult = useMemo(() => {
     if (!selectedAssociate?.loanId || paymentMode === 'next_installment') {
@@ -155,7 +149,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
           remaining = 0;
         }
       }
-      return { amount: val - remaining, count };
+      return { amount: val, count };
     }
     return { amount: 0, count: 0 };
   }, [paymentMode, customAmount, selectedAssociate, pendingSchedule, nextInstallment, pendingTotal]);

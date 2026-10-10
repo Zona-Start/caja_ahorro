@@ -38,6 +38,8 @@ export function CreditsTab({
     isError,
   } = useCreditsQuery(id, { page, limit });
 
+
+
   const effectiveView: MovementsView = hasOvercharges ? view : 'records';
 
   return (

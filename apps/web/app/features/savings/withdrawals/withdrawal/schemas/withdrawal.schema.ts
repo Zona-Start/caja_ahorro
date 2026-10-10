@@ -9,6 +9,9 @@ export const withdrawalSchema = z.object({
   date: z.coerce.date(),
   description: z.string().optional(),
   commercialHouseId: z.string().optional().nullable(),
+  allowWithActiveLoanOrCredit: z.boolean().optional().default(false),
+  allowWithPayrollCredit: z.boolean().optional().default(false),
+  allowEarlyWithdrawal: z.boolean().optional().default(false),
   withdrawalItems: z
     .array(
       z.object({

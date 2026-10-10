@@ -88,9 +88,13 @@ export class AccountingRulesController {
     status: 200,
     description: 'Return a single accounting rule.',
   })
-  findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string) {
     const tenantId = this.tenantContext.getTenantId();
-    return this.accountingRulesService.findOne(tenantId, id);
+    const data = await this.accountingRulesService.findOne(tenantId, id);
+    return {
+      message: 'accounting rule fetched successfully',
+      data,
+    };
   }
 
   @Patch(':id')
@@ -99,7 +103,7 @@ export class AccountingRulesController {
     status: 200,
     description: 'Accounting rule updated successfully.',
   })
-  update(
+  async update(
     @Req() req: Request,
     @Param('id') id: string,
     @Body() dto: UpdateAccountingRuleDto,
@@ -108,7 +112,16 @@ export class AccountingRulesController {
       req,
       dto,
     );
-    return this.accountingRulesService.update(id, targetTenantId, userId, dto);
+    const data = await this.accountingRulesService.update(
+      id,
+      targetTenantId,
+      userId,
+      dto,
+    );
+    return {
+      message: 'accounting rule updated successfully',
+      data,
+    };
   }
 
   @Delete(':id')

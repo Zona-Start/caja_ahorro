@@ -60,6 +60,7 @@ export const operationsByGroup: Record<
       { value: 'LOAN_PAYMENT_MASSIVE', label: 'Pago de Préstamo Masivo', isDynamic: true, group: 'SYSTEM_EVENTS' },
       { value: 'SAVINGS_UPLOAD', label: 'Carga de Haberes voluntario', group: 'SYSTEM_EVENTS', referenceValue: 'Aporte Voluntario' },
       { value: 'SAVINGS_LIQUIDATION', label: 'Liquidación de Haberes', group: 'SYSTEM_EVENTS', referenceValue: 'Liquidacion Haberes' },
+      { value: 'REIMBURSEMENT', label: 'Reintegro de Saldo a Favor', group: 'SYSTEM_EVENTS', referenceValue: 'Reintegro Saldo a Favor' },
     ],
     PURCHASING: [
       { value: 'INVOICE_RECEPTION', label: 'Recepción de Factura', group: 'SYSTEM_EVENTS', referenceValue: 'Facturas' },

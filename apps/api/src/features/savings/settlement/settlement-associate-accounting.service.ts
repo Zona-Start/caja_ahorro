@@ -23,10 +23,12 @@ const CREDIT_MOVEMENT_TYPES = new Set<string>([
   'FEE_REIMBURSEMENT_CREDIT',
   'LOAN_OVERPAYMENT_CREDIT',
   'COMMERCIAL_CREDIT_OVERPAYMENT_CREDIT',
-  'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
   'LIQUIDATION_BALANCE_REVERSAL_CREDIT',
   'ACCOUNTING_ADJUSTMENT_CREDIT',
   'OTHER_CREDIT',
+  'LOAN_PAYMENT_REVERSAL_CREDIT',
+  'CREDIT_PAYMENT_REVERSAL_CREDIT',
+  'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
 ]);
 
 /** Tipos de movimiento que RESTAN del saldo de haberes. */
@@ -48,13 +50,17 @@ export interface LiquidationWithdrawalLine {
   isSpecial: boolean;
   /** Monto acumulado del retiro (incluye gasto administrativo). */
   amount: number;
+  /**True si es saldo a favor del asociado */
+  overpayment: boolean;
 }
 
 export interface LiquidationDebtLine {
   /** Nombre/descripción del tipo de préstamo o crédito (referenceValue). */
-  typeName: string;
+  typeName: string | null;
   /** Saldo pendiente. */
   amount: number;
+
+  overpayment?: boolean;
 }
 
 export interface LiquidationAccountingParams {
@@ -120,7 +126,7 @@ export class SettlementAssociateAccountingService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) {}
+  ) { }
 
   async generateLiquidationEntry(
     tenantId: string,
@@ -133,33 +139,30 @@ export class SettlementAssociateAccountingService {
     const n = (v: number) => Number(v ?? 0).toFixed(2);
 
     // ─── 0. Entrada completa ───────────────────────────────────────────────
-    this.logger.log(
-      `${tag} INICIO | asociado=${params.associateCedula} ${params.associateFullname} | cuenta=${params.associateAccountId}`,
-    );
-    this.logger.log(
-      `${tag} HABERES | ASSOCIATED_SAVINGS(aportes)=${n(params.haberesContribution)} | EMPLOYER_CONTRIBUTION(patrono)=${n(params.haberesEmployer)} | VOLUNTARY_SAVINGS(voluntarios)=${n(params.haberesVoluntary)} | DIVIDENDS_PAYABLE(excedentes)=${n(params.surpluses)} | BANK_ACCOUNT(neto)=${n(params.netAmount)}`,
-    );
-    this.logger.log(
-      `${tag} RETIROS(${params.withdrawals.length}) | ${
-        params.withdrawals
-          .map(
-            (w) => `'${w.description}'(isSpecial=${w.isSpecial})=${n(w.amount)}`,
-          )
-          .join(' | ') || 'ninguno'
-      }`,
-    );
-    this.logger.log(
-      `${tag} PRESTAMOS(${params.loans.length}) | ${
-        params.loans.map((l) => `'${l.typeName}'=${n(l.amount)}`).join(' | ') ||
-        'ninguno'
-      }`,
-    );
-    this.logger.log(
-      `${tag} CREDITOS(${params.credits.length}) | ${
-        params.credits.map((c) => `'${c.typeName}'=${n(c.amount)}`).join(' | ') ||
-        'ninguno'
-      }`,
-    );
+    // this.logger.log(
+    //   `${tag} INICIO | asociado=${params.associateCedula} ${params.associateFullname} | cuenta=${params.associateAccountId}`,
+    // );
+    // this.logger.log(
+    //   `${tag} HABERES | ASSOCIATED_SAVINGS(aportes)=${n(params.haberesContribution)} | EMPLOYER_CONTRIBUTION(patrono)=${n(params.haberesEmployer)} | VOLUNTARY_SAVINGS(voluntarios)=${n(params.haberesVoluntary)} | DIVIDENDS_PAYABLE(excedentes)=${n(params.surpluses)} | BANK_ACCOUNT(neto)=${n(params.netAmount)}`,
+    // );
+    // this.logger.log(
+    //   `${tag} RETIROS(${params.withdrawals.length}) | ${params.withdrawals
+    //     .map(
+    //       (w) => `'${w.description}'(isSpecial=${w.isSpecial})=${n(w.amount)}`,
+    //     )
+    //     .join(' | ') || 'ninguno'
+    //   }`,
+    // );
+    // this.logger.log(
+    //   `${tag} PRESTAMOS(${params.loans.length}) | ${params.loans.map((l) => `'${l.typeName}'=${n(l.amount)}`).join(' | ') ||
+    //   'ninguno'
+    //   }`,
+    // );
+    // this.logger.log(
+    //   `${tag} CREDITOS(${params.credits.length}) | ${params.credits.map((c) => `'${c.typeName}'=${n(c.amount)}`).join(' | ') ||
+    //   'ninguno'
+    //   }`,
+    // );
 
     // ─── Diagnostico: composicion del saldo de haberes por tipo de movimiento ─
     if (params.associateAccountId) {
@@ -212,13 +215,12 @@ export class SettlementAssociateAccountingService {
       'SAVINGS_LIQUIDATION',
       'Liquidacion Haberes',
     );
-    this.logger.log(
-      `${tag} REGLA BASE detalles=${baseDetails.length} | ${
-        baseDetails
-          .map((d) => `${d.accountRole}(${d.movementType})->${d.accountPlanId}`)
-          .join(' | ') || 'NINGUNA ENCONTRADA'
-      }`,
-    );
+    // this.logger.log(
+    //   `${tag} REGLA BASE detalles=${baseDetails.length} | ${baseDetails
+    //     .map((d) => `${d.accountRole}(${d.movementType})->${d.accountPlanId}`)
+    //     .join(' | ') || 'NINGUNA ENCONTRADA'
+    //   }`,
+    // );
 
     const baseRole = (role: string) =>
       baseDetails.find((d) => d.accountRole === role) ?? null;
@@ -308,17 +310,17 @@ export class SettlementAssociateAccountingService {
           'WITHDRAWAL_TYPE',
           role,
         );
-        if (detail && !hasType) {
-          this.logger.warn(
-            `${tag} RETIRO acumulado sin tipo: se usa la cuenta generica del rol ${role} (${detail.accountPlanId}).`,
-          );
-        }
+        // if (detail && !hasType) {
+        //   this.logger.warn(
+        //     `${tag} RETIRO acumulado sin tipo: se usa la cuenta generica del rol ${role} (${detail.accountPlanId}).`,
+        //   );
+        // }
       }
 
       pushLine(
         `RETIRO ${hasType ? `'${withdrawal.description}'` : '(acumulado sin tipo)'} (${role})`,
         detail,
-        'CREDIT',
+        withdrawal.overpayment === true ? 'DEBIT' : 'CREDIT',
         withdrawal.amount,
         detailDescription,
       );
@@ -346,16 +348,16 @@ export class SettlementAssociateAccountingService {
           'LOAN_TYPE',
           'LOAN_PRINCIPAL',
         );
-        if (detail) {
-          this.logger.warn(
-            `${tag} PRESTAMO '${loan.typeName || '(sin tipo)'}': se usa la cuenta generica del rol LOAN_PRINCIPAL (${detail.accountPlanId}).`,
-          );
-        }
+        // if (detail) {
+        //   this.logger.warn(
+        //     `${tag} PRESTAMO '${loan.typeName || '(sin tipo)'}': se usa la cuenta generica del rol LOAN_PRINCIPAL (${detail.accountPlanId}).`,
+        //   );
+        // }
       }
       pushLine(
         `PRESTAMO '${loan.typeName || '(sin tipo)'}' (LOAN_PRINCIPAL)`,
         detail,
-        'CREDIT',
+        loan.overpayment === true ? 'DEBIT' : 'CREDIT',
         loan.amount,
         loan.typeName || 'Prestamos Acumulado',
       );
@@ -383,16 +385,16 @@ export class SettlementAssociateAccountingService {
           'CREDIT_TYPE',
           'CREDIT_PRINCIPAL',
         );
-        if (detail) {
-          this.logger.warn(
-            `${tag} CREDITO '${credit.typeName || '(sin tipo)'}': se usa la cuenta generica del rol CREDIT_PRINCIPAL (${detail.accountPlanId}).`,
-          );
-        }
+        // if (detail) {
+        //   this.logger.warn(
+        //     `${tag} CREDITO '${credit.typeName || '(sin tipo)'}': se usa la cuenta generica del rol CREDIT_PRINCIPAL (${detail.accountPlanId}).`,
+        //   );
+        // }
       }
       pushLine(
         `CREDITO '${credit.typeName || '(sin tipo)'}' (CREDIT_PRINCIPAL)`,
         detail,
-        'CREDIT',
+        credit.overpayment === true ? 'DEBIT' : 'CREDIT',
         credit.amount,
         credit.typeName || 'Creditos Acumulado',
       );
@@ -400,9 +402,9 @@ export class SettlementAssociateAccountingService {
 
     // ─── 5. Totales proyectados (descuadre) ───────────────────────────────
     const diff = totalDebit - totalCredit;
-    this.logger.log(
-      `${tag} TOTALES PROYECTADOS | DEBIT=${n(totalDebit)} | CREDIT=${n(totalCredit)} | DIFERENCIA=${n(diff)} ${Math.abs(diff) < 0.005 ? '✓ CUADRADO' : '✗ DESCUADRADO'}`,
-    );
+    // this.logger.log(
+    //   `${tag} TOTALES PROYECTADOS | DEBIT=${n(totalDebit)} | CREDIT=${n(totalCredit)} | DIFERENCIA=${n(diff)} ${Math.abs(diff) < 0.005 ? '✓ CUADRADO' : '✗ DESCUADRADO'}`,
+    // );
 
     const payload = {
       module: 'savings',
@@ -425,9 +427,9 @@ export class SettlementAssociateAccountingService {
       explicitDetails: lines,
     };
 
-    this.logger.log(
-      `${tag} PAYLOAD A createAutomaticEntry: ${JSON.stringify(payload)}`,
-    );
+    // this.logger.log(
+    //   `${tag} PAYLOAD A createAutomaticEntry: ${JSON.stringify(payload)}`,
+    // );
 
     try {
       return await this.accountingEntriesService.createAutomaticEntry(
@@ -438,8 +440,7 @@ export class SettlementAssociateAccountingService {
       );
     } catch (error) {
       this.logger.error(
-        `${tag} No se pudo generar el asiento contable: ${
-          error instanceof Error ? error.message : String(error)
+        `${tag} No se pudo generar el asiento contable: ${error instanceof Error ? error.message : String(error)
         }`,
       );
       return null;

@@ -32,7 +32,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { and, eq, ilike, inArray, isNotNull, isNull, or, SQL, sql } from 'drizzle-orm';
+import { and, eq, ilike, inArray, isNotNull, isNull, or, SQL, sql, sum } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { format } from 'date-fns';
 import * as ExcelJS from 'exceljs';
@@ -49,6 +49,7 @@ import {
   type LiquidationDebtLine,
   type LiquidationWithdrawalLine,
 } from './settlement-associate-accounting.service';
+import { raw } from 'express';
 
 @Injectable()
 export class SettlementAssociateService {
@@ -145,7 +146,7 @@ export class SettlementAssociateService {
     beneficiary?: CreateSettlementAssociateDto['beneficiary'],
   ) {
     return this.db.transaction(async (tx) => {
-      if (associate.status !== 'ACTIVE') {
+      if (associate.status !== 'ACTIVE' && associate.status !== 'PENDING') {
         throw new BadRequestException(
           `El asociado con cédula '${associate.cedula}' no está activo para ser liquidado (estado actual: ${associate.status}).`,
         );
@@ -196,6 +197,7 @@ export class SettlementAssociateService {
           totalOutstandingCreditsAtLiquidation: String(
             liq.total_outstanding_credits,
           ),
+          totalOverPaymentLiquidation: String(liq.total_overpayment),
           netLiquidationAmount: String(liq.net_liquidation_amount),
           status: 'REQUESTED',
           notes: notes,
@@ -406,11 +408,11 @@ export class SettlementAssociateService {
     keywords: string[];
     typeDescription: string;
   }> = [
-    {
-      keywords: ['ajuste', 'prestamo'],
-      typeDescription: 'PRESTAMOS VS HABERES',
-    },
-  ];
+      {
+        keywords: ['ajuste', 'prestamo'],
+        typeDescription: 'PRESTAMOS VS HABERES',
+      },
+    ];
 
   /**
    * Identifica el tipo de retiro a partir de la descripcion de un movimiento
@@ -509,6 +511,99 @@ export class SettlementAssociateService {
     return best;
   }
 
+
+
+
+  private matchLoansTypeDescription(
+    rawDescription: string,
+    types: {
+      description: string;
+    }[],
+  ): {
+    description: string;
+  } | null {
+    if (!rawDescription || !types || types.length === 0) return null;
+
+    const clean = (srt: string) => srt.toLowerCase().normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+
+    const cleanRaw = clean(rawDescription);
+
+    //ordenamos los tipos de prestamos  por longitud de descripcion descedente
+    // Esto asegura que Jornada de salud
+
+    if (cleanRaw.includes('prestamos') && cleanRaw.includes('personales')) {
+      const loanType = types.find(t => {
+        const d = clean(t.description);
+        return d.includes('prestamos') || d.includes('personales') || d.includes('cp')
+      });
+      if (loanType) return loanType;
+    }
+
+    if (cleanRaw.includes('prestamos') && cleanRaw.includes('afianzados')) {
+      const loanType = types.find(t => {
+        const d = clean(t.description);
+        return d.includes('prestamos') || d.includes('afianzados')
+      });
+      if (loanType) return loanType;
+    }
+
+    if (cleanRaw.includes('prestamos') && cleanRaw.includes('mediano') && cleanRaw.includes('plazo')) {
+      const loanType = types.find(t => {
+        const d = clean(t.description);
+        return d.includes('prestamos') || d.includes('mediano') || d.includes('plazo')
+      });
+      if (loanType) return loanType;
+    }
+
+    const loanType = types.find(t => {
+      const d = clean(t.description);
+      return d.includes('comerciales') || d.includes('largo') || d.includes('plazo')
+    });
+    return loanType || null
+  }
+
+
+  private matchCreditTypeDescription(
+    rawDescription: string,
+    types: {
+      description: string;
+    }[],
+  ): {
+    description: string;
+  } | null {
+
+    if (!rawDescription || !types || types.length === 0) return null;
+
+    const clean = (srt: string) => srt.toLowerCase().normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+
+
+    const cleanRaw = clean(rawDescription);
+
+    //ordenamos los tipos de creditos  por longitud de descripcion descedente
+    // Esto asegura que Jornada de salud
+
+    if (cleanRaw.includes('jornada') && cleanRaw.includes('salud')) {
+      const jornadaType = types.find(t => {
+        const d = clean(t.description);
+        return d.includes('jornada') || d.includes('salud')
+      });
+      if (jornadaType) return jornadaType;
+    }
+
+    const comercialType = types.find(t => {
+      const d = clean(t.description);
+      return d.includes('comerciales')
+    });
+    return comercialType || null
+  }
+
+
+
   async approve(
     tenantId: string,
     userId: string,
@@ -573,6 +668,7 @@ export class SettlementAssociateService {
       const totalCredits = Number(
         liquidation.totalOutstandingCreditsAtLiquidation,
       );
+      const totalOverpayment = Number(liquidation.totalOverPaymentLiquidation)
       const netAmount = Number(liquidation.netLiquidationAmount);
 
       // Datos para el asiento contable (se toman ANTES de aplicar los pagos).
@@ -591,7 +687,8 @@ export class SettlementAssociateService {
             description: withdrawalTypes.description,
             isHouseComercial: withdrawalTypes.isHouseComercial,
             isInternalInventory: withdrawalTypes.isInternalInventory,
-            amount: sql<string>`SUM(${associateAccountMovements.amount})`,
+            amount: sum(associateAccountMovements.amount),
+            movementType: associateAccountMovements.movementType
           })
           .from(associateAccountMovements)
           .innerJoin(
@@ -613,6 +710,7 @@ export class SettlementAssociateService {
               inArray(associateAccountMovements.movementType, [
                 'SAVING_WITHDRAWAL',
                 'WITHDRAWAL_FEE_DEBIT',
+                'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
               ]),
             ),
           )
@@ -620,15 +718,18 @@ export class SettlementAssociateService {
             withdrawalTypes.description,
             withdrawalTypes.isHouseComercial,
             withdrawalTypes.isInternalInventory,
+            associateAccountMovements.movementType
           );
 
         for (const row of referencedRows) {
+
           withdrawalAccountingLines.push({
             description: row.description,
             isSpecial:
               Boolean(row.isHouseComercial) ||
               Boolean(row.isInternalInventory),
             amount: Number(row.amount),
+            overpayment: row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT' ? true : false
           });
         }
 
@@ -637,7 +738,8 @@ export class SettlementAssociateService {
         const unreferencedRows = await tx
           .select({
             rawDescription: associateAccountMovements.description,
-            amount: sql<string>`SUM(${associateAccountMovements.amount})`,
+            amount: sum(associateAccountMovements.amount),
+            movementType: associateAccountMovements.movementType
           })
           .from(associateAccountMovements)
           .where(
@@ -648,10 +750,11 @@ export class SettlementAssociateService {
               inArray(associateAccountMovements.movementType, [
                 'SAVING_WITHDRAWAL',
                 'WITHDRAWAL_FEE_DEBIT',
+                'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
               ]),
             ),
           )
-          .groupBy(associateAccountMovements.description);
+          .groupBy(associateAccountMovements.description, associateAccountMovements.movementType);
 
         if (unreferencedRows.length > 0) {
           const types = await tx
@@ -670,13 +773,13 @@ export class SettlementAssociateService {
               description: matched?.description ?? '',
               isSpecial: matched
                 ? Boolean(matched.isHouseComercial) ||
-                  Boolean(matched.isInternalInventory)
+                Boolean(matched.isInternalInventory)
                 : false,
               amount: Number(row.amount),
+              overpayment: row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT' ? true : false
             });
             console.log(
-              `[Liquidacion] Retiro acumulado sin referencia: "${raw}" -> tipo: ${
-                matched?.description ?? '(no identificado)'
+              `[Liquidacion] Retiro acumulado sin referencia: "${raw}" -> tipo: ${matched?.description ?? '(no identificado)'
               } | monto=${Number(row.amount)}`,
             );
           }
@@ -689,7 +792,7 @@ export class SettlementAssociateService {
           .select({
             loanId: schema.loanOutstandingBalance.loanId,
             outstandingTotal:
-              schema.loanOutstandingBalance.outstandingTotalBalance,
+              schema.loanOutstandingBalance.capitalPendiente,
             typeName: loanTypes.name,
           })
           .from(schema.loanOutstandingBalance)
@@ -712,12 +815,15 @@ export class SettlementAssociateService {
           loanAccountingLines.push({
             typeName: loan.typeName ?? 'PRESTAMO',
             amount: loanBalance,
+            overpayment: false
           });
 
           const pendingInstallments = await tx
             .select({
               id: loanAmortizationSchedule.id,
               totalAmount: loanAmortizationSchedule.totalInstallmentAmount,
+              principalAmount: loanAmortizationSchedule.principalAmount,
+              interestAmount: loanAmortizationSchedule.interestAmount,
               paidAmount: loanAmortizationSchedule.paidAmount,
             })
             .from(loanAmortizationSchedule)
@@ -760,8 +866,16 @@ export class SettlementAssociateService {
             .returning({ id: loanPayments.id });
 
           for (const inst of pendingInstallments) {
-            const installmentOwed =
-              Number(inst.totalAmount) - Number(inst.paidAmount || 0);
+            // Solo capital: el interés no cobrado se condona en la liquidación.
+            const paid = Number(inst.paidAmount || 0);
+            const principalPaid = Math.max(
+              0,
+              paid - Number(inst.interestAmount),
+            );
+            const installmentOwed = Math.max(
+              0,
+              Number(inst.principalAmount) - principalPaid,
+            );
 
             await tx.insert(loanPaymentsDetails).values({
               loanPaymentId: loanPayment.id,
@@ -810,13 +924,14 @@ export class SettlementAssociateService {
         }
       }
 
+
       // 2. Pay off outstanding credits from savings
       if (totalCredits > 0) {
         const outstandingCredits = await tx
           .select({
             creditId: schema.creditOutstandingBalance.creditId,
             outstandingTotal:
-              schema.creditOutstandingBalance.outstandingTotalBalance,
+              schema.creditOutstandingBalance.capitalPendiente,
             typeName: creditsTypes.name,
           })
           .from(schema.creditOutstandingBalance)
@@ -839,12 +954,15 @@ export class SettlementAssociateService {
           creditAccountingLines.push({
             typeName: credit.typeName ?? 'CREDITO',
             amount: creditBalance,
+            overpayment: false
           });
 
           const pendingInstallments = await tx
             .select({
               id: creditAmortizationSchedule.id,
               totalAmount: creditAmortizationSchedule.totalInstallmentAmount,
+              principalAmount: creditAmortizationSchedule.principalAmount,
+              interestAmount: creditAmortizationSchedule.interestAmount,
               paidAmount: creditAmortizationSchedule.paidAmount,
             })
             .from(creditAmortizationSchedule)
@@ -887,8 +1005,16 @@ export class SettlementAssociateService {
             .returning({ id: creditPayments.id });
 
           for (const inst of pendingInstallments) {
-            const installmentOwed =
-              Number(inst.totalAmount) - Number(inst.paidAmount || 0);
+            // Solo capital: el interés no cobrado se condona en la liquidación.
+            const paid = Number(inst.paidAmount || 0);
+            const principalPaid = Math.max(
+              0,
+              paid - Number(inst.interestAmount),
+            );
+            const installmentOwed = Math.max(
+              0,
+              Number(inst.principalAmount) - principalPaid,
+            );
 
             await tx.insert(creditPaymentsDetails).values({
               creditPaymentId: creditPayment.id,
@@ -935,7 +1061,64 @@ export class SettlementAssociateService {
         }
       }
 
-      // 3. Create the net liquidation movement
+      //. Resolvemos los saldo a favor por credito o prestamos
+      if (totalOverpayment > 0 && accountId) {
+        const referencedRows = await tx
+          .select({
+            movementType: associateAccountMovements.movementType,
+            referenceId: associateAccountMovements.referenceId,
+            referenceType: associateAccountMovements.referenceType,
+            amount: sum(associateAccountMovements.amount),
+            description: associateAccountMovements.description,
+          })
+          .from(associateAccountMovements)
+          .where(
+            and(
+              eq(associateAccountMovements.associateAccountId, accountId),
+              eq(associateAccountMovements.status, 'COMPLETED'),
+              inArray(associateAccountMovements.movementType, [
+                'LOAN_PAYMENT_REVERSAL_CREDIT',
+                'CREDIT_PAYMENT_REVERSAL_CREDIT'
+              ]),
+            ),
+          ).groupBy(
+            associateAccountMovements.movementType,
+            associateAccountMovements.referenceId,
+            associateAccountMovements.referenceType,
+            associateAccountMovements.description
+          );
+
+        for (const rows of referencedRows) {
+
+
+          if (rows.movementType === 'LOAN_PAYMENT_REVERSAL_CREDIT') {
+            const find = await this.findOverPaymentReferencLoan(rows.referenceId, tenantId, rows.description)
+            if (find.loanTypeName) {
+              loanAccountingLines.push({
+                typeName: find.loanTypeName,
+                amount: Number(rows.amount),
+                overpayment: true
+              });
+            }
+
+
+          } else {
+            const find = await this.findOverPaymentReferencCredit(rows.referenceId, tenantId, rows.description)
+            if (find.creditTypeName) {
+              creditAccountingLines.push({
+                typeName: find.creditTypeName,
+                amount: Number(rows.amount),
+                overpayment: true
+              });
+            }
+
+
+          }
+        }
+
+      }
+
+      // 4. Create the net liquidation movement
       if (accountId && netAmount > 0) {
         try {
           await this.associateAccountsMovementsService.create(
@@ -1296,5 +1479,100 @@ export class SettlementAssociateService {
         currentPage: page,
       },
     };
+  }
+
+
+  private async findOverPaymentReferencLoan(referenceId: string | null, tenantId: string | null, description: string | null) {
+
+    if (referenceId) {
+      const [findLoan] = await this.db
+        .select({
+          loanReference:
+            schema.loans.customReference,
+          loanTypeName: loanTypes.name,
+        })
+        .from(schema.loans)
+        .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
+        .where(
+          eq(
+            schema.loans.id,
+            referenceId,
+          ),
+        );
+
+
+      const result = {
+        loanTypeName: findLoan.loanTypeName,
+        loanReference: findLoan.loanReference
+      }
+
+      return result
+    }
+
+    const findLoanType = await this.db
+      .select({
+        description: loanTypes.name
+      })
+      .from(loanTypes)
+      .where(eq(loanTypes.tenantId, tenantId!));
+
+    const matched = this.matchLoansTypeDescription(description!, findLoanType);
+
+    const result = {
+      loanTypeName: matched?.description,
+      loanReference: null
+    }
+
+    return result
+
+  }
+
+  private async findOverPaymentReferencCredit(referenceId: string | null, tenantId: string | null, description: string | null) {
+
+    if (referenceId) {
+      const [findCredit] = await this.db
+        .select({
+          creditReference:
+            schema.credits.customReference,
+          creditTypeName: creditsTypes.name,
+        })
+        .from(schema.credits)
+        .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
+        .where(
+          eq(
+            schema.credits.id,
+            referenceId,
+          ),
+        );
+
+
+      const result = {
+        creditTypeName: findCredit.creditTypeName,
+        creditReference: findCredit.creditReference
+      }
+
+      return result
+    }
+
+
+    const findCreditType = await this.db
+      .select({
+        description: creditsTypes.name
+      })
+      .from(creditsTypes)
+      .where(eq(creditsTypes.tenantId, tenantId!));
+
+    console.log('findCreditType', findCreditType[0].description);
+
+
+    const matched = this.matchCreditTypeDescription(description!, findCreditType);
+
+    const result = {
+      creditTypeName: matched?.description,
+      creditReference: null
+    }
+
+    return result
+
   }
 }

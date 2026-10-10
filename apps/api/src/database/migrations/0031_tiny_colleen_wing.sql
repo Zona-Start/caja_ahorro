@@ -1,0 +1,3 @@
+ALTER TABLE "savings"."withdrawals_associates" ADD COLUMN "allow_with_active_loan_or_credit" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "savings"."withdrawals_associates" ADD COLUMN "allow_with_payroll_credit" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "savings"."withdrawals_associates" ADD COLUMN "allow_early_withdrawal" boolean DEFAULT false NOT NULL;

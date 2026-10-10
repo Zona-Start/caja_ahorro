@@ -22,6 +22,7 @@ export const LiquidationResponseSchema = z.object({
   total_outstanding_loans: z.number(),
   total_outstanding_credits: z.number(),
   net_liquidation_amount: z.number(),
+  total_overpayment: z.number(),
 });
 
 export type LiquidationResponseDto = z.infer<typeof LiquidationResponseSchema>;

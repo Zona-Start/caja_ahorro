@@ -13,7 +13,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ZodError } from 'zod';
 import {
@@ -67,12 +67,14 @@ export class SavingsLiquidationService {
         associateAccounts,
         and(
           eq(associates.id, associateAccounts.associateId),
-          eq(associateAccounts.currencyCode, 'VES'),
-          eq(associateAccounts.status, 'ACTIVE'),
+          eq(associateAccounts.currencyCode, 'VES')
         ),
       )
       .where(
-        and(eq(associates.cedula, cedula), eq(associates.status, 'ACTIVE')),
+        and(eq(associates.cedula, cedula), inArray(associates.status, [
+          'ACTIVE',
+          'PENDING',
+        ])),
       )
       .limit(1);
 
@@ -89,6 +91,7 @@ export class SavingsLiquidationService {
         surpluses: associateHaberesBalance.haberesSurplusContribution,
         total_withdrawals: associateHaberesBalance.totalWithdrawals,
         total_withdrawal_fees: associateHaberesBalance.totalWithdrawalFees,
+        total_overpayment: associateHaberesBalance.totalOverpayment
       })
       .from(associateHaberesBalance)
       .where(
@@ -97,7 +100,7 @@ export class SavingsLiquidationService {
 
     const loans = await this.db
       .select({
-        outstanding: loanOutstandingBalance.outstandingTotalBalance,
+        outstanding: loanOutstandingBalance.capitalPendiente,
       })
       .from(loanOutstandingBalance)
       .where(
@@ -114,7 +117,7 @@ export class SavingsLiquidationService {
 
     const credits = await this.db
       .select({
-        outstanding: creditOutstandingBalance.outstandingTotalBalance,
+        outstanding: creditOutstandingBalance.capitalPendiente,
       })
       .from(creditOutstandingBalance)
       .where(
@@ -146,6 +149,10 @@ export class SavingsLiquidationService {
     const totalWithdrawalFees = haberesRow
       ? Number(haberesRow.total_withdrawal_fees)
       : 0;
+    const totalOverpayment = haberesRow
+      ? Number(haberesRow.total_overpayment)
+      : 0;
+
 
     const net =
       totalSavings - total_outstanding_loans - total_outstanding_credits;
@@ -163,6 +170,9 @@ export class SavingsLiquidationService {
       total_outstanding_loans,
       total_outstanding_credits,
       net_liquidation_amount: net,
+      total_overpayment: totalOverpayment
+
     };
+
   }
 }

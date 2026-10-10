@@ -74,6 +74,9 @@ export const withdrawalService = {
       date: withdrawal.date,
       description: withdrawal.description,
       commercialHouseId: withdrawal.commercialHouseId ?? null,
+      allowWithActiveLoanOrCredit: withdrawal.allowWithActiveLoanOrCredit ?? false,
+      allowWithPayrollCredit: withdrawal.allowWithPayrollCredit ?? false,
+      allowEarlyWithdrawal: withdrawal.allowEarlyWithdrawal ?? false,
       withdrawalItems: withdrawal.withdrawalItems ?? [],
     };
 

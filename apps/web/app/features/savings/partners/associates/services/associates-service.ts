@@ -21,12 +21,12 @@ export const associatesService = {
     let searchValue = '';
 
     if (params.search) {
-      if (/^\d/.test(params.search)) {
-        searchType = 'cedula';
-      } else {
-        searchType = 'fullname';
-      }
-      searchValue = params.search.toUpperCase();
+      const term = params.search.trim();
+      // Cédula: dígitos, opcionalmente precedidos por la letra de nacionalidad
+      // (V-, E-, J-, P-...) y separadores. Ej: 12345678, V-12345678, J 12.345.678
+      const isCedulaLike = /^[a-z]?\d[\d\s.\-]*$/i.test(term);
+      searchType = isCedulaLike ? 'cedula' : 'fullname';
+      searchValue = term.toUpperCase();
     }
 
     const searchParams = new URLSearchParams({

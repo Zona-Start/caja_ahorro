@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const CreateAccountingRuleDetailSchema = z.object({
   id: z.string().uuid().optional(),
   ruleId: z.string().uuid().optional(),
-  accountRole: z.string().optional(),
+  accountRole: z.string().nullable().optional(),
   movementType: z.enum(['DEBIT', 'CREDIT']),
   formula: z.string().nullable().optional(),
   accountPlanId: z.string().uuid().nullable().optional(),
@@ -16,8 +16,8 @@ export const CreateAccountingRuleSchema = z.object({
   tenantId: z.string().uuid().optional(),
   category: z.string().min(1),
   operationType: z.string().min(1),
-  referenceValue: z.string().optional(),
-  description: z.string().optional(),
+  referenceValue: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
   isActive: z.boolean().default(true).optional(),
   details: z.array(CreateAccountingRuleDetailSchema),
 });

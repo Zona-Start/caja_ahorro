@@ -13,17 +13,17 @@ export const InquiryStatementFilterSchema = z.object({
 export const OverchargeMovementTypeSchema = z.enum([
   'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
   'LOAN_PAYMENT_REVERSAL_CREDIT',
-  'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT',
+  'CREDIT_PAYMENT_REVERSAL_CREDIT',
 ]);
 
 export const InquiryOverchargeFilterSchema = PaginationSchema.extend({
   movementType: OverchargeMovementTypeSchema,
 });
 
-export class InquiryFilterDto extends createZodDto(InquiryFilterSchema) {}
+export class InquiryFilterDto extends createZodDto(InquiryFilterSchema) { }
 export class InquiryStatementFilterDto extends createZodDto(
   InquiryStatementFilterSchema,
-) {}
+) { }
 export class InquiryOverchargeFilterDto extends createZodDto(
   InquiryOverchargeFilterSchema,
-) {}
+) { }

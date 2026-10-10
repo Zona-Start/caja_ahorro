@@ -32,6 +32,9 @@ import {
   paymentMethodEnum,
   paymentStatus,
   paymentStatusEnum,
+  reimbursementDestinationEnum,
+  reimbursementOriginTypeEnum,
+  reimbursementsStatusEnum,
   statusEnum,
   withdrawalStatusEnum,
 } from '../enum';
@@ -326,6 +329,16 @@ export const withdrawalsAssociates = savingsSchema.table(
       { onDelete: 'set null' },
     ),
     withdrawalItems: jsonb('withdrawal_items'),
+    // Parámetros especiales: permiten crear el retiro saltando reglas (solo con permiso approve)
+    allowWithActiveLoanOrCredit: boolean('allow_with_active_loan_or_credit')
+      .notNull()
+      .default(false),
+    allowWithPayrollCredit: boolean('allow_with_payroll_credit')
+      .notNull()
+      .default(false),
+    allowEarlyWithdrawal: boolean('allow_early_withdrawal')
+      .notNull()
+      .default(false),
     ...timestamps,
   },
   (table) => ({
@@ -498,6 +511,16 @@ export const loans = savingsSchema.table(
       precision: 5,
       scale: 2,
     }), // % de gastos administrativos personalizado (null = usa el del tipo de préstamo)
+    // ── Parámetros especiales (desbloqueo de reglas) ──
+    bypassPayrollCredit: boolean('bypass_payroll_credit')
+      .notNull()
+      .default(false), // Permite crear con credinomina activa
+    bypassAvailableBalance: boolean('bypass_available_balance')
+      .notNull()
+      .default(false), // Permite superar el 80% disponible
+    bypassPaymentCapacity: boolean('bypass_payment_capacity')
+      .notNull()
+      .default(false), // Permite superar la capacidad de pago (30%)
     ...timestamps, // created_at y updated_at
   },
   (table) => ({
@@ -998,6 +1021,10 @@ export const liquidationsAssociates = savingsSchema.table(
       'total_outstanding_credits_at_liquidation',
       { precision: 18, scale: 4 },
     ).notNull(), // Deuda de créditos en el momento de la liquidación
+    totalOverPaymentLiquidation: numeric(
+      'total_over_payment_liquidation',
+      { precision: 18, scale: 4 },
+    ).notNull(), // Saldo al favor del asociado al momento de la liquidacion
     netLiquidationAmount: numeric('net_liquidation_amount', {
       precision: 18,
       scale: 4,
@@ -1014,6 +1041,73 @@ export const liquidationsAssociates = savingsSchema.table(
     associateLiquidationIdx: uniqueIndex(
       'liquidations_associate_liquidation_uidx',
     ).on(table.associateId, table.liquidationDate),
+  }),
+);
+
+export const reimbursements = savingsSchema.table(
+  'reimbursements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id')
+      .references(() => tenants.id, { onDelete: 'cascade' })
+      .notNull(),
+    associateId: uuid('associate_id')
+      .notNull()
+      .references(() => associates.id, { onDelete: 'restrict' }),
+    associateAccountId: uuid('associate_account_id').references(
+      () => associateAccounts.id,
+      { onDelete: 'set null' },
+    ),
+    currencyCode: currencyCodeEnum('currency_code').notNull(),
+    destination: reimbursementDestinationEnum('destination').notNull(),
+    totalAmount: numeric('total_amount', { precision: 20, scale: 6 }).notNull(),
+    status: reimbursementsStatusEnum('status').notNull().default('REQUESTED'),
+    bankId: uuid('bank_id').references(() => bankDirectory.id, {
+      onDelete: 'set null',
+    }),
+    transactionReference: varchar('transaction_reference', { length: 100 }),
+    comment: text('comment'),
+    customReference: varchar('custom_reference', { length: 50 }),
+    approvedById: uuid('approved_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    processedById: uuid('processed_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    disbursedById: uuid('disbursed_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    approvedAt: timestamp('approved_at'),
+    processedAt: timestamp('processed_at'),
+    disbursedAt: timestamp('disbursed_at'),
+    ...timestamps,
+  },
+  (table) => ({
+    associateIdx: index('reimbursements_associate_idx').on(table.associateId),
+    statusIdx: index('reimbursements_status_idx').on(table.status),
+    referenceIdx: uniqueIndex('reimbursements_reference_uidx').on(
+      table.customReference,
+    ),
+  }),
+);
+
+export const reimbursementDetails = savingsSchema.table(
+  'reimbursement_details',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reimbursementId: uuid('reimbursement_id')
+      .notNull()
+      .references(() => reimbursements.id, { onDelete: 'cascade' }),
+    originType: reimbursementOriginTypeEnum('origin_type').notNull(),
+    originId: uuid('origin_id'),
+    originReference: varchar('origin_reference', { length: 50 }),
+    amount: numeric('amount', { precision: 20, scale: 6 }).notNull(),
+    ...timestamps,
+  },
+  (table) => ({
+    reimbursementIdx: index('reimbursement_details_reimbursement_idx').on(
+      table.reimbursementId,
+    ),
   }),
 );
 

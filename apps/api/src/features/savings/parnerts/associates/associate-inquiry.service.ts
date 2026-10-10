@@ -3,6 +3,7 @@ import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/schema';
+import { computePendingBalance } from '@/common/utils/pending-balance';
 
 const haberesTypes = [
   'SAVING_CONTRIBUTION',
@@ -15,7 +16,7 @@ const haberesTypes = [
 const overchargeMovementTypes = [
   'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
   'LOAN_PAYMENT_REVERSAL_CREDIT',
-  'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT',
+  'CREDIT_PAYMENT_REVERSAL_CREDIT',
 ] as const;
 
 type AssociateMovementType =
@@ -320,13 +321,24 @@ export class AssociateInquiryService {
           loanType: schema.loanTypes.name,
           interestRate: schema.loans.interestRate,
           loanAmount: schema.loans.requestedAmount,
-          // <<< NUEVO: Calcular outstandingBalance directamente desde la tabla de amortización >>>
-          outstandingBalance: sql<number>`COALESCE((
-            SELECT SUM(las.total_installment_amount - COALESCE(las.paid_amount, 0))
-            FROM ${schema.loanAmortizationSchedule} las
-            WHERE las.loan_id = ${schema.loans.id}
-              AND las.payment_status != 'PAID'
-          ), 0)`,
+          // Saldo pendiente = saldo corriente (último pago) o capital pendiente
+          // del schedule si no hay pagos. Coincide con el detalle y el contable.
+          outstandingBalance: sql<number>`COALESCE(
+            (
+              SELECT lp.balance_pending
+              FROM ${schema.loanPayments} lp
+              WHERE lp.loan_id = ${schema.loans.id}
+                AND lp.payment_status = 'DONE'
+              ORDER BY lp.payment_date DESC, lp.created_at DESC
+              LIMIT 1
+            ),
+            (
+              SELECT SUM(GREATEST(0, las.principal_amount - GREATEST(0, COALESCE(las.paid_amount, 0) - las.interest_amount)))
+              FROM ${schema.loanAmortizationSchedule} las
+              WHERE las.loan_id = ${schema.loans.id}
+            ),
+            0
+          )`,
           installmentAmount: schema.loans.installmentAmount,
           requestDate: schema.loans.requestDate,
           terms: schema.loans.termUnits,
@@ -399,12 +411,24 @@ export class AssociateInquiryService {
           creditType: schema.creditsTypes.name,
           interestRate: schema.credits.interestRate,
           creditAmount: schema.credits.requestedAmount,
-          outstandingBalance: sql<number>`COALESCE((
-            SELECT SUM(cas.total_installment_amount - COALESCE(cas.paid_amount, 0))
-            FROM ${schema.creditAmortizationSchedule} cas
-            WHERE cas.credit_id = ${schema.credits.id}
-              AND cas.payment_status != 'PAID'
-          ), 0)`,
+          // Saldo pendiente = saldo corriente (último pago) o capital pendiente
+          // del schedule si no hay pagos. Coincide con el detalle y el contable.
+          outstandingBalance: sql<number>`COALESCE(
+            (
+              SELECT cp.balance_pending
+              FROM ${schema.creditPayments} cp
+              WHERE cp.credit_id = ${schema.credits.id}
+                AND cp.payment_status = 'DONE'
+              ORDER BY cp.payment_date DESC, cp.created_at DESC
+              LIMIT 1
+            ),
+            (
+              SELECT SUM(GREATEST(0, cas.principal_amount - GREATEST(0, COALESCE(cas.paid_amount, 0) - cas.interest_amount)))
+              FROM ${schema.creditAmortizationSchedule} cas
+              WHERE cas.credit_id = ${schema.credits.id}
+            ),
+            0
+          )`,
           installmentAmount: schema.credits.installmentAmount,
           requestDate: schema.credits.requestDate,
           terms: schema.credits.termUnits,
@@ -737,14 +761,25 @@ export class AssociateInquiryService {
       (sum, s) => sum + parseFloat(s.paidAmount || '0'),
       0,
     );
-    const totalPending = schedule
-      .filter((s) => s.paymentStatus !== 'PAID')
-      .reduce((sum, s) => {
-        const paid = parseFloat(s.paidAmount || '0');
-        const total = parseFloat(s.totalInstallmentAmount || '0');
-        const pending = total - paid; // saldo pendiente de esa cuota
-        return sum + pending;
-      }, 0);
+    const [lastPayment] = await this.drizzle
+      .select({ balancePending: schema.loanPayments.balancePending })
+      .from(schema.loanPayments)
+      .where(
+        and(
+          eq(schema.loanPayments.loanId, loanId),
+          eq(schema.loanPayments.status, 'DONE'),
+        ),
+      )
+      .orderBy(
+        desc(schema.loanPayments.paymentDate),
+        desc(schema.loanPayments.createdAt),
+      )
+      .limit(1);
+
+    const totalPending =
+      lastPayment?.balancePending != null
+        ? Number(lastPayment.balancePending)
+        : computePendingBalance(schedule);
 
     return {
       loan: loanResult,
@@ -842,14 +877,25 @@ export class AssociateInquiryService {
       (sum, s) => sum + parseFloat(s.paidAmount || '0'),
       0,
     );
-    const totalPending = schedule
-      .filter((s) => s.paymentStatus !== 'PAID')
-      .reduce((sum, s) => {
-        const paid = parseFloat(s.paidAmount || '0');
-        const total = parseFloat(s.totalInstallmentAmount || '0');
-        const pending = total - paid; // saldo pendiente de esa cuota
-        return sum + pending;
-      }, 0);
+    const [lastCreditPayment] = await this.drizzle
+      .select({ balancePending: schema.creditPayments.balancePending })
+      .from(schema.creditPayments)
+      .where(
+        and(
+          eq(schema.creditPayments.creditId, creditId),
+          eq(schema.creditPayments.status, 'DONE'),
+        ),
+      )
+      .orderBy(
+        desc(schema.creditPayments.paymentDate),
+        desc(schema.creditPayments.createdAt),
+      )
+      .limit(1);
+
+    const totalPending =
+      lastCreditPayment?.balancePending != null
+        ? Number(lastCreditPayment.balancePending)
+        : computePendingBalance(schedule);
     const items = await this.drizzle
       .select({
         id: schema.creditItemSales.id,

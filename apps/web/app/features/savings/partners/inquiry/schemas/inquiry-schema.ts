@@ -130,7 +130,7 @@ export const overchargesPaginatedResponseSchema = historyPaginatedResponseSchema
 export const overchargeSummarySchema = z.object({
   SAVING_WITHDRAWAL_REVERSAL_CREDIT: z.number(),
   LOAN_PAYMENT_REVERSAL_CREDIT: z.number(),
-  COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT: z.number(),
+  CREDIT_PAYMENT_REVERSAL_CREDIT: z.number(),
 });
 
 export const overchargeSummaryResponseSchema = z.object({

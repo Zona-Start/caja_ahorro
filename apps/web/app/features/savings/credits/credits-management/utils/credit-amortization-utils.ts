@@ -55,17 +55,20 @@ export function calculateFrenchAmortization(
   const periodsPerYear = termType === 'installments' ? 24 : 12;
   const r = annualRate / 100 / periodsPerYear;
   const n = numInstallments;
+  // El capital financiado (cuenta por cobrar) incluye los gastos y sobre ese
+  // total se calcula el interés.
+  const financedCapital = amount + expensesAmount;
 
   const factor = r === 0 ? 1 : Math.pow(1 + r, n);
   const frenchInstallment =
     r === 0
-      ? amount / n
-      : (amount * r * factor) / (factor - 1);
-  const expensePerInstallment = expensesAmount / n;
-  const totalInstallmentAmount = frenchInstallment + expensePerInstallment;
+      ? financedCapital / n
+      : (financedCapital * r * factor) / (factor - 1);
+
+  const totalInstallmentAmount = frenchInstallment;
 
   const schedule: AmortRow[] = [];
-  let remaining = amount;
+  let remaining = financedCapital;
   let totalInterest = 0;
 
   const start = new Date(startDate);
@@ -83,11 +86,11 @@ export function calculateFrenchAmortization(
   for (let i = 1; i <= n; i++) {
     const interestThisPeriod = remaining * r;
     let principalThisPeriod = frenchInstallment - interestThisPeriod;
-    let total = totalInstallmentAmount;
+    let total = principalThisPeriod + interestThisPeriod;
 
     if (i === n) {
       principalThisPeriod = remaining;
-      total = principalThisPeriod + interestThisPeriod + expensePerInstallment;
+      total = principalThisPeriod + interestThisPeriod;
       if (isNaN(total)) total = 0;
     }
 

@@ -62,6 +62,10 @@ const routes: RouteConfig = [
       'routes/dashboard/savings/savings-inquiry.tsx',
     ),
     route(
+      'caja-ahorro/reintegros',
+      'routes/dashboard/savings/savings-reimbursement.tsx',
+    ),
+    route(
       'caja-ahorro/carga-haberes',
       'routes/dashboard/savings/savings-individual-load.tsx',
     ),

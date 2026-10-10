@@ -8,7 +8,7 @@ import {
   LoanStatusEnum,
 } from '@/types/enum';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, desc } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { v4 as uuidv4 } from 'uuid';
@@ -115,6 +115,7 @@ export class BulkPaymentUseCase {
           const activeLoans = await tx
             .select({
               id: loans.id,
+              customReference: loans.customReference,
               currencyCode: loans.currencyCode,
               loanTypeId: loans.loanTypeId,
             })
@@ -132,195 +133,330 @@ export class BulkPaymentUseCase {
             .for('update');
 
           const loan = activeLoans[0];
-          if (!loan) {
-            results.errors.push({
-              cedula: item.cedula,
-              error: 'No se encontró préstamo activo',
-            });
-            continue;
-          }
 
-          const [loanType] = await tx
-            .select({ name: loanTypes.name })
-            .from(loanTypes)
-            .where(eq(loanTypes.id, loan.loanTypeId));
-          const loanTypeName = loanType?.name ?? 'Pago Prestamo';
+          //Cargamos saldo a favor del asociado si existe un pago pero no existe prestamo activo
+          if (!loan && item.amount > 0) {
 
-          const installmentResult =
-            await this.validator.calculateCoveredInstallments(
-              loan.id,
+            const [lastPaidLoan] = await tx
+              .select({
+                id: loans.id,
+                associateId: loans.associateId,
+                currencyCode: loans.currencyCode,
+                customReference: loans.customReference,
+                loanTypesName: loanTypes.name
+              })
+              .from(loans)
+              .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
+              .where(
+                and(
+                  eq(loans.tenantId, tenantId),
+                  eq(loans.associateId, associate.id),
+                  eq(loans.status, LoanStatusEnum.PAID),
+
+                ),
+              ).orderBy(desc(loans.startDate)).limit(1)
+
+
+            if (lastPaidLoan) {
+              const acc = await this.processor.getAssociateAccount(
+                associate.id,
+                tx,
+              );
+
+
+
+              await this.processor.createAssociateMovement(
+                userId,
+                {
+                  associateAccountId: acc?.id,
+                  movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
+                  amount: item.amount,
+                  currencyCode: 'VES' as CurrencyCodeEnum,
+                  transactionDate: finalPaymentDate,
+                  description: 'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' + lastPaidLoan.customReference,
+                  referenceId: lastPaidLoan.id,
+                  referenceType: 'loans',
+                },
+                tenantId,
+                tx,
+              );
+
+              let group = accountingGroups.get(lastPaidLoan.loanTypesName ?? 'PRESTAMOS PERSONALES (CP)');
+              if (!group) {
+                group = { items: [], totalAmount: 0, count: 0 };
+                accountingGroups.set(lastPaidLoan.loanTypesName ?? 'PRESTAMOS PERSONALES (CP)', group);
+              }
+
+              group.items.push({
+                associateId: associate.id,
+                amounts: {
+                  LOAN_PAYMENT: item.amount,
+                  LOAN_INTEREST_INCOME: 0,
+                },
+                descriptions: {
+                  LOAN_PAYMENT: `CUOTA PRESTAMO - Asociado ${associate.fullname}`,
+                  LOAN_INTEREST_INCOME: `INTERES PRESTAMO - Asociado ${associate.fullname}`,
+                },
+              });
+
+              group.totalAmount += item.amount;
+              group.count++;
+              results.success.push({
+                cedula: item.cedula,
+                error: 'Asocido sin prestamo, Saldo cargado a favor como exceso',
+              });
+              results.totalProcessed++;
+            } else {
+              results.errors.push({
+                cedula: item.cedula,
+                error: 'Verificar Asociado no tiene ningun prestamo registrado del cual tenga alguna cuota en exceso,',
+              });
+              continue;
+            }
+          } else {
+            const [loanType] = await tx
+              .select({ name: loanTypes.name })
+              .from(loanTypes)
+              .where(eq(loanTypes.id, loan.loanTypeId));
+            const loanTypeName = loanType?.name ?? 'Pago Prestamo';
+
+            const pendingBalanceBase =
+              await this.validator.getPendingBalanceBase(loan.id, tx);
+
+            const installmentResult =
+              await this.validator.calculateCoveredInstallments(
+                loan.id,
+                item.amount,
+                tx,
+                pendingBalanceBase,
+              );
+
+            const appliedAmountExact = this.processor.getAppliedAmount(
               item.amount,
-              tx,
+              installmentResult.remainingAmount,
             );
 
-          const appliedAmountExact = this.processor.getAppliedAmount(
-            item.amount,
-            installmentResult.remainingAmount,
-          );
+            if (appliedAmountExact <= 0) {
+              results.errors.push({
+                cedula: item.cedula,
+                error: 'Monto insuficiente para abonar',
+              });
+              continue;
+            }
 
-          if (appliedAmountExact <= 0) {
-            results.errors.push({
-              cedula: item.cedula,
-              error: 'Monto insuficiente para abonar',
-            });
-            continue;
-          }
+            let localPrincipal = 0;
+            let localInterest = 0;
 
-          const currentBalance = await this.validator.calculateBalancePending(
-            loan.id,
-            tx,
-          );
-          const newBalancePending = this.processor.getNewBalancePending(
-            currentBalance,
-            appliedAmountExact,
-          );
+            for (const inst of installmentResult.paidInstallmentDetails) {
+              localPrincipal += inst.principal;
+              localInterest += inst.interest;
+            }
 
-          const customReference =
-            await this.processor.generateReference(tenantId);
+            if (installmentResult.partialInstallment) {
+              localPrincipal += installmentResult.partialInstallment.principal;
+              localInterest += installmentResult.partialInstallment.interest;
+            }
 
-          const insertedPayment = await this.processor.insertPayment(
-            {
-              tenantId,
-              loanId: loan.id,
-              paymentDate: finalPaymentDate,
-              paymentType: 'PAYING',
-              amount: item.amount,
-              balancePending: newBalancePending,
-              bankId: undefined,
-              paymentMethod: 'BANK_TRANSFER',
-              transactionReference: customReference,
-              comment: 'Carga Pagos Masiva Excel',
-              userId,
-              customReference,
-            },
-            tx,
-          );
-
-          let localPrincipal = 0;
-          let localInterest = 0;
-
-          for (const inst of installmentResult.paidInstallmentDetails) {
-            localPrincipal += inst.principal;
-            localInterest += inst.interest;
-
-            await this.processor.insertPaymentDetail(
-              insertedPayment.id,
-              inst.id,
-              inst.amount,
-              userId,
-              tx,
-            );
-            await this.processor.updateInstallmentPaid(inst.id, userId, tx);
-          }
-
-          if (installmentResult.partialInstallment) {
-            localPrincipal += installmentResult.partialInstallment.principal;
-            localInterest += installmentResult.partialInstallment.interest;
-
-            await this.processor.updateInstallmentPartial(
-              installmentResult.partialInstallment.id,
-              installmentResult.partialInstallment.paidAmount,
-              userId,
-              tx,
+            const newBalancePending = this.processor.getNewBalancePending(
+              pendingBalanceBase,
+              localPrincipal,
             );
 
-            const amountAppliedToPartial =
-              installmentResult.partialInstallment.paidAmount -
-              installmentResult.partialInstallment.originalPaidAmount;
+            const customReference =
+              await this.processor.generateReference(tenantId);
 
-            await this.processor.insertPaymentDetail(
-              insertedPayment.id,
-              installmentResult.partialInstallment.id,
-              amountAppliedToPartial,
-              userId,
-              tx,
-            );
-          }
-
-          const newLoanStatus =
-            this.processor.determinNewLoanStatus(newBalancePending);
-
-          await this.processor.updateLoanStatus(
-            loan.id,
-            tenantId,
-            newLoanStatus,
-            installmentResult.remainingAmount,
-            userId,
-            tx,
-          );
-
-          const acc = await this.processor.getAssociateAccount(
-            associate.id,
-            tx,
-          );
-
-          if (acc?.id) {
-            await this.processor.createAssociateMovement(
-              userId,
+            const insertedPayment = await this.processor.insertPayment(
               {
-                associateAccountId: acc.id,
-                movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
+                tenantId,
+                loanId: loan.id,
+                paymentDate: finalPaymentDate,
+                paymentType: 'PAYING',
                 amount: item.amount,
-                currencyCode: (loan.currencyCode ?? 'VES') as CurrencyCodeEnum,
-                transactionDate: finalPaymentDate,
-                description: 'Pago Cuota Préstamo',
-                referenceId: insertedPayment.id,
-                referenceType: 'loansPayments',
+                balancePending: newBalancePending,
+                bankId: undefined,
+                paymentMethod: 'BANK_TRANSFER',
+                transactionReference: customReference,
+                comment: 'Carga Pagos Masiva Excel',
+                userId,
+                customReference,
               },
-              tenantId,
               tx,
             );
-          }
 
-          const roundedPayment = Number(appliedAmountExact.toFixed(2));
-          const roundedInterest = Number(localInterest.toFixed(2));
-          const roundedPrincipal = Number(
-            (roundedPayment - roundedInterest).toFixed(2),
-          );
+            for (const inst of installmentResult.paidInstallmentDetails) {
+              await this.processor.insertPaymentDetail(
+                insertedPayment.id,
+                inst.id,
+                inst.amount,
+                userId,
+                tx,
+              );
+              await this.processor.updateInstallmentPaid(inst.id, userId, tx);
+            }
 
-          let group = accountingGroups.get(loanTypeName);
-          if (!group) {
-            group = { items: [], totalAmount: 0, count: 0 };
-            accountingGroups.set(loanTypeName, group);
-          }
+            if (installmentResult.partialInstallment) {
+              await this.processor.updateInstallmentPartial(
+                installmentResult.partialInstallment.id,
+                installmentResult.partialInstallment.paidAmount,
+                userId,
+                tx,
+              );
 
-          group.items.push({
-            associateId: associate.id,
-            amounts: {
-              LOAN_PAYMENT: roundedPrincipal,
-              LOAN_INTEREST_INCOME: roundedInterest,
-            },
-            descriptions: {
-              LOAN_PAYMENT: `CUOTA PRESTAMO - Asociado ${associate.fullname}`,
-              LOAN_INTEREST_INCOME: `INTERES PRESTAMO - Asociado ${associate.fullname}`,
-            },
-          });
+              const amountAppliedToPartial =
+                installmentResult.partialInstallment.paidAmount -
+                installmentResult.partialInstallment.originalPaidAmount;
 
-          group.totalAmount += roundedPayment;
-          group.count++;
+              await this.processor.insertPaymentDetail(
+                insertedPayment.id,
+                installmentResult.partialInstallment.id,
+                amountAppliedToPartial,
+                userId,
+                tx,
+              );
+            }
 
-          results.success.push({
-            cedula: item.cedula,
-            ref: insertedPayment.customReference,
-          });
-          results.totalProcessed++;
+            const newLoanStatus =
+              this.processor.determinNewLoanStatus(newBalancePending);
 
-          outboxEntries.push({
-            eventId: uuidv4(),
-            eventType: LOAN_PAYMENT_EVENTS.CREATED,
-            aggregateId: loan.id,
-            tenantId,
-            payload: {
+            await this.processor.updateLoanStatus(
+              loan.id,
               tenantId,
-              paymentId: insertedPayment.id,
-              loanId: loan.id,
+              newLoanStatus,
+              installmentResult.remainingAmount,
+              userId,
+              tx,
+            );
+
+            const acc = await this.processor.getAssociateAccount(
+              associate.id,
+              tx,
+            );
+
+            const roundedPayment = Number(appliedAmountExact.toFixed(2));
+            const roundedInterest = Number(localInterest.toFixed(2));
+
+            // Pago en exceso: se condona el interés de todas las cuotas
+            // cubiertas y todo el dinero va a la cuenta del préstamo (capital).
+            const hasExcess = installmentResult.remainingAmount > 0;
+            const effectiveInterest = hasExcess ? 0 : roundedInterest;
+            const effectivePrincipal = Number(
+              (roundedPayment - effectiveInterest).toFixed(2),
+            );
+
+
+            if (acc?.id) {
+              if (effectivePrincipal > 0) {
+                await this.processor.createAssociateMovement(
+                  userId,
+                  {
+                    associateAccountId: acc.id,
+                    movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
+                    amount: effectivePrincipal,
+                    currencyCode: (loan.currencyCode ??
+                      'VES') as CurrencyCodeEnum,
+                    transactionDate: finalPaymentDate,
+                    description: `Pago Cuota Capital Préstamo Nº ${loan.customReference}`,
+                    referenceId: insertedPayment.id,
+                    referenceType: 'loansPayments',
+                  },
+                  tenantId,
+                  tx,
+                );
+              }
+              if (effectiveInterest > 0) {
+                await this.processor.createAssociateMovement(
+                  userId,
+                  {
+                    associateAccountId: acc.id,
+                    movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
+                    amount: effectiveInterest,
+                    currencyCode: (loan.currencyCode ??
+                      'VES') as CurrencyCodeEnum,
+                    transactionDate: finalPaymentDate,
+                    description: `Pago Cuota Interés Préstamo Nº ${loan.customReference}`,
+                    referenceId: insertedPayment.id,
+                    referenceType: 'loansPayments',
+                  },
+                  tenantId,
+                  tx,
+                );
+              }
+              if (hasExcess) {
+                await this.processor.createAssociateMovement(
+                  userId,
+                  {
+                    associateAccountId: acc.id,
+                    movementType:
+                      AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
+                    amount: installmentResult.remainingAmount,
+                    currencyCode: (loan.currencyCode ??
+                      'VES') as CurrencyCodeEnum,
+                    transactionDate: finalPaymentDate,
+                    description:
+                      'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' +
+                      loan.customReference,
+                    referenceId: loan.id,
+                    referenceType: 'loans',
+                  },
+                  tenantId,
+                  tx,
+                );
+              }
+            }
+
+
+
+            let group = accountingGroups.get(loanTypeName);
+            if (!group) {
+              group = { items: [], totalAmount: 0, count: 0 };
+              accountingGroups.set(loanTypeName, group);
+            }
+
+            group.items.push({
               associateId: associate.id,
-              amount: item.amount,
-              paymentMethod: 'BANK_TRANSFER',
-              customReference: insertedPayment.customReference ?? '',
-              timestamp: new Date().toISOString(),
-            },
-          });
+              amounts: hasExcess
+                ? {
+                    LOAN_PAYMENT: item.amount,
+                    LOAN_INTEREST_INCOME: 0,
+                  }
+                : {
+                    LOAN_PAYMENT: effectivePrincipal,
+                    LOAN_INTEREST_INCOME: effectiveInterest,
+                  },
+              descriptions: {
+                LOAN_PAYMENT: `CUOTA PRESTAMO - Asociado ${associate.fullname}`,
+                LOAN_INTEREST_INCOME: `INTERES PRESTAMO - Asociado ${associate.fullname}`,
+              },
+            });
+
+            group.totalAmount += hasExcess ? item.amount : roundedPayment;
+            group.count++;
+
+            results.success.push({
+              cedula: item.cedula,
+              ref: insertedPayment.customReference,
+            });
+            results.totalProcessed++;
+
+            outboxEntries.push({
+              eventId: uuidv4(),
+              eventType: LOAN_PAYMENT_EVENTS.CREATED,
+              aggregateId: loan.id,
+              tenantId,
+              payload: {
+                tenantId,
+                paymentId: insertedPayment.id,
+                loanId: loan.id,
+                associateId: associate.id,
+                amount: item.amount,
+                paymentMethod: 'BANK_TRANSFER',
+                customReference: insertedPayment.customReference ?? '',
+                timestamp: new Date().toISOString(),
+              },
+            });
+          }
+
+
         } catch (err) {
           results.errors.push({
             cedula: item.cedula,

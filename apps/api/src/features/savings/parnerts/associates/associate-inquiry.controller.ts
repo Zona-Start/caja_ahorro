@@ -27,7 +27,7 @@ export class AssociateInquiryController {
   constructor(
     private readonly inquiryService: AssociateInquiryService,
     private readonly tenantContext: TenantContextService,
-  ) {}
+  ) { }
 
   @Get('statement')
   @ApiOperation({ summary: 'Obtener estado de cuenta completo del asociado' })
@@ -178,7 +178,7 @@ export class AssociateInquiryController {
     enum: [
       'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
       'LOAN_PAYMENT_REVERSAL_CREDIT',
-      'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT',
+      'CREDIT_PAYMENT_REVERSAL_CREDIT',
     ],
   })
   @ApiQuery({ name: 'page', required: false, type: Number })

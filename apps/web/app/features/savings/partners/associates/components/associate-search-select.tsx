@@ -2,7 +2,10 @@ import { Input } from '@repo/shadcn/input';
 import { cn } from '@repo/shadcn/lib/utils';
 import { Loader2, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useAssociatesQuery } from '../hooks/use-associates-query';
+import {
+  useAssociateQuery,
+  useAssociatesQuery,
+} from '../hooks/use-associates-query';
 
 export interface AssociateSearchOption {
   id: string;
@@ -13,6 +16,8 @@ export interface AssociateSearchOption {
 interface AssociateSearchSelectProps {
   /** Texto inicial mostrado en el input (ej. al editar) */
   initialLabel?: string;
+  /** Id del asociado seleccionado (controlado). Resuelve la etiqueta al editar. */
+  value?: string | null;
   onSelect: (associate: AssociateSearchOption | null) => void;
   placeholder?: string;
   className?: string;
@@ -25,6 +30,7 @@ interface AssociateSearchSelectProps {
  */
 export function AssociateSearchSelect({
   initialLabel = '',
+  value,
   onSelect,
   placeholder = 'Buscar asociado por cédula o nombre...',
   className,
@@ -45,6 +51,16 @@ export function AssociateSearchSelect({
     debounced.length >= 2,
   );
   const results = data?.data || [];
+
+  // Resuelve la etiqueta del asociado seleccionado (modo edición / controlado)
+  const { data: selectedData } = useAssociateQuery(value || '');
+  useEffect(() => {
+    if (value && selectedData?.data) {
+      setTerm(`${selectedData.data.cedula} - ${selectedData.data.fullname}`);
+    } else if (value === null) {
+      setTerm('');
+    }
+  }, [value, selectedData]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {

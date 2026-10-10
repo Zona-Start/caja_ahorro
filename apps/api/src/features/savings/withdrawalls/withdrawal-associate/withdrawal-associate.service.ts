@@ -86,6 +86,9 @@ export class WithdrawalAssociateService {
       description,
       commercialHouseId,
       withdrawalItems,
+      allowWithActiveLoanOrCredit = false,
+      allowWithPayrollCredit = false,
+      allowEarlyWithdrawal = false,
     } = dto;
 
     const setting = await this.db.query.moduleSettings.findFirst({
@@ -111,8 +114,9 @@ export class WithdrawalAssociateService {
 
     if (lastWithdrawal) {
       if (
-        lastWithdrawal.status === withdrawalStatusEnum.DISBURSED ||
-        lastWithdrawal.status === withdrawalStatusEnum.ADJUSTED
+        (lastWithdrawal.status === withdrawalStatusEnum.DISBURSED ||
+          lastWithdrawal.status === withdrawalStatusEnum.ADJUSTED) &&
+        !allowEarlyWithdrawal
       ) {
         const monthsAllowed = this._hasElapsedMonths(
           new Date(date),
@@ -194,7 +198,7 @@ export class WithdrawalAssociateService {
       throw new NotFoundException('Asociado no encontrado.');
     }
 
-    if (associate.isPayrollCredit) {
+    if (associate.isPayrollCredit && !allowWithPayrollCredit) {
       throw new BadRequestException(
         'El asociado posee credinomina activo. No puede solicitar retiros.',
       );
@@ -215,7 +219,7 @@ export class WithdrawalAssociateService {
         ),
       );
 
-    if (Number(activeLoans.count) > 0) {
+    if (Number(activeLoans.count) > 0 && !allowWithActiveLoanOrCredit) {
       throw new BadRequestException(
         'El asociado tiene un préstamo activo. No puede solicitar retiros.',
       );
@@ -235,7 +239,7 @@ export class WithdrawalAssociateService {
         ),
       );
 
-    if (Number(activeCredits.count) > 0) {
+    if (Number(activeCredits.count) > 0 && !allowWithActiveLoanOrCredit) {
       throw new BadRequestException(
         'El asociado tiene un crédito activo. No puede solicitar retiros.',
       );
@@ -261,6 +265,9 @@ export class WithdrawalAssociateService {
           status: withdrawalStatusEnum.REQUESTED,
           commercialHouseId: commercialHouseId ?? null,
           withdrawalItems: withdrawalItems ?? null,
+          allowWithActiveLoanOrCredit,
+          allowWithPayrollCredit,
+          allowEarlyWithdrawal,
         })
         .returning();
 
@@ -272,7 +279,11 @@ export class WithdrawalAssociateService {
           action: 'INSERT',
           userId,
           area: 'savings_banks',
-          description: `Solicitud de retiro de haberes por el valor de ${requestedAmount}`,
+          description: `Solicitud de retiro de haberes por el valor de ${requestedAmount}${
+            allowWithActiveLoanOrCredit || allowWithPayrollCredit || allowEarlyWithdrawal
+              ? ' (con parámetros especiales)'
+              : ''
+          }`,
           newData: [insertedWithdrawal],
           tenantId,
         }),

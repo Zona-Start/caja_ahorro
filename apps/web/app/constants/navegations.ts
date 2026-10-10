@@ -166,6 +166,14 @@ export const navGroups: NavGroup[] = [
               action: 'read',
             },
           },
+          {
+            label: 'Reintegros',
+            href: '/dashboard/caja-ahorro/reintegros',
+            requiresPermission: {
+              resource: 'savings:reimbursement',
+              action: 'read',
+            },
+          },
         ],
       },
       {

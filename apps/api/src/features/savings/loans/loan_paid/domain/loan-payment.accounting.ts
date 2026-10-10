@@ -19,7 +19,6 @@ export class LoanPaymentAccounting {
     userId: string,
     loanData: LoanInfo,
     paymentAmount: number,
-    principalAmount: number,
     interestAmount: number,
     paymentDate: Date,
     tx: NodePgDatabase<typeof schema>,
@@ -27,7 +26,28 @@ export class LoanPaymentAccounting {
     const dateStr = format(paymentDate, 'dd/MM/yyyy');
     const fullname = loanData.associateFullname ?? 'ASOCIADO';
     const referenceValue = loanData.loanTypeName ?? 'Pago Prestamo';
+
     const roundedPayment = Number(paymentAmount.toFixed(2));
+    const roundedInterest = Number(interestAmount.toFixed(2));
+    const loanPaymentAmount = Number(
+      (roundedPayment - roundedInterest).toFixed(2),
+    );
+
+    const amounts: Record<string, number> = {
+      LOAN_PAYMENT: loanPaymentAmount,
+      LOAN_INTEREST_INCOME: roundedInterest,
+      BANK_ACCOUNT: roundedPayment,
+    };
+
+    this.logger.log(
+      `[generatePaymentEntry] Asiento a generar: payment=${roundedPayment} interest=${roundedInterest} loanPayment=${loanPaymentAmount} ref=${referenceValue}`,
+    );
+
+    const descriptions: Record<string, string> = {
+      LOAN_PAYMENT: `PAGO PRESTAMO DEL ${dateStr}`,
+      LOAN_INTEREST_INCOME: `INTERESES PRESTAMO DEL ${dateStr}`,
+      BANK_ACCOUNT: `PAGO PRESTAMO DEL ${dateStr}`,
+    };
 
     try {
       const entry = await this.accountingEntriesService.createAutomaticEntry(
@@ -48,20 +68,11 @@ export class LoanPaymentAccounting {
           items: [
             {
               associateId: loanData.associateId,
-              amounts: {
-                LOAN_PAYMENT: roundedPayment,
-                BANK_ACCOUNT: roundedPayment,
-              },
-              descriptions: {
-                LOAN_PAYMENT: `CUOTA PRESTAMO DEL ${dateStr}`,
-                BANK_ACCOUNT: `PAGO PRESTAMO DEL ${dateStr}`,
-              },
+              amounts,
+              descriptions,
             },
           ],
-          globalDescriptions: {
-            LOAN_PAYMENT: `CUOTA PRESTAMO DEL ${dateStr}`,
-            BANK_ACCOUNT: `PAGO PRESTAMO DEL ${dateStr}`,
-          },
+          globalDescriptions: descriptions,
         },
         tx,
       );
@@ -123,17 +134,20 @@ export class LoanPaymentAccounting {
             {
               associateId: loanData.associateId,
               amounts: {
-                LOAN_PAYMENT: -roundedPayment,
+                LOAN_PAYMENT: -principalAmount,
+                LOAN_INTEREST_INCOME: -interestAmount,
                 BANK_ACCOUNT: -roundedPayment,
               },
               descriptions: {
                 LOAN_PAYMENT: `REVERSA: CUOTA PRESTAMO - Ref: ${paymentRef}`,
+                LOAN_INTEREST_INCOME: `REVERSA INTERESES PRESTAMO DEL ${paymentRef}`,
                 BANK_ACCOUNT: `REVERSA: PAGO PRESTAMO - Ref: ${paymentRef}`,
               },
             },
           ],
           globalDescriptions: {
             LOAN_PAYMENT: `REVERSA: CUOTA PRESTAMO - Ref: ${paymentRef}`,
+            LOAN_INTEREST_INCOME: `REVERSA INTERESES PRESTAMO DEL ${paymentRef}`,
             BANK_ACCOUNT: `REVERSA: PAGO PRESTAMO - Ref: ${paymentRef}`,
           },
         },

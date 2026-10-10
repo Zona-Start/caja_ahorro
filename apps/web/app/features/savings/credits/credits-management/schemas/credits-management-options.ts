@@ -22,6 +22,8 @@ export const PAYMENT_METHOD = {
 export const PAYMENT_TYPE_LABELS: Record<string, string> = {
   installments: 'Plazos (Quincenal)',
   quotas: 'Cuotas (Mensual)',
+  CUOTAS: 'Cuotas (Mensual)',
+  CUOTA: 'Cuotas (Mensual)',
 };
 
 export const CASA_COMERCIAL_TYPES = {

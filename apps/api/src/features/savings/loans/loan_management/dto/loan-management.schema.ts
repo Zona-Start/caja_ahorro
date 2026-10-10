@@ -22,6 +22,10 @@ export const CreateLoanSchema = z.object({
   expensesPercentage: z.number().min(0).max(100).optional(),
   disbursementAccountId: z.string().uuid().optional().nullable(),
   tenantId: z.string().uuid().optional(),
+  // Parámetros especiales (solo aplicables con permiso portfolio:loans:approve)
+  bypassPayrollCredit: z.boolean().optional(),
+  bypassAvailableBalance: z.boolean().optional(),
+  bypassPaymentCapacity: z.boolean().optional(),
 });
 
 export const FilterLoanSchema = PaginationSchema.extend({

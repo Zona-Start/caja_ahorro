@@ -188,6 +188,7 @@ export class AccountingRulesService {
   ): Promise<AccountingRuleWithDetails> {
     return this.drizzle.transaction(async (tx) => {
       const { details, ...ruleUpdates } = dto;
+      delete ruleUpdates.tenantId;
 
       const [existing] = await tx
         .select()

@@ -72,6 +72,7 @@ export const associateMovementTypeEnum = savingsSchema.enum(
     // Reversiones de Pagos (lo que antes era 'PAYMENT_REVERSAL_DEBIT')
     'LOAN_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de préstamo (Crédito a la cuenta del asociado)
     'COMMERCIAL_CREDIT_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de crédito comercial
+    'CREDIT_PAYMENT_REVERSAL_CREDIT', // Nuevo: Reversión de un pago de crédito
 
     // Reversiones de Retiros
     'SAVING_WITHDRAWAL_REVERSAL_CREDIT', // Nuevo: Reversión de un retiro de ahorros
@@ -196,3 +197,25 @@ export const paymentStatusEnum = savingsSchema.enum('payment_status', [
 ]);
 
 export const paymentStatus = paymentStatusEnum;
+
+export const reimbursementsStatusEnum = savingsSchema.enum(
+  'reimbursements_status',
+  [
+    'REQUESTED', // Solicitado
+    'APPROVED', // Aprobado
+    'PROCESSED', // Procesado (transferencia a haberes)
+    'DISBURSED', // Desembolsado (efectivo)
+    'REJECTED', // Rechazado
+    'CANCELLED', // Anulado
+  ],
+);
+
+export const reimbursementDestinationEnum = savingsSchema.enum(
+  'reimbursement_destination',
+  ['SAVINGS', 'CASH'],
+);
+
+export const reimbursementOriginTypeEnum = savingsSchema.enum(
+  'reimbursement_origin_type',
+  ['LOAN', 'CREDIT', 'WITHDRAWAL'],
+);

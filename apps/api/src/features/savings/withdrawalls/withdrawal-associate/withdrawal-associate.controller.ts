@@ -5,6 +5,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -44,9 +45,40 @@ export class WithdrawalAssociateController {
     @Req() req: Request,
     @Body(new ZodValidatorPipe(CreateWithdrawalAssociateSchema)) dto: any,
   ) {
-    const { targetTenantId, userId } =
+    const { targetTenantId, userId, isSystemAdmin } =
       this.tenantContextService.getTenantContext(req, dto);
+
+    const usesSpecialParams =
+      !!dto.allowWithActiveLoanOrCredit ||
+      !!dto.allowWithPayrollCredit ||
+      !!dto.allowEarlyWithdrawal;
+
+    if (usesSpecialParams && !this.canApprove(req, !!isSystemAdmin)) {
+      throw new ForbiddenException(
+        'No tiene permiso para crear retiros con parámetros especiales.',
+      );
+    }
+
     return this.service.execute(targetTenantId, userId, dto);
+  }
+
+  /**
+   * Verifica si el usuario puede aprobar retiros (savings:withdrawals:approve).
+   * Se usa para autorizar el uso de parámetros especiales al crear un retiro.
+   */
+  private canApprove(req: Request, isSystemAdmin: boolean): boolean {
+    if (isSystemAdmin) return true;
+    const perms: string[] = req['userPermissions'] ?? [];
+    return perms.some((p) => {
+      const parts = p.split(':');
+      const resource = `${parts[0]}:${parts[1]}`;
+      const action = parts[2];
+      if (resource === '*:*' || parts[0] === '*') return true;
+      return (
+        resource === 'savings:withdrawals' &&
+        (action === 'approve' || action === '*')
+      );
+    });
   }
 
   @Get('template')

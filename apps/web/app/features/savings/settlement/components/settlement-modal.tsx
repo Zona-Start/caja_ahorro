@@ -406,10 +406,18 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">
+                      Saldos por cobro exceso a favor
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {formatBs(associate.total_overpayment)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">
                       Retiros
                     </span>
                     <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                      -{formatBs(associate.total_withdrawals)}
+                      {formatBs(associate.total_withdrawals)}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -417,9 +425,11 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                       Gastos Administrativos
                     </span>
                     <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                      -{formatBs(associate.total_withdrawal_fees)}
+                      {formatBs(associate.total_withdrawal_fees)}
                     </span>
                   </div>
+
+
 
                   <Separator />
                   <div className="flex justify-between items-end">
@@ -440,7 +450,7 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                       Préstamos Pendientes
                     </span>
                     <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                      -{formatBs(associate.total_outstanding_loans)}
+                      {formatBs(associate.total_outstanding_loans)}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -448,7 +458,7 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                       Créditos Pendientes
                     </span>
                     <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                      -{formatBs(associate.total_outstanding_credits)}
+                      {formatBs(associate.total_outstanding_credits)}
                     </span>
                   </div>
                   <Separator />
@@ -457,11 +467,10 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                       Monto a liquidar
                     </span>
                     <span
-                      className={`text-lg font-black ${
-                        associate.net_liquidation_amount >= 0
-                          ? 'text-[#2EA640]'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}
+                      className={`text-lg font-black ${associate.net_liquidation_amount >= 0
+                        ? 'text-[#2EA640]'
+                        : 'text-red-600 dark:text-red-400'
+                        }`}
                     >
                       {associate.net_liquidation_amount >= 0 ? '' : '-'}
                       {formatBs(Math.abs(associate.net_liquidation_amount))}
@@ -692,11 +701,10 @@ export function SettlementModal({ open, onOpenChange }: Props) {
 
                   {/* RULES PANEL */}
                   <div
-                    className={`rounded-lg border p-3 ${
-                      rules.canSave
-                        ? 'border-[#2EA640]/30 bg-[#2EA640]/5'
-                        : 'border-destructive/30 bg-destructive/5'
-                    }`}
+                    className={`rounded-lg border p-3 ${rules.canSave
+                      ? 'border-[#2EA640]/30 bg-[#2EA640]/5'
+                      : 'border-destructive/30 bg-destructive/5'
+                      }`}
                   >
                     <div className="flex items-center gap-2 mb-2">
                       {rules.canSave ? (
@@ -714,9 +722,8 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                       {rules.messages.map((msg, i) => (
                         <li
                           key={i}
-                          className={`text-xs flex items-center gap-1.5 ${
-                            msg.ok ? 'text-[#2EA640]' : 'text-red-600 dark:text-red-400'
-                          }`}
+                          className={`text-xs flex items-center gap-1.5 ${msg.ok ? 'text-[#2EA640]' : 'text-red-600 dark:text-red-400'
+                            }`}
                         >
                           {msg.ok ? (
                             <CheckCircle2 className="h-3 w-3 flex-shrink-0" />

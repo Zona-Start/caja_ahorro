@@ -98,7 +98,7 @@ export class AccountingRulesService {
   }
 
   static async update(payload: AccountingRule) {
-    const { id, ...payloadWithoutId } = payload;
+    const { id, tenantId, ...payloadWithoutId } = payload;
     const response = await apiClient.patch(
       `/accounting-rules/${id}`,
       payloadWithoutId,

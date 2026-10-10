@@ -1,4 +1,5 @@
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { normalizeTermMode, periodRate } from '@/common/utils/interest';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { moduleSettings } from '@/database/schema/tables/core';
@@ -72,8 +73,7 @@ export class LoanManagementService {
     numInstallments: number,
     termType: 'installments' | 'quotas',
   ): number {
-    const periodsPerYear = termType === 'installments' ? 24 : 12;
-    const r = annualRate / 100 / periodsPerYear;
+    const r = periodRate(annualRate, termType);
     if (r === 0 || numInstallments === 0)
       return amount / (numInstallments || 1);
     const factor = Math.pow(1 + r, numInstallments);
@@ -86,7 +86,7 @@ export class LoanManagementService {
     termType: 'installments' | 'quotas',
   ): Date {
     const start = new Date(startDate);
-    if (termType === 'installments') {
+    if (normalizeTermMode(termType) === 'installments') {
       const totalDays = numInstallments * 15;
       return new Date(start.getTime() + totalDays * 86400000);
     }
@@ -104,13 +104,15 @@ export class LoanManagementService {
     termType: 'installments' | 'quotas',
     expensesAmount: number = 0,
   ) {
-    const periodsPerYear = termType === 'installments' ? 24 : 12;
-    const r = annualInterestRate / 100 / periodsPerYear;
+    const mode = normalizeTermMode(termType);
+    const r = periodRate(annualInterestRate, termType);
     const n = numInstallments;
+    // El capital a amortizar incluye los gastos administrativos: es la cuenta
+    // por cobrar y sobre ese total se calcula el interés.
+    const capital = capitalAmount + expensesAmount;
     const factor = r === 0 ? 1 : Math.pow(1 + r, n);
     const frenchInstallment =
-      r === 0 ? capitalAmount / n : (capitalAmount * r * factor) / (factor - 1);
-    const expensePerInstallment = expensesAmount / n;
+      r === 0 ? capital / n : (capital * r * factor) / (factor - 1);
 
     const getLastDayOfMonth = (date: Date) =>
       new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -147,7 +149,7 @@ export class LoanManagementService {
 
     const start = new Date(startDate);
     let nextDueDate: Date;
-    if (termType === 'installments') {
+    if (mode === 'installments') {
       if (start.getDate() <= 15) {
         nextDueDate = getNextBiweeklyDueDate(start, false);
       } else {
@@ -158,17 +160,16 @@ export class LoanManagementService {
     }
 
     const schedule: any[] = [];
-    let remaining = capitalAmount;
+    let remaining = capital;
 
     for (let i = 1; i <= n; i++) {
       const interestThisPeriod = remaining * r;
       let principalThisPeriod = frenchInstallment - interestThisPeriod;
-      let total = frenchInstallment + expensePerInstallment;
+      let total = principalThisPeriod + interestThisPeriod;
 
       if (i === n) {
         principalThisPeriod = remaining;
-        total =
-          principalThisPeriod + interestThisPeriod + expensePerInstallment;
+        total = principalThisPeriod + interestThisPeriod;
       }
 
       remaining -= principalThisPeriod;
@@ -187,7 +188,7 @@ export class LoanManagementService {
         createdById,
       });
 
-      if (termType === 'installments') {
+      if (mode === 'installments') {
         if (nextDueDate.getDate() === 16) {
           nextDueDate = getNextBiweeklyDueDate(nextDueDate, false);
         } else {
@@ -352,6 +353,7 @@ export class LoanManagementService {
     tenantId: string,
     userId: string,
     dto: CreateLoanDto,
+    allowSpecialRules = false,
   ): Promise<{ id: string; customReference: string | null }> {
     const {
       associateId,
@@ -389,11 +391,11 @@ export class LoanManagementService {
       throw new NotFoundException('Asociado no encontrado');
     }
 
-    // if (assoc.isPayrollCredit) {
-    //   throw new BadRequestException(
-    //     'El asociado tiene credinomina activo, no puede solicitar préstamos',
-    //   );
-    // }
+    if (assoc.isPayrollCredit && !(allowSpecialRules && dto.bypassPayrollCredit)) {
+      throw new BadRequestException(
+        'El asociado tiene credinomina activo, no puede solicitar préstamos',
+      );
+    }
 
     if (
       loanType.minLoanAmount &&
@@ -485,7 +487,10 @@ export class LoanManagementService {
     const balance = Number(account.balance ?? 0);
     const available80 = balance * 0.8;
 
-    if (requestedAmount > available80) {
+    if (
+      requestedAmount > available80 &&
+      !(allowSpecialRules && dto.bypassAvailableBalance)
+    ) {
       throw new BadRequestException(
         `El monto solicitado (${requestedAmount.toLocaleString('es')}) supera el 80% disponible (${available80.toLocaleString('es')})`,
       );
@@ -501,8 +506,9 @@ export class LoanManagementService {
       Number(loanType.administrativeExpensePercentage ?? 0);
     const expensesAmount = (requestedAmount * expensePct) / 100;
 
-    const capital = requestedAmount;
-    const expensePerInstallment = expensesAmount / finalTermUnits;
+    // Capital financiado = solicitado + gastos: es la cuenta por cobrar y la
+    // base para calcular el interés.
+    const capital = requestedAmount + expensesAmount;
 
     if (capital > 0) {
       const monthlyPayment = this.calculateMonthlyPayment(
@@ -511,11 +517,13 @@ export class LoanManagementService {
         finalTermUnits,
         finalTermType,
       );
-      const totalPeriodPayment = monthlyPayment + expensePerInstallment;
       const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
-      if (totalPeriodPayment > paymentCapacity) {
+      if (
+        monthlyPayment > paymentCapacity &&
+        !(allowSpecialRules && dto.bypassPaymentCapacity)
+      ) {
         throw new BadRequestException(
-          `La cuota mensual (${totalPeriodPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
+          `La cuota mensual (${monthlyPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
         );
       }
     }
@@ -553,19 +561,18 @@ export class LoanManagementService {
       finalTermType,
     );
 
-    const periodsPerYear = finalTermType === 'installments' ? 24 : 12;
-    const r = finalRate / 100 / periodsPerYear;
+    const r = periodRate(finalRate, finalTermType);
     const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
     const frenchInstallment =
       capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
     const totalInterest = frenchInstallment * finalTermUnits - capital;
-    const totalInstallment = frenchInstallment + expensePerInstallment;
+    const totalInstallment = frenchInstallment;
     const totalPayable = totalInstallment * finalTermUnits;
 
     const schedule =
       capital > 0
         ? this.generateAmortizationSchedule(
-          capital,
+          requestedAmount,
           finalTermUnits,
           finalRate,
           startDate,
@@ -586,8 +593,7 @@ export class LoanManagementService {
           loanModality: dto.loanModality,
           requestedAmount: String(requestedAmount),
           approvedAmount: String(capital.toFixed(6)),
-          status: LoanStatusEnum.REQUESTED,
-          startDate: startDate.toISOString(),
+          status: LoanStatusEnum.REQUESTED,          startDate: startDate.toISOString(),
           requestDate: (dto.requestDate ?? new Date()).toISOString(),
           endDate: endDate.toISOString(),
           currencyCode,
@@ -601,6 +607,12 @@ export class LoanManagementService {
           expensesPercentage: String(expensePct),
           paymentMethod: dto.paymentMethod,
           notes: dto.notes ?? null,
+          bypassPayrollCredit:
+            allowSpecialRules && !!dto.bypassPayrollCredit,
+          bypassAvailableBalance:
+            allowSpecialRules && !!dto.bypassAvailableBalance,
+          bypassPaymentCapacity:
+            allowSpecialRules && !!dto.bypassPaymentCapacity,
           createdById: userId,
           updatedById: userId,
         })
@@ -703,12 +715,12 @@ export class LoanManagementService {
           eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
         );
 
-      // if (assoc?.isPayrollCredit)
-      //   throw new BadRequestException('Crédito nómina activo');
+      if (assoc?.isPayrollCredit && !loan.bypassPayrollCredit)
+        throw new BadRequestException('Crédito nómina activo');
 
       const avail = Number(assoc?.balance ?? 0) * 0.8;
       const reqAmt = Number(requestedAmount);
-      if (reqAmt > avail)
+      if (reqAmt > avail && !loan.bypassAvailableBalance)
         throw new BadRequestException(
           'Disponibilidad insuficiente (80% regla)',
         );
@@ -733,17 +745,16 @@ export class LoanManagementService {
         : Number(loanType?.administrativeExpensePercentage ?? 0);
       const expensesAmount = (reqAmt * expensePct) / 100;
 
-      const capital = reqAmt;
-      const expensePerInstallment = expensesAmount / finalTermUnits;
+      // Capital financiado = solicitado + gastos.
+      const capital = reqAmt + expensesAmount;
 
-      const periodsPerYear = finalTermType === 'installments' ? 24 : 12;
-      const r = finalRate / 100 / periodsPerYear;
+      const r = periodRate(finalRate, finalTermType);
       const n = finalTermUnits;
       const factor = Math.pow(1 + r, n);
       const frenchInstallment =
         capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
       const totalInterest = frenchInstallment * n - capital;
-      const totalInstallment = frenchInstallment + expensePerInstallment;
+      const totalInstallment = frenchInstallment;
       const totalPayable = totalInstallment * n;
 
       const endDate = this.calculateEndDate(
@@ -773,7 +784,7 @@ export class LoanManagementService {
           installmentAmount: String(totalInstallment.toFixed(6)),
           expensesAmount: String(expensesAmount.toFixed(6)),
           totalPayable: String(totalPayable.toFixed(6)),
-          approvedAmount: String(capital.toFixed(6)),
+          approvedAmount: String(reqAmt.toFixed(6)),
           disbursedAmount: String(reqAmt.toFixed(6)),
           updatedById: userId,
         })
@@ -797,7 +808,7 @@ export class LoanManagementService {
 
       if (existingSchedule.length === 0 && capital > 0) {
         const schedule = this.generateAmortizationSchedule(
-          capital,
+          reqAmt,
           n,
           finalRate,
           startDate ? new Date(startDate) : new Date(),
@@ -1457,17 +1468,17 @@ export class LoanManagementService {
 
     const capital = dto.requestedAmount ?? 0;
     const expensesAmount = (capital * expensePercentage) / 100;
-    const expensePerInstallment = expensesAmount / numInstallments;
+    // Capital financiado = solicitado + gastos.
+    const financedCapital = capital + expensesAmount;
 
-    const periodsPerYear = resolvedTermType === 'Plazos' ? 24 : 12;
-    const r = annualInterestRate / 100 / periodsPerYear;
+    const r = periodRate(annualInterestRate, resolvedTermType);
     const n = numInstallments;
     const factor = Math.pow(1 + r, n);
     const frenchInstallment =
-      capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
+      financedCapital > 0 ? (financedCapital * r * factor) / (factor - 1) : 0;
 
-    const totalInterest = frenchInstallment * n - capital;
-    const totalQuota = frenchInstallment + expensePerInstallment;
+    const totalInterest = frenchInstallment * n - financedCapital;
+    const totalQuota = frenchInstallment;
     const totalPayable = totalQuota * n;
 
     const currentDate = new Date();
@@ -2113,7 +2124,7 @@ export class LoanManagementService {
         interestRate: loanTypes.interestRate,
         loanAmount: loans.requestedAmount,
         outstandingBalance:
-          schema.loanOutstandingBalance.outstandingTotalBalance,
+          schema.loanOutstandingBalance.capitalPendiente,
         installmentAmount: loans.installmentAmount,
         requestDate: loans.requestDate,
         terms: loanTypes.termUnits,

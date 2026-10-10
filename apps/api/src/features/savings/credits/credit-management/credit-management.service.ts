@@ -1,5 +1,6 @@
 import { PaginationDto } from '@/common/dto/pagination.dto';
 import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.service';
+import { normalizeTermMode, periodRate } from '@/common/utils/interest';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import { moduleSettings } from '@/database/schema/tables/core';
@@ -81,8 +82,7 @@ export class CreditManagementService {
     numInstallments: number,
     termType: 'installments' | 'quotas',
   ): number {
-    const periodsPerYear = termType === 'installments' ? 24 : 12;
-    const r = annualRate / 100 / periodsPerYear;
+    const r = periodRate(annualRate, termType);
     if (r === 0 || numInstallments === 0)
       return amount / (numInstallments || 1);
     const factor = Math.pow(1 + r, numInstallments);
@@ -95,7 +95,7 @@ export class CreditManagementService {
     termType: 'installments' | 'quotas',
   ): Date {
     const start = new Date(startDate);
-    if (termType === 'installments') {
+    if (normalizeTermMode(termType) === 'installments') {
       const totalDays = numInstallments * 15;
       return new Date(start.getTime() + totalDays * 86400000);
     }
@@ -113,14 +113,15 @@ export class CreditManagementService {
     termType: 'installments' | 'quotas',
     expensesAmount: number,
   ) {
-    const periodsPerYear = termType === 'installments' ? 24 : 12;
-    const r = annualInterestRate / 100 / periodsPerYear;
+    const mode = normalizeTermMode(termType);
+    const r = periodRate(annualInterestRate, termType);
     const n = numInstallments;
+    // El capital a amortizar incluye los gastos administrativos: es la cuenta
+    // por cobrar y sobre ese total se calcula el interés.
+    const capital = creditAmount + expensesAmount;
     const factor = r === 0 ? 1 : Math.pow(1 + r, n);
     const frenchInstallment =
-      r === 0 ? creditAmount / n : (creditAmount * r * factor) / (factor - 1);
-    const expensePerInstallment = expensesAmount / n;
-    const totalInstallmentAmount = frenchInstallment + expensePerInstallment;
+      r === 0 ? capital / n : (capital * r * factor) / (factor - 1);
 
     const getLastDayOfMonth = (date: Date) =>
       new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -157,7 +158,7 @@ export class CreditManagementService {
 
     const start = new Date(startDate);
     let nextDueDate: Date;
-    if (termType === 'installments') {
+    if (mode === 'installments') {
       if (start.getDate() <= 15) {
         nextDueDate = getNextBiweeklyDueDate(start, false);
       } else {
@@ -168,17 +169,16 @@ export class CreditManagementService {
     }
 
     const schedule: any[] = [];
-    let remaining = creditAmount;
+    let remaining = capital;
 
     for (let i = 1; i <= n; i++) {
       const interestThisPeriod = remaining * r;
       let principalThisPeriod = frenchInstallment - interestThisPeriod;
-      const expenseComponent = expensePerInstallment;
-      let total = totalInstallmentAmount;
+      let total = principalThisPeriod + interestThisPeriod;
 
       if (i === n) {
         principalThisPeriod = remaining;
-        total = principalThisPeriod + interestThisPeriod + expenseComponent;
+        total = principalThisPeriod + interestThisPeriod;
       }
 
       remaining -= principalThisPeriod;
@@ -197,7 +197,7 @@ export class CreditManagementService {
         createdById,
       });
 
-      if (termType === 'installments') {
+      if (mode === 'installments') {
         if (nextDueDate.getDate() === 16) {
           nextDueDate = getNextBiweeklyDueDate(nextDueDate, false);
         } else {
@@ -632,20 +632,22 @@ export class CreditManagementService {
     );
     const capital = Math.max(amortizableAmount, 0);
     const expensesAmount = capital > 0 ? (capital * expensePct) / 100 : 0;
+    // Capital financiado = amortizable + gastos.
+    const financedCapital = capital + expensesAmount;
 
     // Cálculos financieros con Sistema Francés
-    const periodsPerYear = finalTermType === 'installments' ? 24 : 12;
-    const r = finalRate / 100 / periodsPerYear;
+    const r = periodRate(finalRate, finalTermType);
     const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
     const frenchInstallment =
-      capital > 0 ? (capital * r * factor) / (factor - 1) : 0;
-    const totalInterest = frenchInstallment * finalTermUnits - capital;
-    const totalPayable = frenchInstallment * finalTermUnits + expensesAmount;
-    const installmentAmount =
-      capital > 0 ? frenchInstallment + expensesAmount / finalTermUnits : 0;
+      financedCapital > 0
+        ? (financedCapital * r * factor) / (factor - 1)
+        : 0;
+    const totalInterest = frenchInstallment * finalTermUnits - financedCapital;
+    const totalPayable = frenchInstallment * finalTermUnits;
+    const installmentAmount = financedCapital > 0 ? frenchInstallment : 0;
 
     const schedule =
-      capital > 0
+      financedCapital > 0
         ? this.generateAmortizationSchedule(
           capital,
           finalTermUnits,
@@ -1178,13 +1180,13 @@ export class CreditManagementService {
                 associateId: associateId,
                 amounts: {
                   CREDIT_PRINCIPAL: requestedAmountNum,
-                  SERVICE_FEE_INCOME: expensesAmountNum,
-                  LOAN_INTEREST_INCOME: totalInterestNum,
+                  LOAN_INTEREST_INCOME: expensesAmountNum,
+                  CREDIT_WITHHOLDING: totalInterestNum,
                 },
                 descriptions: {
                   CREDIT_PRINCIPAL: typeDesc,
-                  SERVICE_FEE_INCOME: `Gastos Administrativos ${typeDesc}`,
-                  LOAN_INTEREST_INCOME: associateDesc,
+                  LOAN_INTEREST_INCOME: `Gastos Administrativos ${typeDesc}`,
+                  CREDIT_WITHHOLDING: associateDesc,
                 },
               },
             ],
@@ -1671,7 +1673,7 @@ export class CreditManagementService {
         interestRate: creditsTypes.interestRate,
         creditAmount: credits.requestedAmount,
         outstandingBalance:
-          schema.creditOutstandingBalance.outstandingTotalBalance,
+          schema.creditOutstandingBalance.capitalPendiente,
         installmentAmount: credits.installmentAmount,
         requestDate: credits.requestDate,
         terms: creditsTypes.termUnits,

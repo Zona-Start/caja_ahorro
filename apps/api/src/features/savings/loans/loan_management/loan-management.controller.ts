@@ -46,13 +46,37 @@ export class LoanManagementController {
     private readonly tenantContextService: TenantContextService,
   ) {}
 
+  /**
+   * Determina si el usuario puede aplicar parámetros especiales (desbloquear
+   * reglas de negocio). Requiere permiso portfolio:loans:approve o ser admin.
+   */
+  private canApproveLoans(req: Request): boolean {
+    if (req['userRole'] === 'superadmin' || req['user']?.isSystemAdmin) {
+      return true;
+    }
+    const perms: string[] = Array.isArray(req['userPermissions'])
+      ? req['userPermissions']
+      : [];
+    return perms.some(
+      (p) =>
+        p === 'portfolio:loans:approve' ||
+        p.startsWith('portfolio:loans:approve:'),
+    );
+  }
+
   @Post('request')
   @Permissions('portfolio:loans:create')
   @UsePipes(new ZodValidatorPipe(CreateLoanSchema))
   async request(@Req() req: Request, @Body() dto: CreateLoanDto) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return this.loanManagementService.request(targetTenantId, userId, dto);
+    const allowSpecialRules = this.canApproveLoans(req);
+    return this.loanManagementService.request(
+      targetTenantId,
+      userId,
+      dto,
+      allowSpecialRules,
+    );
   }
 
   @Get('template-bulk')
