@@ -1,4 +1,3 @@
-import { ReqLogInterceptor } from '@/common/interceptors';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
@@ -10,7 +9,6 @@ import {
   Post,
   Query,
   Req,
-  UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -20,7 +18,6 @@ import { FilterAccountingRulesDto } from './dto/filter-accounting-rule.dto';
 import { UpdateAccountingRuleDto } from './dto/update-accounting-rule.dto';
 
 @ApiTags('accounting-rules')
-@UseInterceptors(ReqLogInterceptor)
 @Controller('accounting-rules')
 export class AccountingRulesController {
   constructor(

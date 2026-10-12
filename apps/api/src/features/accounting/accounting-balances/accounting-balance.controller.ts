@@ -1,4 +1,3 @@
-import { ReqLogInterceptor } from '@/common/interceptors';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
@@ -22,7 +21,6 @@ import { InitialLoadDto, InitialLoadSchema } from './dto/initial-load.dto';
 import { OpenCycleDto } from './dto/open-cycle.dto';
 
 @ApiTags('accounting-balance')
-@UseInterceptors(ReqLogInterceptor)
 @Controller('accounting-balance')
 export class AccountingBalanceController {
   constructor(

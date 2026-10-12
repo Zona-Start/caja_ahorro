@@ -1,4 +1,5 @@
 // src/bootstrap.ts
+import { TtlCache } from '@/common/utils';
 import { swagger } from '@/swagger';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -39,6 +40,15 @@ export const bootstrap = async (app: NestExpressApplication) => {
     });
 
     const corsOrigins = allowCorsUrl.split(',').map((url) => url.trim());
+
+    // Caché de validación de dominios personalizados (evita consultar la BD en
+    // cada petición; cachea también los negativos). TTL corto para que los
+    // dominios dados de alta/baja se reflejen con rapidez.
+    const CUSTOM_DOMAIN_TTL_MS = 60_000;
+    const customDomainCache = new TtlCache<boolean>({
+      ttlMs: CUSTOM_DOMAIN_TTL_MS,
+      maxSize: 1000,
+    });
 
     // 1. CORS para endpoints públicos (/api/public/*)
     app.use('/api/public', (req, res, next) => {
@@ -83,8 +93,11 @@ export const bootstrap = async (app: NestExpressApplication) => {
         }
 
         // C. Validación Dinámica: Consultar DB si el dominio personalizado existe
-        const isCustomDomainRegistered =
-          await tenantsService.isCustomDomainValid(hostname);
+        //    (cacheado con TTL para no golpear la BD en cada request/preflight).
+        const isCustomDomainRegistered = await customDomainCache.getOrSet(
+          hostname,
+          () => tenantsService.isCustomDomainValid(hostname),
+        );
         return isCustomDomainRegistered;
       } catch {
         return false;

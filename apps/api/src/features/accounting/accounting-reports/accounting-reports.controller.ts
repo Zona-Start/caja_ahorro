@@ -1,14 +1,6 @@
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
-import {
-  Controller,
-  Get,
-  Query,
-  Req,
-  Res,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Controller, Get, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import {
@@ -34,7 +26,6 @@ import { JournalBookService } from './services/journal-book.service';
 import { TrialBalanceService } from './services/trial-balance.service';
 
 @ApiTags('accounting-reports')
-@UseInterceptors(ReqLogInterceptor)
 @Controller('accounting-reports')
 export class AccountingReportsController {
   constructor(

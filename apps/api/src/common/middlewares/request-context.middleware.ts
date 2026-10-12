@@ -18,15 +18,17 @@ export class RequestContextMiddleware implements NestMiddleware {
     const originalSend = res.send;
     res.send = function (data: any) {
       const duration = Date.now() - req.startTime;
-      const logger = (req as any).logger;
-      if (logger) {
-        logger.log({
+      // pino-http adjunta `req.log`; `debug` respeta el nivel (silencio en prod).
+      const log = (req as any).log ?? (req as any).logger;
+      log?.debug?.(
+        {
           method: req.method,
           url: req.url,
           status: res.statusCode,
           duration: `${duration}ms`,
-        });
-      }
+        },
+        'request completed',
+      );
       return originalSend.call(this, data);
     };
 

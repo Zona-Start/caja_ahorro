@@ -11,6 +11,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
@@ -19,6 +20,8 @@ import * as schema from 'src/database/schema';
 
 @Injectable()
 export class AssociateAccountsMovementsService {
+  private readonly logger = new Logger(AssociateAccountsMovementsService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
@@ -120,7 +123,7 @@ export class AssociateAccountsMovementsService {
         };
       });
     } catch (error) {
-      console.error(
+      this.logger.error(
         'Error al crear el movimiento de cuenta del asociado:',
         error,
       );

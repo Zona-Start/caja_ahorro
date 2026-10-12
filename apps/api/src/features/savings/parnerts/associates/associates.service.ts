@@ -11,6 +11,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { and, eq, ilike, sql, SQL } from 'drizzle-orm';
@@ -28,6 +29,8 @@ import { Associates } from './entities/entity';
 
 @Injectable()
 export class AssociatesService {
+  private readonly logger = new Logger(AssociatesService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private drizzle: NodePgDatabase<typeof schema>,
     private readonly auditHelper: AuditHelper,
@@ -166,7 +169,7 @@ export class AssociatesService {
       ) {
         throw error;
       }
-      console.error('Error generating created associate:', error);
+      this.logger.error('Error generating created associate:', error);
       throw new InternalServerErrorException('Failed created associate.');
     }
   }
@@ -614,7 +617,7 @@ export class AssociatesService {
       ) {
         throw error;
       }
-      console.error('Error generating update associate:', error);
+      this.logger.error('Error generating update associate:', error);
       throw new InternalServerErrorException('Failed update associate.');
     }
   }
@@ -749,7 +752,7 @@ export class AssociatesService {
         ) {
           throw error;
         }
-        console.error('Error during inactive associate:', error);
+        this.logger.error('Error during inactive associate:', error);
         throw new InternalServerErrorException(
           'A problem occurred while inactivating the associate.',
         );
@@ -925,7 +928,7 @@ export class AssociatesService {
 
       return { total, inserted, skipped };
     } catch (error) {
-      console.error('Error en carga masiva de asociados:', error);
+      this.logger.error('Error en carga masiva de asociados:', error);
       throw new InternalServerErrorException(
         'Error procesando la carga masiva. Contacte al administrador.',
       );

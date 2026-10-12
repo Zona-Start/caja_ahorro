@@ -6,7 +6,8 @@ import { NextFunction, Request, Response } from 'express';
 export class LoggerMiddleware implements NestMiddleware {
   constructor(private readonly logger: Logger) {}
   use(req: Request, res: Response, next: NextFunction) {
-    this.logger.log(
+    // debug: silenciado en producción (nivel warn). Evita 1 log por petición.
+    this.logger.debug(
       concatStr([req.method, req.originalUrl, res.statusCode]),
       'Request',
     );

@@ -1,5 +1,4 @@
 import { Permissions } from '@/common/decorators/permissions.decorator';
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
@@ -11,7 +10,6 @@ import {
   Post,
   Query,
   Req,
-  UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AccountingCyclesService } from './accounting-cycles.service';
@@ -24,7 +22,6 @@ import {
 
 @ApiTags('accounting-cycles')
 @Controller('accounting-cycles')
-@UseInterceptors(ReqLogInterceptor)
 export class AccountingCyclesController {
   constructor(
     private readonly service: AccountingCyclesService,

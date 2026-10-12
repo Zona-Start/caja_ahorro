@@ -29,6 +29,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -63,6 +64,8 @@ import {
 
 @Injectable()
 export class SettlementAssociateService {
+  private readonly logger = new Logger(SettlementAssociateService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
@@ -812,7 +815,7 @@ export class SettlementAssociateService {
                   ? true
                   : false,
             });
-            console.log(
+            this.logger.debug(
               `[Liquidacion] Retiro acumulado sin referencia: "${raw}" -> tipo: ${
                 matched?.description ?? '(no identificado)'
               } | monto=${Number(row.amount)}`,
@@ -1579,7 +1582,7 @@ export class SettlementAssociateService {
       .from(creditsTypes)
       .where(eq(creditsTypes.tenantId, tenantId!));
 
-    console.log('findCreditType', findCreditType[0].description);
+    this.logger.debug('findCreditType', findCreditType[0].description);
 
     const matched = this.matchCreditTypeDescription(
       description!,

@@ -69,8 +69,6 @@ export class CategoriesController {
       dto,
     );
 
-    console.log('tenantId', targetTenantId);
-
     return this.categoriesService.create(dto, targetTenantId, userId);
   }
 

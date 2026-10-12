@@ -1,4 +1,3 @@
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
@@ -40,7 +39,6 @@ import {
 } from './dto/filter-associate.zod.dto';
 
 @ApiTags('savings-banks/associates')
-@UseInterceptors(ReqLogInterceptor)
 @Controller('savings-banks/associates')
 export class AssociatesController {
   constructor(

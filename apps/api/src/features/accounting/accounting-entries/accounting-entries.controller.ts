@@ -1,5 +1,4 @@
 import { Permissions } from '@/common/decorators/permissions.decorator';
-import { ReqLogInterceptor } from '@/common/interceptors';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
   Body,
@@ -29,7 +28,6 @@ import { FilterAccountingEntryDto } from './dto/filter-accounting-entry.dto';
 import { UpdateAccountingEntryDto } from './dto/update-accounting-entry.dto';
 
 @ApiTags('accounting/entries')
-@UseInterceptors(ReqLogInterceptor)
 @Controller('accounting/entries')
 export class AccountingEntriesController {
   constructor(

@@ -1,4 +1,3 @@
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
@@ -8,7 +7,6 @@ import {
   Post,
   Query,
   Req,
-  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -21,7 +19,6 @@ import {
 
 @ApiTags('savings-banks/contribution-batches')
 @Controller('savings-banks/contribution-batches')
-@UseInterceptors(ReqLogInterceptor)
 export class ContributionBatchesController {
   constructor(
     private readonly contributionBatchesService: ContributionBatchesService,

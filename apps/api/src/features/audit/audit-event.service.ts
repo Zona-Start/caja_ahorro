@@ -51,6 +51,10 @@ export class AuditEventService {
   private readonly eventQueue: AuditEventData[] = [];
   private readonly systemEventQueue: SystemEventData[] = [];
   private flushInterval: NodeJS.Timeout | null = null;
+  // Límite de buffer para evitar crecimiento ilimitado si la BD falla repetidamente.
+  private readonly maxQueueSize = 5000;
+  private flushFailures = 0;
+  private flushSystemFailures = 0;
 
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
@@ -111,10 +115,24 @@ export class AuditEventService {
           geoLocation: e.geoLocation,
         })),
       );
+      this.flushFailures = 0;
       this.logger.log(`Flushed ${events.length} audit events to database`);
     } catch (error) {
-      this.logger.error(`Failed to flush audit events: ${error}`);
-      this.eventQueue.push(...events);
+      this.flushFailures++;
+      // Reencolar sin superar el tope: evita fuga de memoria en fallos prolongados.
+      if (this.eventQueue.length + events.length <= this.maxQueueSize) {
+        this.eventQueue.push(...events);
+      } else {
+        this.logger.error(
+          `Descartando ${events.length} eventos de auditoría: buffer lleno (${this.eventQueue.length} en cola)`,
+        );
+      }
+      // Log limitado: solo el primer fallo y cada 10 para no saturar stdout.
+      if (this.flushFailures === 1 || this.flushFailures % 10 === 0) {
+        this.logger.error(
+          `Failed to flush audit events (intento ${this.flushFailures}): ${error}`,
+        );
+      }
     }
   }
 
@@ -142,10 +160,22 @@ export class AuditEventService {
           metadata: e.metadata,
         })),
       );
+      this.flushSystemFailures = 0;
       this.logger.log(`Flushed ${events.length} system events to database`);
     } catch (error) {
-      this.logger.error(`Failed to flush system events: ${error}`);
-      this.systemEventQueue.push(...events);
+      this.flushSystemFailures++;
+      if (this.systemEventQueue.length + events.length <= this.maxQueueSize) {
+        this.systemEventQueue.push(...events);
+      } else {
+        this.logger.error(
+          `Descartando ${events.length} system events: buffer lleno (${this.systemEventQueue.length} en cola)`,
+        );
+      }
+      if (this.flushSystemFailures === 1 || this.flushSystemFailures % 10 === 0) {
+        this.logger.error(
+          `Failed to flush system events (intento ${this.flushSystemFailures}): ${error}`,
+        );
+      }
     }
   }
 

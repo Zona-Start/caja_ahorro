@@ -1,15 +1,6 @@
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Req,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Req } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AssociateAccountsService } from './associate-accounts.service';
@@ -19,7 +10,6 @@ import {
 } from './dto/update-associate-accounts.zod.dto';
 
 @ApiTags('savings-banks/associate-accounts')
-@UseInterceptors(ReqLogInterceptor)
 @Controller('savings-banks/associate-accounts')
 export class AssociateAccountsController {
   constructor(

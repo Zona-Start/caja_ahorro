@@ -15,4 +15,5 @@ export const getRandomInt = (min: number, max: number) => {
 export * from './bcrypt';
 export * from './interest';
 export * from './pending-balance';
+export * from './ttl-cache';
 export * from './validateEnv';

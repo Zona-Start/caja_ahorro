@@ -29,7 +29,7 @@ export class OutboxProcessor implements OnModuleDestroy {
     private readonly configService: ConfigService,
   ) {
     this.pollIntervalMs =
-      this.configService.get<number>('OUTBOX_POLL_MS') ?? 1000;
+      this.configService.get<number>('OUTBOX_POLL_MS') ?? 5000;
     this.batchSize = this.configService.get<number>('OUTBOX_BATCH_SIZE') ?? 100;
     this.maxRetries = this.configService.get<number>('OUTBOX_MAX_RETRIES') ?? 5;
     this.baseBackoffMs =
@@ -98,7 +98,8 @@ export class OutboxProcessor implements OnModuleDestroy {
 
       if (pending.length === 0) return 0;
 
-      this.logger.log(`[${LOG}.batch.start] count=${pending.length}`);
+      // debug: se ejecuta en cada ciclo de poll; no debe inundar stdout en prod.
+      this.logger.debug(`[${LOG}.batch.start] count=${pending.length}`);
 
       let sent = 0;
       let failed = 0;
@@ -110,7 +111,7 @@ export class OutboxProcessor implements OnModuleDestroy {
         else failed++;
       }
 
-      this.logger.log(
+      this.logger.debug(
         `[${LOG}.batch.end] total=${pending.length} sent=${sent} failed=${failed}`,
       );
 
@@ -155,7 +156,7 @@ export class OutboxProcessor implements OnModuleDestroy {
         .set({ status: 'SENT', sentAt: new Date() })
         .where(eq(eventOutbox.id, id));
 
-      this.logger.log(
+      this.logger.debug(
         `[${LOG}.sent] event=${eventType} id=${eventId} aggregate=${aggregateId}`,
       );
       return true;

@@ -27,6 +27,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -44,6 +45,8 @@ import { WithdrawalAssociateAccountingService } from './withdrawal-associate-acc
 
 @Injectable()
 export class WithdrawalAssociateService {
+  private readonly logger = new Logger(WithdrawalAssociateService.name);
+
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly associateAccountsMovementsService: AssociateAccountsMovementsService,
@@ -1798,7 +1801,7 @@ export class WithdrawalAssociateService {
           undefined,
         );
       } else {
-        console.log({
+        this.logger.debug({
           withdrawalId: coreResult.accountingParams.withdrawalId,
           associateId: coreResult.accountingParams.associateId,
           associateFullname: coreResult.accountingParams.associateFullname,

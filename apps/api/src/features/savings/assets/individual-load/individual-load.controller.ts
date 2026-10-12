@@ -1,4 +1,3 @@
-import { ReqLogInterceptor } from '@/common/interceptors/req-log.interceptor';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {
@@ -26,7 +25,6 @@ import { IndividualLoadService } from './individual-load.service';
 
 @ApiTags('savings-banks/individual-load')
 @Controller('savings-banks/individual-load')
-@UseInterceptors(ReqLogInterceptor)
 export class IndividualLoadController {
   constructor(
     private readonly individualLoadService: IndividualLoadService,
