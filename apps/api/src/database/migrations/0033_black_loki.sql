@@ -1,1 +1,0 @@
-ALTER TABLE "savings"."withdrawals_associates" ADD COLUMN "allow_exceed_available_balance" boolean DEFAULT false NOT NULL;

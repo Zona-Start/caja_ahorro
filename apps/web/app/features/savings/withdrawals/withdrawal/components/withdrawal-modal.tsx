@@ -251,11 +251,18 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       effectiveAmount >
       (associate.balance * Number(selectedType.withdrawalPercentage)) / 100
     ) {
-      r.canSave = false;
-      r.messages.push({
-        text: `Supera el ${selectedType.withdrawalPercentage}% permitido para este tipo`,
-        ok: false,
-      });
+      if (allowExceedAvailableBalance) {
+        r.messages.push({
+          text: `Supera el ${selectedType.withdrawalPercentage}% permitido para este tipo - Permitido por parámetro especial`,
+          ok: true,
+        });
+      } else {
+        r.canSave = false;
+        r.messages.push({
+          text: `Supera el ${selectedType.withdrawalPercentage}% permitido para este tipo`,
+          ok: false,
+        });
+      }
     }
     const wtMonths = associate.withdrawalTimeMonths ?? 0;
     if (wtMonths > 0 && associate.lastWithdrawalDate) {
@@ -317,18 +324,10 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     return monthsSince < wtMonths;
   }, [associate]);
 
-  const exceedsAvailableBalance =
-    !!associate?.associateAccountId &&
-    effectiveAmount > (associate?.available80 ?? 0);
-
-  const showSpecialParams =
-    canApprove &&
-    !!associate?.associateAccountId &&
-    (associate.hasActiveLoan ||
-      associate.hasActiveCredit ||
-      associate.hasPayrollCredit ||
-      timeRuleBlocked ||
-      exceedsAvailableBalance);
+  // El área de parámetros especiales se muestra siempre que el usuario tenga
+  // permiso de aprobación y haya un asociado seleccionado, para que pueda
+  // habilitar el salto del 80% (y demás reglas) cuando lo necesite.
+  const showSpecialParams = canApprove && !!associate?.associateAccountId;
 
   useEffect(() => {
     if (shouldFetch && !searching) {
@@ -684,25 +683,24 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                       aprobación.
                     </p>
                     <div className="space-y-2">
-                      {exceedsAvailableBalance && (
-                        <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
-                          <div className="pr-2">
-                            <p className="text-sm font-medium">
-                              Permitir superar el 80% disponible
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Omite el bloqueo por superar el 80% de haberes
-                              disponibles.
-                            </p>
-                          </div>
-                          <Switch
-                            checked={allowExceedAvailableBalance}
-                            onCheckedChange={(v) =>
-                              form.setValue('allowExceedAvailableBalance', v)
-                            }
-                          />
+                      <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
+                        <div className="pr-2">
+                          <p className="text-sm font-medium">
+                            Permitir superar el 80% disponible
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Omite el bloqueo por superar el 80% de haberes
+                            disponibles y el % máximo configurado para el tipo de
+                            retiro.
+                          </p>
                         </div>
-                      )}
+                        <Switch
+                          checked={allowExceedAvailableBalance}
+                          onCheckedChange={(v) =>
+                            form.setValue('allowExceedAvailableBalance', v)
+                          }
+                        />
+                      </div>
                       {(associate!.hasActiveLoan || associate!.hasActiveCredit) && (
                         <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
                           <div className="pr-2">

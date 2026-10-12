@@ -24,7 +24,10 @@ export const creditManagementSchema = z.object({
   ),
   termMonths: z.string().optional(),
   interestRate: z.preprocess(
-    (v) => (typeof v === 'string' ? parseFloat(v) || 0 : v),
+    (v) => {
+      const n = typeof v === 'string' ? parseFloat(v) : Number(v);
+      return Number.isFinite(n) ? n : 0;
+    },
     z.number().min(0, { message: 'La tasa de interés es requerida' }),
   ),
   startDate: z.date({

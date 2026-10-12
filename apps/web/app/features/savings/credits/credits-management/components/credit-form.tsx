@@ -150,7 +150,7 @@ export function CreditForm({
         ? creditTypes.find((ct: any) => ct.id === typeId)
         : null;
       if (t) {
-        setValue('interestRate', parseFloat(t.interestRate));
+        setValue('interestRate', parseFloat(t.interestRate) || 0);
         const mappedTermType =
           t.termType === 'Plazo' || t.termType === 'Plazos'
             ? 'installments'
@@ -381,10 +381,10 @@ export function CreditForm({
   };
 
   const handleFormSubmit = (data: CreditManagement) => {
+    const rate = Number(data.interestRate);
     const formatted: CreditManagement = {
       ...data,
       requestedAmount: Number(data.requestedAmount),
-      interestRate: Number(data.interestRate),
       termUnits: Number(data.termUnits),
       expensesPercentage: Number(data.expensesPercentage || 0),
       commercialHouseType: casaComercial
@@ -411,6 +411,16 @@ export function CreditForm({
       haberesPayment: Number(data.haberesPayment || 0),
       directPayment: Number(data.directPayment || 0),
     };
+
+    // El backend rechaza una tasa de interés igual a 0 (`.positive()`). Si no
+    // hay una tasa válida mayor a 0, se omite para que el API use la tasa
+    // configurada en el tipo de crédito.
+    if (Number.isFinite(rate) && rate > 0) {
+      formatted.interestRate = rate;
+    } else {
+      delete (formatted as { interestRate?: number }).interestRate;
+    }
+
     onSubmit(formatted);
   };
 

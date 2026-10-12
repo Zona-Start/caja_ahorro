@@ -1,5 +1,5 @@
 {
-  "id": "cbfe22ad-acff-4aa5-ac6f-f2a26b85ed8a",
+  "id": "70bb567c-167e-4671-b95b-54b55d5d8eee",
   "prevId": "317fd071-14b0-47d0-851c-d211f225b67b",
   "version": "7",
   "dialect": "postgresql",
@@ -21685,6 +21685,13 @@
         },
         "allow_early_withdrawal": {
           "name": "allow_early_withdrawal",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "allow_exceed_available_balance": {
+          "name": "allow_exceed_available_balance",
           "type": "boolean",
           "primaryKey": false,
           "notNull": true,

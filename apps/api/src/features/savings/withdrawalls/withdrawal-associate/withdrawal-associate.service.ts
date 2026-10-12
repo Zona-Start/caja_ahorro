@@ -164,7 +164,7 @@ export class WithdrawalAssociateService {
         Number(withdrawalType?.withdrawalPercentage)) /
       100;
 
-    if (requestedAmount > maxAllowedAmount) {
+    if (requestedAmount > maxAllowedAmount && !allowExceedAvailableBalance) {
       throw new BadRequestException(
         `El monto solicitado excede el porcentaje máximo permitido de sus haberes.`,
       );

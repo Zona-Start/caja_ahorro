@@ -223,7 +223,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
         ? creditTypes.find((ct: any) => ct.id === typeId)
         : null;
       if (t) {
-        setValue('interestRate', parseFloat(t.interestRate));
+        setValue('interestRate', parseFloat(t.interestRate) || 0);
         const mappedTermType =
           t.termType === 'PLAZO' || t.termType === 'PLAZOS'
             ? 'installments'
@@ -457,11 +457,11 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
 
   const handleFormSubmit = useCallback(
     (data: CreditManagement) => {
-      const formatted = {
+      const rate = Number(data.interestRate);
+      const formatted: Record<string, unknown> = {
         ...data,
         associateId: data.associateId || associateData?.associate?.id,
         requestedAmount: Number(data.requestedAmount),
-        interestRate: Number(data.interestRate),
         termUnits: Number(data.termUnits),
         expensesPercentage: Number(data.expensesPercentage || 0),
         useCommercialHouse: casaComercial || undefined,
@@ -491,6 +491,15 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
         haberesPayment: Number(data.haberesPayment || 0),
         directPayment: Number(data.directPayment || 0),
       };
+
+      // El backend rechaza una tasa de interés igual a 0 (`.positive()`). Si no
+      // hay una tasa válida mayor a 0, se omite para que el API use la tasa
+      // configurada en el tipo de crédito.
+      if (Number.isFinite(rate) && rate > 0) {
+        formatted.interestRate = rate;
+      } else {
+        delete formatted.interestRate;
+      }
 
       saveCredit(formatted, {
         onSuccess: () => {
