@@ -3,8 +3,8 @@ import { GenerateCodeService } from '@/common/utils/generate-code/generate-code.
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
 import {
-  associateAccounts,
   associateAccountMovements,
+  associateAccounts,
   associates,
   bankTransactions,
   creditAmortizationSchedule,
@@ -32,9 +32,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { and, eq, ilike, inArray, isNotNull, isNull, or, SQL, sql, sum } from 'drizzle-orm';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { format } from 'date-fns';
+import {
+  SQL,
+  and,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  or,
+  sql,
+  sum,
+} from 'drizzle-orm';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
@@ -49,7 +60,6 @@ import {
   type LiquidationDebtLine,
   type LiquidationWithdrawalLine,
 } from './settlement-associate-accounting.service';
-import { raw } from 'express';
 
 @Injectable()
 export class SettlementAssociateService {
@@ -60,7 +70,7 @@ export class SettlementAssociateService {
     private readonly eventEmitter: EventEmitter2,
     private readonly savingsLiquidationService: SavingsLiquidationService,
     private readonly settlementAccountingService: SettlementAssociateAccountingService,
-  ) { }
+  ) {}
 
   async findOneRequest(tenantId: string, cedula: string) {
     const result = await this.db
@@ -111,10 +121,7 @@ export class SettlementAssociateService {
       })
       .from(associates)
       .where(
-        and(
-          eq(associates.id, associateId),
-          eq(associates.tenantId, tenantId),
-        ),
+        and(eq(associates.id, associateId), eq(associates.tenantId, tenantId)),
       )
       .limit(1);
 
@@ -239,7 +246,10 @@ export class SettlementAssociateService {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Plantilla Liquidaciones');
 
-    worksheet.columns = [{ key: 'a', width: 28 }, { key: 'b', width: 22 }];
+    worksheet.columns = [
+      { key: 'a', width: 28 },
+      { key: 'b', width: 22 },
+    ];
 
     worksheet.getCell('A1').value = 'fecha';
     worksheet.getCell('B1').value = format(new Date(), 'yyyy-MM-dd');
@@ -335,8 +345,12 @@ export class SettlementAssociateService {
           liquidationDate,
         );
 
-        // 2. Procesar (aprobar) la liquidacion -> PROCESSED.
-        await this.approve(tenantId, userId, created.id, { isBulk: true });
+        // 2. Procesar (aprobar) la liquidacion -> PROCESSED. Se propaga la fecha
+        //    del Excel para que el asiento contable y los movimientos usen esa fecha.
+        await this.approve(tenantId, userId, created.id, {
+          isBulk: true,
+          date: liquidationDate,
+        });
 
         // 3. Desembolsar -> DISBURSED (siempre). El movimiento bancario se crea
         //    solo si se enviaron datos bancarios; si no, se desembolsa sin banco.
@@ -408,11 +422,11 @@ export class SettlementAssociateService {
     keywords: string[];
     typeDescription: string;
   }> = [
-      {
-        keywords: ['ajuste', 'prestamo'],
-        typeDescription: 'PRESTAMOS VS HABERES',
-      },
-    ];
+    {
+      keywords: ['ajuste', 'prestamo'],
+      typeDescription: 'PRESTAMOS VS HABERES',
+    },
+  ];
 
   /**
    * Identifica el tipo de retiro a partir de la descripcion de un movimiento
@@ -511,9 +525,6 @@ export class SettlementAssociateService {
     return best;
   }
 
-
-
-
   private matchLoansTypeDescription(
     rawDescription: string,
     types: {
@@ -524,10 +535,12 @@ export class SettlementAssociateService {
   } | null {
     if (!rawDescription || !types || types.length === 0) return null;
 
-    const clean = (srt: string) => srt.toLowerCase().normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim();
-
+    const clean = (srt: string) =>
+      srt
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
 
     const cleanRaw = clean(rawDescription);
 
@@ -535,36 +548,49 @@ export class SettlementAssociateService {
     // Esto asegura que Jornada de salud
 
     if (cleanRaw.includes('prestamos') && cleanRaw.includes('personales')) {
-      const loanType = types.find(t => {
+      const loanType = types.find((t) => {
         const d = clean(t.description);
-        return d.includes('prestamos') || d.includes('personales') || d.includes('cp')
+        return (
+          d.includes('prestamos') ||
+          d.includes('personales') ||
+          d.includes('cp')
+        );
       });
       if (loanType) return loanType;
     }
 
     if (cleanRaw.includes('prestamos') && cleanRaw.includes('afianzados')) {
-      const loanType = types.find(t => {
+      const loanType = types.find((t) => {
         const d = clean(t.description);
-        return d.includes('prestamos') || d.includes('afianzados')
+        return d.includes('prestamos') || d.includes('afianzados');
       });
       if (loanType) return loanType;
     }
 
-    if (cleanRaw.includes('prestamos') && cleanRaw.includes('mediano') && cleanRaw.includes('plazo')) {
-      const loanType = types.find(t => {
+    if (
+      cleanRaw.includes('prestamos') &&
+      cleanRaw.includes('mediano') &&
+      cleanRaw.includes('plazo')
+    ) {
+      const loanType = types.find((t) => {
         const d = clean(t.description);
-        return d.includes('prestamos') || d.includes('mediano') || d.includes('plazo')
+        return (
+          d.includes('prestamos') ||
+          d.includes('mediano') ||
+          d.includes('plazo')
+        );
       });
       if (loanType) return loanType;
     }
 
-    const loanType = types.find(t => {
+    const loanType = types.find((t) => {
       const d = clean(t.description);
-      return d.includes('comerciales') || d.includes('largo') || d.includes('plazo')
+      return (
+        d.includes('comerciales') || d.includes('largo') || d.includes('plazo')
+      );
     });
-    return loanType || null
+    return loanType || null;
   }
-
 
   private matchCreditTypeDescription(
     rawDescription: string,
@@ -574,13 +600,14 @@ export class SettlementAssociateService {
   ): {
     description: string;
   } | null {
-
     if (!rawDescription || !types || types.length === 0) return null;
 
-    const clean = (srt: string) => srt.toLowerCase().normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim();
-
+    const clean = (srt: string) =>
+      srt
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
 
     const cleanRaw = clean(rawDescription);
 
@@ -588,27 +615,25 @@ export class SettlementAssociateService {
     // Esto asegura que Jornada de salud
 
     if (cleanRaw.includes('jornada') && cleanRaw.includes('salud')) {
-      const jornadaType = types.find(t => {
+      const jornadaType = types.find((t) => {
         const d = clean(t.description);
-        return d.includes('jornada') || d.includes('salud')
+        return d.includes('jornada') || d.includes('salud');
       });
       if (jornadaType) return jornadaType;
     }
 
-    const comercialType = types.find(t => {
+    const comercialType = types.find((t) => {
       const d = clean(t.description);
-      return d.includes('comerciales')
+      return d.includes('comerciales');
     });
-    return comercialType || null
+    return comercialType || null;
   }
-
-
 
   async approve(
     tenantId: string,
     userId: string,
     liquidationId: string,
-    options?: { isBulk?: boolean },
+    options?: { isBulk?: boolean; date?: Date },
   ) {
     const bulkNote = options?.isBulk ? ' (carga masiva)' : '';
     return this.db.transaction(async (tx) => {
@@ -661,14 +686,16 @@ export class SettlementAssociateService {
       }
 
       const accountId = associate.associateAccountId;
-      const processedDate = new Date();
+      // En carga masiva se usa la fecha del Excel (liquidationDate); en el flujo
+      // individual se mantiene la fecha/hora del procesamiento.
+      const processedDate = options?.date ?? new Date();
 
       const totalSavings = Number(liquidation.totalSavingsBalanceAtLiquidation);
       const totalLoans = Number(liquidation.totalOutstandingLoansAtLiquidation);
       const totalCredits = Number(
         liquidation.totalOutstandingCreditsAtLiquidation,
       );
-      const totalOverpayment = Number(liquidation.totalOverPaymentLiquidation)
+      const totalOverpayment = Number(liquidation.totalOverPaymentLiquidation);
       const netAmount = Number(liquidation.netLiquidationAmount);
 
       // Datos para el asiento contable (se toman ANTES de aplicar los pagos).
@@ -688,7 +715,7 @@ export class SettlementAssociateService {
             isHouseComercial: withdrawalTypes.isHouseComercial,
             isInternalInventory: withdrawalTypes.isInternalInventory,
             amount: sum(associateAccountMovements.amount),
-            movementType: associateAccountMovements.movementType
+            movementType: associateAccountMovements.movementType,
           })
           .from(associateAccountMovements)
           .innerJoin(
@@ -710,7 +737,7 @@ export class SettlementAssociateService {
               inArray(associateAccountMovements.movementType, [
                 'SAVING_WITHDRAWAL',
                 'WITHDRAWAL_FEE_DEBIT',
-                'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
+                'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
               ]),
             ),
           )
@@ -718,18 +745,19 @@ export class SettlementAssociateService {
             withdrawalTypes.description,
             withdrawalTypes.isHouseComercial,
             withdrawalTypes.isInternalInventory,
-            associateAccountMovements.movementType
+            associateAccountMovements.movementType,
           );
 
         for (const row of referencedRows) {
-
           withdrawalAccountingLines.push({
             description: row.description,
             isSpecial:
-              Boolean(row.isHouseComercial) ||
-              Boolean(row.isInternalInventory),
+              Boolean(row.isHouseComercial) || Boolean(row.isInternalInventory),
             amount: Number(row.amount),
-            overpayment: row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT' ? true : false
+            overpayment:
+              row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
+                ? true
+                : false,
           });
         }
 
@@ -739,7 +767,7 @@ export class SettlementAssociateService {
           .select({
             rawDescription: associateAccountMovements.description,
             amount: sum(associateAccountMovements.amount),
-            movementType: associateAccountMovements.movementType
+            movementType: associateAccountMovements.movementType,
           })
           .from(associateAccountMovements)
           .where(
@@ -750,11 +778,14 @@ export class SettlementAssociateService {
               inArray(associateAccountMovements.movementType, [
                 'SAVING_WITHDRAWAL',
                 'WITHDRAWAL_FEE_DEBIT',
-                'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
+                'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
               ]),
             ),
           )
-          .groupBy(associateAccountMovements.description, associateAccountMovements.movementType);
+          .groupBy(
+            associateAccountMovements.description,
+            associateAccountMovements.movementType,
+          );
 
         if (unreferencedRows.length > 0) {
           const types = await tx
@@ -773,13 +804,17 @@ export class SettlementAssociateService {
               description: matched?.description ?? '',
               isSpecial: matched
                 ? Boolean(matched.isHouseComercial) ||
-                Boolean(matched.isInternalInventory)
+                  Boolean(matched.isInternalInventory)
                 : false,
               amount: Number(row.amount),
-              overpayment: row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT' ? true : false
+              overpayment:
+                row.movementType === 'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
+                  ? true
+                  : false,
             });
             console.log(
-              `[Liquidacion] Retiro acumulado sin referencia: "${raw}" -> tipo: ${matched?.description ?? '(no identificado)'
+              `[Liquidacion] Retiro acumulado sin referencia: "${raw}" -> tipo: ${
+                matched?.description ?? '(no identificado)'
               } | monto=${Number(row.amount)}`,
             );
           }
@@ -791,15 +826,11 @@ export class SettlementAssociateService {
         const outstandingLoans = await tx
           .select({
             loanId: schema.loanOutstandingBalance.loanId,
-            outstandingTotal:
-              schema.loanOutstandingBalance.capitalPendiente,
+            outstandingTotal: schema.loanOutstandingBalance.capitalPendiente,
             typeName: loanTypes.name,
           })
           .from(schema.loanOutstandingBalance)
-          .leftJoin(
-            loans,
-            eq(loans.id, schema.loanOutstandingBalance.loanId),
-          )
+          .leftJoin(loans, eq(loans.id, schema.loanOutstandingBalance.loanId))
           .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
           .where(
             eq(
@@ -815,7 +846,7 @@ export class SettlementAssociateService {
           loanAccountingLines.push({
             typeName: loan.typeName ?? 'PRESTAMO',
             amount: loanBalance,
-            overpayment: false
+            overpayment: false,
           });
 
           const pendingInstallments = await tx
@@ -924,14 +955,12 @@ export class SettlementAssociateService {
         }
       }
 
-
       // 2. Pay off outstanding credits from savings
       if (totalCredits > 0) {
         const outstandingCredits = await tx
           .select({
             creditId: schema.creditOutstandingBalance.creditId,
-            outstandingTotal:
-              schema.creditOutstandingBalance.capitalPendiente,
+            outstandingTotal: schema.creditOutstandingBalance.capitalPendiente,
             typeName: creditsTypes.name,
           })
           .from(schema.creditOutstandingBalance)
@@ -954,7 +983,7 @@ export class SettlementAssociateService {
           creditAccountingLines.push({
             typeName: credit.typeName ?? 'CREDITO',
             amount: creditBalance,
-            overpayment: false
+            overpayment: false,
           });
 
           const pendingInstallments = await tx
@@ -1078,44 +1107,46 @@ export class SettlementAssociateService {
               eq(associateAccountMovements.status, 'COMPLETED'),
               inArray(associateAccountMovements.movementType, [
                 'LOAN_PAYMENT_REVERSAL_CREDIT',
-                'CREDIT_PAYMENT_REVERSAL_CREDIT'
+                'CREDIT_PAYMENT_REVERSAL_CREDIT',
               ]),
             ),
-          ).groupBy(
+          )
+          .groupBy(
             associateAccountMovements.movementType,
             associateAccountMovements.referenceId,
             associateAccountMovements.referenceType,
-            associateAccountMovements.description
+            associateAccountMovements.description,
           );
 
         for (const rows of referencedRows) {
-
-
           if (rows.movementType === 'LOAN_PAYMENT_REVERSAL_CREDIT') {
-            const find = await this.findOverPaymentReferencLoan(rows.referenceId, tenantId, rows.description)
+            const find = await this.findOverPaymentReferencLoan(
+              rows.referenceId,
+              tenantId,
+              rows.description,
+            );
             if (find.loanTypeName) {
               loanAccountingLines.push({
                 typeName: find.loanTypeName,
                 amount: Number(rows.amount),
-                overpayment: true
+                overpayment: true,
               });
             }
-
-
           } else {
-            const find = await this.findOverPaymentReferencCredit(rows.referenceId, tenantId, rows.description)
+            const find = await this.findOverPaymentReferencCredit(
+              rows.referenceId,
+              tenantId,
+              rows.description,
+            );
             if (find.creditTypeName) {
               creditAccountingLines.push({
                 typeName: find.creditTypeName,
                 amount: Number(rows.amount),
-                overpayment: true
+                overpayment: true,
               });
             }
-
-
           }
         }
-
       }
 
       // 4. Create the net liquidation movement
@@ -1258,7 +1289,7 @@ export class SettlementAssociateService {
       if (
         liquidation.liquidations_associates.status !== 'PROCESSED' &&
         liquidation.liquidations_associates.status !==
-        'PENDING_DISBURSEMENT_BANK_BATCH'
+          'PENDING_DISBURSEMENT_BANK_BATCH'
       ) {
         throw new BadRequestException(
           `Solo se pueden desembolsar liquidaciones en estado 'PROCESADO' o en lote de pago.`,
@@ -1357,10 +1388,7 @@ export class SettlementAssociateService {
       : this.db.transaction(executeInTransaction);
   }
 
-  async findAll(
-    tenantId: string,
-    paginationDto: FilterSettlementAssociateDto,
-  ) {
+  async findAll(tenantId: string, paginationDto: FilterSettlementAssociateDto) {
     const { page = 1, limit = 10, search = '', status } = paginationDto || {};
 
     const offset = (page - 1) * limit;
@@ -1481,37 +1509,32 @@ export class SettlementAssociateService {
     };
   }
 
-
-  private async findOverPaymentReferencLoan(referenceId: string | null, tenantId: string | null, description: string | null) {
-
+  private async findOverPaymentReferencLoan(
+    referenceId: string | null,
+    tenantId: string | null,
+    description: string | null,
+  ) {
     if (referenceId) {
       const [findLoan] = await this.db
         .select({
-          loanReference:
-            schema.loans.customReference,
+          loanReference: schema.loans.customReference,
           loanTypeName: loanTypes.name,
         })
         .from(schema.loans)
         .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
-        .where(
-          eq(
-            schema.loans.id,
-            referenceId,
-          ),
-        );
-
+        .where(eq(schema.loans.id, referenceId));
 
       const result = {
         loanTypeName: findLoan.loanTypeName,
-        loanReference: findLoan.loanReference
-      }
+        loanReference: findLoan.loanReference,
+      };
 
-      return result
+      return result;
     }
 
     const findLoanType = await this.db
       .select({
-        description: loanTypes.name
+        description: loanTypes.name,
       })
       .from(loanTypes)
       .where(eq(loanTypes.tenantId, tenantId!));
@@ -1520,59 +1543,54 @@ export class SettlementAssociateService {
 
     const result = {
       loanTypeName: matched?.description,
-      loanReference: null
-    }
+      loanReference: null,
+    };
 
-    return result
-
+    return result;
   }
 
-  private async findOverPaymentReferencCredit(referenceId: string | null, tenantId: string | null, description: string | null) {
-
+  private async findOverPaymentReferencCredit(
+    referenceId: string | null,
+    tenantId: string | null,
+    description: string | null,
+  ) {
     if (referenceId) {
       const [findCredit] = await this.db
         .select({
-          creditReference:
-            schema.credits.customReference,
+          creditReference: schema.credits.customReference,
           creditTypeName: creditsTypes.name,
         })
         .from(schema.credits)
         .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
-        .where(
-          eq(
-            schema.credits.id,
-            referenceId,
-          ),
-        );
-
+        .where(eq(schema.credits.id, referenceId));
 
       const result = {
         creditTypeName: findCredit.creditTypeName,
-        creditReference: findCredit.creditReference
-      }
+        creditReference: findCredit.creditReference,
+      };
 
-      return result
+      return result;
     }
-
 
     const findCreditType = await this.db
       .select({
-        description: creditsTypes.name
+        description: creditsTypes.name,
       })
       .from(creditsTypes)
       .where(eq(creditsTypes.tenantId, tenantId!));
 
     console.log('findCreditType', findCreditType[0].description);
 
-
-    const matched = this.matchCreditTypeDescription(description!, findCreditType);
+    const matched = this.matchCreditTypeDescription(
+      description!,
+      findCreditType,
+    );
 
     const result = {
       creditTypeName: matched?.description,
-      creditReference: null
-    }
+      creditReference: null,
+    };
 
-    return result
-
+    return result;
   }
 }

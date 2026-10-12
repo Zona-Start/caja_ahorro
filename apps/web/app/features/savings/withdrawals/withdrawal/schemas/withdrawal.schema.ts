@@ -12,6 +12,7 @@ export const withdrawalSchema = z.object({
   allowWithActiveLoanOrCredit: z.boolean().optional().default(false),
   allowWithPayrollCredit: z.boolean().optional().default(false),
   allowEarlyWithdrawal: z.boolean().optional().default(false),
+  allowExceedAvailableBalance: z.boolean().optional().default(false),
   withdrawalItems: z
     .array(
       z.object({

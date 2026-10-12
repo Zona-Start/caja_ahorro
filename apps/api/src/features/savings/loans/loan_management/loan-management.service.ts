@@ -63,7 +63,7 @@ export class LoanManagementService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) { }
+  ) {}
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -391,7 +391,10 @@ export class LoanManagementService {
       throw new NotFoundException('Asociado no encontrado');
     }
 
-    if (assoc.isPayrollCredit && !(allowSpecialRules && dto.bypassPayrollCredit)) {
+    if (
+      assoc.isPayrollCredit &&
+      !(allowSpecialRules && dto.bypassPayrollCredit)
+    ) {
       throw new BadRequestException(
         'El asociado tiene credinomina activo, no puede solicitar préstamos',
       );
@@ -499,8 +502,7 @@ export class LoanManagementService {
     const finalRate = interestRate ?? Number(loanType.interestRate);
     const finalTermUnits = termUnits ?? loanType.termUnits;
     const finalTermType = (termType ?? loanType.termType) as
-      | 'installments'
-      | 'quotas';
+      'installments' | 'quotas';
     const expensePct =
       expensesPercentage ??
       Number(loanType.administrativeExpensePercentage ?? 0);
@@ -572,15 +574,15 @@ export class LoanManagementService {
     const schedule =
       capital > 0
         ? this.generateAmortizationSchedule(
-          requestedAmount,
-          finalTermUnits,
-          finalRate,
-          startDate,
-          '',
-          userId,
-          finalTermType,
-          expensesAmount,
-        )
+            requestedAmount,
+            finalTermUnits,
+            finalRate,
+            startDate,
+            '',
+            userId,
+            finalTermType,
+            expensesAmount,
+          )
         : [];
 
     const newLoan = await this.db.transaction(async (tx) => {
@@ -593,7 +595,8 @@ export class LoanManagementService {
           loanModality: dto.loanModality,
           requestedAmount: String(requestedAmount),
           approvedAmount: String(capital.toFixed(6)),
-          status: LoanStatusEnum.REQUESTED,          startDate: startDate.toISOString(),
+          status: LoanStatusEnum.REQUESTED,
+          startDate: startDate.toISOString(),
           requestDate: (dto.requestDate ?? new Date()).toISOString(),
           endDate: endDate.toISOString(),
           currencyCode,
@@ -607,8 +610,7 @@ export class LoanManagementService {
           expensesPercentage: String(expensePct),
           paymentMethod: dto.paymentMethod,
           notes: dto.notes ?? null,
-          bypassPayrollCredit:
-            allowSpecialRules && !!dto.bypassPayrollCredit,
+          bypassPayrollCredit: allowSpecialRules && !!dto.bypassPayrollCredit,
           bypassAvailableBalance:
             allowSpecialRules && !!dto.bypassAvailableBalance,
           bypassPaymentCapacity:
@@ -737,8 +739,7 @@ export class LoanManagementService {
         : Number(loanType?.interestRate ?? 0);
       const finalTermUnits = loan.termUnits ?? loanType?.termUnits ?? 1;
       const finalTermType = (loan.termType ?? loanType?.termType ?? 'PLAZO') as
-        | 'installments'
-        | 'quotas';
+        'installments' | 'quotas';
 
       const expensePct = savedExpensesPercentage
         ? Number(savedExpensesPercentage)
@@ -1668,7 +1669,9 @@ export class LoanManagementService {
     if (!raw) return undefined;
     const v = raw.trim().toUpperCase();
     if (
-      ['PLAZOS', 'PLAZO', 'INSTALLMENTS', 'QUINCENAL', 'QUINCENALES'].includes(v)
+      ['PLAZOS', 'PLAZO', 'INSTALLMENTS', 'QUINCENAL', 'QUINCENALES'].includes(
+        v,
+      )
     ) {
       return 'installments';
     }
@@ -1825,7 +1828,10 @@ export class LoanManagementService {
     ];
     obs.forEach((row, i) => {
       instructions.getRow(i + 2).values = row;
-      instructions.getRow(i + 2).alignment = { wrapText: true, vertical: 'top' };
+      instructions.getRow(i + 2).alignment = {
+        wrapText: true,
+        vertical: 'top',
+      };
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -2123,8 +2129,7 @@ export class LoanManagementService {
         loanType: loanTypes.name,
         interestRate: loanTypes.interestRate,
         loanAmount: loans.requestedAmount,
-        outstandingBalance:
-          schema.loanOutstandingBalance.capitalPendiente,
+        outstandingBalance: schema.loanOutstandingBalance.capitalPendiente,
         installmentAmount: loans.installmentAmount,
         requestDate: loans.requestDate,
         terms: loanTypes.termUnits,

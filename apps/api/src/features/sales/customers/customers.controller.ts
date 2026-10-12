@@ -28,7 +28,11 @@ export class CustomersController {
   ) {}
 
   @Post()
-  @Permissions({ resource: 'sales:customers', action: 'create', scope: 'tenant' })
+  @Permissions({
+    resource: 'sales:customers',
+    action: 'create',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Create a customer' })
   async create(@Req() req: any, @Body() dto: CreateCustomerDto) {
     const { targetTenantId, userId } =
@@ -63,7 +67,11 @@ export class CustomersController {
   }
 
   @Patch(':id')
-  @Permissions({ resource: 'sales:customers', action: 'update', scope: 'tenant' })
+  @Permissions({
+    resource: 'sales:customers',
+    action: 'update',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Update a customer' })
   async update(
     @Req() req: any,
@@ -76,7 +84,11 @@ export class CustomersController {
   }
 
   @Patch(':id/toggle-status')
-  @Permissions({ resource: 'sales:customers', action: 'update', scope: 'tenant' })
+  @Permissions({
+    resource: 'sales:customers',
+    action: 'update',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Toggle customer active status' })
   async toggleStatus(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId, userId } =
@@ -85,7 +97,11 @@ export class CustomersController {
   }
 
   @Delete(':id')
-  @Permissions({ resource: 'sales:customers', action: 'delete', scope: 'tenant' })
+  @Permissions({
+    resource: 'sales:customers',
+    action: 'delete',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Deactivate a customer' })
   async remove(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId, userId } =

@@ -12,7 +12,7 @@ export class LoanPaymentAccounting {
 
   constructor(
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) { }
+  ) {}
 
   async generatePaymentEntry(
     tenantId: string,

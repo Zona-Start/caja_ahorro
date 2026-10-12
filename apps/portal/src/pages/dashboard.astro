@@ -1,0 +1,282 @@
+---
+import Base from '../layouts/Base.astro';
+import Topbar from '../components/Topbar.astro';
+import { fetchAuthed } from '../lib/auth';
+import { clearSession } from '../lib/session';
+import { dateFmt, money, text } from '../lib/format';
+
+interface Statement {
+  cedula: string;
+  fullname: string;
+  status: string;
+  accountNumber: string | null;
+  bankName: string | null;
+  totalHaberes: string;
+  paymentCapacity: string;
+  disponibility: string;
+  haberesContribution: string;
+  haberesVoluntary: string;
+  haberesEmployer: string;
+  surpluses: string;
+  isPayrollCredit: boolean;
+}
+type Row = Record<string, unknown>;
+interface Paginated {
+  data: Row[];
+  meta: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+const tabs = [
+  { value: 'haberes', label: 'Haberes' },
+  { value: 'retiros', label: 'Retiros' },
+  { value: 'prestamos', label: 'Préstamos' },
+  { value: 'creditos', label: 'Créditos' },
+  { value: 'historial', label: 'Historial' },
+  { value: 'excesos', label: 'Excesos / Movimientos' },
+] as const;
+
+const EXCESOS_TYPES = [
+  { value: 'SAVING_WITHDRAWAL_REVERSAL_CREDIT', label: 'Reversión de retiro' },
+  { value: 'LOAN_PAYMENT_REVERSAL_CREDIT', label: 'Reversión pago préstamo' },
+  { value: 'CREDIT_PAYMENT_REVERSAL_CREDIT', label: 'Reversión pago crédito' },
+];
+
+const columnsByTab: Record<string, { label: string; render: (r: Row) => string }[]> = {
+  haberes: [
+    { label: 'Fecha', render: (r) => dateFmt(r.fecha) },
+    { label: 'Tipo', render: (r) => text(r.tipo) },
+    { label: 'Concepto', render: (r) => text(r.concepto) },
+    { label: 'Monto', render: (r) => money(r.monto) },
+  ],
+  retiros: [
+    { label: 'Fecha', render: (r) => dateFmt(r.withdrawalDate) },
+    { label: 'Tipo', render: (r) => text(r.description) },
+    { label: 'Monto', render: (r) => money(r.amount) },
+    { label: 'Estado', render: (r) => text(r.status) },
+    { label: 'Referencia', render: (r) => text(r.referenceCode) },
+  ],
+  prestamos: [
+    { label: 'Fecha', render: (r) => dateFmt(r.requestDate) },
+    { label: 'Tipo', render: (r) => text(r.loanType) },
+    { label: 'Monto', render: (r) => money(r.loanAmount) },
+    { label: 'Saldo', render: (r) => money(r.outstandingBalance) },
+    { label: 'Cuota', render: (r) => money(r.installmentAmount) },
+    { label: 'Estado', render: (r) => text(r.status) },
+  ],
+  creditos: [
+    { label: 'Fecha', render: (r) => dateFmt(r.requestDate) },
+    { label: 'Tipo', render: (r) => text(r.creditType) },
+    { label: 'Monto', render: (r) => money(r.creditAmount) },
+    { label: 'Saldo', render: (r) => money(r.outstandingBalance) },
+    { label: 'Cuota', render: (r) => money(r.installmentAmount) },
+    { label: 'Estado', render: (r) => text(r.status) },
+  ],
+  historial: [
+    { label: 'Fecha', render: (r) => dateFmt(r.fecha) },
+    { label: 'Tipo', render: (r) => text(r.tipo) },
+    { label: 'Descripción', render: (r) => text(r.descripcion) },
+    { label: 'Referencia', render: (r) => text(r.numeroReferencia) },
+    { label: 'Monto', render: (r) => money(r.monto) },
+    { label: 'Estado', render: (r) => text(r.status) },
+  ],
+  excesos: [
+    { label: 'Fecha', render: (r) => dateFmt(r.fecha) },
+    { label: 'Tipo', render: (r) => text(r.tipo) },
+    { label: 'Descripción', render: (r) => text(r.descripcion) },
+    { label: 'Referencia', render: (r) => text(r.numeroReferencia) },
+    { label: 'Monto', render: (r) => money(r.monto) },
+  ],
+};
+
+const detailBase: Record<string, string> = {
+  prestamos: '/prestamo/',
+  creditos: '/credito/',
+  retiros: '/retiro/',
+};
+
+const stRes = await fetchAuthed(Astro.cookies, '/me/statement');
+if (stRes.status === 401 || !stRes.data) {
+  clearSession(Astro.cookies);
+  return Astro.redirect('/login');
+}
+const statement = (stRes.data as { data: Statement }).data;
+
+const rawTab = Astro.url.searchParams.get('tab') ?? 'haberes';
+const active = (tabs.some((t) => t.value === rawTab) ? rawTab : 'haberes') as string;
+const rawPage = parseInt(Astro.url.searchParams.get('page') ?? '1', 10);
+const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+const limit = 10;
+
+let rows: Row[] = [];
+let meta = {
+  page,
+  limit,
+  totalCount: 0,
+  totalPages: 0,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
+let counts: Record<string, number> = {};
+let selectedType = EXCESOS_TYPES[0]!.value;
+
+if (active === 'excesos') {
+  const sumRes = await fetchAuthed(Astro.cookies, '/me/excesos');
+  counts = ((sumRes.data as { data: Record<string, number> } | null)?.data) ?? {};
+
+  const rawMt = Astro.url.searchParams.get('mt');
+  selectedType =
+    rawMt && EXCESOS_TYPES.some((t) => t.value === rawMt)
+      ? rawMt
+      : (EXCESOS_TYPES.find((t) => (counts[t.value] ?? 0) > 0)?.value ??
+        EXCESOS_TYPES[0]!.value);
+
+  const movRes = await fetchAuthed(
+    Astro.cookies,
+    `/me/movimientos?movementType=${selectedType}&page=${page}&limit=${limit}`,
+  );
+  const payload = movRes.data as Paginated | null;
+  rows = payload?.data ?? [];
+  if (payload?.meta) meta = payload.meta;
+} else {
+  const dataRes = await fetchAuthed(
+    Astro.cookies,
+    `/me/${active}?page=${page}&limit=${limit}`,
+  );
+  const payload = dataRes.data as Paginated | null;
+  rows = payload?.data ?? [];
+  if (payload?.meta) meta = payload.meta;
+}
+
+const columns = columnsByTab[active]!;
+const detailPrefix = detailBase[active];
+
+const link = (tab: string, p = 1) => `/dashboard?tab=${tab}&page=${p}`;
+const excesosLink = (mt: string, p = 1) =>
+  `/dashboard?tab=excesos&mt=${mt}&page=${p}`;
+---
+<Base title="Mi cuenta · Portal del Asociado">
+  <Topbar />
+
+  <main class="container">
+    <h1>Hola, {statement.fullname}</h1>
+    <p class="muted">
+      Cédula {statement.cedula}
+      {statement.accountNumber ? ` · Cuenta ${statement.accountNumber}` : ''}
+      {statement.bankName ? ` · ${statement.bankName}` : ''}
+    </p>
+
+    <section class="grid cols-3" style="margin-bottom:24px">
+      <div class="stat"><div class="label">Total haberes</div><div class="value">{money(statement.totalHaberes)}</div></div>
+      <div class="stat"><div class="label">Disponibilidad (80%)</div><div class="value">{money(statement.disponibility)}</div></div>
+      <div class="stat"><div class="label">Capacidad de pago (30%)</div><div class="value">{money(statement.paymentCapacity)}</div></div>
+    </section>
+
+    <nav class="tabs">
+      {tabs.map((t) => (
+        <a href={link(t.value)} class:list={['tab', { active: t.value === active }]}>{t.label}</a>
+      ))}
+    </nav>
+
+    {active === 'excesos' && (
+      <section class="chips">
+        {EXCESOS_TYPES.map((t) => (
+          <a href={excesosLink(t.value)} class:list={['chip', { active: t.value === selectedType }]}>
+            {t.label}
+            <span class="chip-count">{counts[t.value] ?? 0}</span>
+          </a>
+        ))}
+      </section>
+    )}
+
+    <section>
+      <div class="filterbar">
+        <input id="rowFilter" type="search" placeholder="Filtrar en la tabla…" />
+      </div>
+
+      {rows.length === 0 ? (
+        <p class="muted">Sin registros.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              {columns.map((c) => <th>{c.label}</th>)}
+              {detailPrefix && <th></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr>
+                {columns.map((c) => <td>{c.render(r)}</td>)}
+                {detailPrefix && (
+                  <td><a class="btn-link" href={`${detailPrefix}${String(r.id)}`}>Ver</a></td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div class="pager">
+        <span class="muted">
+          {meta.totalCount} registro(s) · página {meta.page} de {Math.max(meta.totalPages, 1)}
+        </span>
+        <div style="display:flex; gap:8px">
+          {meta.hasPreviousPage ? (
+            <a class="btn-link" href={active === 'excesos' ? excesosLink(selectedType, meta.page - 1) : link(active, meta.page - 1)}>Anterior</a>
+          ) : (
+            <span class="btn-link disabled">Anterior</span>
+          )}
+          {meta.hasNextPage ? (
+            <a class="btn-link" href={active === 'excesos' ? excesosLink(selectedType, meta.page + 1) : link(active, meta.page + 1)}>Siguiente</a>
+          ) : (
+            <span class="btn-link disabled">Siguiente</span>
+          )}
+        </div>
+      </div>
+    </section>
+  </main>
+</Base>
+
+<style>
+  .tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .tab { padding: 10px 16px; color: var(--muted); font-weight: 600; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border: 1px solid var(--border); border-radius: 999px;
+    background: #fff; color: var(--text); font-weight: 600; font-size: 0.85rem;
+  }
+  .chip.active { border-color: var(--primary); color: var(--primary); }
+  .chip-count { background: var(--primary); color: #fff; border-radius: 999px; padding: 0 8px; font-size: 0.75rem; }
+  .filterbar { margin-bottom: 12px; }
+  .filterbar input { max-width: 320px; margin-bottom: 0; }
+  .pager { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .btn-link { padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff; font-weight: 600; display: inline-block; }
+  .btn-link.disabled { opacity: 0.5; pointer-events: none; }
+</style>
+
+<script>
+  const input = document.getElementById('rowFilter') as HTMLInputElement | null;
+  input?.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    const table = document.querySelector('table');
+    table?.querySelectorAll('tbody tr').forEach((tr) => {
+      const el = tr as HTMLElement;
+      el.style.display = el.textContent?.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+</script>

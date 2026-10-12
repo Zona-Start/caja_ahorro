@@ -18,13 +18,6 @@ import {
 } from '@/database/schema/tables/savings';
 import { associateHaberesBalance } from '@/database/schema/views';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
-import * as ExcelJS from 'exceljs';
-import {
-  BulkCreditResult,
-  BulkCreditRow,
-  BulkCreditSuccess,
-  BulkCreditFailure,
-} from './dto/bulk-credit.schema';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
@@ -52,7 +45,14 @@ import {
 } from '@nestjs/common';
 import { and, count, desc, eq, ilike, ne, or, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as ExcelJS from 'exceljs';
 import { AssociateAccountsMovementsService } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.service';
+import {
+  BulkCreditFailure,
+  BulkCreditResult,
+  BulkCreditRow,
+  BulkCreditSuccess,
+} from './dto/bulk-credit.schema';
 import {
   CreateCreditDto,
   CreditItemDto,
@@ -72,7 +72,7 @@ export class CreditManagementService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly accountingEntriesService: AccountingEntriesService,
     private readonly auditHelper: AuditHelper,
-  ) { }
+  ) {}
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
 
@@ -577,8 +577,7 @@ export class CreditManagementService {
     const finalRate = interestRate ?? Number(creditType.interestRate);
     const finalTermUnits = termUnits ?? creditType.termUnits;
     const finalTermType = (termType ?? creditType.termType) as
-      | 'installments'
-      | 'quotas';
+      'installments' | 'quotas';
     const expensePct =
       expensesPercentage ??
       Number(creditType.administrativeExpensePercentage ?? 0);
@@ -639,9 +638,7 @@ export class CreditManagementService {
     const r = periodRate(finalRate, finalTermType);
     const factor = r === 0 ? 1 : Math.pow(1 + r, finalTermUnits);
     const frenchInstallment =
-      financedCapital > 0
-        ? (financedCapital * r * factor) / (factor - 1)
-        : 0;
+      financedCapital > 0 ? (financedCapital * r * factor) / (factor - 1) : 0;
     const totalInterest = frenchInstallment * finalTermUnits - financedCapital;
     const totalPayable = frenchInstallment * finalTermUnits;
     const installmentAmount = financedCapital > 0 ? frenchInstallment : 0;
@@ -649,15 +646,15 @@ export class CreditManagementService {
     const schedule =
       financedCapital > 0
         ? this.generateAmortizationSchedule(
-          capital,
-          finalTermUnits,
-          finalRate,
-          startDate,
-          '',
-          userId,
-          finalTermType,
-          expensesAmount,
-        )
+            capital,
+            finalTermUnits,
+            finalRate,
+            startDate,
+            '',
+            userId,
+            finalTermType,
+            expensesAmount,
+          )
         : [];
 
     const newCredit = await this.db.transaction(async (tx) => {
@@ -869,8 +866,7 @@ export class CreditManagementService {
         const finalRate = Number(credit.interestRate ?? 0);
         const finalTermUnits = credit.termUnits ?? 1;
         const finalTermType = (credit.termType ?? 'Plazos') as
-          | 'installments'
-          | 'quotas';
+          'installments' | 'quotas';
         const expensesAmount = Number(credit.expensesAmount ?? 0);
         const haberesAmt = Number(haberesPayment ?? 0);
         const directAmt = Number(directPayment ?? 0);
@@ -882,15 +878,15 @@ export class CreditManagementService {
         const schedule =
           amortizableAmount > 0
             ? this.generateAmortizationSchedule(
-              amortizableAmount,
-              finalTermUnits,
-              finalRate,
-              startDate ? new Date(startDate) : new Date(),
-              id,
-              userId,
-              finalTermType,
-              expensesAmount,
-            )
+                amortizableAmount,
+                finalTermUnits,
+                finalRate,
+                startDate ? new Date(startDate) : new Date(),
+                id,
+                userId,
+                finalTermType,
+                expensesAmount,
+              )
             : [];
 
         if (schedule.length > 0) {
@@ -941,29 +937,29 @@ export class CreditManagementService {
 
           const unitCost = productPrice
             ? computePriceBreakdown({
-              currencyCode: productPrice.currencyCode,
-              priceType: productPrice.priceType,
-              purchaseExchangeRate: Number(productPrice.purchaseExchangeRate),
-              salesExchangeRate: Number(productPrice.salesExchangeRate),
-              baseCost: Number(productPrice.baseCost),
-              otherCosts: Number(productPrice.otherCosts),
-              purchaseTaxPercent: Number(productPrice.purchaseTaxPercent),
-              profitPercent: Number(productPrice.profitPercent),
-              expensePercent: Number(productPrice.expensePercent),
-              salesTaxPercent: Number(productPrice.salesTaxPercent),
-              salePrice:
-                productPrice.salePrice != null
-                  ? Number(productPrice.salePrice)
-                  : undefined,
-              offerSalePrice:
-                productPrice.offerSalePrice != null
-                  ? Number(productPrice.offerSalePrice)
-                  : undefined,
-              bsPriceAmount:
-                productPrice.bsPriceAmount != null
-                  ? Number(productPrice.bsPriceAmount)
-                  : undefined,
-            }).totalCost
+                currencyCode: productPrice.currencyCode,
+                priceType: productPrice.priceType,
+                purchaseExchangeRate: Number(productPrice.purchaseExchangeRate),
+                salesExchangeRate: Number(productPrice.salesExchangeRate),
+                baseCost: Number(productPrice.baseCost),
+                otherCosts: Number(productPrice.otherCosts),
+                purchaseTaxPercent: Number(productPrice.purchaseTaxPercent),
+                profitPercent: Number(productPrice.profitPercent),
+                expensePercent: Number(productPrice.expensePercent),
+                salesTaxPercent: Number(productPrice.salesTaxPercent),
+                salePrice:
+                  productPrice.salePrice != null
+                    ? Number(productPrice.salePrice)
+                    : undefined,
+                offerSalePrice:
+                  productPrice.offerSalePrice != null
+                    ? Number(productPrice.offerSalePrice)
+                    : undefined,
+                bsPriceAmount:
+                  productPrice.bsPriceAmount != null
+                    ? Number(productPrice.bsPriceAmount)
+                    : undefined,
+              }).totalCost
             : Number(item.agreedSellingPrice ?? 0);
 
           await this.inventoryMovementsService.create(
@@ -1672,8 +1668,7 @@ export class CreditManagementService {
         creditType: creditsTypes.name,
         interestRate: creditsTypes.interestRate,
         creditAmount: credits.requestedAmount,
-        outstandingBalance:
-          schema.creditOutstandingBalance.capitalPendiente,
+        outstandingBalance: schema.creditOutstandingBalance.capitalPendiente,
         installmentAmount: credits.installmentAmount,
         requestDate: credits.requestDate,
         terms: creditsTypes.termUnits,
@@ -1855,7 +1850,11 @@ export class CreditManagementService {
   private mapTermType(raw?: string): 'installments' | 'quotas' | undefined {
     if (!raw) return undefined;
     const v = raw.trim().toUpperCase();
-    if (['PLAZOS', 'PLAZO', 'INSTALLMENTS', 'QUINCENAL', 'QUINCENALES'].includes(v)) {
+    if (
+      ['PLAZOS', 'PLAZO', 'INSTALLMENTS', 'QUINCENAL', 'QUINCENALES'].includes(
+        v,
+      )
+    ) {
       return 'installments';
     }
     if (['CUOTAS', 'CUOTA', 'QUOTAS', 'MENSUAL', 'MENSUALES'].includes(v)) {
@@ -1869,13 +1868,15 @@ export class CreditManagementService {
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') {
       if (value instanceof Date) return value.toISOString();
-      if ('result' in value) return String((value as ExcelJS.CellFormulaValue).result ?? '');
+      if ('result' in value)
+        return String((value as ExcelJS.CellFormulaValue).result ?? '');
       if ('richText' in value) {
         return (value as ExcelJS.CellRichTextValue).richText
           .map((r) => r.text)
           .join('');
       }
-      if ('text' in value) return String((value as ExcelJS.CellHyperlinkValue).text ?? '');
+      if ('text' in value)
+        return String((value as ExcelJS.CellHyperlinkValue).text ?? '');
       return '';
     }
     return String(value);
@@ -1971,27 +1972,56 @@ export class CreditManagementService {
     };
 
     const obs: [string, string][] = [
-      ['Cédula del Asociado *', 'Obligatorio. Cédula del asociado solicitante. Debe existir y estar activo.'],
-      ['Tipo de Crédito *', 'Obligatorio. Debe coincidir exactamente con un tipo de crédito configurado.'],
+      [
+        'Cédula del Asociado *',
+        'Obligatorio. Cédula del asociado solicitante. Debe existir y estar activo.',
+      ],
+      [
+        'Tipo de Crédito *',
+        'Obligatorio. Debe coincidir exactamente con un tipo de crédito configurado.',
+      ],
       ['Monto *', 'Obligatorio. Monto solicitado, mayor a 0.'],
-      ['Tasa de Interés Anual (%)', 'Opcional. Si se omite se usa la tasa del tipo de crédito.'],
-      ['% Gasto Administrativo', 'Opcional. Si se omite se usa el del tipo de crédito.'],
-      ['Modalidad de Pago', 'Opcional. PLAZOS (quincenal) o CUOTAS (mensual). Por defecto la del tipo de crédito.'],
-      ['Cantidad (Plazos o Cuotas)', 'Opcional. Número entero mayor a 0. Por defecto la del tipo de crédito.'],
-      ['Fecha de Inicio', 'Opcional. Formato AAAA-MM-DD o DD/MM/AAAA. Por defecto la fecha actual.'],
+      [
+        'Tasa de Interés Anual (%)',
+        'Opcional. Si se omite se usa la tasa del tipo de crédito.',
+      ],
+      [
+        '% Gasto Administrativo',
+        'Opcional. Si se omite se usa el del tipo de crédito.',
+      ],
+      [
+        'Modalidad de Pago',
+        'Opcional. PLAZOS (quincenal) o CUOTAS (mensual). Por defecto la del tipo de crédito.',
+      ],
+      [
+        'Cantidad (Plazos o Cuotas)',
+        'Opcional. Número entero mayor a 0. Por defecto la del tipo de crédito.',
+      ],
+      [
+        'Fecha de Inicio',
+        'Opcional. Formato AAAA-MM-DD o DD/MM/AAAA. Por defecto la fecha actual.',
+      ],
       ['Observaciones', 'Opcional. Texto libre.'],
-      ['* Campos obligatorios', 'Las filas con errores no detienen la carga; se reportan al finalizar.'],
+      [
+        '* Campos obligatorios',
+        'Las filas con errores no detienen la carga; se reportan al finalizar.',
+      ],
     ];
     obs.forEach((row, i) => {
       instructions.getRow(i + 2).values = row;
-      instructions.getRow(i + 2).alignment = { wrapText: true, vertical: 'top' };
+      instructions.getRow(i + 2).alignment = {
+        wrapText: true,
+        vertical: 'top',
+      };
     });
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer as ArrayBuffer);
   }
 
-  private async parseBulkWorkbook(fileBuffer: Buffer): Promise<BulkCreditRow[]> {
+  private async parseBulkWorkbook(
+    fileBuffer: Buffer,
+  ): Promise<BulkCreditRow[]> {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(fileBuffer as any);
 

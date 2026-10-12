@@ -1,0 +1,9 @@
+---
+import { getSession } from '../lib/session';
+
+// La raíz siempre decide: sesión activa -> dashboard, si no -> login.
+// (El modo mantenimiento se resuelve antes en el middleware.)
+const { access, refresh } = getSession(Astro.cookies);
+if (access || refresh) return Astro.redirect('/dashboard');
+return Astro.redirect('/login');
+---

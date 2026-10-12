@@ -22,10 +22,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { memoryStorage } from 'multer';
-import {
-  BulkLoanDto,
-  BulkLoanSchema,
-} from './dto/bulk-loan.schema';
+import { BulkLoanDto, BulkLoanSchema } from './dto/bulk-loan.schema';
 import {
   CalculateAmortizationSchema,
   CreateLoanDto,
@@ -97,7 +94,9 @@ export class LoanManagementController {
   @Post('bulk')
   @Roles('admin')
   @Permissions('portfolio:loans:create')
-  @ApiOperation({ summary: 'Bulk create, approve and disburse loans from Excel' })
+  @ApiOperation({
+    summary: 'Bulk create, approve and disburse loans from Excel',
+  })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async createBulk(
@@ -108,10 +107,8 @@ export class LoanManagementController {
     if (!file) {
       throw new BadRequestException('El archivo es requerido');
     }
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
-      req,
-      dto,
-    );
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.loanManagementService.createBulk(
       targetTenantId,
       userId,

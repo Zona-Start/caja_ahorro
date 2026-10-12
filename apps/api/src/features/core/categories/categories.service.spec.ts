@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuditHelper } from '../audit/audit-event.service';
+import { AuditHelper } from '../../audit/audit-event.service';
 import { CategoriesService } from './categories.service';
 
 describe('CategoriesService', () => {
@@ -95,7 +95,11 @@ describe('CategoriesService', () => {
       db.query.categories.findFirst.mockResolvedValue(mockCategory);
       db.returning.mockResolvedValue([{ ...mockCategory, name: 'New' }]);
 
-      const result = await service.update('c1', { name: 'New' }, tenantId);
+      const result = await service.update(
+        'c1',
+        { code: 'C1', name: 'New' },
+        tenantId,
+      );
       expect(result.name).toBe('New');
       expect(auditHelper.logUpdate).toHaveBeenCalled();
     });

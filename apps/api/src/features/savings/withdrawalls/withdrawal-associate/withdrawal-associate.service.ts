@@ -52,7 +52,7 @@ export class WithdrawalAssociateService {
     private readonly withdrawalAccountingService: WithdrawalAssociateAccountingService,
     private readonly bankMovementsService: BankMovementsService,
     private readonly eventEmitter: EventEmitter2,
-  ) { }
+  ) {}
 
   private _hasElapsedMonths(
     currentDate: Date,
@@ -89,6 +89,7 @@ export class WithdrawalAssociateService {
       allowWithActiveLoanOrCredit = false,
       allowWithPayrollCredit = false,
       allowEarlyWithdrawal = false,
+      allowExceedAvailableBalance = false,
     } = dto;
 
     const setting = await this.db.query.moduleSettings.findFirst({
@@ -172,7 +173,7 @@ export class WithdrawalAssociateService {
     const haberesBalance = Number(associateAccount?.haberesBalance ?? 0);
     const available80 = haberesBalance * 0.8;
 
-    if (requestedAmount > available80) {
+    if (requestedAmount > available80 && !allowExceedAvailableBalance) {
       throw new BadRequestException(
         `El monto solicitado (${requestedAmount.toFixed(2)}) supera el 80% disponible (${available80.toFixed(2)}) de sus haberes.`,
       );
@@ -268,6 +269,7 @@ export class WithdrawalAssociateService {
           allowWithActiveLoanOrCredit,
           allowWithPayrollCredit,
           allowEarlyWithdrawal,
+          allowExceedAvailableBalance,
         })
         .returning();
 
@@ -280,7 +282,10 @@ export class WithdrawalAssociateService {
           userId,
           area: 'savings_banks',
           description: `Solicitud de retiro de haberes por el valor de ${requestedAmount}${
-            allowWithActiveLoanOrCredit || allowWithPayrollCredit || allowEarlyWithdrawal
+            allowWithActiveLoanOrCredit ||
+            allowWithPayrollCredit ||
+            allowEarlyWithdrawal ||
+            allowExceedAvailableBalance
               ? ' (con parámetros especiales)'
               : ''
           }`,
@@ -609,26 +614,26 @@ export class WithdrawalAssociateService {
       }),
       accountId
         ? this.db
-          .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
-          .from(withdrawalsAssociates)
-          .where(
-            and(
-              eq(withdrawalsAssociates.associateAccountId, accountId),
-              eq(withdrawalsAssociates.tenantId, tenantId),
-              or(
-                eq(
-                  withdrawalsAssociates.status,
-                  withdrawalStatusEnum.DISBURSED,
-                ),
-                eq(
-                  withdrawalsAssociates.status,
-                  withdrawalStatusEnum.PROCESSED,
+            .select({ withdrawalDate: withdrawalsAssociates.withdrawalDate })
+            .from(withdrawalsAssociates)
+            .where(
+              and(
+                eq(withdrawalsAssociates.associateAccountId, accountId),
+                eq(withdrawalsAssociates.tenantId, tenantId),
+                or(
+                  eq(
+                    withdrawalsAssociates.status,
+                    withdrawalStatusEnum.DISBURSED,
+                  ),
+                  eq(
+                    withdrawalsAssociates.status,
+                    withdrawalStatusEnum.PROCESSED,
+                  ),
                 ),
               ),
-            ),
-          )
-          .orderBy(desc(withdrawalsAssociates.withdrawalDate))
-          .limit(1)
+            )
+            .orderBy(desc(withdrawalsAssociates.withdrawalDate))
+            .limit(1)
         : Promise.resolve([]),
     ]);
 
@@ -1111,7 +1116,7 @@ export class WithdrawalAssociateService {
       if (
         withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
         withdrawalRecord.status !==
-        withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+          withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
       ) {
         throw new BadRequestException(
           'Solo se pueden desembolsar retiros aprobados o en lote de pago',
@@ -1277,7 +1282,7 @@ export class WithdrawalAssociateService {
       if (
         withdrawalRecord.status !== withdrawalStatusEnum.APPROVED &&
         withdrawalRecord.status !==
-        withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
+          withdrawalStatusEnum.PENDING_DISBURSEMENT_BANK_BATCH
       ) {
         throw new BadRequestException(
           'Solo se pueden procesar retiros aprobados o en lote de pago',
@@ -1373,7 +1378,11 @@ export class WithdrawalAssociateService {
             new Date(withdrawalRecord.withdrawalDate) ?? new Date(),
           requestedAmount: Number(withdrawalRecord.requestedAmount),
           administrativeFee: Number(withdrawalRecord.administrativeFee),
-          isHouseInventary: withdrawalTypeRecord?.isHouseComercial ? 'CASA-COMERCIAL' : withdrawalTypeRecord?.isInternalInventory ? 'INVENTARIO-INTERNO' : 'PARCIAL',
+          isHouseInventary: withdrawalTypeRecord?.isHouseComercial
+            ? 'CASA-COMERCIAL'
+            : withdrawalTypeRecord?.isInternalInventory
+              ? 'INVENTARIO-INTERNO'
+              : 'PARCIAL',
         },
       };
     };
@@ -1613,55 +1622,58 @@ export class WithdrawalAssociateService {
     // }
 
     // 4) Validar tiempo entre retiros
-    const setting = await this.db.query.moduleSettings.findFirst({
-      where: and(
-        eq(schema.moduleSettings.tenantId, tenantId),
-        eq(schema.moduleSettings.module, 'savings'),
-        eq(schema.moduleSettings.submodule, 'withdrawals'),
-        eq(schema.moduleSettings.key, 'WITHDRAWAL_TIME_MONTHS'),
-      ),
-    });
+    // NOTA: Las cargas masivas de retiros omiten TODAS las restricciones.
+    // Si el retiro tiene configurado un tiempo (WITHDRAWAL_TIME_MONTHS) no se
+    // analiza ni se valida en la carga masiva. Bloque desactivado a propósito.
+    // const setting = await this.db.query.moduleSettings.findFirst({
+    //   where: and(
+    //     eq(schema.moduleSettings.tenantId, tenantId),
+    //     eq(schema.moduleSettings.module, 'savings'),
+    //     eq(schema.moduleSettings.submodule, 'withdrawals'),
+    //     eq(schema.moduleSettings.key, 'WITHDRAWAL_TIME_MONTHS'),
+    //   ),
+    // });
 
-    const [lastWithdrawal] = await this.db
-      .select()
-      .from(withdrawalsAssociates)
-      .where(
-        and(
-          eq(
-            withdrawalsAssociates.associateAccountId,
-            account.associateAccountId,
-          ),
-          eq(withdrawalsAssociates.tenantId, tenantId),
-        ),
-      )
-      .orderBy(desc(withdrawalsAssociates.createdAt))
-      .limit(1);
+    // const [lastWithdrawal] = await this.db
+    //   .select()
+    //   .from(withdrawalsAssociates)
+    //   .where(
+    //     and(
+    //       eq(
+    //         withdrawalsAssociates.associateAccountId,
+    //         account.associateAccountId,
+    //       ),
+    //       eq(withdrawalsAssociates.tenantId, tenantId),
+    //     ),
+    //   )
+    //   .orderBy(desc(withdrawalsAssociates.createdAt))
+    //   .limit(1);
 
-    if (lastWithdrawal) {
-      if (
-        lastWithdrawal.status === withdrawalStatusEnum.APPROVED ||
-        lastWithdrawal.status === withdrawalStatusEnum.REQUESTED
-      ) {
-        throw new BadRequestException(
-          'No se puede procesar el retiro. Debe desembolsarse o anularse el último retiro.',
-        );
-      }
-      if (
-        lastWithdrawal.status === withdrawalStatusEnum.DISBURSED ||
-        lastWithdrawal.status === withdrawalStatusEnum.ADJUSTED
-      ) {
-        const monthsAllowed = this._hasElapsedMonths(
-          row.fecha,
-          Number(setting?.value),
-          lastWithdrawal?.createdAt ?? null,
-        );
-        if (!monthsAllowed) {
-          throw new BadRequestException(
-            'No ha transcurrido el tiempo permitido para un nuevo retiro.',
-          );
-        }
-      }
-    }
+    // if (lastWithdrawal) {
+    //   if (
+    //     lastWithdrawal.status === withdrawalStatusEnum.APPROVED ||
+    //     lastWithdrawal.status === withdrawalStatusEnum.REQUESTED
+    //   ) {
+    //     throw new BadRequestException(
+    //       'No se puede procesar el retiro. Debe desembolsarse o anularse el último retiro.',
+    //     );
+    //   }
+    //   if (
+    //     lastWithdrawal.status === withdrawalStatusEnum.DISBURSED ||
+    //     lastWithdrawal.status === withdrawalStatusEnum.ADJUSTED
+    //   ) {
+    //     const monthsAllowed = this._hasElapsedMonths(
+    //       row.fecha,
+    //       Number(setting?.value),
+    //       lastWithdrawal?.createdAt ?? null,
+    //     );
+    //     if (!monthsAllowed) {
+    //       throw new BadRequestException(
+    //         'No ha transcurrido el tiempo permitido para un nuevo retiro.',
+    //       );
+    //     }
+    //   }
+    // }
 
     // 5) Calcular montos
     const administrativeFee = (row.monto * feePercentage) / 100;
@@ -1672,7 +1684,11 @@ export class WithdrawalAssociateService {
         : row.monto + administrativeFee;
     // Tanto desembolsado como procesado completan los movimientos de la cuenta.
     const movementStatus: movementStatusEnum = movementStatusEnum.COMPLETED;
-    const isHouseInventary = withdrawalType.isHouseComercial ? 'CASA-COMERCIAL' : withdrawalType.isInternalInventory ? 'INVENTARIO-INTERNO' : 'PARCIAL';
+    const isHouseInventary = withdrawalType.isHouseComercial
+      ? 'CASA-COMERCIAL'
+      : withdrawalType.isInternalInventory
+        ? 'INVENTARIO-INTERNO'
+        : 'PARCIAL';
 
     // 6) Transacción financiera (retiro + movimientos)
     const coreResult = await this.db.transaction(async (tx) => {
@@ -1704,7 +1720,6 @@ export class WithdrawalAssociateService {
         .returning();
 
       const typeDesc = withdrawalType.description || 'RETIRO DE HABERES';
-
 
       await this.associateAccountsMovementsService.create(
         userId,
@@ -1793,7 +1808,7 @@ export class WithdrawalAssociateService {
           withdrawalDate: row.fecha,
           requestedAmount: coreResult.accountingParams.requestedAmount,
           administrativeFee: coreResult.accountingParams.administrativeFee,
-        },);
+        });
 
         await this.withdrawalAccountingService.generateProcessingEntry(
           tenantId,
@@ -1809,7 +1824,6 @@ export class WithdrawalAssociateService {
             requestedAmount: coreResult.accountingParams.requestedAmount,
             administrativeFee: coreResult.accountingParams.administrativeFee,
             isHouseInventary: isHouseInventary,
-
           },
           undefined,
         );

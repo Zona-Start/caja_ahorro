@@ -9,7 +9,8 @@ export class TenantContextService {
   getTenantContext(req: Request, dto: any = {}) {
     // Solo tomamos el tenantId si viene explícitamente en el DTO
     const dtoTenantId = dto?.tenantId || null;
-    const isSystemAdmin = req['user']?.isSystemAdmin;
+    const userId = req['user']?.sub ?? '';
+    const isSystemAdmin = req['user']?.isSystemAdmin ?? false;
     const currentTenantId = this.cls.get('tenantId');
 
     //para validar errores
@@ -27,7 +28,7 @@ export class TenantContextService {
       throw new ConflictException('Tenant ID is required for this operation');
     }
 
-    return { targetTenantId, userId: req['user']?.sub, isSystemAdmin };
+    return { targetTenantId, userId, isSystemAdmin };
   }
 
   getTenantId() {
@@ -40,6 +41,6 @@ export class TenantContextService {
   }
 
   getUserId(req: Request): string {
-    return req['user'].sub;
+    return req['user']?.sub ?? '';
   }
 }

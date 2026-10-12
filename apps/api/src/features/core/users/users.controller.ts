@@ -19,15 +19,6 @@ import { UpdateUserDto } from './dtos/update-user.dto';
 import { UserQueryDto } from './dtos/user-query.dto';
 import { UsersService } from './users.service';
 
-// Define la estructura del usuario que esperas
-interface RequestWithUser extends Request {
-  user: {
-    id: string;
-    username: string;
-    isSystemAdmin: boolean;
-  };
-}
-
 @Controller('core/users')
 export class UsersController {
   constructor(
@@ -37,7 +28,7 @@ export class UsersController {
 
   @Post()
   @Permissions({ resource: 'iam:users', action: 'create', scope: 'tenant' })
-  async create(@Body() dto: CreateUserDto, @Req() req: RequestWithUser) {
+  async create(@Body() dto: CreateUserDto, @Req() req: Request) {
     const { targetTenantId, userId } = this.tenantService.getTenantContext(
       req,
       dto,
@@ -48,7 +39,7 @@ export class UsersController {
 
   @Get()
   @Permissions({ resource: 'iam:users', action: 'read', scope: 'tenant' })
-  async findAll(@Query() dto: UserQueryDto, @Req() req: RequestWithUser) {
+  async findAll(@Query() dto: UserQueryDto, @Req() req: Request) {
     const { targetTenantId } = this.tenantService.getTenantContext(req, dto);
     return this.usersService.findAll(dto, targetTenantId);
   }
@@ -57,7 +48,7 @@ export class UsersController {
   @Permissions({ resource: 'iam:users', action: 'read', scope: 'tenant' })
   async findOne(
     @Param('id') id: string,
-    @Req() req: RequestWithUser,
+    @Req() req: Request,
     @Query('tenantId') tenantId: string,
   ) {
     const { targetTenantId } = this.tenantService.getTenantContext(
@@ -73,7 +64,7 @@ export class UsersController {
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
-    @Req() req: RequestWithUser,
+    @Req() req: Request,
   ) {
     const { targetTenantId, userId } = this.tenantService.getTenantContext(
       req,
@@ -88,7 +79,7 @@ export class UsersController {
   @Permissions({ resource: 'iam:users', action: 'delete', scope: 'tenant' })
   async remove(
     @Param('id') id: string,
-    @Req() req: RequestWithUser,
+    @Req() req: Request,
     @Query('tenantId') tenantId: string,
   ) {
     const { targetTenantId, userId } = this.tenantService.getTenantContext(
@@ -104,7 +95,7 @@ export class UsersController {
   async managePermissions(
     @Param('id') id: string,
     @Body() body: { permissionIds: string[]; tenantId?: string },
-    @Req() req: RequestWithUser,
+    @Req() req: Request,
   ) {
     const { targetTenantId, userId } = this.tenantService.getTenantContext(
       req,

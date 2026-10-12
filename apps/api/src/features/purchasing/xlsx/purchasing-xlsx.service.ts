@@ -34,6 +34,6 @@ export class PurchasingXlsxService {
       sheet.addRow(dataRow);
     }
 
-    return workbook.xlsx.writeBuffer() as Promise<Buffer>;
+    return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
   }
 }

@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { AuditHelper } from '../../core/audit/audit-event.service';
+import { AuditHelper } from '../../../audit/audit-event.service';
 import { AssignmentsService } from './assignments.service';
 
 describe('AssignmentsService', () => {
@@ -55,6 +55,7 @@ describe('AssignmentsService', () => {
 
     await service.assignPermissions(
       roleId,
+      'user-1',
       [{ resource: 'r1', action: 'a1' }],
       tenantId,
     );

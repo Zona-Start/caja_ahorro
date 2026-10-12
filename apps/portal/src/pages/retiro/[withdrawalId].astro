@@ -1,0 +1,75 @@
+---
+import Base from '../../layouts/Base.astro';
+import Topbar from '../../components/Topbar.astro';
+import { fetchAuthed } from '../../lib/auth';
+import { clearSession } from '../../lib/session';
+import { dateFmt, money, text } from '../../lib/format';
+
+export const prerender = false;
+
+const { withdrawalId } = Astro.params;
+
+interface WithdrawalDetail {
+  withdrawal: Record<string, unknown>;
+  items: unknown[];
+}
+
+const res = await fetchAuthed(Astro.cookies, `/me/retiro/${withdrawalId}`);
+if (res.status === 401) {
+  clearSession(Astro.cookies);
+  return Astro.redirect('/login');
+}
+const detail = res.data
+  ? ((res.data as { data: WithdrawalDetail }).data ?? null)
+  : null;
+const items = (detail?.items ?? []).filter(
+  (i): i is Record<string, unknown> => typeof i === 'object' && i !== null,
+);
+const itemKeys = items.length > 0 ? Object.keys(items[0]!) : [];
+---
+<Base title="Detalle de retiro · Portal del Asociado">
+  <Topbar />
+  <main class="container">
+    <a class="btn-link" href="/dashboard?tab=retiros">← Volver</a>
+
+    {!detail ? (
+      <div class="card" style="margin-top:16px"><p class="muted">Retiro no encontrado.</p></div>
+    ) : (
+      <>
+        <h1 style="margin-top:16px">{text(detail.withdrawal.withdrawalTypeName)}</h1>
+        <p class="muted">
+          Retiro {text(detail.withdrawal.referenceCode)} ·
+          Estado <span class="badge">{text(detail.withdrawal.status)}</span>
+        </p>
+
+        <section class="grid cols-3" style="margin:18px 0">
+          <div class="stat"><div class="label">Monto solicitado</div><div class="value">{money(detail.withdrawal.requestedAmount)}</div></div>
+          <div class="stat"><div class="label">Gasto administrativo</div><div class="value">{money(detail.withdrawal.administrativeFee)}</div></div>
+          <div class="stat"><div class="label">Monto desembolsado</div><div class="value">{money(detail.withdrawal.disbursedAmount)}</div></div>
+        </section>
+
+        <section class="grid cols-3" style="margin-bottom:18px">
+          <div class="stat"><div class="label">Fecha</div><div class="value" style="font-size:1.1rem">{dateFmt(detail.withdrawal.withdrawalDate)}</div></div>
+          <div class="stat"><div class="label">Forma de pago</div><div class="value" style="font-size:1.1rem">{text(detail.withdrawal.paymentMethod)}</div></div>
+          <div class="stat"><div class="label">Asociado</div><div class="value" style="font-size:1rem">{text(detail.withdrawal.associateName)}</div></div>
+        </section>
+
+        {items.length > 0 && (
+          <>
+            <h2>Detalle del retiro</h2>
+            <table>
+              <thead>
+                <tr>{itemKeys.map((k) => <th>{k}</th>)}</tr>
+              </thead>
+              <tbody>
+                {items.map((it) => (
+                  <tr>{itemKeys.map((k) => <td>{text(it[k])}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </>
+    )}
+  </main>
+</Base>

@@ -30,7 +30,7 @@ export class CreatePaymentUseCase {
     private readonly accounting: LoanPaymentAccounting,
     private readonly bank: LoanPaymentBank,
     private readonly audit: LoanPaymentAudit,
-  ) { }
+  ) {}
 
   async execute(
     tenantId: string,
@@ -78,8 +78,6 @@ export class CreatePaymentUseCase {
           pendingBalanceBase,
         );
 
-
-
       const appliedAmountExact = this.processor.getAppliedAmount(
         amount,
         installmentResult.remainingAmount,
@@ -121,8 +119,6 @@ export class CreatePaymentUseCase {
         },
         tx,
       );
-
-
 
       for (const installment of installmentResult.paidInstallmentDetails) {
         await this.processor.insertPaymentDetail(
@@ -169,7 +165,6 @@ export class CreatePaymentUseCase {
         tx,
       );
 
-
       const roundedPayment = Number(appliedAmountExact.toFixed(2));
       const roundedInterest = Number(totalInterestPaid.toFixed(2));
 
@@ -180,7 +175,6 @@ export class CreatePaymentUseCase {
       const effectivePrincipal = Number(
         (roundedPayment - effectiveInterest).toFixed(2),
       );
-
 
       if (!liquidationActive) {
         await this.accounting.generatePaymentEntry(
@@ -283,17 +277,19 @@ export class CreatePaymentUseCase {
       }
 
       if (!liquidationActive) {
-
         if (balanceInFavorValue > EPSILON_COMPARISON && acc?.id) {
           await this.processor.createAssociateMovement(
             userId,
             {
               associateAccountId: acc.id,
-              movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
+              movementType:
+                AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
               amount: balanceInFavorValue,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: paymentDate ? new Date(paymentDate) : undefined,
-              description: 'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' + lockedLoan.customReference,
+              description:
+                'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' +
+                lockedLoan.customReference,
               referenceId: loanId,
               referenceType: 'loans',
               area: 'PRESTAMOS',

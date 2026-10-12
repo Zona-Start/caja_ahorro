@@ -51,7 +51,8 @@ export class WithdrawalAssociateController {
     const usesSpecialParams =
       !!dto.allowWithActiveLoanOrCredit ||
       !!dto.allowWithPayrollCredit ||
-      !!dto.allowEarlyWithdrawal;
+      !!dto.allowEarlyWithdrawal ||
+      !!dto.allowExceedAvailableBalance;
 
     if (usesSpecialParams && !this.canApprove(req, !!isSystemAdmin)) {
       throw new ForbiddenException(

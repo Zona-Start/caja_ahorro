@@ -17,11 +17,12 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { Request } from 'express';
+import { memoryStorage } from 'multer';
 import { CreditManagementService } from './credit-management.service';
+import { BulkCreditDto, BulkCreditSchema } from './dto/bulk-credit.schema';
 import {
   CalculateAmortizationDto,
   CalculateAmortizationSchema,
@@ -30,7 +31,6 @@ import {
   FilterCreditDto,
   FilterCreditSchema,
 } from './dto/credit.schema';
-import { BulkCreditSchema, BulkCreditDto } from './dto/bulk-credit.schema';
 
 @ApiTags('credit')
 @Controller('credit')
@@ -72,10 +72,8 @@ export class CreditManagementController {
     if (!file) {
       throw new BadRequestException('El archivo es requerido');
     }
-    const { targetTenantId, userId } = this.tenantContextService.getTenantContext(
-      req,
-      dto,
-    );
+    const { targetTenantId, userId } =
+      this.tenantContextService.getTenantContext(req, dto);
     return this.service.createBulk(targetTenantId, userId, file.buffer);
   }
 

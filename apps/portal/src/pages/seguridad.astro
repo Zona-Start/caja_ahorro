@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import Topbar from '../components/Topbar.astro';
+import ChangePasswordForm from '../components/ChangePasswordForm';
+---
+<Base title="Seguridad · Portal del Asociado">
+  <Topbar />
+
+  <main class="container" style="max-width:560px">
+    <div class="card wide" style="max-width:100%">
+      <h1>Seguridad</h1>
+      <p class="muted">
+        Cambia tu contraseña cuando lo desees. De forma predeterminada usas tu
+        cédula como contraseña; te recomendamos cambiarla.
+      </p>
+      <ChangePasswordForm client:load />
+    </div>
+  </main>
+</Base>

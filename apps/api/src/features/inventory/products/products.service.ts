@@ -334,11 +334,9 @@ export class ProductsService {
 
     const data = productData.map((product) => {
       const priceInfo = pricesMap.get(product.id) as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const availabilityInfo = availabilityMap.get(product.id) as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
 
       return {
         ...product,

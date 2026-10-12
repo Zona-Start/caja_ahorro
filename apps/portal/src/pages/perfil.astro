@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import Topbar from '../components/Topbar.astro';
+import ProfileForm from '../components/ProfileForm';
+import { fetchAuthed } from '../lib/auth';
+import { clearSession } from '../lib/session';
+
+const profRes = await fetchAuthed(Astro.cookies, '/me/profile');
+if (profRes.status === 401 || !profRes.data) {
+  clearSession(Astro.cookies);
+  return Astro.redirect('/login');
+}
+const profile = (profRes.data as { data: unknown }).data;
+
+const statesRes = await fetchAuthed(Astro.cookies, '/catalog/states');
+const states = (statesRes.data as unknown[]) ?? [];
+---
+<Base title="Mi perfil · Portal del Asociado">
+  <Topbar />
+
+  <main class="container" style="max-width:720px">
+    <div class="card wide" style="max-width:100%; padding:28px">
+      <h1>Datos personales</h1>
+      <p class="muted">
+        Solo puedes editar tu <b>correo</b>, <b>teléfono</b> y <b>dirección</b>.
+        El resto de tus datos es de solo lectura.
+      </p>
+      <ProfileForm client:load initial={profile} states={states} />
+    </div>
+  </main>
+</Base>

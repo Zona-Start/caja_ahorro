@@ -25,14 +25,16 @@ import {
 
 const round2 = (value: number): number => Number(value.toFixed(2));
 
-type InvoiceStatus = 'DRAFT' | 'ISSUED' | 'PAID' | 'PARTIALLY_PAID' | 'CANCELLED';
+type InvoiceStatus =
+  'DRAFT' | 'ISSUED' | 'PAID' | 'PARTIALLY_PAID' | 'CANCELLED';
 
 @Injectable()
 export class CustomerPaymentsService {
   private readonly logger = new Logger(CustomerPaymentsService.name);
 
   constructor(
-    @Inject(DRIZZLE_PROVIDER) private readonly db: NodePgDatabase<typeof schema>,
+    @Inject(DRIZZLE_PROVIDER)
+    private readonly db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly cashMovementsService: CashMovementsService,
   ) {}
@@ -65,7 +67,9 @@ export class CustomerPaymentsService {
     const outstanding = round2(total - paid);
 
     if (outstanding <= 0) {
-      throw new BadRequestException('La factura ya está pagada en su totalidad');
+      throw new BadRequestException(
+        'La factura ya está pagada en su totalidad',
+      );
     }
     if (input.amount > outstanding) {
       throw new BadRequestException(
@@ -126,10 +130,7 @@ export class CustomerPaymentsService {
       return createdPayment;
     });
 
-    if (
-      input.paymentMethod === 'CASH' &&
-      input.cashRegisterSessionId
-    ) {
+    if (input.paymentMethod === 'CASH' && input.cashRegisterSessionId) {
       try {
         await this.cashMovementsService.create(userId, tenantId, {
           sessionId: input.cashRegisterSessionId,
@@ -151,14 +152,13 @@ export class CustomerPaymentsService {
     };
   }
 
-  async findAllByPagination(
-    tenantId: string,
-    dto: FilterCustomerPaymentDto,
-  ) {
+  async findAllByPagination(tenantId: string, dto: FilterCustomerPaymentDto) {
     const { page = 1, limit = 10, customerId, startDate, endDate } = dto;
     const offset = (page - 1) * limit;
 
-    const conditions: SQL<unknown>[] = [eq(customerPayments.tenantId, tenantId)];
+    const conditions: SQL<unknown>[] = [
+      eq(customerPayments.tenantId, tenantId),
+    ];
 
     if (customerId) {
       conditions.push(eq(customerPayments.customerId, customerId));

@@ -20,10 +20,10 @@ export const InquiryOverchargeFilterSchema = PaginationSchema.extend({
   movementType: OverchargeMovementTypeSchema,
 });
 
-export class InquiryFilterDto extends createZodDto(InquiryFilterSchema) { }
+export class InquiryFilterDto extends createZodDto(InquiryFilterSchema) {}
 export class InquiryStatementFilterDto extends createZodDto(
   InquiryStatementFilterSchema,
-) { }
+) {}
 export class InquiryOverchargeFilterDto extends createZodDto(
   InquiryOverchargeFilterSchema,
-) { }
+) {}

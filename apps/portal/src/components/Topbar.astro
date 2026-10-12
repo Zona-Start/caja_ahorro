@@ -1,0 +1,20 @@
+---
+import LogoutButton from './LogoutButton';
+import ThemeToggle from './ThemeToggle';
+
+const tenant = Astro.locals.tenant;
+const name = tenant?.name ?? 'Portal del Asociado';
+---
+<header class="topbar">
+  <div class="brand">
+    {tenant?.logoUrl && <img src={tenant.logoUrl} alt={name} />}
+    <span>{name}</span>
+  </div>
+  <nav class="topbar-nav">
+    <a href="/dashboard">Mi cuenta</a>
+    <a href="/perfil">Mi perfil</a>
+    <a href="/seguridad">Seguridad</a>
+    <ThemeToggle client:load />
+    <LogoutButton client:load />
+  </nav>
+</header>

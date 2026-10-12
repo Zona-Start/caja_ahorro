@@ -18,8 +18,14 @@ export class CustomerPaymentsController {
   ) {}
 
   @Post()
-  @Permissions({ resource: 'sales:payments', action: 'create', scope: 'tenant' })
-  @ApiOperation({ summary: 'Register a customer payment (receivable collection)' })
+  @Permissions({
+    resource: 'sales:payments',
+    action: 'create',
+    scope: 'tenant',
+  })
+  @ApiOperation({
+    summary: 'Register a customer payment (receivable collection)',
+  })
   async create(@Req() req: any, @Body() dto: CreateCustomerPaymentDto) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);

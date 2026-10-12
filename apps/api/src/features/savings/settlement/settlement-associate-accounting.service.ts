@@ -28,7 +28,7 @@ const CREDIT_MOVEMENT_TYPES = new Set<string>([
   'OTHER_CREDIT',
   'LOAN_PAYMENT_REVERSAL_CREDIT',
   'CREDIT_PAYMENT_REVERSAL_CREDIT',
-  'SAVING_WITHDRAWAL_REVERSAL_CREDIT'
+  'SAVING_WITHDRAWAL_REVERSAL_CREDIT',
 ]);
 
 /** Tipos de movimiento que RESTAN del saldo de haberes. */
@@ -126,7 +126,7 @@ export class SettlementAssociateAccountingService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
     private readonly accountingEntriesService: AccountingEntriesService,
-  ) { }
+  ) {}
 
   async generateLiquidationEntry(
     tenantId: string,
@@ -274,7 +274,8 @@ export class SettlementAssociateAccountingService {
       // Si el retiro trae referencia (tipo identificable) se describe con el
       // nombre del tipo; si no (saldo acumulado/importado sin referencia), se
       // describe como "Retiros Acumulado".
-      const hasType = !!withdrawal.description && !!withdrawal.description.trim();
+      const hasType =
+        !!withdrawal.description && !!withdrawal.description.trim();
       const detailDescription = hasType
         ? withdrawal.description!
         : 'Retiros Acumulado';
@@ -440,7 +441,8 @@ export class SettlementAssociateAccountingService {
       );
     } catch (error) {
       this.logger.error(
-        `${tag} No se pudo generar el asiento contable: ${error instanceof Error ? error.message : String(error)
+        `${tag} No se pudo generar el asiento contable: ${
+          error instanceof Error ? error.message : String(error)
         }`,
       );
       return null;
@@ -475,7 +477,11 @@ export class SettlementAssociateAccountingService {
       const isCredit = CREDIT_MOVEMENT_TYPES.has(r.movementType);
       const signed = isDebit ? -amount : isCredit ? amount : 0;
       signedTotal += signed;
-      const kind = isDebit ? 'DEBIT' : isCredit ? 'CREDIT' : 'IGNORADO(signo 0 en la vista)';
+      const kind = isDebit
+        ? 'DEBIT'
+        : isCredit
+          ? 'CREDIT'
+          : 'IGNORADO(signo 0 en la vista)';
       return `${r.movementType}[${kind}]=${signed >= 0 ? '+' : ''}${signed.toFixed(2)} (${r.count})`;
     });
 

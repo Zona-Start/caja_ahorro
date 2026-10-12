@@ -1,5 +1,5 @@
-import { PaginationDto } from '@/common/dto/pagination.dto';
 import { Permissions } from '@/common/decorators/permissions.decorator';
+import { PaginationDto } from '@/common/dto/pagination.dto';
 import { ZodValidatorPipe } from '@/common/pipes/zod-validator.pipe';
 import { TenantContextService } from '@/common/services/tenant-context.service';
 import {

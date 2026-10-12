@@ -1,16 +1,16 @@
+import { computePendingBalance } from '@/common/utils/pending-balance';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_PROVIDER } from 'src/database/drizzle-provider';
 import * as schema from 'src/database/schema';
-import { computePendingBalance } from '@/common/utils/pending-balance';
 
 const haberesTypes = [
   'SAVING_CONTRIBUTION',
   'EMPLOYER_CONTRIBUTION',
   'VOLUNTARY_SAVINGS',
   'DIVIDEND_CREDIT',
-  'SURPLUS_SAVINGS_CONTRIBUTION'
+  'SURPLUS_SAVINGS_CONTRIBUTION',
 ];
 
 const overchargeMovementTypes = [
@@ -62,7 +62,7 @@ export class AssociateInquiryService {
   constructor(
     @Inject(DRIZZLE_PROVIDER)
     private readonly drizzle: NodePgDatabase<typeof schema>,
-  ) { }
+  ) {}
 
   async getStatement(
     tenantId: string,

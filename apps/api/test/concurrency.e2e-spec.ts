@@ -77,9 +77,10 @@ describe('Concurrency: atomic updates & pessimistic locking', () => {
       await pool.query(`DELETE FROM inventory.products WHERE id=$1`, [
         productId,
       ]);
-      await pool.query(`DELETE FROM inventory.inventories_categories WHERE id=$1`, [
-        categoryId,
-      ]);
+      await pool.query(
+        `DELETE FROM inventory.inventories_categories WHERE id=$1`,
+        [categoryId],
+      );
       await pool.query(`DELETE FROM tenant.tenants WHERE id=$1`, [tenantId]);
     } finally {
       await pool.end();
@@ -108,10 +109,7 @@ describe('Concurrency: atomic updates & pessimistic locking', () => {
           ),
       );
 
-    const [c1, c2] = await Promise.all([
-      pool.connect(),
-      pool.connect(),
-    ]);
+    const [c1, c2] = await Promise.all([pool.connect(), pool.connect()]);
     const results = await Promise.all([runPayment(c1), runPayment(c2)]);
     c1.release();
     c2.release();

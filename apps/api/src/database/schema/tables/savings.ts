@@ -339,6 +339,9 @@ export const withdrawalsAssociates = savingsSchema.table(
     allowEarlyWithdrawal: boolean('allow_early_withdrawal')
       .notNull()
       .default(false),
+    allowExceedAvailableBalance: boolean('allow_exceed_available_balance')
+      .notNull()
+      .default(false), // Permite superar el 80% disponible
     ...timestamps,
   },
   (table) => ({
@@ -1021,10 +1024,10 @@ export const liquidationsAssociates = savingsSchema.table(
       'total_outstanding_credits_at_liquidation',
       { precision: 18, scale: 4 },
     ).notNull(), // Deuda de créditos en el momento de la liquidación
-    totalOverPaymentLiquidation: numeric(
-      'total_over_payment_liquidation',
-      { precision: 18, scale: 4 },
-    ).notNull(), // Saldo al favor del asociado al momento de la liquidacion
+    totalOverPaymentLiquidation: numeric('total_over_payment_liquidation', {
+      precision: 18,
+      scale: 4,
+    }).notNull(), // Saldo al favor del asociado al momento de la liquidacion
     netLiquidationAmount: numeric('net_liquidation_amount', {
       precision: 18,
       scale: 4,

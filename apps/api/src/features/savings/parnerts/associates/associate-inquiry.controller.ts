@@ -14,10 +14,10 @@ import { ZodValidatorPipe } from 'src/common/pipes/zod-validator.pipe';
 import { TenantContextService } from 'src/common/services/tenant-context.service';
 import { AssociateInquiryService } from './associate-inquiry.service';
 import {
-  InquiryStatementFilterDto,
-  InquiryStatementFilterSchema,
   InquiryOverchargeFilterDto,
   InquiryOverchargeFilterSchema,
+  InquiryStatementFilterDto,
+  InquiryStatementFilterSchema,
 } from './dto/inquiry-filter.zod.dto';
 
 @ApiTags('savings-banks/associates/inquiry')
@@ -27,7 +27,7 @@ export class AssociateInquiryController {
   constructor(
     private readonly inquiryService: AssociateInquiryService,
     private readonly tenantContext: TenantContextService,
-  ) { }
+  ) {}
 
   @Get('statement')
   @ApiOperation({ summary: 'Obtener estado de cuenta completo del asociado' })

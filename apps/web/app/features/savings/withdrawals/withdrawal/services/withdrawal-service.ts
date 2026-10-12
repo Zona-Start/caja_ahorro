@@ -77,6 +77,8 @@ export const withdrawalService = {
       allowWithActiveLoanOrCredit: withdrawal.allowWithActiveLoanOrCredit ?? false,
       allowWithPayrollCredit: withdrawal.allowWithPayrollCredit ?? false,
       allowEarlyWithdrawal: withdrawal.allowEarlyWithdrawal ?? false,
+      allowExceedAvailableBalance:
+        withdrawal.allowExceedAvailableBalance ?? false,
       withdrawalItems: withdrawal.withdrawalItems ?? [],
     };
 

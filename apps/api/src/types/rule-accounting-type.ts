@@ -1,10 +1,6 @@
 // 1. Tipos para las Categorías Principales
 export type AccountingCategory =
-  | 'SAVINGS_BANK'
-  | 'ADMINISTRATIVE'
-  | 'BANKING'
-  | 'ACCOUNTING'
-  | 'INVENTORY';
+  'SAVINGS_BANK' | 'ADMINISTRATIVE' | 'BANKING' | 'ACCOUNTING' | 'INVENTORY';
 
 // 2. Tipos para las Operaciones (Desglosado por Categoría para mayor precisión)
 export type SavingsOperation =

@@ -18,7 +18,8 @@ import {
 @Injectable()
 export class CustomersService {
   constructor(
-    @Inject(DRIZZLE_PROVIDER) private readonly db: NodePgDatabase<typeof schema>,
+    @Inject(DRIZZLE_PROVIDER)
+    private readonly db: NodePgDatabase<typeof schema>,
   ) {}
 
   async create(tenantId: string, userId: string, dto: CreateCustomerDto) {
@@ -110,7 +111,9 @@ export class CustomersService {
     return this.db
       .select()
       .from(customers)
-      .where(and(eq(customers.tenantId, tenantId), eq(customers.isActive, true)))
+      .where(
+        and(eq(customers.tenantId, tenantId), eq(customers.isActive, true)),
+      )
       .orderBy(asc(customers.name));
   }
 
@@ -157,9 +160,7 @@ export class CustomersService {
         ...(dto.email !== undefined ? { email: dto.email || null } : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone ?? null } : {}),
         ...(dto.address !== undefined ? { address: dto.address ?? null } : {}),
-        ...(dto.creditDays !== undefined
-          ? { creditDays: dto.creditDays }
-          : {}),
+        ...(dto.creditDays !== undefined ? { creditDays: dto.creditDays } : {}),
         ...(dto.creditLimit !== undefined
           ? { creditLimit: String(dto.creditLimit) }
           : {}),

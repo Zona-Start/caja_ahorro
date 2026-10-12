@@ -339,7 +339,6 @@ export const EMPRESA_COMERCIAL_TEMPLATE: BusinessTypeTemplate = {
   ],
 };
 
-
 export const expenseCategories = [
   // --- SERVICIOS PÚBLICOS Y OFICINA ---
   { name: 'Electricidad y Energía', isActive: true },
@@ -384,5 +383,5 @@ export const expenseCategories = [
   { name: 'Multas y Sanciones', isActive: true },
 
   // --- OTROS ---
-  { name: 'Gastos Menores / Varios', isActive: true }
+  { name: 'Gastos Menores / Varios', isActive: true },
 ];

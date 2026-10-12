@@ -84,6 +84,7 @@ const WITHDRAWAL_DEFAULTS: Withdrawal = {
   allowWithActiveLoanOrCredit: false,
   allowWithPayrollCredit: false,
   allowEarlyWithdrawal: false,
+  allowExceedAvailableBalance: false,
   withdrawalItems: [],
 };
 
@@ -157,6 +158,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     useWatch({ control: form.control, name: 'allowWithPayrollCredit' }) ?? false;
   const allowEarlyWithdrawal =
     useWatch({ control: form.control, name: 'allowEarlyWithdrawal' }) ?? false;
+  const allowExceedAvailableBalance =
+    useWatch({ control: form.control, name: 'allowExceedAvailableBalance' }) ??
+    false;
 
   const selectedType = withdrawalTypes.find(
     (t) => t.id === watchTypeId,
@@ -192,11 +196,18 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       return r;
     }
     if (effectiveAmount > associate.available80) {
-      r.canSave = false;
-      r.messages.push({
-        text: `El monto supera el 80% disponible (${associate.available80.toLocaleString('es', { minimumFractionDigits: 2 })})`,
-        ok: false,
-      });
+      if (allowExceedAvailableBalance) {
+        r.messages.push({
+          text: `Supera el 80% disponible - Permitido por parámetro especial`,
+          ok: true,
+        });
+      } else {
+        r.canSave = false;
+        r.messages.push({
+          text: `El monto supera el 80% disponible (${associate.available80.toLocaleString('es', { minimumFractionDigits: 2 })})`,
+          ok: false,
+        });
+      }
     }
     r.messages.push({
       text: `Disponible 80%: ${associate.available80.toLocaleString('es', { minimumFractionDigits: 2 })} Bs | Saldo: ${associate.balance.toLocaleString('es', { minimumFractionDigits: 2 })} Bs`,
@@ -293,6 +304,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     allowWithActiveLoanOrCredit,
     allowWithPayrollCredit,
     allowEarlyWithdrawal,
+    allowExceedAvailableBalance,
   ]);
 
   const timeRuleBlocked = useMemo(() => {
@@ -305,13 +317,18 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     return monthsSince < wtMonths;
   }, [associate]);
 
+  const exceedsAvailableBalance =
+    !!associate?.associateAccountId &&
+    effectiveAmount > (associate?.available80 ?? 0);
+
   const showSpecialParams =
     canApprove &&
     !!associate?.associateAccountId &&
     (associate.hasActiveLoan ||
       associate.hasActiveCredit ||
       associate.hasPayrollCredit ||
-      timeRuleBlocked);
+      timeRuleBlocked ||
+      exceedsAvailableBalance);
 
   useEffect(() => {
     if (shouldFetch && !searching) {
@@ -667,6 +684,25 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                       aprobación.
                     </p>
                     <div className="space-y-2">
+                      {exceedsAvailableBalance && (
+                        <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
+                          <div className="pr-2">
+                            <p className="text-sm font-medium">
+                              Permitir superar el 80% disponible
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Omite el bloqueo por superar el 80% de haberes
+                              disponibles.
+                            </p>
+                          </div>
+                          <Switch
+                            checked={allowExceedAvailableBalance}
+                            onCheckedChange={(v) =>
+                              form.setValue('allowExceedAvailableBalance', v)
+                            }
+                          />
+                        </div>
+                      )}
                       {(associate!.hasActiveLoan || associate!.hasActiveCredit) && (
                         <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">
                           <div className="pr-2">

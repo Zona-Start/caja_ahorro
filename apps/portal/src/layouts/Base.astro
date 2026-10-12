@@ -1,0 +1,196 @@
+---
+import { brandCssVars } from '../lib/theme';
+
+interface Props {
+  title?: string;
+}
+const { title } = Astro.props;
+const tenant = Astro.locals.tenant;
+const brandStyle = brandCssVars(tenant);
+const pageTitle = title ?? `${tenant?.name ?? 'Portal del Asociado'}`;
+const favicon = tenant?.faviconUrl ?? null;
+---
+<!doctype html>
+<html lang="es" style={brandStyle}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{pageTitle}</title>
+    {favicon && <link rel="icon" href={favicon} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+    />
+    <script is:inline>
+      // Aplica el tema antes del primer pintado (evita parpadeo). Default: oscuro.
+      (function () {
+        try {
+          var t = localStorage.getItem('portal-theme') || 'dark';
+          if (t === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  /* Tokens base tomados de @repo/shadcn (los mismos tonos del ERP). */
+  :root {
+    --background: oklch(0.9249 0 0);
+    --foreground: oklch(0.1884 0.0128 248.5103);
+    --card: oklch(0.9784 0.0011 197.1387);
+    --card-foreground: oklch(0.1884 0.0128 248.5103);
+    --primary: oklch(0.5133 0.2236 262.3077);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.1884 0.0128 248.5103);
+    --secondary-foreground: oklch(1 0 0);
+    --muted: oklch(0.9222 0.0013 286.3737);
+    --muted-foreground: oklch(0.1884 0.0128 248.5103);
+    --accent: oklch(0.9392 0.0166 250.8453);
+    --accent-foreground: oklch(0.6723 0.1606 244.9955);
+    --destructive: oklch(0.6188 0.2376 25.7658);
+    --destructive-foreground: oklch(1 0 0);
+    --border: oklch(0.8528 0.0043 236.5075);
+    --input: oklch(0.9809 0.0025 228.7836);
+    --ring: oklch(0.5249 0.2488 262.5348);
+    --radius: 0.4rem;
+    --font-sans: Poppins, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .dark {
+    --background: oklch(0 0 0);
+    --foreground: oklch(0.9328 0.0025 228.7857);
+    --card: oklch(0.2097 0.008 274.5332);
+    --card-foreground: oklch(0.8853 0 0);
+    --primary: oklch(0.5133 0.2236 262.3077);
+    --primary-foreground: oklch(1 0 0);
+    --secondary: oklch(0.9622 0.0035 219.5331);
+    --secondary-foreground: oklch(0.1884 0.0128 248.5103);
+    --muted: oklch(0.209 0 0);
+    --muted-foreground: oklch(0.5637 0.0078 247.9662);
+    --accent: oklch(0.1928 0.0331 242.5459);
+    --accent-foreground: oklch(0.6692 0.1607 245.011);
+    --destructive: oklch(0.6188 0.2376 25.7658);
+    --destructive-foreground: oklch(1 0 0);
+    --border: oklch(0.2674 0.0047 248.0045);
+    --input: oklch(0.302 0.0288 244.8244);
+    --ring: oklch(0.6818 0.1584 243.354);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--background);
+    color: var(--foreground);
+    min-height: 100vh;
+  }
+  a { color: var(--primary); text-decoration: none; }
+
+  .center {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--background) 100%);
+  }
+  .card {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 8px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    padding: 28px;
+    width: 100%;
+    max-width: 420px;
+  }
+  .card.wide { max-width: 960px; }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  .muted { color: var(--muted-foreground); font-size: 0.9rem; margin: 0 0 20px; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin: 0 0 6px; }
+  input, select {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--input);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 1rem;
+    font-family: inherit;
+    margin-bottom: 16px;
+  }
+  input::placeholder { color: var(--muted-foreground); }
+  input:focus, select:focus { outline: 2px solid color-mix(in oklch, var(--ring) 40%, transparent); border-color: var(--ring); }
+  button {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: 0;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .alert {
+    background: color-mix(in oklch, var(--destructive) 16%, transparent);
+    color: var(--destructive);
+    border: 1px solid color-mix(in oklch, var(--destructive) 45%, transparent);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+  }
+  .grid { display: grid; gap: 14px; }
+  .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .stat {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 8px);
+    padding: 16px;
+  }
+  .stat .label { color: var(--muted-foreground); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .stat .value { font-size: 1.4rem; font-weight: 700; margin-top: 6px; }
+  .topbar {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .topbar .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .topbar .brand img { height: 36px; width: auto; }
+  .topbar-nav { display: flex; gap: 16px; align-items: center; }
+  .topbar-nav a { color: var(--primary-foreground); font-weight: 600; }
+  .topbar button { width: auto; background: color-mix(in oklch, var(--primary-foreground) 18%, transparent); color: var(--primary-foreground); padding: 8px 14px; font-size: 0.9rem; }
+  .container { max-width: 1080px; margin: 0 auto; padding: 24px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) + 8px); overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { background: var(--muted); color: var(--muted-foreground); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; background: var(--muted); color: var(--muted-foreground); }
+  .login-logo { display: block; height: 72px; width: auto; margin: 0 auto 18px; }
+  .theme-toggle {
+    width: auto;
+    padding: 8px 12px;
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+  .floating-toggle { position: fixed; top: 16px; right: 16px; z-index: 10; }
+</style>

@@ -25,7 +25,7 @@ import {
 export class SavingsLiquidationService {
   constructor(
     @Inject(DRIZZLE_PROVIDER) private db: NodePgDatabase<typeof schema>,
-  ) { }
+  ) {}
 
   async calculateAssociateLiquidation(
     identificationNumber: string,
@@ -67,14 +67,14 @@ export class SavingsLiquidationService {
         associateAccounts,
         and(
           eq(associates.id, associateAccounts.associateId),
-          eq(associateAccounts.currencyCode, 'VES')
+          eq(associateAccounts.currencyCode, 'VES'),
         ),
       )
       .where(
-        and(eq(associates.cedula, cedula), inArray(associates.status, [
-          'ACTIVE',
-          'PENDING',
-        ])),
+        and(
+          eq(associates.cedula, cedula),
+          inArray(associates.status, ['ACTIVE', 'PENDING']),
+        ),
       )
       .limit(1);
 
@@ -91,7 +91,7 @@ export class SavingsLiquidationService {
         surpluses: associateHaberesBalance.haberesSurplusContribution,
         total_withdrawals: associateHaberesBalance.totalWithdrawals,
         total_withdrawal_fees: associateHaberesBalance.totalWithdrawalFees,
-        total_overpayment: associateHaberesBalance.totalOverpayment
+        total_overpayment: associateHaberesBalance.totalOverpayment,
       })
       .from(associateHaberesBalance)
       .where(
@@ -153,7 +153,6 @@ export class SavingsLiquidationService {
       ? Number(haberesRow.total_overpayment)
       : 0;
 
-
     const net =
       totalSavings - total_outstanding_loans - total_outstanding_credits;
 
@@ -170,9 +169,7 @@ export class SavingsLiquidationService {
       total_outstanding_loans,
       total_outstanding_credits,
       net_liquidation_amount: net,
-      total_overpayment: totalOverpayment
-
+      total_overpayment: totalOverpayment,
     };
-
   }
 }

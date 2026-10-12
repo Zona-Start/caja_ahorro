@@ -23,7 +23,11 @@ export class SalesInvoicesController {
   ) {}
 
   @Post()
-  @Permissions({ resource: 'sales:invoices', action: 'create', scope: 'tenant' })
+  @Permissions({
+    resource: 'sales:invoices',
+    action: 'create',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Register a sale (cash or credit)' })
   async create(@Req() req: any, @Body() dto: CreateSaleDto) {
     const { targetTenantId, userId } =
@@ -58,11 +62,19 @@ export class SalesInvoicesController {
   async generateDeliveryNote(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req);
-    return this.invoicesService.generateDeliveryNote(id, targetTenantId, userId);
+    return this.invoicesService.generateDeliveryNote(
+      id,
+      targetTenantId,
+      userId,
+    );
   }
 
   @Patch(':id/cancel')
-  @Permissions({ resource: 'sales:invoices', action: 'delete', scope: 'tenant' })
+  @Permissions({
+    resource: 'sales:invoices',
+    action: 'delete',
+    scope: 'tenant',
+  })
   @ApiOperation({ summary: 'Cancel a sales invoice' })
   async cancel(@Req() req: any, @Param('id') id: string) {
     const { targetTenantId, userId } =

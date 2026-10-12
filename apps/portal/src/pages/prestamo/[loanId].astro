@@ -1,0 +1,89 @@
+---
+import Base from '../../layouts/Base.astro';
+import Topbar from '../../components/Topbar.astro';
+import { fetchAuthed } from '../../lib/auth';
+import { clearSession } from '../../lib/session';
+import { dateFmt, money, percent, text } from '../../lib/format';
+
+export const prerender = false;
+
+const { loanId } = Astro.params;
+
+interface ScheduleRow {
+  installmentNumber: number;
+  dueDate: string;
+  principalAmount: string;
+  interestAmount: string;
+  totalInstallmentAmount: string;
+  principalBalancePending: string;
+  paymentStatus: string;
+  paidAmount: string | null;
+}
+interface LoanDetail {
+  loan: Record<string, unknown>;
+  amortizationSchedule: ScheduleRow[];
+  summary: {
+    totalPaid: number;
+    totalPending: number;
+    paidInstallments: number;
+    pendingInstallments: number;
+  };
+}
+
+const res = await fetchAuthed(Astro.cookies, `/me/prestamo/${loanId}`);
+if (res.status === 401) {
+  clearSession(Astro.cookies);
+  return Astro.redirect('/login');
+}
+const detail = res.data ? ((res.data as { data: LoanDetail }).data ?? null) : null;
+---
+<Base title="Detalle de préstamo · Portal del Asociado">
+  <Topbar />
+  <main class="container">
+    <a class="btn-link" href="/dashboard?tab=prestamos">← Volver</a>
+
+    {!detail ? (
+      <div class="card" style="margin-top:16px"><p class="muted">Préstamo no encontrado.</p></div>
+    ) : (
+      <>
+        <h1 style="margin-top:16px">{text(detail.loan.loanTypeName)}</h1>
+        <p class="muted">Préstamo {text(detail.loan.customReference)} · Estado {text(detail.loan.status)}</p>
+
+        <section class="grid cols-3" style="margin:18px 0">
+          <div class="stat"><div class="label">Monto solicitado</div><div class="value">{money(detail.loan.requestedAmount)}</div></div>
+          <div class="stat"><div class="label">Saldo pendiente</div><div class="value">{money(detail.summary.totalPending)}</div></div>
+          <div class="stat"><div class="label">Total pagado</div><div class="value">{money(detail.summary.totalPaid)}</div></div>
+        </section>
+
+        <section class="grid cols-3" style="margin-bottom:18px">
+          <div class="stat"><div class="label">Cuota</div><div class="value" style="font-size:1.1rem">{money(detail.loan.installmentAmount)}</div></div>
+          <div class="stat"><div class="label">Tasa</div><div class="value" style="font-size:1.1rem">{text(detail.loan.interestRate)}%</div></div>
+          <div class="stat"><div class="label">Plazo</div><div class="value" style="font-size:1.1rem">{text(detail.loan.termUnits)} {text(detail.loan.termType)}</div></div>
+          <div class="stat"><div class="label">Desembolso</div><div class="value" style="font-size:1.1rem">{dateFmt(detail.loan.disbursementDate)}</div></div>
+          <div class="stat"><div class="label">Cuotas pagadas</div><div class="value" style="font-size:1.1rem">{detail.summary.paidInstallments}</div></div>
+          <div class="stat"><div class="label">Cuotas pendientes</div><div class="value" style="font-size:1.1rem">{detail.summary.pendingInstallments}</div></div>
+        </section>
+
+        <h2>Plan de amortización</h2>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Vence</th><th>Capital</th><th>Interés</th><th>Cuota</th><th>Pagado</th><th>Estado</th></tr>
+          </thead>
+          <tbody>
+            {detail.amortizationSchedule.map((s) => (
+              <tr>
+                <td>{s.installmentNumber}</td>
+                <td>{dateFmt(s.dueDate)}</td>
+                <td>{money(s.principalAmount)}</td>
+                <td>{money(s.interestAmount)}</td>
+                <td>{money(s.totalInstallmentAmount)}</td>
+                <td>{money(s.paidAmount)}</td>
+                <td><span class="badge">{s.paymentStatus}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
+    )}
+  </main>
+</Base>

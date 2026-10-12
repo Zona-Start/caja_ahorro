@@ -8,11 +8,7 @@ import {
   salesDeliveryNotes,
   salesInvoiceItems,
 } from '@/database/schema/tables';
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import {
@@ -28,7 +24,8 @@ interface DeliveryNoteItemInput {
 @Injectable()
 export class DeliveryNotesService {
   constructor(
-    @Inject(DRIZZLE_PROVIDER) private readonly db: NodePgDatabase<typeof schema>,
+    @Inject(DRIZZLE_PROVIDER)
+    private readonly db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
   ) {}
 
@@ -77,7 +74,11 @@ export class DeliveryNotesService {
       // The FK lives on sales_invoices.delivery_note_id.
       await this.db
         .update(schema.salesInvoices)
-        .set({ deliveryNoteId: note.id, updatedBy: userId, updatedAt: new Date() })
+        .set({
+          deliveryNoteId: note.id,
+          updatedBy: userId,
+          updatedAt: new Date(),
+        })
         .where(
           and(
             eq(schema.salesInvoices.id, invoiceId),
@@ -142,7 +143,9 @@ export class DeliveryNotesService {
     const { page = 1, limit = 10, search = '', customerId, status } = dto;
     const offset = (page - 1) * limit;
 
-    const conditions: SQL<unknown>[] = [eq(salesDeliveryNotes.tenantId, tenantId)];
+    const conditions: SQL<unknown>[] = [
+      eq(salesDeliveryNotes.tenantId, tenantId),
+    ];
 
     if (customerId) {
       conditions.push(eq(salesDeliveryNotes.customerId, customerId));

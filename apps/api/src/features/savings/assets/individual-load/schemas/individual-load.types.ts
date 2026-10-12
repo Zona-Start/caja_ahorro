@@ -7,8 +7,7 @@ import type {
 } from '@/types/enum';
 
 export type ContributionMovementType =
-  | 'contribution_patronal'
-  | 'contribution_voluntary';
+  'contribution_patronal' | 'contribution_voluntary';
 
 export interface AssociateMovementPayload {
   associateAccountId: string;

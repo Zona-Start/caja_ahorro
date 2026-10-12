@@ -1,6 +1,6 @@
+import { computePendingBalance } from '@/common/utils/pending-balance';
 import { DRIZZLE_PROVIDER } from '@/database/drizzle-provider';
 import * as schema from '@/database/schema';
-import { computePendingBalance } from '@/common/utils/pending-balance';
 import {
   associates,
   loanAmortizationSchedule,
@@ -129,15 +129,9 @@ export class LoanPaymentValidator {
       .select({ balancePending: loanPayments.balancePending })
       .from(loanPayments)
       .where(
-        and(
-          eq(loanPayments.loanId, loanId),
-          eq(loanPayments.status, 'DONE'),
-        ),
+        and(eq(loanPayments.loanId, loanId), eq(loanPayments.status, 'DONE')),
       )
-      .orderBy(
-        desc(loanPayments.paymentDate),
-        desc(loanPayments.createdAt),
-      )
+      .orderBy(desc(loanPayments.paymentDate), desc(loanPayments.createdAt))
       .limit(1);
 
     if (lastPayment?.balancePending != null) {
@@ -251,7 +245,9 @@ export class LoanPaymentValidator {
         paidInstallmentDetails: closingDetails,
         partialInstallment: undefined,
         // Exceso = lo que supera el CAPITAL pendiente (el interés se condona).
-        remainingAmount: parseFloat(Math.max(0, amount - pendingBase).toFixed(6)),
+        remainingAmount: parseFloat(
+          Math.max(0, amount - pendingBase).toFixed(6),
+        ),
       };
     }
 

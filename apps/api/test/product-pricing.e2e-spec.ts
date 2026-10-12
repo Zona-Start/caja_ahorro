@@ -126,8 +126,7 @@ describe('Product pricing refactor (e2e)', () => {
       profitPercent: Number(row.profit_percent),
       expensePercent: Number(row.expense_percent),
       salesTaxPercent: Number(row.sales_tax_percent),
-      salePrice:
-        row.sale_price != null ? Number(row.sale_price) : undefined,
+      salePrice: row.sale_price != null ? Number(row.sale_price) : undefined,
     });
 
     expect(breakdown.totalCost).toBeCloseTo(127.6, 6);

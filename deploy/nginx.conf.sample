@@ -1,0 +1,32 @@
+# Portal del Asociado · ejemplo de reverse proxy (Nginx)
+#
+# Expone el frontend Astro (SSR) y NO expone portal-api a Internet
+# (Astro lo consume del lado del servidor, red interna).
+#
+# Ajustar server_name / dominios del tenant.
+
+server {
+    listen 80;
+    server_name portal.zonastart.com;
+
+    # El frontend Astro (SSR).
+    location / {
+        proxy_pass http://127.0.0.1:4321;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # portal-api es INTERNO. Si necesitas exponerlo (p. ej. pruebas), descomenta:
+    # location /api/portal/ {
+    #     proxy_pass http://127.0.0.1:3001/api/portal/;
+    #     proxy_set_header Host $host;
+    #     proxy_set_header X-Real-IP $remote_addr;
+    #     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #     proxy_set_header X-Forwarded-Proto $scheme;
+    # }
+
+    client_max_body_size 5m;
+}

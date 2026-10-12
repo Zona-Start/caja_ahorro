@@ -1,0 +1,739 @@
+openapi: 3.1.0
+info:
+  title: Portal del Asociado API
+  version: 0.1.0
+  description: |
+    API de autoservicio para asociados de la caja de ahorro (realm de identidad propio).
+
+    **Notas de arquitectura**
+    - La identidad del asociado se **deriva siempre del token de sesión**; los endpoints de
+      miembro nunca aceptan `cedula`/`associateId` como parámetro.
+    - Patrón **BFF**: el frontend Astro mantiene la sesión en una cookie `httpOnly` y llama a
+      esta API del lado del servidor. El navegador no maneja tokens.
+    - OTP enviado por correo vía **Resend**.
+    - Todas las respuestas de miembro están acotadas por `tenant_id` + `associate_id` del token.
+  contact:
+    name: Zona Start · Caja de Ahorro
+servers:
+  - url: https://{tenantHost}/api/portal
+    description: Portal multi-tenant (resolución por host)
+    variables:
+      tenantHost:
+        default: localhost:3000
+        description: Host del tenant (subdominio o dominio personalizado)
+tags:
+  - name: Auth
+    description: Autenticación del asociado
+  - name: Seguridad
+    description: Contraseña y verificación por OTP
+  - name: Consulta
+    description: Consultas de solo lectura del asociado
+  - name: Perfil
+    description: Datos personales editables
+  - name: Catálogos
+    description: Catálogos de localidad
+security:
+  - portalSessionCookie: []
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión (usuario = cédula)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sesión iniciada (set-cookie `portal_session`)
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+              description: Cookie httpOnly `portal_session` (+ CSRF)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '423': { $ref: '#/components/responses/Locked' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Renovar sesión (rotación de refresh)
+      security:
+        - portalSessionCookie: []
+      responses:
+        '200':
+          description: Sesión renovada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cerrar la sesión actual
+      responses:
+        '204': { description: Sesión cerrada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Cerrar todas las sesiones del asociado
+      responses:
+        '204': { description: Sesiones cerradas }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/change-password:
+    post:
+      tags: [Seguridad]
+      summary: Cambiar contraseña (opcional)
+      description: Requiere la contraseña actual. Revoca las demás sesiones. La nueva contraseña no puede ser igual a la cédula.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string, format: password }
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 8
+      responses:
+        '204': { description: Contraseña actualizada }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/forgot-password:
+    post:
+      tags: [Seguridad]
+      summary: Solicitar recuperación de contraseña (OTP por email)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier]
+              properties:
+                identifier:
+                  type: string
+                  description: Cédula del asociado
+      responses:
+        '202':
+          description: |
+            Solicitud aceptada (respuesta genérica, no revela si la cuenta existe)
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/reset-password:
+    post:
+      tags: [Seguridad]
+      summary: Restablecer contraseña con OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, code, newPassword]
+              properties:
+                identifier: { type: string }
+                code: { type: string }
+                newPassword: { type: string, format: password, minLength: 8 }
+      responses:
+        '204': { description: Contraseña restablecida }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /auth/otp/request:
+    post:
+      tags: [Seguridad]
+      summary: Solicitar OTP de verificación (email o teléfono)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose, channel]
+              properties:
+                purpose:
+                  type: string
+                  enum: [EMAIL_VERIFY, PHONE_VERIFY, STEP_UP]
+                channel:
+                  type: string
+                  enum: [EMAIL, SMS]
+                  default: EMAIL
+      responses:
+        '202': { description: OTP enviado (por Resend si el canal es EMAIL) }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/otp/verify:
+    post:
+      tags: [Seguridad]
+      summary: Verificar OTP (y aplicar el cambio asociado si procede)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose, code]
+              properties:
+                purpose:
+                  type: string
+                  enum: [EMAIL_VERIFY, PHONE_VERIFY, STEP_UP]
+                code: { type: string, minLength: 6, maxLength: 6 }
+      responses:
+        '200':
+          description: Código verificado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verified: { type: boolean }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /me/statement:
+    get:
+      tags: [Consulta]
+      summary: Estado de cuenta del asociado autenticado
+      responses:
+        '200':
+          description: Estado de cuenta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/Statement' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/haberes:
+    get:
+      tags: [Consulta]
+      summary: Haberes (aportes) del asociado
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lista paginada de haberes
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Haber' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/retiros:
+    get:
+      tags: [Consulta]
+      summary: Retiros del asociado
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lista paginada de retiros
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Withdrawal' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/prestamos:
+    get:
+      tags: [Consulta]
+      summary: Préstamos del asociado
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lista paginada de préstamos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Loan' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/creditos:
+    get:
+      tags: [Consulta]
+      summary: Créditos del asociado
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lista paginada de créditos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Credit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/historial:
+    get:
+      tags: [Consulta]
+      summary: Historial de movimientos
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lista paginada del historial
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Movement' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/movimientos:
+    get:
+      tags: [Consulta]
+      summary: Movimientos filtrados por tipo (cobros en exceso / reversiones)
+      parameters:
+        - name: movementType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - SAVING_WITHDRAWAL_REVERSAL_CREDIT
+              - LOAN_PAYMENT_REVERSAL_CREDIT
+              - CREDIT_PAYMENT_REVERSAL_CREDIT
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Lista paginada filtrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Paginated'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Movement' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/excesos:
+    get:
+      tags: [Consulta]
+      summary: Resumen (conteo por tipo) de cobros en exceso / reversiones
+      responses:
+        '200':
+          description: Conteo por tipo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/OverchargeSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /me/prestamo/{loanId}:
+    get:
+      tags: [Consulta]
+      summary: Detalle de un préstamo (valida pertenencia al asociado)
+      parameters:
+        - name: loanId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detalle del préstamo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/LoanDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/credito/{creditId}:
+    get:
+      tags: [Consulta]
+      summary: Detalle de un crédito (valida pertenencia al asociado)
+      parameters:
+        - name: creditId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detalle del crédito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/CreditDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /me/retiro/{withdrawalId}:
+    get:
+      tags: [Consulta]
+      summary: Detalle de un retiro (valida pertenencia al asociado)
+      parameters:
+        - name: withdrawalId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Detalle del retiro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  data: { $ref: '#/components/schemas/WithdrawalDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /me/profile:
+    get:
+      tags: [Perfil]
+      summary: Datos de perfil del asociado
+      responses:
+        '200':
+          description: Perfil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Profile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [Perfil]
+      summary: Actualizar datos personales (allowlist)
+      description: |
+        Solo se permiten `phone`, `email`, `localityId` y `address`.
+        Cambios de `email`/`phone` requieren OTP previo (`EMAIL_VERIFY`/`PHONE_VERIFY`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdate' }
+      responses:
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Profile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Campo no editable o falta verificación OTP
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /catalog/states:
+    get:
+      tags: [Catálogos]
+      summary: Estados
+      responses:
+        '200':
+          description: Lista de estados
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LocalityItem' }
+  /catalog/municipalities:
+    get:
+      tags: [Catálogos]
+      summary: Municipios por estado
+      parameters:
+        - name: stateId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Lista de municipios
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LocalityItem' }
+  /catalog/parishes:
+    get:
+      tags: [Catálogos]
+      summary: Parroquias por municipio
+      parameters:
+        - name: municipalityId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Lista de parroquias
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/LocalityItem' }
+  /catalog/localities/resolve:
+    get:
+      tags: [Catálogos]
+      summary: Resolver localityId a partir de estado + municipio + parroquia
+      parameters:
+        - { name: stateId, in: query, required: true, schema: { type: integer } }
+        - { name: municipalityId, in: query, required: true, schema: { type: integer } }
+        - { name: parishId, in: query, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Localidad resuelta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LocalityItem' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    portalSessionCookie:
+      type: apiKey
+      in: cookie
+      name: portal_session
+      description: Cookie `httpOnly` gestionada por el BFF (Astro). Valor = token de sesión del portal.
+    portalAccessToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Access token del portal (aud: zonastart-portal). Uso interno servicio-a-servicio (BFF -> portal-api).'
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+  responses:
+    BadRequest:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: No autenticado
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Locked:
+      description: Cuenta bloqueada temporalmente
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Recurso no encontrado (o no pertenece al asociado)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    TooManyRequests:
+      description: Demasiadas solicitudes
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        error: { type: string }
+    LoginRequest:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          description: Cédula del asociado (usuario)
+        password:
+          type: string
+          format: password
+    LoginResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        user:
+          type: object
+          properties:
+            fullname: { type: string }
+            cedula: { type: string }
+            tenant:
+              type: object
+              properties:
+                name: { type: string }
+                slug: { type: string, nullable: true }
+                logoUrl: { type: string, nullable: true }
+                primaryColor: { type: string, nullable: true }
+        mustChangePassword: { type: boolean }
+    Paginated:
+      type: object
+      properties:
+        data: { type: array, items: {} }
+        meta:
+          type: object
+          properties:
+            page: { type: integer }
+            limit: { type: integer }
+            totalCount: { type: integer }
+            totalPages: { type: integer }
+            hasNextPage: { type: boolean }
+            hasPreviousPage: { type: boolean }
+    Statement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        cedula: { type: string }
+        fullname: { type: string }
+        nationality: { type: string }
+        gender: { type: string, nullable: true }
+        admissionDate: { type: string, format: date }
+        graduationDate: { type: string, format: date, nullable: true }
+        status: { type: string }
+        isPayrollCredit: { type: boolean }
+        baseSalary: { type: string, nullable: true }
+        locality: { type: string, nullable: true }
+        accountNumber: { type: string, nullable: true }
+        bankName: { type: string, nullable: true }
+        totalHaberes: { type: string }
+        paymentCapacity: { type: string }
+        disponibility: { type: string }
+        haberesContribution: { type: string }
+        haberesVoluntary: { type: string }
+        haberesEmployer: { type: string }
+        surpluses: { type: string }
+    Haber:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        movementType: { type: string }
+        description: { type: string, nullable: true }
+        amount: { type: string }
+        balance: { type: string, nullable: true }
+    Withdrawal:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        type: { type: string, nullable: true }
+        amount: { type: string }
+        status: { type: string }
+    Loan:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        amount: { type: string }
+        pendingBalance: { type: string }
+        status: { type: string }
+    Credit:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        amount: { type: string }
+        pendingBalance: { type: string }
+        status: { type: string }
+    Movement:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        movementType: { type: string }
+        description: { type: string, nullable: true }
+        debit: { type: string }
+        credit: { type: string }
+        balance: { type: string, nullable: true }
+    OverchargeSummary:
+      type: object
+      properties:
+        SAVING_WITHDRAWAL_REVERSAL_CREDIT: { type: integer }
+        LOAN_PAYMENT_REVERSAL_CREDIT: { type: integer }
+        CREDIT_PAYMENT_REVERSAL_CREDIT: { type: integer }
+    LoanDetail:
+      type: object
+      description: Detalle de préstamo (estructura a confirmar en Fase 2 contra el ERP)
+      additionalProperties: true
+    CreditDetail:
+      type: object
+      description: Detalle de crédito (estructura a confirmar en Fase 2 contra el ERP)
+      additionalProperties: true
+    WithdrawalDetail:
+      type: object
+      description: Detalle de retiro (estructura a confirmar en Fase 2 contra el ERP)
+      additionalProperties: true
+    Profile:
+      type: object
+      properties:
+        cedula: { type: string }
+        fullname: { type: string }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        locality:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            state: { type: string }
+            municipality: { type: string }
+            parish: { type: string }
+        editableFields:
+          type: array
+          items: { type: string }
+    ProfileUpdate:
+      type: object
+      properties:
+        phone: { type: string }
+        email: { type: string, format: email }
+        localityId: { type: integer }
+        address: { type: string }
+      additionalProperties: false
+    LocalityItem:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }

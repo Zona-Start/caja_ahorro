@@ -9,8 +9,8 @@ import {
   salesInvoices,
 } from '@/database/schema/tables';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
-import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
 import type { CreateInventoryMovementDto } from '@/features/inventory/inventory-movements/dto/inventory-movements.schema';
+import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
 import { CurrencyCodeEnum } from '@/types/enum';
 import {
   BadRequestException,
@@ -23,10 +23,7 @@ import { and, desc, eq, ilike, sql, SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DeliveryNotesService } from '../delivery-notes/delivery-notes.service';
 import { CustomerPaymentsService } from '../payments/customer-payments.service';
-import {
-  CreateSaleDto,
-  FilterSaleDto,
-} from './dto/sales-invoices.schema';
+import { CreateSaleDto, FilterSaleDto } from './dto/sales-invoices.schema';
 
 const round2 = (value: number): number => Number(value.toFixed(2));
 
@@ -35,7 +32,8 @@ export class SalesInvoicesService {
   private readonly logger = new Logger(SalesInvoicesService.name);
 
   constructor(
-    @Inject(DRIZZLE_PROVIDER) private readonly db: NodePgDatabase<typeof schema>,
+    @Inject(DRIZZLE_PROVIDER)
+    private readonly db: NodePgDatabase<typeof schema>,
     private readonly generateCodeService: GenerateCodeService,
     private readonly inventoryMovementsService: InventoryMovementsService,
     private readonly customerPaymentsService: CustomerPaymentsService,
@@ -352,10 +350,7 @@ export class SalesInvoicesService {
       .from(salesInvoices)
       .leftJoin(customers, eq(salesInvoices.customerId, customers.id))
       .where(
-        and(
-          eq(salesInvoices.id, id),
-          eq(salesInvoices.tenantId, tenantId),
-        ),
+        and(eq(salesInvoices.id, id), eq(salesInvoices.tenantId, tenantId)),
       )
       .limit(1);
 
@@ -380,9 +375,7 @@ export class SalesInvoicesService {
 
     return {
       ...invoice,
-      balance: round2(
-        Number(invoice.totalAmount) - Number(invoice.paidAmount),
-      ),
+      balance: round2(Number(invoice.totalAmount) - Number(invoice.paidAmount)),
       items: items.map((item) => ({
         ...item,
         quantity: Number(item.quantity),
@@ -423,7 +416,11 @@ export class SalesInvoicesService {
     return { message: 'Factura anulada correctamente', data: updated };
   }
 
-  async generateDeliveryNote(invoiceId: string, tenantId: string, userId: string) {
+  async generateDeliveryNote(
+    invoiceId: string,
+    tenantId: string,
+    userId: string,
+  ) {
     const note = await this.deliveryNotesService.createFromInvoice(
       invoiceId,
       tenantId,

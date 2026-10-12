@@ -187,7 +187,13 @@ function writeExampleSheet(
   worksheet: ExcelJS.Worksheet,
   description: string,
   date: string,
-  lines: { cuenta: string; auxiliar?: string; descripcion: string; debitos: number; creditos: number }[],
+  lines: {
+    cuenta: string;
+    auxiliar?: string;
+    descripcion: string;
+    debitos: number;
+    creditos: number;
+  }[],
 ) {
   worksheet.columns = [
     { header: '', key: 'a', width: 18 },

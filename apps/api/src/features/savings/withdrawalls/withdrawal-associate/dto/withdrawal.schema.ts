@@ -22,6 +22,7 @@ export const CreateWithdrawalAssociateSchema = z.object({
   allowWithActiveLoanOrCredit: z.boolean().optional().default(false),
   allowWithPayrollCredit: z.boolean().optional().default(false),
   allowEarlyWithdrawal: z.boolean().optional().default(false),
+  allowExceedAvailableBalance: z.boolean().optional().default(false),
   tenantId: z.string().uuid().optional(),
 });
 

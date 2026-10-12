@@ -34,7 +34,7 @@ export class AccountingEntriesService {
     private readonly accountingCyclesService: AccountingCyclesService,
     private readonly auditHelper: AuditHelper,
     private readonly exchangeRateService: ExchangeRateService,
-  ) { }
+  ) {}
 
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
   async findAllPaginated(tenantId: string, dto: FilterAccountingEntryDto) {
@@ -312,32 +312,32 @@ export class AccountingEntriesService {
 
     const dtoDetailsEnriched = dto.details
       ? await this.enrichDetailsWithBimoney(
-        tenantId,
-        entryDate,
-        entryCurrency,
-        dto.exchangeRate,
-        dto.details,
-      )
+          tenantId,
+          entryDate,
+          entryCurrency,
+          dto.exchangeRate,
+          dto.details,
+        )
       : null;
 
     const detailsForValidation = (
       dtoDetailsEnriched
         ? dtoDetailsEnriched.map((d) => ({
-          accountPlanId: d.accountPlanId!,
-          debit: Number(d.debit || 0),
-          credit: Number(d.credit || 0),
-          debitForeign: Number(d.debitForeign || 0),
-          creditForeign: Number(d.creditForeign || 0),
-          description: d.description ?? existing.description,
-        }))
+            accountPlanId: d.accountPlanId!,
+            debit: Number(d.debit || 0),
+            credit: Number(d.credit || 0),
+            debitForeign: Number(d.debitForeign || 0),
+            creditForeign: Number(d.creditForeign || 0),
+            description: d.description ?? existing.description,
+          }))
         : existing.details.map((d) => ({
-          accountPlanId: d.accountPlanId,
-          debit: Number(d.debit),
-          credit: Number(d.credit),
-          debitForeign: Number((d as any).debitForeign || 0),
-          creditForeign: Number((d as any).creditForeign || 0),
-          description: d.description ?? existing.description,
-        }))
+            accountPlanId: d.accountPlanId,
+            debit: Number(d.debit),
+            credit: Number(d.credit),
+            debitForeign: Number((d as any).debitForeign || 0),
+            creditForeign: Number((d as any).creditForeign || 0),
+            description: d.description ?? existing.description,
+          }))
     ) as any;
 
     await this.validateAccountingEntry(
@@ -450,7 +450,6 @@ export class AccountingEntriesService {
     entryDate: Date,
     details: CreateAccountingEntryDetailDto[],
   ) {
-
     const cycle = await this.accountingCyclesService.findOne(
       tenantId,
       accountingCycleId,
@@ -1058,10 +1057,7 @@ export class AccountingEntriesService {
       `[createAutomaticEntry] totalDebit=${detailsDraft.reduce(
         (a, d) => a + Number(d.debit),
         0,
-      )} totalCredit=${detailsDraft.reduce(
-        (a, d) => a + Number(d.credit),
-        0,
-      )}`,
+      )} totalCredit=${detailsDraft.reduce((a, d) => a + Number(d.credit), 0)}`,
     );
     // ---- FIN DEBUG ----
 

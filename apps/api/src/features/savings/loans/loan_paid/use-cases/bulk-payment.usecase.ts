@@ -8,7 +8,7 @@ import {
   LoanStatusEnum,
 } from '@/types/enum';
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
-import { and, eq, inArray, desc } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as ExcelJS from 'exceljs';
 import { v4 as uuidv4 } from 'uuid';
@@ -25,7 +25,7 @@ export class BulkPaymentUseCase {
     private readonly validator: LoanPaymentValidator,
     private readonly processor: LoanPaymentProcessor,
     private readonly accounting: LoanPaymentAccounting,
-  ) { }
+  ) {}
 
   async execute(
     tenantId: string,
@@ -136,14 +136,13 @@ export class BulkPaymentUseCase {
 
           //Cargamos saldo a favor del asociado si existe un pago pero no existe prestamo activo
           if (!loan && item.amount > 0) {
-
             const [lastPaidLoan] = await tx
               .select({
                 id: loans.id,
                 associateId: loans.associateId,
                 currencyCode: loans.currencyCode,
                 customReference: loans.customReference,
-                loanTypesName: loanTypes.name
+                loanTypesName: loanTypes.name,
               })
               .from(loans)
               .leftJoin(loanTypes, eq(loanTypes.id, loans.loanTypeId))
@@ -152,10 +151,10 @@ export class BulkPaymentUseCase {
                   eq(loans.tenantId, tenantId),
                   eq(loans.associateId, associate.id),
                   eq(loans.status, LoanStatusEnum.PAID),
-
                 ),
-              ).orderBy(desc(loans.startDate)).limit(1)
-
+              )
+              .orderBy(desc(loans.startDate))
+              .limit(1);
 
             if (lastPaidLoan) {
               const acc = await this.processor.getAssociateAccount(
@@ -163,17 +162,18 @@ export class BulkPaymentUseCase {
                 tx,
               );
 
-
-
               await this.processor.createAssociateMovement(
                 userId,
                 {
                   associateAccountId: acc?.id,
-                  movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
+                  movementType:
+                    AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
                   amount: item.amount,
                   currencyCode: 'VES' as CurrencyCodeEnum,
                   transactionDate: finalPaymentDate,
-                  description: 'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' + lastPaidLoan.customReference,
+                  description:
+                    'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' +
+                    lastPaidLoan.customReference,
                   referenceId: lastPaidLoan.id,
                   referenceType: 'loans',
                 },
@@ -181,10 +181,15 @@ export class BulkPaymentUseCase {
                 tx,
               );
 
-              let group = accountingGroups.get(lastPaidLoan.loanTypesName ?? 'PRESTAMOS PERSONALES (CP)');
+              let group = accountingGroups.get(
+                lastPaidLoan.loanTypesName ?? 'PRESTAMOS PERSONALES (CP)',
+              );
               if (!group) {
                 group = { items: [], totalAmount: 0, count: 0 };
-                accountingGroups.set(lastPaidLoan.loanTypesName ?? 'PRESTAMOS PERSONALES (CP)', group);
+                accountingGroups.set(
+                  lastPaidLoan.loanTypesName ?? 'PRESTAMOS PERSONALES (CP)',
+                  group,
+                );
               }
 
               group.items.push({
@@ -203,13 +208,15 @@ export class BulkPaymentUseCase {
               group.count++;
               results.success.push({
                 cedula: item.cedula,
-                error: 'Asocido sin prestamo, Saldo cargado a favor como exceso',
+                error:
+                  'Asocido sin prestamo, Saldo cargado a favor como exceso',
               });
               results.totalProcessed++;
             } else {
               results.errors.push({
                 cedula: item.cedula,
-                error: 'Verificar Asociado no tiene ningun prestamo registrado del cual tenga alguna cuota en exceso,',
+                error:
+                  'Verificar Asociado no tiene ningun prestamo registrado del cual tenga alguna cuota en exceso,',
               });
               continue;
             }
@@ -343,7 +350,6 @@ export class BulkPaymentUseCase {
               (roundedPayment - effectiveInterest).toFixed(2),
             );
 
-
             if (acc?.id) {
               if (effectivePrincipal > 0) {
                 await this.processor.createAssociateMovement(
@@ -404,8 +410,6 @@ export class BulkPaymentUseCase {
               }
             }
 
-
-
             let group = accountingGroups.get(loanTypeName);
             if (!group) {
               group = { items: [], totalAmount: 0, count: 0 };
@@ -455,8 +459,6 @@ export class BulkPaymentUseCase {
               },
             });
           }
-
-
         } catch (err) {
           results.errors.push({
             cedula: item.cedula,

@@ -6,9 +6,7 @@ export const CreateCustomerPaymentSchema = z.object({
   customerId: z.string().uuid('El cliente es requerido'),
   invoiceId: z.string().uuid('La factura es requerida'),
   amount: z.coerce.number().positive('El monto debe ser mayor a cero'),
-  paymentMethod: z
-    .enum(['CASH', 'CARD', 'TRANSFER', 'OTHER'])
-    .default('CASH'),
+  paymentMethod: z.enum(['CASH', 'CARD', 'TRANSFER', 'OTHER']).default('CASH'),
   cashRegisterSessionId: z.string().uuid().optional(),
   referenceNumber: z.string().max(100).optional(),
   paymentDate: z.string().optional(),
@@ -35,9 +33,7 @@ export const FilterReceivableSchema = z.object({
   search: z.string().optional(),
   customerId: z.string().uuid().optional(),
 });
-export class FilterReceivableDto extends createZodDto(
-  FilterReceivableSchema,
-) {}
+export class FilterReceivableDto extends createZodDto(FilterReceivableSchema) {}
 
 /** Internal (non-validated) payment input used for cash sales. */
 export interface CreateCustomerPaymentInput {

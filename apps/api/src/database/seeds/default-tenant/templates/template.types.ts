@@ -2,12 +2,7 @@ export interface AccountEntry {
   code: string;
   name: string;
   accountType:
-    | 'ASSET'
-    | 'LIABILITY'
-    | 'EQUITY'
-    | 'REVENUE'
-    | 'EXPENSE'
-    | 'MEMORANDUM';
+    'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE' | 'MEMORANDUM';
   nature: 'DEBIT' | 'CREDIT';
   level: number;
   allowsMovements: boolean;
