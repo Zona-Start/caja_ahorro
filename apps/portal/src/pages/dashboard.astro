@@ -224,6 +224,12 @@ const to = Math.min(meta.page * meta.limit, meta.totalCount);
       </div>
     </section>
 
+    {statement.isPayrollCredit && (
+      <div class="alert-blocked" role="alert">
+        Asociado Bloqueado por Credinomina Activo
+      </div>
+    )}
+
     <nav class="tabs">
       {tabs.map((t) => (
         <a href={link(t.value)} class:list={['tab', { active: t.value === active }]}>{t.label}</a>
@@ -377,6 +383,17 @@ const to = Math.min(meta.page * meta.limit, meta.totalCount);
   .icon-btn.disabled { opacity: 0.4; pointer-events: none; }
   .btn-link { padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--foreground); font-weight: 600; display: inline-block; }
   .btn-link.disabled { opacity: 0.5; pointer-events: none; }
+  .alert-blocked {
+    display: block;
+    background: #dc2626;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: center;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin: 0 0 20px;
+    letter-spacing: 0.2px;
+  }
 </style>
 
 <script>

@@ -21,6 +21,10 @@ coverage
 # Vercel
 .vercel
 
+# Cloudflare / Wrangler
+.dev.vars
+.wrangler
+
 # Build Outputs
 .next/
 out/

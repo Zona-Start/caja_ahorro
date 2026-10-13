@@ -1,6 +1,7 @@
 import type { PortalMemberContext } from '@/common/decorators/current-member.decorator';
+import { canAssociateAccessPortal } from '@/common/constants/associate-access';
 import { DRIZZLE_PROVIDER, DrizzleDatabase } from '@/database/drizzle-provider';
-import { portalAccounts } from '@/database/schema';
+import { associates, portalAccounts } from '@/database/schema';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { and, eq, isNull } from 'drizzle-orm';
@@ -56,6 +57,17 @@ export class PortalJwtStrategy extends PassportStrategy(
       account.status === 'LOCKED'
     ) {
       throw new UnauthorizedException('Cuenta no válida o inactiva');
+    }
+
+    // Solo asociados con estatus ACTIVE o PENDING pueden acceder al portal.
+    const associate = await this.db.query.associates.findFirst({
+      where: eq(associates.id, account.associateId),
+      columns: { status: true },
+    });
+    if (!canAssociateAccessPortal(associate?.status)) {
+      throw new UnauthorizedException(
+        'Tu estatus de asociado no permite el acceso al Portal',
+      );
     }
 
     return {

@@ -1,12 +1,17 @@
 // @ts-check
 import { defineConfig, envField } from 'astro/config';
-import node from '@astrojs/node';
+import cloudflare from '@astrojs/cloudflare';
 import react from '@astrojs/react';
 
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
-  adapter: node({ mode: 'standalone' }),
+  // `imageService: 'passthrough'`: el portal no usa la optimización de imágenes de
+  // Astro, así no se provisiona el binding "IMAGES" de Cloudflare.
+  adapter: cloudflare({ imageService: 'passthrough' }),
+  // El portal no usa Astro Sessions (la sesión va por cookies propias p_at/p_rt):
+  // se desactiva para no provisionar un namespace KV innecesario en Cloudflare.
+  session: false,
   integrations: [react()],
   server: { port: 4321, host: true },
   env: {

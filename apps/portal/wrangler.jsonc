@@ -1,0 +1,20 @@
+{
+  // Nombre del Worker (así aparece en el dashboard de Cloudflare).
+  // Astro completa automáticamente `main`, `assets` y `compatibility_date`.
+  "name": "portal-asociados",
+
+  // Permite usar APIs de Node (buffer, crypto, etc.) que asumen algunas dependencias.
+  // El portal no usa APIs de Node directamente, pero varias libs lo asumen.
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Smart Placement: el Worker se ejecuta CERCA de portal-api (Railway) en vez de
+  // en el borde del usuario. Clave porque el BFF hace varias llamadas al backend
+  // por página: así la latencia portal -> portal-api es mínima.
+  "placement": { "mode": "smart" }
+
+  // ⚠️ Las variables NO se ponen aquí para no commitear valores de entorno.
+  //   • Local (workerd):      apps/portal/.dev.vars
+  //   • Producción (secrets): wrangler secret put PORTAL_API_URL
+  //                           wrangler secret put MAINTENANCE_MODE
+  //     o en el dashboard: Workers → portal-asociados → Settings → Variables
+}

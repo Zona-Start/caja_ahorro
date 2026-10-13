@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcryptjs';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { PORTAL_ALLOWED_ASSOCIATE_STATUSES } from '../../common/constants/associate-access';
 import * as schema from '../../database/schema';
 
 export interface ProvisionOptions {
@@ -32,6 +33,10 @@ export async function provisionAssociates(
   const saltRounds = options.saltRounds ?? 10;
 
   const conditions = [isNull(schema.portalAccounts.id)];
+  // Solo se aprovisionan asociados con acceso permitido (ACTIVE/PENDING).
+  conditions.push(
+    inArray(schema.associates.status, [...PORTAL_ALLOWED_ASSOCIATE_STATUSES]),
+  );
   if (options.tenantId) {
     conditions.push(eq(schema.associates.tenantId, options.tenantId));
   }

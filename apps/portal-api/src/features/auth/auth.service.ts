@@ -1,4 +1,5 @@
 import { Env as AppEnv } from '@/common/config/envs';
+import { canAssociateAccessPortal } from '@/common/constants/associate-access';
 import { PortalMemberContext } from '@/common/decorators/current-member.decorator';
 import { SecurityService } from '@/common/security/security.service';
 import { DRIZZLE_PROVIDER, DrizzleDatabase } from '@/database/drizzle-provider';
@@ -162,6 +163,27 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    // Solo asociados con estatus ACTIVE o PENDING pueden acceder al portal.
+    const loginAssociate = await this.db.query.associates.findFirst({
+      where: eq(associates.id, account.associateId),
+      columns: { status: true },
+    });
+    if (!canAssociateAccessPortal(loginAssociate?.status)) {
+      await this.logAccess(
+        account.id,
+        account.tenantId,
+        'LOGIN_FAILED',
+        context,
+        {
+          reason: 'associate_status',
+          status: loginAssociate?.status ?? null,
+        },
+      );
+      throw new UnauthorizedException(
+        'Tu estatus de asociado no permite el acceso al Portal',
+      );
+    }
+
     await this.db
       .update(portalAccounts)
       .set({ failedAttempts: 0, lockedUntil: null, lastLoginAt: new Date() })
@@ -230,6 +252,17 @@ export class AuthService {
       account.status === 'LOCKED'
     ) {
       throw new UnauthorizedException('Cuenta no válida o inactiva');
+    }
+
+    // Solo asociados con estatus ACTIVE o PENDING pueden refrescar la sesión.
+    const refreshAssociate = await this.db.query.associates.findFirst({
+      where: eq(associates.id, account.associateId),
+      columns: { status: true },
+    });
+    if (!canAssociateAccessPortal(refreshAssociate?.status)) {
+      throw new UnauthorizedException(
+        'Tu estatus de asociado no permite el acceso al Portal',
+      );
     }
 
     await this.db

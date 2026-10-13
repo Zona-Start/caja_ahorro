@@ -55,6 +55,10 @@ MAINTENANCE_MODE=false
 # PORTAL_DEFAULT_TENANT_HOST=caja.caprebdt.local
 ```
 
+> Con **Cloudflare Workers** (§2.c), estas variables se definen en `apps/portal/.dev.vars`
+> (local) y como **secrets** del Worker (producción). Este `.env` es para el modo
+> **self-hosted** (Node/PM2) descrito en §5.
+
 ## 2.b Arquitectura de despliegue (front y back en servidores distintos)
 
 El portal usa patrón **BFF**: el **servidor del frontend (Astro)** es el único que habla con
@@ -79,6 +83,59 @@ Implicaciones al estar en **servidores separados**:
 
 > Alternativa (no recomendada): que el navegador consuma `portal-api` directamente. Requeriría
 > CORS, exponer el backend y mover los tokens al navegador (menos seguro).
+
+## 2.c Frontend en Cloudflare Workers (recomendado)
+
+El frontend (`apps/portal`) se despliega como **Cloudflare Worker** (SSR). Ya viene
+configurado con el adaptador `@astrojs/cloudflare` + **Smart Placement**.
+
+**Por qué Workers para este portal:**
+
+- **Costo:** plan Free (100k req/día, uso comercial permitido) o Paid **$5/mes**.
+  Vercel exigiría plan Pro ($20/mes) por ser uso comercial.
+- **Sin cold starts** (aislados V8) → login/dashboard siempre ágiles.
+- **DDoS + WAF incluidos**; activos estáticos **gratis e ilimitados**.
+- El portal **no usa APIs de Node** (solo `fetch`+Astro+React) → 100% compatible.
+
+**Smart Placement (crítico):** el BFF (Astro) hace **varias llamadas a `portal-api` por
+página**. Con `placement.mode = "smart"` el Worker se ejecuta **cerca de Railway** (no en
+el borde del usuario), minimizando la latencia portal → backend. Sin esto, la latencia
+BFF→backend se dispara.
+
+**Requisitos:** Node ≥ 22.12 en la máquina/CI de build y una cuenta Cloudflare con Workers.
+
+**Archivos:**
+
+| Archivo | Rol |
+|---|---|
+| `apps/portal/wrangler.jsonc` | Nombre del Worker, `compatibility_flags: ["nodejs_compat"]`, `placement: { mode: "smart" }`. Astro completa `main`, `assets` y `compatibility_date` en el build. |
+| `apps/portal/.dev.vars` | Variables para **local** (runtime `workerd`). Ignorado por git. |
+| `apps/portal/astro.config.mjs` | `adapter: cloudflare({ imageService: 'passthrough' })`, `session: false`. |
+
+**Variables de entorno:**
+
+- **Local:** `apps/portal/.dev.vars` (`PORTAL_API_URL`, `PORTAL_DEFAULT_TENANT_HOST`, `MAINTENANCE_MODE`).
+- **Producción:** **secrets** del Worker (no van al repo):
+  ```bash
+  cd apps/portal
+  wrangler secret put PORTAL_API_URL     # https://<tu-servicio>.up.railway.app/api/portal
+  wrangler secret put MAINTENANCE_MODE    # false | true
+  ```
+
+**Desplegar:**
+
+```bash
+cd apps/portal
+wrangler login                 # primera vez
+pnpm --filter portal deploy    # astro build && wrangler deploy
+```
+
+- **Multi-tenant / dominios:** agrega cada dominio (o `*.PLATFORM_DOMAIN`) como
+  **Custom Domain** o **Route** del Worker. El tenant se resuelve por el **Host**
+  (igual que en local, ver §4.b).
+- **Modo mantenimiento:** `wrangler secret put MAINTENANCE_MODE` con `true` y redeploy.
+
+> Verificación local del build de Workers: `pnpm --filter portal preview` (corre en `workerd`).
 
 ## 3. Orden de build
 
@@ -142,6 +199,10 @@ Secuencia: **`portal-api` primero** (servidor BACK), luego `portal` (servidor FR
 > Pueden estar en el **mismo host** o en **dos servidores distintos**. Si son distintos, ajusta
 > `PORTAL_API_URL` del front a la URL/IP del back (ver §2.b) y asegura conectividad de red entre ellos.
 
+> Si el front va en **Cloudflare Workers** (§2.c), **solo `portal-api` corre como proceso**;
+> el `portal` se publica con `wrangler deploy` (no con `pnpm start` ni PM2). El resto de §5
+> (Node/PM2) aplica únicamente al modo **self-hosted**.
+
 ```bash
 # Opción A · PM2 (ver deploy/ecosystem.config.cjs)
 pm2 start deploy/ecosystem.config.cjs
@@ -174,6 +235,8 @@ Ver `deploy/nginx.conf.sample` para el reverse proxy.
 - [ ] Migraciones corridas con usuario admin; `portal_app` **sin** DDL.
 - [ ] Aprovisionamiento ejecutado tras la carga mensual.
 - [ ] Backups de la BD; monitoreo de `portal-api` (`/api/portal/health`) y de `portal`.
+- [ ] Front en Cloudflare: `wrangler secret put PORTAL_API_URL` con la URL de Railway; **Smart Placement** activo (§2.c).
+- [ ] Dominios del portal agregados como **Custom Domain** del Worker.
 - [ ] Rotación de secretos (`PORTAL_JWT_*`, `RESEND_API_KEY`).
 - [ ] (Escala) evaluar **réplica de lectura** para el portal si los cierres del ERP cargan el primario.
 
