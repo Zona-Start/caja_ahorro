@@ -12,10 +12,28 @@ const PROTECTED_PREFIXES = [
   '/retiro',
 ];
 
+/**
+ * Aplica cabeceras "sin caché" a TODO lo que no sea asset estático (`/_astro/`).
+ * Evita que el navegador / View Transitions sirvan páginas de otro usuario o
+ * de otra pestaña (fuga de datos entre sesiones y tabs).
+ */
+function noStore(response: Response, pathname: string): Response {
+  if (!pathname.startsWith('/_astro/')) {
+    response.headers.set(
+      'Cache-Control',
+      'no-store, no-cache, must-revalidate, max-age=0',
+    );
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    response.headers.set('Vary', 'Cookie');
+  }
+  return response;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
-  // 1) Resolver la marca del tenant por host (para theming global).
+  // 1) Resolver la marca del tenant por host (theming global).
   let host =
     context.request.headers.get('x-forwarded-host') ??
     context.request.headers.get('host') ??
@@ -27,10 +45,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // 2) Modo mantenimiento.
   if (MAINTENANCE_MODE) {
-    if (pathname !== '/maintenance') return context.redirect('/maintenance');
-    return next();
+    if (pathname !== '/maintenance') {
+      return noStore(context.redirect('/maintenance'), pathname);
+    }
+    return noStore(await next(), pathname);
   }
-  if (pathname === '/maintenance') return context.redirect('/');
+  if (pathname === '/maintenance') {
+    return noStore(context.redirect('/'), pathname);
+  }
 
   // 3) Rutas privadas.
   const isProtected = PROTECTED_PREFIXES.some(
@@ -38,8 +60,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   );
   if (isProtected) {
     const { access, refresh } = getSession(context.cookies);
-    if (!access && !refresh) return context.redirect('/login');
+    if (!access && !refresh) {
+      return noStore(context.redirect('/login'), pathname);
+    }
   }
 
-  return next();
+  return noStore(await next(), pathname);
 });

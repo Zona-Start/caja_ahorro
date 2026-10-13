@@ -1,0 +1,50 @@
+---
+interface Props {
+  /** Nombre del tab/sesión sin datos (p. ej. "retiros"). */
+  label: string;
+  hint?: string;
+}
+const { label, hint } = Astro.props;
+---
+<div class="empty-card">
+  <div class="empty-icon" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+      <path d="M3 10h18" />
+      <path d="M8 15h8" />
+    </svg>
+  </div>
+  <p class="empty-title">No hay {label} que mostrar</p>
+  <p class="empty-hint">{hint ?? 'Cuando existan registros aparecerán aquí.'}</p>
+</div>
+
+<style>
+  .empty-card {
+    background: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 8px);
+    padding: 44px 24px;
+    text-align: center;
+  }
+  .empty-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: color-mix(in oklch, var(--primary) 15%, transparent);
+    color: var(--primary);
+  }
+  .empty-icon svg { width: 28px; height: 28px; }
+  .empty-title { font-weight: 700; margin: 0; font-size: 1.05rem; }
+  .empty-hint { color: var(--muted-foreground); font-size: 0.9rem; margin: 6px 0 0; }
+</style>

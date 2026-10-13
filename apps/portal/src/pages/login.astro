@@ -10,42 +10,116 @@ const hasError = Astro.url.searchParams.get('error') === '1';
 const tenant = Astro.locals.tenant;
 const name = tenant?.name ?? 'Portal del Asociado';
 ---
+
 <Base title={`Ingresar · ${name}`}>
   <div class="floating-toggle"><ThemeToggle client:load /></div>
   <div class="center">
-    <div class="card">
-      {tenant?.logoUrl && <img src={tenant.logoUrl} alt={name} class="login-logo" />}
-      <h1>{name}</h1>
-      <p class="muted">Ingresa con tu cédula para consultar tu estado de cuenta.</p>
+    <div class="login-wrap">
+      <div class="card">
+        {
+          tenant?.logoUrl && (
+            <img src={tenant.logoUrl} alt={name} class="login-logo" />
+          )
+        }
+        <p class="muted" style="text-align:center">
+          Ingrese sus datos para acceder al sistema.
+        </p>
 
-      {hasError && (
-        <div class="alert">Credenciales inválidas. Verifica tu cédula e intenta de nuevo.</div>
-      )}
+        {
+          hasError && (
+            <div class="alert">
+              Credenciales inválidas. Verifica tu usuario e intenta de nuevo.
+            </div>
+          )
+        }
 
-      <form method="POST" action="/api/login" autocomplete="on">
-        <label for="identifier">Cédula</label>
-        <input
-          id="identifier"
-          name="identifier"
-          type="text"
-          inputmode="numeric"
-          placeholder="Ej: 12345678"
-          autocomplete="username"
-          required
-        />
+        <form method="POST" action="/api/login" autocomplete="on">
+          <label for="identifier">Usuario</label>
+          <input
+            id="identifier"
+            name="identifier"
+            type="text"
+            placeholder="Ingrese su usuario"
+            autocomplete="username"
+            required
+          />
 
-        <label for="password">Contraseña</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          placeholder="Tu cédula"
-          autocomplete="current-password"
-          required
-        />
+          <label for="password">Contraseña</label>
+          <div class="input-group">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              class="toggle-pass js-toggle-pass"
+              aria-label="Mostrar contraseña"
+              title="Mostrar contraseña"
+            >
+              <svg
+                class="eye"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                ><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                ></path><circle cx="12" cy="12" r="3"></circle></svg
+              >
+              <svg
+                class="eye-off"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                ><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"
+                ></path><path d="m3 3 18 18"></path></svg
+              >
+            </button>
+          </div>
 
-        <button type="submit">Iniciar sesión</button>
-      </form>
+          <button type="submit">Iniciar sesión</button>
+        </form>
+      </div>
+
+      <p class="login-back">
+        <a href="https://caprebdt.com.ve">Volver al inicio</a>
+      </p>
     </div>
   </div>
 </Base>
+
+<script>
+  function initPasswordToggle() {
+    document.querySelectorAll('.js-toggle-pass').forEach((btn) => {
+      const el = btn as HTMLElement;
+      if (el.dataset.bound) return;
+      el.dataset.bound = '1';
+      el.addEventListener('click', () => {
+        const input = el.parentElement?.querySelector(
+          'input',
+        ) as HTMLInputElement | null;
+        if (!input) return;
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        el.classList.toggle('is-visible', show);
+        el.setAttribute(
+          'aria-label',
+          show ? 'Ocultar contraseña' : 'Mostrar contraseña',
+        );
+        el.setAttribute(
+          'title',
+          show ? 'Ocultar contraseña' : 'Mostrar contraseña',
+        );
+      });
+    });
+  }
+  document.addEventListener('astro:page-load', initPasswordToggle);
+</script>

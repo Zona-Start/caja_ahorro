@@ -46,10 +46,20 @@ export class ProfileService {
       .where(eq(schema.portalAssociateProfile.accountId, account.id))
       .limit(1);
 
-    const localityId = associate.localityId ?? profileRow?.localityId ?? null;
-    const locality = localityId
-      ? await this.resolveLocalityById(localityId)
-      : null;
+    // La localidad completa (estado/municipio/parroquia) vive en el perfil del
+    // portal. Si aún no se registró, se muestra solo el estado del ERP
+    // (`associates.locality_id` referencia `core.states`).
+    let locality: {
+      id: number;
+      state: string;
+      municipality: string | null;
+      parish: string | null;
+    } | null = null;
+    if (profileRow?.localityId) {
+      locality = await this.resolveLocalityById(profileRow.localityId);
+    } else if (associate.localityId) {
+      locality = await this.resolveStateById(associate.localityId);
+    }
 
     return {
       cedula: associate.cedula,
@@ -76,7 +86,7 @@ export class ProfileService {
     });
     if (!associate) throw new NotFoundException('Asociado no encontrado');
 
-    // Cambios de contacto requieren verificación OTP previa del nuevo valor.
+    // Cambios de correo requieren verificación OTP previa del nuevo valor.
     if (dto.email !== undefined && dto.email !== (associate.email ?? null)) {
       const ok = await this.otp.findVerifiedDestination(
         account.id,
@@ -90,26 +100,17 @@ export class ProfileService {
       }
     }
 
-    if (dto.phone !== undefined && dto.phone !== (associate.phone ?? null)) {
-      const ok = await this.otp.findVerifiedDestination(
-        account.id,
-        'PHONE_VERIFY',
-        dto.phone,
-      );
-      if (!ok) {
-        throw new ForbiddenException(
-          'Debes verificar el nuevo teléfono antes de cambiarlo',
-        );
-      }
-    }
-
+    // Si llega una localidad (estado+municipio+parroquia = core.localities),
+    // se deriva su ESTADO para `savings.associates.locality_id` (FK a core.states).
+    let localityStateId: number | undefined;
     if (dto.localityId !== undefined) {
       const [loc] = await this.db
-        .select({ id: schema.localities.id })
+        .select({ id: schema.localities.id, stateId: schema.localities.stateId })
         .from(schema.localities)
         .where(eq(schema.localities.id, dto.localityId))
         .limit(1);
       if (!loc) throw new BadRequestException('Localidad inválida');
+      localityStateId = loc.stateId;
     }
 
     // 1) Actualizar columnas allowlist en savings.associates.
@@ -120,7 +121,7 @@ export class ProfileService {
     } = {};
     if (dto.phone !== undefined) assocSet.phone = dto.phone;
     if (dto.email !== undefined) assocSet.email = dto.email;
-    if (dto.localityId !== undefined) assocSet.localityId = dto.localityId;
+    if (localityStateId !== undefined) assocSet.localityId = localityStateId;
 
     if (Object.keys(assocSet).length > 0) {
       await this.db
@@ -134,7 +135,7 @@ export class ProfileService {
         );
     }
 
-    // 2) Upsert del perfil del portal (dirección + espejo de localidad).
+    // 2) Upsert del perfil del portal (dirección + localidad completa).
     const profileSet: {
       address?: string | null;
       localityId?: number | null;
@@ -149,7 +150,7 @@ export class ProfileService {
         accountId: account.id,
         tenantId: account.tenantId,
         address: dto.address ?? null,
-        localityId: dto.localityId ?? associate.localityId ?? null,
+        localityId: dto.localityId ?? null,
         syncedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -189,6 +190,7 @@ export class ProfileService {
     return this.getProfile(member);
   }
 
+  /** Localidad completa (core.localities) → estado/municipio/parroquia. */
   private async resolveLocalityById(id: number) {
     const [row] = await this.db
       .select({
@@ -211,5 +213,18 @@ export class ProfileService {
       .limit(1);
 
     return row ?? null;
+  }
+
+  /** Solo el estado (associates.locality_id → core.states). */
+  private async resolveStateById(id: number) {
+    const [row] = await this.db
+      .select({ id: schema.states.id, name: schema.states.name })
+      .from(schema.states)
+      .where(eq(schema.states.id, id))
+      .limit(1);
+
+    return row
+      ? { id: row.id, state: row.name, municipality: null, parish: null }
+      : null;
   }
 }

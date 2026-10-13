@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import { brandCssVars } from '../lib/theme';
 
 interface Props {
@@ -24,13 +25,20 @@ const favicon = tenant?.faviconUrl ?? null;
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
     />
+    <ClientRouter />
     <script is:inline>
-      // Aplica el tema antes del primer pintado (evita parpadeo). Default: oscuro.
+      // Aplica el tema antes del primer pintado y lo REAPLICA tras cada
+      // navegación con View Transitions (evita perder el modo oscuro).
       (function () {
-        try {
-          var t = localStorage.getItem('portal-theme') || 'dark';
-          if (t === 'dark') document.documentElement.classList.add('dark');
-        } catch (e) {}
+        function apply() {
+          try {
+            var t = localStorage.getItem('portal-theme') || 'dark';
+            document.documentElement.classList.toggle('dark', t === 'dark');
+          } catch (e) {}
+        }
+        apply();
+        document.addEventListener('astro:after-swap', apply);
+        document.addEventListener('astro:page-load', apply);
       })();
     </script>
   </head>
@@ -83,6 +91,27 @@ const favicon = tenant?.faviconUrl ?? null;
     --ring: oklch(0.6818 0.1584 243.354);
   }
 
+  :root {
+    --tone-success-bg: rgba(34, 197, 94, 0.15);
+    --tone-success-fg: #15803d;
+    --tone-info-bg: color-mix(in oklch, var(--primary) 15%, transparent);
+    --tone-info-fg: var(--primary);
+    --tone-warning-bg: rgba(245, 158, 11, 0.18);
+    --tone-warning-fg: #b45309;
+    --tone-danger-bg: rgba(220, 38, 38, 0.15);
+    --tone-danger-fg: #b91c1c;
+  }
+  .dark {
+    --tone-success-bg: rgba(34, 197, 94, 0.2);
+    --tone-success-fg: #4ade80;
+    --tone-info-bg: color-mix(in oklch, var(--primary) 25%, transparent);
+    --tone-info-fg: #93c5fd;
+    --tone-warning-bg: rgba(245, 158, 11, 0.22);
+    --tone-warning-fg: #fbbf24;
+    --tone-danger-bg: rgba(220, 38, 38, 0.22);
+    --tone-danger-fg: #f87171;
+  }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
@@ -98,14 +127,14 @@ const favicon = tenant?.faviconUrl ?? null;
     display: grid;
     place-items: center;
     padding: 24px;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--background) 100%);
+    background: var(--background);
   }
   .card {
     background: var(--card);
     color: var(--card-foreground);
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) + 8px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 22px 55px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.08);
     padding: 28px;
     width: 100%;
     max-width: 420px;
@@ -162,7 +191,19 @@ const favicon = tenant?.faviconUrl ?? null;
   }
   .stat .label { color: var(--muted-foreground); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.03em; }
   .stat .value { font-size: 1.4rem; font-weight: 700; margin-top: 6px; }
+  .stat { position: relative; }
+  .stat .stat-icon { position: absolute; top: 16px; right: 16px; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; }
+  .stat .stat-icon svg { width: 20px; height: 20px; }
+  .stat--green { border-left: 4px solid #22c55e; }
+  .stat--green .stat-icon { background: color-mix(in oklch, #22c55e 18%, transparent); color: #22c55e; }
+  .stat--blue { border-left: 4px solid var(--primary); }
+  .stat--blue .stat-icon { background: color-mix(in oklch, var(--primary) 20%, transparent); color: var(--primary); }
+  .stat--amber { border-left: 4px solid #f59e0b; }
+  .stat--amber .stat-icon { background: color-mix(in oklch, #f59e0b 20%, transparent); color: #f59e0b; }
   .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     background: var(--primary);
     color: var(--primary-foreground);
     padding: 12px 24px;
@@ -179,9 +220,67 @@ const favicon = tenant?.faviconUrl ?? null;
   .container { max-width: 1080px; margin: 0 auto; padding: 24px; }
   table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) + 8px); overflow: hidden; }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { background: var(--muted); color: var(--muted-foreground); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }
+  th { background: var(--primary); color: var(--primary-foreground); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.02em; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; background: var(--muted); color: var(--muted-foreground); }
-  .login-logo { display: block; height: 72px; width: auto; margin: 0 auto 18px; }
+  .badge--success { background: var(--tone-success-bg); color: var(--tone-success-fg); }
+  .badge--info { background: var(--tone-info-bg); color: var(--tone-info-fg); }
+  .badge--warning { background: var(--tone-warning-bg); color: var(--tone-warning-fg); }
+  .badge--danger { background: var(--tone-danger-bg); color: var(--tone-danger-fg); }
+  .badge--muted { background: var(--muted); color: var(--muted-foreground); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: grid; place-items: center; padding: 20px; z-index: 60; }
+  .modal-panel { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: calc(var(--radius) + 10px); width: 100%; max-width: 920px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .modal-header h2 { margin: 0; font-size: 1.1rem; }
+  .modal-close { width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--muted-foreground); font-size: 1rem; }
+  .modal-close:hover { color: var(--foreground); }
+  .modal-body { padding: 20px; overflow-y: auto; }
+  .modal-section { margin-bottom: 22px; }
+  .modal-section:last-child { margin-bottom: 0; }
+  .modal-section h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-foreground); margin: 0 0 12px; }
+  .modal-dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 24px; }
+  .modal-dl .k { color: var(--muted-foreground); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .modal-dl .v { font-weight: 600; margin-top: 2px; }
+  .modal-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 720px) { .modal-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .schedule-scroll { max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: calc(var(--radius) + 8px); }
+  .schedule-scroll table { border: 0; border-radius: 0; }
+  .schedule-scroll thead th { position: sticky; top: 0; z-index: 1; }
+
+  .btn-sm { width: auto; padding: 9px 16px; font-size: 0.9rem; }
+  .btn-ghost { width: auto; padding: 9px 16px; font-size: 0.9rem; background: transparent; color: var(--foreground); border: 1px solid var(--border); }
+  .btn-ghost:hover { filter: none; background: color-mix(in oklch, var(--foreground) 8%, transparent); }
+
+  .profile-card { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: calc(var(--radius) + 10px); overflow: hidden; }
+  .profile-header { display: flex; align-items: center; gap: 16px; padding: 22px; flex-wrap: wrap; }
+  .profile-avatar { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in oklch, var(--primary) 20%, transparent); color: var(--primary); display: grid; place-items: center; font-weight: 700; font-size: 1.15rem; flex: none; }
+  .profile-headinfo { flex: 1; min-width: 0; }
+  .profile-name { font-size: 1.2rem; font-weight: 700; margin: 0; }
+  .profile-sub { color: var(--muted-foreground); font-size: 0.85rem; margin-top: 2px; }
+  .profile-section { padding: 6px 22px 20px; }
+  .profile-section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-foreground); margin: 8px 0 14px; }
+  .profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+  .pitem { display: flex; align-items: flex-start; gap: 12px; }
+  .pitem .picon { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); }
+  .pitem .picon svg { width: 18px; height: 18px; }
+  .pitem-label { color: var(--muted-foreground); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pitem-value { font-weight: 600; margin-top: 1px; word-break: break-word; }
+  .profile-body { padding: 22px; }
+  .profile-actions { display: flex; gap: 10px; justify-content: flex-end; padding: 6px 22px 22px; }
+  @media (max-width: 560px) { .profile-grid { grid-template-columns: 1fr; } }
+  .login-logo { display: block; height: 130px; width: auto; margin: 0 auto 18px; }
+  .login-wrap { width: 100%; max-width: 420px; }
+  .login-back { text-align: center; margin: 16px 0 0; }
+  .login-back a { display: inline; padding: 0; border: 0; background: transparent; color: var(--card-foreground); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  .login-back a:hover { filter: none; opacity: 0.85; }
+  .input-group { position: relative; margin-bottom: 16px; }
+  .input-group input { margin-bottom: 0; padding-right: 46px; }
+  .toggle-pass { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; padding: 0; background: transparent; color: var(--muted-foreground); border: 0; display: grid; place-items: center; }
+  .toggle-pass:hover { filter: none; background: transparent; color: var(--foreground); }
+  .toggle-pass svg { width: 18px; height: 18px; }
+  .toggle-pass .eye-off { display: none; }
+  .toggle-pass.is-visible .eye { display: none; }
+  .toggle-pass.is-visible .eye-off { display: block; }
   .theme-toggle {
     width: auto;
     padding: 8px 12px;

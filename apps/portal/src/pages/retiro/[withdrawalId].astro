@@ -4,6 +4,11 @@ import Topbar from '../../components/Topbar.astro';
 import { fetchAuthed } from '../../lib/auth';
 import { clearSession } from '../../lib/session';
 import { dateFmt, money, text } from '../../lib/format';
+import {
+  PAYMENT_METHOD_TYPES,
+  WITHDRAWAL_STATUS_TYPES,
+  label,
+} from '../../lib/labels';
 
 export const prerender = false;
 
@@ -39,7 +44,7 @@ const itemKeys = items.length > 0 ? Object.keys(items[0]!) : [];
         <h1 style="margin-top:16px">{text(detail.withdrawal.withdrawalTypeName)}</h1>
         <p class="muted">
           Retiro {text(detail.withdrawal.referenceCode)} ·
-          Estado <span class="badge">{text(detail.withdrawal.status)}</span>
+          Estado <span class="badge">{label(WITHDRAWAL_STATUS_TYPES, detail.withdrawal.status)}</span>
         </p>
 
         <section class="grid cols-3" style="margin:18px 0">
@@ -50,7 +55,7 @@ const itemKeys = items.length > 0 ? Object.keys(items[0]!) : [];
 
         <section class="grid cols-3" style="margin-bottom:18px">
           <div class="stat"><div class="label">Fecha</div><div class="value" style="font-size:1.1rem">{dateFmt(detail.withdrawal.withdrawalDate)}</div></div>
-          <div class="stat"><div class="label">Forma de pago</div><div class="value" style="font-size:1.1rem">{text(detail.withdrawal.paymentMethod)}</div></div>
+          <div class="stat"><div class="label">Forma de pago</div><div class="value" style="font-size:1.1rem">{label(PAYMENT_METHOD_TYPES, detail.withdrawal.paymentMethod)}</div></div>
           <div class="stat"><div class="label">Asociado</div><div class="value" style="font-size:1rem">{text(detail.withdrawal.associateName)}</div></div>
         </section>
 

@@ -3,8 +3,10 @@ import LogoutButton from './LogoutButton';
 import ThemeToggle from './ThemeToggle';
 
 const tenant = Astro.locals.tenant;
-const name = tenant?.name ?? 'Portal del Asociado';
+const name = 'CapreBDT';
+//const name = tenant?.name ?? 'Portal del Asociado';
 ---
+
 <header class="topbar">
   <div class="brand">
     {tenant?.logoUrl && <img src={tenant.logoUrl} alt={name} />}

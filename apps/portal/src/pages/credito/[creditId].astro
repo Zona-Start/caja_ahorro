@@ -4,6 +4,11 @@ import Topbar from '../../components/Topbar.astro';
 import { fetchAuthed } from '../../lib/auth';
 import { clearSession } from '../../lib/session';
 import { dateFmt, money, text } from '../../lib/format';
+import {
+  CREDIT_STATUS_TYPES,
+  PAYMENT_LOAN_STATUS,
+  label,
+} from '../../lib/labels';
 
 export const prerender = false;
 
@@ -56,7 +61,7 @@ const detail = res.data ? ((res.data as { data: CreditDetail }).data ?? null) : 
     ) : (
       <>
         <h1 style="margin-top:16px">{text(detail.credit.creditTypeName)}</h1>
-        <p class="muted">Crédito {text(detail.credit.customReference)} · Estado {text(detail.credit.status)}</p>
+        <p class="muted">Crédito {text(detail.credit.customReference)} · Estado {label(CREDIT_STATUS_TYPES, detail.credit.status)}</p>
 
         <section class="grid cols-3" style="margin:18px 0">
           <div class="stat"><div class="label">Monto</div><div class="value">{money(detail.credit.requestedAmount)}</div></div>
@@ -87,7 +92,7 @@ const detail = res.data ? ((res.data as { data: CreditDetail }).data ?? null) : 
                 <td>{money(s.interestAmount)}</td>
                 <td>{money(s.totalInstallmentAmount)}</td>
                 <td>{money(s.paidAmount)}</td>
-                <td><span class="badge">{s.paymentStatus}</span></td>
+                <td><span class="badge">{label(PAYMENT_LOAN_STATUS, s.paymentStatus)}</span></td>
               </tr>
             ))}
           </tbody>

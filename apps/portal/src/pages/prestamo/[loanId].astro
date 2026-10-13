@@ -4,6 +4,11 @@ import Topbar from '../../components/Topbar.astro';
 import { fetchAuthed } from '../../lib/auth';
 import { clearSession } from '../../lib/session';
 import { dateFmt, money, percent, text } from '../../lib/format';
+import {
+  LOAN_STATUS_TYPES,
+  PAYMENT_LOAN_STATUS,
+  label,
+} from '../../lib/labels';
 
 export const prerender = false;
 
@@ -47,7 +52,7 @@ const detail = res.data ? ((res.data as { data: LoanDetail }).data ?? null) : nu
     ) : (
       <>
         <h1 style="margin-top:16px">{text(detail.loan.loanTypeName)}</h1>
-        <p class="muted">Préstamo {text(detail.loan.customReference)} · Estado {text(detail.loan.status)}</p>
+        <p class="muted">Préstamo {text(detail.loan.customReference)} · Estado {label(LOAN_STATUS_TYPES, detail.loan.status)}</p>
 
         <section class="grid cols-3" style="margin:18px 0">
           <div class="stat"><div class="label">Monto solicitado</div><div class="value">{money(detail.loan.requestedAmount)}</div></div>
@@ -78,7 +83,7 @@ const detail = res.data ? ((res.data as { data: LoanDetail }).data ?? null) : nu
                 <td>{money(s.interestAmount)}</td>
                 <td>{money(s.totalInstallmentAmount)}</td>
                 <td>{money(s.paidAmount)}</td>
-                <td><span class="badge">{s.paymentStatus}</span></td>
+                <td><span class="badge">{label(PAYMENT_LOAN_STATUS, s.paymentStatus)}</span></td>
               </tr>
             ))}
           </tbody>

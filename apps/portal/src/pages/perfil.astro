@@ -12,20 +12,27 @@ if (profRes.status === 401 || !profRes.data) {
 }
 const profile = (profRes.data as { data: unknown }).data;
 
+const stRes = await fetchAuthed(Astro.cookies, '/me/statement');
+const statement =
+  (stRes.data as { data?: { accountNumber?: string | null; bankName?: string | null } } | null)?.data ?? null;
+
 const statesRes = await fetchAuthed(Astro.cookies, '/catalog/states');
 const states = (statesRes.data as unknown[]) ?? [];
 ---
 <Base title="Mi perfil · Portal del Asociado">
   <Topbar />
 
-  <main class="container" style="max-width:720px">
-    <div class="card wide" style="max-width:100%; padding:28px">
-      <h1>Datos personales</h1>
-      <p class="muted">
-        Solo puedes editar tu <b>correo</b>, <b>teléfono</b> y <b>dirección</b>.
-        El resto de tus datos es de solo lectura.
-      </p>
-      <ProfileForm client:load initial={profile} states={states} />
-    </div>
+  <main class="container" style="max-width:760px">
+    <h1>Datos personales</h1>
+    <p class="muted">
+      Tu <b>correo</b>, <b>teléfono</b> y <b>dirección</b> son editables; el resto es de solo lectura.
+    </p>
+    <ProfileForm
+      client:load
+      initial={profile}
+      accountNumber={statement?.accountNumber ?? null}
+      bankName={statement?.bankName ?? null}
+      states={states}
+    />
   </main>
 </Base>
