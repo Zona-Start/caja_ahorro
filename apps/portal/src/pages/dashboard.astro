@@ -112,13 +112,6 @@ const detailKind: Record<string, string> = {
   retiros: 'retiro',
 };
 
-const stRes = await fetchAuthed(Astro.cookies, '/me/statement');
-if (stRes.status === 401 || !stRes.data) {
-  clearSession(Astro.cookies);
-  return Astro.redirect('/login');
-}
-const statement = (stRes.data as { data: Statement }).data;
-
 const rawTab = Astro.url.searchParams.get('tab') ?? 'haberes';
 const active = (tabs.some((t) => t.value === rawTab) ? rawTab : 'haberes') as string;
 const rawPage = parseInt(Astro.url.searchParams.get('page') ?? '1', 10);
@@ -126,6 +119,23 @@ const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
 const LIMIT_OPTIONS = [10, 20, 30, 50];
 const rawLimit = parseInt(Astro.url.searchParams.get('limit') ?? '10', 10);
 const limit = LIMIT_OPTIONS.includes(rawLimit) ? rawLimit : 10;
+
+// Se lanzan EN PARALELO el estado de cuenta y los datos de la pestaña activa
+// (antes eran secuenciales) para reducir la latencia de cada navegación.
+const statementPromise = fetchAuthed(Astro.cookies, '/me/statement');
+const excesosSummaryPromise =
+  active === 'excesos' ? fetchAuthed(Astro.cookies, '/me/excesos') : null;
+const tabDataPromise =
+  active === 'excesos'
+    ? null
+    : fetchAuthed(Astro.cookies, `/me/${active}?page=${page}&limit=${limit}`);
+
+const stRes = await statementPromise;
+if (stRes.status === 401 || !stRes.data) {
+  clearSession(Astro.cookies);
+  return Astro.redirect('/login');
+}
+const statement = (stRes.data as { data: Statement }).data;
 
 let rows: Row[] = [];
 let meta = {
@@ -140,7 +150,7 @@ let counts: Record<string, number> = {};
 let selectedType = EXCESOS_TYPES[0]!.value;
 
 if (active === 'excesos') {
-  const sumRes = await fetchAuthed(Astro.cookies, '/me/excesos');
+  const sumRes = await excesosSummaryPromise!;
   counts = ((sumRes.data as { data: Record<string, number> } | null)?.data) ?? {};
 
   const rawMt = Astro.url.searchParams.get('mt');
@@ -158,10 +168,7 @@ if (active === 'excesos') {
   rows = payload?.data ?? [];
   if (payload?.meta) meta = payload.meta;
 } else {
-  const dataRes = await fetchAuthed(
-    Astro.cookies,
-    `/me/${active}?page=${page}&limit=${limit}`,
-  );
+  const dataRes = await tabDataPromise!;
   const payload = dataRes.data as Paginated | null;
   rows = payload?.data ?? [];
   if (payload?.meta) meta = payload.meta;
@@ -426,8 +433,22 @@ const to = Math.min(meta.page * meta.limit, meta.totalCount);
     });
   }
 
+  function initTabs() {
+    const nav = document.querySelector('.tabs');
+    if (!nav || (nav as HTMLElement).dataset.bound) return;
+    (nav as HTMLElement).dataset.bound = '1';
+    // Marca la pestaña clicada como activa al instante (respuesta visual).
+    nav.addEventListener('click', (e) => {
+      const a = (e.target as HTMLElement).closest('a.tab') as HTMLAnchorElement | null;
+      if (!a) return;
+      nav.querySelectorAll('a.tab').forEach((el) => el.classList.remove('active'));
+      a.classList.add('active');
+    });
+  }
+
   document.addEventListener('astro:page-load', () => {
     initFilter();
     initLimit();
+    initTabs();
   });
 </script>

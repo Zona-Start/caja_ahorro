@@ -41,8 +41,24 @@ const favicon = tenant?.faviconUrl ?? null;
         document.addEventListener('astro:page-load', apply);
       })();
     </script>
+    <script is:inline>
+      // Barra de progreso + bloqueo de clics durante las navegaciones
+      // (View Transitions): evita la sensación de "congelado" y el doble clic.
+      (function () {
+        function start() {
+          document.documentElement.classList.add('is-navigating');
+        }
+        function stop() {
+          document.documentElement.classList.remove('is-navigating');
+        }
+        document.addEventListener('astro:before-preparation', start);
+        document.addEventListener('astro:after-swap', stop);
+        document.addEventListener('astro:page-load', stop);
+      })();
+    </script>
   </head>
   <body>
+    <div class="nav-progress" aria-hidden="true"></div>
     <slot />
   </body>
 </html>
@@ -292,4 +308,34 @@ const favicon = tenant?.faviconUrl ?? null;
     line-height: 1;
   }
   .floating-toggle { position: fixed; top: 16px; right: 16px; z-index: 10; }
+
+  /* Barra de progreso de navegación (View Transitions). */
+  .nav-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: left center;
+    opacity: 0;
+    z-index: 200;
+    pointer-events: none;
+  }
+  html.is-navigating .nav-progress {
+    opacity: 1;
+    animation: nav-progress 6s cubic-bezier(0.15, 0.6, 0.25, 1) forwards;
+  }
+  @keyframes nav-progress {
+    0% { transform: scaleX(0); }
+    50% { transform: scaleX(0.65); }
+    100% { transform: scaleX(0.92); }
+  }
+  /* Evita el doble clic mientras carga (tabs, paginador y navegación superior). */
+  html.is-navigating .tabs a,
+  html.is-navigating .pager a,
+  html.is-navigating .topbar-nav a {
+    pointer-events: none;
+  }
 </style>

@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "deploy": "astro build && wrangler deploy",
+    "deploy:cf": "astro build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "check": "astro check"
   },

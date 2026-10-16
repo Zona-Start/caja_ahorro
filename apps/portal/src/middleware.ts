@@ -41,7 +41,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isLocal =
     !host || host.startsWith('localhost') || host.startsWith('127.0.0.1');
   if (isLocal && PORTAL_DEFAULT_TENANT_HOST) host = PORTAL_DEFAULT_TENANT_HOST;
-  context.locals.tenant = await resolveTenant(host);
+
+  let tenant = await resolveTenant(host);
+  // Fallback para hosts que no resuelven un tenant por sí mismos (p. ej. staging
+  // en *.workers.dev): si hay un host por defecto configurado, se usa su marca.
+  if (
+    !tenant &&
+    PORTAL_DEFAULT_TENANT_HOST &&
+    host !== PORTAL_DEFAULT_TENANT_HOST
+  ) {
+    tenant = await resolveTenant(PORTAL_DEFAULT_TENANT_HOST);
+  }
+  context.locals.tenant = tenant;
 
   // 2) Modo mantenimiento.
   if (MAINTENANCE_MODE) {

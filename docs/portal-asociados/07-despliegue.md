@@ -126,14 +126,19 @@ BFF→backend se dispara.
 
 ```bash
 cd apps/portal
-wrangler login                 # primera vez
-pnpm --filter portal deploy    # astro build && wrangler deploy
+npx wrangler login               # primera vez (abre el navegador)
+pnpm deploy:cf                   # equivale a: astro build && wrangler deploy
 ```
+
+> ⚠️ **No uses `pnpm --filter portal deploy`**: `deploy` es un comando **propio de pnpm** y
+> no ejecuta tu script. Para un script de un paquete del workspace usa
+> `pnpm --filter portal run deploy:cf` (o entra a `apps/portal` y corre `pnpm deploy:cf`).
 
 - **Multi-tenant / dominios:** agrega cada dominio (o `*.PLATFORM_DOMAIN`) como
   **Custom Domain** o **Route** del Worker. El tenant se resuelve por el **Host**
   (igual que en local, ver §4.b).
-- **Modo mantenimiento:** `wrangler secret put MAINTENANCE_MODE` con `true` y redeploy.
+- **Modo mantenimiento:** `npx wrangler secret put MAINTENANCE_MODE` con `true`
+  (se aplica al instante, sin redeploy).
 
 > Verificación local del build de Workers: `pnpm --filter portal preview` (corre en `workerd`).
 
