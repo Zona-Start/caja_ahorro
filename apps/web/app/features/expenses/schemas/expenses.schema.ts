@@ -69,6 +69,7 @@ export const expenseBaseSchema = z.object({
 
   // Naturaleza del gasto y programación (solo fijo)
   nature: z.enum(['FIXED', 'VARIABLE']).optional().default('VARIABLE'),
+  expenseDate: z.string().optional(),
   dueDate: z.string().optional(),
   frequency: z.enum(['MONTHLY', 'BIWEEKLY', 'QUARTERLY', 'ANNUAL']).optional(),
 
@@ -126,6 +127,7 @@ export const expenseSchema = expenseBaseSchema.extend({
     .enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PAID', 'REJECTED'])
     .default('PENDING_APPROVAL'),
   nature: z.enum(['FIXED', 'VARIABLE']).default('VARIABLE'),
+  expenseDate: z.string().nullable().optional(),
   paymentStatus: z.string().optional(),
   nextDueDate: z.string().nullable().optional(),
   vatWithholdingAmount: z.coerce.number().optional(),

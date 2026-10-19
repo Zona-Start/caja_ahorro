@@ -162,23 +162,27 @@ export class WithdrawalAssociateService {
         eq(associateHaberesBalance.associateAccountId, associateAccountId),
       );
 
-    const maxAllowedAmount =
-      (Number(associateAccount?.haberesBalance) *
-        Number(withdrawalType?.withdrawalPercentage)) /
-      100;
+    const haberesBalance = Number(associateAccount?.haberesBalance ?? 0);
+    const requestedRounded = Number(requestedAmount.toFixed(2));
 
-    if (requestedAmount > maxAllowedAmount && !allowExceedAvailableBalance) {
+    const maxAllowedAmount = Number(
+      (
+        (haberesBalance * Number(withdrawalType.withdrawalPercentage)) /
+        100
+      ).toFixed(2),
+    );
+
+    if (requestedRounded > maxAllowedAmount && !allowExceedAvailableBalance) {
       throw new BadRequestException(
         `El monto solicitado excede el porcentaje máximo permitido de sus haberes.`,
       );
     }
 
-    const haberesBalance = Number(associateAccount?.haberesBalance ?? 0);
-    const available80 = haberesBalance * 0.8;
+    const available80 = Number((haberesBalance * 0.8).toFixed(2));
 
-    if (requestedAmount > available80 && !allowExceedAvailableBalance) {
+    if (requestedRounded > available80 && !allowExceedAvailableBalance) {
       throw new BadRequestException(
-        `El monto solicitado (${requestedAmount.toFixed(2)}) supera el 80% disponible (${available80.toFixed(2)}) de sus haberes.`,
+        `El monto solicitado (${requestedRounded.toFixed(2)}) supera el 80% disponible (${available80.toFixed(2)}) de sus haberes.`,
       );
     }
 
@@ -424,7 +428,7 @@ export class WithdrawalAssociateService {
       page = 1,
       limit = 10,
       search = '',
-      sortBy = 'id',
+      sortBy = 'createdAt',
       sortOrder = 'desc',
       type = '',
       status = '',

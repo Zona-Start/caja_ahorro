@@ -37,6 +37,7 @@ export const pendingPaymentApiSchema = z.object({
   status: z.string(),
   date: z.string(),
   type: z.enum(['ACCOUNTS_PAYABLE', 'ADVANCE']),
+  currencyCode: z.string().optional(),
 });
 
 export type PendingPaymentApi = z.infer<typeof pendingPaymentApiSchema>;

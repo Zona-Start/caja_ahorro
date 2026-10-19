@@ -16,6 +16,7 @@ export function usePaginatedAccountingEntries(params: {
   page?: number;
   limit?: number;
   search?: string;
+  searchType?: string;
   status?: string;
   accountingCycleId?: string;
   startDate?: string;

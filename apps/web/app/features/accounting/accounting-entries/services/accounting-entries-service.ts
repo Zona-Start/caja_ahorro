@@ -12,6 +12,7 @@ export class AccountingEntriesService {
     page?: number;
     limit?: number;
     search?: string;
+    searchType?: string;
     status?: string;
     accountingCycleId?: string;
     startDate?: string;
@@ -23,6 +24,7 @@ export class AccountingEntriesService {
     searchParams.append('page', (params.page || 1).toString());
     searchParams.append('limit', (params.limit || 10).toString());
     if (params.search) searchParams.append('search', params.search);
+    if (params.searchType) searchParams.append('searchType', params.searchType);
     if (params.status) searchParams.append('status', params.status);
     if (params.accountingCycleId) searchParams.append('accountingCycleId', params.accountingCycleId);
     if (params.startDate) searchParams.append('startDate', params.startDate);

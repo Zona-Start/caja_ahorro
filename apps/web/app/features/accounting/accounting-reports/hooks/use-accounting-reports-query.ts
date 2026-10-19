@@ -50,3 +50,11 @@ export function useAssociatesBalance(params: any) {
     enabled: !!params.accountingCycleId,
   });
 }
+
+export function useAccountBalances(params: any) {
+  return useQuery({
+    queryKey: QUERY_KEYS.accountingReports.accountBalance(params),
+    queryFn: () => AccountingReportsService.getAccountBalances(params),
+    enabled: !!params.accountPlanId,
+  });
+}

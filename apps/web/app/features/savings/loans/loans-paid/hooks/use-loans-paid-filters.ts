@@ -8,7 +8,7 @@ export const loansPaidFilterSchema = z.object({
   bank: z.string().optional(),
   type: z.string().optional(),
   method: z.string().optional(),
-  sortBy: z.string().optional().default('id'),
+  sortBy: z.string().optional().default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 });
 
@@ -43,7 +43,7 @@ export function useLoansPaidFilters() {
     const params = new URLSearchParams();
     params.set('page', '1');
     params.set('limit', String(filters.limit || 10));
-    params.set('sortBy', 'id');
+    params.set('sortBy', 'createdAt');
     params.set('sortOrder', 'desc');
     setSearchParams(params, { preventScrollReset: true });
   };

@@ -1,0 +1,1 @@
+ALTER TABLE "savings"."credits" ADD COLUMN "allow_exceed_payment_capacity" boolean DEFAULT false;

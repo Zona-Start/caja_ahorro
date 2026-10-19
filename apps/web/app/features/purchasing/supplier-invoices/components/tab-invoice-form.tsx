@@ -50,6 +50,7 @@ function toFormValues(data: Partial<SupplierInvoiceMutation>): SupplierInvoiceFo
     status: data.status ?? 'DRAFT',
     observations: data.observations ?? '',
     currencyCode: data.currencyCode ?? 'VES',
+    exchangeRate: data.exchangeRate ?? undefined,
     paymentMethod: data.paymentMethod ?? undefined,
     bankAccountId: data.bankAccountId ?? null,
     bankReference: data.bankReference ?? '',
@@ -87,6 +88,7 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
   const watchedSupplierId = useWatch({ control: form.control, name: 'supplierId' });
   const watchedPurchaseOrderId = useWatch({ control: form.control, name: 'purchaseOrderId' });
   const watchedPaymentType = useWatch({ control: form.control, name: 'paymentType' });
+  const watchedCurrency = useWatch({ control: form.control, name: 'currencyCode' });
   const watchItems = form.watch('items');
 
   const { mutate: saveInvoice, isPending: isSaving } = useSaveSupplierInvoiceMutation();
@@ -195,6 +197,22 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
     setTaxPercent(defaultTaxPercent);
   }, [defaultTaxPercent]);
 
+  // Autocompleta la tasa BCV del día cuando la factura es en divisa.
+  useEffect(() => {
+    if (!watchedCurrency || watchedCurrency === 'VES') return;
+    const current = Number(form.getValues('exchangeRate'));
+    if (current > 0) return;
+    apiClient
+      .get(`/core/exchange-rates/latest/${watchedCurrency}`)
+      .then((res) => {
+        const rate = Number(res.data?.rate);
+        if (Number.isFinite(rate) && rate > 0) {
+          form.setValue('exchangeRate', rate, { shouldDirty: true });
+        }
+      })
+      .catch(() => {});
+  }, [watchedCurrency, form]);
+
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingData, setPendingData] = useState<SupplierInvoiceForm | null>(null);
 
@@ -290,7 +308,36 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
             </FormItem>
           )} />
 
+          <FormField control={form.control} name="currencyCode" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Moneda de la Factura</FormLabel>
+              <Select disabled={disabled} value={field.value ?? 'VES'} onValueChange={(v) => { field.onChange(v); form.setValue('exchangeRate', v === 'VES' ? 1 : (undefined as any)); }}>
+                <FormControl><SelectTrigger className='w-full'><SelectValue /></SelectTrigger></FormControl>
+                <SelectContent>
+                  <SelectItem value="VES">Bolívares (VES)</SelectItem>
+                  <SelectItem value="USD">Dólares (USD)</SelectItem>
+                  <SelectItem value="EUR">Euros (EUR)</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )} />
 
+          {watchedCurrency && watchedCurrency !== 'VES' && (
+            <FormField control={form.control} name="exchangeRate" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tasa de Cambio ({watchedCurrency})</FormLabel>
+                <FormControl>
+                  <Input type="number" step="0.0001" disabled={disabled} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))} placeholder="Tasa del día" />
+                </FormControl>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Total en Bs:{' '}
+                  {((Number(totals.totalAmount) || 0) * (Number(field.value) || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <FormMessage />
+              </FormItem>
+            )} />
+          )}
 
           <FormField control={form.control} name="paymentType" render={({ field }) => (
             <FormItem>
@@ -321,21 +368,6 @@ export function TabInvoiceForm({ defaultValues, onSuccess, onCancel, disabled = 
         {/* ── CONTADO ── */}
         {watchedPaymentType === 'CASH' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4 mt-2">
-            <FormField control={form.control} name="currencyCode" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Moneda <span className="text-red-500">*</span></FormLabel>
-                <Select disabled={disabled} value={field.value ?? 'VES'} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>
-                    <SelectItem value="VES">Bolívares (VES)</SelectItem>
-                    <SelectItem value="USD">Dólares (USD)</SelectItem>
-                    <SelectItem value="EUR">Euros (EUR)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )} />
-
             <FormField control={form.control} name="paymentMethod" render={({ field }) => (
               <FormItem>
                 <FormLabel>Método de Pago <span className="text-red-500">*</span></FormLabel>

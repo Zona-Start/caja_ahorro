@@ -111,6 +111,9 @@ export class InventoryMovementsService {
           quantity: String(item.quantity),
           unitCost: String(item.unitCost ?? 0),
           totalCost: String((item.unitCost ?? 0) * item.quantity),
+          currencyCode: (item.currencyCode ?? 'VES') as any,
+          exchangeRate: String(item.exchangeRate ?? 1),
+          unitCostForeign: String(item.unitCostForeign ?? 0),
         })),
       );
 
@@ -133,24 +136,40 @@ export class InventoryMovementsService {
           );
       }
 
-      // PURCHASE_RECEIPT: update stock and PO status
-      if (dto.movementType === 'PURCHASE_RECEIPT' && dto.purchaseOrderId) {
+      // PURCHASE_RECEIPT: incrementa stock físico siempre (con o sin OC); si
+      // viene de una OC también descuenta lo pendiente de recibir.
+      if (dto.movementType === 'PURCHASE_RECEIPT') {
         for (const item of dto.items) {
           await tx
             .update(products)
             .set({
               stockOnHand: sql`${products.stockOnHand} + ${item.quantity}`,
-              stockOnOrder: sql`${products.stockOnOrder} - ${item.quantity}`,
             })
             .where(
               and(
                 eq(products.id, item.productId),
-                gte(products.stockOnOrder, item.quantity),
+                eq(products.tenantId, tenantId),
               ),
             );
         }
 
-        await updatePurchaseOrderStatus(dto.purchaseOrderId, tx);
+        if (dto.purchaseOrderId) {
+          for (const item of dto.items) {
+            await tx
+              .update(products)
+              .set({
+                stockOnOrder: sql`${products.stockOnOrder} - ${item.quantity}`,
+              })
+              .where(
+                and(
+                  eq(products.id, item.productId),
+                  gte(products.stockOnOrder, item.quantity),
+                ),
+              );
+          }
+
+          await updatePurchaseOrderStatus(dto.purchaseOrderId, tx);
+        }
       }
 
       // Flujos de salida: descuentan stock físico de forma atómica con guarda
@@ -206,7 +225,6 @@ export class InventoryMovementsService {
       status,
       startDate,
       endDate,
-      productId,
       supplierId,
       purchaseOrderId,
     } = paginationDto || {};
@@ -320,6 +338,9 @@ export class InventoryMovementsService {
           quantity: inventoryMovementItems.quantity,
           unitCost: inventoryMovementItems.unitCost,
           totalCost: inventoryMovementItems.totalCost,
+          currencyCode: inventoryMovementItems.currencyCode,
+          exchangeRate: inventoryMovementItems.exchangeRate,
+          unitCostForeign: inventoryMovementItems.unitCostForeign,
         })
         .from(inventoryMovementItems)
         .leftJoin(
@@ -428,6 +449,9 @@ export class InventoryMovementsService {
         quantity: inventoryMovementItems.quantity,
         unitCost: inventoryMovementItems.unitCost,
         totalCost: inventoryMovementItems.totalCost,
+        currencyCode: inventoryMovementItems.currencyCode,
+        exchangeRate: inventoryMovementItems.exchangeRate,
+        unitCostForeign: inventoryMovementItems.unitCostForeign,
         purchaseOrderItemId: inventoryMovementItems.purchaseOrderItemId,
       })
       .from(inventoryMovementItems)
@@ -528,6 +552,9 @@ export class InventoryMovementsService {
               quantity: String(item.quantity),
               unitCost: String(item.unitCost ?? 0),
               totalCost: String((item.unitCost ?? 0) * item.quantity),
+              currencyCode: (item.currencyCode ?? 'VES') as any,
+              exchangeRate: String(item.exchangeRate ?? 1),
+              unitCostForeign: String(item.unitCostForeign ?? 0),
             })),
           );
         }

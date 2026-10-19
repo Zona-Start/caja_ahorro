@@ -71,6 +71,12 @@ export class AccountsPayableService {
         paidAmount: data.paidAmount?.toString() || '0.00',
         remainingAmount: data.remainingAmount.toString(),
         currencyCode: data.currencyCode || 'VES',
+        // Bimonetario: snapshot en Bs con la tasa de la operación.
+        exchangeRate:
+          data.exchangeRate != null ? String(data.exchangeRate) : null,
+        amountBase: data.amountBase != null ? String(data.amountBase) : '0.00',
+        amountForeign:
+          data.amountForeign != null ? String(data.amountForeign) : '0.00',
         status: data.status || 'PENDING',
         dueDate: data.dueDate
           ? data.dueDate instanceof Date

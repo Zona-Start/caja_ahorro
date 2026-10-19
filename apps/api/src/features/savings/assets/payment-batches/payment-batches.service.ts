@@ -377,9 +377,11 @@ export class PaymentBatchesService {
     const rzf = (n: number | string, len: number) =>
       String(n).padStart(len, '0').slice(-len);
 
+    const toCents = (value: number | string) => Math.round(Number(value) * 100);
+
     const now = new Date();
     const fecha = format(now, 'yyyyMMdd');
-    const total = Number(batch[0].payment_batches.totalAmount) * 100;
+    const total = toCents(batch[0].payment_batches.totalAmount);
     const qty = items.length;
 
     let content = '';
@@ -396,7 +398,7 @@ export class PaymentBatchesService {
 
     for (const it of items) {
       const row = it as Record<string, unknown>;
-      const amount = Number(row.amount) * 100;
+      const amount = toCents(row.amount as number | string);
       const beneficiaryId = String(row.beneficiary_id ?? '');
       const idType = beneficiaryId.charAt(0).toUpperCase();
       const idNum = beneficiaryId.substring(1);

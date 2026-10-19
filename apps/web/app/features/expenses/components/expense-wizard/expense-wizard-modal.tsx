@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertModal } from '@/components/shared/alert-modal';
+import { FileUpload } from '@/components/shared/file-upload';
 import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import { useSuppliersAllQuery } from '@/features/purchasing/suppliers/hooks/use-suppliers-queries';
 import { useAuthStore } from '@/stores/auth.store';
@@ -133,6 +134,9 @@ export function ExpenseWizardModal({
   const [costCenterId, setCostCenterId] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [receiptImageUrl, setReceiptImageUrl] = useState('');
+  const [expenseDate, setExpenseDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Al abrir la modal: fija el tipo por modo y los valores de configuración
@@ -378,6 +382,7 @@ export function ExpenseWizardModal({
       receiptNumber: receiptNumber || undefined,
       receiptImageUrl: receiptImageUrl || undefined,
       nature,
+      expenseDate: expenseDate || undefined,
       dueDate: nature === 'FIXED' ? dueDate || undefined : undefined,
       frequency: nature === 'FIXED' ? frequency : undefined,
       cashRegisterSessionId: session?.id,
@@ -413,6 +418,7 @@ export function ExpenseWizardModal({
     setCostCenterId('');
     setReceiptNumber('');
     setReceiptImageUrl('');
+    setExpenseDate(new Date().toISOString().slice(0, 10));
   };
 
   const handleUpdateLine = (
@@ -525,6 +531,20 @@ export function ExpenseWizardModal({
                 <div className="mt-1 h-9 flex items-center rounded-md border bg-muted/40 px-3 text-xs text-muted-foreground">
                   Pendiente de Aprobación
                 </div>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">
+                  Fecha del Gasto
+                </span>
+                <Input
+                  type="date"
+                  className="mt-1"
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Fecha en que se realizó el gasto (puede ser anterior a hoy).
+                </p>
               </div>
             </div>
 
@@ -993,7 +1013,7 @@ export function ExpenseWizardModal({
           )}
 
           {/* ── SECCIÓN GRIS: Comprobante ── */}
-          <div className="rounded-lg border p-4 bg-muted/30 grid grid-cols-2 gap-3">
+          <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
             <div>
               <span className="text-xs text-muted-foreground">
                 N° de Comprobante
@@ -1007,14 +1027,16 @@ export function ExpenseWizardModal({
             </div>
             <div>
               <span className="text-xs text-muted-foreground">
-                URL imagen / PDF
+                Comprobante (imagen o PDF)
               </span>
-              <Input
-                className="mt-1"
-                placeholder="https://..."
-                value={receiptImageUrl}
-                onChange={(e) => setReceiptImageUrl(e.target.value)}
-              />
+              <div className="mt-1">
+                <FileUpload
+                  value={receiptImageUrl}
+                  onChange={setReceiptImageUrl}
+                  folder="expenses/receipts"
+                  disabled={saveMutation.isPending}
+                />
+              </div>
             </div>
           </div>
 

@@ -217,6 +217,53 @@ export const associatesBalanceResponseSchema = z.object({
   }),
 });
 
+// Account Balance (Balance por Cuenta)
+export const accountBalanceAccountSchema = z.object({
+  accountPlanId: z.string(),
+  accountCode: z.string(),
+  accountName: z.string(),
+  accountType: z.string(),
+  accountNature: z.string(),
+  allowsMovements: z.boolean(),
+  hasAssociateAuxiliary: z.boolean(),
+  totalDebit: z.string(),
+  totalCredit: z.string(),
+  balance: z.string(),
+});
+
+export const accountBalanceAssociateSchema = z.object({
+  associateId: z.string(),
+  cedula: z.string(),
+  fullname: z.string(),
+  totalDebit: z.string(),
+  totalCredit: z.string(),
+  balance: z.string(),
+});
+
+export const accountBalanceResponseSchema = z.object({
+  account: accountBalanceAccountSchema,
+  associates: z.array(accountBalanceAssociateSchema),
+  associatesTotal: z.object({
+    totalDebit: z.string(),
+    totalCredit: z.string(),
+    balance: z.string(),
+  }),
+  meta: z.object({
+    page: z.number(),
+    limit: z.number(),
+    totalCount: z.number(),
+    totalPages: z.number(),
+    hasNextPage: z.boolean(),
+    hasPreviousPage: z.boolean(),
+    nextPage: z.number().nullable(),
+    previousPage: z.number().nullable(),
+  }),
+});
+
+export type AccountBalanceResponse = z.infer<
+  typeof accountBalanceResponseSchema
+>;
+
 export type BalanceSheetResponse = z.infer<typeof balanceSheetResponseSchema>;
 export type GeneralLedgerResponse = z.infer<typeof generalLedgerResponseSchema>;
 export type IncomeStatementResponse = z.infer<typeof incomeStatementResponseSchema>;

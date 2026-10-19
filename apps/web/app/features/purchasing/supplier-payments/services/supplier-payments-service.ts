@@ -35,6 +35,9 @@ export interface BulkPaymentPayload {
   bankReference?: string;
   transactionDate: string;
   totalAmount: number;
+  currencyCode?: string;
+  exchangeRate?: number;
+  rateCurrency?: string;
   creditAplied?: { id: string; transactionType: string; appliedAmount: number }[];
 }
 

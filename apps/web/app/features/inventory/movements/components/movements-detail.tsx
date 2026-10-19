@@ -61,6 +61,14 @@ export function MovementsDetail({ data, onClose }: MovementsDetailProps) {
   const items = data.items ?? [];
   const totalItems = items.reduce((sum: number, i) => sum + (i.quantity ?? 0), 0);
   const totalCost = items.reduce((sum: number, i) => sum + (i.totalCost ?? 0), 0);
+  const totalCostForeign = items.reduce(
+    (sum: number, i) =>
+      sum + Number(i.quantity ?? 0) * Number((i as any).unitCostForeign ?? 0),
+    0,
+  );
+  const hasForeign = items.some(
+    (i) => !!(i as any).currencyCode && (i as any).currencyCode !== 'VES',
+  );
 
   return (
     <div className="space-y-6 py-4">
@@ -102,9 +110,29 @@ export function MovementsDetail({ data, onClose }: MovementsDetailProps) {
                   <td className="px-3 py-2 text-right">{item.quantity}</td>
                   <td className="px-3 py-2 text-right">
                     {formatCurrency(item.unitCost ?? 0, 'VES')}
+                    {(item as any).currencyCode &&
+                      (item as any).currencyCode !== 'VES' &&
+                      Number((item as any).unitCostForeign) > 0 && (
+                        <div className="text-[10px] text-muted-foreground">
+                          {(item as any).currencyCode}{' '}
+                          {Number((item as any).unitCostForeign).toFixed(2)} ×{' '}
+                          {Number((item as any).exchangeRate ?? 1).toFixed(2)}
+                        </div>
+                      )}
                   </td>
                   <td className="px-3 py-2 text-right">
                     {formatCurrency(item.totalCost ?? 0, 'VES')}
+                    {(item as any).currencyCode &&
+                      (item as any).currencyCode !== 'VES' &&
+                      Number((item as any).unitCostForeign) > 0 && (
+                        <div className="text-[10px] text-muted-foreground">
+                          {(item as any).currencyCode}{' '}
+                          {(
+                            Number(item.quantity) *
+                            Number((item as any).unitCostForeign)
+                          ).toFixed(2)}
+                        </div>
+                      )}
                   </td>
                 </tr>
               ))}
@@ -127,6 +155,11 @@ export function MovementsDetail({ data, onClose }: MovementsDetailProps) {
           <div>
             <span className="text-muted-foreground">Costo Total: </span>
             <span className="font-bold">{formatCurrency(totalCost, 'VES')}</span>
+            {hasForeign && (
+              <span className="ml-2 text-xs text-muted-foreground">
+                (divisa {totalCostForeign.toFixed(2)})
+              </span>
+            )}
           </div>
         </div>
       </section>

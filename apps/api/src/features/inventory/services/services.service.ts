@@ -94,7 +94,7 @@ export class ServicesService {
           status: services.status,
         });
 
-      if (dto.supplierCost !== 0) {
+      if (dto.supplierCost !== 0 || (dto.salePrice ?? 0) > 0) {
         await this.servicePricesService.create(
           {
             serviceId: newService.id,
@@ -103,6 +103,9 @@ export class ServicesService {
             baseCost: dto.supplierCost,
             otherCosts: dto.otherCosts ?? 0,
             purchaseTax: dto.purchaseTax ?? 0,
+            salePrice: dto.salePrice,
+            salesExchangeRate: dto.salesExchangeRate ?? 1,
+            salesTaxPercent: dto.salesTaxPercent ?? 0,
             isActive: true,
           },
           userId,
@@ -202,6 +205,11 @@ export class ServicesService {
         supplierCost: schema.servicePrices.baseCost,
         otherCosts: schema.servicePrices.otherCosts,
         purchaseTax: schema.servicePrices.purchaseTax,
+        currencyCode: schema.servicePrices.currencyCode,
+        purchaseExchangeRate: schema.servicePrices.purchaseExchangeRate,
+        salePrice: schema.servicePrices.salePrice,
+        salesExchangeRate: schema.servicePrices.salesExchangeRate,
+        salesTaxPercent: schema.servicePrices.salesTaxPercent,
       })
       .from(services)
       .where(searchCondition)
@@ -334,15 +342,21 @@ export class ServicesService {
         throw new NotFoundException('Service not found after update');
       }
 
-      if (dto.supplierCost !== undefined && dto.supplierCost !== 0) {
+      if (
+        (dto.supplierCost !== undefined && dto.supplierCost !== 0) ||
+        (dto.salePrice ?? 0) > 0
+      ) {
         await this.servicePricesService.create(
           {
             serviceId: id,
             currencyCode: dto.currencyCode ?? 'VES',
             purchaseExchangeRate: dto.purchaseExchangeRate ?? 1,
-            baseCost: dto.supplierCost,
+            baseCost: dto.supplierCost ?? 0,
             otherCosts: dto.otherCosts ?? 0,
             purchaseTax: dto.purchaseTax ?? 0,
+            salePrice: dto.salePrice,
+            salesExchangeRate: dto.salesExchangeRate ?? 1,
+            salesTaxPercent: dto.salesTaxPercent ?? 0,
             isActive: true,
           },
           userId,

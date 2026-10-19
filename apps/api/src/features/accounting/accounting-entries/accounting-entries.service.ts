@@ -10,7 +10,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, gte, ilike, inArray, lte, SQL, sql } from 'drizzle-orm';
+import { and, eq, gte, ilike, inArray, lte, or, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from 'src/database/schema';
 import { AccountingCyclesService } from '../accounting-cycles/accounting-cycles.service';
@@ -23,7 +23,12 @@ import {
   parseAccountingEntriesExcel,
 } from './utils/excel-parser.util';
 
-const SORTABLE_FIELDS = ['entryDate', 'id', 'description'] as const;
+const SORTABLE_FIELDS = [
+  'entryDate',
+  'createdAt',
+  'id',
+  'description',
+] as const;
 
 @Injectable()
 export class AccountingEntriesService {
@@ -34,7 +39,7 @@ export class AccountingEntriesService {
     private readonly accountingCyclesService: AccountingCyclesService,
     private readonly auditHelper: AuditHelper,
     private readonly exchangeRateService: ExchangeRateService,
-  ) {}
+  ) { }
 
   /* ---------- Listado paginado (CORREGIDO - Estrategia 2 Consultas) ---------- */
   async findAllPaginated(tenantId: string, dto: FilterAccountingEntryDto) {
@@ -42,6 +47,7 @@ export class AccountingEntriesService {
       page = 1,
       limit = 10,
       search,
+      searchType,
       status,
       accountingCycleId,
       originType,
@@ -49,7 +55,7 @@ export class AccountingEntriesService {
       startDate,
       endDate,
       accountPlanId,
-      sortBy = 'entryDate',
+      sortBy = 'createdAt',
       sortOrder = 'desc',
     } = dto;
 
@@ -60,8 +66,25 @@ export class AccountingEntriesService {
     const conds: SQL[] = [eq(schema.accountingEntries.tenantId, tenantId)];
 
     // --- (Filtros de la cabecera del asiento)
-    if (search)
-      conds.push(ilike(schema.accountingEntries.description, `%${search}%`));
+    if (search) {
+      const term = `%${search}%`;
+      const normalizedVoucher = search.trim().replace(/^0+/, '') || '0';
+
+      if (searchType === 'voucher') {
+        conds.push(
+          sql`${schema.accountingEntries.voucherNo}::text = ${normalizedVoucher}`,
+        );
+      } else if (searchType === 'description') {
+        conds.push(ilike(schema.accountingEntries.description, term));
+      } else {
+        conds.push(
+          or(
+            ilike(schema.accountingEntries.description, term),
+            sql`${schema.accountingEntries.voucherNo}::text = ${normalizedVoucher}`,
+          )!,
+        );
+      }
+    }
     if (status) conds.push(eq(schema.accountingEntries.status, status));
     if (accountingCycleId)
       conds.push(
@@ -312,32 +335,32 @@ export class AccountingEntriesService {
 
     const dtoDetailsEnriched = dto.details
       ? await this.enrichDetailsWithBimoney(
-          tenantId,
-          entryDate,
-          entryCurrency,
-          dto.exchangeRate,
-          dto.details,
-        )
+        tenantId,
+        entryDate,
+        entryCurrency,
+        dto.exchangeRate,
+        dto.details,
+      )
       : null;
 
     const detailsForValidation = (
       dtoDetailsEnriched
         ? dtoDetailsEnriched.map((d) => ({
-            accountPlanId: d.accountPlanId!,
-            debit: Number(d.debit || 0),
-            credit: Number(d.credit || 0),
-            debitForeign: Number(d.debitForeign || 0),
-            creditForeign: Number(d.creditForeign || 0),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId!,
+          debit: Number(d.debit || 0),
+          credit: Number(d.credit || 0),
+          debitForeign: Number(d.debitForeign || 0),
+          creditForeign: Number(d.creditForeign || 0),
+          description: d.description ?? existing.description,
+        }))
         : existing.details.map((d) => ({
-            accountPlanId: d.accountPlanId,
-            debit: Number(d.debit),
-            credit: Number(d.credit),
-            debitForeign: Number((d as any).debitForeign || 0),
-            creditForeign: Number((d as any).creditForeign || 0),
-            description: d.description ?? existing.description,
-          }))
+          accountPlanId: d.accountPlanId,
+          debit: Number(d.debit),
+          credit: Number(d.credit),
+          debitForeign: Number((d as any).debitForeign || 0),
+          creditForeign: Number((d as any).creditForeign || 0),
+          description: d.description ?? existing.description,
+        }))
     ) as any;
 
     await this.validateAccountingEntry(
@@ -1091,8 +1114,7 @@ export class AccountingEntriesService {
         originType: params.originType || params.operationType,
         currencyCode: params.currencyCode,
         baseCurrencyCode: baseCurrency,
-        status: 'POSTED',
-        postedAt: new Date(),
+        status: entryStatusEnum.PENDING,
         createdById: userId,
       })
       .returning();

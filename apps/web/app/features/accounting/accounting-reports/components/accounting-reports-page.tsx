@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@repo/shadcn/tabs';
 import { useSearchParams } from 'react-router';
 import { useCallback, useEffect, useState } from 'react';
+import { AccountBalanceReport } from './account-balance-report';
 import { AssociatesBalanceReport } from './associates-balance-report';
 import { BalanceSheetReport } from './balance-sheet-report';
 import { GeneralLedgerReport } from './general-ledger-report';
@@ -34,7 +35,7 @@ export function AccountingReportsPage() {
         onValueChange={handleTabChange}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-6 mb-6">
+        <TabsList className="grid w-full grid-cols-7 mb-6">
           <TabsTrigger value="journal-book">Libro Diario</TabsTrigger>
           <TabsTrigger value="general-ledger">Libro Mayor</TabsTrigger>
           <TabsTrigger value="trial-balance">
@@ -47,6 +48,7 @@ export function AccountingReportsPage() {
           <TabsTrigger value="associates-balance">
             Balance de Asociados
           </TabsTrigger>
+          <TabsTrigger value="account-balances">Balance por Cuenta</TabsTrigger>
         </TabsList>
 
         <TabsContent value="journal-book">
@@ -71,6 +73,10 @@ export function AccountingReportsPage() {
 
         <TabsContent value="associates-balance">
           <AssociatesBalanceReport />
+        </TabsContent>
+
+        <TabsContent value="account-balances">
+          <AccountBalanceReport />
         </TabsContent>
       </Tabs>
     </div>

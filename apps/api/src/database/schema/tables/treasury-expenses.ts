@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   index,
   integer,
   numeric,
@@ -200,6 +201,7 @@ export const expenses = treasurySchema.table(
     status: expenseStatusEnum('status').default('PENDING_APPROVAL').notNull(),
     // Naturaleza del gasto: fijo (programado/recurrente) o variable
     nature: expenseNatureEnum('nature').default('VARIABLE').notNull(),
+    expenseDate: date('expense_date'),
     dueDate: timestamp('due_date'),
     frequency: recurringFrequencyEnum('frequency'),
     nextDueDate: timestamp('next_due_date'),

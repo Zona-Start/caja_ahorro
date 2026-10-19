@@ -65,6 +65,15 @@ export class SupplierInvoicesService {
           'invoices',
         );
 
+      // Bimonetario: si la factura es en divisa, se guarda la tasa y el snapshot
+      // en Bs. En Bs, la tasa es 1 y el monto extranjero es 0.
+      const invoiceCurrency = dto.currencyCode ?? 'VES';
+      const isForeignInvoice = invoiceCurrency !== 'VES';
+      const invoiceRate = isForeignInvoice ? Number(dto.exchangeRate ?? 1) : 1;
+      const invoiceTotal = Number(dto.totalAmount);
+      const invoiceAmountForeign = isForeignInvoice ? invoiceTotal : 0;
+      const invoiceAmountBase = invoiceTotal * invoiceRate;
+
       const newInvoice = await tx
         .insert(supplierInvoices)
         .values({
@@ -86,7 +95,10 @@ export class SupplierInvoicesService {
           subtotal: dto.subtotal.toString(),
           taxAmount: dto.taxAmount?.toString() ?? '0.00',
           totalAmount: dto.totalAmount.toString(),
-          currencyCode: dto.currencyCode ?? 'VES',
+          currencyCode: invoiceCurrency,
+          exchangeRate: String(invoiceRate),
+          amountBase: String(invoiceAmountBase),
+          amountForeign: String(invoiceAmountForeign),
           paymentType: dto.paymentType ?? 'CREDIT',
           paymentMethod: dto.paymentMethod ?? null,
           bankAccountId: dto.bankAccountId ?? null,
@@ -211,8 +223,63 @@ export class SupplierInvoicesService {
       }
 
       const isCash = invoice.paymentType === 'CASH';
-      const subtotal = Number(invoice.subtotal);
-      const taxAmount = Number(invoice.taxAmount);
+
+      // ── Recepción: inventario + costo de referencia en divisa ──
+      // La tasa usada para valorar el inventario es la de la fecha de la factura.
+      const invoiceRate = Number(invoice.exchangeRate ?? 1);
+      const isForeignInvoice = (invoice.currencyCode ?? 'VES') !== 'VES';
+
+      for (const item of invoice.items) {
+        const quantity = Number(item.quantity);
+        const unitCost = Number(item.unitCost);
+        const productId = item.productId ?? item.itemId;
+        if (quantity <= 0 || !productId) continue;
+
+        if (item.lineType === 'SALES_INVENTORY') {
+          // Actualiza el costo de referencia del producto (divisa) conservando su
+          // precio de venta, que vive en el mismo registro de precio activo.
+          await tx
+            .update(schema.productPrices)
+            .set({
+              baseCost: String(unitCost),
+              currencyCode: (invoice.currencyCode ?? 'VES') as any,
+              purchaseExchangeRate: String(invoiceRate),
+              updatedById: userId,
+            })
+            .where(
+              and(
+                eq(schema.productPrices.productId, productId),
+                eq(schema.productPrices.isActive, true),
+              ),
+            );
+
+          // Costo unitario en Bs a la tasa de la factura.
+          const unitCostBs = +(unitCost * invoiceRate).toFixed(4);
+
+          await this.inventoryMovementsService.create(
+            {
+              movementType: 'PURCHASE_RECEIPT',
+              movementDate: invoice.invoiceDate
+                ? String(invoice.invoiceDate)
+                : undefined,
+              description: `Ingreso por factura de proveedor ${invoice.invoiceNumber}`,
+              supplierId: invoice.supplierId,
+              invoiceNumber: invoice.invoiceNumber,
+              purchaseOrderId: invoice.purchaseOrderId ?? undefined,
+              items: [
+                {
+                  productId,
+                  quantity,
+                  unitCost: unitCostBs,
+                },
+              ],
+            } as any,
+            tenantId,
+            userId,
+            tx,
+          );
+        }
+      }
 
       // ── Crear precios y movimientos de inventario ──
       // for (const item of invoice.items) {
@@ -306,9 +373,11 @@ export class SupplierInvoicesService {
       //   }
       // }
 
-      // ── Crear Cuenta por Pagar ──
+      // ── Crear Cuenta por Pagar (moneda original + snapshot en Bs) ──
       const cxpStatus = isCash ? 'PAID' : 'PENDING';
-      const rr = await this.accountsPayableService.create(
+      const apAmountForeign = isForeignInvoice ? totalAmount : 0;
+      const apAmountBase = totalAmount * invoiceRate;
+      await this.accountsPayableService.create(
         userId,
         {
           tenantId,
@@ -318,6 +387,9 @@ export class SupplierInvoicesService {
           paidAmount: isCash ? totalAmount : 0,
           remainingAmount: isCash ? 0 : totalAmount,
           currencyCode: invoice.currencyCode ?? 'VES',
+          exchangeRate: invoiceRate,
+          amountForeign: apAmountForeign,
+          amountBase: apAmountBase,
           status: cxpStatus,
           dueDate: invoice.dueDate || new Date(),
           priority: this.isOverdue(invoice.dueDate) ? 'ALTA' : 'NORMAL',
@@ -341,14 +413,18 @@ export class SupplierInvoicesService {
           'accounts_payables',
         );
 
+        // El pago sale siempre en Bs (monto base a la tasa de la factura).
         await tx.insert(supplierTransactions).values({
           tenantId,
           supplierId: invoice.supplierId,
           transactionNumber: paymentRef,
           transactionType: 'PAYMENT',
           transactionDate: new Date().toISOString(),
-          amount: totalAmount.toString(),
-          currencyCode: invoice.currencyCode ?? 'VES',
+          amount: apAmountBase.toString(),
+          currencyCode: 'VES' as any,
+          exchangeRate: String(invoiceRate),
+          amountBase: String(apAmountBase),
+          amountForeign: String(apAmountForeign),
           status: 'APPLIED',
           paymentMethod: invoice.paymentMethod,
           bankAccountId: invoice.bankAccountId,
@@ -365,7 +441,7 @@ export class SupplierInvoicesService {
           description: `Pago a proveedor - Factura ${invoice.invoiceNumber}`,
           category: 'SUPPLIER_PAYMENT',
           bankReference: invoice.bankReference ?? paymentRef,
-          debitAmount: totalAmount.toString(),
+          debitAmount: apAmountBase.toString(),
           creditAmount: '0.00',
           reconciliationStatus: 'PENDING',
           createdById: userId,
@@ -1153,28 +1229,27 @@ export class SupplierInvoicesService {
         .where(eq(supplierInvoiceItems.invoiceId, invoiceId));
 
       for (const item of invoiceItems) {
-        if (
-          item.lineType === 'SALES_INVENTORY' ||
-          item.lineType === 'FIXED_ASSET'
-        ) {
-          await (this.inventoryMovementsService as any).create(
-            userId,
+        const productId = item.productId ?? item.itemId;
+        if (item.lineType === 'SALES_INVENTORY' && productId) {
+          await this.inventoryMovementsService.create(
             {
-              movementType: 'OUT',
+              movementType: 'SUPPLIER_RETURN',
               description: `ANULACIÓN FACTURA ${invoice.invoiceNumber}: ${dto.reason}`,
-              documentType: 'ANULACION_COMPRA',
-              documentNumber: invoice.invoiceNumber,
+              supplierId: invoice.supplierId,
+              invoiceNumber: invoice.invoiceNumber,
               items: [
                 {
-                  itemId: item.itemId ?? 0,
-                  itemType:
-                    item.lineType === 'FIXED_ASSET' ? 'FIXED_ASSET' : 'PRODUCT',
+                  productId,
                   quantity: Number(item.quantity),
-                  unitCost: Number(item.unitCost),
+                  unitCost: +(
+                    Number(item.unitCost) * Number(invoice.exchangeRate ?? 1)
+                  ).toFixed(4),
                 },
               ],
             } as any,
-            tx as any,
+            tenantId,
+            userId,
+            tx,
           );
         }
       }

@@ -317,6 +317,10 @@ export class SupplierPaymentsService {
           sql<string>`COALESCE(${accountsPayable.status}::text, 'PENDING')`.as(
             'status',
           ),
+        currencyCode:
+          sql<string>`COALESCE(${accountsPayable.currencyCode}::text, 'VES')`.as(
+            'currencyCode',
+          ),
         date: accountsPayable.dueDate!,
         type: sql<string>`'ACCOUNTS_PAYABLE'`.as('type'),
       })
@@ -340,6 +344,10 @@ export class SupplierPaymentsService {
         status:
           sql<string>`COALESCE(${supplierAdvances.statusPayment}::text, 'PENDING')`.as(
             'status',
+          ),
+        currencyCode:
+          sql<string>`COALESCE(${supplierTransactions.currencyCode}::text, 'VES')`.as(
+            'currencyCode',
           ),
         date: supplierTransactions.transactionDate!,
         type: sql<string>`'ADVANCE'`.as('type'),
@@ -797,7 +805,34 @@ export class SupplierPaymentsService {
       const cxpNumbers = cxps
         .map((c) => c.accounts_payable.accountsPayableNumber)
         .join(', ');
-      const totalAmount = dto.totalAmount || dto.amount || 0;
+
+      // Todas las CxP de un pago deben compartir moneda. El pago sale en Bs; si
+      // la CxP es en divisa, se aplica la tasa del día de pago.
+      const apCurrency = cxps[0].accounts_payable.currencyCode ?? 'VES';
+      for (const c of cxps) {
+        if ((c.accounts_payable.currencyCode ?? 'VES') !== apCurrency) {
+          throw new BadRequestException(
+            'Todas las cuentas por pagar de un pago deben estar en la misma moneda.',
+          );
+        }
+      }
+      const paymentRate =
+        apCurrency === 'VES' ? 1 : Number(dto.exchangeRate ?? 0);
+      if (
+        apCurrency !== 'VES' &&
+        (!Number.isFinite(paymentRate) || paymentRate <= 0)
+      ) {
+        throw new BadRequestException(
+          `Debe indicar la tasa de cambio (${apCurrency}) para registrar el pago.`,
+        );
+      }
+      const applyAmount = dto.totalAmount || dto.amount || 0; // moneda de la CxP
+      const totalAmount = +(applyAmount * paymentRate).toFixed(2); // Bs pagados
+      const amountForeign = apCurrency === 'VES' ? 0 : applyAmount;
+      const rateInfo =
+        apCurrency !== 'VES'
+          ? ` (Tasa ${dto.rateCurrency ?? apCurrency}: ${paymentRate})`
+          : '';
 
       const [newPayment] = await tx
         .insert(supplierPayments)
@@ -806,7 +841,10 @@ export class SupplierPaymentsService {
           supplierId: dto.supplierId,
           paymentNumber: paymentNumber,
           totalAmount: String(totalAmount),
-          currencyCode: 'VES',
+          currencyCode: 'VES' as any,
+          exchangeRate: String(paymentRate),
+          amountBase: String(totalAmount),
+          amountForeign: String(amountForeign),
           paymentMethod: dto.paymentMethod as paymentMethodEnum,
           bankAccountId: dto.bankAccountId,
           status: 'PROCESSED',
@@ -818,7 +856,7 @@ export class SupplierPaymentsService {
             dto.transactionDate instanceof Date
               ? dto.transactionDate.toISOString()
               : String(dto.transactionDate || new Date()),
-          observations: `Pago cta. por pagar N°${cxpNumbers}`,
+          observations: `Pago cta. por pagar N°${cxpNumbers}${rateInfo}`,
           processedAt: new Date().toISOString(),
         })
         .returning({
@@ -847,7 +885,10 @@ export class SupplierPaymentsService {
               ? dto.transactionDate.toISOString()
               : String(dto.transactionDate || new Date()),
           amount: String(totalAmount),
-          currencyCode: 'VES',
+          currencyCode: 'VES' as any,
+          exchangeRate: String(paymentRate),
+          amountBase: String(totalAmount),
+          amountForeign: String(amountForeign),
           status: 'APPLIED',
           paymentMethod: dto.paymentMethod as paymentMethodEnum,
           bankAccountId: dto.bankAccountId,
@@ -856,7 +897,7 @@ export class SupplierPaymentsService {
             dto.transactionDate instanceof Date
               ? dto.transactionDate.toISOString()
               : String(dto.transactionDate || new Date()),
-          observations: `Pago de Cuentas por Pagar N° ${cxpNumbers} con referencia a pago N° ${newPayment.reference}`,
+          observations: `Pago de Cuentas por Pagar N° ${cxpNumbers} con referencia a pago N° ${newPayment.reference}${rateInfo}`,
           createdById: userId,
         })
         .returning({
@@ -869,7 +910,7 @@ export class SupplierPaymentsService {
         0,
       );
 
-      let remainingToApply = totalAmount + creditTotal;
+      let remainingToApply = applyAmount + creditTotal;
 
       for (const cxp of cxps) {
         const cxpId = cxp.accounts_payable.id;

@@ -9,6 +9,9 @@ export const movementItemSchema = z.object({
   quantity: z.coerce.number().int().positive('La cantidad debe ser mayor a 0'),
   unitCost: z.coerce.number().min(0, 'El costo no puede ser negativo').default(0),
   totalCost: z.coerce.number().min(0).default(0),
+  currencyCode: z.string().optional(),
+  exchangeRate: z.coerce.number().min(0).optional(),
+  unitCostForeign: z.coerce.number().min(0).optional(),
 });
 
 export type MovementItem = z.infer<typeof movementItemSchema>;

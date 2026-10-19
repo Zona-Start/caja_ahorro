@@ -18,6 +18,12 @@ export const CreateSupplierPaymentSchema = z.object({
   bankReference: z.string().optional(),
   transactionDate: z.coerce.date(),
   totalAmount: z.coerce.number().min(0.01),
+  // Si las CxP son en divisa, se indica la moneda y la tasa del día de pago.
+  // El pago siempre sale en Bs (monto base = totalAmount × exchangeRate).
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
+  // Moneda de la tasa aplicada (dólar o euro), para trazabilidad.
+  rateCurrency: z.enum(['USD', 'EUR']).optional(),
   creditAplied: z.array(CreditAppliedSchema).default([]),
 });
 

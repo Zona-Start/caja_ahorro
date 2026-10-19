@@ -1100,7 +1100,7 @@ export class LoanManagementService {
       limit = 10,
       search = '',
       searchType = '',
-      sortBy = 'id',
+      sortBy = 'createdAt',
       sortOrder = 'desc',
       status = '',
       type = '',

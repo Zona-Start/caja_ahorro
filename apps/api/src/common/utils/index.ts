@@ -13,6 +13,7 @@ export const getRandomInt = (min: number, max: number) => {
 };
 
 export * from './bcrypt';
+export * from './duration';
 export * from './interest';
 export * from './pending-balance';
 export * from './ttl-cache';

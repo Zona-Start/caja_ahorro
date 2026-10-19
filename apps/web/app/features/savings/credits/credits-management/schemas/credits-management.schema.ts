@@ -57,6 +57,7 @@ export const creditManagementSchema = z.object({
   commercialHouseSupplierId: z.string().optional(),
   useSpecialParams: z.boolean().optional(),
   allowOverdraft: z.boolean().optional(),
+  allowExceedPaymentCapacity: z.boolean().optional(),
   haberesPayment: z.preprocess(
     (v) => (typeof v === 'string' ? parseFloat(v) || 0 : v),
     z.number().min(0).optional(),
@@ -99,6 +100,7 @@ export const creditDefaults: CreditManagement = {
   useCommercialHouse: false,
   useSpecialParams: false,
   allowOverdraft: false,
+  allowExceedPaymentCapacity: false,
   haberesPayment: 0,
   directPayment: 0,
 };

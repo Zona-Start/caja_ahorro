@@ -827,6 +827,9 @@ export const credits = savingsSchema.table(
     termType: varchar('term_type', { length: 20 }), // Tipo de plazo: "CUOTAS" o "PLAZO" (para indicar si se maneja por número de cuotas o un plazo fijo)
     termUnits: integer('term_units'), // Número de cuotas o duración del plazo)
     allowOverdraft: boolean('allow_overdraft').default(false), // Permitir sobregiro (excluye regla del 80%)
+    allowExceedPaymentCapacity: boolean('allow_exceed_payment_capacity').default(
+      false,
+    ), // Permitir superar la capacidad de pago (30% del salario)
     haberesPayment: numeric('haberes_payment', { precision: 20, scale: 6 }), // Monto pagado con haberes (retiro)
     directPayment: numeric('direct_payment', { precision: 20, scale: 6 }), // Monto de pago directo (inicial)
     directPaymentMethod: varchar('direct_payment_method', { length: 30 }), // Método del pago directo

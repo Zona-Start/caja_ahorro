@@ -37,6 +37,7 @@ import { format } from 'date-fns';
 import {
   SQL,
   and,
+  desc,
   eq,
   ilike,
   inArray,
@@ -1450,6 +1451,7 @@ export class SettlementAssociateService {
         associates,
         eq(associates.id, liquidationsAssociates.associateId),
       )
+      .orderBy(desc(liquidationsAssociates.createdAt))
       .limit(limit)
       .offset(offset);
 

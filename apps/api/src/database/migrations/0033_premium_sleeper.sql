@@ -1,0 +1,1 @@
+ALTER TABLE "treasury"."expenses" ADD COLUMN "expense_date" date;

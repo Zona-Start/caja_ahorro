@@ -4,6 +4,10 @@ import { Controller, Get, Query, Req, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import {
+  AccountBalanceDto,
+  AccountBalanceSchema,
+} from './dto/account-balance.dto';
+import {
   AssociatesBalanceDto,
   AssociatesBalanceSchema,
 } from './dto/associates-balance.dto';
@@ -18,6 +22,7 @@ import {
 } from './dto/income-statement.dto';
 import { JournalBookDto, JournalBookSchema } from './dto/journal-book.dto';
 import { TrialBalanceDto, TrialBalanceSchema } from './dto/trial-balance.dto';
+import { AccountBalanceService } from './services/account-balance.service';
 import { AssociatesBalanceService } from './services/associates-balance.service';
 import { BalanceSheetService } from './services/balance-sheet.service';
 import { GeneralLedgerService } from './services/general-ledger.service';
@@ -35,6 +40,7 @@ export class AccountingReportsController {
     private readonly balanceSheetService: BalanceSheetService,
     private readonly incomeStatementService: IncomeStatementService,
     private readonly associatesBalanceService: AssociatesBalanceService,
+    private readonly accountBalanceService: AccountBalanceService,
     private readonly tenantContext: TenantContextService,
   ) {}
 
@@ -243,6 +249,41 @@ export class AccountingReportsController {
     res.setHeader(
       'Content-Disposition',
       `attachment; filename=balance_asociados_${today}.pdf`,
+    );
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  }
+
+  // ---------- Balance por Cuenta ----------
+  @Get('account-balances')
+  @ApiOperation({ summary: 'Get Account Balance data' })
+  async getAccountBalances(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(AccountBalanceSchema))
+    filters: AccountBalanceDto,
+  ) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    return this.accountBalanceService.getData(targetTenantId, filters);
+  }
+
+  @Get('account-balances/pdf')
+  @ApiOperation({ summary: 'Download Account Balance PDF' })
+  async downloadAccountBalancesPdf(
+    @Req() req: Request,
+    @Query(new ZodValidatorPipe(AccountBalanceSchema))
+    filters: AccountBalanceDto,
+    @Res() res: Response,
+  ) {
+    const { targetTenantId } = this.tenantContext.getTenantContext(req);
+    const pdfDoc = await this.accountBalanceService.generatePdf(
+      targetTenantId,
+      filters,
+    );
+    const today = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=balance_por_cuenta_${today}.pdf`,
     );
     pdfDoc.pipe(res);
     pdfDoc.end();

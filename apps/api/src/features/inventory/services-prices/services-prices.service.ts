@@ -48,7 +48,13 @@ export class ServicePricesService {
       (current?.currencyCode ?? 'VES') !== (newPrice.currencyCode ?? 'VES') ||
       Number(current.baseCost ?? 0) !== newPrice.baseCost ||
       Number(current.otherCosts ?? 0) !== (newPrice.otherCosts ?? 0) ||
-      Number(current.purchaseTax ?? 0) !== (newPrice.purchaseTax ?? 0)
+      Number(current.purchaseTax ?? 0) !== (newPrice.purchaseTax ?? 0) ||
+      Number(current.purchaseExchangeRate ?? 1) !==
+        (newPrice.purchaseExchangeRate ?? 1) ||
+      Number(current.salesExchangeRate ?? 1) !==
+        (newPrice.salesExchangeRate ?? 1) ||
+      Number(current.salePrice ?? 0) !== (newPrice.salePrice ?? 0) ||
+      Number(current.salesTaxPercent ?? 0) !== (newPrice.salesTaxPercent ?? 0)
     );
   }
 
@@ -122,6 +128,9 @@ export class ServicePricesService {
         otherCosts: String(data.otherCosts ?? 0),
         purchaseTax: String(data.purchaseTax ?? taxRate),
         totalCost: String(finalCost),
+        salesExchangeRate: String(data.salesExchangeRate ?? 1),
+        salePrice: data.salePrice != null ? String(data.salePrice) : null,
+        salesTaxPercent: String(data.salesTaxPercent ?? 0),
         createdById: userId,
         startDate:
           this.formatDate(data.startDate) ??
@@ -220,7 +229,15 @@ export class ServicePricesService {
         serviceName: schema.services.name,
         suppliersId: schema.servicePrices.suppliersId,
         supplierName: schema.suppliers.name,
+        currencyCode: schema.servicePrices.currencyCode,
+        purchaseExchangeRate: schema.servicePrices.purchaseExchangeRate,
         baseCost: schema.servicePrices.baseCost,
+        otherCosts: schema.servicePrices.otherCosts,
+        purchaseTax: schema.servicePrices.purchaseTax,
+        totalCost: schema.servicePrices.totalCost,
+        salesExchangeRate: schema.servicePrices.salesExchangeRate,
+        salePrice: schema.servicePrices.salePrice,
+        salesTaxPercent: schema.servicePrices.salesTaxPercent,
         startDate: schema.servicePrices.startDate,
         endDate: schema.servicePrices.endDate,
         isActive: schema.servicePrices.isActive,

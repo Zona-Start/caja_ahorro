@@ -166,6 +166,7 @@ export class ExpensesService {
         nature: schema.expenses.nature,
         status: schema.expenses.status,
         paymentStatus: schema.expenses.paymentStatus,
+        expenseDate: schema.expenses.expenseDate,
         dueDate: schema.expenses.dueDate,
         frequency: schema.expenses.frequency,
         nextDueDate: schema.expenses.nextDueDate,
@@ -345,6 +346,7 @@ export class ExpensesService {
           paymentStatus: 'PENDING',
           status: 'PENDING_APPROVAL',
           nature: dto.nature ?? 'VARIABLE',
+          expenseDate: dto.expenseDate || new Date().toISOString().slice(0, 10),
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
           frequency: dto.nature === 'FIXED' ? (dto.frequency ?? null) : null,
           nextDueDate:

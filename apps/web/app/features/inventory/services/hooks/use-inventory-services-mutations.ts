@@ -18,7 +18,7 @@ export function useInventoryServiceMutation(): UseMutationResult<any, unknown, a
 
   return useMutation({
     mutationFn: async (payload: any) => {
-      const { _suppliers, currencyCode, purchaseExchangeRate, createdAt, updatedAt, ...rest } = payload;
+      const { _suppliers, createdAt, updatedAt, ...rest } = payload;
       const result = rest.id
         ? await inventoryServicesService.update(rest as InventoryService)
         : await inventoryServicesService.create(rest as InventoryService);

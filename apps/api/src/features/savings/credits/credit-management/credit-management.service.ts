@@ -432,6 +432,7 @@ export class CreditManagementService {
       termUnits,
       expensesPercentage,
       allowOverdraft,
+      allowExceedPaymentCapacity,
       haberesPayment,
       directPayment,
     } = dto;
@@ -590,7 +591,7 @@ export class CreditManagementService {
         finalTermType,
       );
       const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
-      if (monthlyPayment > paymentCapacity) {
+      if (monthlyPayment > paymentCapacity && !allowExceedPaymentCapacity) {
         throw new BadRequestException(
           `La cuota mensual (${monthlyPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
         );
@@ -686,6 +687,7 @@ export class CreditManagementService {
           invoiceNumber: dto.invoiceNumber ?? null,
           previousCreditId: dto.previousCreditId ?? null,
           allowOverdraft: dto.allowOverdraft ?? false,
+          allowExceedPaymentCapacity: dto.allowExceedPaymentCapacity ?? false,
           haberesPayment: dto.haberesPayment
             ? String(dto.haberesPayment)
             : null,
@@ -1221,7 +1223,7 @@ export class CreditManagementService {
       limit = 10,
       searchType = '',
       search = '',
-      sortBy = 'id',
+      sortBy = 'createdAt',
       sortOrder = 'desc',
       status = '',
       type = '',

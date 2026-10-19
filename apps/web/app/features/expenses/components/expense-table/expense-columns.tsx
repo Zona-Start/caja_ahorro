@@ -22,10 +22,10 @@ const STATUS_VARIANTS: Record<
 
 export const expenseColumns: ColumnDef<Expense>[] = [
   {
-    accessorKey: 'createdAt',
+    accessorKey: 'expenseDate',
     header: 'Fecha',
-    cell: ({ getValue }) => {
-      const value = getValue<string>();
+    cell: ({ row }) => {
+      const value = row.original.expenseDate || row.original.createdAt;
       if (!value) return '-';
       const date = new Date(value);
       return isNaN(date.getTime()) ? value : date.toLocaleDateString('es-VE');

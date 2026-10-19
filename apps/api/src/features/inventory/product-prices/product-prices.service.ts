@@ -86,9 +86,11 @@ export class ProductPricesService {
       .limit(1);
 
     const isComercial = tenant?.businessType === 'EMPRESA_COMERCIAL';
+    const isCajaAhorro = tenant?.businessType === 'CAJA_AHORRO';
 
     let pricingCurrencyMode = mode;
-    if (isComercial) {
+    if (isComercial || isCajaAhorro) {
+      // Caja de ahorro y comercial operan con referencia en divisa (multi-moneda).
       pricingCurrencyMode = 'MULTI_CURRENCY';
     } else if (!pricingCurrencyMode) {
       pricingCurrencyMode = 'SINGLE_BASE';

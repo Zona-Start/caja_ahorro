@@ -1,0 +1,3 @@
+ALTER TABLE "inventory"."inventory_movement_items" ADD COLUMN "currency_code" "currency_code" DEFAULT 'VES' NOT NULL;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movement_items" ADD COLUMN "exchange_rate" numeric(18, 6) DEFAULT '1.000000' NOT NULL;--> statement-breakpoint
+ALTER TABLE "inventory"."inventory_movement_items" ADD COLUMN "unit_cost_foreign" numeric(18, 6) DEFAULT '0.000000' NOT NULL;

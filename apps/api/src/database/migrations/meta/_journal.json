@@ -232,6 +232,34 @@
       "when": 1791815173661,
       "tag": "0032_abandoned_toxin",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792371022638,
+      "tag": "0033_premium_sleeper",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792376213475,
+      "tag": "0034_tricky_frog_thor",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792377398601,
+      "tag": "0035_clean_tony_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792378341340,
+      "tag": "0036_magenta_human_fly",
+      "breakpoints": true
     }
   ]
 }

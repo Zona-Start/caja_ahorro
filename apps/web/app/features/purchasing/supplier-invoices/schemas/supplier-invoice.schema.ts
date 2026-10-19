@@ -56,6 +56,7 @@ export const supplierInvoiceBaseSchema = z.object({
   observations: optionalString,
   items: z.array(invoiceItemFormSchema).min(1, 'Debe agregar al menos un ítem'),
   currencyCode: z.string().optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
   paymentMethod: z.string().optional(),
   bankAccountId: z.string().optional().nullable(),
   bankReference: z.string().optional(),

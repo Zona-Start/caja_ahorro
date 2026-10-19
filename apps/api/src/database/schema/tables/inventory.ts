@@ -219,6 +219,18 @@ export const servicePrices = inventorySchema.table('service_prices', {
   /* Costo total = baseCost + otherCosts + purchaseTax */
   totalCost: numeric('total_cost', { precision: 18, scale: 6 }), // calculado o guardado
 
+  /* =========  VENTA (referencia en divisa, Bs a la tasa del día)  ========= */
+  salesExchangeRate: numeric('sales_exchange_rate', {
+    precision: 18,
+    scale: 6,
+  })
+    .notNull()
+    .default('1.000000'),
+  salePrice: numeric('sale_price', { precision: 18, scale: 6 }), // precio de venta en divisa
+  salesTaxPercent: numeric('sales_tax_percent', { precision: 5, scale: 2 })
+    .notNull()
+    .default('0.00'), // caja de ahorro no aplica IVA venta
+
   supplierInvoiceId: uuid('supplier_invoice_id').references(
     () => supplierInvoices.id,
   ),
@@ -418,6 +430,15 @@ export const inventoryMovementItems = inventorySchema.table(
       .notNull()
       .default('0.000000'),
     totalCost: numeric('total_cost', { precision: 18, scale: 6 })
+      .notNull()
+      .default('0.000000'),
+
+    // Bimonetario: referencia en divisa y tasa del día aplicada.
+    currencyCode: currencyCodeEnum('currency_code').notNull().default('VES'),
+    exchangeRate: numeric('exchange_rate', { precision: 18, scale: 6 })
+      .notNull()
+      .default('1.000000'),
+    unitCostForeign: numeric('unit_cost_foreign', { precision: 18, scale: 6 })
       .notNull()
       .default('0.000000'),
 

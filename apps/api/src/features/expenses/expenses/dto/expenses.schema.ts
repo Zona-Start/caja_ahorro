@@ -37,6 +37,7 @@ export const CreateExpenseSchema = z
 
     // Naturaleza del gasto y programación (solo fijo)
     nature: z.enum(['FIXED', 'VARIABLE']).optional().default('VARIABLE'),
+    expenseDate: z.string().optional(),
     dueDate: z.string().optional(),
     frequency: z
       .enum(['MONTHLY', 'BIWEEKLY', 'QUARTERLY', 'ANNUAL'])

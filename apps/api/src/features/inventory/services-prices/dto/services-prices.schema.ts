@@ -20,6 +20,19 @@ export const CreateServicePriceSchema = z.object({
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).optional(),
   ),
+  // Venta (referencia en divisa, Bs a la tasa del día)
+  salesExchangeRate: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(1),
+  ),
+  salePrice: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).optional(),
+  ),
+  salesTaxPercent: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).default(0),
+  ),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   isActive: z.boolean().default(true),

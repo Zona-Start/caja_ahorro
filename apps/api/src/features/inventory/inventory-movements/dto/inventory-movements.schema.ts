@@ -11,6 +11,16 @@ export const InventoryMovementItemSchema = z.object({
     (val) => (typeof val === 'string' ? parseFloat(val) : val),
     z.number().min(0).default(0),
   ),
+  // Bimonetario: referencia en divisa y tasa del día aplicada.
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).optional(),
+  ),
+  unitCostForeign: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number().min(0).optional(),
+  ),
 });
 
 export const CreateInventoryMovementSchema = z.object({

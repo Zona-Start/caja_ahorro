@@ -1,4 +1,5 @@
 import { Public } from '@/common/decorators/public.decorator';
+import { durationToMs } from '@/common/utils';
 import {
   Body,
   Controller,
@@ -25,6 +26,19 @@ export class AuthController {
     };
   }
 
+  private getRefreshCookieOptions() {
+    return {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: durationToMs(
+        process.env.JWT_REFRESH_EXPIRY,
+        7 * 24 * 60 * 60 * 1000,
+      ),
+    };
+  }
+
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -32,14 +46,11 @@ export class AuthController {
     const context = this.getLoginContext(req);
     const result = await this.authService.login(loginDto, context);
 
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      //partitioned: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie(
+      'refreshToken',
+      result.refreshToken,
+      this.getRefreshCookieOptions(),
+    );
 
     return res.json({
       accessToken: result.accessToken,
@@ -65,20 +76,17 @@ export class AuthController {
         context,
       );
 
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        //partitioned: true,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      res.cookie(
+        'refreshToken',
+        result.refreshToken,
+        this.getRefreshCookieOptions(),
+      );
 
       return res.json({
         accessToken: result.accessToken,
         user: result.user,
       });
-    } catch (error) {
+    } catch {
       res.clearCookie('refreshToken');
       return res.status(401).json({ message: 'Invalid refresh token' });
     }

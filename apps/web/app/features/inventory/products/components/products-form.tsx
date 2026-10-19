@@ -53,7 +53,12 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
   const { data: categories, isLoading: isLoadingCategories } = useCategoriesQuery();
   const { data: settings } = useProductDefaults();
   const { user } = useAuthStore();
-  const isEmpresaComercial = user?.memberships?.[0]?.bussinessType === 'EMPRESA_COMERCIAL';
+  const businessType = user?.memberships?.[0]?.bussinessType;
+  const isEmpresaComercial = businessType === 'EMPRESA_COMERCIAL';
+  const isCajaAhorro = businessType === 'CAJA_AHORRO';
+  // Caja de ahorro y comercial usan precio directo (costo de compra y precio de
+  // venta), sin margen de ganancia porcentual.
+  const usesDirectPricing = isEmpresaComercial || isCajaAhorro;
 
   const [suppliers, setSuppliers] = useState<ProductSupplierAssignment[]>([]);
   const [showSupplierForm, setShowSupplierForm] = useState(false);
@@ -71,9 +76,10 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
   useEffect(() => {
     if (settings && !defaultValues?.id) {
       form.setValue('purchaseTaxPercent', settings.taxPurchases);
-      form.setValue('salesTaxPercent', settings.taxSales);
+      // Caja de ahorro no aplica IVA de venta.
+      form.setValue('salesTaxPercent', isCajaAhorro ? 0 : settings.taxSales);
     }
-  }, [settings, defaultValues?.id]);
+  }, [settings, defaultValues?.id, isCajaAhorro]);
 
   const form = useForm<Product>({
     resolver: zodResolver(productSchema),
@@ -94,7 +100,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
 
   // ── Watch values for live calculations ──
   const currencyCode = useWatch({ control: form.control, name: 'currencyCode' });
-  const isForeignCurrency = isEmpresaComercial && currencyCode !== 'VES';
+  const isForeignCurrency = currencyCode !== 'VES';
   const supplierCost = useWatch({ control: form.control, name: 'supplierCost' });
   const otherCosts = useWatch({ control: form.control, name: 'otherCosts' });
   const purchaseTaxPct = useWatch({ control: form.control, name: 'purchaseTaxPercent' });
@@ -124,7 +130,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
   }, [defaultValues?.id]);
 
 
-  const offerActive = isForeignCurrency
+  const offerActive = usesDirectPricing
     ? (Number(offerSalePrice) || 0) > 0
     : (profitSupply ?? 0) > 0;
   const [enableBsPricing, setEnableBsPricing] = useState(false);
@@ -138,7 +144,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
   const handleBsPricingToggle = (checked: boolean) => {
     setEnableBsPricing(checked);
     if (checked) {
-      if (isEmpresaComercial && currencyCode !== 'VES') {
+      if (isForeignCurrency) {
         apiClient.get(`/core/exchange-rates/latest/${currencyCode}`)
           .then((res) => {
             if (res.data?.rate) {
@@ -157,7 +163,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
   };
 
   useEffect(() => {
-    if (!isEmpresaComercial || currencyCode === 'VES') return;
+    if (!isForeignCurrency) return;
     apiClient.get(`/core/exchange-rates/latest/${currencyCode}`)
       .then((res) => {
         if (res.data?.rate) {
@@ -171,7 +177,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
         }
       })
       .catch(() => { });
-  }, [currencyCode, isEmpresaComercial, enableBsPricing]);
+  }, [currencyCode, isForeignCurrency, enableBsPricing]);
 
   useEffect(() => {
     if (defaultValues && Object.keys(defaultValues).length > 0) {
@@ -218,7 +224,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
     const stPct = Number(salesTaxPct) || 0;
     const sRate = Number(salesRate) || 1;
 
-    if (isForeignCurrency && (Number(salePrice) || 0) > 0) {
+    if (usesDirectPricing && (Number(salePrice) || 0) > 0) {
       const sp = Number(salePrice) || 0;
       const finalGross = sp;
       const finalNet = +(finalGross / (1 + stPct / 100)).toFixed(6);
@@ -253,7 +259,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
     const stPct = Number(salesTaxPct) || 0;
     const sRate = Number(salesRate) || 1;
 
-    if (isForeignCurrency) {
+    if (usesDirectPricing) {
       const sp = Number(offerSalePrice) || 0;
       const finalGross = sp;
       const finalNet = +(finalGross / (1 + stPct / 100)).toFixed(6);
@@ -416,29 +422,29 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="salesTaxPercent" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>IVA de Venta (%)</FormLabel>
-                  <FormControl><Input type="number" step="0.01" placeholder="16.00" {...field} disabled={readOnly} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
-              {isEmpresaComercial && (
-                <FormField control={form.control} name="currencyCode" render={({ field }) => (
+              {!isCajaAhorro && (
+                <FormField control={form.control} name="salesTaxPercent" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Moneda de Operación</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={readOnly}>
-                      <FormControl><SelectTrigger className='w-full'><SelectValue placeholder="Seleccione moneda" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {CURRENCY_OPTIONS.map((c) => (
-                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>IVA de Venta (%)</FormLabel>
+                    <FormControl><Input type="number" step="0.01" placeholder="16.00" {...field} disabled={readOnly} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
               )}
+              <FormField control={form.control} name="currencyCode" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Moneda de Operación</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={readOnly}>
+                    <FormControl><SelectTrigger className='w-full'><SelectValue placeholder="Seleccione moneda" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
           </CardContent>
         </Card>
@@ -534,7 +540,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {isForeignCurrency ? (
+              {usesDirectPricing ? (
                 <>
                   <FormField control={form.control} name="salePrice" render={({ field }) => (
                     <FormItem>
@@ -543,37 +549,41 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
                       <FormMessage />
                     </FormItem>
                   )} />
-                  <div className="md:col-span-2">
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={enableBsPricing}
-                        onCheckedChange={handleBsPricingToggle}
-                        disabled={readOnly}
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        {enableBsPricing
-                          ? `Precio en ${currencyCode} habilitado para pago en Bs.`
-                          : `Habilitar precio en ${currencyCode} para pago en Bs.`}
-                      </p>
-                    </div>
-                  </div>
-                  {enableBsPricing && (
+                  {isForeignCurrency && (
                     <>
-                      <FormField control={form.control} name="bsPriceAmount" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Precio en {currencyCode} para pago en Bs.</FormLabel>
-                          <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField control={form.control} name="salesExchangeRate" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tasa de Cambio (Venta)</FormLabel>
-                          <FormControl><Input type="text" inputMode="decimal" placeholder="1.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
+                      <div className="md:col-span-2">
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={enableBsPricing}
+                            onCheckedChange={handleBsPricingToggle}
+                            disabled={readOnly}
+                          />
+                          <p className="text-sm text-muted-foreground">
+                            {enableBsPricing
+                              ? `Precio en ${currencyCode} habilitado para pago en Bs.`
+                              : `Habilitar precio en ${currencyCode} para pago en Bs.`}
+                          </p>
+                        </div>
+                      </div>
+                      {enableBsPricing && (
+                        <>
+                          <FormField control={form.control} name="bsPriceAmount" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Precio en {currencyCode} para pago en Bs.</FormLabel>
+                              <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                          <FormField control={form.control} name="salesExchangeRate" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tasa de Cambio (Venta)</FormLabel>
+                              <FormControl><Input type="text" inputMode="decimal" placeholder="1.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
 
+                        </>
+                      )}
                     </>
                   )}
                 </>
@@ -598,7 +608,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
             </div>
 
             {/* ── Resumen de Precios ── */}
-            {isForeignCurrency && (Number(salePrice) || 0) > 0 && (
+            {usesDirectPricing && (Number(salePrice) || 0) > 0 && (
               <div className="bg-muted/30 rounded-lg border p-3 space-y-1.5 text-sm">
                 <p className="font-medium text-muted-foreground mb-1">Resumen de Precio de Venta en {currencyCode}</p>
                 <div className="flex justify-between"><span>Precio Neto (sin IVA):</span><span>{sym} {priceCalc.finalPriceNet.toFixed(2)}</span></div>
@@ -613,7 +623,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
                 )}
               </div>
             )}
-            {!isForeignCurrency && costCalc.totalCost > 0 && (
+            {!usesDirectPricing && costCalc.totalCost > 0 && (
               <div className="bg-muted/30 rounded-lg border p-3 space-y-1.5 text-sm">
                 <p className="font-medium text-muted-foreground mb-1">Resumen de Precio de Venta</p>
                 <div className="flex justify-between"><span>Costo Total:</span><span>{sym} {costCalc.totalCost.toFixed(2)}</span></div>
@@ -634,7 +644,7 @@ export function ProductsForm({ onSuccess, onCancel, defaultValues, readOnly = fa
             <CardTitle className="text-base">Precio Oferta</CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            {isForeignCurrency ? (
+            {usesDirectPricing ? (
               <FormField control={form.control} name="offerSalePrice" render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center gap-3">

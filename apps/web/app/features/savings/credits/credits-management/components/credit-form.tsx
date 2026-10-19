@@ -20,6 +20,7 @@ import {
 import { Button } from '@repo/shadcn/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@repo/shadcn/card';
 import { Input } from '@repo/shadcn/input';
+import { Switch } from '@repo/shadcn/switch';
 import { Label } from '@repo/shadcn/label';
 import {
   Select,
@@ -44,6 +45,7 @@ import { type SearchAssociateResult } from '../schemas/credits-management-api-re
 import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
 import { CreditCalculator } from './credit-calculator';
 import { ProductsService } from '@/features/inventory/products/services/products-service';
+import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
 import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
 import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
 import { calculateFrenchAmortization } from '../utils/credit-amortization-utils';
@@ -121,6 +123,10 @@ export function CreditForm({
   const watchHaberesPayment = useWatch({ control, name: 'haberesPayment' }) || 0;
   const watchDirectPayment = useWatch({ control, name: 'directPayment' }) || 0;
   const watchOverdraft = useWatch({ control, name: 'allowOverdraft' });
+  const watchAllowExceedCapacity = useWatch({
+    control,
+    name: 'allowExceedPaymentCapacity',
+  });
   const watchDirectPaymentMethod = useWatch({ control, name: 'directPaymentMethod' });
   const watchDirectPaymentBank = useWatch({ control, name: 'directPaymentBankAccountId' });
 
@@ -250,11 +256,16 @@ export function CreditForm({
     if (
       amortizableAmount > 0 &&
       monthlyPmt > 0 &&
-      monthlyPmt > selectedAssociate.paymentCapacity
+      monthlyPmt > selectedAssociate.paymentCapacity &&
+      !watchAllowExceedCapacity
     ) {
       r.canSave = false;
       r.messages.push(
         `La cuota (${formatCurrency(monthlyPmt)}) supera su capacidad de pago del 30% (${formatCurrency(selectedAssociate.paymentCapacity)})`,
+      );
+    } else if (watchAllowExceedCapacity && monthlyPmt > 0) {
+      r.messages.push(
+        'Capacidad de pago excedida - Permitido por parámetro especial',
       );
     } else if (selectedAssociate.paymentCapacity > 0) {
       r.messages.push(
@@ -307,6 +318,7 @@ export function CreditForm({
     amortData,
     useSpecial,
     watchOverdraft,
+    watchAllowExceedCapacity,
     watchDirectPayment,
     watchDirectPaymentMethod,
     watchDirectPaymentBank,
@@ -319,12 +331,29 @@ export function CreditForm({
 
     try {
       const productDetail = await ProductsService.getById(selectedProduct);
-      const unitPrice = Number(
-        productDetail.bsPriceAmount ??
+      // El precio de venta está fijado en divisa; el monto en Bs se calcula a la
+      // tasa del día de la venta.
+      const currency = (productDetail.currencyCode ?? 'VES') as
+        | 'VES'
+        | 'USD'
+        | 'EUR';
+      const saleReference = Number(
         productDetail.salePrice ??
-        productDetail.supplierCost ??
-        0,
+          productDetail.bsPriceAmount ??
+          productDetail.supplierCost ??
+          0,
       );
+      let factor = 1;
+      if (currency !== 'VES') {
+        try {
+          const latest = await exchangeRatesService.getLatest(currency);
+          const rate = Number(latest.rate);
+          if (Number.isFinite(rate) && rate > 0) factor = rate;
+        } catch {
+          factor = 1;
+        }
+      }
+      const unitPriceBs = +(saleReference * factor).toFixed(2);
       setItems((prev) => [
         ...prev,
         {
@@ -333,8 +362,11 @@ export function CreditForm({
           productId: prod.id,
           productName: prod.name,
           quantity: productQty,
-          unitPrice,
-          totalPrice: unitPrice * productQty,
+          unitPrice: saleReference,
+          currencyCode: currency,
+          exchangeRate: factor,
+          unitPriceBs,
+          totalPrice: +(unitPriceBs * productQty).toFixed(2),
         },
       ]);
     } catch {
@@ -347,12 +379,52 @@ export function CreditForm({
           productName: prod.name,
           quantity: productQty,
           unitPrice: 0,
+          currencyCode: 'VES',
+          exchangeRate: 1,
+          unitPriceBs: 0,
           totalPrice: 0,
         },
       ]);
     }
     setSelectedProduct('');
     setProductQty(1);
+  };
+
+  // Permite modificar el precio de venta en divisa y recalcula el monto en Bs
+  // con la tasa del día.
+  const updateItemPrice = (id: string, value: number) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== id) return it;
+        const rate = it.exchangeRate || 1;
+        const isForeign = it.type === 'product' && it.currencyCode !== 'VES';
+        const unitPriceBs = isForeign
+          ? +(value * rate).toFixed(2)
+          : value;
+        return {
+          ...it,
+          unitPrice: value,
+          unitPriceBs,
+          totalPrice: +(unitPriceBs * (it.quantity || 0)).toFixed(2),
+        };
+      }),
+    );
+  };
+
+  const updateItemQty = (id: string, qty: number) => {
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === id
+          ? {
+              ...it,
+              quantity: qty,
+              totalPrice: +((it.unitPriceBs ?? it.unitPrice ?? 0) * qty).toFixed(
+                2,
+              ),
+            }
+          : it,
+      ),
+    );
   };
 
   const addServiceItem = () => {
@@ -366,6 +438,7 @@ export function CreditForm({
         description: servDescription,
         quantity: servQty,
         unitPrice: servCost,
+        unitPriceBs: servCost,
         totalPrice,
         specialDayCategoryId: servSpecialDayId,
       },
@@ -796,9 +869,43 @@ export function CreditForm({
                           <td className="py-1">
                             {it.productName || it.description}
                           </td>
-                          <td className="py-1 text-right font-mono">{it.quantity}</td>
-                          <td className="py-1 text-right font-mono">
-                            {formatCurrency(it.unitPrice)}
+                          <td className="py-1 text-right">
+                            <Input
+                              type="number"
+                              min={1}
+                              value={it.quantity}
+                              onChange={(e) =>
+                                updateItemQty(it.id, Number(e.target.value) || 0)
+                              }
+                              className="h-7 w-16 text-xs text-right font-mono ml-auto"
+                            />
+                          </td>
+                          <td className="py-1 text-right">
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              value={it.unitPrice ?? ''}
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(
+                                  /[^0-9.]/g,
+                                  '',
+                                );
+                                updateItemPrice(
+                                  it.id,
+                                  cleaned ? parseFloat(cleaned) : 0,
+                                );
+                              }}
+                              className="h-7 w-24 text-xs text-right font-mono ml-auto"
+                            />
+                            {it.type === 'product' &&
+                              it.currencyCode &&
+                              it.currencyCode !== 'VES' && (
+                                <div className="text-[10px] text-muted-foreground">
+                                  {it.currencyCode} ×{' '}
+                                  {Number(it.exchangeRate || 1).toFixed(2)} ={' '}
+                                  {formatCurrency(it.unitPriceBs ?? 0)}
+                                </div>
+                              )}
                           </td>
                           {items.some((i) => i.type === 'service') && (
                             <td className="py-1 text-xs">
@@ -854,6 +961,7 @@ export function CreditForm({
                   setUseSpecial(!useSpecial);
                   if (useSpecial) {
                     setValue('allowOverdraft', false);
+                    setValue('allowExceedPaymentCapacity', false);
                     setValue('haberesPayment', 0);
                     setValue('directPayment', 0);
                     setValue('directPaymentMethod', '');
@@ -871,16 +979,33 @@ export function CreditForm({
           </CardHeader>
           {useSpecial && (
             <CardContent className="space-y-4 bg-muted/30 rounded-lg p-4">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="allowOverdraft"
-                  {...register('allowOverdraft')}
-                  className="rounded"
+              <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Permitir sobregiro</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Excluye la regla del 80% disponible.
+                  </p>
+                </div>
+                <Switch
+                  checked={!!watchOverdraft}
+                  onCheckedChange={(v) => setValue('allowOverdraft', v)}
                 />
-                <Label htmlFor="allowOverdraft" className="text-sm">
-                  Permitir sobregiro (excluye regla del 80%)
-                </Label>
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm">
+                    Permitir superar la capacidad de pago
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Omite la regla de la cuota máxima (30% del salario).
+                  </p>
+                </div>
+                <Switch
+                  checked={!!watchAllowExceedCapacity}
+                  onCheckedChange={(v) =>
+                    setValue('allowExceedPaymentCapacity', v)
+                  }
+                />
               </div>
               <div>
                 <Label>Monto a pagar de haberes (genera retiro)</Label>

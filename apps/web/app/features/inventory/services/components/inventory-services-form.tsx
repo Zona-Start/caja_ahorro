@@ -61,7 +61,9 @@ export function InventoryServiceForm({
   const { mutateAsync: saveService, isPending: isSaving } = useInventoryServiceMutation();
   const { data: categories } = useCategoriesQuery();
   const { user } = useAuthStore();
-  const isEmpresaComercial = user?.memberships?.[0]?.bussinessType === 'EMPRESA_COMERCIAL';
+  const businessType = user?.memberships?.[0]?.bussinessType;
+  const isEmpresaComercial = businessType === 'EMPRESA_COMERCIAL';
+  const isCajaAhorro = businessType === 'CAJA_AHORRO';
   const readOnly = disabled;
 
   const [suppliers, setSuppliers] = useState<ServiceSupplier[]>([]);
@@ -89,6 +91,9 @@ export function InventoryServiceForm({
       supplierCost: 0,
       otherCosts: 0,
       purchaseTax: 16,
+      salePrice: undefined,
+      salesExchangeRate: 1,
+      salesTaxPercent: 0,
       status: InventoryServiceStatus.ACTIVE,
       ...toFormValues(defaultValues),
     },
@@ -99,8 +104,10 @@ export function InventoryServiceForm({
   const otherCosts = useWatch({ control: form.control, name: 'otherCosts' });
   const purchaseTax = useWatch({ control: form.control, name: 'purchaseTax' });
   const purchaseRate = useWatch({ control: form.control, name: 'purchaseExchangeRate' });
-  const isForeignCurrency = isEmpresaComercial && currencyCode !== 'VES';
-  const sym = isEmpresaComercial ? (CURRENCY_SYMBOLS[currencyCode] ?? currencyCode) : 'Bs.';
+  const salePrice = useWatch({ control: form.control, name: 'salePrice' });
+  const salesRate = useWatch({ control: form.control, name: 'salesExchangeRate' });
+  const isForeignCurrency = currencyCode !== 'VES';
+  const sym = CURRENCY_SYMBOLS[currencyCode] ?? currencyCode;
 
   useEffect(() => {
     if (!isForeignCurrency) return;
@@ -110,11 +117,12 @@ export function InventoryServiceForm({
           const rate = parseFloat(res.data.rate);
           if (!isNaN(rate) && rate > 0) {
             form.setValue('purchaseExchangeRate', rate, { shouldDirty: true });
+            form.setValue('salesExchangeRate', rate, { shouldDirty: true });
           }
         }
       })
       .catch(() => { });
-  }, [currencyCode]);
+  }, [currencyCode, isForeignCurrency]);
 
   useEffect(() => {
     if (defaultValues?.id) {
@@ -137,6 +145,7 @@ export function InventoryServiceForm({
         name: '', description: '', categoryId: '', serviceType: '',
         currencyCode: 'VES', purchaseExchangeRate: 1,
         supplierCost: 0, otherCosts: 0, purchaseTax: 16,
+        salePrice: undefined, salesExchangeRate: 1, salesTaxPercent: 0,
         status: InventoryServiceStatus.ACTIVE,
         ...toFormValues(defaultValues),
       });
@@ -236,22 +245,20 @@ export function InventoryServiceForm({
                   </FormItem>
                 )} />
               )}
-              {isEmpresaComercial && (
-                <FormField control={form.control} name="currencyCode" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Moneda de Operación</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={readOnly}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Seleccione moneda" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {CURRENCY_OPTIONS.map((c) => (
-                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              )}
+              <FormField control={form.control} name="currencyCode" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Moneda de Operación</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={readOnly}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccione moneda" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="status" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Estado</FormLabel>
@@ -349,6 +356,55 @@ export function InventoryServiceForm({
                 {isForeignCurrency && (
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Costo Total en VES:</span><span>Bs. {costCalc.totalCostVes.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Precio de Venta (referencia en divisa, Bs a la tasa del día) ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-3">
+              <FormField control={form.control} name="salePrice" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Precio de Venta ({sym})</FormLabel>
+                  <FormControl><Input type="text" inputMode="decimal" placeholder="0.00" {...field} value={field.value ?? ''} disabled={readOnly}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/[^0-9.]/g, '');
+                      const parts = v.split('.');
+                      if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+                      field.onChange(v ? Number(v) : undefined);
+                    }}
+                  /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              {isForeignCurrency && (
+                <FormField control={form.control} name="salesExchangeRate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tasa de Cambio (Venta)</FormLabel>
+                    <FormControl><Input type="text" inputMode="decimal" placeholder="1.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
+              {!isCajaAhorro && (
+                <FormField control={form.control} name="salesTaxPercent" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>IVA de Venta (%)</FormLabel>
+                    <FormControl><Input type="text" inputMode="decimal" placeholder="16.00" {...field} value={field.value ?? ''} disabled={readOnly} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              )}
+            </div>
+
+            {(Number(salePrice) || 0) > 0 && (
+              <div className="bg-muted/30 rounded-lg border p-3 space-y-1.5 text-sm">
+                <p className="font-medium text-muted-foreground mb-1">Precio de Venta</p>
+                <div className="flex justify-between"><span>Precio en {currencyCode}:</span><span>{sym} {Number(salePrice).toFixed(2)}</span></div>
+                {isForeignCurrency && (
+                  <div className="flex justify-between font-semibold">
+                    <span>Precio en Bs (tasa del día):</span>
+                    <span>Bs. {(Number(salePrice) * (Number(salesRate) || 1)).toFixed(2)}</span>
                   </div>
                 )}
               </div>

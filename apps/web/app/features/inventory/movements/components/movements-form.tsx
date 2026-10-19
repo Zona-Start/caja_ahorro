@@ -38,6 +38,7 @@ import {
   useSupplierInvoiceQuery,
   useProductsAllQuery,
   useProductPriceQuery,
+  useLatestRateQuery,
 } from '../hooks/use-movements-resources';
 import {
   type InventoryMovement,
@@ -100,6 +101,8 @@ export function MovementsForm({
 
   const totalItems = items?.length ?? 0;
   const totalCost = items?.reduce((sum, item) => sum + (item.quantity ?? 0) * (item.unitCost ?? 0), 0) ?? 0;
+  const totalCostForeign = items?.reduce((sum, item) => sum + (item.quantity ?? 0) * (item.unitCostForeign ?? 0), 0) ?? 0;
+  const hasForeign = items?.some((item) => !!item.currencyCode && item.currencyCode !== 'VES') ?? false;
 
   const onSubmit = (data: FormValues) => {
     const payload = {
@@ -351,6 +354,11 @@ export function MovementsForm({
             <div>
               <span className="text-muted-foreground">Costo Total: </span>
               <span className="font-bold">Bs. {totalCost.toFixed(2)}</span>
+              {hasForeign && (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  (divisa {totalCostForeign.toFixed(2)})
+                </span>
+              )}
             </div>
           </div>
         </section>
@@ -395,6 +403,8 @@ function ProductItemRow({
   const productName = form.watch(`items.${index}.productName`);
   const quantity = form.watch(`items.${index}.quantity`);
   const unitCost = form.watch(`items.${index}.unitCost`);
+  const unitCostForeign = form.watch(`items.${index}.unitCostForeign`);
+  const itemCurrency = form.watch(`items.${index}.currencyCode`);
   const purchaseOrderItemId = form.watch(`items.${index}.purchaseOrderItemId`);
 
   const isFromPo = !!purchaseOrderItemId;
@@ -403,19 +413,67 @@ function ProductItemRow({
     selectedProductId ?? '',
     !isFromPo && !!selectedProductId,
   );
+  const productCurrency = productPrice?.currencyCode ?? 'VES';
+  const { data: latestRate } = useLatestRateQuery(
+    productCurrency,
+    !isFromPo && !!selectedProductId,
+  );
 
+  // Autocompleta el costo unitario en Bs. a la tasa del día (costo de referencia
+  // en divisa × tasa). El campo queda editable para ajustes manuales.
   useEffect(() => {
-    if (!isFromPo && productPrice && selectedProductId) {
-      const currentUnitCost = form.getValues(`items.${index}.unitCost` as never) as unknown as number;
-      if (!currentUnitCost || currentUnitCost === 0) {
-        form.setValue(`items.${index}.unitCost` as never, productPrice.baseCost as never, {
-          shouldDirty: false,
-          shouldTouch: false,
-          shouldValidate: false,
-        });
-      }
+    if (isFromPo || !productPrice || !selectedProductId) return;
+    const currentUnitCost = form.getValues(
+      `items.${index}.unitCost` as never,
+    ) as unknown as number;
+    if (currentUnitCost && currentUnitCost !== 0) return;
+    if (productPrice.currencyCode !== 'VES' && !latestRate) return;
+    const rate = productPrice.currencyCode !== 'VES' ? latestRate! : 1;
+    const isForeign = productPrice.currencyCode !== 'VES';
+    const unitCostBs = +(productPrice.baseCost * rate).toFixed(2);
+    const opts = {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: false,
+    };
+    form.setValue(`items.${index}.unitCost` as never, unitCostBs as never, opts);
+    form.setValue(
+      `items.${index}.unitCostForeign` as never,
+      (isForeign ? productPrice.baseCost : 0) as never,
+      opts,
+    );
+    form.setValue(
+      `items.${index}.currencyCode` as never,
+      productPrice.currencyCode as never,
+      opts,
+    );
+    form.setValue(`items.${index}.exchangeRate` as never, rate as never, opts);
+  }, [productPrice, latestRate, selectedProductId, isFromPo]);
+
+  const itemRate = Number(
+    form.getValues(`items.${index}.exchangeRate` as never) ?? 1,
+  ) || 1;
+  const isForeignItem =
+    productCurrency !== 'VES' || (itemCurrency != null && itemCurrency !== 'VES');
+
+  // Editar el costo en divisa recalcula los Bs a la tasa del día; editar los Bs
+  // recalcula el costo en divisa.
+  const handleForeignCostChange = (value: number) => {
+    form.setValue(`items.${index}.unitCostForeign` as never, value as never);
+    form.setValue(
+      `items.${index}.unitCost` as never,
+      +(value * itemRate).toFixed(4) as never,
+    );
+  };
+  const handleBsCostChange = (value: number) => {
+    form.setValue(`items.${index}.unitCost` as never, value as never);
+    if (isForeignItem && itemRate > 0) {
+      form.setValue(
+        `items.${index}.unitCostForeign` as never,
+        +(value / itemRate).toFixed(4) as never,
+      );
     }
-  }, [productPrice, selectedProductId, isFromPo]);
+  };
 
   const qty = quantity ?? 0;
   const cost = unitCost ?? 0;
@@ -540,16 +598,76 @@ function ProductItemRow({
             </FormItem>
           )}
         />
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Costo Unitario</p>
-          <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">
-            {isFromPo ? `Bs. ${cost.toFixed(2)}` : `Bs. ${cost.toFixed(2)}`}
+        <div className="space-y-1">
+          {isForeignItem && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">
+                Costo ({itemCurrency || productCurrency})
+              </p>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={unitCostForeign ?? ''}
+                onChange={(e) =>
+                  handleForeignCostChange(
+                    e.target.value === '' ? 0 : Number(e.target.value),
+                  )
+                }
+                disabled={isFromPo}
+              />
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">
+              Costo Unitario (Bs.)
+            </p>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={unitCost ?? 0}
+              onChange={(e) =>
+                handleBsCostChange(
+                  e.target.value === '' ? 0 : Number(e.target.value),
+                )
+              }
+            />
+            {!isFromPo && isForeignItem && (
+              <p className="text-[10px] text-muted-foreground">
+                {itemCurrency || productCurrency} × tasa {itemRate.toFixed(2)}
+              </p>
+            )}
           </div>
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Subtotal</p>
-          <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm items-center">
-            Bs. {subtotal.toFixed(2)}
+        <div className="space-y-1">
+          {isForeignItem && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">
+                Subtotal ({itemCurrency || productCurrency})
+              </p>
+              <Input
+                type="text"
+                readOnly
+                tabIndex={-1}
+                value={(qty * (unitCostForeign ?? 0)).toFixed(2)}
+                className="h-10 text-right font-mono bg-muted/50"
+              />
+            </div>
+          )}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">
+              Subtotal (Bs.)
+            </p>
+            <Input
+              type="text"
+              readOnly
+              tabIndex={-1}
+              value={subtotal.toFixed(2)}
+              className="h-10 text-right font-mono bg-muted/50"
+            />
           </div>
         </div>
       </div>

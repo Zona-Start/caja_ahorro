@@ -12,4 +12,6 @@ export const accountingReportsKeys = {
     [...accountingReportsKeys.all, 'general-ledger', filters] as const,
   associatesBalance: (filters: Record<string, unknown>) =>
     [...accountingReportsKeys.all, 'associates-balance', filters] as const,
+  accountBalance: (filters: Record<string, unknown>) =>
+    [...accountingReportsKeys.all, 'account-balances', filters] as const,
 };

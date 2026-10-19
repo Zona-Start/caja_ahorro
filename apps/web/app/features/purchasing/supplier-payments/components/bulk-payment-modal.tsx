@@ -9,6 +9,7 @@ import { Separator } from '@repo/shadcn/separator';
 import { Card, CardContent } from '@repo/shadcn/card';
 import { Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/format-utils';
+import { apiClient } from '@/lib/api-client';
 import { useBulkPaymentMutation } from '../hooks/use-supplier-payments-mutations';
 import { useAvailableCreditsQuery } from '../hooks/use-supplier-payments-queries';
 import { useBankAccountAll } from '@/features/banks/bank-account/hooks/use-bank-account-query';
@@ -38,8 +39,36 @@ export function BulkPaymentModal({ open, onOpenChange, selectedItems, totalAmoun
   const [transactionDate, setTransactionDate] = useState(todayStr);
   const [selectedCredits, setSelectedCredits] = useState<Record<string, number>>({});
   const [manualAmount, setManualAmount] = useState<number>(totalAmount);
+  const [exchangeRate, setExchangeRate] = useState<number>(0);
+  // Moneda de la tasa a aplicar (el usuario elige dólar o euro) cuando la CxP es
+  // en divisa. El pago siempre sale en Bs.
+  const [rateCurrency, setRateCurrency] = useState<string>('USD');
 
   const credits = (availableCredits || []) as AvailableCredit[];
+
+  // Si las CxP seleccionadas son en divisa, el pago sale en Bs a la tasa del día.
+  const apCurrency = selectedItems[0]?.currencyCode || 'VES';
+  const isForeign = apCurrency !== 'VES';
+
+  useEffect(() => {
+    if (isForeign) setRateCurrency(apCurrency);
+  }, [isForeign, apCurrency]);
+
+  useEffect(() => {
+    if (!open || !isForeign) return;
+    let cancelled = false;
+    apiClient
+      .get(`/core/exchange-rates/latest/${rateCurrency}`)
+      .then((res) => {
+        if (cancelled) return;
+        const rate = Number(res.data?.rate);
+        if (Number.isFinite(rate) && rate > 0) setExchangeRate(rate);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isForeign, rateCurrency]);
 
   useEffect(() => {
     if (!open) {
@@ -58,6 +87,7 @@ export function BulkPaymentModal({ open, onOpenChange, selectedItems, totalAmoun
   );
 
   const amountToPay = Math.max(0, manualAmount - totalCreditApplied);
+  const totalBs = isForeign ? amountToPay * (exchangeRate || 0) : amountToPay;
 
   const handleAmountEdit = (value: number) => {
     const newBase = value + totalCreditApplied;
@@ -108,6 +138,9 @@ export function BulkPaymentModal({ open, onOpenChange, selectedItems, totalAmoun
       paymentMethod: paymentMethod as string,
       transactionDate: transactionDate as string,
       totalAmount: amountToPay,
+      currencyCode: apCurrency,
+      exchangeRate: isForeign ? exchangeRate : 1,
+      rateCurrency: isForeign ? rateCurrency : undefined,
       creditAplied: credits
         .filter((c) => (selectedCredits[c.id] ?? 0) > 0)
         .map((c) => ({
@@ -223,8 +256,24 @@ export function BulkPaymentModal({ open, onOpenChange, selectedItems, totalAmoun
             <Separator />
             <div className="flex justify-between font-semibold text-base">
               <span>TOTAL POR BANCO:</span>
-              <span>{formatCurrency(amountToPay, 'VES')}</span>
+              <span>
+                {isForeign
+                  ? formatCurrency(totalBs, 'VES')
+                  : formatCurrency(amountToPay, 'VES')}
+              </span>
             </div>
+            {isForeign && (
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Monto en {apCurrency}:</span>
+                <span>
+                  {apCurrency}{' '}
+                  {amountToPay.toLocaleString('es-VE', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+            )}
           </div>
 
           <Separator />
@@ -270,6 +319,44 @@ export function BulkPaymentModal({ open, onOpenChange, selectedItems, totalAmoun
               />
             </div>
 
+            {isForeign && (
+              <div className="col-span-2 grid grid-cols-2 gap-3 rounded-md border p-3">
+                <div className="space-y-1">
+                  <Label>Tasa a aplicar</Label>
+                  <Select value={rateCurrency} onValueChange={setRateCurrency}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">Dólar (USD)</SelectItem>
+                      <SelectItem value="EUR">Euro (EUR)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Tasa de Cambio ({rateCurrency})</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    value={exchangeRate || ''}
+                    onChange={(e) => setExchangeRate(Number(e.target.value) || 0)}
+                    placeholder="Tasa del día de pago"
+                  />
+                </div>
+                <p className="col-span-2 text-xs text-muted-foreground">
+                  Factura {apCurrency}{' '}
+                  {amountToPay.toLocaleString('es-VE', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{' '}
+                  × tasa {rateCurrency} ={' '}
+                  <span className="font-semibold text-foreground">
+                    {formatCurrency(totalBs, 'VES')}
+                  </span>
+                </p>
+              </div>
+            )}
+
             <div className="col-span-2 space-y-1">
               <Label>Referencia Bancaria</Label>
               <Input
@@ -285,10 +372,15 @@ export function BulkPaymentModal({ open, onOpenChange, selectedItems, totalAmoun
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !bankAccountId}>
+          <Button
+            onClick={handleSubmit}
+            disabled={
+              isPending || !bankAccountId || (isForeign && exchangeRate <= 0)
+            }
+          >
             {isPending
               ? 'Procesando...'
-              : `Pagar ${formatCurrency(amountToPay, 'VES')}`}
+              : `Pagar ${formatCurrency(totalBs, 'VES')}`}
           </Button>
         </DialogFooter>
       </DialogContent>

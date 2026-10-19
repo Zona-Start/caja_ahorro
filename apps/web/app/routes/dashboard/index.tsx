@@ -55,6 +55,18 @@ const CHART_COLORS = {
   purple: '#8b5cf6',
 };
 
+// Tarjetas visibles por rol. Si un rol no está en el mapa, ve todas las tarjetas
+// que además permitan sus permisos.
+const ROLE_CARD_RULES: Record<string, string[]> = {
+  asistente: [
+    'associates_active',
+    'withdrawals_requested',
+    'loans_pending',
+    'low_stock_products',
+    'loans_credits_summary',
+  ],
+};
+
 
 
 function KpiCard({
@@ -402,161 +414,207 @@ export default function DashboardIndex() {
   const { kpis, pendingRequests, finance, alerts, audit, savings, contributions, inventory, purchasing, banking } = data;
   const isSavings = data.businessType === 'CAJA_AHORRO';
 
+  const activeMembership =
+    user?.memberships?.find((m) => m.tenantId === user?.activeTenantId) ??
+    user?.memberships?.[0];
+  const roleName = (activeMembership?.role?.name ?? '').toLowerCase();
+  const roleCardRule = ROLE_CARD_RULES[roleName];
+  const canSee = (cardId: string) =>
+    !roleCardRule || roleCardRule.includes(cardId);
+
+  const showKpis =
+    canSee('associates_active') ||
+    canSee('total_savings') ||
+    canSee('portfolio') ||
+    canSee('accounts_payable');
+  const showSolicitudes =
+    canSee('withdrawals_requested') ||
+    canSee('loans_pending') ||
+    canSee('accounting_drafts') ||
+    canSee('supplier_invoices');
+  const showFinanzas =
+    canSee('active_cycle') ||
+    canSee('bank_balances') ||
+    canSee('cycle_evolution');
+  const showAlertas =
+    canSee('low_stock_products') || canSee('upcoming_payables');
+  const showResumen = canSee('loans_credits_summary');
+  const showAuditoria =
+    canSee('security_failed_logins') || canSee('recent_actions');
+
   return (
     <div className="flex flex-col gap-6">
       {/* === FILA 1: KPIs Principales === */}
-      {hasPermission('savings:contributions', 'read') && (
+      {hasPermission('savings:contributions', 'read') && showKpis && (
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground mt-6">
             Indicadores Clave
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <KpiCard
-              title="Asociados Activos"
-              value={String(kpis.totalActiveAssociates)}
-              description="Base activa actual"
-              icon={Users}
-            />
-            <KpiCard
-              title="Total Haberes (Ahorros)"
-              value={formatCurrency(kpis.totalSavingsBalance, 'VES')}
-              description="Disponibilidad total captada"
-              icon={PiggyBank}
-            />
-            <KpiCard
-              title="Cartera Préstamos/Créditos"
-              value={formatCurrency(kpis.activePortfolioAmount, 'VES')}
-              description="Volumen activo de crédito"
-              icon={Landmark}
-            />
-            <KpiCard
-              title="Cuentas por Pagar"
-              value={formatCurrency(kpis.pendingAccountsPayableAmount, 'VES')}
-              description="Compromisos con proveedores"
-              icon={FileClock}
-            />
+            {canSee('associates_active') && (
+              <KpiCard
+                title="Asociados Activos"
+                value={String(kpis.totalActiveAssociates)}
+                description="Base activa actual"
+                icon={Users}
+              />
+            )}
+            {canSee('total_savings') && (
+              <KpiCard
+                title="Total Haberes (Ahorros)"
+                value={formatCurrency(kpis.totalSavingsBalance, 'VES')}
+                description="Disponibilidad total captada"
+                icon={PiggyBank}
+              />
+            )}
+            {canSee('portfolio') && (
+              <KpiCard
+                title="Cartera Préstamos/Créditos"
+                value={formatCurrency(kpis.activePortfolioAmount, 'VES')}
+                description="Volumen activo de crédito"
+                icon={Landmark}
+              />
+            )}
+            {canSee('accounts_payable') && (
+              <KpiCard
+                title="Cuentas por Pagar"
+                value={formatCurrency(kpis.pendingAccountsPayableAmount, 'VES')}
+                description="Compromisos con proveedores"
+                icon={FileClock}
+              />
+            )}
           </div>
         </div>
       )}
 
       {/* === FILA 2: Solicitudes Pendientes === */}
-      {hasPermission('savings:contributions', 'read') && (
+      {hasPermission('savings:contributions', 'read') && showSolicitudes && (
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Solicitudes y Pendientes de Acción
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <ArrowDownToLine className="size-4" />
-                  Retiros Solicitados
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {pendingRequests.withdrawals.requestedCount}
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  {formatCurrency(pendingRequests.withdrawals.requestedAmount, 'VES')} acumulado
-                </p>
-              </CardContent>
-            </Card>
-            {hasPermission('portfolio:loans', 'process') && (
+            {canSee('withdrawals_requested') && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                    <Landmark className="size-4" />
-                    Préstamos por Aprobar
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <PendingBadge
-                      count={pendingRequests.loans.requestedCount}
-                      label="Solicitados"
-                      variant="warning"
-                    />
-                    <PendingBadge
-                      count={pendingRequests.loans.approvedCount}
-                      label="Aprobados sin desembolsar"
-                      variant="info"
-                    />
-                    <PendingBadge
-                      count={pendingRequests.loans.pendingDisbursementCount}
-                      label="En lote bancario"
-                      variant="danger"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <FileText className="size-4" />
-                  Asientos en Borrador
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {pendingRequests.accountingDrafts}
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  Comprobantes pendientes por contabilizar
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <Receipt className="size-4" />
-                  Facturas de Proveedores
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {pendingRequests.pendingSupplierInvoices}
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  Facturas en Solicitud o Aprobadas
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* === FILA 3: Finanzas y Tesorería === */}
-      {hasPermission('accounting:cycles', 'read') && (
-        <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Finanzas, Contabilidad y Tesorería
-          </h2>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {hasPermission('accounting:cycles', 'read') && (
-              <CycleStatusCard cycle={finance.activeCycle} />
-            )}
-            {hasPermission('banking:accounts', 'read') && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-muted-foreground text-sm font-medium">
-                    Saldo en Cuentas Bancarias
+                    <ArrowDownToLine className="size-4" />
+                    Retiros Solicitados
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(finance.bankBalancesTotal, 'VES')}
+                    {pendingRequests.withdrawals.requestedCount}
                   </div>
                   <p className="text-muted-foreground text-xs">
-                    Suma de saldos en cajas y bancos
+                    {formatCurrency(pendingRequests.withdrawals.requestedAmount, 'VES')} acumulado
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            {canSee('loans_pending') &&
+              hasPermission('portfolio:loans', 'process') && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                      <Landmark className="size-4" />
+                      Préstamos por Aprobar
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <PendingBadge
+                        count={pendingRequests.loans.requestedCount}
+                        label="Solicitados"
+                        variant="warning"
+                      />
+                      <PendingBadge
+                        count={pendingRequests.loans.approvedCount}
+                        label="Aprobados sin desembolsar"
+                        variant="info"
+                      />
+                      <PendingBadge
+                        count={pendingRequests.loans.pendingDisbursementCount}
+                        label="En lote bancario"
+                        variant="danger"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+            {canSee('accounting_drafts') && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <FileText className="size-4" />
+                    Asientos en Borrador
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {pendingRequests.accountingDrafts}
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    Comprobantes pendientes por contabilizar
                   </p>
                 </CardContent>
               </Card>
             )}
 
+            {canSee('supplier_invoices') && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Receipt className="size-4" />
+                    Facturas de Proveedores
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {pendingRequests.pendingSupplierInvoices}
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    Facturas en Solicitud o Aprobadas
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* === FILA 3: Finanzas y Tesorería === */}
+      {hasPermission('accounting:cycles', 'read') && showFinanzas && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Finanzas, Contabilidad y Tesorería
+          </h2>
+          <div className="grid gap-4 lg:grid-cols-3">
+            {hasPermission('accounting:cycles', 'read') &&
+              canSee('active_cycle') && (
+                <CycleStatusCard cycle={finance.activeCycle} />
+              )}
+            {hasPermission('banking:accounts', 'read') &&
+              canSee('bank_balances') && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-muted-foreground text-sm font-medium">
+                      Saldo en Cuentas Bancarias
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {formatCurrency(finance.bankBalancesTotal, 'VES')}
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Suma de saldos en cajas y bancos
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+            {canSee('cycle_evolution') && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -599,55 +657,62 @@ export default function DashboardIndex() {
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
         </div>
       )}
 
       {/* === FILA 4: Alertas de Inventario y Proveedores === */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Alertas de Inventario y Proveedores
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <Package className="size-4" />
-                Productos en Punto Crítico
-              </CardTitle>
-              <CardDescription>
-                Stock bajo o en punto de reorden
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold text-amber-600">
-                  {alerts.lowStockProducts}
-                </span>
-                <span className="text-muted-foreground text-sm">
-                  productos requieren atención
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+      {showAlertas && (
+        <div>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Alertas de Inventario y Proveedores
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {canSee('low_stock_products') && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Package className="size-4" />
+                    Productos en Punto Crítico
+                  </CardTitle>
+                  <CardDescription>
+                    Stock bajo o en punto de reorden
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold text-amber-600">
+                      {alerts.lowStockProducts}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      productos requieren atención
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                <Calendar className="size-4" />
-                CxP Próximas a Vencer
-              </CardTitle>
-              <CardDescription>Top 5 vencimientos más cercanos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PayablesTable payables={alerts.upcomingPayables} />
-            </CardContent>
-          </Card>
+            {canSee('upcoming_payables') && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Calendar className="size-4" />
+                    CxP Próximas a Vencer
+                  </CardTitle>
+                  <CardDescription>Top 5 vencimientos más cercanos</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PayablesTable payables={alerts.upcomingPayables} />
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* === CAJA_AHORRO: Préstamos/Créditos y Charts === */}
-      {isSavings && savings && (
+      {isSavings && savings && showResumen && (
         <>
           <div>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -798,46 +863,50 @@ export default function DashboardIndex() {
       </div> */}
 
       {/* === FILA 5: Auditoría y Seguridad === */}
-      {hasPermission('system:audit-logs', 'read') && (
+      {hasPermission('system:audit-logs', 'read') && showAuditoria && (
         <div>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Auditoría y Seguridad
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <ShieldAlert className="size-4" />
-                  Seguridad
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="text-3xl font-bold text-red-600">
-                      {audit.recentFailedLogins}
+            {canSee('security_failed_logins') && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <ShieldAlert className="size-4" />
+                    Seguridad
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <div className="text-3xl font-bold text-red-600">
+                        {audit.recentFailedLogins}
+                      </div>
+                      <p className="text-muted-foreground text-xs">
+                        Intentos fallidos de login (últimas 24h)
+                      </p>
                     </div>
-                    <p className="text-muted-foreground text-xs">
-                      Intentos fallidos de login (últimas 24h)
-                    </p>
+                    <AlertCircle className="text-red-300 size-10" />
                   </div>
-                  <AlertCircle className="text-red-300 size-10" />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-medium">
-                  <Activity className="size-4" />
-                  Últimas Acciones Registradas
-                </CardTitle>
-                <CardDescription>Feed de auditoría</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AuditFeed events={audit.recentEvents} />
-              </CardContent>
-            </Card>
+            {canSee('recent_actions') && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                    <Activity className="size-4" />
+                    Últimas Acciones Registradas
+                  </CardTitle>
+                  <CardDescription>Feed de auditoría</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <AuditFeed events={audit.recentEvents} />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       )}

@@ -162,6 +162,23 @@ export function ExpenseDetailsModal({
                 label="N° comprobante"
                 value={expense.receiptNumber || '—'}
               />
+              <Row
+                label="Fecha del gasto"
+                value={formatDate(expense.expenseDate)}
+              />
+              {expense.receiptImageUrl && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-muted-foreground">Comprobante</span>
+                  <a
+                    href={expense.receiptImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    Ver archivo
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Programación fija */}

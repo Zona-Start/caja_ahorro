@@ -9,7 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ClsService } from 'nestjs-cls';
 import {
@@ -29,18 +29,15 @@ const RESOURCE_MODULE_MAP: Record<string, string | null> = {
   inventory: 'INVENTORY',
   purchasing: 'PURCHASING',
   sales: 'SALES',
-  expenses: 'EXPENSES',
-  'cash-registers': 'EXPENSES',
-  'cash-sessions': 'EXPENSES',
-  'cash-movements': 'EXPENSES',
-  'cost-centers': 'EXPENSES',
-  'expense-categories': 'EXPENSES',
-  'petty-cash': 'EXPENSES',
-  'recurring-expenses': 'EXPENSES',
-  'expense-reports': 'EXPENSES',
+  treasury: 'TREASURY',
+  expenses: 'TREASURY',
+  hr_payroll: 'HR_PAYROLL',
   iam: null,
   catalog: null,
   system: null,
+  tenants: null,
+  settings: null,
+  dashboard: null,
 };
 
 function resourceToModule(resource: string): string | null {
@@ -111,8 +108,10 @@ export class TenantModulesGuard implements CanActivate {
         .select({ moduleCode: schema.tenantModules.moduleCode })
         .from(schema.tenantModules)
         .where(
-          eq(schema.tenantModules.tenantId, tenantId) &&
-            eq(schema.tenantModules.status as any, 'ENABLED'),
+          and(
+            eq(schema.tenantModules.tenantId, tenantId),
+            eq(schema.tenantModules.status, 'ENABLED'),
+          ),
         );
 
       activeModules = new Set(rows.map((r) => r.moduleCode));

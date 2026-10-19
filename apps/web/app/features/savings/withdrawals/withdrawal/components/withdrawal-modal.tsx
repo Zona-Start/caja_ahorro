@@ -63,6 +63,7 @@ import { type AssociatesWithdrawal } from '../schemas/individual-withdrawal-api-
 import { PAYMENT_METHOD } from '../schemas/withdrawal-options';
 import { withdrawalSchema, type Withdrawal } from '../schemas/withdrawal.schema';
 import { useSuppliersAllQuery } from '@/features/purchasing/suppliers/hooks/use-suppliers-queries';
+import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
 import { useProductsQuery } from '@/features/inventory/products/hooks/use-products-queries';
 import { ProductsService } from '@/features/inventory/products/services/products-service';
 import { type Product } from '@/features/inventory/products/schemas/products.schema';
@@ -72,6 +73,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const round2 = (value: number) => Number(value.toFixed(2));
 
 const WITHDRAWAL_DEFAULTS: Withdrawal = {
   associateAccountId: '',
@@ -99,6 +102,10 @@ interface ItemLine {
   cost?: number;
   subtotal?: number;
   specialDayCategoryId?: string;
+  // Precio de venta de referencia (divisa o VES) y tasa del día aplicada.
+  unitPrice?: number;
+  currencyCode?: string;
+  exchangeRate?: number;
 }
 
 export function WithdrawalModal({ open, onOpenChange }: Props) {
@@ -195,7 +202,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
       r.messages.push({ text: 'Asociado no encontrado o sin cuenta', ok: false });
       return r;
     }
-    if (effectiveAmount > associate.available80) {
+    if (round2(effectiveAmount) > round2(associate.available80)) {
       if (allowExceedAvailableBalance) {
         r.messages.push({
           text: `Supera el 80% disponible - Permitido por parámetro especial`,
@@ -248,8 +255,10 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
     }
     if (
       selectedType?.withdrawalPercentage &&
-      effectiveAmount >
-      (associate.balance * Number(selectedType.withdrawalPercentage)) / 100
+      round2(effectiveAmount) >
+        round2(
+          (associate.balance * Number(selectedType.withdrawalPercentage)) / 100,
+        )
     ) {
       if (allowExceedAvailableBalance) {
         r.messages.push({
@@ -337,6 +346,7 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
         form.setValue('associateAccountId', '');
       } else if (associate?.associateAccountId) {
         form.setValue('associateAccountId', associate.associateAccountId);
+        form.setValue('requestedAmount', round2(associate.available80));
       }
     }
   }, [searching, shouldFetch, searchError, associate, submittedSearch, form, toast]);
@@ -373,13 +383,30 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   const addProductItem = useCallback(
     async (productId: string) => {
       const p = await ProductsService.getById(productId);
-      const unitCost = p.bsPriceAmount ?? p.salePrice ?? p.supplierCost ?? 0;
+      // El precio de venta está fijado en divisa; el monto en Bs se calcula a la
+      // tasa del día de la operación.
+      const currency = (p.currencyCode ?? 'VES') as 'VES' | 'USD' | 'EUR';
+      const saleReference = p.salePrice ?? p.bsPriceAmount ?? p.supplierCost ?? 0;
+      let factor = 1;
+      if (currency !== 'VES') {
+        try {
+          const latest = await exchangeRatesService.getLatest(currency);
+          const rate = Number(latest.rate);
+          if (Number.isFinite(rate) && rate > 0) factor = rate;
+        } catch {
+          factor = 1;
+        }
+      }
+      const unitCost = +(saleReference * factor).toFixed(2);
       setItems((prev) => [
         ...prev,
         {
           type: 'product',
           productId,
           productName: p.name,
+          unitPrice: saleReference,
+          currencyCode: currency,
+          exchangeRate: factor,
           unitCost,
           quantity: 1,
           totalCost: unitCost,
@@ -402,8 +429,20 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
         const updated = [...prev];
         const item = { ...updated[index] } as any;
         item[field] = value;
-        if (item.type === 'product' && (field === 'quantity' || field === 'unitCost'))
-          item.totalCost = (item.quantity || 0) * (item.unitCost || 0);
+        if (item.type === 'product') {
+          // Al cambiar el precio en divisa se recalcula el monto en Bs a la tasa
+          // del día; el subtotal siempre = cantidad × precio en Bs.
+          if (field === 'unitPrice')
+            item.unitCost = +(
+              (item.unitPrice || 0) * (item.exchangeRate || 1)
+            ).toFixed(2);
+          if (
+            field === 'quantity' ||
+            field === 'unitCost' ||
+            field === 'unitPrice'
+          )
+            item.totalCost = (item.quantity || 0) * (item.unitCost || 0);
+        }
         if (item.type === 'service' && (field === 'quantity' || field === 'cost'))
           item.subtotal = (item.quantity || 0) * (item.cost || 0);
         updated[index] = item;
@@ -819,8 +858,8 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                     {items
                       .filter((i) => i.type === 'product')
                       .map((item, idx) => (
-                        <div key={idx} className="flex gap-2 items-end border rounded-md p-2">
-                          <div className="flex-1">
+                        <div key={idx} className="flex gap-2 items-end border rounded-md p-2 flex-wrap">
+                          <div className="flex-1 min-w-[120px]">
                             <span className="text-xs text-muted-foreground">{item.productName}</span>
                           </div>
                           <div className="w-20">
@@ -834,14 +873,26 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                             />
                           </div>
                           <div className="w-24">
-                            <span className="text-xs text-muted-foreground">Precio U.</span>
+                            <span className="text-xs text-muted-foreground">
+                              Precio {item.currencyCode ?? 'VES'}
+                            </span>
                             <Input
                               type="text"
-                              value={item.unitCost?.toFixed(2)}
-                              readOnly
-                              tabIndex={-1}
-                              className="h-8 text-xs font-mono bg-muted/50 cursor-not-allowed"
+                              inputMode="decimal"
+                              value={item.unitPrice ?? ''}
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/[^0-9.]/g, '');
+                                updateItem(idx, 'unitPrice', cleaned ? parseFloat(cleaned) : 0);
+                              }}
+                              className="h-8 text-xs font-mono"
+                              placeholder="0.00"
                             />
+                          </div>
+                          <div className="w-28">
+                            <span className="text-xs text-muted-foreground">Precio Bs.</span>
+                            <div className="h-8 flex items-center text-xs font-mono">
+                              {item.unitCost?.toLocaleString('es', { minimumFractionDigits: 2 })}
+                            </div>
                           </div>
                           <div className="w-24 text-right">
                             <span className="text-xs text-muted-foreground">Subtotal</span>

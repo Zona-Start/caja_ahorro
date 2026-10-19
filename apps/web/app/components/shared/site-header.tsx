@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@repo/shadcn/breadcrumb';
+import { ExchangeRateBadge } from './exchange-rate-badge';
 import { ModeToggle } from './mode-toggle';
 
 type Crumb = { label: string; href?: string };
@@ -87,6 +88,7 @@ export function SiteHeader() {
           </BreadcrumbList>
         </Breadcrumb>
         <div className="ml-auto flex items-center gap-2">
+          <ExchangeRateBadge />
           <ModeToggle />
         </div>
       </div>

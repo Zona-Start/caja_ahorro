@@ -612,6 +612,14 @@ export const navGroups: NavGroup[] = [
               action: 'read',
             },
           },
+          {
+            label: 'Bal. por Cuenta',
+            href: '/dashboard/contabilidad/reportes?tab=account-balances',
+            requiresPermission: {
+              resource: 'accounting:reports',
+              action: 'read',
+            },
+          },
         ],
       },
     ],

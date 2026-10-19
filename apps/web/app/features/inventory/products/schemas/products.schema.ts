@@ -12,6 +12,7 @@ export const productSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
+  categoryName: z.string().nullable().optional(),
   brand: z.string().nullable().optional(),
   model: z.string().nullable().optional(),
   sku: z.string().optional(),

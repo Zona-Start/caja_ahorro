@@ -134,19 +134,47 @@ export function useProductsAllQuery(enabled: boolean): UseQueryResult<ProductOpt
 export function useProductPriceQuery(
   productId: string,
   enabled: boolean,
-): UseQueryResult<{ baseCost: number }> {
+): UseQueryResult<{
+  baseCost: number;
+  salePrice: number;
+  currencyCode: string;
+}> {
   return useQuery({
     queryKey: ['product', productId, 'price'],
     queryFn: async () => {
       const resp = await apiClient.get(`/inventory/products/${productId}`);
       const product = resp.data?.data ?? resp.data ?? {};
       const dataProductPrices = product.dataProductPrices;
-      const baseCost = Array.isArray(dataProductPrices) && dataProductPrices.length > 0
-        ? Number(dataProductPrices[0].baseCost ?? 0)
-        : 0;
-      return { baseCost };
+      const first =
+        Array.isArray(dataProductPrices) && dataProductPrices.length > 0
+          ? dataProductPrices[0]
+          : null;
+      return {
+        baseCost: Number(first?.baseCost ?? 0),
+        salePrice: Number(first?.salePrice ?? 0),
+        currencyCode: String(first?.currencyCode ?? 'VES'),
+      };
     },
     enabled: enabled && !!productId,
     staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Tasa de cambio del día (más reciente publicada) para una moneda extranjera.
+ * Se usa para convertir el costo/venta de referencia en divisa a Bs. al momento
+ * de la operación.
+ */
+export function useLatestRateQuery(currencyCode: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['exchange-rate-latest', currencyCode],
+    queryFn: async () => {
+      const res = await apiClient.get(
+        `/core/exchange-rates/latest/${currencyCode}`,
+      );
+      return Number(res.data?.rate ?? 0);
+    },
+    enabled: enabled && !!currencyCode && currencyCode !== 'VES',
+    staleTime: 5 * 60 * 1000,
   });
 }

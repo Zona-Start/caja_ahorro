@@ -3,6 +3,7 @@ import { TenantContextModule } from '@/common/services/tenant-context.module';
 import { DrizzleModule } from '@/database/drizzle.module';
 import { Module } from '@nestjs/common';
 import { AccountingReportsController } from './accounting-reports.controller';
+import { AccountBalanceService } from './services/account-balance.service';
 import { AssociatesBalanceService } from './services/associates-balance.service';
 import { BalanceSheetService } from './services/balance-sheet.service';
 import { GeneralLedgerService } from './services/general-ledger.service';
@@ -20,6 +21,7 @@ import { TrialBalanceService } from './services/trial-balance.service';
     BalanceSheetService,
     IncomeStatementService,
     AssociatesBalanceService,
+    AccountBalanceService,
   ],
 })
 export class AccountingReportsModule {}
