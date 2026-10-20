@@ -70,7 +70,9 @@ export class PaymentBatchesService {
           'Moneda de cuenta diferente a la del lote',
         );
 
-      let totalAmount = 0;
+      // Se acumula en centavos (igual que el TXT) para que el total guardado
+      // coincida exactamente con la suma de las líneas.
+      let totalCents = 0;
       const lines: (typeof schema.paymentBatchItems.$inferInsert)[] = [];
 
       const prefix = 'DES-LOT-SOC';
@@ -243,7 +245,8 @@ export class PaymentBatchesService {
             `${it.type} ${it.sourceId} ya está en otro lote activo`,
           );
 
-        totalAmount += net;
+        const netCents = Math.round(net * 100);
+        totalCents += netCents;
 
         lines.push({
           itemType: it.type,
@@ -254,7 +257,7 @@ export class PaymentBatchesService {
           beneficiaryAccountType: 'CORRIENTE',
           beneficiaryId: assocCedula,
           beneficiaryName: beneficiaryName,
-          amount: net.toFixed(4),
+          amount: (netCents / 100).toFixed(4),
           status: paymentBatchItemStatus.PENDING,
         });
       }
@@ -276,7 +279,7 @@ export class PaymentBatchesService {
           bankFileName: bankAcc.accountName,
           currencyCode,
           recordCount: lines.length,
-          totalAmount: totalAmount.toFixed(4),
+          totalAmount: (totalCents / 100).toFixed(4),
           status: paymentBatchStatus.DRAFT,
           description: dto.description ?? 'Lote automático',
           createdById: userId,
@@ -381,8 +384,19 @@ export class PaymentBatchesService {
 
     const now = new Date();
     const fecha = format(now, 'yyyyMMdd');
-    const total = toCents(batch[0].payment_batches.totalAmount);
     const qty = items.length;
+
+    // El total de la cabecera debe ser exactamente la suma de los montos de cada
+    // fila (en centavos) para que el banco no rechace el archivo por diferencia
+    // de 1 céntimo.
+    const rows = items.map((it) => {
+      const row = it as Record<string, unknown>;
+      return {
+        row,
+        amountCents: toCents(row.amount as number | string),
+      };
+    });
+    const total = rows.reduce((sum, r) => sum + r.amountCents, 0);
 
     let content = '';
     content += '10';
@@ -396,9 +410,7 @@ export class PaymentBatchesService {
     content += rzf(total, 15);
     content += '\n';
 
-    for (const it of items) {
-      const row = it as Record<string, unknown>;
-      const amount = toCents(row.amount as number | string);
+    for (const { row, amountCents } of rows) {
       const beneficiaryId = String(row.beneficiary_id ?? '');
       const idType = beneficiaryId.charAt(0).toUpperCase();
       const idNum = beneficiaryId.substring(1);
@@ -411,7 +423,7 @@ export class PaymentBatchesService {
         0,
         20,
       );
-      line += rzf(amount, 15);
+      line += rzf(amountCents, 15);
       content += line + '\n';
     }
 
