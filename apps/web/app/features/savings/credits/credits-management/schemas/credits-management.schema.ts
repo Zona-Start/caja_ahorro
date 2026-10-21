@@ -58,6 +58,8 @@ export const creditManagementSchema = z.object({
   useSpecialParams: z.boolean().optional(),
   allowOverdraft: z.boolean().optional(),
   allowExceedPaymentCapacity: z.boolean().optional(),
+  allowPayrollCredit: z.boolean().optional(),
+  withdrawalTypeId: z.string().optional(),
   haberesPayment: z.preprocess(
     (v) => (typeof v === 'string' ? parseFloat(v) || 0 : v),
     z.number().min(0).optional(),
@@ -101,6 +103,7 @@ export const creditDefaults: CreditManagement = {
   useSpecialParams: false,
   allowOverdraft: false,
   allowExceedPaymentCapacity: false,
+  allowPayrollCredit: false,
   haberesPayment: 0,
   directPayment: 0,
 };

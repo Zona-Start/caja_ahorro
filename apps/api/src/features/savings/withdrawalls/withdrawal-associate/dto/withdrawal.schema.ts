@@ -23,6 +23,9 @@ export const CreateWithdrawalAssociateSchema = z.object({
   allowWithPayrollCredit: z.boolean().optional().default(false),
   allowEarlyWithdrawal: z.boolean().optional().default(false),
   allowExceedAvailableBalance: z.boolean().optional().default(false),
+  // Vinculación con el origen (p. ej. crédito como método de pago).
+  originType: z.string().optional(),
+  creditId: z.string().uuid().optional(),
   tenantId: z.string().uuid().optional(),
 });
 

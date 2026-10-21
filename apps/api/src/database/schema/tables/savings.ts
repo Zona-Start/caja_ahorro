@@ -328,6 +328,11 @@ export const withdrawalsAssociates = savingsSchema.table(
       () => suppliers.id,
       { onDelete: 'set null' },
     ),
+    // Vinculación con el origen (p. ej. retiro generado como método de pago de un crédito).
+    originType: varchar('origin_type', { length: 30 }), // 'CREDIT' | 'MANUAL'
+    creditId: uuid('credit_id').references(() => credits.id, {
+      onDelete: 'set null',
+    }),
     withdrawalItems: jsonb('withdrawal_items'),
     // Parámetros especiales: permiten crear el retiro saltando reglas (solo con permiso approve)
     allowWithActiveLoanOrCredit: boolean('allow_with_active_loan_or_credit')
@@ -830,6 +835,10 @@ export const credits = savingsSchema.table(
     allowExceedPaymentCapacity: boolean('allow_exceed_payment_capacity').default(
       false,
     ), // Permitir superar la capacidad de pago (30% del salario)
+    allowPayrollCredit: boolean('allow_payroll_credit').default(false), // Permitir crédito con credinomina activo
+    haberesWithdrawalTypeId: uuid(
+      'haberes_withdrawal_type_id',
+    ).references(() => withdrawalTypes.id, { onDelete: 'set null' }), // Tipo de retiro aplicado al pago con haberes
     haberesPayment: numeric('haberes_payment', { precision: 20, scale: 6 }), // Monto pagado con haberes (retiro)
     directPayment: numeric('direct_payment', { precision: 20, scale: 6 }), // Monto de pago directo (inicial)
     directPaymentMethod: varchar('direct_payment_method', { length: 30 }), // Método del pago directo

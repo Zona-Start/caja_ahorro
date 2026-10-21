@@ -74,6 +74,16 @@ export function WithdrawalDetailsModal({ open, onOpenChange, data }: Props) {
                 <span className="text-sm text-muted-foreground">Referencia:</span>
                 <span className="text-sm font-mono">{data.customReference || '—'}</span>
               </div>
+              {data.creditId && (
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    Vinculación Créditos:
+                  </span>
+                  <span className="text-sm font-mono">
+                    {data.creditReference || data.creditId}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Fecha:</span>
                 <span className="text-sm">

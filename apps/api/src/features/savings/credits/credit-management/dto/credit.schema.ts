@@ -36,6 +36,8 @@ export const CreateCreditSchema = z.object({
   useSpecialParams: z.boolean().optional(),
   allowOverdraft: z.boolean().optional(),
   allowExceedPaymentCapacity: z.boolean().optional(),
+  allowPayrollCredit: z.boolean().optional(),
+  withdrawalTypeId: z.string().uuid().optional(),
   haberesPayment: z.number().min(0).optional(),
   directPayment: z.number().min(0).optional(),
   directPaymentMethod: z.string().optional(),

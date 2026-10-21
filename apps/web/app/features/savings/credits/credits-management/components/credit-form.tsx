@@ -43,6 +43,7 @@ import {
 } from '../hooks/use-credits-management-query';
 import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
 import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
+import { useWithdrawalTypesQuery } from '@/features/savings/withdrawals/withdrawal/hooks/use-withdrawal-query';
 import { CreditCalculator } from './credit-calculator';
 import { ProductsService } from '@/features/inventory/products/services/products-service';
 import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
@@ -76,6 +77,8 @@ export function CreditForm({
   const { data: suppliers = [] } = useSuppliers();
   const { data: products = [] } = useProducts();
   const { data: specialDays = [] } = useCategoriesByTypeQuery(CATEGORY_TYPES.SPECIAL_DAYS);
+  const { data: withdrawalTypesResp } = useWithdrawalTypesQuery();
+  const withdrawalTypes = withdrawalTypesResp?.data ?? [];
 
   const [casaComercial, setCasaComercial] = useState(false);
   const [ccType, setCcType] = useState<'inventory' | 'supplier' | ''>('');
@@ -126,6 +129,14 @@ export function CreditForm({
   const watchAllowExceedCapacity = useWatch({
     control,
     name: 'allowExceedPaymentCapacity',
+  });
+  const watchAllowPayrollCredit = useWatch({
+    control,
+    name: 'allowPayrollCredit',
+  });
+  const watchWithdrawalTypeId = useWatch({
+    control,
+    name: 'withdrawalTypeId',
   });
   const watchDirectPaymentMethod = useWatch({ control, name: 'directPaymentMethod' });
   const watchDirectPaymentBank = useWatch({ control, name: 'directPaymentBankAccountId' });
@@ -249,8 +260,18 @@ export function CreditForm({
       r.messages.push('Tiene un crédito en proceso o activo - Bloqueado');
     }
     if (selectedAssociate.hasPayrollCredit) {
+      if (useSpecial && watchAllowPayrollCredit) {
+        r.messages.push(
+          'Credinomina activo - Permitido por parámetro especial',
+        );
+      } else {
+        r.canSave = false;
+        r.messages.push('Tiene credinomina activo - Bloqueado');
+      }
+    }
+    if (watchHaberesPayment > 0 && !watchWithdrawalTypeId) {
       r.canSave = false;
-      r.messages.push('Tiene credinomina activo - Bloqueado');
+      r.messages.push('Tipo de retiro de haberes obligatorio - Bloqueado');
     }
     const monthlyPmt = amortData?.monthlyPayment ?? 0;
     if (
@@ -319,6 +340,9 @@ export function CreditForm({
     useSpecial,
     watchOverdraft,
     watchAllowExceedCapacity,
+    watchAllowPayrollCredit,
+    watchWithdrawalTypeId,
+    watchHaberesPayment,
     watchDirectPayment,
     watchDirectPaymentMethod,
     watchDirectPaymentBank,
@@ -962,6 +986,8 @@ export function CreditForm({
                   if (useSpecial) {
                     setValue('allowOverdraft', false);
                     setValue('allowExceedPaymentCapacity', false);
+                    setValue('allowPayrollCredit', false);
+                    setValue('withdrawalTypeId', undefined);
                     setValue('haberesPayment', 0);
                     setValue('directPayment', 0);
                     setValue('directPaymentMethod', '');
@@ -1007,6 +1033,24 @@ export function CreditForm({
                   }
                 />
               </div>
+              {selectedAssociate?.hasPayrollCredit && (
+                <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm">
+                      Permitir crédito con credinomina activa
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Omite el bloqueo por credinomina.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!!watchAllowPayrollCredit}
+                    onCheckedChange={(v) =>
+                      setValue('allowPayrollCredit', v)
+                    }
+                  />
+                </div>
+              )}
               <div>
                 <Label>Monto a pagar de haberes (genera retiro)</Label>
                 <Input
@@ -1016,6 +1060,26 @@ export function CreditForm({
                   {...register('haberesPayment', { valueAsNumber: true })}
                 />
               </div>
+              {watchHaberesPayment > 0 && (
+                <div>
+                  <Label>Tipo de retiro para el pago con haberes *</Label>
+                  <Select
+                    value={watchWithdrawalTypeId || ''}
+                    onValueChange={(v) => setValue('withdrawalTypeId', v)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Seleccionar tipo de retiro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {withdrawalTypes.map((t: any) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Monto de pago directo</Label>

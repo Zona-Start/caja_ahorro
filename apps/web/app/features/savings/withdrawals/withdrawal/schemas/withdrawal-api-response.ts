@@ -15,6 +15,9 @@ export const withdrawalApiSchema = z.object({
   status: z.string(),
   isHouseComercial: z.boolean(),
   isInternalInventory: z.boolean(),
+  originType: z.string().nullable().optional(),
+  creditId: z.string().nullable().optional(),
+  creditReference: z.string().nullable().optional(),
 });
 
 export type WithdrawalPaymentApi = z.infer<typeof withdrawalApiSchema>;

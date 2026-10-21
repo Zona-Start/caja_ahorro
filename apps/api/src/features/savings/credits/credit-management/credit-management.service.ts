@@ -433,6 +433,8 @@ export class CreditManagementService {
       expensesPercentage,
       allowOverdraft,
       allowExceedPaymentCapacity,
+      allowPayrollCredit,
+      withdrawalTypeId,
       haberesPayment,
       directPayment,
     } = dto;
@@ -465,7 +467,7 @@ export class CreditManagementService {
       throw new NotFoundException('Asociado no encontrado');
     }
 
-    if (assoc.isPayrollCredit) {
+    if (assoc.isPayrollCredit && !allowPayrollCredit) {
       throw new BadRequestException(
         'El asociado tiene credinomina activo, no puede solicitar créditos',
       );
@@ -566,6 +568,12 @@ export class CreditManagementService {
 
     const haberesPaymentAmount = haberesPayment ?? 0;
     const directPaymentAmount = directPayment ?? 0;
+
+    if (haberesPaymentAmount > 0 && !withdrawalTypeId) {
+      throw new BadRequestException(
+        'Debe seleccionar el tipo de retiro cuando se aplica pago con haberes',
+      );
+    }
     const amortizableAmount =
       requestedAmount - haberesPaymentAmount - directPaymentAmount;
 
@@ -688,6 +696,8 @@ export class CreditManagementService {
           previousCreditId: dto.previousCreditId ?? null,
           allowOverdraft: dto.allowOverdraft ?? false,
           allowExceedPaymentCapacity: dto.allowExceedPaymentCapacity ?? false,
+          allowPayrollCredit: dto.allowPayrollCredit ?? false,
+          haberesWithdrawalTypeId: dto.withdrawalTypeId ?? null,
           haberesPayment: dto.haberesPayment
             ? String(dto.haberesPayment)
             : null,
@@ -754,7 +764,11 @@ export class CreditManagementService {
     tenantId: string,
     userId: string,
     id: string,
-  ): Promise<{ id: string; customReference: string | null }> {
+  ): Promise<{
+    id: string;
+    customReference: string | null;
+    haberesWithdrawalWarning?: string;
+  }> {
     const [credit] = await this.db
       .select()
       .from(credits)
@@ -815,7 +829,7 @@ export class CreditManagementService {
         eq(associateHaberesBalance.associateAccountId, associateAccounts.id),
       );
 
-    if (assoc?.isPayrollCredit)
+    if (assoc?.isPayrollCredit && !credit.allowPayrollCredit)
       throw new BadRequestException('Crédito nómina activo');
 
     if (!allowOverdraft) {
@@ -984,31 +998,6 @@ export class CreditManagementService {
         }
       }
 
-      // ─── Haberes Payment: crear y aprobar retiro ───
-      const haberesAmt = Number(haberesPayment ?? 0);
-      // if (haberesAmt > 0 && assoc?.associateAccountId) {
-      //   const withdrawalTypeForCredit = await this.db.query.withdrawalTypes.findFirst({
-      //     where: and(
-      //       eq(withdrawalTypes.tenantId, tenantId),
-      //       eq(withdrawalTypes.withdrawalPercentage, '80'),
-      //       eq(withdrawalTypes.isHouseComercial, false),
-      //       eq(withdrawalTypes.isInternalInventory, false),
-      //     ),
-      //   });
-
-      //   if (withdrawalTypeForCredit) {
-      //     await this.withdrawalAssociateService.execute(tenantId, userId, {
-      //       associateAccountId: assoc.associateAccountId,
-      //       withdrawalTypeId: withdrawalTypeForCredit.id,
-      //       requestedAmount: haberesAmt,
-      //       paymentMethod: paymentMethodEnum.BANK_TRANSFER,
-      //       date: new Date(),
-      //       description: `Retiro haberes por Crédito N°${customReference}`,
-      //       commercialHouseId: null,
-      //     });
-      //   }
-      // }
-
       // ─── Direct Payment: crear movimiento bancario ───
       const directAmt = Number(directPayment ?? 0);
       if (directAmt > 0 && directPaymentBankAccountId) {
@@ -1055,9 +1044,10 @@ export class CreditManagementService {
             ? AssociateMovementTypeEnum.SPECIAL_CREDIT_DISBURSEMENT_CREDIT
             : AssociateMovementTypeEnum.COMMERCIAL_CREDIT_DISBURSEMENT_CREDIT;
 
-        // Haberes payment: retiro de haberes para pagar parte del crédito
+        // Haberes payment: si tiene tipo de retiro configurado, el movimiento lo
+        // genera el flujo de retiro automático (después de confirmar el crédito).
         const haberesAmt = Number(haberesPayment ?? 0);
-        if (haberesAmt > 0) {
+        if (haberesAmt > 0 && !credit.haberesWithdrawalTypeId) {
           await this.associateAccountsMovementsService.create(
             userId,
             {
@@ -1143,6 +1133,59 @@ export class CreditManagementService {
       return updatedCredit;
     });
 
+    // ─── Retiro de haberes automático (método de pago del crédito) ───
+    // Se ejecuta después de confirmar el crédito para no anidar transacciones.
+    let haberesWithdrawalWarning: string | undefined;
+    const haberesAmtPost = Number(haberesPayment ?? 0);
+    if (
+      haberesAmtPost > 0 &&
+      credit.haberesWithdrawalTypeId &&
+      assoc?.associateAccountId
+    ) {
+      try {
+        const withdrawalResult = await this.withdrawalAssociateService.execute(
+          tenantId,
+          userId,
+          {
+            associateAccountId: assoc.associateAccountId,
+            withdrawalTypeId: credit.haberesWithdrawalTypeId,
+            requestedAmount: haberesAmtPost,
+            paymentMethod: paymentMethodEnum.BANK_TRANSFER,
+            date: new Date(),
+            description: `Retiro de haberes como método de pago del Crédito N°${customReference}`,
+            commercialHouseId: null,
+            originType: 'CREDIT',
+            creditId: id,
+            allowWithActiveLoanOrCredit: true,
+            allowWithPayrollCredit: true,
+            allowEarlyWithdrawal: true,
+            allowExceedAvailableBalance: true,
+          },
+        );
+
+        if (withdrawalResult?.id) {
+          await this.withdrawalAssociateService.approve(
+            tenantId,
+            userId,
+            withdrawalResult.id,
+          );
+          await this.withdrawalAssociateService.process(
+            tenantId,
+            userId,
+            withdrawalResult.id,
+          );
+        }
+      } catch (error) {
+        haberesWithdrawalWarning =
+          (error as any)?.message ??
+          'Error al procesar el retiro de haberes del crédito';
+        this.logger.error(
+          `[approve] Error procesando retiro de haberes del crédito ${id}: ${haberesWithdrawalWarning}`,
+          (error as any)?.stack,
+        );
+      }
+    }
+
     // ─── Asiento contable (no-fatal) ───
     let accountingWarning: string | undefined;
     try {
@@ -1212,7 +1255,11 @@ export class CreditManagementService {
       );
     }
 
-    return { id: result.id, customReference: result.customReference ?? null };
+    return {
+      id: result.id,
+      customReference: result.customReference ?? null,
+      haberesWithdrawalWarning,
+    };
   }
 
   // ─── LISTAR TODOS (PAGINADO) ────────────────────────────────────────────

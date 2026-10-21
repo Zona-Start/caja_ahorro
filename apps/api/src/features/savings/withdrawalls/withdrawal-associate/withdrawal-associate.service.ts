@@ -93,6 +93,8 @@ export class WithdrawalAssociateService {
       allowWithPayrollCredit = false,
       allowEarlyWithdrawal = false,
       allowExceedAvailableBalance = false,
+      originType,
+      creditId,
     } = dto;
 
     const setting = await this.db.query.moduleSettings.findFirst({
@@ -272,6 +274,8 @@ export class WithdrawalAssociateService {
           createdById: userId,
           status: withdrawalStatusEnum.REQUESTED,
           commercialHouseId: commercialHouseId ?? null,
+          originType: originType ?? null,
+          creditId: creditId ?? null,
           withdrawalItems: withdrawalItems ?? null,
           allowWithActiveLoanOrCredit,
           allowWithPayrollCredit,
@@ -301,7 +305,10 @@ export class WithdrawalAssociateService {
         }),
       );
 
-      return { message: 'Solicitud de retiro creada exitosamente' };
+      return {
+        message: 'Solicitud de retiro creada exitosamente',
+        id: insertedWithdrawal.id,
+      };
     });
   }
 
@@ -474,6 +481,9 @@ export class WithdrawalAssociateService {
       .select({
         id: withdrawalsAssociates.id,
         customReference: withdrawalsAssociates.referenceCode,
+        originType: withdrawalsAssociates.originType,
+        creditId: withdrawalsAssociates.creditId,
+        creditReference: credits.customReference,
         withdrawalTypeId: withdrawalsAssociates.withdrawalTypeId,
         withdrawalType: withdrawalTypes.description,
         withdrawalDate: withdrawalsAssociates.withdrawalDate,
@@ -498,6 +508,7 @@ export class WithdrawalAssociateService {
         withdrawalTypes,
         eq(withdrawalTypes.id, withdrawalsAssociates.withdrawalTypeId),
       )
+      .leftJoin(credits, eq(credits.id, withdrawalsAssociates.creditId))
       .orderBy(orderBy)
       .limit(limit)
       .offset(offset);
@@ -1020,6 +1031,9 @@ export class WithdrawalAssociateService {
         referenceCode: withdrawalsAssociates.referenceCode,
         status: withdrawalsAssociates.status,
         commercialHouseId: withdrawalsAssociates.commercialHouseId,
+        originType: withdrawalsAssociates.originType,
+        creditId: withdrawalsAssociates.creditId,
+        creditReference: schema.credits.customReference,
         withdrawalItems: withdrawalsAssociates.withdrawalItems,
         associateName: schema.associates.fullname,
         associateCedula: schema.associates.cedula,
@@ -1046,6 +1060,10 @@ export class WithdrawalAssociateService {
       .leftJoin(
         schema.withdrawalTypes,
         eq(withdrawalsAssociates.withdrawalTypeId, schema.withdrawalTypes.id),
+      )
+      .leftJoin(
+        schema.credits,
+        eq(schema.credits.id, withdrawalsAssociates.creditId),
       );
 
     if (!withdrawal) {

@@ -64,6 +64,7 @@ import { QUERY_KEYS } from '@/lib/query-keys';
 import { ProductsService } from '@/features/inventory/products/services/products-service';
 import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
 import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
+import { useWithdrawalTypesQuery } from '@/features/savings/withdrawals/withdrawal/hooks/use-withdrawal-query';
 import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
 import { calculateFrenchAmortization } from '../utils/credit-amortization-utils';
 import { AlertModal } from '@/components/shared/alert-modal';
@@ -103,6 +104,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const { data: suppliers = [] } = useSuppliers();
   const { data: products = [] } = useProducts();
   const { data: specialDays = [] } = useCategoriesByTypeQuery(CATEGORY_TYPES.SPECIAL_DAYS);
+  const { data: withdrawalTypesResp } = useWithdrawalTypesQuery();
+  const withdrawalTypes = withdrawalTypesResp?.data ?? [];
   const { mutate: saveCredit, isPending: isSaving } =
     useCreateCreditManagementMutation();
 
@@ -142,6 +145,14 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const watchAllowExceedCapacity = useWatch({
     control,
     name: 'allowExceedPaymentCapacity',
+  });
+  const watchAllowPayrollCredit = useWatch({
+    control,
+    name: 'allowPayrollCredit',
+  });
+  const watchWithdrawalTypeId = useWatch({
+    control,
+    name: 'withdrawalTypeId',
   });
   const watchDirectPaymentMethod = useWatch({ control, name: 'directPaymentMethod' });
   const watchDirectPaymentBank = useWatch({ control, name: 'directPaymentBankAccountId' });
@@ -320,8 +331,18 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
       r.messages.push('Tiene un crédito activo - Bloqueado');
     }
     if (associateData.hasPayrollCredit) {
+      if (useSpecial && watchAllowPayrollCredit) {
+        r.messages.push(
+          'Credinomina activo - Permitido por parámetro especial',
+        );
+      } else {
+        r.canSave = false;
+        r.messages.push('Tiene credinomina activo - Bloqueado');
+      }
+    }
+    if (watchHaberesPayment > 0 && !watchWithdrawalTypeId) {
       r.canSave = false;
-      r.messages.push('Tiene credinomina activo - Bloqueado');
+      r.messages.push('Tipo de retiro de haberes obligatorio - Bloqueado');
     }
     const monthlyPmt = amortData?.monthlyPayment ?? 0;
     if (
@@ -390,6 +411,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     useSpecial,
     watchOverdraft,
     watchAllowExceedCapacity,
+    watchAllowPayrollCredit,
+    watchWithdrawalTypeId,
+    watchHaberesPayment,
     watchDirectPayment,
     watchDirectPaymentMethod,
     watchDirectPaymentBank,
@@ -1228,6 +1252,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                         if (!next) {
                           setValue('allowOverdraft', false);
                           setValue('allowExceedPaymentCapacity', false);
+                          setValue('allowPayrollCredit', false);
+                          setValue('withdrawalTypeId', undefined);
                           setValue('haberesPayment', 0);
                           setValue('directPayment', 0);
                           setValue('directPaymentMethod', '');
@@ -1273,6 +1299,24 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                           }
                         />
                       </div>
+                      {associateData?.hasPayrollCredit && (
+                        <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-3">
+                          <div className="space-y-0.5">
+                            <Label className="text-sm">
+                              Permitir crédito con credinomina activa
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Omite el bloqueo por credinomina.
+                            </p>
+                          </div>
+                          <Switch
+                            checked={!!watchAllowPayrollCredit}
+                            onCheckedChange={(v) =>
+                              setValue('allowPayrollCredit', v)
+                            }
+                          />
+                        </div>
+                      )}
                       <div>
                         <Label>Monto a pagar de haberes (genera retiro)</Label>
                         <Input
@@ -1285,6 +1329,30 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                           })}
                         />
                       </div>
+                      {watchHaberesPayment > 0 && (
+                        <div>
+                          <Label>
+                            Tipo de retiro para el pago con haberes *
+                          </Label>
+                          <Select
+                            value={watchWithdrawalTypeId || ''}
+                            onValueChange={(v) =>
+                              setValue('withdrawalTypeId', v)
+                            }
+                          >
+                            <SelectTrigger className="mt-1 w-full">
+                              <SelectValue placeholder="Seleccionar tipo de retiro" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {withdrawalTypes.map((t: any) => (
+                                <SelectItem key={t.id} value={t.id}>
+                                  {t.description}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <Label>Monto de pago directo</Label>
