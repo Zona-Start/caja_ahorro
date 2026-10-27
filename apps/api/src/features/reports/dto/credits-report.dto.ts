@@ -5,6 +5,8 @@ export const CreditsReportSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   creditTypeId: z.string().optional(),
+  cedula: z.string().optional(),
+  status: z.string().optional(),
   format: z.enum(['pdf', 'excel']).optional().default('pdf'),
 });
 

@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { format } from 'date-fns';
-import { and, eq, ilike, SQL, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, SQL, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { LoanManagementService } from '../../loans/loan_management/loan-management.service';
 import { SettlementAssociateService } from '../../settlement/settlement-associate.service';
@@ -54,7 +54,8 @@ export class PaymentBatchesService {
 
   async create(tenantId: string, userId: string, dto: CreatePaymentBatchDto) {
     return this.db.transaction(async (tx) => {
-      const { bankAccountId, currencyCode, items } = dto;
+      const { bankAccountId, currencyCode, items, destinationAccountNumber } =
+        dto;
 
       const bankAcc = await tx.query.bankAccounts.findFirst({
         where: and(
@@ -78,6 +79,12 @@ export class PaymentBatchesService {
       const prefix = 'DES-LOT-SOC';
 
       for (const it of items) {
+        if (destinationAccountNumber && it.type !== 'LIQUIDATION') {
+          throw new BadRequestException(
+            'El lote de pagos especiales solo admite liquidaciones',
+          );
+        }
+
         let net: number;
         let assocAccId: string | null = null;
         let curr: string;
@@ -137,6 +144,7 @@ export class PaymentBatchesService {
                 status: schema.liquidationsAssociates.status,
                 netLiquidationAmount:
                   schema.liquidationsAssociates.netLiquidationAmount,
+                settlementType: schema.liquidationsAssociates.settlementType,
                 disbursementAccountId: schema.associateAccounts.id,
                 currencyCode: schema.liquidationsAssociates.currencyCode,
                 associateNationality: schema.associates.nationality,
@@ -154,7 +162,11 @@ export class PaymentBatchesService {
               )
               .leftJoin(
                 schema.associateAccounts,
-                eq(schema.associateAccounts.associateId, schema.associates.id),
+                and(
+                  eq(schema.associateAccounts.associateId, schema.associates.id),
+                  eq(schema.associateAccounts.status, 'ACTIVE'),
+                  eq(schema.associateAccounts.currencyCode, 'VES'),
+                ),
               )
               .where(
                 and(
@@ -167,11 +179,26 @@ export class PaymentBatchesService {
               throw new BadRequestException(
                 `Liquidación ${it.sourceId} no procesada`,
               );
+
+            const isSpecial = rec[0].settlementType === 'SPECIAL';
+            if (isSpecial && !destinationAccountNumber) {
+              throw new BadRequestException(
+                `La liquidación ${it.sourceId} es especial y requiere una cuenta destino`,
+              );
+            }
+            if (!isSpecial && destinationAccountNumber) {
+              throw new BadRequestException(
+                `La liquidación ${it.sourceId} es completa y no debe incluirse en un lote especial`,
+              );
+            }
+
             net = Number(rec[0].netLiquidationAmount);
             assocNationality = rec[0].associateNationality?.[0] || '';
             assocCedula = `${assocNationality}${rec[0].associateCedula}`;
             beneficiaryName = rec[0].associateFullname ?? '';
-            beneficiaryAccountNumber = rec[0].accountNumber;
+            beneficiaryAccountNumber = isSpecial
+              ? destinationAccountNumber!
+              : rec[0].accountNumber;
             assocAccId = rec[0].disbursementAccountId;
             curr = 'VES';
             break;
@@ -182,7 +209,10 @@ export class PaymentBatchesService {
               .select({
                 status: schema.loans.status,
                 approvedAmount: schema.loans.approvedAmount,
-                disbursementAccountId: schema.loans.disbursementAccountId,
+                requestedAmount: schema.loans.requestedAmount,
+                currencyCode: schema.loans.currencyCode,
+                exchangeRate: schema.loans.exchangeRate,
+                associateAccountId: schema.associateAccounts.id,
                 associateNationality: schema.associates.nationality,
                 associateCedula: schema.associates.cedula,
                 associateFullname: schema.associates.fullname,
@@ -191,9 +221,13 @@ export class PaymentBatchesService {
               .from(schema.loans)
               .leftJoin(
                 schema.associateAccounts,
-                eq(
-                  schema.associateAccounts.id,
-                  schema.loans.disbursementAccountId,
+                and(
+                  eq(
+                    schema.associateAccounts.associateId,
+                    schema.loans.associateId,
+                  ),
+                  eq(schema.associateAccounts.status, 'ACTIVE'),
+                  eq(schema.associateAccounts.currencyCode, 'VES'),
                 ),
               )
               .leftJoin(
@@ -205,18 +239,32 @@ export class PaymentBatchesService {
                   eq(schema.loans.id, it.sourceId),
                   eq(schema.loans.tenantId, tenantId),
                 ),
-              );
+              )
+              .orderBy(desc(schema.associateAccounts.createdAt))
+              .limit(1);
 
             if (rec.length === 0 || rec[0].status !== 'APPROVED')
               throw new BadRequestException(
                 `Préstamo ${it.sourceId} no aprobado`,
               );
-            net = Number(rec[0].approvedAmount ?? 0);
+            const loanAmount = Number(
+              rec[0].requestedAmount ?? rec[0].approvedAmount ?? 0,
+            );
+            const loanRate = Number(rec[0].exchangeRate ?? 0);
+            const isForeignLoan =
+              !!rec[0].currencyCode &&
+              rec[0].currencyCode !== 'VES' &&
+              loanRate > 0;
+            // El lote bancario se maneja en Bs: se convierte el monto del
+            // préstamo con la tasa de creación.
+            net = Number(
+              (isForeignLoan ? loanAmount * loanRate : loanAmount).toFixed(2),
+            );
             assocNationality = rec[0].associateNationality?.[0] || '';
             assocCedula = `${assocNationality}${rec[0].associateCedula}`;
             beneficiaryName = rec[0].associateFullname ?? '';
             beneficiaryAccountNumber = rec[0].accountNumber;
-            assocAccId = rec[0].disbursementAccountId;
+            assocAccId = rec[0].associateAccountId;
             curr = 'VES';
             break;
           }
@@ -248,12 +296,17 @@ export class PaymentBatchesService {
         const netCents = Math.round(net * 100);
         totalCents += netCents;
 
+        if (!beneficiaryAccountNumber) {
+          throw new BadRequestException(
+            `El asociado ${beneficiaryName} (${assocCedula}) no tiene cuenta bancaria registrada`,
+          );
+        }
+
         lines.push({
           itemType: it.type,
           sourceId: it.sourceId,
           associateAccountId: assocAccId || null,
-          beneficiaryAccountNumber:
-            beneficiaryAccountNumber || bankAcc.accountNumber,
+          beneficiaryAccountNumber,
           beneficiaryAccountType: 'CORRIENTE',
           beneficiaryId: assocCedula,
           beneficiaryName: beneficiaryName,
@@ -282,6 +335,7 @@ export class PaymentBatchesService {
           totalAmount: (totalCents / 100).toFixed(4),
           status: paymentBatchStatus.DRAFT,
           description: dto.description ?? 'Lote automático',
+          batchType: destinationAccountNumber ? 'SPECIAL_PAYMENT' : 'PAYMENT',
           createdById: userId,
           paymentBatchReference: batchReference,
         } as any)
@@ -806,8 +860,8 @@ export class PaymentBatchesService {
       page = 1,
       limit = 10,
       search = '',
-      sortBy = 'id',
-      sortOrder = 'asc',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
       status,
     } = dto || {};
 

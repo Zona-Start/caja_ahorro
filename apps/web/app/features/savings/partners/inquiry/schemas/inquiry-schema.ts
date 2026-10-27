@@ -80,6 +80,11 @@ export const loanListItemSchema = z.object({
   status: z.string(),
   customReference: z.string().nullable(),
   progress: z.string(),
+  currencyCode: z.string().nullable().optional(),
+  exchangeRate: z.string().nullable().optional(),
+  amountBase: z.string().nullable().optional(),
+  amountForeign: z.string().nullable().optional(),
+  currentExchangeRate: z.coerce.number().optional(),
 });
 
 export const loansPaginatedResponseSchema = z.object({
@@ -100,6 +105,11 @@ export const creditListItemSchema = z.object({
   status: z.string(),
   customReference: z.string().nullable(),
   progress: z.string(),
+  currencyCode: z.string().nullable().optional(),
+  exchangeRate: z.string().nullable().optional(),
+  amountBase: z.string().nullable().optional(),
+  amountForeign: z.string().nullable().optional(),
+  currentExchangeRate: z.coerce.number().optional(),
 });
 
 export const creditsPaginatedResponseSchema = z.object({
@@ -151,6 +161,9 @@ export const amortizationItemSchema = z.object({
   paymentStatus: z.string(),
   paidAmount: z.string().nullable(),
   lastPaymentDate: z.string().nullable(),
+  exchangeRate: z.string().nullable().optional(),
+  amountBase: z.string().nullable().optional(),
+  amountForeign: z.string().nullable().optional(),
 });
 
 export const loanDetailSchema = z.object({
@@ -181,6 +194,10 @@ export const loanDetailSchema = z.object({
   notes: z.string().nullable(),
   customReference: z.string().nullable(),
   currencyCode: z.string().nullable(),
+  exchangeRate: z.string().nullable().optional(),
+  amountBase: z.string().nullable().optional(),
+  amountForeign: z.string().nullable().optional(),
+  currentExchangeRate: z.coerce.number().optional(),
   balanceInFavor: z.string().nullable(),
   associateName: z.string(),
   associateCedula: z.string(),
@@ -225,6 +242,10 @@ export const creditDetailSchema = z.object({
   notes: z.string().nullable(),
   customReference: z.string().nullable(),
   currencyCode: z.string().nullable(),
+  exchangeRate: z.string().nullable().optional(),
+  amountBase: z.string().nullable().optional(),
+  amountForeign: z.string().nullable().optional(),
+  currentExchangeRate: z.coerce.number().optional(),
   balanceInFavor: z.string().nullable(),
   associateName: z.string(),
   associateCedula: z.string(),

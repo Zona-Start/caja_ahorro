@@ -25,6 +25,8 @@ export const associatesLoanSchema = z.object({
   loanModality: z.string().nullable(),
   loanCustomReference: z.string().nullable(),
   loanRequestedAmount: z.string().nullable(),
+  loanCurrencyCode: z.string().nullable().optional(),
+  loanExchangeRate: z.string().nullable().optional(),
   loanAmortization: z.array(loanAmortizationItemSchema).nullable(),
   loanStatus: z.string().nullable(),
 });

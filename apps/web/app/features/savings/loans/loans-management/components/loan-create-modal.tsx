@@ -46,6 +46,7 @@ import { useCreateLoansManagementMutation } from '../hooks/use-loans-management-
 import { PAYMENT_TYPE_LABELS } from '../schemas/loans-management-options';
 import { calculateFrenchAmortization } from '../utils/loan-amortization-utils';
 import { AlertModal } from '@/components/shared/alert-modal';
+import { apiClient } from '@/lib/api-client';
 import { loansManagementKeys } from '../keys/loans-management-keys';
 import { useLoanTypesQuery } from '../../type-loans/hooks/use-type-loans-query';
 import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
@@ -68,7 +69,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const hasPermission = useAuthStore((s) => s.hasPermission);
-  const canApprove = hasPermission('portfolio:loans', 'approve');
+  const canUseSpecialParams = hasPermission('portfolio:loans', 'special_params');
   const [specialParams, setSpecialParams] = useState({
     bypassPayrollCredit: false,
     bypassAvailableBalance: false,
@@ -107,6 +108,29 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
   const watchStartDate = useWatch({ control, name: 'startDate' });
   const watchTermType = useWatch({ control, name: 'termType' });
   const watchExpensesPct = useWatch({ control, name: 'expensesPercentage' }) || 0;
+  const watchCurrency = useWatch({ control, name: 'currencyCode' }) || 'VES';
+  const watchExchangeRate =
+    useWatch({ control, name: 'exchangeRate' }) || 0;
+  const creditSymbol = watchCurrency !== 'VES' ? watchCurrency : 'Bs';
+  const creditFx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
+
+  // Tasa BCV del día para la moneda del préstamo (editable).
+  useEffect(() => {
+    if (!watchCurrency || watchCurrency === 'VES') {
+      setValue('exchangeRate', 1);
+      return;
+    }
+    setValue('exchangeRate', 0);
+    apiClient
+      .get(`/core/exchange-rates/latest/${watchCurrency}`)
+      .then((res) => {
+        const rate = Number(res.data?.rate);
+        if (Number.isFinite(rate) && rate > 0) {
+          setValue('exchangeRate', rate);
+        }
+      })
+      .catch(() => {});
+  }, [watchCurrency, setValue]);
 
   const selectedType = useMemo(
     () =>
@@ -232,15 +256,15 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       r.canSave = false;
       r.messages.push('Debe ingresar un monto mayor a 0');
     }
-    if (watchAmount > associateData.available80) {
-      if (canApprove && specialParams.bypassAvailableBalance) {
+    if (watchAmount * creditFx > associateData.available80) {
+      if (canUseSpecialParams && specialParams.bypassAvailableBalance) {
         r.messages.push(
           `80% disponible desbloqueado por parámetro especial (supera ${formatCurrency(associateData.available80)} Bs)`,
         );
       } else {
         r.canSave = false;
         r.messages.push(
-          `El monto (${formatCurrency(watchAmount)}) supera el 80% disponible (${formatCurrency(associateData.available80)})`,
+          `El monto (${formatCurrency(watchAmount * creditFx)} Bs) supera el 80% disponible (${formatCurrency(associateData.available80)} Bs)`,
         );
       }
     } else if (watchAmount > 0) {
@@ -257,7 +281,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       r.messages.push('Tiene un crédito activo - Bloqueado');
     }
     if (associateData.hasPayrollCredit) {
-      if (canApprove && specialParams.bypassPayrollCredit) {
+      if (canUseSpecialParams && specialParams.bypassPayrollCredit) {
         r.messages.push('Credinomina desbloqueado por parámetro especial');
       } else {
         r.canSave = false;
@@ -268,16 +292,16 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
     if (
       watchAmount > 0 &&
       monthlyPmt > 0 &&
-      monthlyPmt > associateData.paymentCapacity
+      monthlyPmt * creditFx > associateData.paymentCapacity
     ) {
-      if (canApprove && specialParams.bypassPaymentCapacity) {
+      if (canUseSpecialParams && specialParams.bypassPaymentCapacity) {
         r.messages.push(
           'Capacidad de pago (30%) desbloqueada por parámetro especial',
         );
       } else {
         r.canSave = false;
         r.messages.push(
-          `La cuota (${formatCurrency(monthlyPmt)}) supera capacidad de pago del 30% (${formatCurrency(associateData.paymentCapacity)})`,
+          `La cuota (${formatCurrency(monthlyPmt * creditFx)} Bs) supera capacidad de pago del 30% (${formatCurrency(associateData.paymentCapacity)} Bs)`,
         );
       }
     } else if (associateData.paymentCapacity > 0) {
@@ -291,7 +315,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
     }
     if (
       Number(selectedType?.minLoanAmount) > 0 &&
-      watchAmount < Number(selectedType?.minLoanAmount)
+      watchAmount * creditFx < Number(selectedType?.minLoanAmount)
     ) {
       r.canSave = false;
       r.messages.push(
@@ -300,7 +324,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
     }
     if (
       Number(selectedType?.maxLoanAmount) > 0 &&
-      watchAmount > Number(selectedType?.maxLoanAmount)
+      watchAmount * creditFx > Number(selectedType?.maxLoanAmount)
     ) {
       r.canSave = false;
       r.messages.push(
@@ -308,7 +332,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       );
     }
     return r;
-  }, [associateData, watchAmount, selectedType, amortData, canApprove, specialParams]);
+  }, [associateData, watchAmount, creditFx, selectedType, amortData, canUseSpecialParams, specialParams]);
 
   const handleFormSubmit = useCallback(
     (data: LoanManagement) => {
@@ -321,7 +345,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
         expensesPercentage: Number(data.expensesPercentage || 0),
         paymentMethod: 'BANK_TRANSFER',
         startDate: data.startDate,
-        ...(canApprove
+        ...(canUseSpecialParams
           ? {
               bypassPayrollCredit: specialParams.bypassPayrollCredit,
               bypassAvailableBalance: specialParams.bypassAvailableBalance,
@@ -337,7 +361,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
       });
       setConfirmOpen(false);
     },
-    [saveLoan, onClose, associateData, canApprove, specialParams],
+    [saveLoan, onClose, associateData, canUseSpecialParams, specialParams],
   );
 
   const handleClose = useCallback(() => {
@@ -600,8 +624,49 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Moneda del Préstamo *</Label>
+                      <Select
+                        value={watchCurrency}
+                        onValueChange={(v) =>
+                          setValue('currencyCode', v as any)
+                        }
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="VES">Bolívares (VES)</SelectItem>
+                          <SelectItem value="USD">Dólares (USD)</SelectItem>
+                          <SelectItem value="EUR">Euros (EUR)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {watchCurrency !== 'VES' && (
+                      <div>
+                        <Label>Tasa de Cambio ({watchCurrency}) *</Label>
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          min="0"
+                          className="mt-1"
+                          {...register('exchangeRate', {
+                            valueAsNumber: true,
+                          })}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Monto en Bs:{' '}
+                          {formatCurrency(
+                            (watchAmount || 0) * (watchExchangeRate || 0),
+                          )}{' '}
+                          Bs
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                      <Label>Monto del Préstamo *</Label>
+                      <Label>Monto del Préstamo ({watchCurrency}) *</Label>
                       <Input
                         type="number"
                         step="0.01"
@@ -725,7 +790,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         Monto Solicitado:
                       </span>{' '}
                       <span className="font-medium">
-                        {formatCurrency(amortData.netAmount)} Bs
+                        {formatCurrency(amortData.netAmount)} {creditSymbol}
                       </span>
                     </div>
                     <div>
@@ -733,7 +798,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         Gasto Admin:
                       </span>{' '}
                       <span className="font-medium">
-                        {formatCurrency(amortData.expenseAmount)} Bs
+                        {formatCurrency(amortData.expenseAmount)} {creditSymbol}
                       </span>
                     </div>
                     <div>
@@ -741,7 +806,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         Interés Total:
                       </span>{' '}
                       <span className="font-medium text-red-600">
-                        {formatCurrency(amortData.totalInterest)} Bs
+                        {formatCurrency(amortData.totalInterest)} {creditSymbol}
                       </span>
                     </div>
                     <div>
@@ -749,7 +814,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         Cuota Mensual:
                       </span>{' '}
                       <span className="font-medium text-[#305AD9]">
-                        {formatCurrency(amortData.monthlyPayment)} Bs
+                        {formatCurrency(amortData.monthlyPayment)} {creditSymbol}
                       </span>
                     </div>
 
@@ -763,8 +828,14 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         Monto a Desembolsar:
                       </span>{' '}
                       <span className="text-lg font-black text-green-600">
-                        {formatCurrency(amortData.capital)} Bs
+                        {formatCurrency(amortData.capital)} {creditSymbol}
                       </span>
+                      {watchCurrency !== 'VES' && (
+                        <div className="text-xs text-muted-foreground">
+                          ≈ {formatCurrency(amortData.capital * creditFx)} Bs (tasa{' '}
+                          {creditFx.toFixed(2)})
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -775,7 +846,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                         {formatCurrency(
                           amortData.monthlyPayment * watchTermUnits,
                         )}{' '}
-                        Bs
+                        {creditSymbol}
                       </span>
                     </div>
                   </div>
@@ -786,7 +857,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                       <div className="flex items-center gap-2 mb-2">
                         <Calculator className="h-3 w-3 text-muted-foreground" />
                         <span className="text-xs font-semibold text-muted-foreground">
-                          TABLA DE AMORTIZACIÓN
+                          TABLA DE AMORTIZACIÓN ({creditSymbol})
                         </span>
                       </div>
                       <div className="max-h-48 overflow-y-auto rounded border">
@@ -899,8 +970,8 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
                 </div>
               )}
 
-              {/* Parámetros Especiales (solo permiso portfolio:loans:approve) */}
-              {canApprove && (
+              {/* Parámetros Especiales (solo permiso portfolio:loans:special_params) */}
+              {canUseSpecialParams && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <Settings2 className="h-4 w-4 text-amber-600" />
@@ -1000,7 +1071,7 @@ export function CreateLoanModal({ open, onClose }: CreateLoanModalProps) {
           onConfirm={handleSubmit(handleFormSubmit)}
           loading={isSaving}
           title="Confirmar Préstamo"
-          description={`¿Está seguro que desea solicitar este préstamo por ${formatCurrency(watchAmount)} Bs para ${associateData?.associate?.fullname}?`}
+          description={`¿Está seguro que desea solicitar este préstamo por ${formatCurrency(watchAmount)} ${creditSymbol}${watchCurrency !== 'VES' ? ` (≈ ${formatCurrency(watchAmount * creditFx)} Bs)` : ''} para ${associateData?.associate?.fullname}?`}
         />
       </DialogContent>
     </Dialog>

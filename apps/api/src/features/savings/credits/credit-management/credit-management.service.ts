@@ -20,6 +20,7 @@ import { associateHaberesBalance } from '@/database/schema/views';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import { InventoryMovementsService } from '@/features/inventory/inventory-movements/inventory-movements.service';
 import { computePriceBreakdown } from '@/features/inventory/product-prices/pricing.util';
 import { WithdrawalAssociateService } from '@/features/savings/withdrawalls/withdrawal-associate/withdrawal-associate.service';
@@ -70,6 +71,7 @@ export class CreditManagementService {
     private readonly inventoryMovementsService: InventoryMovementsService,
     private readonly withdrawalAssociateService: WithdrawalAssociateService,
     private readonly bankMovementsService: BankMovementsService,
+    private readonly exchangeRateService: ExchangeRateService,
     private readonly accountingEntriesService: AccountingEntriesService,
     private readonly auditHelper: AuditHelper,
   ) {}
@@ -112,6 +114,7 @@ export class CreditManagementService {
     createdById: string,
     termType: 'installments' | 'quotas',
     expensesAmount: number,
+    exchangeRate = 1,
   ) {
     const mode = normalizeTermMode(termType);
     const r = periodRate(annualInterestRate, termType);
@@ -193,6 +196,11 @@ export class CreditManagementService {
         principalBalancePending: String(
           parseFloat(Math.max(0, remaining).toFixed(6)),
         ),
+        // Bimonetario: monto en la moneda del crédito y su equivalente en Bs a la
+        // tasa de creación.
+        exchangeRate: String(exchangeRate),
+        amountForeign: String(parseFloat(total.toFixed(6))),
+        amountBase: String(parseFloat((total * exchangeRate).toFixed(4))),
         paymentStatus: PaymentStatusEnum.PENDING,
         createdById,
       });
@@ -421,6 +429,7 @@ export class CreditManagementService {
     tenantId: string,
     userId: string,
     dto: CreateCreditDto,
+    allowSpecialRules = false,
   ): Promise<{ id: string; customReference: string | null }> {
     const {
       associateId,
@@ -438,6 +447,13 @@ export class CreditManagementService {
       haberesPayment,
       directPayment,
     } = dto;
+
+    // Los parámetros que desbloquean reglas solo se aplican si el usuario
+    // tiene el permiso específico de parámetros especiales.
+    const canUseOverdraft = allowSpecialRules && !!allowOverdraft;
+    const canExceedPaymentCapacity =
+      allowSpecialRules && !!allowExceedPaymentCapacity;
+    const canUsePayrollCredit = allowSpecialRules && !!allowPayrollCredit;
 
     const [creditType] = await this.db
       .select()
@@ -467,7 +483,38 @@ export class CreditManagementService {
       throw new NotFoundException('Asociado no encontrado');
     }
 
-    if (assoc.isPayrollCredit && !allowPayrollCredit) {
+    // Moneda del crédito y tasa del día (BCV, editable).
+    let currencyCode: CurrencyCodeEnum;
+    const requestedCurrency = dto.currencyCode as CurrencyCodeEnum | undefined;
+    if (requestedCurrency) {
+      currencyCode = requestedCurrency;
+    } else {
+      const setting = await this.db.query.moduleSettings.findFirst({
+        where: and(
+          eq(moduleSettings.key, 'MONEDA'),
+          eq(moduleSettings.tenantId, tenantId),
+        ),
+      });
+      currencyCode =
+        setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
+    }
+
+    let exchangeRate =
+      currencyCode === CurrencyCodeEnum.VES ? 1 : Number(dto.exchangeRate ?? 0);
+    if (
+      currencyCode !== CurrencyCodeEnum.VES &&
+      (!Number.isFinite(exchangeRate) || exchangeRate <= 0)
+    ) {
+      exchangeRate = await this.exchangeRateService.getRate(
+        tenantId,
+        startDate,
+        currencyCode,
+      );
+    }
+
+    const requestedAmountBase = requestedAmount * exchangeRate;
+
+    if (assoc.isPayrollCredit && !canUsePayrollCredit) {
       throw new BadRequestException(
         'El asociado tiene credinomina activo, no puede solicitar créditos',
       );
@@ -476,19 +523,19 @@ export class CreditManagementService {
     if (
       creditType.minCreditAmount &&
       Number(creditType.minCreditAmount) > 0 &&
-      requestedAmount < Number(creditType.minCreditAmount)
+      requestedAmountBase < Number(creditType.minCreditAmount)
     ) {
       throw new BadRequestException(
-        `El monto mínimo para este tipo de crédito es ${Number(creditType.minCreditAmount).toLocaleString('es')}`,
+        `El monto mínimo para este tipo de crédito es ${Number(creditType.minCreditAmount).toLocaleString('es')} Bs`,
       );
     }
     if (
       creditType.maxCreditAmount &&
       Number(creditType.maxCreditAmount) > 0 &&
-      requestedAmount > Number(creditType.maxCreditAmount)
+      requestedAmountBase > Number(creditType.maxCreditAmount)
     ) {
       throw new BadRequestException(
-        `El monto máximo para este tipo de crédito es ${Number(creditType.maxCreditAmount).toLocaleString('es')}`,
+        `El monto máximo para este tipo de crédito es ${Number(creditType.maxCreditAmount).toLocaleString('es')} Bs`,
       );
     }
 
@@ -560,22 +607,31 @@ export class CreditManagementService {
     const balance = Number(account.balance ?? 0);
     const available80 = balance * 0.8;
 
-    if (!allowOverdraft && requestedAmount > available80) {
+    if (!canUseOverdraft && requestedAmountBase > available80) {
       throw new BadRequestException(
-        `El monto solicitado (${requestedAmount.toLocaleString('es')}) supera el 80% disponible (${available80.toLocaleString('es')})`,
+        `El monto solicitado (${requestedAmountBase.toLocaleString('es')} Bs) supera el 80% disponible (${available80.toLocaleString('es')} Bs)`,
       );
     }
 
-    const haberesPaymentAmount = haberesPayment ?? 0;
-    const directPaymentAmount = directPayment ?? 0;
+    // El pago con haberes y el pago directo forman parte del bloque de
+    // parámetros especiales: sin el permiso correspondiente se ignoran.
+    const haberesPaymentAmount = allowSpecialRules ? (haberesPayment ?? 0) : 0;
+    const directPaymentAmount = allowSpecialRules ? (directPayment ?? 0) : 0;
+    const withdrawalTypeIdValue = allowSpecialRules
+      ? (withdrawalTypeId ?? null)
+      : null;
 
-    if (haberesPaymentAmount > 0 && !withdrawalTypeId) {
+    if (haberesPaymentAmount > 0 && !withdrawalTypeIdValue) {
       throw new BadRequestException(
         'Debe seleccionar el tipo de retiro cuando se aplica pago con haberes',
       );
     }
+
+    // Los haberes están en Bs; se convierten a la moneda del crédito solo para
+    // calcular el monto a financiar. El descuento real sigue en Bs.
+    const haberesInCreditCurrency = haberesPaymentAmount / exchangeRate;
     const amortizableAmount =
-      requestedAmount - haberesPaymentAmount - directPaymentAmount;
+      requestedAmount - haberesInCreditCurrency - directPaymentAmount;
 
     if (amortizableAmount < 0) {
       throw new BadRequestException(
@@ -599,9 +655,10 @@ export class CreditManagementService {
         finalTermType,
       );
       const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
-      if (monthlyPayment > paymentCapacity && !allowExceedPaymentCapacity) {
+      const monthlyPaymentBase = monthlyPayment * exchangeRate;
+      if (monthlyPaymentBase > paymentCapacity && !canExceedPaymentCapacity) {
         throw new BadRequestException(
-          `La cuota mensual (${monthlyPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
+          `La cuota mensual (${monthlyPaymentBase.toLocaleString('es', { minimumFractionDigits: 2 })} Bs) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })} Bs)`,
         );
       }
     }
@@ -622,16 +679,6 @@ export class CreditManagementService {
     if (dup.length) {
       throw new InternalServerErrorException('Solicitud duplicada');
     }
-
-    const setting = await this.db.query.moduleSettings.findFirst({
-      where: and(
-        eq(moduleSettings.key, 'MONEDA'),
-        eq(moduleSettings.tenantId, tenantId),
-      ),
-    });
-
-    const currencyCode: CurrencyCodeEnum =
-      setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
 
     const endDate = this.calculateEndDate(
       startDate,
@@ -663,6 +710,7 @@ export class CreditManagementService {
             userId,
             finalTermType,
             expensesAmount,
+            exchangeRate,
           )
         : [];
 
@@ -684,6 +732,9 @@ export class CreditManagementService {
             : null,
           commercialHouseId: dto.commercialHouseId ?? null,
           currencyCode,
+          exchangeRate: String(exchangeRate),
+          amountForeign: String(financedCapital.toFixed(6)),
+          amountBase: String((financedCapital * exchangeRate).toFixed(4)),
           termType: finalTermType,
           termUnits: finalTermUnits,
           interestRate: String(finalRate),
@@ -694,14 +745,14 @@ export class CreditManagementService {
           notes: dto.notes ?? null,
           invoiceNumber: dto.invoiceNumber ?? null,
           previousCreditId: dto.previousCreditId ?? null,
-          allowOverdraft: dto.allowOverdraft ?? false,
-          allowExceedPaymentCapacity: dto.allowExceedPaymentCapacity ?? false,
-          allowPayrollCredit: dto.allowPayrollCredit ?? false,
-          haberesWithdrawalTypeId: dto.withdrawalTypeId ?? null,
-          haberesPayment: dto.haberesPayment
-            ? String(dto.haberesPayment)
-            : null,
-          directPayment: dto.directPayment ? String(dto.directPayment) : null,
+          allowOverdraft: canUseOverdraft,
+          allowExceedPaymentCapacity: canExceedPaymentCapacity,
+          allowPayrollCredit: canUsePayrollCredit,
+          haberesWithdrawalTypeId: withdrawalTypeIdValue,
+          haberesPayment:
+            haberesPaymentAmount > 0 ? String(haberesPaymentAmount) : null,
+          directPayment:
+            directPaymentAmount > 0 ? String(directPaymentAmount) : null,
           directPaymentMethod: dto.directPaymentMethod ?? null,
           directPaymentReference: dto.directPaymentReference ?? null,
           directPaymentBankAccountId: dto.directPaymentBankAccountId ?? null,
@@ -785,7 +836,6 @@ export class CreditManagementService {
       requestedAmount,
       //creditTypeId,
       startDate,
-      currencyCode,
       allowOverdraft,
       haberesPayment,
       directPayment,
@@ -793,6 +843,11 @@ export class CreditManagementService {
       directPaymentReference,
       directPaymentBankAccountId,
     } = credit;
+
+    // Tasa de creación del crédito. Los montos del crédito están en su moneda;
+    // los movimientos de haberes/contabilidad se manejan en Bs.
+    const creditExchangeRate = Number(credit.exchangeRate ?? 1) || 1;
+    const toBs = (value: number) => +(value * creditExchangeRate).toFixed(2);
 
     const active = await this.db
       .select()
@@ -834,7 +889,7 @@ export class CreditManagementService {
 
     if (!allowOverdraft) {
       const avail = Number(assoc?.balance ?? 0) * 0.8;
-      if (Number(avail) < Number(requestedAmount))
+      if (avail < Number(requestedAmount) * creditExchangeRate)
         throw new BadRequestException('Disponibilidad insuficiente');
     }
 
@@ -884,11 +939,13 @@ export class CreditManagementService {
         const finalTermType = (credit.termType ?? 'Plazos') as
           'installments' | 'quotas';
         const expensesAmount = Number(credit.expensesAmount ?? 0);
+        const creditRate = Number(credit.exchangeRate ?? 1) || 1;
         const haberesAmt = Number(haberesPayment ?? 0);
         const directAmt = Number(directPayment ?? 0);
+        const haberesInCreditCurrency = haberesAmt / creditRate;
         const amortizableAmount = Math.max(
           0,
-          Number(requestedAmount) - haberesAmt - directAmt,
+          Number(requestedAmount) - haberesInCreditCurrency - directAmt,
         );
 
         const schedule =
@@ -902,6 +959,7 @@ export class CreditManagementService {
                 userId,
                 finalTermType,
                 expensesAmount,
+                creditRate,
               )
             : [];
 
@@ -1021,7 +1079,7 @@ export class CreditManagementService {
               description: `Pago directo inicial Crédito N°${customReference}`,
               bankReference: directPaymentReference ?? undefined,
               category: 'CREDIT_DISBURSEMENT' as BankTransactionCategory,
-              creditAmount: directAmt,
+              creditAmount: toBs(directAmt),
               debitAmount: 0,
             },
             links: [
@@ -1038,7 +1096,7 @@ export class CreditManagementService {
 
       // Movimiento de cuenta del asociado
       if (assoc?.associateAccountId) {
-        const movementAmount = Number(requestedAmount);
+        const movementAmount = toBs(Number(requestedAmount));
         const movementType: AssociateMovementTypeEnum =
           credit.creditModality === 'SPECIAL_QUOTAS'
             ? AssociateMovementTypeEnum.SPECIAL_CREDIT_DISBURSEMENT_CREDIT
@@ -1054,7 +1112,7 @@ export class CreditManagementService {
               associateAccountId: assoc.associateAccountId,
               movementType: AssociateMovementTypeEnum.SAVING_WITHDRAWAL,
               amount: haberesAmt,
-              currencyCode: currencyCode as CurrencyCodeEnum,
+              currencyCode: CurrencyCodeEnum.VES,
               transactionDate: new Date(),
               description: `Abono desde haberes para Crédito N°${customReference}`,
               referenceId: String(id),
@@ -1073,8 +1131,8 @@ export class CreditManagementService {
               associateAccountId: assoc.associateAccountId,
               movementType:
                 AssociateMovementTypeEnum.COMMERCIAL_CREDIT_REIMBURSEMENT_CREDIT,
-              amount: directAmt,
-              currencyCode: currencyCode as CurrencyCodeEnum,
+              amount: toBs(directAmt),
+              currencyCode: CurrencyCodeEnum.VES,
               transactionDate: new Date(),
               description: `Pago directo inicial Crédito N°${customReference}`,
               referenceId: String(id),
@@ -1090,7 +1148,7 @@ export class CreditManagementService {
             associateAccountId: assoc.associateAccountId,
             movementType,
             amount: movementAmount,
-            currencyCode: currencyCode as CurrencyCodeEnum,
+            currencyCode: CurrencyCodeEnum.VES,
             transactionDate: new Date(),
             description: `Crédito Aprobado N°${customReference}`,
             referenceId: String(id),
@@ -1106,8 +1164,8 @@ export class CreditManagementService {
             {
               associateAccountId: assoc.associateAccountId,
               movementType: AssociateMovementTypeEnum.CREDIT_ADMIN_FEE_DEBIT,
-              amount: expensesAmount,
-              currencyCode: currencyCode as CurrencyCodeEnum,
+              amount: toBs(expensesAmount),
+              currencyCode: CurrencyCodeEnum.VES,
               transactionDate: new Date(),
               description: `Gastos Administrativos Crédito N°${customReference}`,
               referenceId: String(id),
@@ -1192,9 +1250,9 @@ export class CreditManagementService {
       const typeDesc = creditType?.name ?? 'CRÉDITO';
       const associateDesc =
         `${assoc?.cedula ?? ''} ${assoc?.fullname ?? ''}`.trim();
-      const requestedAmountNum = Number(requestedAmount);
-      const expensesAmountNum = Number(credit.expensesAmount ?? 0);
-      const totalInterestNum = Number(credit.totalInterest ?? 0);
+      const requestedAmountNum = toBs(Number(requestedAmount));
+      const expensesAmountNum = toBs(Number(credit.expensesAmount ?? 0));
+      const totalInterestNum = toBs(Number(credit.totalInterest ?? 0));
 
       this.logger.log(
         `[approve] Generando asiento contable crédito ${id} - principal=${requestedAmountNum} gastos=${expensesAmountNum} interes=${totalInterestNum}`,
@@ -1212,8 +1270,7 @@ export class CreditManagementService {
             description: `Desembolso de Crédito - ${assoc?.fullname ?? ''}`,
             entryDate: new Date(),
             referenceValue: typeDesc,
-            currencyCode:
-              (currencyCode as CurrencyCodeEnum) ?? CurrencyCodeEnum.VES,
+            currencyCode: CurrencyCodeEnum.VES,
             originReferenceId: id,
             originType: 'CREDIT_DISBURSEMENT',
             items: [

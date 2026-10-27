@@ -175,7 +175,11 @@ export class StatsService {
   private async getActivePortfolioAmount(tenantId: string) {
     const [loansActive, creditsActive] = await Promise.all([
       this.db
-        .select({ total: sum(loans.disbursedAmount) })
+        .select({
+          total: sum(
+            sql`CASE WHEN ${loans.currencyCode} = 'VES' THEN ${loans.disbursedAmount} ELSE ${loans.amountBase} END`,
+          ),
+        })
         .from(loans)
         .where(
           and(
@@ -184,7 +188,11 @@ export class StatsService {
           ),
         ),
       this.db
-        .select({ total: sum(credits.requestedAmount) })
+        .select({
+          total: sum(
+            sql`CASE WHEN ${credits.currencyCode} = 'VES' THEN ${credits.requestedAmount} ELSE ${credits.amountBase} END`,
+          ),
+        })
         .from(credits)
         .where(
           and(
@@ -543,7 +551,11 @@ export class StatsService {
         .where(and(baseWhere, inArray(loans.status, PAID_LOAN_STATUSES))),
       this.db.select({ count: count() }).from(loans).where(baseWhere),
       this.db
-        .select({ totalAmount: sum(loans.disbursedAmount) })
+        .select({
+          totalAmount: sum(
+            sql`CASE WHEN ${loans.currencyCode} = 'VES' THEN ${loans.disbursedAmount} ELSE ${loans.amountBase} END`,
+          ),
+        })
         .from(loans)
         .where(baseWhere),
     ]);
@@ -577,7 +589,11 @@ export class StatsService {
         .where(and(baseWhere, inArray(credits.status, PAID_CREDIT_STATUSES))),
       this.db.select({ count: count() }).from(credits).where(baseWhere),
       this.db
-        .select({ totalAmount: sum(credits.requestedAmount) })
+        .select({
+          totalAmount: sum(
+            sql`CASE WHEN ${credits.currencyCode} = 'VES' THEN ${credits.requestedAmount} ELSE ${credits.amountBase} END`,
+          ),
+        })
         .from(credits)
         .where(baseWhere),
     ]);

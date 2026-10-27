@@ -20,6 +20,12 @@ export class CreditsReportService {
     if (filters.creditTypeId) {
       conditions.push(eq(schema.credits.creditTypeId, filters.creditTypeId));
     }
+    if (filters.cedula) {
+      conditions.push(eq(schema.associates.cedula, filters.cedula.trim()));
+    }
+    if (filters.status) {
+      conditions.push(eq(schema.credits.status, filters.status as any));
+    }
     if (filters.dateFrom) {
       conditions.push(gte(schema.credits.requestDate, filters.dateFrom));
     }
@@ -36,6 +42,7 @@ export class CreditsReportService {
         creditType: schema.creditsTypes.name,
         requestedAmount: schema.credits.requestedAmount,
         totalPayable: schema.credits.totalPayable,
+        currencyCode: schema.credits.currencyCode,
         termUnits: schema.credits.termUnits,
         status: schema.credits.status,
       })

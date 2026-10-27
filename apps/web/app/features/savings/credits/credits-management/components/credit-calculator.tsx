@@ -22,6 +22,8 @@ interface CreditCalculatorProps {
   expensesAmount: number;
   haberesPayment: number;
   directPayment: number;
+  currencyCode?: string;
+  exchangeRate?: number;
 }
 
 function formatCurrency(n: number) {
@@ -37,11 +39,17 @@ export function CreditCalculator({
   expensesAmount,
   haberesPayment,
   directPayment,
+  currencyCode = 'VES',
+  exchangeRate = 1,
 }: CreditCalculatorProps) {
   if (amortizableAmount <= 0 || schedule.length === 0) return null;
 
+  const sym = currencyCode !== 'VES' ? currencyCode : 'Bs';
+  const rate = exchangeRate || 1;
+  const haberesInCurrency = haberesPayment / rate;
   const totalAPagar = capital + totalInterest + expensesAmount;
-  const montoAmortizarCuotas = totalAPagar - haberesPayment - directPayment;
+  const montoAmortizarCuotas =
+    totalAPagar - haberesInCurrency - directPayment;
 
   return (
     <Card className="border-emerald-500/30 bg-muted/30">
@@ -56,35 +64,35 @@ export function CreditCalculator({
           <div className="flex justify-between">
             <span className="text-muted-foreground">Capital:</span>
             <span className="font-mono font-medium">
-              {formatCurrency(capital)} Bs
+              {formatCurrency(capital)} {sym}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Cuota por Plazo:</span>
             <span className="font-mono font-bold text-[#305AD9]">
-              {formatCurrency(parseFloat(monthlyPayment))} Bs
+              {formatCurrency(parseFloat(monthlyPayment))} {sym}
             </span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Interés Total:</span>
-            <span className="font-mono">{formatCurrency(totalInterest)} Bs</span>
+            <span className="font-mono">{formatCurrency(totalInterest)} {sym}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Gasto Administrativo:</span>
-            <span className="font-mono">{formatCurrency(expensesAmount)} Bs</span>
+            <span className="font-mono">{formatCurrency(expensesAmount)} {sym}</span>
           </div>
           <Separator />
           <div className="flex justify-between">
             <span className="text-muted-foreground">Total a Pagar (Capital + Interés + Gasto):</span>
             <span className="font-mono font-bold text-lg">
-              {formatCurrency(totalAPagar)} Bs
+              {formatCurrency(totalAPagar)} {sym}
             </span>
           </div>
           {haberesPayment > 0 && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pago de haberes:</span>
               <span className="font-mono text-destructive">
-                - {formatCurrency(haberesPayment)} Bs
+                - {formatCurrency(haberesInCurrency)} {sym}
               </span>
             </div>
           )}
@@ -92,7 +100,7 @@ export function CreditCalculator({
             <div className="flex justify-between">
               <span className="text-muted-foreground">Pago directo:</span>
               <span className="font-mono text-destructive">
-                - {formatCurrency(directPayment)} Bs
+                - {formatCurrency(directPayment)} {sym}
               </span>
             </div>
           )}
@@ -100,14 +108,14 @@ export function CreditCalculator({
           <div className="flex justify-between">
             <span className="text-muted-foreground">Monto a amortizar en cuotas:</span>
             <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-              {formatCurrency(montoAmortizarCuotas)} Bs
+              {formatCurrency(montoAmortizarCuotas)} {sym}
             </span>
           </div>
         </div>
 
         <div className="rounded-lg border bg-background p-3">
           <p className="text-xs font-semibold text-muted-foreground mb-2">
-            TABLA DE AMORTIZACIÓN
+            TABLA DE AMORTIZACIÓN ({sym})
           </p>
           <div className="max-h-48 overflow-y-auto">
             <table className="w-full text-xs">

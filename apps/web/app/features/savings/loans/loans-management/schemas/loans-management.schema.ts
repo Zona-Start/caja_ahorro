@@ -53,6 +53,7 @@ export const loanManagementSchema = z.object({
   accountNumber: z.string().optional(),
   approvedAmount: z.string().optional(),
   currencyCode: z.string().optional(),
+  exchangeRate: z.coerce.number().min(0).optional(),
 });
 
 export type LoanManagement = z.infer<typeof loanManagementSchema>;
@@ -67,4 +68,6 @@ export const loanDefaults: LoanManagement = {
   startDate: new Date(),
   termType: 'installments',
   termUnits: 1,
+  currencyCode: 'VES',
+  exchangeRate: 1,
 };

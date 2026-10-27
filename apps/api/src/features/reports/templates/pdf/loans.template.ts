@@ -8,6 +8,7 @@ export interface LoanReportRow {
   loanType: string | null;
   requestedAmount: string;
   totalPayable: string | null;
+  currencyCode: string | null;
   termUnits: number | null;
   status: string;
 }
@@ -48,6 +49,11 @@ function formatAmount(value: string | null): string {
   });
 }
 
+function currencyLabel(code: string | null): string {
+  if (!code || code === 'VES') return 'Bs';
+  return code;
+}
+
 export function buildLoansTableContent(data: LoanReportRow[]): Content {
   const tableBody = [
     [
@@ -56,6 +62,7 @@ export function buildLoansTableContent(data: LoanReportRow[]): Content {
       { text: 'Cédula', style: 'tableHeader' },
       { text: 'Nombre y Apellidos', style: 'tableHeader' },
       { text: 'Tipo Préstamo', style: 'tableHeader' },
+      { text: 'Moneda', style: 'tableHeader' },
       { text: 'Monto Solicitado', style: 'tableHeader' },
       { text: 'Total a Pagar', style: 'tableHeader' },
       { text: 'Cuotas', style: 'tableHeader' },
@@ -67,6 +74,7 @@ export function buildLoansTableContent(data: LoanReportRow[]): Content {
       item.cedula,
       item.fullname,
       item.loanType ?? 'N/A',
+      currencyLabel(item.currencyCode),
       formatAmount(item.requestedAmount),
       formatAmount(item.totalPayable),
       item.termUnits?.toString() ?? 'N/A',
@@ -77,7 +85,7 @@ export function buildLoansTableContent(data: LoanReportRow[]): Content {
   return {
     table: {
       headerRows: 1,
-      widths: [50, 60, 50, '*', 55, 55, 55, 35, 55],
+      widths: [50, 60, 50, '*', 55, 40, 55, 55, 35, 55],
       body: tableBody,
     },
     layout: 'lightHorizontalLines',

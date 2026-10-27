@@ -41,6 +41,22 @@ interface CreditsReportModalProps {
   onClose: () => void;
 }
 
+const CREDIT_STATUS_OPTIONS = [
+  { value: 'REQUESTED', label: 'Solicitado' },
+  { value: 'APPROVED', label: 'Aprobado' },
+  { value: 'IN_PAYMENT', label: 'En Pago' },
+  { value: 'PAID', label: 'Pagado' },
+];
+
+const CREDIT_REPORT_DEFAULTS: CreditReportFilters = {
+  dateFrom: '',
+  dateTo: '',
+  creditTypeId: '',
+  cedula: '',
+  status: 'all',
+  format: 'pdf',
+};
+
 export function CreditsReportModal({ isOpen, onClose }: CreditsReportModalProps) {
   const [creditTypes, setCreditTypes] = useState<
     { id: string; name: string }[]
@@ -50,13 +66,14 @@ export function CreditsReportModal({ isOpen, onClose }: CreditsReportModalProps)
 
   const form = useForm<CreditReportFilters>({
     resolver: zodResolver(creditReportFilterSchema),
-    defaultValues: {
-      dateFrom: '',
-      dateTo: '',
-      creditTypeId: '',
-      format: 'pdf',
-    },
+    defaultValues: CREDIT_REPORT_DEFAULTS,
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset(CREDIT_REPORT_DEFAULTS);
+    }
+  }, [isOpen, form]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -124,6 +141,59 @@ export function CreditsReportModal({ isOpen, onClose }: CreditsReportModalProps)
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="cedula"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cédula del Asociado</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ej: 12345678"
+                        inputMode="numeric"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value.replace(/\D/g, '').slice(0, 10),
+                          )
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estatus</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value ?? 'all'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {CREDIT_STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -9,6 +9,7 @@ export interface LoanInfo {
   associateId: string;
   status: string;
   currencyCode: string | null;
+  exchangeRate?: string | null;
   associateFullname: string | null;
   loanTypeName?: string | null;
 }
@@ -47,6 +48,8 @@ export interface PaymentRecord {
   statusPayment: string;
   associateId: string | null;
   currencyCode: string | null;
+  exchangeRate?: string | null;
+  amountBase?: string | null;
   associateFullname: string | null;
 }
 

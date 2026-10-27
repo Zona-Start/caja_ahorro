@@ -44,6 +44,10 @@ export class LoanPaymentProcessor {
       paymentDate: Date;
       paymentType: string;
       amount: number;
+      currencyCode?: string;
+      exchangeRate?: number | null;
+      amountBase?: number;
+      amountForeign?: number;
       balancePending: number;
       bankId: string | undefined;
       paymentMethod: string;
@@ -62,6 +66,11 @@ export class LoanPaymentProcessor {
         paymentDate: data.paymentDate,
         paymentType: data.paymentType as loanPaymetTypeEnum,
         amount: String(data.amount),
+        currencyCode: (data.currencyCode ?? 'VES') as CurrencyCodeEnum,
+        exchangeRate:
+          data.exchangeRate != null ? String(data.exchangeRate) : null,
+        amountBase: String(data.amountBase ?? data.amount),
+        amountForeign: String(data.amountForeign ?? data.amount),
         balancePending: String(data.balancePending.toFixed(6)),
         bankId: data.bankId ?? undefined,
         paymentMethod: data.paymentMethod as paymentMethodEnum,

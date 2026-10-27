@@ -3,9 +3,18 @@ import Base from '../../layouts/Base.astro';
 import Topbar from '../../components/Topbar.astro';
 import { fetchAuthed } from '../../lib/auth';
 import { clearSession } from '../../lib/session';
-import { dateFmt, money, text } from '../../lib/format';
+import {
+  bsEquivalent,
+  creationRate,
+  currentRate,
+  dateFmt,
+  displayCurrency,
+  money,
+  text,
+} from '../../lib/format';
 import {
   CREDIT_STATUS_TYPES,
+  CURRENCY_TYPES,
   PAYMENT_LOAN_STATUS,
   label,
 } from '../../lib/labels';
@@ -50,6 +59,16 @@ if (res.status === 401) {
   return Astro.redirect('/login');
 }
 const detail = res.data ? ((res.data as { data: CreditDetail }).data ?? null) : null;
+const creditCurrency = displayCurrency(
+  detail?.credit?.currencyCode,
+  detail?.credit?.exchangeRate,
+);
+const creditCreationRate = creationRate(detail?.credit?.exchangeRate);
+const creditCurrentRate = currentRate(
+  detail?.credit?.currentExchangeRate,
+  detail?.credit?.exchangeRate,
+);
+const isForeignCredit = creditCurrency !== 'VES';
 ---
 <Base title="Detalle de crédito · Portal del Asociado">
   <Topbar />
@@ -64,13 +83,32 @@ const detail = res.data ? ((res.data as { data: CreditDetail }).data ?? null) : 
         <p class="muted">Crédito {text(detail.credit.customReference)} · Estado {label(CREDIT_STATUS_TYPES, detail.credit.status)}</p>
 
         <section class="grid cols-3" style="margin:18px 0">
-          <div class="stat"><div class="label">Monto</div><div class="value">{money(detail.credit.requestedAmount)}</div></div>
-          <div class="stat"><div class="label">Saldo pendiente</div><div class="value">{money(detail.summary.totalPending)}</div></div>
-          <div class="stat"><div class="label">Total pagado</div><div class="value">{money(detail.summary.totalPaid)}</div></div>
+          <div class="stat">
+            <div class="label">Monto</div>
+            <div class="value">{money(detail.credit.requestedAmount, creditCurrency)}</div>
+            {isForeignCredit && (
+              <div class="cell-sub">≈ {bsEquivalent(detail.credit.requestedAmount, creditCreationRate)} (tasa de creación)</div>
+            )}
+          </div>
+          <div class="stat">
+            <div class="label">Saldo pendiente</div>
+            <div class="value">{money(detail.summary.totalPending, creditCurrency)}</div>
+            {isForeignCredit && (
+              <div class="cell-sub">≈ {bsEquivalent(detail.summary.totalPending, creditCurrentRate)} (tasa del día)</div>
+            )}
+          </div>
+          <div class="stat"><div class="label">Total pagado</div><div class="value">{money(detail.summary.totalPaid, creditCurrency)}</div></div>
         </section>
 
         <section class="grid cols-3" style="margin-bottom:18px">
-          <div class="stat"><div class="label">Cuota</div><div class="value" style="font-size:1.1rem">{money(detail.credit.installmentAmount)}</div></div>
+          <div class="stat">
+            <div class="label">Cuota</div>
+            <div class="value" style="font-size:1.1rem">{money(detail.credit.installmentAmount, creditCurrency)}</div>
+            {isForeignCredit && (
+              <div class="cell-sub">≈ {bsEquivalent(detail.credit.installmentAmount, creditCurrentRate)} (tasa del día)</div>
+            )}
+          </div>
+          <div class="stat"><div class="label">Moneda</div><div class="value" style="font-size:1.1rem">{label(CURRENCY_TYPES, creditCurrency)}</div></div>
           <div class="stat"><div class="label">Tasa</div><div class="value" style="font-size:1.1rem">{text(detail.credit.interestRate)}%</div></div>
           <div class="stat"><div class="label">Plazo</div><div class="value" style="font-size:1.1rem">{text(detail.credit.termUnits)} {text(detail.credit.termType)}</div></div>
           <div class="stat"><div class="label">Cuotas pagadas</div><div class="value" style="font-size:1.1rem">{detail.summary.paidInstallments}</div></div>
@@ -88,10 +126,15 @@ const detail = res.data ? ((res.data as { data: CreditDetail }).data ?? null) : 
               <tr>
                 <td>{s.installmentNumber}</td>
                 <td>{dateFmt(s.dueDate)}</td>
-                <td>{money(s.principalAmount)}</td>
-                <td>{money(s.interestAmount)}</td>
-                <td>{money(s.totalInstallmentAmount)}</td>
-                <td>{money(s.paidAmount)}</td>
+                <td>{money(s.principalAmount, creditCurrency)}</td>
+                <td>{money(s.interestAmount, creditCurrency)}</td>
+                <td>
+                  {money(s.totalInstallmentAmount, creditCurrency)}
+                  {isForeignCredit && ['PENDING', 'PARTIAL'].includes(s.paymentStatus) && (
+                    <div class="cell-sub">≈ {bsEquivalent(s.totalInstallmentAmount, creditCurrentRate)} (tasa del día)</div>
+                  )}
+                </td>
+                <td>{money(s.paidAmount, creditCurrency)}</td>
                 <td><span class="badge">{label(PAYMENT_LOAN_STATUS, s.paymentStatus)}</span></td>
               </tr>
             ))}
@@ -111,7 +154,7 @@ const detail = res.data ? ((res.data as { data: CreditDetail }).data ?? null) : 
                     <td>{text(i.itemType)}</td>
                     <td>{text(i.productName ?? i.itemDescription)}</td>
                     <td>{i.quantity}</td>
-                    <td>{money(i.agreedSellingPrice)}</td>
+                    <td>{money(i.agreedSellingPrice, creditCurrency)}</td>
                     <td>{text(i.deliveryStatus)}</td>
                   </tr>
                 ))}
@@ -122,4 +165,7 @@ const detail = res.data ? ((res.data as { data: CreditDetail }).data ?? null) : 
       </>
     )}
   </main>
+  <style>
+    .cell-sub { font-size: 0.72rem; color: var(--muted-foreground); margin-top: 2px; }
+  </style>
 </Base>

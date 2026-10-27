@@ -6,6 +6,23 @@ import { LOAN_STATUS_TYPES } from '../../../schemas/inquiry-options';
 import type { LoanListItem } from '../../../schemas/inquiry-schema';
 import { CellAction } from './cell-action';
 
+const getCurrency = (item: LoanListItem) =>
+  item.currencyCode &&
+  item.currencyCode !== 'VES' &&
+  Number(item.exchangeRate ?? 0) > 0
+    ? item.currencyCode
+    : 'VES';
+
+const getRate = (item: LoanListItem) => {
+  const rate = Number(item.exchangeRate ?? 0);
+  return rate > 0 ? rate : 1;
+};
+
+const getCurrentRate = (item: LoanListItem) => {
+  const rate = Number(item.currentExchangeRate ?? 0);
+  return rate > 0 ? rate : getRate(item);
+};
+
 export const columns: ColumnDef<LoanListItem>[] = [
   {
     accessorKey: 'customReference',
@@ -24,20 +41,43 @@ export const columns: ColumnDef<LoanListItem>[] = [
   {
     accessorKey: 'loanAmount',
     header: 'Monto Solicitado',
-    cell: ({ row }) => (
-      <span className="font-mono">
-        {formatCurrency(Number(row.original.loanAmount), 'VES')}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const currency = getCurrency(row.original);
+      const amount = Number(row.original.loanAmount);
+      return (
+        <div>
+          <span className="font-mono">
+            {formatCurrency(amount, currency)}
+          </span>
+          {currency !== 'VES' && (
+            <div className="text-[10px] text-muted-foreground">
+              ≈ {formatCurrency(amount * getRate(row.original), 'VES')}
+            </div>
+          )}
+        </div>
+      );
+    },
   },
   {
     accessorKey: 'outstandingBalance',
     header: 'Saldo Pendiente',
-    cell: ({ row }) => (
-      <span className="font-mono text-amber-600">
-        {formatCurrency(Number(row.original.outstandingBalance || 0), 'VES')}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const currency = getCurrency(row.original);
+      const amount = Number(row.original.outstandingBalance || 0);
+      return (
+        <div>
+          <span className="font-mono text-amber-600">
+            {formatCurrency(amount, currency)}
+          </span>
+          {currency !== 'VES' && (
+            <div className="text-[10px] text-muted-foreground">
+              ≈ {formatCurrency(amount * getCurrentRate(row.original), 'VES')}{' '}
+              (tasa del día)
+            </div>
+          )}
+        </div>
+      );
+    },
   },
   {
     accessorKey: 'progress',

@@ -3,6 +3,7 @@ import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.m
 import { DrizzleModule } from '@/database/drizzle.module';
 import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
 import { AuditModule } from '@/features/audit/audit.module';
+import { ExchangeRateModule } from '@/features/core/exchange-rate/exchange-rate.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
 import { CrediPaidController } from './credit-paid.controller';
@@ -16,6 +17,7 @@ import { CreditPaidService } from './credit-paid.service';
     TenantContextModule,
     AuditModule,
     AccountingEntriesModule,
+    ExchangeRateModule,
   ],
   controllers: [CrediPaidController],
   providers: [CreditPaidService],

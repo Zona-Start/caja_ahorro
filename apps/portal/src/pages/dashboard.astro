@@ -5,9 +5,18 @@ import EmptyState from '../components/EmptyState.astro';
 import DetailModal from '../components/DetailModal';
 import { fetchAuthed } from '../lib/auth';
 import { clearSession } from '../lib/session';
-import { dateFmt, money, text } from '../lib/format';
+import {
+  bsEquivalent,
+  creationRate,
+  currentRate,
+  dateFmt,
+  displayCurrency,
+  money,
+  text,
+} from '../lib/format';
 import {
   CREDIT_STATUS_TYPES,
+  CURRENCY_TYPES,
   LOAN_STATUS_TYPES,
   MOVEMENT_STATUS_TYPES,
   MOVEMENT_TYPES,
@@ -59,7 +68,25 @@ const EXCESOS_TYPES = [
   { value: 'CREDIT_PAYMENT_REVERSAL_CREDIT', label: 'Reversión pago crédito' },
 ];
 
-const columnsByTab: Record<string, { label: string; render: (r: Row) => string; badge?: boolean }[]> = {
+const rowCurrency = (r: Row) => displayCurrency(r.currencyCode, r.exchangeRate);
+const rowCreationRate = (r: Row) => creationRate(r.exchangeRate);
+const rowCurrentRate = (r: Row) =>
+  currentRate(r.currentExchangeRate, r.exchangeRate);
+const creationSub = (r: Row, value: unknown) =>
+  rowCurrency(r) !== 'VES' && value != null && value !== ''
+    ? `≈ ${bsEquivalent(value, rowCreationRate(r))} (tasa de creación)`
+    : null;
+const currentSub = (r: Row, value: unknown) =>
+  rowCurrency(r) !== 'VES' && value != null && value !== ''
+    ? `≈ ${bsEquivalent(value, rowCurrentRate(r))} (tasa del día)`
+    : null;
+
+const columnsByTab: Record<string, {
+  label: string;
+  render: (r: Row) => string;
+  sub?: (r: Row) => string | null;
+  badge?: boolean;
+}[]> = {
   haberes: [
     { label: 'Fecha', render: (r) => dateFmt(r.fecha) },
     { label: 'Tipo', render: (r) => label(MOVEMENT_TYPES, r.tipo) },
@@ -76,17 +103,43 @@ const columnsByTab: Record<string, { label: string; render: (r: Row) => string; 
   prestamos: [
     { label: 'Fecha', render: (r) => dateFmt(r.requestDate) },
     { label: 'Tipo', render: (r) => text(r.loanType) },
-    { label: 'Monto', render: (r) => money(r.loanAmount) },
-    { label: 'Saldo', render: (r) => money(r.outstandingBalance) },
-    { label: 'Cuota', render: (r) => money(r.installmentAmount) },
+    { label: 'Moneda', render: (r) => label(CURRENCY_TYPES, rowCurrency(r)) },
+    {
+      label: 'Monto',
+      render: (r) => money(r.loanAmount, rowCurrency(r)),
+      sub: (r) => creationSub(r, r.loanAmount),
+    },
+    {
+      label: 'Saldo',
+      render: (r) => money(r.outstandingBalance, rowCurrency(r)),
+      sub: (r) => currentSub(r, r.outstandingBalance),
+    },
+    {
+      label: 'Cuota',
+      render: (r) => money(r.installmentAmount, rowCurrency(r)),
+      sub: (r) => currentSub(r, r.installmentAmount),
+    },
     { label: 'Estado', render: (r) => label(LOAN_STATUS_TYPES, r.status), badge: true },
   ],
   creditos: [
     { label: 'Fecha', render: (r) => dateFmt(r.requestDate) },
     { label: 'Tipo', render: (r) => text(r.creditType) },
-    { label: 'Monto', render: (r) => money(r.creditAmount) },
-    { label: 'Saldo', render: (r) => money(r.outstandingBalance) },
-    { label: 'Cuota', render: (r) => money(r.installmentAmount) },
+    { label: 'Moneda', render: (r) => label(CURRENCY_TYPES, rowCurrency(r)) },
+    {
+      label: 'Monto',
+      render: (r) => money(r.creditAmount, rowCurrency(r)),
+      sub: (r) => creationSub(r, r.creditAmount),
+    },
+    {
+      label: 'Saldo',
+      render: (r) => money(r.outstandingBalance, rowCurrency(r)),
+      sub: (r) => currentSub(r, r.outstandingBalance),
+    },
+    {
+      label: 'Cuota',
+      render: (r) => money(r.installmentAmount, rowCurrency(r)),
+      sub: (r) => currentSub(r, r.installmentAmount),
+    },
     { label: 'Estado', render: (r) => label(CREDIT_STATUS_TYPES, r.status), badge: true },
   ],
   historial: [
@@ -277,6 +330,7 @@ const to = Math.min(meta.page * meta.limit, meta.totalCount);
                       {c.badge
                         ? <span class:list={['badge', statusTone(r.status)]}>{c.render(r)}</span>
                         : c.render(r)}
+                      {c.sub?.(r) && <div class="cell-sub">{c.sub(r)}</div>}
                     </td>
                   ))}
                   {detailKindForTab && (
@@ -390,6 +444,7 @@ const to = Math.min(meta.page * meta.limit, meta.totalCount);
   .icon-btn.disabled { opacity: 0.4; pointer-events: none; }
   .btn-link { padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--foreground); font-weight: 600; display: inline-block; }
   .btn-link.disabled { opacity: 0.5; pointer-events: none; }
+  .cell-sub { font-size: 0.72rem; color: var(--muted-foreground); margin-top: 2px; white-space: nowrap; }
   .alert-blocked {
     display: block;
     background: #dc2626;

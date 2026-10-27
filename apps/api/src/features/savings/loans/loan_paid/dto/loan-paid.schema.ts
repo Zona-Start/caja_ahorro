@@ -11,6 +11,8 @@ export const CreateLoanPaidSchema = z.object({
   comment: z.string().optional(),
   transactionReference: z.string().optional(),
   bankId: z.string().uuid().optional().nullable(),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.coerce.number().min(0).optional(),
   tenantId: z.string().uuid().optional(),
 });
 

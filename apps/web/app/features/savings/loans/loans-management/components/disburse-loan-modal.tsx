@@ -31,6 +31,7 @@ import {
 } from '@repo/shadcn/select';
 import { Textarea } from '@repo/shadcn/textarea';
 import { AlertModal } from '@/components/shared/alert-modal';
+import { apiClient } from '@/lib/api-client';
 import { useDisburseIndividualLoan } from '../hooks/use-loans-management-mutation';
 import { useBankAccountAllQuery } from '@/features/banks/bank-account/hooks/use-bank-account-query';
 import {
@@ -65,6 +66,7 @@ export function DisburseLoanModal({
       loanId: '',
       bankAccountId: '',
       currencyCode: 'VES',
+      exchangeRate: 1,
       paymentMethod: '',
       disbursementDate: new Date(),
       bankReference: '',
@@ -74,10 +76,15 @@ export function DisburseLoanModal({
 
   useEffect(() => {
     if (loan && isOpen) {
+      const hasStoredRate = Number(loan.exchangeRate ?? 0) > 0;
+      const loanCurrency =
+        hasStoredRate && loan.currencyCode ? loan.currencyCode : 'VES';
       form.reset({
         loanId: String(loan.id),
         bankAccountId: '',
-        currencyCode: 'VES',
+        currencyCode: loanCurrency,
+        exchangeRate:
+          loanCurrency === 'VES' ? 1 : Number(loan.exchangeRate ?? 0),
         paymentMethod: loan.paymentMethod ?? '',
         disbursementDate: new Date(),
         bankReference: '',
@@ -85,6 +92,25 @@ export function DisburseLoanModal({
       });
     }
   }, [loan, isOpen, form]);
+
+  const watchedCurrency = form.watch('currencyCode') || 'VES';
+  const watchedRate = form.watch('exchangeRate') || 0;
+  const isForeign = watchedCurrency !== 'VES';
+  const currencyForFormat = isForeign ? watchedCurrency : 'VES';
+
+  useEffect(() => {
+    if (!isOpen || !isForeign) return;
+    if (watchedRate > 0) return;
+    apiClient
+      .get(`/core/exchange-rates/latest/${watchedCurrency}`)
+      .then((res) => {
+        const rate = Number(res.data?.rate);
+        if (Number.isFinite(rate) && rate > 0) {
+          form.setValue('exchangeRate', rate);
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, isForeign, watchedCurrency, watchedRate, form]);
 
   const onSubmit = (data: DisburseIndividualLoan) => {
     setValidatedData(data);
@@ -142,12 +168,18 @@ export function DisburseLoanModal({
             <div>
               <span className="text-muted-foreground">Monto a Desembolsar:</span>{' '}
               <span className="font-bold text-emerald-600">
-                {formatCurrency(
-                  Number(disbursedAmount),
-                  'VES',
-                )}{' '}
-                Bs
+                {formatCurrency(Number(disbursedAmount), currencyForFormat)}
               </span>
+              {isForeign && (
+                <div className="text-xs text-muted-foreground">
+                  ≈{' '}
+                  {formatCurrency(
+                    Number(disbursedAmount) * (watchedRate || 0),
+                    'VES',
+                  )}{' '}
+                  (tasa {watchedRate ? watchedRate.toFixed(2) : '…'})
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -193,16 +225,17 @@ export function DisburseLoanModal({
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
-                      disabled={isPending}
+                      disabled
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccione moneda" />
+                          <SelectValue placeholder="Moneda del préstamo" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="VES">VES (Bolívares)</SelectItem>
                         <SelectItem value="USD">USD (Dólares)</SelectItem>
+                        <SelectItem value="EUR">EUR (Euros)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -239,6 +272,40 @@ export function DisburseLoanModal({
                 )}
               />
             </div>
+
+            {isForeign && (
+              <FormField
+                control={form.control}
+                name="exchangeRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Tasa de Cambio ({watchedCurrency}) *
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        value={field.value ?? ''}
+                        onChange={(e) =>
+                          field.onChange(Number(e.target.value))
+                        }
+                        disabled={isPending}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      El desembolso se realizará en Bs:{' '}
+                      {formatCurrency(
+                        Number(disbursedAmount) * (watchedRate || 0),
+                        'VES',
+                      )}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -321,7 +388,7 @@ export function DisburseLoanModal({
           onConfirm={handleConfirmDisburse}
           loading={isPending}
           title="Confirmar Desembolso"
-          description={`¿Está seguro que desea desembolsar ${formatCurrency(Number(disbursedAmount), 'VES')} Bs ${loan.currencyCode || 'VES'} a ${loan.associateFullname}?`}
+          description={`¿Está seguro que desea desembolsar ${formatCurrency(Number(disbursedAmount), currencyForFormat)}${isForeign ? ` (≈ ${formatCurrency(Number(disbursedAmount) * (watchedRate || 0), 'VES')})` : ''} a ${loan.associateFullname}?`}
         />
       </DialogContent>
     </Dialog>

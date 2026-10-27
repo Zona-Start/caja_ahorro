@@ -115,7 +115,7 @@ export class SettlementAssociateService {
     userId: string,
     dto: CreateSettlementAssociateDto,
   ) {
-    const { associateId, notes, date, beneficiary } = dto;
+    const { associateId, notes, date, beneficiary, settlementType } = dto;
 
     const [associate] = await this.db
       .select({
@@ -140,6 +140,7 @@ export class SettlementAssociateService {
       new Date(date),
       notes,
       beneficiary,
+      settlementType,
     );
 
     return {
@@ -155,6 +156,7 @@ export class SettlementAssociateService {
     date: Date,
     notes?: string,
     beneficiary?: CreateSettlementAssociateDto['beneficiary'],
+    settlementType: 'COMPLETE' | 'SPECIAL' = 'COMPLETE',
   ) {
     return this.db.transaction(async (tx) => {
       if (associate.status !== 'ACTIVE' && associate.status !== 'PENDING') {
@@ -210,6 +212,7 @@ export class SettlementAssociateService {
           ),
           totalOverPaymentLiquidation: String(liq.total_overpayment),
           netLiquidationAmount: String(liq.net_liquidation_amount),
+          settlementType,
           status: 'REQUESTED',
           notes: notes,
           beneficiary: beneficiary ?? null,
@@ -1190,6 +1193,9 @@ export class SettlementAssociateService {
           associateCedula: associate.cedula,
           entryDate: processedDate,
           currencyCode: 'VES' as CurrencyCodeEnum,
+          settlementType: liquidation.settlementType as
+            | 'COMPLETE'
+            | 'SPECIAL',
           haberesContribution: haberes.haberes_contribution,
           haberesVoluntary: haberes.haberes_voluntary,
           haberesEmployer: haberes.haberes_employer,
@@ -1439,6 +1445,7 @@ export class SettlementAssociateService {
         totalOutstandingCreditsAtLiquidation:
           liquidationsAssociates.totalOutstandingCreditsAtLiquidation,
         netLiquidationAmount: liquidationsAssociates.netLiquidationAmount,
+        settlementType: liquidationsAssociates.settlementType,
         associateCedula: associates.cedula,
         associateFullname: associates.fullname,
         status: liquidationsAssociates.status,
@@ -1467,13 +1474,18 @@ export class SettlementAssociateService {
     };
   }
 
-  async findSettlementAprovee(tenantId: string, paginationDto: PaginationDto) {
+  async findSettlementAprovee(
+    tenantId: string,
+    paginationDto: PaginationDto,
+    settlementType: 'COMPLETE' | 'SPECIAL' = 'COMPLETE',
+  ) {
     const { page = 1, limit = 10 } = paginationDto || {};
     const offset = (page - 1) * limit;
 
     const where = and(
       eq(liquidationsAssociates.status, 'PROCESSED'),
       eq(liquidationsAssociates.tenantId, tenantId),
+      eq(liquidationsAssociates.settlementType, settlementType),
     );
 
     const totalCountResult = await this.db
@@ -1491,7 +1503,9 @@ export class SettlementAssociateService {
       .select({
         id: liquidationsAssociates.id,
         associateName: associates.fullname,
+        associateCedula: associates.cedula,
         amount: liquidationsAssociates.netLiquidationAmount,
+        settlementType: liquidationsAssociates.settlementType,
       })
       .from(liquidationsAssociates)
       .leftJoin(

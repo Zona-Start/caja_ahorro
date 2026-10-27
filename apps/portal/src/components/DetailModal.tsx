@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { dateFmt, money, text } from '../lib/format';
+import {
+  bsEquivalent,
+  creationRate,
+  currentRate,
+  dateFmt,
+  displayCurrency,
+  money,
+  text,
+} from '../lib/format';
 import {
   CREDIT_STATUS_TYPES,
+  CURRENCY_TYPES,
   LOAN_STATUS_TYPES,
   PAYMENT_LOAN_STATUS,
   PAYMENT_METHOD_TYPES,
@@ -14,8 +23,8 @@ import {
 
 type Kind = 'prestamo' | 'credito' | 'retiro';
 
-function mv(v: unknown): string {
-  return v == null || v === '' ? 'N/A' : money(v);
+function mv(v: unknown, currency = 'VES'): string {
+  return v == null || v === '' ? 'N/A' : money(v, currency);
 }
 function pct(v: unknown): string {
   return v == null || v === '' ? 'N/A' : `${v}%`;
@@ -48,7 +57,15 @@ function StatusBadge({ value, map }: { value: unknown; map: Record<string, strin
   return <span className={`badge ${statusTone(value)}`}>{label(map, value)}</span>;
 }
 
-function Schedule({ rows }: { rows: Array<Record<string, unknown>> }) {
+function Schedule({
+  rows,
+  currency = 'VES',
+  currentRate = 1,
+}: {
+  rows: Array<Record<string, unknown>>;
+  currency?: string;
+  currentRate?: number;
+}) {
   return (
     <div className="schedule-scroll">
       <table>
@@ -68,10 +85,24 @@ function Schedule({ rows }: { rows: Array<Record<string, unknown>> }) {
             <tr key={String(r.id ?? i)}>
               <td>{text(r.installmentNumber)}</td>
               <td>{dateFmt(r.dueDate)}</td>
-              <td>{money(r.principalAmount)}</td>
-              <td>{money(r.interestAmount)}</td>
-              <td>{money(r.totalInstallmentAmount)}</td>
-              <td>{money(r.paidAmount)}</td>
+              <td>{money(r.principalAmount, currency)}</td>
+              <td>{money(r.interestAmount, currency)}</td>
+              <td>
+                {money(r.totalInstallmentAmount, currency)}
+                {currency !== 'VES' &&
+                  ['PENDING', 'PARTIAL'].includes(String(r.paymentStatus)) &&
+                  currentRate > 0 && (
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--muted-foreground)',
+                      }}
+                    >
+                      ≈ {bsEquivalent(r.totalInstallmentAmount, currentRate)} (tasa del día)
+                    </div>
+                  )}
+              </td>
+              <td>{money(r.paidAmount, currency)}</td>
               <td>
                 <StatusBadge value={r.paymentStatus} map={PAYMENT_LOAN_STATUS} />
               </td>
@@ -141,6 +172,41 @@ export default function DetailModal() {
 
   if (!open) return null;
 
+  const loanCurrency = displayCurrency(
+    data?.loan?.currencyCode,
+    data?.loan?.exchangeRate,
+  );
+  const loanCreationRate = creationRate(data?.loan?.exchangeRate);
+  const loanCurrentRate = currentRate(
+    data?.loan?.currentExchangeRate,
+    data?.loan?.exchangeRate,
+  );
+  const creditCurrency = displayCurrency(
+    data?.credit?.currencyCode,
+    data?.credit?.exchangeRate,
+  );
+  const creditCreationRate = creationRate(data?.credit?.exchangeRate);
+  const creditCurrentRate = currentRate(
+    data?.credit?.currentExchangeRate,
+    data?.credit?.exchangeRate,
+  );
+
+  const withBs = (
+    value: unknown,
+    currency: string,
+    rate: number,
+    rateLabel: string,
+  ) => (
+    <>
+      <div>{mv(value, currency)}</div>
+      {currency !== 'VES' && rate > 0 && value != null && value !== '' && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+          ≈ {bsEquivalent(value, rate)} ({rateLabel})
+        </div>
+      )}
+    </>
+  );
+
   const title =
     kind === 'prestamo'
       ? 'Datos del préstamo'
@@ -185,26 +251,30 @@ export default function DetailModal() {
                   <Field k="Desembolso" v={dateFmt(data.loan?.disbursementDate)} />
                   <Field k="Tasa" v={pct(data.loan?.interestRate)} />
                   <Field k="Plazo" v={termLabel(data.loan?.termUnits, data.loan?.termType)} />
-                  <Field k="Moneda" v={text(data.loan?.currencyCode)} />
+                  <Field k="Moneda" v={label(CURRENCY_TYPES, loanCurrency)} />
                 </div>
               </div>
 
               <div className="modal-section">
                 <h3>Resumen</h3>
                 <div className="modal-cards">
-                  <Card title="Monto Solicitado" value={mv(data.loan?.requestedAmount)} />
-                  <Card title="Cuota" value={mv(data.loan?.installmentAmount)} />
-                  <Card title="Gasto Admin." value={mv(data.loan?.expensesAmount)} />
-                  <Card title="Interés Total" value={mv(data.loan?.totalInterest)} />
-                  <Card title="Total a Pagar" value={mv(data.loan?.totalPayable)} />
-                  <Card title="Total Pagado" value={mv(data.summary?.totalPaid)} />
-                  <Card title="Pendiente" value={mv(data.summary?.totalPending)} />
+                  <Card title="Monto Solicitado" value={withBs(data.loan?.requestedAmount, loanCurrency, loanCreationRate, 'tasa de creación')} />
+                  <Card title="Cuota" value={withBs(data.loan?.installmentAmount, loanCurrency, loanCurrentRate, 'tasa del día')} />
+                  <Card title="Gasto Admin." value={withBs(data.loan?.expensesAmount, loanCurrency, loanCreationRate, 'tasa de creación')} />
+                  <Card title="Interés Total" value={withBs(data.loan?.totalInterest, loanCurrency, loanCreationRate, 'tasa de creación')} />
+                  <Card title="Total a Pagar" value={withBs(data.loan?.totalPayable, loanCurrency, loanCreationRate, 'tasa de creación')} />
+                  <Card title="Total Pagado" value={mv(data.summary?.totalPaid, loanCurrency)} />
+                  <Card title="Pendiente" value={withBs(data.summary?.totalPending, loanCurrency, loanCurrentRate, 'tasa del día')} />
                 </div>
               </div>
 
               <div className="modal-section">
                 <h3>Plan de amortización</h3>
-                <Schedule rows={data.amortizationSchedule ?? []} />
+                <Schedule
+                  rows={data.amortizationSchedule ?? []}
+                  currency={loanCurrency}
+                  currentRate={loanCurrentRate}
+                />
               </div>
             </>
           )}
@@ -221,26 +291,30 @@ export default function DetailModal() {
                   <Field k="Aprobación" v={dateFmt(data.credit?.approvalDate)} />
                   <Field k="Tasa" v={pct(data.credit?.interestRate)} />
                   <Field k="Plazo" v={termLabel(data.credit?.termUnits, data.credit?.termType)} />
-                  <Field k="Moneda" v={text(data.credit?.currencyCode)} />
+                  <Field k="Moneda" v={label(CURRENCY_TYPES, creditCurrency)} />
                 </div>
               </div>
 
               <div className="modal-section">
                 <h3>Resumen</h3>
                 <div className="modal-cards">
-                  <Card title="Monto Solicitado" value={mv(data.credit?.requestedAmount)} />
-                  <Card title="Cuota" value={mv(data.credit?.installmentAmount)} />
-                  <Card title="Gasto Admin." value={mv(data.credit?.expensesAmount)} />
-                  <Card title="Interés Total" value={mv(data.credit?.totalInterest)} />
-                  <Card title="Total a Pagar" value={mv(data.credit?.totalPayable)} />
-                  <Card title="Total Pagado" value={mv(data.summary?.totalPaid)} />
-                  <Card title="Pendiente" value={mv(data.summary?.totalPending)} />
+                  <Card title="Monto Solicitado" value={withBs(data.credit?.requestedAmount, creditCurrency, creditCreationRate, 'tasa de creación')} />
+                  <Card title="Cuota" value={withBs(data.credit?.installmentAmount, creditCurrency, creditCurrentRate, 'tasa del día')} />
+                  <Card title="Gasto Admin." value={withBs(data.credit?.expensesAmount, creditCurrency, creditCreationRate, 'tasa de creación')} />
+                  <Card title="Interés Total" value={withBs(data.credit?.totalInterest, creditCurrency, creditCreationRate, 'tasa de creación')} />
+                  <Card title="Total a Pagar" value={withBs(data.credit?.totalPayable, creditCurrency, creditCreationRate, 'tasa de creación')} />
+                  <Card title="Total Pagado" value={mv(data.summary?.totalPaid, creditCurrency)} />
+                  <Card title="Pendiente" value={withBs(data.summary?.totalPending, creditCurrency, creditCurrentRate, 'tasa del día')} />
                 </div>
               </div>
 
               <div className="modal-section">
                 <h3>Plan de amortización</h3>
-                <Schedule rows={data.amortizationSchedule ?? []} />
+                <Schedule
+                  rows={data.amortizationSchedule ?? []}
+                  currency={creditCurrency}
+                  currentRate={creditCurrentRate}
+                />
               </div>
             </>
           )}

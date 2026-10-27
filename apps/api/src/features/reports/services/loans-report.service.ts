@@ -20,6 +20,12 @@ export class LoansReportService {
     if (filters.loanTypeId) {
       conditions.push(eq(schema.loans.loanTypeId, filters.loanTypeId));
     }
+    if (filters.cedula) {
+      conditions.push(eq(schema.associates.cedula, filters.cedula.trim()));
+    }
+    if (filters.status) {
+      conditions.push(eq(schema.loans.status, filters.status as any));
+    }
     if (filters.dateFrom) {
       conditions.push(gte(schema.loans.requestDate, filters.dateFrom));
     }
@@ -36,6 +42,7 @@ export class LoansReportService {
         loanType: schema.loanTypes.name,
         requestedAmount: schema.loans.requestedAmount,
         totalPayable: schema.loans.totalPayable,
+        currencyCode: schema.loans.currencyCode,
         termUnits: schema.loans.termUnits,
         status: schema.loans.status,
       })

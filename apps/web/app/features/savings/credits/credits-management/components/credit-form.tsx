@@ -44,12 +44,14 @@ import {
 import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
 import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
 import { useWithdrawalTypesQuery } from '@/features/savings/withdrawals/withdrawal/hooks/use-withdrawal-query';
+import { apiClient } from '@/lib/api-client';
 import { CreditCalculator } from './credit-calculator';
 import { ProductsService } from '@/features/inventory/products/services/products-service';
 import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
 import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
 import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
 import { calculateFrenchAmortization } from '../utils/credit-amortization-utils';
+import { useAuthStore } from '@/stores/auth.store';
 
 interface CreditFormProps {
   selectedAssociate: SearchAssociateResult | null;
@@ -83,6 +85,9 @@ export function CreditForm({
   const [casaComercial, setCasaComercial] = useState(false);
   const [ccType, setCcType] = useState<'inventory' | 'supplier' | ''>('');
   const [useSpecial, setUseSpecial] = useState(false);
+  const canUseSpecialParams = useAuthStore((s) =>
+    s.hasPermission('portfolio:credits', 'special_params'),
+  );
   const [items, setItems] = useState<any[]>([]);
 
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -117,6 +122,7 @@ export function CreditForm({
   });
 
   const watchTypeId = useWatch({ control, name: 'creditTypeId' });
+  const watchId = useWatch({ control, name: 'id' });
   const watchAmount = useWatch({ control, name: 'requestedAmount' }) || 0;
   const watchRate = useWatch({ control, name: 'interestRate' }) || 0;
   const watchTermUnits = useWatch({ control, name: 'termUnits' }) || 0;
@@ -124,6 +130,12 @@ export function CreditForm({
   const watchTermType = useWatch({ control, name: 'termType' });
   const watchExpensesPct = useWatch({ control, name: 'expensesPercentage' }) || 0;
   const watchHaberesPayment = useWatch({ control, name: 'haberesPayment' }) || 0;
+  const watchCurrency = useWatch({ control, name: 'currencyCode' }) || 'VES';
+  const watchExchangeRate =
+    useWatch({ control, name: 'exchangeRate' }) || 0;
+  const creditSymbol = watchCurrency !== 'VES' ? watchCurrency : 'Bs';
+  const creditFx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
+  const haberesInCreditCurrency = watchHaberesPayment / creditFx;
   const watchDirectPayment = useWatch({ control, name: 'directPayment' }) || 0;
   const watchOverdraft = useWatch({ control, name: 'allowOverdraft' });
   const watchAllowExceedCapacity = useWatch({
@@ -139,6 +151,27 @@ export function CreditForm({
     name: 'withdrawalTypeId',
   });
   const watchDirectPaymentMethod = useWatch({ control, name: 'directPaymentMethod' });
+
+  // Tasa BCV del día para la moneda del crédito (editable). No se sobrescribe
+  // la tasa de un crédito ya existente.
+  useEffect(() => {
+    if (watchId) return;
+    if (!watchCurrency || watchCurrency === 'VES') {
+      setValue('exchangeRate', 1);
+      return;
+    }
+    // Mientras se consulta la tasa del día, el backend la resuelve si llega 0.
+    setValue('exchangeRate', 0);
+    apiClient
+      .get(`/core/exchange-rates/latest/${watchCurrency}`)
+      .then((res) => {
+        const rate = Number(res.data?.rate);
+        if (Number.isFinite(rate) && rate > 0) {
+          setValue('exchangeRate', rate);
+        }
+      })
+      .catch(() => {});
+  }, [watchCurrency, watchId, setValue]);
   const watchDirectPaymentBank = useWatch({ control, name: 'directPaymentBankAccountId' });
 
   const selectedType = useMemo(
@@ -156,9 +189,17 @@ export function CreditForm({
 
   useEffect(() => {
     if (casaComercial && totalItemAmount > 0) {
-      setValue('requestedAmount', totalItemAmount);
+      // Los items se valoran en Bs; el crédito se expresa en su moneda.
+      const fx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
+      setValue('requestedAmount', +(totalItemAmount / fx).toFixed(2));
     }
-  }, [totalItemAmount, casaComercial, setValue]);
+  }, [
+    totalItemAmount,
+    casaComercial,
+    watchCurrency,
+    watchExchangeRate,
+    setValue,
+  ]);
 
   const handleTypeChange = useCallback(
     (typeId: string) => {
@@ -190,7 +231,10 @@ export function CreditForm({
     [watchAmount, watchExpensesPct],
   );
 
-  const amortizableAmount = Math.max(0, watchAmount - watchHaberesPayment - watchDirectPayment);
+  const amortizableAmount = Math.max(
+    0,
+    watchAmount - watchHaberesPayment / creditFx - watchDirectPayment,
+  );
 
   const endDate = useMemo(() => {
     if (!watchStartDate || watchTermUnits <= 0) return '';
@@ -241,10 +285,10 @@ export function CreditForm({
     }
     if (useSpecial && watchOverdraft) {
       r.messages.push('Sobregiro activado - regla del 80% excluida');
-    } else if (watchAmount > selectedAssociate.available80) {
+    } else if (watchAmount * creditFx > selectedAssociate.available80) {
       r.canSave = false;
       r.messages.push(
-        `El monto (${formatCurrency(watchAmount)}) supera el 80% disponible (${formatCurrency(selectedAssociate.available80)})`,
+        `El monto (${formatCurrency(watchAmount * creditFx)} Bs) supera el 80% disponible (${formatCurrency(selectedAssociate.available80)} Bs)`,
       );
     } else if (watchAmount > 0) {
       r.messages.push(
@@ -277,12 +321,12 @@ export function CreditForm({
     if (
       amortizableAmount > 0 &&
       monthlyPmt > 0 &&
-      monthlyPmt > selectedAssociate.paymentCapacity &&
+      monthlyPmt * creditFx > selectedAssociate.paymentCapacity &&
       !watchAllowExceedCapacity
     ) {
       r.canSave = false;
       r.messages.push(
-        `La cuota (${formatCurrency(monthlyPmt)}) supera su capacidad de pago del 30% (${formatCurrency(selectedAssociate.paymentCapacity)})`,
+        `La cuota (${formatCurrency(monthlyPmt * creditFx)} Bs) supera su capacidad de pago del 30% (${formatCurrency(selectedAssociate.paymentCapacity)} Bs)`,
       );
     } else if (watchAllowExceedCapacity && monthlyPmt > 0) {
       r.messages.push(
@@ -313,7 +357,7 @@ export function CreditForm({
     if (
       selectedType?.minCreditAmount &&
       parseFloat(selectedType.minCreditAmount) > 0 &&
-      watchAmount < parseFloat(selectedType.minCreditAmount)
+      watchAmount * creditFx < parseFloat(selectedType.minCreditAmount)
     ) {
       r.canSave = false;
       r.messages.push(
@@ -323,7 +367,7 @@ export function CreditForm({
     if (
       selectedType?.maxCreditAmount &&
       parseFloat(selectedType.maxCreditAmount) > 0 &&
-      watchAmount > parseFloat(selectedType.maxCreditAmount)
+      watchAmount * creditFx > parseFloat(selectedType.maxCreditAmount)
     ) {
       r.canSave = false;
       r.messages.push(
@@ -334,6 +378,7 @@ export function CreditForm({
   }, [
     selectedAssociate,
     watchAmount,
+    creditFx,
     amortizableAmount,
     selectedType,
     amortData,
@@ -479,6 +524,10 @@ export function CreditForm({
 
   const handleFormSubmit = (data: CreditManagement) => {
     const rate = Number(data.interestRate);
+    const creditFx =
+      data.currencyCode && data.currencyCode !== 'VES'
+        ? Number(data.exchangeRate) || 1
+        : 1;
     const formatted: CreditManagement = {
       ...data,
       requestedAmount: Number(data.requestedAmount),
@@ -495,7 +544,8 @@ export function CreditForm({
           : undefined,
       creditItems: casaComercial
         ? items.map((it) => ({
-          agreedSellingPrice: it.totalPrice,
+          // La venta se registra en la moneda del crédito.
+          agreedSellingPrice: +(it.totalPrice / creditFx).toFixed(2),
           itemId: it.productId || undefined,
           itemType: it.type === 'product' ? 'PRODUCT' : 'EXTERNAL',
           itemDescription: it.description || it.productName || undefined,
@@ -622,9 +672,46 @@ export function CreditForm({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Moneda del Crédito *</Label>
+                <Select
+                  value={watchCurrency}
+                  onValueChange={(v) => setValue('currencyCode', v as any)}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VES">Bolívares (VES)</SelectItem>
+                    <SelectItem value="USD">Dólares (USD)</SelectItem>
+                    <SelectItem value="EUR">Euros (EUR)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {watchCurrency !== 'VES' && (
+                <div>
+                  <Label>Tasa de Cambio ({watchCurrency}) *</Label>
+                  <Input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    className="mt-1"
+                    {...register('exchangeRate', { valueAsNumber: true })}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Monto en Bs:{' '}
+                    {formatCurrency(
+                      (watchAmount || 0) * (watchExchangeRate || 0),
+                    )}{' '}
+                    Bs
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               {!casaComercial && (
                 <div className="col-span-2">
-                  <Label>Monto del Crédito *</Label>
+                  <Label>Monto del Crédito ({watchCurrency}) *</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -969,7 +1056,7 @@ export function CreditForm({
       )}
 
       {/* Parámetros Especiales */}
-      {selectedType && (
+      {selectedType && canUseSpecialParams && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -1052,7 +1139,7 @@ export function CreditForm({
                 </div>
               )}
               <div>
-                <Label>Monto a pagar de haberes (genera retiro)</Label>
+                <Label>Monto a pagar de haberes (Bs) (genera retiro)</Label>
                 <Input
                   type="number"
                   min="0"
@@ -1082,7 +1169,7 @@ export function CreditForm({
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Monto de pago directo</Label>
+                  <Label>Monto de pago directo ({creditSymbol})</Label>
                   <Input
                     type="number"
                     min="0"
@@ -1142,14 +1229,14 @@ export function CreditForm({
                   <p>
                     Monto del crédito:{' '}
                     <span className="font-mono font-bold">
-                      {formatCurrency(watchAmount)} Bs
+                      {formatCurrency(watchAmount)} {creditSymbol}
                     </span>
                   </p>
                   {watchHaberesPayment > 0 && (
                     <p>
                       Pago desde los haberes:{' '}
                       <span className="font-mono text-destructive">
-                        - {formatCurrency(watchHaberesPayment)} Bs
+                        - {formatCurrency(haberesInCreditCurrency)} {creditSymbol}
                       </span>
                     </p>
                   )}
@@ -1157,14 +1244,14 @@ export function CreditForm({
                     <p>
                       Pago directo:{' '}
                       <span className="font-mono text-destructive">
-                        - {formatCurrency(watchDirectPayment)} Bs
+                        - {formatCurrency(watchDirectPayment)} {creditSymbol}
                       </span>
                     </p>
                   )}
                   <p className="font-semibold">
                     Monto a amortizar:{' '}
                     <span className="font-mono text-emerald-600">
-                      {formatCurrency(amortizableAmount)} Bs
+                      {formatCurrency(amortizableAmount)} {creditSymbol}
                     </span>
                   </p>
                 </div>
@@ -1199,6 +1286,8 @@ export function CreditForm({
           expensesAmount={expensesAmount}
           haberesPayment={watchHaberesPayment}
           directPayment={watchDirectPayment}
+          currencyCode={watchCurrency}
+          exchangeRate={watchExchangeRate}
         />
       )}
 

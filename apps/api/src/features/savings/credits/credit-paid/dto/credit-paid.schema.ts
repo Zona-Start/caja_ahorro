@@ -4,6 +4,9 @@ import { z } from 'zod';
 export const CreateCreditPaidSchema = z.object({
   tenantId: z.string().uuid().optional(),
   amount: z.number().positive(),
+  // Moneda de la tasa a aplicar y su valor (BCV del día de pago, editable).
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.number().min(0).optional(),
   creditId: z.string().uuid(),
   paymentDate: z.coerce.date(),
   paymentMethod: z.nativeEnum(paymentMethodEnum),

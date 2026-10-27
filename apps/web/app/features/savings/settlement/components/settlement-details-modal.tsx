@@ -14,7 +14,10 @@ import { Badge } from '@repo/shadcn/badge';
 import { cn } from '@repo/shadcn/lib/utils';
 import { formatCurrency } from '@/lib/format-utils';
 import { type SettlementPaymentApi } from '../schemas/settlement-api-response';
-import { ESTATUS_TYPES } from '../schemas/settlement-options';
+import {
+  ESTATUS_TYPES,
+  SETTLEMENT_TYPE_LABELS,
+} from '../schemas/settlement-options';
 
 interface Props {
   open: boolean;
@@ -92,6 +95,22 @@ export function SettlementDetailsModal({ open, onOpenChange, data }: Props) {
                 <span className="text-sm font-mono">
                   {data.customReference || '—'}
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Tipo:
+                </span>
+                <Badge
+                  variant={
+                    (data.settlementType ?? 'COMPLETE') === 'SPECIAL'
+                      ? 'warning'
+                      : 'outline'
+                  }
+                >
+                  {SETTLEMENT_TYPE_LABELS[data.settlementType ?? 'COMPLETE'] ??
+                    data.settlementType ??
+                    'Completa'}
+                </Badge>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">

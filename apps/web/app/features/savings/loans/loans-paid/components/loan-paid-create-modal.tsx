@@ -30,6 +30,7 @@ import {
 } from '@repo/shadcn/form';
 import { CustomCalendar } from '@repo/shadcn/custom-calendar';
 import { AlertModal } from '@/components/shared/alert-modal';
+import { apiClient } from '@/lib/api-client';
 import {
   AlertCircle,
   Loader2,
@@ -84,6 +85,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   const [selectedAssociate, setSelectedAssociate] = useState<AssociatesLoan | null>(null);
   const [paymentMode, setPaymentMode] = useState<string>('next_installment');
   const [customAmount, setCustomAmount] = useState<string>('');
+  const [paymentRate, setPaymentRate] = useState(0);
 
   const { data: bankAccountsData } = useBankAccountAll();
   const bankAccounts = bankAccountsData?.data || [];
@@ -111,6 +113,30 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
   });
 
   const schedule = selectedAssociate?.loanAmortization || [];
+  const storedLoanRate = Number(selectedAssociate?.loanExchangeRate ?? 0);
+  const loanCurrency =
+    selectedAssociate?.loanCurrencyCode && storedLoanRate > 0
+      ? selectedAssociate.loanCurrencyCode
+      : 'VES';
+  const isForeignLoan = loanCurrency !== 'VES';
+  const loanCurrencyLabel = isForeignLoan ? loanCurrency : 'Bs';
+
+  useEffect(() => {
+    if (!open || !isForeignLoan) return;
+    setPaymentRate(0);
+    let cancelled = false;
+    apiClient
+      .get(`/core/exchange-rates/latest/${loanCurrency}`)
+      .then((res) => {
+        if (cancelled) return;
+        const rate = Number(res.data?.rate);
+        if (Number.isFinite(rate) && rate > 0) setPaymentRate(rate);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isForeignLoan, loanCurrency]);
   const pendingSchedule = useMemo(
     () => schedule.filter((s) => s.quotaStatus === 'PENDING' || s.quotaStatus === 'PARTIAL'),
     [schedule],
@@ -226,6 +252,8 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
     const payload = {
       ...data,
       amount: calculationResult.amount,
+      currencyCode: loanCurrency,
+      exchangeRate: isForeignLoan ? paymentRate : 1,
     };
     savePayment(payload, {
       onSuccess: () => {
@@ -259,6 +287,16 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
+          {selectedAssociate?.loanId && isForeignLoan && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50/60 dark:bg-amber-900/10 p-3 text-xs">
+              Moneda del préstamo: <strong>{loanCurrency}</strong> · Tasa del
+              día: <strong>{paymentRate ? paymentRate.toFixed(2) : '…'}</strong>{' '}
+              · Total pendiente en Bs:{' '}
+              <strong>
+                {formatCurrency(pendingTotal * (paymentRate || 0))}
+              </strong>
+            </div>
+          )}
           {/* ── SECCIÓN 1: BÚSQUEDA ── */}
           <div className="flex gap-2">
             <div className="flex-1">
@@ -344,14 +382,14 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   <span className="text-muted-foreground">Monto Original:</span>{' '}
                   <span className="font-mono">
                     {selectedAssociate.loanRequestedAmount
-                      ? `${formatCurrency(Number(selectedAssociate.loanRequestedAmount))} Bs`
+                      ? `${formatCurrency(Number(selectedAssociate.loanRequestedAmount))} ${loanCurrencyLabel}`
                       : '—'}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Saldo Pendiente:</span>{' '}
                   <span className="font-mono font-bold text-[#3098F2]">
-                    {formatCurrency(pendingTotal)} Bs
+                    {formatCurrency(pendingTotal)} {loanCurrencyLabel}
                   </span>
                 </div>
                 <div>
@@ -364,7 +402,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   <div>
                     <span className="text-muted-foreground">Próxima Cuota:</span>{' '}
                     <span className="font-mono font-semibold text-[#2EA640]">
-                      {formatCurrency(Number(nextInstallment.quotaAmount) - (Number(nextInstallment.paidAmount) || 0))} Bs
+                      {formatCurrency(Number(nextInstallment.quotaAmount) - (Number(nextInstallment.paidAmount) || 0))} {loanCurrencyLabel}
                     </span>
                     {Number(nextInstallment.paidAmount) > 0 && (
                       <span className="text-xs text-muted-foreground ml-1">(restante)</span>
@@ -380,7 +418,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
             <div className="rounded-lg border p-3">
               <div className="flex items-center gap-2 mb-2">
                 <ListChecks className="h-4 w-4" />
-                <span className="text-sm font-semibold uppercase">TABLA DE AMORTIZACIÓN</span>
+                <span className="text-sm font-semibold uppercase">TABLA DE AMORTIZACIÓN ({loanCurrencyLabel})</span>
               </div>
               <div className="max-h-48 overflow-y-auto">
                 <table className="w-full text-xs">
@@ -468,13 +506,13 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="next_installment">
-                        Pagar cuota correspondiente ({nextInstallment ? formatCurrency(Number(nextInstallment.quotaAmount) - (Number(nextInstallment.paidAmount) || 0)) : '0,00'} Bs)
+                        Pagar cuota correspondiente ({nextInstallment ? formatCurrency(Number(nextInstallment.quotaAmount) - (Number(nextInstallment.paidAmount) || 0)) : '0,00'} {loanCurrencyLabel})
                       </SelectItem>
                       <SelectItem value="custom_amount">
                         Pagar monto personalizado
                       </SelectItem>
                       <SelectItem value="full_debt">
-                        Pagar deuda total ({formatCurrency(pendingTotal)} Bs)
+                        Pagar deuda total ({formatCurrency(pendingTotal)} {loanCurrencyLabel})
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -483,7 +521,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                 {paymentMode === 'custom_amount' && (
                   <div className="space-y-1">
                     <FormLabel className="text-xs uppercase font-bold text-muted-foreground">
-                      Monto a Pagar (Bs) *
+                      Monto a Pagar ({loanCurrencyLabel}) *
                     </FormLabel>
                     <Input
                       type="number"
@@ -507,9 +545,17 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Monto total del pago:</span>
                       <span className="font-mono font-bold text-[#2EA640]">
-                        {formatCurrency(calculationResult.amount)} Bs
+                        {formatCurrency(calculationResult.amount)} {loanCurrencyLabel}
                       </span>
                     </div>
+                    {isForeignLoan && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Equivalente en Bs (tasa {paymentRate ? paymentRate.toFixed(2) : '…'}):</span>
+                        <span className="font-mono">
+                          {formatCurrency(calculationResult.amount * (paymentRate || 0))} Bs
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -652,8 +698,13 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
                   <div>
                     <span className="text-xs text-muted-foreground">Total a Pagar</span>
                     <p className="text-xl font-black text-primary">
-                      {formatCurrency(calculationResult.amount)} Bs
+                      {formatCurrency(calculationResult.amount)} {loanCurrencyLabel}
                     </p>
+                    {isForeignLoan && (
+                      <p className="text-xs text-muted-foreground">
+                        ≈ {formatCurrency(calculationResult.amount * (paymentRate || 0))} Bs
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -699,7 +750,7 @@ export function LoanPaidCreateModal({ open, onClose }: Props) {
           onConfirm={handleSubmit}
           loading={isSaving}
           title="Confirmar Pago"
-          description={`¿Está seguro de registrar un pago de ${formatCurrency(calculationResult.amount)} Bs (${calculationResult.count} cuota(s)) al préstamo de ${selectedAssociate?.fullname || 'el asociado'}?`}
+          description={`¿Está seguro de registrar un pago de ${formatCurrency(calculationResult.amount)} ${loanCurrencyLabel}${isForeignLoan ? ` (≈ ${formatCurrency(calculationResult.amount * (paymentRate || 0))} Bs)` : ''} (${calculationResult.count} cuota(s)) al préstamo de ${selectedAssociate?.fullname || 'el asociado'}?`}
         />
       </DialogContent>
     </Dialog>

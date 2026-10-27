@@ -3,7 +3,10 @@ import { cn } from '@repo/shadcn/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import { formatCurrency } from '@/lib/format-utils';
 import { type SettlementPaymentApi } from '../../schemas/settlement-api-response';
-import { ESTATUS_TYPES } from '../../schemas/settlement-options';
+import {
+  ESTATUS_TYPES,
+  SETTLEMENT_TYPE_LABELS,
+} from '../../schemas/settlement-options';
 import { CellAction } from './cell-action';
 
 export const columns: ColumnDef<SettlementPaymentApi>[] = [
@@ -18,6 +21,18 @@ export const columns: ColumnDef<SettlementPaymentApi>[] = [
   {
     accessorKey: 'associateFullname',
     header: 'Asociado',
+  },
+  {
+    accessorKey: 'settlementType',
+    header: 'Tipo',
+    cell: ({ row }) => {
+      const type = row.original.settlementType ?? 'COMPLETE';
+      return (
+        <Badge variant={type === 'SPECIAL' ? 'warning' : 'outline'}>
+          {SETTLEMENT_TYPE_LABELS[type] ?? type}
+        </Badge>
+      );
+    },
   },
   {
     accessorKey: 'liquidationDate',

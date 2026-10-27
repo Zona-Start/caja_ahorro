@@ -85,6 +85,35 @@ export function LoanDetailsModal({
       ? `${data.loan.termUnits}`
       : 'N/A';
 
+  const loanCurrency =
+    data?.loan.currencyCode &&
+    data.loan.currencyCode !== 'VES' &&
+    Number(data.loan.exchangeRate ?? 0) > 0
+      ? data.loan.currencyCode
+      : 'VES';
+  const loanRate =
+    Number(data?.loan.exchangeRate ?? 0) > 0
+      ? Number(data?.loan.exchangeRate)
+      : 1;
+  const currentRate =
+    Number(data?.loan.currentExchangeRate ?? 0) > 0
+      ? Number(data?.loan.currentExchangeRate)
+      : loanRate;
+  const isForeign = loanCurrency !== 'VES';
+  const money = (value: number) => formatCurrency(value, loanCurrency);
+  const bsLine = (value: number) =>
+    isForeign ? (
+      <div className="text-[11px] text-muted-foreground">
+        ≈ {formatCurrency(value * loanRate, 'VES')} (tasa de creación)
+      </div>
+    ) : null;
+  const bsCurrentLine = (value: number) =>
+    isForeign ? (
+      <div className="text-[11px] text-muted-foreground">
+        ≈ {formatCurrency(value * currentRate, 'VES')} (tasa del día)
+      </div>
+    ) : null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
@@ -142,6 +171,20 @@ export function LoanDetailsModal({
               </div>
               <div>
                 <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Moneda
+                </p>
+                <p className="font-semibold">
+                  {loanCurrency === 'VES'
+                    ? 'Bolívares (VES)'
+                    : loanCurrency === 'USD'
+                      ? 'Dólares (USD)'
+                      : loanCurrency === 'EUR'
+                        ? 'Euros (EUR)'
+                        : loanCurrency}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
                   {termLabel}
                 </p>
                 <p>{plazoDisplay}</p>
@@ -182,51 +225,57 @@ export function LoanDetailsModal({
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Monto Solicitado</p>
                 <p className="text-lg font-bold font-mono">
-                  {formatCurrency(Number(data.loan.requestedAmount), 'VES')}
+                  {money(Number(data.loan.requestedAmount))}
                 </p>
+                {bsLine(Number(data.loan.requestedAmount))}
               </div>
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Cuota</p>
                 <p className="text-lg font-bold font-mono">
-                  {formatCurrency(Number(data.loan.installmentAmount || 0), 'VES')}
+                  {money(Number(data.loan.installmentAmount || 0))}
                 </p>
+                {bsCurrentLine(Number(data.loan.installmentAmount || 0))}
               </div>
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Gasto Admin.</p>
                 <p className="text-lg font-bold font-mono">
-                  {formatCurrency(Number(data.loan.expensesAmount || 0), 'VES')}
+                  {money(Number(data.loan.expensesAmount || 0))}
                 </p>
+                {bsLine(Number(data.loan.expensesAmount || 0))}
               </div>
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Interés Total</p>
                 <p className="text-lg font-bold font-mono text-amber-600">
-                  {formatCurrency(Number(data.loan.totalInterest || 0), 'VES')}
+                  {money(Number(data.loan.totalInterest || 0))}
                 </p>
+                {bsLine(Number(data.loan.totalInterest || 0))}
               </div>
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Total a Pagar</p>
                 <p className="text-lg font-bold font-mono text-amber-600">
-                  {formatCurrency(Number(data.loan.totalPayable || 0), 'VES')}
+                  {money(Number(data.loan.totalPayable || 0))}
                 </p>
+                {bsLine(Number(data.loan.totalPayable || 0))}
               </div>
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Total Pagado</p>
                 <p className="text-lg font-bold font-mono text-emerald-600">
-                  {formatCurrency(data.summary.totalPaid, 'VES')}
+                  {money(data.summary.totalPaid)}
                 </p>
               </div>
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">Pendiente</p>
                 <p className="text-lg font-bold font-mono text-red-500">
-                  {formatCurrency(data.summary.totalPending, 'VES')}
+                  {money(data.summary.totalPending)}
                 </p>
+                {bsCurrentLine(data.summary.totalPending)}
               </div>
             </div>
 
             {data.amortizationSchedule.length > 0 && (
               <div className="rounded-lg border">
                 <div className="bg-muted px-4 py-2 font-semibold text-sm">
-                  Plan de Amortización
+                  Plan de Amortización ({loanCurrency})
                 </div>
                 <div className="overflow-auto max-h-[300px]">
                   <Table>
@@ -251,16 +300,29 @@ export function LoanDetailsModal({
                             {formatDate(item.dueDate)}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(Number(item.totalInstallmentAmount), 'VES')}
+                            {money(Number(item.totalInstallmentAmount))}
+                            {isForeign &&
+                              (item.paymentStatus === 'PENDING' ||
+                                item.paymentStatus === 'PARTIAL') && (
+                                <div className="text-[10px] font-normal text-muted-foreground">
+                                  ≈{' '}
+                                  {formatCurrency(
+                                    Number(item.totalInstallmentAmount) *
+                                      currentRate,
+                                    'VES',
+                                  )}{' '}
+                                  (tasa del día)
+                                </div>
+                              )}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(Number(item.principalAmount), 'VES')}
+                            {money(Number(item.principalAmount))}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(Number(item.interestAmount), 'VES')}
+                            {money(Number(item.interestAmount))}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(Number(item.paidAmount || 0), 'VES')}
+                            {money(Number(item.paidAmount || 0))}
                           </TableCell>
                           <TableCell>
                             <Badge

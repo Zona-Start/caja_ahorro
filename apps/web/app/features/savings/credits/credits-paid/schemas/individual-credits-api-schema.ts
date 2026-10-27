@@ -25,6 +25,8 @@ export const associatesCreditSchema = z.object({
   creditModality: z.string().nullable(),
   creditCustomReference: z.string().nullable(),
   creditRequestedAmount: z.string().nullable(),
+  creditCurrencyCode: z.string().nullable().optional(),
+  creditExchangeRate: z.string().nullable().optional(),
   creditAmortization: z.array(creditAmortizationItemSchema).nullable(),
 });
 

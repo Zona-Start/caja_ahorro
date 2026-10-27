@@ -4,6 +4,7 @@ import { GenerateCodeModule } from '@/common/utils/generate-code/generate-code.m
 import { DrizzleModule } from '@/database/drizzle.module';
 import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
 import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
+import { ExchangeRateModule } from '@/features/core/exchange-rate/exchange-rate.module';
 import { EventBusModule } from '@/shared/event-bus';
 import { WsModule } from '@/shared/websocket';
 import { Module } from '@nestjs/common';
@@ -34,6 +35,7 @@ import { CreatePaymentUseCase } from './use-cases/create-payment.usecase';
     TenantContextModule,
     EventBusModule,
     WsModule,
+    ExchangeRateModule,
   ],
   controllers: [LoanPaidController],
   providers: [

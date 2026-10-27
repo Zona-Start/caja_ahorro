@@ -111,8 +111,8 @@ interface ItemLine {
 export function WithdrawalModal({ open, onOpenChange }: Props) {
   const toast = useToastSystem();
   const queryClient = useQueryClient();
-  const canApprove = useAuthStore((s) =>
-    s.hasPermission('savings:withdrawals', 'approve'),
+  const canUseSpecialParams = useAuthStore((s) =>
+    s.hasPermission('savings:withdrawals', 'special_params'),
   );
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -334,9 +334,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
   }, [associate]);
 
   // El área de parámetros especiales se muestra siempre que el usuario tenga
-  // permiso de aprobación y haya un asociado seleccionado, para que pueda
-  // habilitar el salto del 80% (y demás reglas) cuando lo necesite.
-  const showSpecialParams = canApprove && !!associate?.associateAccountId;
+  // el permiso específico y haya un asociado seleccionado.
+  const showSpecialParams =
+    canUseSpecialParams && !!associate?.associateAccountId;
 
   useEffect(() => {
     if (shouldFetch && !searching) {
@@ -717,9 +717,9 @@ export function WithdrawalModal({ open, onOpenChange }: Props) {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Permite crear el retiro aunque el asociado tenga condiciones
-                      bloqueantes. Solo disponible para usuarios con permiso de
-                      aprobación.
+                      Permite crear el retiro aunque el asociado tenga
+                      condiciones bloqueantes. Solo disponible para usuarios con
+                      permiso de parámetros especiales.
                     </p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-4 rounded-md border bg-background p-2.5">

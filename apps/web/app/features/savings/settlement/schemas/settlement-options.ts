@@ -1,3 +1,10 @@
+export const SETTLEMENT_TYPE_LABELS = {
+  COMPLETE: 'Completa',
+  SPECIAL: 'Especial',
+} as const;
+
+export type SettlementType = keyof typeof SETTLEMENT_TYPE_LABELS;
+
 export const ESTATUS_TYPES = {
   REQUESTED: 'Solicitado',
   PROCESSED: 'Aprobado',

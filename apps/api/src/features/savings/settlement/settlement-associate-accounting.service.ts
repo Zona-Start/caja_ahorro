@@ -71,6 +71,7 @@ export interface LiquidationAccountingParams {
   associateCedula: string;
   entryDate: Date;
   currencyCode: CurrencyCodeEnum;
+  settlementType?: 'COMPLETE' | 'SPECIAL';
   haberesContribution: number;
   haberesVoluntary: number;
   haberesEmployer: number;
@@ -256,12 +257,16 @@ export class SettlementAssociateAccountingService {
     );
 
     // Neto al asociado: siempre CREDIT.
+    const bankLineDescription =
+      params.settlementType === 'SPECIAL'
+        ? 'TB Liquidacion Especial'
+        : `TB ${associateDesc}`;
     pushLine(
       'BASE BANK_ACCOUNT (neto)',
       baseRole('BANK_ACCOUNT'),
       'CREDIT',
       params.netAmount,
-      `TB ${associateDesc}`,
+      bankLineDescription,
     );
 
     // ─── 2. Retiros -> siempre CREDIT ─────────────────────────────────────

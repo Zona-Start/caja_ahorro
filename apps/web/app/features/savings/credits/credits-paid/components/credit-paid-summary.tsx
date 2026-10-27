@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { IconWrapper } from '@/components/icon-wrapper';
+import { apiClient } from '@/lib/api-client';
 import { Badge } from '@repo/shadcn/badge';
 import {
   Card,
@@ -34,6 +36,31 @@ interface CreditPaidSummaryProps {
 export function CreditPaidSummary({
   selectedAssociate,
 }: CreditPaidSummaryProps) {
+  const currency = selectedAssociate?.creditCurrencyCode || 'VES';
+  const isForeign = currency !== 'VES';
+  const currencyLabel = isForeign ? currency : 'Bs';
+  const [rate, setRate] = useState(1);
+
+  // Tasa del día para mostrar el equivalente en Bs del crédito en divisa.
+  useEffect(() => {
+    if (!isForeign) {
+      setRate(1);
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .get(`/core/exchange-rates/latest/${currency}`)
+      .then((res) => {
+        if (cancelled) return;
+        const value = Number(res.data?.rate);
+        if (Number.isFinite(value) && value > 0) setRate(value);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isForeign, currency]);
+
   if (!selectedAssociate) {
     return (
       <div className="space-y-6">
@@ -111,9 +138,16 @@ export function CreditPaidSummary({
             <Separator />
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Saldo Pendiente Total</span>
-              <span className="text-lg font-bold text-orange-600">
-                {Number(selectedAssociate.creditTotalAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
-              </span>
+              <div className="text-right">
+                <span className="text-lg font-bold text-orange-600">
+                  {Number(selectedAssociate.creditTotalAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} {currencyLabel}
+                </span>
+                {isForeign && rate > 0 && (
+                  <div className="text-xs text-muted-foreground">
+                    ≈ {Number(Number(selectedAssociate.creditTotalAmount) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
@@ -151,10 +185,10 @@ export function CreditPaidSummary({
                         {new Date(quota.quotaDate).toLocaleDateString('es-VE')}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {Number(quota.quotaAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                        {Number(quota.quotaAmount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} {currencyLabel}
                       </TableCell>
                       <TableCell className="text-xs">
-                        {Number(quota.paidAmount || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                        {Number(quota.paidAmount || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })} {currencyLabel}
                       </TableCell>
                       <TableCell className="text-xs">
                         <Badge

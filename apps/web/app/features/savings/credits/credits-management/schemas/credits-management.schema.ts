@@ -22,6 +22,8 @@ export const creditManagementSchema = z.object({
     (v) => (typeof v === 'string' ? parseFloat(v) || 0 : v),
     z.number().min(1, { message: 'Por favor ingrese el monto del crédito' }),
   ),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.coerce.number().min(0).optional(),
   termMonths: z.string().optional(),
   interestRate: z.preprocess(
     (v) => {
@@ -95,6 +97,8 @@ export const creditDefaults: CreditManagement = {
   creditModality: 'ORDINARY',
   requestDate: new Date(),
   requestedAmount: 0,
+  currencyCode: 'VES',
+  exchangeRate: 1,
   interestRate: 0,
   startDate: new Date(),
   termType: 'installments',

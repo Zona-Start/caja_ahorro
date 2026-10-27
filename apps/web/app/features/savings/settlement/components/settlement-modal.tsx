@@ -59,6 +59,7 @@ import {
   settlementSchema,
   type Settlement,
 } from '../schemas/settlement.schema';
+import { SETTLEMENT_TYPE_LABELS } from '../schemas/settlement-options';
 
 interface Props {
   open: boolean;
@@ -68,6 +69,7 @@ interface Props {
 const SETTLEMENT_DEFAULTS: Settlement = {
   associateId: '',
   date: new Date(),
+  settlementType: 'COMPLETE',
   notes: '',
   hasBeneficiary: false,
   beneficiary: undefined,
@@ -488,6 +490,43 @@ export function SettlementModal({ open, onOpenChange }: Props) {
                   <div className="flex items-center gap-2 text-primary font-semibold">
                     <Send className="h-5 w-5" /> Confirmar Liquidación
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="settlementType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Liquidación</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={saving}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione el tipo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Object.entries(SETTLEMENT_TYPE_LABELS).map(
+                              ([value, label]) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ),
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {field.value === 'SPECIAL' && (
+                          <p className="text-xs text-muted-foreground">
+                            La liquidación especial se desembolsa a una cuenta
+                            destino indicada en Pagos Especiales.
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}

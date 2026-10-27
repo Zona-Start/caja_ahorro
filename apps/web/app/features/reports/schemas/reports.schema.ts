@@ -46,6 +46,8 @@ export const loanReportFilterSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   loanTypeId: z.string().optional(),
+  cedula: z.string().optional(),
+  status: z.string().optional(),
   format: z.enum(['pdf', 'excel']).optional().default('pdf'),
 });
 
@@ -65,6 +67,8 @@ export const creditReportFilterSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   creditTypeId: z.string().optional(),
+  cedula: z.string().optional(),
+  status: z.string().optional(),
   format: z.enum(['pdf', 'excel']).optional().default('pdf'),
 });
 

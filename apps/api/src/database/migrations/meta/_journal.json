@@ -267,6 +267,13 @@
       "when": 1792551348108,
       "tag": "0037_broken_karen_page",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793058263438,
+      "tag": "0038_small_manta",
+      "breakpoints": true
     }
   ]
 }

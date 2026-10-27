@@ -4,6 +4,7 @@ import { DrizzleModule } from '@/database/drizzle.module';
 import { AccountingEntriesModule } from '@/features/accounting/accounting-entries/accounting-entries.module';
 import { AuditModule } from '@/features/audit/audit.module';
 import { BankMovementsModule } from '@/features/bankings/bank-movements/bank-movements.module';
+import { ExchangeRateModule } from '@/features/core/exchange-rate/exchange-rate.module';
 import { Module } from '@nestjs/common';
 import { AssociateAccountsMovementsModule } from '../../parnerts/associate-accounts-movements/associate-accounts-movements.module';
 import { LoanManagementController } from './loan-management.controller';
@@ -18,6 +19,7 @@ import { LoanManagementService } from './loan-management.service';
     AuditModule,
     BankMovementsModule,
     AccountingEntriesModule,
+    ExchangeRateModule,
   ],
   controllers: [LoanManagementController],
   providers: [LoanManagementService],

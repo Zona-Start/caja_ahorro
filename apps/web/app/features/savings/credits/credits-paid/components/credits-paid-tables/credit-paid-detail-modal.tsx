@@ -93,13 +93,20 @@ export function CreditPaidDetailModal({
               <div>
                 <span className="text-muted-foreground">Monto Pagado:</span>{' '}
                 <span className="font-bold text-green-600">
-                  {Number(data.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                  {Number(data.amount).toLocaleString('es-VE', { minimumFractionDigits: 2 })}{' '}
+                  {data.currencyCode && data.currencyCode !== 'VES' ? data.currencyCode : 'Bs'}
                 </span>
+                {data.currencyCode && data.currencyCode !== 'VES' && data.amountBase && (
+                  <span className="text-xs text-muted-foreground ml-1">
+                    (≈ {Number(data.amountBase).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs)
+                  </span>
+                )}
               </div>
               <div>
                 <span className="text-muted-foreground">Saldo Pendiente:</span>{' '}
                 <span className="font-medium text-orange-600">
-                  {Number(data.balancePending).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                  {Number(data.balancePending).toLocaleString('es-VE', { minimumFractionDigits: 2 })}{' '}
+                  {data.currencyCode && data.currencyCode !== 'VES' ? data.currencyCode : 'Bs'}
                 </span>
               </div>
             </div>

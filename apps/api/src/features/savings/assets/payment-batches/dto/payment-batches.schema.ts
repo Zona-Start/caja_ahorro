@@ -15,6 +15,13 @@ export const CreatePaymentBatchSchema = z.object({
   bankAccountId: z.string().uuid(),
   currencyCode: z.nativeEnum(CurrencyCodeEnum).optional(),
   description: z.string().optional(),
+  destinationAccountNumber: z
+    .string()
+    .regex(
+      /^\d{20}$/,
+      'La cuenta destino debe tener exactamente 20 dígitos',
+    )
+    .optional(),
   items: z.array(CreatePaymentBatchItemSchema).min(1),
 });
 
@@ -46,8 +53,8 @@ export const FilterPaymentBatchSchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().optional().default(10),
   search: z.string().optional(),
-  sortBy: z.string().optional().default('id'),
-  sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+  sortBy: z.string().optional().default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
   status: z.nativeEnum(paymentBatchStatus).optional(),
   tenantId: z.string().uuid().optional(),
 });

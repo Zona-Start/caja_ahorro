@@ -12,6 +12,8 @@ export const creditPaymentSchema = z.object({
   amount: z.coerce.number().positive({
     message: 'El monto debe ser mayor a 0',
   }),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
   bankId: z.string().uuid().optional().nullable(),
   paymentMethod: paymentMethodEnum.default('CASH'),
   transactionReference: z.string().optional(),
@@ -31,6 +33,8 @@ export const creditPaymentFormSchema = z.object({
   amount: z.string().min(1, {
     message: 'El monto es requerido',
   }),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.coerce.number().positive().optional(),
   bankId: z.string().uuid().optional().nullable(),
   paymentMethod: paymentMethodEnum.default('CASH'),
   transactionReference: z.string().optional(),

@@ -51,6 +51,7 @@ export const settlementService = {
     const payload: Record<string, unknown> = {
       associateId: settlement.associateId,
       date: settlement.date,
+      settlementType: settlement.settlementType ?? 'COMPLETE',
       notes: settlement.notes ?? null,
     };
     if (settlement.hasBeneficiary && settlement.beneficiary) {

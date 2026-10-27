@@ -15,6 +15,7 @@ export const settlementSchema = z
   .object({
     associateId: z.string().min(1, 'El asociado es requerido'),
     date: z.coerce.date(),
+    settlementType: z.enum(['COMPLETE', 'SPECIAL']).default('COMPLETE'),
     notes: z.string().optional(),
     hasBeneficiary: z.boolean().default(false),
     beneficiary: beneficiarySchema.optional(),

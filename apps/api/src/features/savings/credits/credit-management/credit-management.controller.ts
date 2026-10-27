@@ -6,6 +6,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -45,7 +46,39 @@ export class CreditManagementController {
   async request(@Req() req: Request, @Body() dto: CreateCreditDto) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    return this.service.request(targetTenantId, userId, dto);
+
+    const allowSpecialRules = this.canUseSpecialParams(req);
+    const usesSpecialParams =
+      !!dto.allowOverdraft ||
+      !!dto.allowExceedPaymentCapacity ||
+      !!dto.allowPayrollCredit ||
+      !!dto.haberesPayment ||
+      !!dto.directPayment ||
+      !!dto.withdrawalTypeId;
+
+    if (usesSpecialParams && !allowSpecialRules) {
+      throw new ForbiddenException(
+        'No tiene permiso para crear créditos con parámetros especiales.',
+      );
+    }
+
+    return this.service.request(targetTenantId, userId, dto, allowSpecialRules);
+  }
+
+  private canUseSpecialParams(req: Request): boolean {
+    if (req['userRole'] === 'superadmin' || req['user']?.isSystemAdmin) {
+      return true;
+    }
+    const perms: string[] = Array.isArray(req['userPermissions'])
+      ? req['userPermissions']
+      : [];
+    return perms.some(
+      (p) =>
+        p === 'portfolio:credits:special_params' ||
+        p.startsWith('portfolio:credits:special_params:') ||
+        p === 'portfolio:credits:*' ||
+        p === '*:*',
+    );
   }
 
   @Get('template-bulk')

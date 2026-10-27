@@ -35,6 +35,7 @@ import {
   reimbursementDestinationEnum,
   reimbursementOriginTypeEnum,
   reimbursementsStatusEnum,
+  settlementTypeEnum,
   statusEnum,
   withdrawalStatusEnum,
 } from '../enum';
@@ -1044,6 +1045,9 @@ export const liquidationsAssociates = savingsSchema.table(
       precision: 18,
       scale: 4,
     }).notNull(), // El monto neto final (lo que se paga/se debe)
+    settlementType: settlementTypeEnum('settlement_type')
+      .notNull()
+      .default('COMPLETE'), // COMPLETE | SPECIAL
     status: liquidationsStatusEnum('status').notNull().default('REQUESTED'), // 'PROCESSED', 'PENDING_PAYOUT', 'PENDING_COLLECTION', 'CANCELLED'
     payoutTransactionId: integer('payout_transaction_id'), // Opcional: FK a una tabla de transacciones de pago si la tienes
     customReference: varchar('custom_reference', { length: 50 }), // Nro. trasaccion personalizado

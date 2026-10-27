@@ -1,0 +1,2 @@
+CREATE TYPE "savings"."settlement_type" AS ENUM('COMPLETE', 'SPECIAL');--> statement-breakpoint
+ALTER TABLE "savings"."liquidations_associates" ADD COLUMN "settlement_type" "savings"."settlement_type" DEFAULT 'COMPLETE' NOT NULL;

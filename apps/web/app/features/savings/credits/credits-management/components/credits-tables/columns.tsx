@@ -14,6 +14,7 @@ export interface CreditTableRow {
   creditModality: string;
   requestedAmount: string;
   installmentAmount: string | null;
+  currencyCode?: string | null;
   requestDate: string | null;
   startDate: string | null;
   endDate: string | null;
@@ -85,7 +86,9 @@ export function createColumns(
           {parseFloat(row.original.requestedAmount || '0').toLocaleString('es', {
             minimumFractionDigits: 2,
           })}{' '}
-          Bs
+          {row.original.currencyCode && row.original.currencyCode !== 'VES'
+            ? row.original.currencyCode
+            : 'Bs'}
         </span>
       ),
     },
@@ -95,7 +98,7 @@ export function createColumns(
       cell: ({ row }) => (
         <span className="font-mono text-xs text-right block">
           {row.original.installmentAmount
-            ? `${parseFloat(row.original.installmentAmount).toLocaleString('es', { minimumFractionDigits: 2 })} Bs`
+            ? `${parseFloat(row.original.installmentAmount).toLocaleString('es', { minimumFractionDigits: 2 })} ${row.original.currencyCode && row.original.currencyCode !== 'VES' ? row.original.currencyCode : 'Bs'}`
             : '—'}
         </span>
       ),

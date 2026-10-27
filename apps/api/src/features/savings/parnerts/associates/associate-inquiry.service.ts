@@ -1,4 +1,6 @@
 import { computePendingBalance } from '@/common/utils/pending-balance';
+import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
+import { CurrencyCodeEnum } from '@/types/enum';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -62,7 +64,59 @@ export class AssociateInquiryService {
   constructor(
     @Inject(DRIZZLE_PROVIDER)
     private readonly drizzle: NodePgDatabase<typeof schema>,
+    private readonly exchangeRateService: ExchangeRateService,
   ) {}
+
+  /**
+   * Tasa vigente del día para una moneda extranjera. Solo aplica a registros
+   * que realmente están en divisa (tasa guardada > 0). Si falla la consulta,
+   * devuelve 1 para no romper la consulta de inquiry.
+   */
+  private async getCurrentRate(
+    tenantId: string,
+    currencyCode: string | null | undefined,
+    fallbackRate?: number,
+  ): Promise<number> {
+    if (!currencyCode || currencyCode === 'VES') return 1;
+    try {
+      const rate = await this.exchangeRateService.getLatestRate(
+        tenantId,
+        currencyCode as CurrencyCodeEnum,
+      );
+      return Number.isFinite(rate) && rate > 0 ? rate : 1;
+    } catch {
+      return fallbackRate && fallbackRate > 0 ? fallbackRate : 1;
+    }
+  }
+
+  private async getCurrentRates(
+    tenantId: string,
+    rows: Array<{ currencyCode?: string | null; exchangeRate?: string | null }>,
+  ): Promise<Map<string, number>> {
+    const fallbackByCurrency = new Map<string, number>();
+    for (const row of rows) {
+      if (
+        row.currencyCode &&
+        row.currencyCode !== 'VES' &&
+        Number(row.exchangeRate ?? 0) > 0
+      ) {
+        fallbackByCurrency.set(
+          row.currencyCode,
+          Number(row.exchangeRate),
+        );
+      }
+    }
+    const entries = await Promise.all(
+      Array.from(fallbackByCurrency.entries()).map(
+        async ([currency, fallbackRate]) =>
+          [
+            currency,
+            await this.getCurrentRate(tenantId, currency, fallbackRate),
+          ] as const,
+      ),
+    );
+    return new Map(entries);
+  }
 
   async getStatement(
     tenantId: string,
@@ -321,6 +375,10 @@ export class AssociateInquiryService {
           loanType: schema.loanTypes.name,
           interestRate: schema.loans.interestRate,
           loanAmount: schema.loans.requestedAmount,
+          currencyCode: schema.loans.currencyCode,
+          exchangeRate: schema.loans.exchangeRate,
+          amountBase: schema.loans.amountBase,
+          amountForeign: schema.loans.amountForeign,
           // Saldo pendiente = saldo corriente (último pago) o capital pendiente
           // del schedule si no hay pagos. Coincide con el detalle y el contable.
           outstandingBalance: sql<number>`COALESCE(
@@ -365,12 +423,20 @@ export class AssociateInquiryService {
     const totalCount = Number(totalResult[0]?.total || 0);
     const totalPages = Math.ceil(totalCount / limit);
 
+    const currentRates = await this.getCurrentRates(tenantId, data);
+
     return {
       data: data.map((d) => ({
         ...d,
         requestDate: d.requestDate || null,
         // Asegurar que outstandingBalance sea número y no null
         outstandingBalance: String(d.outstandingBalance) || 0,
+        currentExchangeRate:
+          d.currencyCode &&
+          d.currencyCode !== 'VES' &&
+          Number(d.exchangeRate ?? 0) > 0
+            ? (currentRates.get(d.currencyCode) ?? 1)
+            : 1,
       })),
       meta: {
         page,
@@ -411,6 +477,10 @@ export class AssociateInquiryService {
           creditType: schema.creditsTypes.name,
           interestRate: schema.credits.interestRate,
           creditAmount: schema.credits.requestedAmount,
+          currencyCode: schema.credits.currencyCode,
+          exchangeRate: schema.credits.exchangeRate,
+          amountBase: schema.credits.amountBase,
+          amountForeign: schema.credits.amountForeign,
           // Saldo pendiente = saldo corriente (último pago) o capital pendiente
           // del schedule si no hay pagos. Coincide con el detalle y el contable.
           outstandingBalance: sql<number>`COALESCE(
@@ -458,10 +528,18 @@ export class AssociateInquiryService {
     const totalCount = Number(totalResult[0]?.total || 0);
     const totalPages = Math.ceil(totalCount / limit);
 
+    const currentRates = await this.getCurrentRates(tenantId, data);
+
     return {
       data: data.map((d) => ({
         ...d,
         requestDate: d.requestDate || null,
+        currentExchangeRate:
+          d.currencyCode &&
+          d.currencyCode !== 'VES' &&
+          Number(d.exchangeRate ?? 0) > 0
+            ? (currentRates.get(d.currencyCode) ?? 1)
+            : 1,
       })),
       meta: {
         page,
@@ -714,6 +792,9 @@ export class AssociateInquiryService {
         notes: schema.loans.notes,
         customReference: schema.loans.customReference,
         currencyCode: schema.loans.currencyCode,
+        exchangeRate: schema.loans.exchangeRate,
+        amountBase: schema.loans.amountBase,
+        amountForeign: schema.loans.amountForeign,
         balanceInFavor: schema.loans.balanceInFavor,
         associateName: schema.associates.fullname,
         associateCedula: schema.associates.cedula,
@@ -749,6 +830,9 @@ export class AssociateInquiryService {
         paymentStatus: schema.loanAmortizationSchedule.paymentStatus,
         paidAmount: schema.loanAmortizationSchedule.paidAmount,
         lastPaymentDate: schema.loanAmortizationSchedule.lastPaymentDate,
+        exchangeRate: schema.loanAmortizationSchedule.exchangeRate,
+        amountBase: schema.loanAmortizationSchedule.amountBase,
+        amountForeign: schema.loanAmortizationSchedule.amountForeign,
       })
       .from(schema.loanAmortizationSchedule)
       .where(eq(schema.loanAmortizationSchedule.loanId, loanId))
@@ -781,8 +865,19 @@ export class AssociateInquiryService {
         ? Number(lastPayment.balancePending)
         : computePendingBalance(schedule);
 
+    const currentRate =
+      loanResult.currencyCode &&
+      loanResult.currencyCode !== 'VES' &&
+      Number(loanResult.exchangeRate ?? 0) > 0
+        ? await this.getCurrentRate(
+            tenantId,
+            loanResult.currencyCode,
+            Number(loanResult.exchangeRate ?? 0),
+          )
+        : 1;
+
     return {
-      loan: loanResult,
+      loan: { ...loanResult, currentExchangeRate: currentRate },
       amortizationSchedule: schedule,
       summary: {
         totalPaid,
@@ -830,6 +925,9 @@ export class AssociateInquiryService {
         notes: schema.credits.notes,
         customReference: schema.credits.customReference,
         currencyCode: schema.credits.currencyCode,
+        exchangeRate: schema.credits.exchangeRate,
+        amountBase: schema.credits.amountBase,
+        amountForeign: schema.credits.amountForeign,
         balanceInFavor: schema.credits.balanceInFavor,
         associateName: schema.associates.fullname,
         associateCedula: schema.associates.cedula,
@@ -865,6 +963,9 @@ export class AssociateInquiryService {
         paymentStatus: schema.creditAmortizationSchedule.paymentStatus,
         paidAmount: schema.creditAmortizationSchedule.paidAmount,
         lastPaymentDate: schema.creditAmortizationSchedule.lastPaymentDate,
+        exchangeRate: schema.creditAmortizationSchedule.exchangeRate,
+        amountBase: schema.creditAmortizationSchedule.amountBase,
+        amountForeign: schema.creditAmortizationSchedule.amountForeign,
       })
       .from(schema.creditAmortizationSchedule)
       .where(eq(schema.creditAmortizationSchedule.creditId, creditId))
@@ -920,7 +1021,19 @@ export class AssociateInquiryService {
       .where(eq(schema.creditItemSales.creditId, creditId));
 
     return {
-      credit: creditResult,
+      credit: {
+        ...creditResult,
+        currentExchangeRate:
+          creditResult.currencyCode &&
+          creditResult.currencyCode !== 'VES' &&
+          Number(creditResult.exchangeRate ?? 0) > 0
+            ? await this.getCurrentRate(
+                tenantId,
+                creditResult.currencyCode,
+                Number(creditResult.exchangeRate ?? 0),
+              )
+            : 1,
+      },
       amortizationSchedule: schedule,
       items: items.map((i) => ({
         id: i.id,

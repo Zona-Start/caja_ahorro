@@ -94,6 +94,12 @@ export const CREDIT_STATUS_TYPES: Record<string, string> = {
   PAID: 'Pagado',
 };
 
+export const CURRENCY_TYPES: Record<string, string> = {
+  VES: 'Bolívares (VES)',
+  USD: 'Dólares (USD)',
+  EUR: 'Euros (EUR)',
+};
+
 export const WITHDRAWAL_STATUS_TYPES: Record<string, string> = {
   REQUESTED: 'Solicitado',
   APPROVED: 'Aprobado',

@@ -257,6 +257,14 @@ export const DEFAULT_PERMISSIONS = [
   },
   {
     resource: 'savings:withdrawals',
+    action: 'special_params',
+    name: 'Parámetros Especiales de Retiro',
+    description:
+      'Permite usar parámetros especiales al crear solicitudes de retiro.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'savings:withdrawals',
     action: 'reject',
     name: 'Rechazar Retiros',
     description: 'Rechazar solicitudes de retiro.',
@@ -436,6 +444,14 @@ export const DEFAULT_PERMISSIONS = [
   },
   {
     resource: 'portfolio:loans',
+    action: 'special_params',
+    name: 'Parámetros Especiales de Préstamo',
+    description:
+      'Permite usar parámetros especiales al crear solicitudes de préstamo.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'portfolio:loans',
     action: 'reject',
     name: 'Rechazar Préstamo',
     description: 'Rechazar solicitud de préstamo.',
@@ -509,6 +525,14 @@ export const DEFAULT_PERMISSIONS = [
     action: 'approve',
     name: 'Aprobar Crédito',
     description: 'Evaluar y aprobar solicitud de crédito.',
+    scope: 'tenant',
+  },
+  {
+    resource: 'portfolio:credits',
+    action: 'special_params',
+    name: 'Parámetros Especiales de Crédito',
+    description:
+      'Permite usar parámetros especiales al crear solicitudes de crédito.',
     scope: 'tenant',
   },
   {

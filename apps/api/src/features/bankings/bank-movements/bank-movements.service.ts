@@ -611,7 +611,7 @@ export class BankMovementsService {
           .select({
             id: schema.loanPayments.id,
             type: sql<string>`'LOAN_PAYMENT'`.as('type'),
-            amount: schema.loanPayments.amount,
+            amount: sql<number>`CASE WHEN ${schema.loanPayments.currencyCode} = 'VES' THEN ${schema.loanPayments.amount} ELSE ${schema.loanPayments.amountBase} END`,
             date: schema.loanPayments.paymentDate,
             concept:
               sql<string>`CONCAT('Pago Cuota Prestamo ', ${schema.loanPayments.customReference})`.as(
@@ -667,7 +667,7 @@ export class BankMovementsService {
           .select({
             id: schema.creditPayments.id,
             type: sql<string>`'CREDIT_PAYMENT'`.as('type'),
-            amount: schema.creditPayments.amount,
+            amount: sql<number>`CASE WHEN ${schema.creditPayments.currencyCode} = 'VES' THEN ${schema.creditPayments.amount} ELSE ${schema.creditPayments.amountBase} END`,
             date: schema.creditPayments.paymentDate,
             concept:
               sql<string>`CONCAT('Pago Credito ', ${schema.creditPayments.customReference})`.as(

@@ -103,9 +103,7 @@ export class SeedService implements OnModuleInit {
           createdById: this.idSuperadmin,
           updatedById: this.idSuperadmin,
         })
-        .onConflictDoNothing({
-          target: [permissions.resource, permissions.action, permissions.scope],
-        });
+        .onConflictDoNothing();
       insertedCount++;
     }
 

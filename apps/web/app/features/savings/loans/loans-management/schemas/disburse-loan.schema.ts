@@ -4,6 +4,7 @@ export const disburseIndividualLoanSchema = z.object({
   loanId: z.string(),
   bankAccountId: z.string().min(1, 'La cuenta bancaria es requerida'),
   currencyCode: z.string().min(1, 'La moneda es requerida'),
+  exchangeRate: z.coerce.number().min(0).optional(),
   paymentMethod: z.string().min(1, 'El método de pago es requerido'),
   disbursementDate: z.date({
     required_error: 'La fecha de desembolso es requerida',

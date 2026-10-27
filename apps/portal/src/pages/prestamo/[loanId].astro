@@ -3,8 +3,18 @@ import Base from '../../layouts/Base.astro';
 import Topbar from '../../components/Topbar.astro';
 import { fetchAuthed } from '../../lib/auth';
 import { clearSession } from '../../lib/session';
-import { dateFmt, money, percent, text } from '../../lib/format';
 import {
+  bsEquivalent,
+  creationRate,
+  currentRate,
+  dateFmt,
+  displayCurrency,
+  money,
+  percent,
+  text,
+} from '../../lib/format';
+import {
+  CURRENCY_TYPES,
   LOAN_STATUS_TYPES,
   PAYMENT_LOAN_STATUS,
   label,
@@ -41,6 +51,16 @@ if (res.status === 401) {
   return Astro.redirect('/login');
 }
 const detail = res.data ? ((res.data as { data: LoanDetail }).data ?? null) : null;
+const loanCurrency = displayCurrency(
+  detail?.loan?.currencyCode,
+  detail?.loan?.exchangeRate,
+);
+const loanCreationRate = creationRate(detail?.loan?.exchangeRate);
+const loanCurrentRate = currentRate(
+  detail?.loan?.currentExchangeRate,
+  detail?.loan?.exchangeRate,
+);
+const isForeignLoan = loanCurrency !== 'VES';
 ---
 <Base title="Detalle de préstamo · Portal del Asociado">
   <Topbar />
@@ -55,13 +75,32 @@ const detail = res.data ? ((res.data as { data: LoanDetail }).data ?? null) : nu
         <p class="muted">Préstamo {text(detail.loan.customReference)} · Estado {label(LOAN_STATUS_TYPES, detail.loan.status)}</p>
 
         <section class="grid cols-3" style="margin:18px 0">
-          <div class="stat"><div class="label">Monto solicitado</div><div class="value">{money(detail.loan.requestedAmount)}</div></div>
-          <div class="stat"><div class="label">Saldo pendiente</div><div class="value">{money(detail.summary.totalPending)}</div></div>
-          <div class="stat"><div class="label">Total pagado</div><div class="value">{money(detail.summary.totalPaid)}</div></div>
+          <div class="stat">
+            <div class="label">Monto solicitado</div>
+            <div class="value">{money(detail.loan.requestedAmount, loanCurrency)}</div>
+            {isForeignLoan && (
+              <div class="cell-sub">≈ {bsEquivalent(detail.loan.requestedAmount, loanCreationRate)} (tasa de creación)</div>
+            )}
+          </div>
+          <div class="stat">
+            <div class="label">Saldo pendiente</div>
+            <div class="value">{money(detail.summary.totalPending, loanCurrency)}</div>
+            {isForeignLoan && (
+              <div class="cell-sub">≈ {bsEquivalent(detail.summary.totalPending, loanCurrentRate)} (tasa del día)</div>
+            )}
+          </div>
+          <div class="stat"><div class="label">Total pagado</div><div class="value">{money(detail.summary.totalPaid, loanCurrency)}</div></div>
         </section>
 
         <section class="grid cols-3" style="margin-bottom:18px">
-          <div class="stat"><div class="label">Cuota</div><div class="value" style="font-size:1.1rem">{money(detail.loan.installmentAmount)}</div></div>
+          <div class="stat">
+            <div class="label">Cuota</div>
+            <div class="value" style="font-size:1.1rem">{money(detail.loan.installmentAmount, loanCurrency)}</div>
+            {isForeignLoan && (
+              <div class="cell-sub">≈ {bsEquivalent(detail.loan.installmentAmount, loanCurrentRate)} (tasa del día)</div>
+            )}
+          </div>
+          <div class="stat"><div class="label">Moneda</div><div class="value" style="font-size:1.1rem">{label(CURRENCY_TYPES, loanCurrency)}</div></div>
           <div class="stat"><div class="label">Tasa</div><div class="value" style="font-size:1.1rem">{text(detail.loan.interestRate)}%</div></div>
           <div class="stat"><div class="label">Plazo</div><div class="value" style="font-size:1.1rem">{text(detail.loan.termUnits)} {text(detail.loan.termType)}</div></div>
           <div class="stat"><div class="label">Desembolso</div><div class="value" style="font-size:1.1rem">{dateFmt(detail.loan.disbursementDate)}</div></div>
@@ -79,10 +118,15 @@ const detail = res.data ? ((res.data as { data: LoanDetail }).data ?? null) : nu
               <tr>
                 <td>{s.installmentNumber}</td>
                 <td>{dateFmt(s.dueDate)}</td>
-                <td>{money(s.principalAmount)}</td>
-                <td>{money(s.interestAmount)}</td>
-                <td>{money(s.totalInstallmentAmount)}</td>
-                <td>{money(s.paidAmount)}</td>
+                <td>{money(s.principalAmount, loanCurrency)}</td>
+                <td>{money(s.interestAmount, loanCurrency)}</td>
+                <td>
+                  {money(s.totalInstallmentAmount, loanCurrency)}
+                  {isForeignLoan && ['PENDING', 'PARTIAL'].includes(s.paymentStatus) && (
+                    <div class="cell-sub">≈ {bsEquivalent(s.totalInstallmentAmount, loanCurrentRate)} (tasa del día)</div>
+                  )}
+                </td>
+                <td>{money(s.paidAmount, loanCurrency)}</td>
                 <td><span class="badge">{label(PAYMENT_LOAN_STATUS, s.paymentStatus)}</span></td>
               </tr>
             ))}
@@ -91,4 +135,7 @@ const detail = res.data ? ((res.data as { data: LoanDetail }).data ?? null) : nu
       </>
     )}
   </main>
+  <style>
+    .cell-sub { font-size: 0.72rem; color: var(--muted-foreground); margin-top: 2px; }
+  </style>
 </Base>

@@ -83,7 +83,44 @@ export function CreditDetailsModal({
   const requestedAmount = Number(data?.credit.requestedAmount || 0);
   const haberesPayment = Number(data?.credit.haberesPayment || 0);
   const directPayment = Number(data?.credit.directPayment || 0);
-  const financedAmount = Math.max(0, requestedAmount - haberesPayment - directPayment);
+
+  const creditCurrency =
+    data?.credit.currencyCode &&
+    data.credit.currencyCode !== 'VES' &&
+    Number(data.credit.exchangeRate ?? 0) > 0
+      ? data.credit.currencyCode
+      : 'VES';
+  const creditRate =
+    Number(data?.credit.exchangeRate ?? 0) > 0
+      ? Number(data?.credit.exchangeRate)
+      : 1;
+  const currentRate =
+    Number(data?.credit.currentExchangeRate ?? 0) > 0
+      ? Number(data?.credit.currentExchangeRate)
+      : creditRate;
+  const creditFx = creditCurrency !== 'VES' ? creditRate : 1;
+  const isForeign = creditCurrency !== 'VES';
+  const money = (value: number) => formatCurrency(value, creditCurrency);
+  const bsLine = (value: number) =>
+    isForeign ? (
+      <div className="text-[11px] text-muted-foreground">
+        ≈ {formatCurrency(value * creditRate, 'VES')} (tasa de creación)
+      </div>
+    ) : null;
+  const bsCurrentLine = (value: number) =>
+    isForeign ? (
+      <div className="text-[11px] text-muted-foreground">
+        ≈ {formatCurrency(value * currentRate, 'VES')} (tasa del día)
+      </div>
+    ) : null;
+
+  // Los haberes están en Bs; se convierten a la moneda del crédito solo para
+  // calcular el monto financiado.
+  const haberesInCreditCurrency = haberesPayment / creditFx;
+  const financedAmount = Math.max(
+    0,
+    requestedAmount - haberesInCreditCurrency - directPayment,
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -144,6 +181,20 @@ export function CreditDetailsModal({
               </div>
               <div>
                 <p className="text-xs font-medium uppercase text-muted-foreground">
+                  Moneda
+                </p>
+                <p className="font-semibold">
+                  {creditCurrency === 'VES'
+                    ? 'Bolívares (VES)'
+                    : creditCurrency === 'USD'
+                      ? 'Dólares (USD)'
+                      : creditCurrency === 'EUR'
+                        ? 'Euros (EUR)'
+                        : creditCurrency}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">
                   {termLabel}
                 </p>
                 <p>{plazoDisplay}</p>
@@ -186,26 +237,34 @@ export function CreditDetailsModal({
                 <div className="rounded-lg border p-3 bg-blue-50 dark:bg-blue-950">
                   <p className="text-xs text-muted-foreground">Monto Solicitado</p>
                   <p className="text-lg font-bold font-mono text-blue-700 dark:text-blue-300">
-                    {formatCurrency(requestedAmount, 'VES')}
+                    {money(requestedAmount)}
                   </p>
+                  {bsLine(requestedAmount)}
                 </div>
                 <div className="rounded-lg border p-3 bg-violet-50 dark:bg-violet-950">
                   <p className="text-xs text-muted-foreground">Pago con Haberes</p>
                   <p className="text-lg font-bold font-mono text-violet-700 dark:text-violet-300">
                     {formatCurrency(haberesPayment, 'VES')}
                   </p>
+                  {isForeign && (
+                    <div className="text-[11px] text-muted-foreground">
+                      ≈ {money(haberesInCreditCurrency)}
+                    </div>
+                  )}
                 </div>
                 <div className="rounded-lg border p-3 bg-amber-50 dark:bg-amber-950">
                   <p className="text-xs text-muted-foreground">Pago Directo Inicial</p>
                   <p className="text-lg font-bold font-mono text-amber-700 dark:text-amber-300">
-                    {formatCurrency(directPayment, 'VES')}
+                    {money(directPayment)}
                   </p>
+                  {bsLine(directPayment)}
                 </div>
                 <div className="rounded-lg border p-3 bg-emerald-50 dark:bg-emerald-950">
                   <p className="text-xs text-muted-foreground">Total Financiado</p>
                   <p className="text-lg font-bold font-mono text-emerald-700 dark:text-emerald-300">
-                    {formatCurrency(financedAmount, 'VES')}
+                    {money(financedAmount)}
                   </p>
+                  {bsLine(financedAmount)}
                 </div>
               </div>
               {data.credit.directPaymentMethod && (
@@ -225,38 +284,43 @@ export function CreditDetailsModal({
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Cuota</p>
                   <p className="text-lg font-bold font-mono">
-                    {formatCurrency(Number(data.credit.installmentAmount || 0), 'VES')}
+                    {money(Number(data.credit.installmentAmount || 0))}
                   </p>
+                  {bsCurrentLine(Number(data.credit.installmentAmount || 0))}
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Gasto Admin.</p>
                   <p className="text-lg font-bold font-mono">
-                    {formatCurrency(Number(data.credit.expensesAmount || 0), 'VES')}
+                    {money(Number(data.credit.expensesAmount || 0))}
                   </p>
+                  {bsLine(Number(data.credit.expensesAmount || 0))}
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Interés Total</p>
                   <p className="text-lg font-bold font-mono text-amber-600">
-                    {formatCurrency(Number(data.credit.totalInterest || 0), 'VES')}
+                    {money(Number(data.credit.totalInterest || 0))}
                   </p>
+                  {bsLine(Number(data.credit.totalInterest || 0))}
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Total a Pagar</p>
                   <p className="text-lg font-bold font-mono text-amber-600">
-                    {formatCurrency(Number(data.credit.totalPayable || 0), 'VES')}
+                    {money(Number(data.credit.totalPayable || 0))}
                   </p>
+                  {bsLine(Number(data.credit.totalPayable || 0))}
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Total Pagado</p>
                   <p className="text-lg font-bold font-mono text-emerald-600">
-                    {formatCurrency(data.summary.totalPaid, 'VES')}
+                    {money(data.summary.totalPaid)}
                   </p>
                 </div>
                 <div className="rounded-lg border p-3">
                   <p className="text-xs text-muted-foreground">Pendiente</p>
                   <p className="text-lg font-bold font-mono text-red-500">
-                    {formatCurrency(data.summary.totalPending, 'VES')}
+                    {money(data.summary.totalPending)}
                   </p>
+                  {bsCurrentLine(data.summary.totalPending)}
                 </div>
               </div>
             </div>
@@ -264,7 +328,7 @@ export function CreditDetailsModal({
             {data.items && data.items.length > 0 && (
               <div className="rounded-lg border">
                 <div className="bg-muted px-4 py-2 font-semibold text-sm">
-                  Ítems / Productos del Crédito
+                  Ítems / Productos del Crédito ({creditCurrency})
                 </div>
                 <div className="overflow-auto max-h-[250px]">
                   <Table>
@@ -307,10 +371,10 @@ export function CreditDetailsModal({
                             </TableCell>
                             <TableCell className="text-center">{qty}</TableCell>
                             <TableCell className="text-right font-mono text-xs">
-                              {formatCurrency(price, 'VES')}
+                              {money(price)}
                             </TableCell>
                             <TableCell className="text-right font-mono text-xs font-semibold">
-                              {formatCurrency(subtotal, 'VES')}
+                              {money(subtotal)}
                             </TableCell>
                           </TableRow>
                         );
@@ -324,7 +388,7 @@ export function CreditDetailsModal({
             {data.amortizationSchedule.length > 0 && (
               <div className="rounded-lg border">
                 <div className="bg-muted px-4 py-2 font-semibold text-sm">
-                  Plan de Amortización
+                  Plan de Amortización ({creditCurrency})
                 </div>
                 <div className="overflow-auto max-h-[300px]">
                   <Table>
@@ -347,28 +411,29 @@ export function CreditDetailsModal({
                           </TableCell>
                           <TableCell>{formatDate(item.dueDate)}</TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(
-                              Number(item.totalInstallmentAmount),
-                              'VES',
-                            )}
+                            {money(Number(item.totalInstallmentAmount))}
+                            {isForeign &&
+                              (item.paymentStatus === 'PENDING' ||
+                                item.paymentStatus === 'PARTIAL') && (
+                                <div className="text-[10px] font-normal text-muted-foreground">
+                                  ≈{' '}
+                                  {formatCurrency(
+                                    Number(item.totalInstallmentAmount) *
+                                      currentRate,
+                                    'VES',
+                                  )}{' '}
+                                  (tasa del día)
+                                </div>
+                              )}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(
-                              Number(item.principalAmount),
-                              'VES',
-                            )}
+                            {money(Number(item.principalAmount))}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(
-                              Number(item.interestAmount),
-                              'VES',
-                            )}
+                            {money(Number(item.interestAmount))}
                           </TableCell>
                           <TableCell className="text-right font-mono text-xs">
-                            {formatCurrency(
-                              Number(item.paidAmount || 0),
-                              'VES',
-                            )}
+                            {money(Number(item.paidAmount || 0))}
                           </TableCell>
                           <TableCell>
                             <Badge

@@ -148,6 +148,11 @@ export const loanPaymentTypeEnum = savingsSchema.enum('loan_payment_type', [
   'CANCELLATION',
 ]);
 
+export const settlementTypeEnum = savingsSchema.enum('settlement_type', [
+  'COMPLETE',
+  'SPECIAL',
+]);
+
 export const liquidationsStatusEnum = savingsSchema.enum(
   'liquidations_status',
   [

@@ -72,8 +72,8 @@ export const paymentBatchService = {
     params.set('limit', String(filters.limit || 10));
     if (filters.status) params.set('status', filters.status);
     if (filters.search) params.set('search', filters.search);
-    if (filters.sortBy) params.set('sortBy', filters.sortBy);
-    if (filters.sortOrder) params.set('sortOrder', filters.sortOrder);
+    params.set('sortBy', filters.sortBy || 'createdAt');
+    params.set('sortOrder', filters.sortOrder || 'desc');
 
     const response = await apiClient.get(
       `/savings-banks/payment-batches?${params}`,
@@ -90,6 +90,7 @@ export const paymentBatchService = {
     bankAccountId: string;
     currencyCode: string;
     description?: string;
+    destinationAccountNumber?: string;
     batchType?: string;
     items: { type: string; sourceId: string }[];
   }): Promise<{ id: string; recordCount: number; totalAmount: string; reference: string }> => {
@@ -153,9 +154,13 @@ export const paymentBatchService = {
     return response.data as PaginatedResponse<ApprovedItem>;
   },
 
-  getApprovedLiquidations: async (page = 1, limit = 50) => {
+  getApprovedLiquidations: async (
+    page = 1,
+    limit = 50,
+    settlementType: 'COMPLETE' | 'SPECIAL' = 'COMPLETE',
+  ) => {
     const response = await apiClient.get(
-      `/savings-banks/settlement-associate/approved?page=${page}&limit=${limit}`,
+      `/savings-banks/settlement-associate/approved?page=${page}&limit=${limit}&settlementType=${settlementType}`,
     );
     return response.data as PaginatedResponse<ApprovedItem>;
   },

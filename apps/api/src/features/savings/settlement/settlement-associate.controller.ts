@@ -148,9 +148,16 @@ export class SettlementAssociateController {
   findSettlementAprovee(
     @Req() req: Request,
     @Query() paginationDto: PaginationDto,
+    @Query('settlementType') settlementType?: string,
   ) {
     const { targetTenantId } = this.tenantContextService.getTenantContext(req);
-    return this.service.findSettlementAprovee(targetTenantId, paginationDto);
+    const type: 'COMPLETE' | 'SPECIAL' =
+      settlementType === 'SPECIAL' ? 'SPECIAL' : 'COMPLETE';
+    return this.service.findSettlementAprovee(
+      targetTenantId,
+      paginationDto,
+      type,
+    );
   }
 
   @Get()

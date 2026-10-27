@@ -59,9 +59,23 @@ export const columns: ColumnDef<CreditPaymentApi>[] = [
   {
     accessorKey: 'amount',
     header: 'Monto',
-    cell: ({ getValue }) => {
-      const value = getValue() as string;
-      return `${Number(value).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs`;
+    cell: ({ row }) => {
+      const value = Number(row.original.amount);
+      const foreign =
+        row.original.currencyCode && row.original.currencyCode !== 'VES';
+      return (
+        <div className="text-right">
+          <div>
+            {value.toLocaleString('es-VE', { minimumFractionDigits: 2 })}{' '}
+            {foreign ? row.original.currencyCode : 'Bs'}
+          </div>
+          {foreign && row.original.amountBase && (
+            <div className="text-[10px] text-muted-foreground">
+              ≈ {Number(row.original.amountBase).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+            </div>
+          )}
+        </div>
+      );
     },
     size: 120,
   },

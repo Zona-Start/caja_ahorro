@@ -41,6 +41,27 @@ interface LoansReportModalProps {
   onClose: () => void;
 }
 
+const LOAN_STATUS_OPTIONS = [
+  { value: 'REQUESTED', label: 'Solicitado' },
+  { value: 'APPROVED', label: 'Aprobado' },
+  { value: 'PENDING_DISBURSEMENT_BANK_BATCH', label: 'Pendiente Desembolso' },
+  { value: 'DISBURSED', label: 'Desembolsado' },
+  { value: 'IN_PAYMENT', label: 'En Pago' },
+  { value: 'PAID', label: 'Pagado' },
+  { value: 'OVERDUE', label: 'Vencido' },
+  { value: 'REJECTED', label: 'Rechazado' },
+  { value: 'CANCELLED', label: 'Cancelado' },
+];
+
+const LOAN_REPORT_DEFAULTS: LoanReportFilters = {
+  dateFrom: '',
+  dateTo: '',
+  loanTypeId: '',
+  cedula: '',
+  status: 'all',
+  format: 'pdf',
+};
+
 export function LoansReportModal({ isOpen, onClose }: LoansReportModalProps) {
   const [loanTypes, setLoanTypes] = useState<
     { id: string; name: string }[]
@@ -50,13 +71,14 @@ export function LoansReportModal({ isOpen, onClose }: LoansReportModalProps) {
 
   const form = useForm<LoanReportFilters>({
     resolver: zodResolver(loanReportFilterSchema),
-    defaultValues: {
-      dateFrom: '',
-      dateTo: '',
-      loanTypeId: '',
-      format: 'pdf',
-    },
+    defaultValues: LOAN_REPORT_DEFAULTS,
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset(LOAN_REPORT_DEFAULTS);
+    }
+  }, [isOpen, form]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -124,6 +146,59 @@ export function LoansReportModal({ isOpen, onClose }: LoansReportModalProps) {
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="cedula"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cédula del Asociado</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ej: 12345678"
+                        inputMode="numeric"
+                        {...field}
+                        onChange={(e) =>
+                          field.onChange(
+                            e.target.value.replace(/\D/g, '').slice(0, 10),
+                          )
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estatus</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value ?? 'all'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {LOAN_STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

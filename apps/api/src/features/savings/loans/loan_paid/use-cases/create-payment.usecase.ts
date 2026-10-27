@@ -11,6 +11,7 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { v4 as uuidv4 } from 'uuid';
+import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import { LoanPaymentAccounting } from '../domain/loan-payment.accounting';
 import { LoanPaymentAudit } from '../domain/loan-payment.audit';
 import { LoanPaymentBank } from '../domain/loan-payment.bank';
@@ -30,6 +31,7 @@ export class CreatePaymentUseCase {
     private readonly accounting: LoanPaymentAccounting,
     private readonly bank: LoanPaymentBank,
     private readonly audit: LoanPaymentAudit,
+    private readonly exchangeRateService: ExchangeRateService,
   ) {}
 
   async execute(
@@ -48,6 +50,7 @@ export class CreatePaymentUseCase {
       paymentType,
       comment,
       transactionReference,
+      exchangeRate: dtoExchangeRate,
     } = dto;
 
     const db = tx || this.db;
@@ -64,6 +67,32 @@ export class CreatePaymentUseCase {
       if (!lockedLoan) {
         throw new NotFoundException('Loan not found');
       }
+
+      // El monto del pago está en la moneda del préstamo. Se calcula su
+      // equivalente en Bs a la tasa del día de pago (editable). Solo se trata
+      // como divisa si el préstamo tiene una tasa congelada guardada.
+      const loanHasFx =
+        Number(lockedLoan.exchangeRate ?? 0) > 0 &&
+        !!lockedLoan.currencyCode &&
+        lockedLoan.currencyCode !== 'VES';
+      const loanCurrency = (loanHasFx
+        ? lockedLoan.currencyCode
+        : 'VES') as CurrencyCodeEnum;
+      let paymentRate =
+        loanCurrency === CurrencyCodeEnum.VES
+          ? 1
+          : Number(dtoExchangeRate ?? 0);
+      if (
+        loanCurrency !== CurrencyCodeEnum.VES &&
+        (!Number.isFinite(paymentRate) || paymentRate <= 0)
+      ) {
+        paymentRate = await this.exchangeRateService.getRate(
+          tenantId,
+          paymentDate ? new Date(paymentDate) : new Date(),
+          loanCurrency,
+        );
+      }
+      const paymentAmountBase = +(amount * paymentRate).toFixed(4);
 
       const pendingBalanceBase = await this.validator.getPendingBalanceBase(
         loanId,
@@ -109,6 +138,10 @@ export class CreatePaymentUseCase {
           paymentDate: new Date(paymentDate),
           paymentType: paymentType || 'PAYING',
           amount,
+          currencyCode: loanCurrency,
+          exchangeRate: paymentRate,
+          amountBase: paymentAmountBase,
+          amountForeign: amount,
           balancePending: newBalancePending,
           bankId: bankId ?? undefined,
           paymentMethod,
@@ -175,14 +208,18 @@ export class CreatePaymentUseCase {
       const effectivePrincipal = Number(
         (roundedPayment - effectiveInterest).toFixed(2),
       );
+      const effectivePrincipalBs = +(effectivePrincipal * paymentRate).toFixed(
+        2,
+      );
+      const effectiveInterestBs = +(effectiveInterest * paymentRate).toFixed(2);
 
       if (!liquidationActive) {
         await this.accounting.generatePaymentEntry(
           tenantId,
           userId,
           loan,
-          amount,
-          effectiveInterest,
+          paymentAmountBase,
+          effectiveInterestBs,
           paymentDate ? new Date(paymentDate) : new Date(),
           tx,
         );
@@ -214,13 +251,13 @@ export class CreatePaymentUseCase {
       );
 
       if (acc?.id) {
-        if (effectivePrincipal > 0) {
+        if (effectivePrincipalBs > 0) {
           await this.processor.createAssociateMovement(
             userId,
             {
               associateAccountId: acc.id,
               movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
-              amount: effectivePrincipal,
+              amount: effectivePrincipalBs,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: paymentDate ? new Date(paymentDate) : undefined,
               description: `Pago Cuota Capital Préstamo Nº ${lockedLoan.customReference}`,
@@ -234,13 +271,13 @@ export class CreatePaymentUseCase {
           );
         }
 
-        if (effectiveInterest > 0) {
+        if (effectiveInterestBs > 0) {
           await this.processor.createAssociateMovement(
             userId,
             {
               associateAccountId: acc.id,
               movementType: AssociateMovementTypeEnum.LOAN_INTEREST_DEBIT,
-              amount: effectiveInterest,
+              amount: effectiveInterestBs,
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: paymentDate ? new Date(paymentDate) : undefined,
               description: `Pago Cuota Interés Préstamo Nº ${lockedLoan.customReference}`,
@@ -264,7 +301,7 @@ export class CreatePaymentUseCase {
             description: `Pago de Cuota Prestamo Nº ${lockedLoan.customReference}`,
             bankReference: transactionReference,
             category: 'LOAN_PAYMENT' as BankTransactionCategory,
-            creditAmount: amount,
+            creditAmount: paymentAmountBase,
             debitAmount: 0,
             createdBy: userId,
             internalRecordType: 'LOAN_PAYMENT',
@@ -284,7 +321,7 @@ export class CreatePaymentUseCase {
               associateAccountId: acc.id,
               movementType:
                 AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
-              amount: balanceInFavorValue,
+              amount: +(balanceInFavorValue * paymentRate).toFixed(2),
               currencyCode: 'VES' as CurrencyCodeEnum,
               transactionDate: paymentDate ? new Date(paymentDate) : undefined,
               description:

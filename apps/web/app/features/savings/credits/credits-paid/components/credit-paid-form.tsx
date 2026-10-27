@@ -30,8 +30,9 @@ import {
 } from '@repo/shadcn/select';
 import { Textarea } from '@repo/shadcn/textarea';
 import { CreditCard } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { apiClient } from '@/lib/api-client';
 import { CREDIT_PAYMENT_TYPES, PAYMENT_METHOD } from '../schemas/credits-paid-options';
 import {
   creditPaymentFormSchema,
@@ -54,6 +55,30 @@ export function CreditPaidForm({
 }: CreditPaidFormProps) {
   const [isConfirmOpen, setConfirmOpen] = useState(false);
   const [dataToSubmit, setDataToSubmit] = useState<Record<string, unknown> | null>(null);
+  const [rate, setRate] = useState(0);
+
+  const creditCurrency = selectedAssociate?.creditCurrencyCode || 'VES';
+  const isForeign = creditCurrency !== 'VES';
+  const currencyLabel = isForeign ? creditCurrency : 'Bs';
+
+  useEffect(() => {
+    if (!isForeign) {
+      setRate(1);
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .get(`/core/exchange-rates/latest/${creditCurrency}`)
+      .then((res) => {
+        if (cancelled) return;
+        const value = Number(res.data?.rate);
+        if (Number.isFinite(value) && value > 0) setRate(value);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isForeign, creditCurrency]);
 
   const form = useForm<CreditPaymentFormValues>({
     resolver: zodResolver(creditPaymentFormSchema),
@@ -74,6 +99,8 @@ export function CreditPaidForm({
       ...data,
       amount: Number(data.amount),
       bankId: data.bankId || undefined,
+      currencyCode: creditCurrency,
+      exchangeRate: isForeign ? rate : 1,
     };
     setDataToSubmit(payload);
     setConfirmOpen(true);
@@ -117,7 +144,15 @@ export function CreditPaidForm({
             Datos del Pago
           </CardTitle>
           <CardDescription>
-            Saldo pendiente total: <span className="font-bold text-orange-600">{totalPending} Bs</span>
+            Saldo pendiente total:{' '}
+            <span className="font-bold text-orange-600">
+              {totalPending} {currencyLabel}
+            </span>
+            {isForeign && rate > 0 && (
+              <span className="ml-1 text-xs text-muted-foreground">
+                (≈ {(Number(totalPending) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs)
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -174,7 +209,7 @@ export function CreditPaidForm({
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monto</FormLabel>
+                      <FormLabel>Monto ({currencyLabel})</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -184,6 +219,11 @@ export function CreditPaidForm({
                           placeholder="0.00"
                         />
                       </FormControl>
+                      {isForeign && rate > 0 && Number(field.value) > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          ≈ {(Number(field.value) * rate).toLocaleString('es-VE', { minimumFractionDigits: 2 })} Bs
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

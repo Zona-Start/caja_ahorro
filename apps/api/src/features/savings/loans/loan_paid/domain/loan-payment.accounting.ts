@@ -62,7 +62,7 @@ export class LoanPaymentAccounting {
           entryDate: paymentDate,
           referenceValue,
           autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
-          currencyCode: (loanData.currencyCode ?? 'VES') as CurrencyCodeEnum,
+          currencyCode: CurrencyCodeEnum.VES,
           originReferenceId: String(loanData.id),
           originType: 'LOAN_PAYMENT',
           items: [
@@ -127,7 +127,7 @@ export class LoanPaymentAccounting {
           entryDate: new Date(),
           referenceValue,
           autoPostKey: 'AUTO_POST_ENTRY_LOANS_PAYMENT',
-          currencyCode: (loanData.currencyCode ?? 'VES') as CurrencyCodeEnum,
+          currencyCode: CurrencyCodeEnum.VES,
           originReferenceId: String(loanData.id),
           originType: 'LOAN_PAYMENT_REVERSAL',
           items: [

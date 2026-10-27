@@ -23,6 +23,7 @@ export const CreateSettlementAssociateSchema = z.object({
   associateId: z.string().uuid(),
   date: z.coerce.date(),
   notes: z.string().optional(),
+  settlementType: z.enum(['COMPLETE', 'SPECIAL']).default('COMPLETE'),
   beneficiary: BeneficiarySchema.optional(),
   tenantId: z.string().uuid().optional(),
 });

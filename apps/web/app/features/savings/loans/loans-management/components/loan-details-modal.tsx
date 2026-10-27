@@ -49,6 +49,13 @@ export function LoanDetailsModal({
   }
 
   const status = loan.status;
+  const loanCurrency =
+    loan.currencyCode &&
+    loan.currencyCode !== 'VES' &&
+    Number(loan.exchangeRate ?? 0) > 0
+      ? loan.currencyCode
+      : 'VES';
+  const currencyForFormat = loanCurrency !== 'VES' ? loanCurrency : 'VES';
   const statusText =
     ESTATUS_TYPES[status as keyof typeof ESTATUS_TYPES] || status;
   const statusVariant:
@@ -115,8 +122,24 @@ export function LoanDetailsModal({
                 />
                 <DetailItem
                   label="Monto Solicitado"
-                  value={formatCurrency(Number(loan.requestedAmount), 'VES')}
+                  value={formatCurrency(
+                    Number(loan.requestedAmount),
+                    currencyForFormat,
+                  )}
                 />
+                <DetailItem
+                  label="Moneda"
+                  value={loanCurrency === 'VES' ? 'Bolívares (VES)' : loanCurrency}
+                />
+                {loanCurrency !== 'VES' && loan.exchangeRate && (
+                  <DetailItem
+                    label="Equivalente en Bs"
+                    value={formatCurrency(
+                      Number(loan.requestedAmount) * Number(loan.exchangeRate),
+                      'VES',
+                    )}
+                  />
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Estatus</span>
                   <Badge variant={statusVariant as any}>{statusText}</Badge>
@@ -132,24 +155,39 @@ export function LoanDetailsModal({
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
               <DetailItem
                 label="Monto Aprobado"
-                value={formatCurrency(Number(loan.requestedAmount), 'VES')}
+                value={formatCurrency(
+                  Number(loan.requestedAmount),
+                  currencyForFormat,
+                )}
               />
               <DetailItem
                 label="Monto a Desembolsar"
-                value={formatCurrency(Number(loan.disbursedAmount), 'VES')}
+                value={formatCurrency(
+                  Number(loan.disbursedAmount),
+                  currencyForFormat,
+                )}
               />
               <DetailItem
                 label="Interés Total"
-                value={formatCurrency(Number(loan.totalInterest), 'VES')}
+                value={formatCurrency(
+                  Number(loan.totalInterest),
+                  currencyForFormat,
+                )}
               />
               <DetailItem
                 label="Gastos Administrativos"
-                value={formatCurrency(Number(loan.expensesAmount), 'VES')}
+                value={formatCurrency(
+                  Number(loan.expensesAmount),
+                  currencyForFormat,
+                )}
               />
               <Separator className="my-2 md:col-span-2" />
               <DetailItem
                 label="Total a Pagar"
-                value={formatCurrency(Number(loan.totalPayable), 'VES')}
+                value={formatCurrency(
+                  Number(loan.totalPayable),
+                  currencyForFormat,
+                )}
               />
             </CardContent>
           </Card>

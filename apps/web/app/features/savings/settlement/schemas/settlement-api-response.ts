@@ -17,6 +17,7 @@ export const settlementApiSchema = z.object({
   totalOutstandingLoansAtLiquidation: z.string(),
   totalOutstandingCreditsAtLiquidation: z.string(),
   netLiquidationAmount: z.string(),
+  settlementType: z.enum(['COMPLETE', 'SPECIAL']).optional(),
   associateCedula: z.string(),
   associateFullname: z.string(),
   status: z.string(),

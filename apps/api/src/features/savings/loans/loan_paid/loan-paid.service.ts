@@ -157,6 +157,9 @@ export class LoanPaidService {
         bankAccountNumber: bankAccounts.accountNumber,
         transactionReference: loanPayments.transactionReference,
         amount: loanPayments.amount,
+        currencyCode: loanPayments.currencyCode,
+        exchangeRate: loanPayments.exchangeRate,
+        amountBase: loanPayments.amountBase,
         balancePending: loanPayments.balancePending,
         associateCedula: associates.cedula,
         associateFullname: associates.fullname,
@@ -179,6 +182,10 @@ export class LoanPaidService {
     const trnasformData = data.map((item) => ({
       ...item,
       amount: Number(item.amount).toFixed(2),
+      amountBase: Number(item.amountBase ?? 0).toFixed(2),
+      exchangeRate: item.exchangeRate
+        ? Number(item.exchangeRate).toFixed(2)
+        : null,
       balancePending: Number(item.balancePending).toFixed(2),
     }));
 
@@ -237,6 +244,8 @@ export class LoanPaidService {
         loanModality: loans.loanModality,
         loanCustomReference: loans.customReference,
         loanRequestedAmount: loans.requestedAmount,
+        loanCurrencyCode: loans.currencyCode,
+        loanExchangeRate: loans.exchangeRate,
         status: loans.status,
       })
       .from(loans)
@@ -330,6 +339,10 @@ export class LoanPaidService {
         result.length === 0 ? null : result[0]?.loanCustomReference,
       loanRequestedAmount:
         result.length === 0 ? null : result[0]?.loanRequestedAmount,
+      loanCurrencyCode:
+        result.length === 0 ? null : result[0]?.loanCurrencyCode,
+      loanExchangeRate:
+        result.length === 0 ? null : result[0]?.loanExchangeRate,
       loanAmortization: transformLoandAdmortization || null,
       loanStatus: result.length === 0 ? null : result[0]?.status,
     };
@@ -354,6 +367,9 @@ export class LoanPaidService {
         bankAccountNumber: bankAccounts.accountNumber,
         transactionReference: loanPayments.transactionReference,
         amount: loanPayments.amount,
+        currencyCode: loanPayments.currencyCode,
+        exchangeRate: loanPayments.exchangeRate,
+        amountBase: loanPayments.amountBase,
         balancePending: loanPayments.balancePending,
         comment: loanPayments.comment,
         status: loanPayments.status,
@@ -393,6 +409,10 @@ export class LoanPaidService {
     return {
       ...payment,
       amount: Number(payment.amount).toFixed(2),
+      amountBase: Number(payment.amountBase ?? 0).toFixed(2),
+      exchangeRate: payment.exchangeRate
+        ? Number(payment.exchangeRate).toFixed(2)
+        : null,
       balancePending: Number(payment.balancePending).toFixed(2),
       details: details.map((d) => ({
         ...d,

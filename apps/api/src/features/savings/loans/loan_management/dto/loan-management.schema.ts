@@ -20,6 +20,8 @@ export const CreateLoanSchema = z.object({
   termUnits: z.number().int().positive().optional(),
   interestRate: z.number().positive().optional(),
   expensesPercentage: z.number().min(0).max(100).optional(),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.number().min(0).optional(),
   disbursementAccountId: z.string().uuid().optional().nullable(),
   tenantId: z.string().uuid().optional(),
   // Parámetros especiales (solo aplicables con permiso portfolio:loans:approve)
@@ -52,6 +54,8 @@ export const UpdateLoanSchema = z.object({
   status: z.nativeEnum(LoanStatusEnum).optional(),
   requestDate: z.string().optional(),
   notes: z.string().optional(),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.number().min(0).optional(),
   tenantId: z.string().uuid().optional(),
 });
 
@@ -73,7 +77,7 @@ export const DisburseLoanSchema = z.object({
   loanId: z.string().uuid().optional(),
   bankAccountId: z.string().uuid(),
   currencyCode: z.nativeEnum(CurrencyCodeEnum),
-  exchangeRate: z.coerce.number().positive().optional(),
+  exchangeRate: z.coerce.number().min(0).optional(),
   paymentMethod: z.string().min(1),
   disbursementDate: z.coerce.date(),
   bankReference: z.string().optional(),

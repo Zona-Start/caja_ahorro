@@ -44,10 +44,10 @@ export class LoanManagementController {
   ) {}
 
   /**
-   * Determina si el usuario puede aplicar parámetros especiales (desbloquear
-   * reglas de negocio). Requiere permiso portfolio:loans:approve o ser admin.
+   * Determina si el usuario puede aplicar parámetros especiales. Requiere el
+   * permiso portfolio:loans:special_params o ser admin.
    */
-  private canApproveLoans(req: Request): boolean {
+  private canUseSpecialParams(req: Request): boolean {
     if (req['userRole'] === 'superadmin' || req['user']?.isSystemAdmin) {
       return true;
     }
@@ -56,8 +56,10 @@ export class LoanManagementController {
       : [];
     return perms.some(
       (p) =>
-        p === 'portfolio:loans:approve' ||
-        p.startsWith('portfolio:loans:approve:'),
+        p === 'portfolio:loans:special_params' ||
+        p.startsWith('portfolio:loans:special_params:') ||
+        p === 'portfolio:loans:*' ||
+        p === '*:*',
     );
   }
 
@@ -67,7 +69,7 @@ export class LoanManagementController {
   async request(@Req() req: Request, @Body() dto: CreateLoanDto) {
     const { targetTenantId, userId } =
       this.tenantContextService.getTenantContext(req, dto);
-    const allowSpecialRules = this.canApproveLoans(req);
+    const allowSpecialRules = this.canUseSpecialParams(req);
     return this.loanManagementService.request(
       targetTenantId,
       userId,

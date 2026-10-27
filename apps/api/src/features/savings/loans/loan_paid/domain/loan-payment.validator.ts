@@ -45,6 +45,7 @@ export class LoanPaymentValidator {
         associateId: loans.associateId,
         status: loans.status,
         currencyCode: loans.currencyCode,
+        exchangeRate: loans.exchangeRate,
         associateFullname: associates.fullname,
         loanTypeName: loanTypes.name,
       })
@@ -390,11 +391,13 @@ export class LoanPaymentValidator {
       .select({
         id: loanPayments.id,
         amount: loanPayments.amount,
+        amountBase: loanPayments.amountBase,
+        exchangeRate: loanPayments.exchangeRate,
+        currencyCode: loanPayments.currencyCode,
         customReference: loanPayments.customReference,
         loanId: loanPayments.loanId,
         statusPayment: loanPayments.status,
         associateId: loans.associateId,
-        currencyCode: loans.currencyCode,
         associateFullname: associates.fullname,
         loanTypeName: loanTypes.name,
       })

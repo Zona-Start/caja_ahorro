@@ -107,6 +107,12 @@ export class CancelPaymentUseCase {
         where: eq(associateAccounts.associateId, payment.associateId ?? ''),
       });
 
+      const reversalRate = Number(payment.exchangeRate ?? 1) || 1;
+      const paymentAmountBase =
+        payment.currencyCode === 'VES'
+          ? Number(payment.amount)
+          : Number(payment.amountBase ?? 0);
+
       if (associateAccount) {
         await this.processor.createAssociateMovement(
           userId,
@@ -114,7 +120,7 @@ export class CancelPaymentUseCase {
             associateAccountId: associateAccount.id,
             movementType:
               AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
-            amount: Number(payment.amount),
+            amount: paymentAmountBase,
             currencyCode: 'VES' as CurrencyCodeEnum,
             description: `REVERSO PAGO PRESTAMO - REF: ${payment.customReference}`,
             referenceId: payment.id,
@@ -137,9 +143,9 @@ export class CancelPaymentUseCase {
           associateFullname: payment.associateFullname,
           loanTypeName: payment.loanTypeName,
         },
-        Number(payment.amount),
-        totalPrincipalReverted,
-        totalInterestReverted,
+        paymentAmountBase,
+        Number((totalPrincipalReverted * reversalRate).toFixed(2)),
+        Number((totalInterestReverted * reversalRate).toFixed(2)),
         tx,
         payment.customReference ?? '',
       );

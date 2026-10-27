@@ -67,6 +67,28 @@ export class ExchangeRateService {
   }
 
   /**
+   * Obtiene la última tasa publicada (sin filtrar por fecha). Es la misma que
+   * usan los formularios de creación/pago, que consultan el endpoint "latest".
+   */
+  async getLatestRate(
+    tenantId: string,
+    currencyCode: CurrencyCodeEnum,
+  ): Promise<number> {
+    const baseCurrency = await this.getBaseCurrency(tenantId);
+    if (currencyCode === baseCurrency) return 1;
+
+    const rate = await this.bcvService.getLatestRate(
+      currencyCode as 'USD' | 'EUR',
+    );
+    if (!rate) {
+      throw new Error(
+        `No se encontró tasa de cambio para ${currencyCode}.`,
+      );
+    }
+    return Number(rate.rate);
+  }
+
+  /**
    * Desglosa un importe en moneda base y extranjera según la tasa congelada.
    * Si currencyCode es la moneda base => amountForeign = 0.
    * Si currencyCode es extranjera => amountBase = amount * rate, amountForeign = amount.

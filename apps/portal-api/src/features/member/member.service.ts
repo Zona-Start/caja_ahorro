@@ -247,7 +247,7 @@ export class MemberService {
       eq(schema.loans.tenantId, tenantId),
     );
 
-    return this.paginate(
+    const result = await this.paginate(
       page,
       limit,
       () =>
@@ -262,6 +262,8 @@ export class MemberService {
             loanType: schema.loanTypes.name,
             interestRate: schema.loans.interestRate,
             loanAmount: schema.loans.requestedAmount,
+            currencyCode: schema.loans.currencyCode,
+            exchangeRate: schema.loans.exchangeRate,
             outstandingBalance: sql<number>`COALESCE(
               (SELECT lp.balance_pending FROM ${schema.loanPayments} lp
                 WHERE lp.loan_id = ${schema.loans.id} AND lp.payment_status = 'DONE'
@@ -289,6 +291,9 @@ export class MemberService {
           .limit(limit)
           .offset((page - 1) * limit),
     );
+
+    await this.attachCurrentRates(result.data);
+    return result;
   }
 
   // ── Créditos ────────────────────────────────────────────────────────────
@@ -303,7 +308,7 @@ export class MemberService {
       eq(schema.credits.tenantId, tenantId),
     );
 
-    return this.paginate(
+    const result = await this.paginate(
       page,
       limit,
       () =>
@@ -318,6 +323,8 @@ export class MemberService {
             creditType: schema.creditsTypes.name,
             interestRate: schema.credits.interestRate,
             creditAmount: schema.credits.requestedAmount,
+            currencyCode: schema.credits.currencyCode,
+            exchangeRate: schema.credits.exchangeRate,
             outstandingBalance: sql<number>`COALESCE(
               (SELECT cp.balance_pending FROM ${schema.creditPayments} cp
                 WHERE cp.credit_id = ${schema.credits.id} AND cp.payment_status = 'DONE'
@@ -345,6 +352,9 @@ export class MemberService {
           .limit(limit)
           .offset((page - 1) * limit),
     );
+
+    await this.attachCurrentRates(result.data);
+    return result;
   }
 
   // ── Historial ───────────────────────────────────────────────────────────
@@ -555,12 +565,24 @@ export class MemberService {
         ? Number(lastPayment.balancePending)
         : computePendingBalance(schedule);
 
+    const isForeignLoan =
+      !!loan.currencyCode &&
+      loan.currencyCode !== 'VES' &&
+      Number(loan.exchangeRate ?? 0) > 0;
+    const currentExchangeRate = isForeignLoan
+      ? await this.getLatestRate(
+          loan.currencyCode,
+          Number(loan.exchangeRate ?? 0),
+        )
+      : 1;
+
     return {
       loan: {
         ...loan,
         associateName: associate?.fullname ?? null,
         associateCedula: associate?.cedula ?? null,
         loanTypeName: loanType?.name ?? null,
+        currentExchangeRate,
       },
       amortizationSchedule: schedule,
       summary: {
@@ -650,6 +672,17 @@ export class MemberService {
         ? Number(lastPayment.balancePending)
         : computePendingBalance(schedule);
 
+    const isForeignCredit =
+      !!credit.currencyCode &&
+      credit.currencyCode !== 'VES' &&
+      Number(credit.exchangeRate ?? 0) > 0;
+    const currentExchangeRate = isForeignCredit
+      ? await this.getLatestRate(
+          credit.currencyCode,
+          Number(credit.exchangeRate ?? 0),
+        )
+      : 1;
+
     const items = await this.db
       .select({
         id: schema.creditItemSales.id,
@@ -677,6 +710,7 @@ export class MemberService {
         associateName: associate?.fullname ?? null,
         associateCedula: associate?.cedula ?? null,
         creditTypeName: creditType?.name ?? null,
+        currentExchangeRate,
       },
       amortizationSchedule: schedule,
       items,
@@ -758,6 +792,51 @@ export class MemberService {
   }
 
   // ── Helper de paginación ────────────────────────────────────────────────
+  private async getLatestRate(
+    currencyCode: string | null | undefined,
+    fallback = 1,
+  ): Promise<number> {
+    if (!currencyCode || currencyCode === 'VES') return 1;
+    try {
+      const [row] = await this.db
+        .select({ rate: schema.exchangeRates.rate })
+        .from(schema.exchangeRates)
+        .innerJoin(
+          schema.currencies,
+          eq(schema.currencies.id, schema.exchangeRates.currencyId),
+        )
+        .where(eq(schema.currencies.code, currencyCode))
+        .orderBy(
+          desc(schema.exchangeRates.rateDate),
+          desc(schema.exchangeRates.fetchedAt),
+        )
+        .limit(1);
+      const rate = Number(row?.rate ?? 0);
+      return rate > 0 ? rate : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  private async attachCurrentRates(
+    rows: Record<string, unknown>[],
+  ): Promise<void> {
+    const rates = new Map<string, number>();
+    for (const row of rows) {
+      const currency = String(row.currencyCode ?? 'VES');
+      const stored = Number(row.exchangeRate ?? 0);
+      const isForeign = currency !== 'VES' && stored > 0;
+      if (!isForeign) {
+        row.currentExchangeRate = 1;
+        continue;
+      }
+      if (!rates.has(currency)) {
+        rates.set(currency, await this.getLatestRate(currency, stored));
+      }
+      row.currentExchangeRate = rates.get(currency) ?? stored;
+    }
+  }
+
   private async paginate<T>(
     page: number,
     limit: number,

@@ -64,3 +64,23 @@ export function useApprovedLiquidations() {
     staleTime: 30_000,
   });
 }
+
+export function useApprovedSpecialLiquidations() {
+  return useInfiniteQuery({
+    queryKey: paymentBatchKeys.approved.liquidations({ settlementType: 'SPECIAL' }),
+    queryFn: ({ pageParam = 1 }) =>
+      paymentBatchService.getApprovedLiquidations(
+        pageParam as number,
+        50,
+        'SPECIAL',
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.meta) return undefined;
+      return lastPage.meta.currentPage < lastPage.meta.totalPages
+        ? lastPage.meta.currentPage + 1
+        : undefined;
+    },
+    staleTime: 30_000,
+  });
+}

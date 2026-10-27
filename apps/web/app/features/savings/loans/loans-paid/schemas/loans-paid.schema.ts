@@ -12,6 +12,8 @@ export const loanPaymentSchema = z.object({
   amount: z.coerce.number().positive({
     message: 'El monto debe ser mayor a 0',
   }),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.coerce.number().min(0).optional(),
   bankId: z.string().uuid().optional().nullable(),
   paymentMethod: paymentMethodEnum.default('CASH'),
   transactionReference: z.string().optional(),

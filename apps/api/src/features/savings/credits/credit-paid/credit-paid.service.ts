@@ -15,6 +15,7 @@ import { bankAccounts } from '@/database/schema/tables/treasury';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import {
   AssociateMovementTypeEnum,
   BankTransactionCategory,
@@ -57,6 +58,7 @@ export class CreditPaidService implements OnModuleInit {
     private readonly generateCodeService: GenerateCodeService,
     private readonly auditHelper: AuditHelper,
     private readonly accountingEntriesService: AccountingEntriesService,
+    private readonly exchangeRateService: ExchangeRateService,
     private moduleRef: ModuleRef,
   ) {}
 
@@ -380,6 +382,7 @@ export class CreditPaidService implements OnModuleInit {
       paymentType,
       comment,
       transactionReference,
+      exchangeRate: dtoExchangeRate,
     } = dto;
 
     const db = tx || this.db;
@@ -394,6 +397,24 @@ export class CreditPaidService implements OnModuleInit {
       if (!lockedCredit) {
         throw new NotFoundException('Credit not found');
       }
+
+      // El monto del pago está en la moneda del crédito. Se calcula su
+      // equivalente en Bs a la tasa del día de pago (editable).
+      const rateCurrency = (lockedCredit.currencyCode ??
+        'VES') as CurrencyCodeEnum;
+      let paymentRate =
+        rateCurrency === 'VES' ? 1 : Number(dtoExchangeRate ?? 0);
+      if (
+        rateCurrency !== 'VES' &&
+        (!Number.isFinite(paymentRate) || paymentRate <= 0)
+      ) {
+        paymentRate = await this.exchangeRateService.getRate(
+          tenantId,
+          paymentDate,
+          rateCurrency as CurrencyCodeEnum,
+        );
+      }
+      const paymentAmountBase = +(amount * paymentRate).toFixed(4);
 
       const pendingBalanceBase = await this._getPendingBalanceBase(
         creditId,
@@ -448,6 +469,10 @@ export class CreditPaidService implements OnModuleInit {
           paymentDate,
           paymentType,
           amount: String(amount),
+          currencyCode: lockedCredit.currencyCode ?? 'VES',
+          exchangeRate: String(paymentRate),
+          amountBase: String(paymentAmountBase),
+          amountForeign: String(amount),
           balancePending: String(newBalancePending.toFixed(6)),
           bankId: bankId ?? null,
           paymentMethod,
@@ -541,6 +566,8 @@ export class CreditPaidService implements OnModuleInit {
         balanceInFavorValue: balanceInFavorValue,
         appliedAmountExact,
         totalInterestPaid,
+        paymentRate,
+        paymentAmountBase,
       };
     });
 
@@ -584,12 +611,17 @@ export class CreditPaidService implements OnModuleInit {
       const effectivePrincipal = Number(
         (roundedPayment - effectiveInterest).toFixed(2),
       );
+      const paymentRate = result.paymentRate;
+      const effectivePrincipalBs = +(effectivePrincipal * paymentRate).toFixed(
+        2,
+      );
+      const effectiveInterestBs = +(effectiveInterest * paymentRate).toFixed(2);
 
       const payloadMovementCapital = {
         associateAccountId: resutAccount[0].id,
         movementType:
           'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
-        amount: effectivePrincipal,
+        amount: effectivePrincipalBs,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: paymentDate ? paymentDate : undefined,
         description: `Pago Cuota Capital Crédito Nº ${resutAccount[0].referenceCredits}`,
@@ -603,7 +635,7 @@ export class CreditPaidService implements OnModuleInit {
         associateAccountId: resutAccount[0].id,
         movementType:
           'COMMERCIAL_CREDIT_PAYMENT_DEBIT' as AssociateMovementTypeEnum,
-        amount: effectiveInterest,
+        amount: effectiveInterestBs,
         currencyCode: 'VES' as CurrencyCodeEnum,
         transactionDate: paymentDate ? paymentDate : undefined,
         description: `Pago Cuota Interés Crédito Nº ${resutAccount[0].referenceCredits}`,
@@ -639,7 +671,7 @@ export class CreditPaidService implements OnModuleInit {
             description: `Pago de Cuota Crédito Nº ${resutAccount[0].referenceCredits}`,
             bankReference: transactionReference,
             category: 'CREDIT_PAYMENT' as BankTransactionCategory,
-            creditAmount: amount,
+            creditAmount: result.paymentAmountBase,
             debitAmount: 0,
             createdById: userId,
           },
@@ -665,7 +697,7 @@ export class CreditPaidService implements OnModuleInit {
             associateAccountId: resutAccount[0].id,
             movementType:
               'CREDIT_PAYMENT_REVERSAL_CREDIT' as AssociateMovementTypeEnum,
-            amount: result.balanceInFavorValue,
+            amount: +(result.balanceInFavorValue * paymentRate).toFixed(2),
             currencyCode: 'VES' as CurrencyCodeEnum,
             transactionDate: paymentDate ? paymentDate : undefined,
             description:
@@ -693,9 +725,9 @@ export class CreditPaidService implements OnModuleInit {
             : format(new Date(), 'dd/MM/yyyy');
           const fullname = resutAccount[0]?.associateFullname ?? 'ASOCIADO';
 
-          const roundedTotal = Number(amount.toFixed(2));
+          const roundedTotal = Number(result.paymentAmountBase.toFixed(2));
           const accountingPrincipal = Number(
-            (roundedTotal - effectiveInterest).toFixed(2),
+            (roundedTotal - effectiveInterestBs).toFixed(2),
           );
 
           const accountingPayload = {
@@ -706,9 +738,7 @@ export class CreditPaidService implements OnModuleInit {
             description: `Pago de Crédito - ${fullname}`,
             entryDate: paymentDate ? new Date(paymentDate) : new Date(),
             referenceValue: resutAccount[0]?.creditType ?? 'Pago Creditos',
-            currencyCode:
-              (resutAccount[0]?.currencyCode as CurrencyCodeEnum) ??
-              CurrencyCodeEnum.VES,
+            currencyCode: CurrencyCodeEnum.VES,
             originReferenceId: String(result.insertedPaymentId),
             originType: 'CREDIT_PAYMENT',
             items: [
@@ -716,7 +746,7 @@ export class CreditPaidService implements OnModuleInit {
                 associateId: resutAccount[0]?.associateId,
                 amounts: {
                   CREDIT_PAYMENT: accountingPrincipal,
-                  LOAN_INTEREST_INCOME: effectiveInterest,
+                  LOAN_INTEREST_INCOME: effectiveInterestBs,
                   BANK_ACCOUNT: roundedTotal,
                 },
                 descriptions: {
@@ -1433,6 +1463,9 @@ export class CreditPaidService implements OnModuleInit {
         bankAccountNumber: bankAccounts.accountNumber,
         transactionReference: creditPayments.transactionReference,
         amount: creditPayments.amount,
+        currencyCode: creditPayments.currencyCode,
+        exchangeRate: creditPayments.exchangeRate,
+        amountBase: creditPayments.amountBase,
         balancePending: creditPayments.balancePending,
         comment: creditPayments.comment,
         status: creditPayments.status,
@@ -1461,6 +1494,10 @@ export class CreditPaidService implements OnModuleInit {
       data: data.map((item) => ({
         ...item,
         amount: Number(item.amount).toFixed(2),
+        amountBase: Number(item.amountBase ?? 0).toFixed(2),
+        exchangeRate: item.exchangeRate
+          ? Number(item.exchangeRate).toFixed(2)
+          : null,
       })),
       meta,
     };
@@ -1521,6 +1558,8 @@ export class CreditPaidService implements OnModuleInit {
         creditModality: credits.creditModality,
         creditCustomReference: credits.customReference,
         creditRequestedAmount: credits.requestedAmount,
+        creditCurrencyCode: credits.currencyCode,
+        creditExchangeRate: credits.exchangeRate,
       })
       .from(credits)
       .where(and(...creditConditions))
@@ -1619,6 +1658,10 @@ export class CreditPaidService implements OnModuleInit {
         result.length === 0 ? null : result[0]?.creditCustomReference,
       creditRequestedAmount:
         result.length === 0 ? null : result[0]?.creditRequestedAmount,
+      creditCurrencyCode:
+        result.length === 0 ? null : result[0]?.creditCurrencyCode,
+      creditExchangeRate:
+        result.length === 0 ? null : result[0]?.creditExchangeRate,
       creditAmortization: transformCreditAmortization || null,
     };
   }
@@ -1652,6 +1695,9 @@ export class CreditPaidService implements OnModuleInit {
         bankAccountNumber: bankAccounts.accountNumber,
         transactionReference: creditPayments.transactionReference,
         amount: creditPayments.amount,
+        currencyCode: creditPayments.currencyCode,
+        exchangeRate: creditPayments.exchangeRate,
+        amountBase: creditPayments.amountBase,
         balancePending: creditPayments.balancePending,
         comment: creditPayments.comment,
         status: creditPayments.status,
@@ -1706,6 +1752,8 @@ export class CreditPaidService implements OnModuleInit {
         status: creditPayments.status,
         creditId: creditPayments.creditId,
         amount: creditPayments.amount,
+        currencyCode: creditPayments.currencyCode,
+        amountBase: creditPayments.amountBase,
         customReference: creditPayments.customReference,
       })
       .from(creditPayments)
@@ -1837,7 +1885,6 @@ export class CreditPaidService implements OnModuleInit {
           creditType: creditsTypes.name,
           associateId: credits.associateId,
           associateFullname: associates.fullname,
-          currencyCode: credits.currencyCode,
         })
         .from(credits)
         .leftJoin(creditsTypes, eq(creditsTypes.id, credits.creditTypeId))
@@ -1845,7 +1892,12 @@ export class CreditPaidService implements OnModuleInit {
         .where(eq(credits.id, payment.creditId));
 
       const dateStr = format(new Date(), 'dd/MM/yyyy');
-      const reversedAmount = Number(payment.amount);
+      // La contabilidad se lleva en Bs: los pagos en divisa usan su
+      // equivalente congelado al momento del pago.
+      const reversedAmount =
+        payment.currencyCode === 'VES'
+          ? Number(payment.amount)
+          : Number(payment.amountBase);
 
       await this.accountingEntriesService.createAutomaticEntry(
         tenantId,
@@ -1860,9 +1912,7 @@ export class CreditPaidService implements OnModuleInit {
           } (Ref: ${payment.customReference ?? paymentId})`,
           entryDate: new Date(),
           referenceValue: creditInfo?.creditType ?? 'CREDITOS',
-          currencyCode:
-            (creditInfo?.currencyCode as CurrencyCodeEnum) ??
-            CurrencyCodeEnum.VES,
+          currencyCode: CurrencyCodeEnum.VES,
           originReferenceId: String(paymentId),
           originType: 'CREDIT_PAYMENT_REVERSAL',
           items: [

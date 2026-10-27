@@ -58,6 +58,7 @@ import {
   useProducts,
 } from '../hooks/use-credits-management-query';
 import { useCreateCreditManagementMutation } from '../hooks/use-credits-management-mutation';
+import { useAuthStore } from '@/stores/auth.store';
 import { type SearchAssociateResult } from '../schemas/credits-management-api-response';
 import { PAYMENT_TYPE_LABELS } from '../schemas/credits-management-options';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -65,6 +66,7 @@ import { ProductsService } from '@/features/inventory/products/services/products
 import { exchangeRatesService } from '@/features/core/exchange-rates/services/exchange-rates-service';
 import { useCategoriesByTypeQuery } from '@/features/core/categories/hooks/use-categories-queries';
 import { useWithdrawalTypesQuery } from '@/features/savings/withdrawals/withdrawal/hooks/use-withdrawal-query';
+import { apiClient } from '@/lib/api-client';
 import { CATEGORY_TYPES } from '@/features/core/categories/schemas/categories.schema';
 import { calculateFrenchAmortization } from '../utils/credit-amortization-utils';
 import { AlertModal } from '@/components/shared/alert-modal';
@@ -86,6 +88,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const [casaComercial, setCasaComercial] = useState(false);
   const [ccType, setCcType] = useState<'inventory' | 'supplier' | ''>('');
   const [useSpecial, setUseSpecial] = useState(false);
+  const canUseSpecialParams = useAuthStore((s) =>
+    s.hasPermission('portfolio:credits', 'special_params'),
+  );
   const [items, setItems] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [productQty, setProductQty] = useState(1);
@@ -140,6 +145,12 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const watchTermType = useWatch({ control, name: 'termType' });
   const watchExpensesPct = useWatch({ control, name: 'expensesPercentage' }) || 0;
   const watchHaberesPayment = useWatch({ control, name: 'haberesPayment' }) || 0;
+  const watchCurrency = useWatch({ control, name: 'currencyCode' }) || 'VES';
+  const watchExchangeRate =
+    useWatch({ control, name: 'exchangeRate' }) || 0;
+  const creditSymbol = watchCurrency !== 'VES' ? watchCurrency : 'Bs';
+  const creditFx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
+  const haberesInCreditCurrency = watchHaberesPayment / creditFx;
   const watchDirectPayment = useWatch({ control, name: 'directPayment' }) || 0;
   const watchOverdraft = useWatch({ control, name: 'allowOverdraft' });
   const watchAllowExceedCapacity = useWatch({
@@ -155,6 +166,24 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     name: 'withdrawalTypeId',
   });
   const watchDirectPaymentMethod = useWatch({ control, name: 'directPaymentMethod' });
+
+  useEffect(() => {
+    if (!watchCurrency || watchCurrency === 'VES') {
+      setValue('exchangeRate', 1);
+      return;
+    }
+    // Mientras se consulta la tasa del día, el backend la resuelve si llega 0.
+    setValue('exchangeRate', 0);
+    apiClient
+      .get(`/core/exchange-rates/latest/${watchCurrency}`)
+      .then((res) => {
+        const rate = Number(res.data?.rate);
+        if (Number.isFinite(rate) && rate > 0) {
+          setValue('exchangeRate', rate);
+        }
+      })
+      .catch(() => {});
+  }, [watchCurrency, setValue]);
   const watchDirectPaymentBank = useWatch({ control, name: 'directPaymentBankAccountId' });
 
   const selectedType = useMemo(
@@ -172,9 +201,17 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
 
   useEffect(() => {
     if (casaComercial && totalItemAmount > 0) {
-      setValue('requestedAmount', totalItemAmount);
+      // Los items se valoran en Bs; el crédito se expresa en su moneda.
+      const fx = watchCurrency !== 'VES' ? watchExchangeRate || 1 : 1;
+      setValue('requestedAmount', +(totalItemAmount / fx).toFixed(2));
     }
-  }, [totalItemAmount, casaComercial, setValue]);
+  }, [
+    totalItemAmount,
+    casaComercial,
+    watchCurrency,
+    watchExchangeRate,
+    setValue,
+  ]);
 
   const resetAll = useCallback(() => {
     setSearchQuery('');
@@ -263,7 +300,10 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     [watchAmount, watchExpensesPct],
   );
 
-  const amortizableAmount = Math.max(0, watchAmount - watchHaberesPayment - watchDirectPayment);
+  const amortizableAmount = Math.max(
+    0,
+    watchAmount - watchHaberesPayment / creditFx - watchDirectPayment,
+  );
 
   const endDate = useMemo(() => {
     if (!watchStartDate || watchTermUnits <= 0) return '';
@@ -312,10 +352,10 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     }
     if (useSpecial && watchOverdraft) {
       r.messages.push('Sobregiro activado - regla del 80% excluida');
-    } else if (watchAmount > associateData.available80) {
+    } else if (watchAmount * creditFx > associateData.available80) {
       r.canSave = false;
       r.messages.push(
-        `El monto (${formatCurrency(watchAmount)}) supera el 80% disponible (${formatCurrency(associateData.available80)})`,
+        `El monto (${formatCurrency(watchAmount * creditFx)} Bs) supera el 80% disponible (${formatCurrency(associateData.available80)} Bs)`,
       );
     } else if (watchAmount > 0) {
       r.messages.push(
@@ -348,12 +388,12 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     if (
       amortizableAmount > 0 &&
       monthlyPmt > 0 &&
-      monthlyPmt > associateData.paymentCapacity &&
+      monthlyPmt * creditFx > associateData.paymentCapacity &&
       !watchAllowExceedCapacity
     ) {
       r.canSave = false;
       r.messages.push(
-        `La cuota (${formatCurrency(monthlyPmt)}) supera capacidad de pago del 30% (${formatCurrency(associateData.paymentCapacity)})`,
+        `La cuota (${formatCurrency(monthlyPmt * creditFx)} Bs) supera capacidad de pago del 30% (${formatCurrency(associateData.paymentCapacity)} Bs)`,
       );
     } else if (watchAllowExceedCapacity && monthlyPmt > 0) {
       r.messages.push(
@@ -384,7 +424,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     if (
       selectedType?.minCreditAmount &&
       parseFloat(selectedType.minCreditAmount) > 0 &&
-      watchAmount < parseFloat(selectedType.minCreditAmount)
+      watchAmount * creditFx < parseFloat(selectedType.minCreditAmount)
     ) {
       r.canSave = false;
       r.messages.push(
@@ -394,7 +434,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
     if (
       selectedType?.maxCreditAmount &&
       parseFloat(selectedType.maxCreditAmount) > 0 &&
-      watchAmount > parseFloat(selectedType.maxCreditAmount)
+      watchAmount * creditFx > parseFloat(selectedType.maxCreditAmount)
     ) {
       r.canSave = false;
       r.messages.push(
@@ -405,6 +445,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   }, [
     associateData,
     watchAmount,
+    creditFx,
     amortizableAmount,
     selectedType,
     amortData,
@@ -551,6 +592,10 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
   const handleFormSubmit = useCallback(
     (data: CreditManagement) => {
       const rate = Number(data.interestRate);
+      const creditFx =
+        data.currencyCode && data.currencyCode !== 'VES'
+          ? Number(data.exchangeRate) || 1
+          : 1;
       const formatted: Record<string, unknown> = {
         ...data,
         associateId: data.associateId || associateData?.associate?.id,
@@ -569,7 +614,8 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
             : undefined,
         creditItems: casaComercial
           ? items.map((it) => ({
-            agreedSellingPrice: it.totalPrice,
+            // La venta se registra en la moneda del crédito.
+            agreedSellingPrice: +(it.totalPrice / creditFx).toFixed(2),
             itemId: it.productId || undefined,
             itemType: it.type === 'product'
               ? ('PRODUCT' as const)
@@ -816,9 +862,46 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Moneda del Crédito *</Label>
+                      <Select
+                        value={watchCurrency}
+                        onValueChange={(v) => setValue('currencyCode', v as any)}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="VES">Bolívares (VES)</SelectItem>
+                          <SelectItem value="USD">Dólares (USD)</SelectItem>
+                          <SelectItem value="EUR">Euros (EUR)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {watchCurrency !== 'VES' && (
+                      <div>
+                        <Label>Tasa de Cambio ({watchCurrency}) *</Label>
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          min="0"
+                          className="mt-1"
+                          {...register('exchangeRate', { valueAsNumber: true })}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Monto en Bs:{' '}
+                          {formatCurrency(
+                            (watchAmount || 0) * (watchExchangeRate || 0),
+                          )}{' '}
+                          Bs
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     {!casaComercial && (
                       <div className="col-span-2">
-                        <Label>Monto del Crédito *</Label>
+                        <Label>Monto del Crédito ({watchCurrency}) *</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -1233,7 +1316,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
               )}
 
               {/* Parámetros Especiales */}
-              {selectedType && (
+              {selectedType && canUseSpecialParams && (
                 <div className="rounded-lg border p-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -1318,7 +1401,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                         </div>
                       )}
                       <div>
-                        <Label>Monto a pagar de haberes (genera retiro)</Label>
+                        <Label>Monto a pagar de haberes (Bs) (genera retiro)</Label>
                         <Input
                           type="number"
                           min="0"
@@ -1355,7 +1438,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                       )}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label>Monto de pago directo</Label>
+                          <Label>Monto de pago directo ({creditSymbol})</Label>
                           <Input
                             type="number"
                             min="0"
@@ -1456,40 +1539,40 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Capital:</span>
                       <span className="font-mono font-medium">
-                        {formatCurrency(watchAmount)} Bs
+                        {formatCurrency(watchAmount)} {creditSymbol}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Cuota por Plazo:</span>
                       <span className="font-mono font-bold text-[#305AD9]">
                         {formatCurrency(amortData?.monthlyPayment ?? 0)}{' '}
-                        Bs
+                        {creditSymbol}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Interés Total:</span>
                       <span className="font-mono">
-                        {formatCurrency(totalInterest)} Bs
+                        {formatCurrency(totalInterest)} {creditSymbol}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Gasto Administrativo:</span>
                       <span className="font-mono">
-                        {formatCurrency(expensesAmount)} Bs
+                        {formatCurrency(expensesAmount)} {creditSymbol}
                       </span>
                     </div>
                     <Separator />
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total a Pagar (Capital + Interés + Gasto):</span>
                       <span className="font-mono font-bold text-lg">
-                        {formatCurrency(watchAmount + totalInterest + expensesAmount)} Bs
+                        {formatCurrency(watchAmount + totalInterest + expensesAmount)} {creditSymbol}
                       </span>
                     </div>
                     {useSpecial && watchHaberesPayment > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Pago de haberes:</span>
                         <span className="font-mono text-destructive">
-                          - {formatCurrency(watchHaberesPayment)} Bs
+                          - {formatCurrency(haberesInCreditCurrency)} {creditSymbol}
                         </span>
                       </div>
                     )}
@@ -1497,7 +1580,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Pago directo:</span>
                         <span className="font-mono text-destructive">
-                          - {formatCurrency(watchDirectPayment)} Bs
+                          - {formatCurrency(watchDirectPayment)} {creditSymbol}
                         </span>
                       </div>
                     )}
@@ -1506,9 +1589,9 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                       <span className="text-muted-foreground">Monto a amortizar en cuotas:</span>
                       <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(
-                          Math.max(0, watchAmount + totalInterest + expensesAmount - watchHaberesPayment - watchDirectPayment),
+                          Math.max(0, watchAmount + totalInterest + expensesAmount - haberesInCreditCurrency - watchDirectPayment),
                         )}{' '}
-                        Bs
+                        {creditSymbol}
                       </span>
                     </div>
                   </div>
@@ -1517,7 +1600,7 @@ export function CreateCreditModal({ open, onClose }: CreateCreditModalProps) {
                     amortData.schedule.length > 0 && (
                       <div className="rounded-lg border bg-background p-3 mt-2">
                         <p className="text-xs font-semibold text-muted-foreground mb-2">
-                          TABLA DE AMORTIZACIÓN
+                          TABLA DE AMORTIZACIÓN ({creditSymbol})
                         </p>
                         <div className="max-h-40 overflow-y-auto">
                           <table className="w-full text-xs">

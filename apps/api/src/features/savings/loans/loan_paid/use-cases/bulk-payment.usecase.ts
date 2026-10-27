@@ -117,6 +117,7 @@ export class BulkPaymentUseCase {
               id: loans.id,
               customReference: loans.customReference,
               currencyCode: loans.currencyCode,
+              exchangeRate: loans.exchangeRate,
               loanTypeId: loans.loanTypeId,
             })
             .from(loans)
@@ -227,6 +228,13 @@ export class BulkPaymentUseCase {
               .where(eq(loanTypes.id, loan.loanTypeId));
             const loanTypeName = loanType?.name ?? 'Pago Prestamo';
 
+            // Los montos de la carga están en la moneda del préstamo; los
+            // movimientos y la contabilidad se registran en Bs.
+            const bulkRate =
+              loan.currencyCode === CurrencyCodeEnum.VES
+                ? 1
+                : Number(loan.exchangeRate ?? 0) || 1;
+
             const pendingBalanceBase =
               await this.validator.getPendingBalanceBase(loan.id, tx);
 
@@ -279,6 +287,10 @@ export class BulkPaymentUseCase {
                 paymentDate: finalPaymentDate,
                 paymentType: 'PAYING',
                 amount: item.amount,
+                currencyCode: loan.currencyCode ?? 'VES',
+                exchangeRate: bulkRate,
+                amountBase: +(item.amount * bulkRate).toFixed(4),
+                amountForeign: item.amount,
                 balancePending: newBalancePending,
                 bankId: undefined,
                 paymentMethod: 'BANK_TRANSFER',
@@ -357,9 +369,8 @@ export class BulkPaymentUseCase {
                   {
                     associateAccountId: acc.id,
                     movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
-                    amount: effectivePrincipal,
-                    currencyCode: (loan.currencyCode ??
-                      'VES') as CurrencyCodeEnum,
+                    amount: +(effectivePrincipal * bulkRate).toFixed(2),
+                    currencyCode: 'VES' as CurrencyCodeEnum,
                     transactionDate: finalPaymentDate,
                     description: `Pago Cuota Capital Préstamo Nº ${loan.customReference}`,
                     referenceId: insertedPayment.id,
@@ -375,9 +386,8 @@ export class BulkPaymentUseCase {
                   {
                     associateAccountId: acc.id,
                     movementType: AssociateMovementTypeEnum.LOAN_PAYMENT_DEBIT,
-                    amount: effectiveInterest,
-                    currencyCode: (loan.currencyCode ??
-                      'VES') as CurrencyCodeEnum,
+                    amount: +(effectiveInterest * bulkRate).toFixed(2),
+                    currencyCode: 'VES' as CurrencyCodeEnum,
                     transactionDate: finalPaymentDate,
                     description: `Pago Cuota Interés Préstamo Nº ${loan.customReference}`,
                     referenceId: insertedPayment.id,
@@ -394,9 +404,10 @@ export class BulkPaymentUseCase {
                     associateAccountId: acc.id,
                     movementType:
                       AssociateMovementTypeEnum.LOAN_PAYMENT_REVERSAL_CREDIT,
-                    amount: installmentResult.remainingAmount,
-                    currencyCode: (loan.currencyCode ??
-                      'VES') as CurrencyCodeEnum,
+                    amount: +(
+                      installmentResult.remainingAmount * bulkRate
+                    ).toFixed(2),
+                    currencyCode: 'VES' as CurrencyCodeEnum,
                     transactionDate: finalPaymentDate,
                     description:
                       'Ajuste a favor por cobro en exceso por pago de prestamo personal Nº' +
@@ -420,12 +431,14 @@ export class BulkPaymentUseCase {
               associateId: associate.id,
               amounts: hasExcess
                 ? {
-                    LOAN_PAYMENT: item.amount,
+                    LOAN_PAYMENT: +(item.amount * bulkRate).toFixed(2),
                     LOAN_INTEREST_INCOME: 0,
                   }
                 : {
-                    LOAN_PAYMENT: effectivePrincipal,
-                    LOAN_INTEREST_INCOME: effectiveInterest,
+                    LOAN_PAYMENT: +(effectivePrincipal * bulkRate).toFixed(2),
+                    LOAN_INTEREST_INCOME: +(effectiveInterest * bulkRate).toFixed(
+                      2,
+                    ),
                   },
               descriptions: {
                 LOAN_PAYMENT: `CUOTA PRESTAMO - Asociado ${associate.fullname}`,
@@ -433,7 +446,8 @@ export class BulkPaymentUseCase {
               },
             });
 
-            group.totalAmount += hasExcess ? item.amount : roundedPayment;
+            group.totalAmount +=
+              (hasExcess ? item.amount : roundedPayment) * bulkRate;
             group.count++;
 
             results.success.push({

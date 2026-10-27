@@ -15,6 +15,7 @@ import { associateHaberesBalance } from '@/database/schema/views';
 import { AccountingEntriesService } from '@/features/accounting/accounting-entries/accounting-entries.service';
 import { AuditHelper } from '@/features/audit/audit-event.service';
 import { BankMovementsService } from '@/features/bankings/bank-movements/bank-movements.service';
+import { ExchangeRateService } from '@/features/core/exchange-rate/exchange-rate.service';
 import { AssociateAccountsMovementsService } from '@/features/savings/parnerts/associate-accounts-movements/associate-accounts-movements.service';
 import {
   AssociateMovementTypeEnum,
@@ -63,6 +64,7 @@ export class LoanManagementService {
     private readonly bankMovementsService: BankMovementsService,
     private readonly auditHelper: AuditHelper,
     private readonly accountingEntriesService: AccountingEntriesService,
+    private readonly exchangeRateService: ExchangeRateService,
   ) {}
 
   // ─── SISTEMA FRANCÉS ────────────────────────────────────────────────────
@@ -103,6 +105,7 @@ export class LoanManagementService {
     createdById: string,
     termType: 'installments' | 'quotas',
     expensesAmount: number = 0,
+    exchangeRate = 1,
   ) {
     const mode = normalizeTermMode(termType);
     const r = periodRate(annualInterestRate, termType);
@@ -184,6 +187,10 @@ export class LoanManagementService {
         principalBalancePending: String(
           parseFloat(Math.max(0, remaining).toFixed(6)),
         ),
+        // Bimonetario: monto en la moneda del préstamo y su equivalente en Bs.
+        exchangeRate: String(exchangeRate),
+        amountForeign: String(parseFloat(total.toFixed(6))),
+        amountBase: String(parseFloat((total * exchangeRate).toFixed(4))),
         paymentStatus: PaymentStatusEnum.PENDING,
         createdById,
       });
@@ -391,6 +398,37 @@ export class LoanManagementService {
       throw new NotFoundException('Asociado no encontrado');
     }
 
+    // Moneda del préstamo y tasa del día (BCV, editable).
+    let currencyCode: CurrencyCodeEnum;
+    const requestedCurrency = dto.currencyCode as CurrencyCodeEnum | undefined;
+    if (requestedCurrency) {
+      currencyCode = requestedCurrency;
+    } else {
+      const setting = await this.db.query.moduleSettings.findFirst({
+        where: and(
+          eq(moduleSettings.key, 'MONEDA'),
+          eq(moduleSettings.tenantId, tenantId),
+        ),
+      });
+      currencyCode =
+        setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
+    }
+
+    let exchangeRate =
+      currencyCode === CurrencyCodeEnum.VES ? 1 : Number(dto.exchangeRate ?? 0);
+    if (
+      currencyCode !== CurrencyCodeEnum.VES &&
+      (!Number.isFinite(exchangeRate) || exchangeRate <= 0)
+    ) {
+      exchangeRate = await this.exchangeRateService.getRate(
+        tenantId,
+        startDate,
+        currencyCode,
+      );
+    }
+
+    const requestedAmountBase = requestedAmount * exchangeRate;
+
     if (
       assoc.isPayrollCredit &&
       !(allowSpecialRules && dto.bypassPayrollCredit)
@@ -403,19 +441,19 @@ export class LoanManagementService {
     if (
       loanType.minLoanAmount &&
       Number(loanType.minLoanAmount) > 0 &&
-      requestedAmount < Number(loanType.minLoanAmount)
+      requestedAmountBase < Number(loanType.minLoanAmount)
     ) {
       throw new BadRequestException(
-        `El monto mínimo para este tipo de préstamo es ${Number(loanType.minLoanAmount).toLocaleString('es')}`,
+        `El monto mínimo para este tipo de préstamo es ${Number(loanType.minLoanAmount).toLocaleString('es')} Bs`,
       );
     }
     if (
       loanType.maxLoanAmount &&
       Number(loanType.maxLoanAmount) > 0 &&
-      requestedAmount > Number(loanType.maxLoanAmount)
+      requestedAmountBase > Number(loanType.maxLoanAmount)
     ) {
       throw new BadRequestException(
-        `El monto máximo para este tipo de préstamo es ${Number(loanType.maxLoanAmount).toLocaleString('es')}`,
+        `El monto máximo para este tipo de préstamo es ${Number(loanType.maxLoanAmount).toLocaleString('es')} Bs`,
       );
     }
 
@@ -491,11 +529,11 @@ export class LoanManagementService {
     const available80 = balance * 0.8;
 
     if (
-      requestedAmount > available80 &&
+      requestedAmountBase > available80 &&
       !(allowSpecialRules && dto.bypassAvailableBalance)
     ) {
       throw new BadRequestException(
-        `El monto solicitado (${requestedAmount.toLocaleString('es')}) supera el 80% disponible (${available80.toLocaleString('es')})`,
+        `El monto solicitado (${requestedAmountBase.toLocaleString('es')} Bs) supera el 80% disponible (${available80.toLocaleString('es')} Bs)`,
       );
     }
 
@@ -520,12 +558,13 @@ export class LoanManagementService {
         finalTermType,
       );
       const paymentCapacity = Number(assoc.baseSalary ?? 0) * 0.3;
+      const monthlyPaymentBase = monthlyPayment * exchangeRate;
       if (
-        monthlyPayment > paymentCapacity &&
+        monthlyPaymentBase > paymentCapacity &&
         !(allowSpecialRules && dto.bypassPaymentCapacity)
       ) {
         throw new BadRequestException(
-          `La cuota mensual (${monthlyPayment.toLocaleString('es', { minimumFractionDigits: 2 })}) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })})`,
+          `La cuota mensual (${monthlyPaymentBase.toLocaleString('es', { minimumFractionDigits: 2 })} Bs) supera su capacidad de pago del 30% (${paymentCapacity.toLocaleString('es', { minimumFractionDigits: 2 })} Bs)`,
         );
       }
     }
@@ -546,16 +585,6 @@ export class LoanManagementService {
     if (dup.length) {
       throw new InternalServerErrorException('Solicitud duplicada');
     }
-
-    const setting = await this.db.query.moduleSettings.findFirst({
-      where: and(
-        eq(moduleSettings.key, 'MONEDA'),
-        eq(moduleSettings.tenantId, tenantId),
-      ),
-    });
-
-    const currencyCode: CurrencyCodeEnum =
-      setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
 
     const endDate = this.calculateEndDate(
       startDate,
@@ -582,6 +611,7 @@ export class LoanManagementService {
             userId,
             finalTermType,
             expensesAmount,
+            exchangeRate,
           )
         : [];
 
@@ -600,6 +630,9 @@ export class LoanManagementService {
           requestDate: (dto.requestDate ?? new Date()).toISOString(),
           endDate: endDate.toISOString(),
           currencyCode,
+          exchangeRate: String(exchangeRate),
+          amountForeign: String(capital.toFixed(6)),
+          amountBase: String((capital * exchangeRate).toFixed(4)),
           termType: finalTermType,
           termUnits: finalTermUnits,
           interestRate: String(finalRate),
@@ -679,6 +712,9 @@ export class LoanManagementService {
         expensesPercentage: savedExpensesPercentage,
       } = loan;
 
+      const loanExchangeRate =
+        Number(loan.exchangeRate ?? 0) > 0 ? Number(loan.exchangeRate) : 1;
+
       const active = await tx
         .select()
         .from(loans)
@@ -722,7 +758,7 @@ export class LoanManagementService {
 
       const avail = Number(assoc?.balance ?? 0) * 0.8;
       const reqAmt = Number(requestedAmount);
-      if (reqAmt > avail && !loan.bypassAvailableBalance)
+      if (reqAmt * loanExchangeRate > avail && !loan.bypassAvailableBalance)
         throw new BadRequestException(
           'Disponibilidad insuficiente (80% regla)',
         );
@@ -787,6 +823,9 @@ export class LoanManagementService {
           totalPayable: String(totalPayable.toFixed(6)),
           approvedAmount: String(reqAmt.toFixed(6)),
           disbursedAmount: String(reqAmt.toFixed(6)),
+          exchangeRate: String(loanExchangeRate),
+          amountForeign: String(capital.toFixed(6)),
+          amountBase: String((capital * loanExchangeRate).toFixed(4)),
           updatedById: userId,
         })
         .where(and(eq(loans.id, id), eq(loans.tenantId, tenantId)))
@@ -817,6 +856,7 @@ export class LoanManagementService {
           userId,
           finalTermType,
           expensesAmount,
+          loanExchangeRate,
         );
         if (schedule.length > 0) {
           await tx.insert(loanAmortizationSchedule).values(
@@ -835,22 +875,17 @@ export class LoanManagementService {
             ? AssociateMovementTypeEnum.SPECIAL_LOAN_DISBURSEMENT_CREDIT
             : AssociateMovementTypeEnum.LOAN_DISBURSEMENT_CREDIT;
 
-        const setting = await tx.query.moduleSettings.findFirst({
-          where: and(
-            eq(moduleSettings.key, 'MONEDA'),
-            eq(moduleSettings.tenantId, tenantId),
-          ),
-        });
-        const currencyCode: CurrencyCodeEnum =
-          setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
+        // Los haberes se llevan en Bs: se registra el equivalente del capital.
+        const capitalBase = +(capital * loanExchangeRate).toFixed(2);
+        const expensesBase = +(expensesAmount * loanExchangeRate).toFixed(2);
 
         await this.associateAccountsMovementsService.create(
           userId,
           {
             associateAccountId: assoc.associateAccountId,
             movementType,
-            amount: capital,
-            currencyCode,
+            amount: capitalBase,
+            currencyCode: CurrencyCodeEnum.VES,
             transactionDate: new Date(),
             description: `Préstamo Aprobado N°${customReference}`,
             referenceId: String(id),
@@ -859,14 +894,14 @@ export class LoanManagementService {
           tenantId,
         );
 
-        if (expensesAmount > 0) {
+        if (expensesBase > 0) {
           await this.associateAccountsMovementsService.create(
             userId,
             {
               associateAccountId: assoc.associateAccountId,
               movementType: AssociateMovementTypeEnum.LOAN_ADMIN_FEE_DEBIT,
-              amount: expensesAmount,
-              currencyCode,
+              amount: expensesBase,
+              currencyCode: CurrencyCodeEnum.VES,
               transactionDate: new Date(),
               description: `Gastos Administrativos Préstamo N°${customReference}`,
               referenceId: String(id),
@@ -945,8 +980,34 @@ export class LoanManagementService {
 
       const requestedAmount = Number(loan.requestedAmount ?? 0);
       const expensesAmount = Number(loan.expensesAmount ?? 0);
-      const loanPrincipalAmount = requestedAmount + expensesAmount;
-      const bankAccountAmount = requestedAmount;
+
+      // El préstamo está en su moneda; el desembolso y la contabilidad van en Bs.
+      // Solo se considera en divisa si tiene una tasa guardada (nuevos préstamos).
+      const hasStoredRate = Number(loan.exchangeRate ?? 0) > 0;
+      const loanCurrency = (hasStoredRate && loan.currencyCode
+        ? loan.currencyCode
+        : 'VES') as CurrencyCodeEnum;
+      let disbursementRate =
+        loanCurrency === CurrencyCodeEnum.VES
+          ? 1
+          : Number(dto.exchangeRate ?? loan.exchangeRate ?? 0);
+      if (
+        loanCurrency !== CurrencyCodeEnum.VES &&
+        (!Number.isFinite(disbursementRate) || disbursementRate <= 0)
+      ) {
+        disbursementRate = await this.exchangeRateService.getRate(
+          tenantId,
+          disbursementDate,
+          loanCurrency,
+        );
+      }
+
+      const requestedAmountBase = +(requestedAmount * disbursementRate).toFixed(
+        2,
+      );
+      const expensesAmountBase = +(expensesAmount * disbursementRate).toFixed(2);
+      const loanPrincipalAmount = +(requestedAmountBase + expensesAmountBase).toFixed(2);
+      const bankAccountAmount = requestedAmountBase;
 
       const [updatedLoan] = await trx
         .update(loans)
@@ -983,9 +1044,7 @@ export class LoanManagementService {
               bankReference: dto.bankReference ?? undefined,
               category: 'LOAN_DISBURSEMENT' as BankTransactionCategory,
               creditAmount: 0,
-              debitAmount: Number(
-                loan.disbursedAmount ?? loan.requestedAmount ?? 0,
-              ),
+              debitAmount: requestedAmountBase,
             },
             links: [
               {
@@ -1014,13 +1073,12 @@ export class LoanManagementService {
           associateFullname: associate?.fullname ?? '',
           associateCedula: associate?.cedula ?? '',
           loanTypeName: loanType?.name ?? 'PRÉSTAMO',
-          requestedAmount,
-          expensesAmount,
+          requestedAmount: requestedAmountBase,
+          expensesAmount: expensesAmountBase,
           loanPrincipalAmount,
           bankAccountAmount,
           entryDate: disbursementDate,
-          currencyCode:
-            (loan.currencyCode as CurrencyCodeEnum) ?? CurrencyCodeEnum.VES,
+          currencyCode: CurrencyCodeEnum.VES,
         },
       };
     };
@@ -1191,6 +1249,9 @@ export class LoanManagementService {
         notes: loans.notes,
         customReference: loans.customReference,
         currencyCode: loans.currencyCode,
+        exchangeRate: loans.exchangeRate,
+        amountBase: loans.amountBase,
+        amountForeign: loans.amountForeign,
         exchangeRateId: loans.exchangeRateId,
         termType: loans.termType,
         termUnits: loans.termUnits,
@@ -1284,6 +1345,9 @@ export class LoanManagementService {
         notes: loans.notes,
         customReference: loans.customReference,
         currencyCode: loans.currencyCode,
+        exchangeRate: loans.exchangeRate,
+        amountBase: loans.amountBase,
+        amountForeign: loans.amountForeign,
         exchangeRateId: loans.exchangeRateId,
         termType: loans.termType,
         termUnits: loans.termUnits,
@@ -1495,8 +1559,26 @@ export class LoanManagementService {
         eq(moduleSettings.tenantId, tenantId),
       ),
     });
-    const currencyCode: CurrencyCodeEnum =
+    const fallbackCurrency: CurrencyCodeEnum =
       setting?.value === '2' ? CurrencyCodeEnum.USD : CurrencyCodeEnum.VES;
+
+    const updateCurrency = (dto.currencyCode ??
+      existingLoan.currencyCode ??
+      fallbackCurrency) as CurrencyCodeEnum;
+    let updateExchangeRate =
+      updateCurrency === CurrencyCodeEnum.VES
+        ? 1
+        : Number(dto.exchangeRate ?? existingLoan.exchangeRate ?? 0);
+    if (
+      updateCurrency !== CurrencyCodeEnum.VES &&
+      (!Number.isFinite(updateExchangeRate) || updateExchangeRate <= 0)
+    ) {
+      updateExchangeRate = await this.exchangeRateService.getRate(
+        tenantId,
+        dto.startDate ? new Date(dto.startDate) : new Date(),
+        updateCurrency,
+      );
+    }
 
     const updatedLoan = await this.db.transaction(async (tx) => {
       const updateSet: Record<string, unknown> = {
@@ -1538,7 +1620,10 @@ export class LoanManagementService {
         status: dto?.status,
         approvedByUserId: userId,
         notes: dto.notes ?? null,
-        currencyCode,
+        currencyCode: updateCurrency,
+        exchangeRate: String(updateExchangeRate),
+        amountForeign: String(financedCapital.toFixed(6)),
+        amountBase: String((financedCapital * updateExchangeRate).toFixed(4)),
         updatedById: userId,
         termType: resolvedTermType,
         termUnits: numInstallments,
@@ -1574,6 +1659,7 @@ export class LoanManagementService {
           userId,
           resolvedTermType as 'installments' | 'quotas',
           expensesAmount,
+          updateExchangeRate,
         );
         if (schedule.length > 0) {
           await tx.insert(loanAmortizationSchedule).values(
@@ -2083,7 +2169,10 @@ export class LoanManagementService {
         associateName: associates.fullname,
         reference: loans.customReference,
         approvalDate: loans.approvalDate,
-        amount: loans.approvedAmount,
+        amount: loans.requestedAmount,
+        approvedAmount: loans.approvedAmount,
+        currencyCode: loans.currencyCode,
+        exchangeRate: loans.exchangeRate,
       })
       .from(loans)
       .where(
@@ -2096,7 +2185,20 @@ export class LoanManagementService {
       .leftJoin(loanTypes, eq(loans.loanTypeId, loanTypes.id));
 
     return {
-      data: data,
+      data: data.map((loan) => {
+        const amount = Number(loan.amount ?? loan.approvedAmount ?? 0);
+        const rate = Number(loan.exchangeRate ?? 0);
+        const isForeign =
+          !!loan.currencyCode &&
+          loan.currencyCode !== 'VES' &&
+          rate > 0;
+        // El lote bancario siempre se maneja en Bs: se usa la tasa de creación
+        // del préstamo para valorar el monto a desembolsar.
+        return {
+          ...loan,
+          amount: (isForeign ? amount * rate : amount).toFixed(2),
+        };
+      }),
     };
   }
 
@@ -2224,6 +2326,9 @@ export class LoanManagementService {
         notes: loans.notes,
         customReference: loans.customReference,
         currencyCode: loans.currencyCode,
+        exchangeRate: loans.exchangeRate,
+        amountBase: loans.amountBase,
+        amountForeign: loans.amountForeign,
         exchangeRateId: loans.exchangeRateId,
         balanceInFavor: loans.balanceInFavor,
         createdAt: loans.createdAt,

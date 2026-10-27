@@ -20,6 +20,8 @@ export const CreateCreditSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date().optional(),
   requestedAmount: z.number().positive(),
+  currencyCode: z.enum(['VES', 'USD', 'EUR']).optional(),
+  exchangeRate: z.number().min(0).optional(),
   overdraftAmount: z.number().optional(),
   previousCreditId: z.string().uuid().optional(),
   notes: z.string().optional(),

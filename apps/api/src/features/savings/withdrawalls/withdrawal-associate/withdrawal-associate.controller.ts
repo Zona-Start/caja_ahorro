@@ -54,7 +54,7 @@ export class WithdrawalAssociateController {
       !!dto.allowEarlyWithdrawal ||
       !!dto.allowExceedAvailableBalance;
 
-    if (usesSpecialParams && !this.canApprove(req, !!isSystemAdmin)) {
+    if (usesSpecialParams && !this.canUseSpecialParams(req, !!isSystemAdmin)) {
       throw new ForbiddenException(
         'No tiene permiso para crear retiros con parámetros especiales.',
       );
@@ -64,10 +64,10 @@ export class WithdrawalAssociateController {
   }
 
   /**
-   * Verifica si el usuario puede aprobar retiros (savings:withdrawals:approve).
-   * Se usa para autorizar el uso de parámetros especiales al crear un retiro.
+   * Verifica si el usuario puede usar parámetros especiales
+   * (savings:withdrawals:special_params).
    */
-  private canApprove(req: Request, isSystemAdmin: boolean): boolean {
+  private canUseSpecialParams(req: Request, isSystemAdmin: boolean): boolean {
     if (isSystemAdmin) return true;
     const perms: string[] = req['userPermissions'] ?? [];
     return perms.some((p) => {
@@ -77,7 +77,7 @@ export class WithdrawalAssociateController {
       if (resource === '*:*' || parts[0] === '*') return true;
       return (
         resource === 'savings:withdrawals' &&
-        (action === 'approve' || action === '*')
+        (action === 'special_params' || action === '*')
       );
     });
   }

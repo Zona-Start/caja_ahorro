@@ -53,6 +53,23 @@ export const tenantDomains = tenantSchema.table('tenant_domains', {
   isVerified: boolean('is_verified').notNull().default(false),
 });
 
+// --- core.currencies / exchange_rates ---------------------------------------
+export const currencies = coreSchema.table('currencies', {
+  id: uuid('id').primaryKey(),
+  code: text('code').notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  symbol: varchar('symbol', { length: 5 }),
+  isBase: boolean('is_base').default(false),
+});
+
+export const exchangeRates = coreSchema.table('exchange_rates', {
+  id: uuid('id').primaryKey(),
+  currencyId: uuid('currency_id').notNull(),
+  rate: numeric('rate', { precision: 14, scale: 6 }).notNull(),
+  rateDate: date('rate_date').notNull(),
+  fetchedAt: timestamp('fetched_at'),
+});
+
 // --- core.states / municipalities / parishes / localities --------------------
 export const states = coreSchema.table('states', {
   id: integer('id').primaryKey(),
